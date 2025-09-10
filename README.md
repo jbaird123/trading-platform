@@ -5,4 +5,4 @@ Phase 1.1: project skeleton + hello_run
 ```bash
 python -m trading_platform.core.run
 ```
-This creates `runs/{run_id}/meta.json` and writes a log line.
+This creates 'runs/{run_id}/config.json` and writes a log line.
