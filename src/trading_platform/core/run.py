@@ -17,7 +17,7 @@ def hello_run(config: RunConfig | None = None) -> Path:
     out.mkdir(parents=True, exist_ok=True)
 
     (out / "config.json").write_text(config.model_dump_json(indent=2))
-    get_logger().info(f"Created {out/'meta.json'}")
+    get_logger().info(f"Created {out/'config.json'}")
     return out
 
 

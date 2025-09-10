@@ -22,6 +22,11 @@ _Last updated: 2025-09-09_
 - **Architecture**
   - Modular separation between DH, SE, BT, RMM, EL, RV, AI.
   - Pluggable components (dependency injection / registry pattern).
+- **Inter-Module Communication & Boundaries**
+  - To facilitate a future split into multiple repositories, modules must communicate only through well-defined public APIs (e.g., functions and classes exposed in `__init__.py` files).
+  - Direct imports of internal sub-modules (e.g., `from trading_platform.data.internal_helpers import ...`) are strictly forbidden.
+  - **No circular dependencies** between top-level modules (e.g., `data`, `strategy`, `backtester`) will be permitted. This will be enforced via static analysis tools in the CI pipeline.
+  - A `trading_platform.core` module will house shared data structures (e.g., canonical models for `Bar`, `Trade`) and utilities that all other modules can depend on.
 - **Strategy Comparison & A/B Testing**
   - The platform must support running comparative analyses between two or more strategy variations.
   - This includes comparing a baseline strategy against a version with modified parameters, different risk models, or additional signal layers (e.g., with and without an AI-driven event filter).
