@@ -34,6 +34,3 @@ python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 packages = ["src/trading_platform"]
-
-[tool.setuptools.packages.find]
-where = ["src"]
