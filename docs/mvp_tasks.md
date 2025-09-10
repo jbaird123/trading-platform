@@ -2,7 +2,10 @@
 
 This document breaks down the `mvp_roadmap.md` into a granular, actionable checklist. Mark items as complete as you finish them.
 
-## Phase 1: Foundations (Environment & Skeleton)
+## Phase 1: Foundations
+
+- [ ] **Task 0: Codebase Cleanup**
+  - [ ] Delete the outdated `tests/test_sanity.py` file. Its functionality is replaced by `tests/test_core.py`.
 
 - [ ] **Task 1: Initialize Development Environment**
   - [ ] Run `poetry install` to create the virtual environment and install all dependencies listed in `pyproject.toml`.
