@@ -9,7 +9,6 @@ description = "Trading Platform MVP"
 authors = ["Your Name <you@example.com>"]
 readme = "README.md"
 packages = [{include = "trading_platform", from = "src"}]
-requires-python = ">=3.10"
 
 [tool.poetry.dependencies]
 python = ">=3.10"
