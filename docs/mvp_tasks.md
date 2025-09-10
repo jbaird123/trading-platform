@@ -15,9 +15,11 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Run `poetry install` to create the virtual environment and install all dependencies listed in `pyproject.toml`.
 
 - [ ] **Task 2: Set Up Pre-commit Hooks**
-  - [ ] Create the `.pre-commit-config.yaml` file in the project root.
-  - [ ] Run `poetry run pre-commit install` to activate the hooks for your local git repository.
-  - [ ] Make a test commit to verify the hooks (e.g., `ruff`, `mypy`) run automatically.
+  - [x] Add `pre-commit` to the development dependencies in `pyproject.toml`.
+  - [x] Run `poetry lock` to update the `poetry.lock` file with the new dependency.
+  - [x] Run `poetry install` to install the packages from the updated lock file.
+  - [x] Run `poetry run pre-commit install` to activate the hooks for your local git repository.
+  - [x] Make a test commit to verify the hooks (e.g., `ruff`, `mypy`) run automatically.
 
 - [ ] **Task 3: Create Initial CI/CD Workflow**
   - [ ] Create the `.github/workflows/ci.yml` file.
