@@ -5,6 +5,7 @@
 ### Project skeleton & run artifacts
 - **Deliverables**: minimal `src/`, `tests/`, `runs/` folders; run_id generator; config loader; logger.  
 - **DoD**: can run `hello_run` that writes to `runs/{run_id}/meta.json` and a log file.
+- **DoD**: can run `initialize_run` that writes to `runs/{run_id}/config.json` and a log file.
 
 ### Dev Environment & CI/CD
 - **Deliverables**: Poetry setup, pre-commit hooks (ruff, mypy), and a basic GitHub Actions workflow for linting and testing.
