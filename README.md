@@ -5,7 +5,15 @@ This repository contains the Minimum Viable Product (MVP) for a modular trading 
 
 This project uses [Poetry](https://python-poetry.org/) for dependency management.
 
-1.  **Install dependencies:**
+1.  **Install Poetry:**
+    If you do not have Poetry installed, you can install it by following the instructions on the [official website](https://python-poetry.org/docs/#installation). The recommended method is:
+    ```bash
+    curl -sSL https://install.python-poetry.org | python3 -
+    ```
+    After installation, you may need to restart your terminal or configure your shell's `PATH` for the `poetry` command to be available.
+
+2.  **Install Project Dependencies:**
+    Once Poetry is installed, navigate to the project root and run:
     ```bash
     poetry install
     ```
