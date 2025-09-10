@@ -7,12 +7,12 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 - [x] **Task 0: Codebase Cleanup**
   - [x] Delete the outdated `tests/test_sanity.py` file. Its functionality is replaced by `tests/test_core.py`.
 
-- [ ] **Task 0.5: Verify Project Skeleton**
-  - [ ] Run `poetry run python -m trading_platform.core.run` to confirm the `initialize_run` function creates a run directory and `config.json`.
-  - [ ] Run `poetry run pytest` to confirm the `test_core.py` test for `initialize_run` passes.
+- [x] **Task 0.5: Verify Project Skeleton**
+  - [x] Run `poetry run python -m trading_platform.core.run` to confirm the `initialize_run` function creates a run directory and `config.json`.
+  - [x] Run `poetry run pytest` to confirm the `test_core.py` test for `initialize_run` passes.
 
-- [ ] **Task 1: Initialize Development Environment**
-  - [ ] Run `poetry install` to create the virtual environment and install all dependencies listed in `pyproject.toml`.
+- [x] **Task 1: Initialize Development Environment**
+  - [x] Run `poetry install` to create the virtual environment and install all dependencies listed in `pyproject.toml`.
 
 - [ ] **Task 2: Set Up Pre-commit Hooks**
   - [ ] Create the `.pre-commit-config.yaml` file in the project root.

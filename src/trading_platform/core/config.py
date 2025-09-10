@@ -1,7 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
-
 from pydantic import BaseModel, Field
+from .utils import gen_run_id
 
 
 class RunConfig(BaseModel):
@@ -10,8 +10,6 @@ class RunConfig(BaseModel):
     This object will be snapshotted into the run directory for reproducibility.
     """
 
-    run_id: str = Field(..., description="The unique identifier for this run.")
-    runs_dir: Path = Field(
-        "runs", description="The root directory where run artifacts are stored."
-    )
+    run_id: str = Field(default_factory=gen_run_id, description="Unique identifier for the run.")
+    runs_dir: Path = Field(default=Path("runs"), description="The root directory where run artifacts are stored.")
     log_level: str = Field("INFO", description="The logging level for the run.")
