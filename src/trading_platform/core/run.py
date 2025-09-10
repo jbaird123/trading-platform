@@ -5,10 +5,10 @@ from .utils import gen_run_id, get_logger
 from .config import RunConfig
 
 
-def hello_run(config: RunConfig | None = None) -> Path:
+def initialize_run(config: RunConfig | None = None) -> Path:
     """
-    Creates a new run directory and artifacts based on the provided configuration.
-    This serves as the entrypoint for Phase 1.1.
+    Initializes a new run by creating a unique directory and saving the configuration.
+    This is the main entrypoint for all platform executions.
     """
     if config is None:
         config = RunConfig(run_id=gen_run_id())
@@ -22,4 +22,4 @@ def hello_run(config: RunConfig | None = None) -> Path:
 
 
 if __name__ == "__main__":
-    hello_run()
+    initialize_run()
