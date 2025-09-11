@@ -35,9 +35,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          # The --no-root flag avoids installing the project itself, which is not needed for linting/testing.
-          # The if statement ensures this only runs when the cache is not hit.
-          poetry install --no-interaction --no-root
+          # Install dependencies, including the project itself in editable mode.
+          poetry install --no-interaction
 
       - name: Run quality checks and tests
         run: |
