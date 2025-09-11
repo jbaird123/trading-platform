@@ -14,19 +14,19 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 - [x] **Task 1: Initialize Development Environment**
   - [x] Run `poetry install` to create the virtual environment and install all dependencies listed in `pyproject.toml`.
 
-- [ ] **Task 2: Set Up Pre-commit Hooks**
+- [x] **Task 2: Set Up Pre-commit Hooks**
   - [x] Add `pre-commit` to the development dependencies in `pyproject.toml`.
   - [x] Run `poetry lock` to update the `poetry.lock` file with the new dependency.
   - [x] Run `poetry install` to install the packages from the updated lock file.
   - [x] Run `poetry run pre-commit install` to activate the hooks for your local git repository.
   - [x] Make a test commit to verify the hooks (e.g., `ruff`, `mypy`) run automatically.
 
-- [ ] **Task 3: Create Initial CI/CD Workflow**
+- [x] **Task 3: Create Initial CI/CD Workflow & SonarCloud Integration**
   - [x] Create the `.github/workflows/ci.yml` file and define the `name` and `on` triggers.
   - [x] Add steps to install dependencies with caching.
   - [x] Add steps to run linter (Ruff), type checker (MyPy), and tests (Pytest).
   - [x] Push a commit to a new branch and open a Pull Request to `main` to verify that the GitHub Actions workflow is triggered and passes.
-  - [ ] (Future) Add SonarQube secrets to GitHub and add the SonarQube analysis step to `ci.yml`.
+  - [x] Add SonarCloud secrets to GitHub and add the SonarCloud analysis step to `ci.yml`.
 
 - [x] **Task 4: Implement Data Schema Contract (BDD/TDD)**
   - [x] Create the feature file: `tests/features/data_schema.feature`.
