@@ -1,10 +1,13 @@
-name: Python CI
+name: CI
 
 on:
-  push:
-    branches: [ "main" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ main ]
+
+# The GITHUB_TOKEN needs write permissions to comment on the pull request
+permissions:
+  pull-requests: write
+  contents: read
 
 jobs:
   build:
@@ -12,7 +15,10 @@ jobs:
 
     steps:
       - name: Check out repository code
+        # SonarCloud needs the full history to assign issues to the right people
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -38,9 +44,17 @@ jobs:
           # Install dependencies, including the project itself in editable mode.
           poetry install --no-interaction
 
-      - name: Run quality checks and tests
+      - name: Run quality checks
         run: |
           poetry run ruff check .
           poetry run ruff format --check .
           poetry run mypy .
-          poetry run pytest
+
+      - name: Run tests with coverage
+        run: poetry run pytest --cov=src --cov-report=xml
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
