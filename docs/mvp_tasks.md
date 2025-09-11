@@ -22,7 +22,9 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Make a test commit to verify the hooks (e.g., `ruff`, `mypy`) run automatically.
 
 - [ ] **Task 3: Create Initial CI/CD Workflow**
-  - [ ] Create the `.github/workflows/ci.yml` file.
+  - [x] Create the `.github/workflows/ci.yml` file and define the `name` and `on` triggers.
+  - [x] Add steps to install dependencies with caching.
+  - [x] Add steps to run linter (Ruff), type checker (MyPy), and tests (Pytest).
   - [ ] Push a commit to a new branch and open a Pull Request to `main` to verify that the GitHub Actions workflow is triggered and passes.
   - [ ] (Future) Add SonarQube secrets to GitHub and add the SonarQube analysis step to `ci.yml`.
 

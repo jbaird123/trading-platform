@@ -1,25 +1,20 @@
 from __future__ import annotations
+
+import logging
 from pathlib import Path
-import json
-from .utils import gen_run_id, get_logger
-from .config import RunConfig
+
+from trading_platform.core.config import RunConfig
 
 
-def initialize_run(config: RunConfig | None = None) -> Path:
-    """
-    Initializes a new run by creating a unique directory and saving the configuration.
-    This is the main entrypoint for all platform executions.
-    """
-    if config is None:
-        config = RunConfig(run_id=gen_run_id())
-
-    out = config.runs_dir / config.user_id / config.run_id
-    out.mkdir(parents=True, exist_ok=True)
-
-    (out / "config.json").write_text(config.model_dump_json(indent=2))
-    get_logger().info(f"Created {out/'config.json'}")
-    return out
+def initialize_run(config: RunConfig) -> Path:
+    run_path = config.runs_dir / config.user_id / config.run_id
+    run_path.mkdir(parents=True, exist_ok=True)
+    config_path = run_path / "config.json"
+    config_path.write_text(config.model_dump_json(indent=2))
+    logging.info(f"Initialized run artifacts at: {run_path}")
+    return run_path
 
 
 if __name__ == "__main__":
-    initialize_run()
+    default_config = RunConfig(user_id="default_user", log_level="INFO")
+    initialize_run(default_config)
