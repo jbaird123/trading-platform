@@ -27,6 +27,7 @@ jobs:
 
       - name: Run quality checks and tests
         run: |
+          source $(poetry env info --path)/bin/activate
           echo "--- Linting and Formatting ---"
           poetry run ruff check .
           poetry run ruff format --check .
