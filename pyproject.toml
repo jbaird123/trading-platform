@@ -5,8 +5,8 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry]
 name = "trading-platform"
 version = "0.0.1"
-description = "Trading Platform MVP"
-authors = ["Your Name <you@example.com>"]
+description = "A modular trading platform for strategy development and backtesting."
+authors = ["Joe Baird <jbaird123@gmail.com>"]
 readme = "README.md"
 packages = [{include = "trading_platform", from = "src"}]
 
