@@ -1,9 +1,10 @@
 from __future__ import annotations
+
 import json
 from pathlib import Path
 
-from trading_platform.core.run import initialize_run
 from trading_platform.core.config import RunConfig
+from trading_platform.core.run import initialize_run
 
 
 def test_initialize_run_creates_artifacts(tmp_path: Path):
@@ -11,7 +12,9 @@ def test_initialize_run_creates_artifacts(tmp_path: Path):
     Verifies that initialize_run creates the expected run directory and config file.
     """
     # 1. Setup: Create a config pointing to a temporary directory
-    config = RunConfig(user_id="test_user", run_id="test_run_123", runs_dir=tmp_path)
+    config = RunConfig(
+        user_id="test_user", run_id="test_run_123", runs_dir=tmp_path, log_level="INFO"
+    )
 
     # 2. Action: Call the function to be tested
     run_path = initialize_run(config)
