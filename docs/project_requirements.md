@@ -99,7 +99,7 @@ _Last updated: 2025-09-09_
     - `type`: e.g., 'news', 'economic_report', 'central_bank_speech'.
     - `metadata`: A flexible field for pre-computed sentiment scores, named entities, relevance, etc.
   - **Storage & Retrieval**: Events must be stored efficiently to allow for fast time-range queries.
-  - **Alignment**: The Data Handler must provide an interface to retrieve all events that occurred within the timeframe of a given bar or a set of bars, enabling direct alignment with market data for backtesting and analysis.
+  - **Alignment**: The Data Handler must provide an interface to retrieve all events that occurred within the timeframe of a given bar or a set of bars. This enables direct alignment with market data for backtesting and analysis, and must work for any bar timeframe (e.g., M1, H1, D1), including those generated through resampling.
   - **Sources**: Initial sources can include public news APIs or RSS feeds for economic calendars.
 - Interfaces:
   - `DataRequest(symbol, timeframe, start, end, features=[...]) -> DataFrame`.
