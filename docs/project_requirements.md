@@ -31,6 +31,12 @@ _Last updated: 2025-09-09_
   - The platform must support running comparative analyses between two or more strategy variations.
   - This includes comparing a baseline strategy against a version with modified parameters, different risk models, or additional signal layers (e.g., with and without an AI-driven event filter).
   - The results must be presented in a comparative format, highlighting differences in key performance metrics.
+- **Trading Sessions & Blackout Periods**
+  - The system must support the definition of trading blackout periods, during which no new positions can be opened.
+  - These periods can be defined as:
+    - **Static Rules**: e.g., "do not trade between 23:00 and 01:00 UTC daily".
+    - **Event-Based**: e.g., "pause trading 10 minutes before and 30 minutes after any event with `impact: high`".
+  - This functionality will be managed centrally and applied by the Backtester (BT) and Execution Layer (EL) to ensure consistent behavior. Strategies may choose to override or ignore these blackouts via configuration.
 - **Instrument Agnostic Architecture**
   - The core engine (Backtester, Risk Manager) must operate on a canonical representation of trades, positions, and performance, independent of the asset class (Forex, Futures, Stocks, etc.).
   - An **Instrument Definition** module (part of the Data Handler) will provide rich metadata for each symbol (e.g., `point_value`, `tick_size`, `commission_structure`, `margin_requirement`).
@@ -82,7 +88,8 @@ _Last updated: 2025-09-09_
   - `tick_size`: The minimum price fluctuation.
   - `commission_model`: A structured object defining costs (e.g., per contract, per share, or spread-based).
   - `margin_requirement`.
-  - `sessions` & `holidays`.
+  - `sessions`: A definition of the primary trading session (e.g., start/end times and timezone) used for correct daily resampling.
+  - `holidays`: A calendar of non-trading days.
 - Chunked loading for large ranges; memory cap awareness.
 - Cache datasets persistently (parquet/feather) keyed by params.
 - Feature pipelines for computed cols (ATR, ADX, RSI, BB width, etc.).
