@@ -5,8 +5,8 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry]
 name = "trading-platform"
 version = "0.0.1"
-description = "Trading Platform MVP"
-authors = ["Your Name <you@example.com>"]
+description = "A modular trading platform for strategy development and backtesting."
+authors = ["Joe Baird <jbaird123@gmail.com>"]
 readme = "README.md"
 packages = [{include = "trading_platform", from = "src"}]
 
@@ -22,6 +22,7 @@ pytest-bdd = "^7.0.0"
 ruff = "^0.4.4"
 mypy = "^1.10.0"
 pre-commit = "^3.7.1"
+pandas-stubs = "^2.2.2.240416"
 
 [tool.ruff]
 line-length = 88
@@ -34,3 +35,7 @@ python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 packages = ["src/trading_platform"]
+
+[tool.pytest.ini_options]
+# Ignore the benign "usefixtures" warning from pytest-bdd's scenario generator
+filterwarnings = ["ignore:usefixtures.*has no effect:pytest.PytestWarning"]

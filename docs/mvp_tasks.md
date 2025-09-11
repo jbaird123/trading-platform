@@ -25,18 +25,24 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Create the `.github/workflows/ci.yml` file and define the `name` and `on` triggers.
   - [x] Add steps to install dependencies with caching.
   - [x] Add steps to run linter (Ruff), type checker (MyPy), and tests (Pytest).
-  - [ ] Push a commit to a new branch and open a Pull Request to `main` to verify that the GitHub Actions workflow is triggered and passes.
+  - [x] Push a commit to a new branch and open a Pull Request to `main` to verify that the GitHub Actions workflow is triggered and passes.
   - [ ] (Future) Add SonarQube secrets to GitHub and add the SonarQube analysis step to `ci.yml`.
 
-- [ ] **Task 4: Implement Data Schema Contract (BDD/TDD)**
-  - [ ] Create the feature file: `tests/features/data_schema.feature`.
-  - [ ] Create the test file: `tests/step_defs/test_data_schema_steps.py`.
-  - [ ] Run `pytest` and see the BDD tests fail with "step definition not found" errors.
-  - [ ] Implement the step definition skeletons in `test_data_schema_steps.py`.
-  - [ ] Run `pytest` again and see the tests fail with `NotImplementedError` or assertion errors.
-  - [ ] Create the implementation file: `src/trading_platform/data/schema.py`.
-  - [ ] Write the code for loading and normalizing data to make the tests pass.
+- [x] **Task 4: Implement Data Schema Contract (BDD/TDD)**
+  - [x] Create the feature file: `tests/features/data_schema.feature`.
+  - [x] Create the test file: `tests/step_defs/test_data_schema_steps.py`.
+  - [x] Run `pytest` and see the BDD tests fail with "step definition not found" errors.
+  - [x] Implement the step definition skeletons in `test_data_schema_steps.py`.
+  - [x] Run `pytest` again and see the tests fail with `NotImplementedError` or assertion errors.
+  - [x] Create the implementation file: `src/trading_platform/data/schema.py`.
+  - [x] Write the code for loading and normalizing data to make the tests pass.
 
----
+- [x] **Task 5: Implement Basic Strategy Logic (BDD/TDD)**
+  - [x] Create the feature file: `tests/features/strategy_engine/signal_generation.feature`.
+  - [ ] Create the test file: `tests/step_defs/strategy_engine/test_signal_generation_steps.py`.
+  - [ ] Run `pytest` and see the new BDD tests fail.
+  - [ ] Implement the step definition skeletons.
+  - [ ] Create the implementation file: `src/trading_platform/strategy/exponential_moving_average.py`.
+  - [ ] Write the strategy logic to make the tests pass.
 
 *This task list will be expanded as we complete each phase.*
