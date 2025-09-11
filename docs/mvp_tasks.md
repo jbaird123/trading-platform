@@ -4,20 +4,22 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 
 ## Phase 1: Foundations
 
-- [ ] **Task 0: Codebase Cleanup**
-  - [ ] Delete the outdated `tests/test_sanity.py` file. Its functionality is replaced by `tests/test_core.py`.
+- [x] **Task 0: Codebase Cleanup**
+  - [x] Delete the outdated `tests/test_sanity.py` file. Its functionality is replaced by `tests/test_core.py`.
 
-- [ ] **Task 0.5: Verify Project Skeleton**
-  - [ ] Run `poetry run python -m trading_platform.core.run` to confirm the `initialize_run` function creates a run directory and `config.json`.
-  - [ ] Run `poetry run pytest` to confirm the `test_core.py` test for `initialize_run` passes.
+- [x] **Task 0.5: Verify Project Skeleton**
+  - [x] Run `poetry run python -m trading_platform.core.run` to confirm the `initialize_run` function creates a run directory and `config.json`.
+  - [x] Run `poetry run pytest` to confirm the `test_core.py` test for `initialize_run` passes.
 
-- [ ] **Task 1: Initialize Development Environment**
-  - [ ] Run `poetry install` to create the virtual environment and install all dependencies listed in `pyproject.toml`.
+- [x] **Task 1: Initialize Development Environment**
+  - [x] Run `poetry install` to create the virtual environment and install all dependencies listed in `pyproject.toml`.
 
 - [ ] **Task 2: Set Up Pre-commit Hooks**
-  - [ ] Create the `.pre-commit-config.yaml` file in the project root.
-  - [ ] Run `poetry run pre-commit install` to activate the hooks for your local git repository.
-  - [ ] Make a test commit to verify the hooks (e.g., `ruff`, `mypy`) run automatically.
+  - [x] Add `pre-commit` to the development dependencies in `pyproject.toml`.
+  - [x] Run `poetry lock` to update the `poetry.lock` file with the new dependency.
+  - [x] Run `poetry install` to install the packages from the updated lock file.
+  - [x] Run `poetry run pre-commit install` to activate the hooks for your local git repository.
+  - [x] Make a test commit to verify the hooks (e.g., `ruff`, `mypy`) run automatically.
 
 - [ ] **Task 3: Create Initial CI/CD Workflow**
   - [ ] Create the `.github/workflows/ci.yml` file.

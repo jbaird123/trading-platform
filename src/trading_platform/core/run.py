@@ -13,7 +13,7 @@ def initialize_run(config: RunConfig | None = None) -> Path:
     if config is None:
         config = RunConfig(run_id=gen_run_id())
 
-    out = config.runs_dir / config.run_id
+    out = config.runs_dir / config.user_id / config.run_id
     out.mkdir(parents=True, exist_ok=True)
 
     (out / "config.json").write_text(config.model_dump_json(indent=2))
