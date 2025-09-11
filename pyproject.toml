@@ -34,3 +34,7 @@ python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 packages = ["src/trading_platform"]
+
+[tool.pytest.ini_options]
+# Ignore the benign "usefixtures" warning from pytest-bdd's scenario generator
+filterwarnings = ["ignore:usefixtures.*has no effect:pytest.PytestWarning"]
