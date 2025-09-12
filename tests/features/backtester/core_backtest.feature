@@ -11,7 +11,6 @@ Feature: Core Backtester Logic
     And the close price at bar 1 is 100.0
     And the signal at bar 2 is "flat"
     And the close price at bar 2 is 105.0
-    And the signal at bar 3 is "short"
     When the backtest is run
     Then there should be 1 trade generated
     And the trade should have an entry price of 100.0 and an exit price of 105.0

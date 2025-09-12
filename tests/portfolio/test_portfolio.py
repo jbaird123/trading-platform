@@ -22,7 +22,7 @@ def test_open_and_close_long_position():
     exit_time = datetime(2023, 1, 1, 11, 0)
 
     # Open a long position
-    portfolio.open_position(
+    portfolio.create_new_position(
         symbol="EUR_USD",
         entry_time=entry_time,
         entry_price=1.1000,
@@ -65,7 +65,7 @@ def test_open_and_close_short_position_with_loss():
     exit_time = datetime(2023, 1, 1, 13, 0)
 
     # Open a short position
-    portfolio.open_position(
+    portfolio.create_new_position(
         symbol="USD_JPY",
         entry_time=entry_time,
         entry_price=150.0,
@@ -91,7 +91,7 @@ def test_open_and_close_short_position_with_loss():
 def test_cannot_open_position_if_one_is_already_open():
     """Verify that a new position cannot be opened if one is active."""
     portfolio = PortfolioManager()
-    portfolio.open_position(
+    portfolio.create_new_position(
         symbol="EUR_USD",
         entry_time=datetime.now(),
         entry_price=1.1000,
@@ -104,7 +104,7 @@ def test_cannot_open_position_if_one_is_already_open():
     assert initial_position is not None
 
     # Attempt to open another position
-    portfolio.open_position(
+    portfolio.create_new_position(
         symbol="USD_JPY",
         entry_time=datetime.now(),
         entry_price=150.0,
