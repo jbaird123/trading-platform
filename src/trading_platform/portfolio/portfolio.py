@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import pandas as pd
 from trading_platform.portfolio.position import Position
 from trading_platform.portfolio.trade import Trade
 
@@ -46,6 +47,37 @@ class PortfolioManager:
             entry_time=entry_time,
         )
 
+    def on_bar(
+        self,
+        current_bar: pd.Series,
+        current_signal: str,
+        allow_flip_on_bar: bool = False,
+    ) -> None:
+        """
+        Processes a new bar of data, updating positions based on the signal.
+        This will become the primary interface for the backtester.
+        """
+        # For now, we will replicate the logic from the backtester here.
+        # In the future, this will be expanded with more sophisticated logic.
+        if self.open_position and current_signal != self.open_position.side:
+            self.close_position(
+                exit_price=current_bar["close"],
+                exit_time=current_bar.name,
+                exit_reason="signal",
+            )
+            if not allow_flip_on_bar:
+                return  # Exit early if flips are not allowed
+
+        if not self.open_position and current_signal in ["long", "short"]:
+            # Sizing and symbol are still hardcoded, to be fixed next.
+            self.create_new_position(
+                symbol="EUR_USD",
+                side=current_signal,
+                entry_price=current_bar["close"],
+                size=10000,
+                entry_time=current_bar.name,
+            )
+
     def close_position(
         self, exit_price: float, exit_time: datetime, exit_reason: str | None = None
     ) -> None:
@@ -61,7 +93,7 @@ class PortfolioManager:
         )
 
         trade = Trade(
-            **(self._open_position.__dict__),
+            **self._open_position.__dict__,
             exit_price=exit_price,
             exit_time=exit_time,
             pnl=pnl,
