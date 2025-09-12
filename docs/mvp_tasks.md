@@ -39,10 +39,10 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 
 - [x] **Task 5: Implement Basic Strategy Logic (BDD/TDD)**
   - [x] Create the feature file: `tests/features/strategy_engine/signal_generation.feature`.
-  - [ ] Create the test file: `tests/step_defs/strategy_engine/test_signal_generation_steps.py`.
-  - [ ] Run `pytest` and see the new BDD tests fail.
-  - [ ] Implement the step definition skeletons.
-  - [ ] Create the implementation file: `src/trading_platform/strategy/exponential_moving_average.py`.
-  - [ ] Write the strategy logic to make the tests pass.
+  - [x] Create the test file: `tests/step_defs/strategy_engine/test_signal_generation_steps.py`.
+  - [x] Run `pytest` and see tests fail with "step not implemented".
+  - [x] Implement the step definition skeletons to call the (not-yet-implemented) strategy code.
+  - [x] Create the implementation file: `src/trading_platform/strategy/exponential_moving_average.py`.
+  - [x] Write the strategy logic to make the tests pass.
 
 *This task list will be expanded as we complete each phase.*
