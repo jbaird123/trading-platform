@@ -122,33 +122,36 @@ _Last updated: 2025-09-09_
   - PSAR with ADX filter (avoid whipsaws in ranges).
   - BB (Bollinger Bands) Mean Reversion.
 - **Declarative Strategies (Low-Code/No-Code)**
-  - The system must support defining strategies using a Gherkin (`.feature` file) syntax. This allows for low-code/no-code strategy creation.
-  - **Templating and Parameterization**:
-    - To support parameter sweeps, declarative strategies must be definable as templates.
-    - Placeholders (e.g., `<fast_period>`, `<adx_threshold>`) will be used within the Gherkin `.feature` files to denote parameters that can be swept.
-    - A separate sweep configuration file (e.g., YAML or JSON) will define the ranges for these parameters, allowing the AI Lab to "render" and execute a backtest for each unique combination.
-    - Example of a templated Gherkin step:
-      ```gherkin
-      And the indicator "ADX(14)" is greater than <adx_threshold>
-      ```
-  - The Strategy Engine will parse these `.feature` files and execute them as strategies.
-  - A comprehensive library of BDD step definitions for common trading conditions (e.g., "Given the indicator X crosses above Y", "And the feature Z is less than value V") must be developed and maintained to empower non-programmers.
+  - The system must support defining strategies using a declarative **YAML format**. This provides a clean, machine-readable, and low-code method for strategy creation that is distinct from the Gherkin used for BDD testing.
+  - **Strategy Schema**: The YAML files will follow a defined schema representing rules, conditions, and indicators.
+  - **Parameterization**: YAML's key-value structure naturally supports parameterization. Parameter sweeps will be orchestrated by the AI Lab, which can easily read, modify, and generate these YAML files.
+  - **Execution**: The Strategy Engine will include a parser that loads a strategy definition from a YAML file and executes its logic.
+  - **Testing**: The behavior of the YAML strategy parser and execution engine will be tested rigorously using Behavior-Driven Development (BDD) with Gherkin (`.feature` files). This ensures the implementation correctly interprets the strategy definitions.
   - Example of a declarative strategy file:
-    ```gherkin
-    Feature: My Custom RSI Strategy
+    ```yaml
+    strategy_name: My Custom RSI Strategy
+    description: Go long on oversold condition with confirmation.
 
-    Scenario: Go long on oversold condition with confirmation
-      Given the indicator "RSI(14)" on the previous bar was below 30
-      And the indicator "RSI(14)" on the current bar is above 30
-      And the indicator "ADX(14)" on the current bar is above 20
-      When the strategy generates signals
-      Then a "long" signal should be produced
+    entry_rules:
+      - all_of: # All conditions must be true
+          - condition: cross_above
+            indicator: RSI(period=14)
+            value: 30
+          - condition: is_above
+            indicator: ADX(period=14)
+            value: 20
 
-    Scenario: Avoid entering trades during high-impact news
-      Given a "long" signal is generated
-      And an event of type "economic_report" with metadata "impact: high" occurred within the last 5 minutes
-      When the strategy filters signals
-      Then the "long" signal should be suppressed
+    exit_rules:
+      - any_of: # Any condition can trigger an exit
+          - condition: cross_below
+            indicator: RSI(period=14)
+            value: 70
+
+    event_filters:
+      - action: suppress_entry
+        event_type: economic_report
+        metadata_match: { "impact": "high" }
+        window: "5 minutes"
     ```
 - **Requirements**
   - Use `ta` library indicators when possible; avoid duplicating.
