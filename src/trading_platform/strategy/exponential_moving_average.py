@@ -14,8 +14,8 @@ def generate_ema_crossover_signals(
     Args:
         data: DataFrame with market data. Must contain 'ema_fast' and 'ema_slow' columns
               which are pre-calculated.
-        fast_period: The window for the fast EMA (for metadata , not calculation).
-        slow_period: The window for the slow EMA (for metadata , not calculation).
+        fast_period: The window for the fast EMA (for metadata purposes).
+        slow_period: The window for the slow EMA (for metadata purposes).
 
     Returns:
         A pandas Series with signals ('long', 'short', 'flat').

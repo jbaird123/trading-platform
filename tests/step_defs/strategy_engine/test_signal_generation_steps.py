@@ -72,7 +72,6 @@ def given_indicator_at_current_bar(shared_context: dict, indicator: str, value: 
     shared_context["market_data"].loc[1, indicator] = value
 
 
-# --- When and Then steps will be added in the next phase ---
 # --- When Steps ---
 
 
