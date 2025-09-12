@@ -26,38 +26,18 @@ def run_backtest(
         A list of completed Trade objects.
     """
     portfolio = PortfolioManager(initial_cash=initial_cash)
-    symbol = "EUR_USD"  # Hardcoded for now, will be dynamic later
-    trade_size = 10000  # Hardcoded for now
 
     for i in range(len(market_data)):
         current_signal = signals.iloc[i]
         current_bar = market_data.iloc[i]
-        current_time = market_data.index[i]
 
-        # --- Event-driven Logic for each bar ---
-        if portfolio.open_position:
-            # --- 1. We are in a position, check for an exit ---
-            if current_signal != portfolio.open_position.side:
-                portfolio.close_position(
-                    exit_price=current_bar["close"],
-                    exit_time=current_time,
-                    exit_reason="signal",
-                )
-                # If flips are not allowed, we are done with this bar.
-                if not allow_flip_on_bar:
-                    continue
-                # If flips are allowed, we fall through to the entry logic below.
-
-        # --- 2. We are flat, check for an entry ---
-        # This block is reached if we were never in a position,
-        # or if we just closed one and `allow_flip_on_bar` is True.
-        if not portfolio.open_position and current_signal in ["long", "short"]:
-            portfolio.create_new_position(
-                symbol=symbol,
-                side=current_signal,
-                entry_price=current_bar["close"],
-                size=trade_size,
-                entry_time=current_time,
-            )
+        # The backtester's job is to orchestrate, not to decide.
+        # It passes the current state to the PortfolioManager, which
+        # contains the actual position management logic.
+        portfolio.on_bar(
+            current_bar=current_bar,
+            current_signal=current_signal,
+            allow_flip_on_bar=allow_flip_on_bar,
+        )
 
     return portfolio.trades
