@@ -116,11 +116,20 @@ _Last updated: 2025-09-09_
   - `meta()`: name, version, required inputs/indicators.
 - **Built-in Strategies**
   - These will be implemented in Python as reference examples and for performance-critical components.
+  - Strategy names should use common industry abbreviations (e.g., SMA, EMA, BB) for clarity and brevity.
   - SMA crossover (fast/slow).
   - PSAR with ADX filter (avoid whipsaws in ranges).
-  - Turtle breakout.
+  - BB (Bollinger Bands) Mean Reversion.
 - **Declarative Strategies (Low-Code/No-Code)**
   - The system must support defining strategies using a Gherkin (`.feature` file) syntax. This allows for low-code/no-code strategy creation.
+  - **Templating and Parameterization**:
+    - To support parameter sweeps, declarative strategies must be definable as templates.
+    - Placeholders (e.g., `<fast_period>`, `<adx_threshold>`) will be used within the Gherkin `.feature` files to denote parameters that can be swept.
+    - A separate sweep configuration file (e.g., YAML or JSON) will define the ranges for these parameters, allowing the AI Lab to "render" and execute a backtest for each unique combination.
+    - Example of a templated Gherkin step:
+      ```gherkin
+      And the indicator "ADX(14)" is greater than <adx_threshold>
+      ```
   - The Strategy Engine will parse these `.feature` files and execute them as strategies.
   - A comprehensive library of BDD step definitions for common trading conditions (e.g., "Given the indicator X crosses above Y", "And the feature Z is less than value V") must be developed and maintained to empower non-programmers.
   - Example of a declarative strategy file:
@@ -211,8 +220,10 @@ _Last updated: 2025-09-09_
   - Highlight distributional drift, stationarity warnings.
 - **Advanced Testing Orchestration**:
   - Orchestrate parameter searches (grid, random) to find optimal parameter sets.
-  - Perform walk-forward evaluation (WFE) to test strategy robustness on out-of-sample data.
+    - This is driven by a sweep configuration file that points to a strategy template and defines the parameter values/ranges to test.
+  - Perform walk-forward evaluation (WFE) to test strategy robustness on out-of-sample data, using the same templating mechanism.
   - Conduct regime analysis to show how the strategy performs in different market conditions (trending, ranging, etc.).
+  - **Workflow Integration**: The standard validation workflow will be a two-stage process: 1) Use parameter sweeps to discover optimal parameter sets. 2) Use Monte Carlo analysis on the best-performing set to validate its robustness.
 - **Outputs**: All findings must be available as both machine-readable JSON and human-readable summaries.
 
 ---
@@ -236,7 +247,8 @@ _Last updated: 2025-09-09_
 
 ## 10) MVP Subset
 - Data Handler with normalization, quality checks, caching.
-- Strategy Engine with SMA, PSAR+ADX, Turtle.
+- Strategy Engine with SMA, PSAR+ADX, BB Mean Reversion, ATR Channel Breakout.
+- Strategy Engine with SMA, PSAR+ADX, BB Mean Reversion.
 - RMM baseline (rule-based).
 - Backtester with ATR stops/TP, spreads/fees, trades table, equity.
 - JSON Brief v1 (meta, params, overall, contrasts, risk, stop/tp).
