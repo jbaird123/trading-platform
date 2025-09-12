@@ -59,10 +59,10 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Create the implementation file: `src/trading_platform/backtester/core.py`.
   - [x] Write the backtester logic to make the tests pass.
 
-- [ ] **Task 8: Implement Core Portfolio Manager (TDD)**
-  - [ ] Create `src/trading_platform/portfolio/portfolio.py` with a `Portfolio` class.
-  - [ ] Implement methods to track cash, positions, and calculate total equity.
-  - [ ] Create `tests/portfolio/test_portfolio.py` with unit tests for these core functions.
+- [x] **Task 8: Implement Core Portfolio Manager (TDD)**
+  - [x] Create `src/trading_platform/portfolio/position.py` and `trade.py` data classes.
+  - [x] Create `src/trading_platform/portfolio/portfolio.py` with a `PortfolioManager` class to open/close positions.
+  - [x] Create `tests/step_defs/portfolio/test_portfolio.py` with unit tests for the `PortfolioManager`.
 
 - [ ] **Task 9: Enhance Backtester with Risk Management (Stops/TP)**
   - [ ] Create/update feature file: `tests/features/backtester/risk_management.feature`.
