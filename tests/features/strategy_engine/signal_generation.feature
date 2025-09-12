@@ -1,21 +1,36 @@
-Feature: Exponential Moving Average (EMA) Crossover Signal Generation
-
-  As a developer,
-  I want to generate trading signals based on the crossover of two EMAs,
-  so that I can implement a basic trend-following strategy.
+Feature: Strategy Signal Generation
+  As a user, I want to generate trading signals from market data using a strategy
+  so that I can define entry and exit points for backtesting.
 
   Background:
-    Given a DataFrame of market data with columns "open", "high", "low", "close"
-    And the strategy is configured with a fast EMA of period 10 and a slow EMA of period 20
+    Given a market data series with columns "open", "high", "low", "close", "volume"
 
-  Scenario: Generating a long signal on a bullish crossover
-    Given the fast EMA on the previous bar was below the slow EMA
-    And the fast EMA on the current bar is above the slow EMA
+  Scenario: Generate a long signal on a bullish EMA crossover
+    Given the strategy is an EMA Crossover with fast_period=3 and slow_period=5
+    And the market data is prepared for the strategy
+    And the "ema_fast" at the previous bar is 102.0
+    And the "ema_slow" at the previous bar is 103.0
+    And the "ema_fast" at the current bar is 105.0
+    And the "ema_slow" at the current bar is 104.0
     When the strategy generates signals
-    Then a "long" signal should be produced for the current bar
+    Then the signal for the current bar should be "long"
 
-  Scenario: Generating a short signal on a bearish crossover
-    Given the fast EMA on the previous bar was above the slow EMA
-    And the fast EMA on the a current bar is below the slow EMA
+  Scenario: Generate a short signal on a bearish EMA crossover
+    Given the strategy is an EMA Crossover with fast_period=3 and slow_period=5
+    And the market data is prepared for the strategy
+    And the "ema_fast" at the previous bar is 104.0
+    And the "ema_slow" at the previous bar is 103.0
+    And the "ema_fast" at the current bar is 102.0
+    And the "ema_slow" at the current bar is 103.0
     When the strategy generates signals
-    Then a "short" signal should be produced for the current bar
+    Then the signal for the current bar should be "short"
+
+  Scenario: Maintain a flat signal when there is no crossover
+    Given the strategy is an EMA Crossover with fast_period=3 and slow_period=5
+    And the market data is prepared for the strategy
+    And the "ema_fast" at the previous bar is 102.0
+    And the "ema_slow" at the previous bar is 103.0
+    And the "ema_fast" at the current bar is 103.0
+    And the "ema_slow" at the current bar is 104.0
+    When the strategy generates signals
+    Then the signal for the current bar should be "flat"
