@@ -53,7 +53,7 @@ jobs:
           poetry run mypy .
 
       - name: Run tests with coverage
-        run: poetry run pytest --cov=src --cov-report=xml
+        run: poetry run pytest --cov=src --cov=tests --cov-report=xml
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
