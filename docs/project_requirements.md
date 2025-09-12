@@ -9,7 +9,8 @@ _Last updated: 2025-09-09_
 ## 0) Scope & Definitions
 - **Data Handler (DH)**: Loads, normalizes, validates, and serves market data; resampling and feature pipelines.
 - **Strategy Engine (SE)**: Strategy lifecycle & interfaces; computes signals using indicators/features.
-- **Backtester (BT)**: Vectorized simulation of orders/fills, PnL, risk, and analytics over historical data.
+- **Portfolio Manager (PM)**: Manages state (positions, cash, equity). Processes orders, updates positions, and calculates PnL. Used by both the Backtester and Execution Layer to ensure logical consistency.
+- **Backtester (BT)**: The simulation engine. Iterates through time, feeding market data to the Strategy Engine and submitting the resulting signal-based orders to the Portfolio Manager.
 - **Regime Market Manager (RMM)**: Classifies regimes (trending, ranging, volatile, quiet, etc.) with confidence; used for filtering.
 - **Execution Layer (EL)**: Live trading adapter (OANDA first); order routing, risk controls, brokerage mapping.
 - **Reporting & Visualization (RV)**: JSON briefs, plots, dashboards, exports.
@@ -169,33 +170,48 @@ _Last updated: 2025-09-09_
 
 ---
 
-## 5) Backtester (BT)
-- **Event-Driven Core**: The backtester will be primarily event-driven (iterating bar-by-bar) to ensure maximum flexibility and realism for complex, path-dependent strategies (e.g., trailing stops, portfolio-level risk).
-- **Vectorized Optimizations**: For performance, specific non-path-dependent calculations (e.g., simple signal generation) may be vectorized where possible, but the core simulation loop will remain iterative.
-- **Multi-Strategy & Comparative Runs**: The backtester must be able to execute multiple strategy configurations within a single "comparison run" to facilitate A/B testing.
+## 5) Portfolio Manager (PM)
+- **Core Responsibility**: To be the single source of truth for the portfolio's state at any given time. This component must be used identically by both the Backtester and the Execution Layer.
+- **State Management**:
+  - Track cash balance, open positions, and total equity (mark-to-market).
+  - Maintain a log of all executed trades.
+- **Order Processing**:
+  - `on_signal(signal)`: A method to process an incoming signal and generate the appropriate order (e.g., market, stop, limit).
+  - `update_positions(bar)`: A method to update the value of open positions based on the latest market data.
+- **Position Sizing**: Implement sizing logic, including:
+  - Fixed-risk (e.g., risk $100 per trade).
+  - Fixed-fraction (e.g., risk 1% of portfolio equity per trade).
+- **Trade & PnL Logic**:
+  - Generate a canonical `Trade` record upon position closure.
+  - Trades table schema: `entry_time, exit_time, side, entry_price, exit_price, pnl_currency, mfe_currency, mae_currency, r_multiple, notes`.
+  - Calculate equity curve, drawdowns, hit rate, and other key performance metrics.
+- **Portfolio-Level Risk Management**:
+  - Enforce rules like daily loss caps, maximum drawdown limits, and other circuit breakers.
+
+---
+
+## 6) Backtester (BT)
+- **Core Responsibility**: To simulate the passage of time and orchestrate the interaction between the Data Handler, Strategy Engine, and Portfolio Manager.
+- **Event-Driven Loop**: The primary mechanism will be an event-driven loop that iterates bar-by-bar through historical data.
 - Orders: market, stop, limit; ATR-based stops/TP; trailing stops; tie-breaks.
 - Models: slippage, rollover, and a canonical cost model driven by the instrument definition (commission, fees, spread).
-- Position sizing: fixed risk (in base currency) or fixed fraction.
-- Trades table schema: `entry_time, exit_time, side, entry_price, exit_price, pnl_currency, mfe_currency, mae_currency, r_multiple, notes`.
-- Metrics: equity curve (in base currency), drawdowns, hit rate, expectancy.
-- Risk: daily loss caps, per-trade caps, circuit breakers.
 - Monte Carlo resampling for trades/equity.
 - Warm-up window for indicators.
 - Testing: deterministic fills; stop/TP precedence validation.
 
 ---
 
-## 6) Execution Layer (EL)
+## 7) Execution Layer (EL)
 - Broker adapter: OANDA (initial).
 - Map internal → broker API; handle retries, backoff, rate-limits.
-- Paper trading mode (same interface as live).
+- **Portfolio Interaction**: The EL manages live trading by processing signals and submitting orders to the same `PortfolioManager` component used by the backtester, ensuring logical parity.
 - Must handle live streams of both market data and event data, forwarding them to the active strategy for signal generation.
 - Structured logging; reconciliation of positions.
 - Risk: daily caps, circuit breakers.
 
 ---
 
-## 7) Reporting & Visualization (RV)
+## 8) Reporting & Visualization (RV)
 - **JSON Briefs** generated per run.
 - **Comparison Reports**: For A/B tests, the system must generate a consolidated report that presents key metrics side-by-side for each strategy variation.
 - Plots:
@@ -210,7 +226,7 @@ _Last updated: 2025-09-09_
 
 ---
 
-## 8) AI Lab (AI)
+## 9) AI Lab (AI)
 - Inputs: JSON briefs + artifacts.
 - **Core Mandate**: The AI Lab is the central analysis component of the system. It must consume the rich data from the JSON brief to function as an intelligent partner to the user.
 - **Analysis & Recommendations**:
@@ -229,7 +245,7 @@ _Last updated: 2025-09-09_
 
 ---
 
-## 9) JSON Brief Schema
+## 10) JSON Brief Schema
 - **meta**: `{strategy_name, timeframe, universe, version, run_id, timestamp}`.
 - **params**: `{fast, slow, stop_type, stop_value, tp_type, tp_value, trail_type, trail_value, atr_length, tie_break}`.
 - **overall_pips**: `{n_trades, mean_pips, median_pips, total_pips, by_side_total_pips}`.
@@ -246,7 +262,7 @@ _Last updated: 2025-09-09_
 
 ---
 
-## 10) MVP Subset
+## 11) MVP Subset
 - Data Handler with normalization, quality checks, caching.
 - Strategy Engine with SMA, PSAR+ADX, BB Mean Reversion, ATR Channel Breakout.
 - Strategy Engine with SMA, PSAR+ADX, BB Mean Reversion.
@@ -259,7 +275,7 @@ _Last updated: 2025-09-09_
 
 ---
 
-## 11) Non-Functional Requirements
+## 12) Non-Functional Requirements
 - **Performance**: Efficient with multi-year data.
 - **Reliability**: Deterministic backtests.
 - **Maintainability**: Clean modular package.
@@ -269,7 +285,7 @@ _Last updated: 2025-09-09_
 
 ---
 
-## 12) Detailed Notes & Edge Requirements
+## 13) Detailed Notes & Edge Requirements
 - Plots: overlays must not share identical colors; lines thinner than default.
 - ATR and Volume must be plotted in separate panels (not combined).
 - Each non-overlay indicator gets its own panel.
@@ -281,14 +297,14 @@ _Last updated: 2025-09-09_
 
 ---
 
-## 13) Development Process & Governance
+## 14) Development Process & Governance
 - **Branching Strategy**: A standardized branching model (e.g., GitFlow or GitHub Flow) will be used.
 - **Code Reviews**: All code must be submitted via Pull Requests and requires at least one approval before merging to the main branch.
 - **Issue Tracking**: All work should be tracked in an issue tracker, with issue numbers referenced in commit messages.
 
 ---
 
-## 14) Open TODOs
+## 15) Open TODOs
 - [ ] Decide pandas vs Polars for long-run performance.
 - [ ] Finalize baseline RMM thresholds and hysteresis.
 - [ ] Define standard slippage/spread models.
@@ -300,13 +316,13 @@ _Last updated: 2025-09-09_
 
 ---
 
-## 15) Traceability
+## 16) Traceability
 - Each requirement in this document will be linked to a corresponding BDD `.feature` file.
 - The Gherkin scenarios within these feature files will serve as the direct, automated mapping between the high-level requirement and the code that implements it.
 
 ---
 
-## 16) Pending updates (awaiting approval)
+## 17) Pending updates (awaiting approval)
 > Proposed requirement changes I’ve flagged during design discussions. I will keep this list up to date and move items into the appropriate sections once you approve them.
 
 - _None yet._

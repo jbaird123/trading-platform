@@ -59,4 +59,25 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Create the implementation file: `src/trading_platform/backtester/core.py`.
   - [x] Write the backtester logic to make the tests pass.
 
+- [ ] **Task 8: Implement Core Portfolio Manager (TDD)**
+  - [ ] Create `src/trading_platform/portfolio/portfolio.py` with a `Portfolio` class.
+  - [ ] Implement methods to track cash, positions, and calculate total equity.
+  - [ ] Create `tests/portfolio/test_portfolio.py` with unit tests for these core functions.
+
+- [ ] **Task 9: Enhance Backtester with Risk Management (Stops/TP)**
+  - [ ] Create/update feature file: `tests/features/backtester/risk_management.feature`.
+  - [ ] Add scenarios for stop-loss and take-profit exits based on fixed prices.
+  - [ ] Update backtester logic to check for stop/tp triggers on each bar by interacting with the Portfolio Manager.
+  - [ ] Write tests to confirm correct exit reasons and prices.
+
+- [ ] **Task 10: Implement Portfolio Metrics**
+  - [ ] Create `src/trading_platform/portfolio/metrics.py`.
+  - [ ] Implement functions to calculate equity curve, drawdowns, and win rate from a list of trades.
+  - [ ] Create `tests/portfolio/test_metrics.py` with unit tests for these calculations.
+
+- [ ] **Task 11: Generate JSON Brief v1**
+  - [ ] Create `src/trading_platform/reporting/brief.py`.
+  - [ ] Implement logic to aggregate backtest results (trades, metrics) into the JSON Brief schema.
+  - [ ] Add a step to the main run script to generate and save `brief.json`.
+
 *This task list will be expanded as we complete each phase.*
