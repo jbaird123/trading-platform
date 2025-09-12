@@ -52,4 +52,11 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Create the implementation file: `src/trading_platform/regime_market_manager/classification.py`.
   - [x] Write the RMM logic to make the tests pass.
 
+- [ ] **Task 7: Implement Backtester Core Logic (BDD/TDD)**
+  - [x] Create the feature file: `tests/features/backtester/core_backtest.feature`.
+  - [x] Create the test file: `tests/step_defs/backtester/test_core_backtest_steps.py`.
+  - [x] Run `pytest` and see tests fail with assertion errors due to BDD parsing.
+  - [x] Create the implementation file: `src/trading_platform/backtester/core.py`.
+  - [x] Write the backtester logic to make the tests pass.
+
 *This task list will be expanded as we complete each phase.*

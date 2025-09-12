@@ -170,7 +170,8 @@ _Last updated: 2025-09-09_
 ---
 
 ## 5) Backtester (BT)
-- Vectorized core with event-driven fallback.
+- **Event-Driven Core**: The backtester will be primarily event-driven (iterating bar-by-bar) to ensure maximum flexibility and realism for complex, path-dependent strategies (e.g., trailing stops, portfolio-level risk).
+- **Vectorized Optimizations**: For performance, specific non-path-dependent calculations (e.g., simple signal generation) may be vectorized where possible, but the core simulation loop will remain iterative.
 - **Multi-Strategy & Comparative Runs**: The backtester must be able to execute multiple strategy configurations within a single "comparison run" to facilitate A/B testing.
 - Orders: market, stop, limit; ATR-based stops/TP; trailing stops; tie-breaks.
 - Models: slippage, rollover, and a canonical cost model driven by the instrument definition (commission, fees, spread).
