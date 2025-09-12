@@ -21,7 +21,12 @@ class PortfolioManager:
         self._open_position: Position | None = None
         self.trades: list[Trade] = []
 
-    def open_position(
+    @property
+    def open_position(self) -> Position | None:
+        """Public read-only access to the current open position, if any."""
+        return self._open_position
+
+    def create_new_position(
         self,
         symbol: str,
         side: str,
@@ -56,7 +61,7 @@ class PortfolioManager:
         )
 
         trade = Trade(
-            **self._open_position.__dict__,
+            **(self._open_position.__dict__),
             exit_price=exit_price,
             exit_time=exit_time,
             pnl=pnl,
