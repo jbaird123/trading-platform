@@ -46,8 +46,8 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Write the strategy logic to make the tests pass.
 
 - [ ] **Task 6: Implement Baseline Regime Market Manager (BDD/TDD)**
-  - [ ] Create the feature file: `tests/features/regime_manager/market_regime_classification.feature`.
-  - [ ] Create the test file: `tests/step_defs/regime_manager/test_market_regime_classification_steps.py`.
+  - [x] Create the feature file: `tests/features/regime_market_manager/market_regime_classification.feature`.
+  - [x] Create the test file: `tests/step_defs/regime_market_manager/test_market_regime_classification_steps.py`.
   - [ ] Run `pytest` and see the new BDD tests fail.
 
 *This task list will be expanded as we complete each phase.*
