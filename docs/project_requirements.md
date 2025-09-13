@@ -367,9 +367,44 @@ Notes:
 ---
 
 ## 17) Pending updates (awaiting approval)
-> Proposed requirement changes I’ve flagged during design discussions. I will keep this list up to date and move items into the appropriate sections once you approve them.
 
-- _None yet._
+> Proposed requirement changes identified during gap analysis (Sept 2025). Once approved, these will be merged into their respective module sections.
+
+### AI Lab
+- **[AI-9.x]** The AI Lab must support **automated hypothesis generation**, producing candidate entry/exit rules or strategy variants based on JSON briefs.
+- **[AI-9.x]** The AI Lab must provide **explainability outputs** (e.g., feature attribution, importance scores) to justify AI recommendations.
+
+### Regime Market Manager (RMM)
+- **[RMM-4.x]** The RMM must support **regime-adaptive portfolio allocation**, dynamically adjusting capital weighting by regime classification.
+- **[RMM-4.x]** The RMM must incorporate **event-aware overlays**, integrating economic/news event features into its classification logic.
+
+### Data Handler
+- **[DH-2.x]** The Data Handler must enable **sentiment/NLP features** from event metadata for direct use by the Strategy Engine, RMM, and AI Lab.
+- **[DH-2.x]** The Data Handler must support **distributed/scalable pipelines** for large-scale backtests, including parallelized or serverless execution.
+
+### Backtester
+- **[BT-6.x]** The Backtester must support **distributed/parallel execution**, enabling large-scale parameter sweeps and portfolio simulations.
+- **[BT-6.x]** The Backtester must provide **scenario stress testing**, allowing simulation of market shocks (e.g., volatility spikes, liquidity droughts).
+
+### Portfolio Manager
+- **[PM-5.x]** The Portfolio Manager must support **dynamic allocation policies** based on regime signals provided by the RMM.
+- **[PM-5.x]** The Portfolio Manager must support **portfolio optimization methods**, including risk parity, Kelly criterion, and volatility targeting.
+
+### Strategy Engine
+- **[SE-3.x]** The Strategy Engine must support **natural language–driven strategy definition**, allowing AI-assisted generation of strategies beyond YAML.
+- **[SE-3.x]** The Strategy Engine must support **automated feature selection**, where AI recommends or removes indicators/features during testing.
+
+### Reporting & Visualization
+- **[RV-8.x]** The Reporting module must support **interactive visual analytics**, including trade clustering, dynamic filtering, and zoomable regime overlays.
+- **[RV-8.x]** The Reporting module must support **Monte Carlo equity overlays**, displaying robustness bands on equity curves.
+
+### JSON Brief Schema
+- **[JSON-10.x]** The JSON Brief must include **explainability fields**, such as feature importances and attribution scores linked to AI insights.
+- **[JSON-10.x]** The JSON Brief must include **portfolio allocation rationale** whenever regime-based or optimization-driven allocation is applied.
+
+### System / DevOps
+- **[SYS-1.x]** The system must support **cloud-scale CI/CD execution**, enabling distributed parameter sweeps and backtests in CI pipelines.
+- **[SYS-1.x]** The system must include explicit **AI interpretability/traceability requirements**, ensuring all AI-driven outputs are reproducible and auditable.
 
 ---
 
