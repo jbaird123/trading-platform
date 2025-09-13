@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import platform
+import sys
 from dataclasses import asdict, is_dataclass
 from datetime import datetime
 from pathlib import Path
@@ -194,6 +196,8 @@ def generate_brief(
     initial_cash: float,
     regimes_at_entry: list[str] | None = None,
     data_quality: dict[str, Any] | None = None,
+    provenance: dict[str, Any] | None = None,
+    environment: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assemble a JSON brief from trades and metrics (incremental MVP)."""
     meta = meta or {}
@@ -229,6 +233,10 @@ def generate_brief(
         }
         for t in trades
     ]
+    # Defaults for provenance/environment if not provided
+    prov = provenance or _compute_provenance(trades, meta)
+    env = environment or _compute_environment()
+
     return {
         "meta": _to_jsonable(meta),
         "params": _to_jsonable(params),
@@ -256,8 +264,8 @@ def generate_brief(
         "cost_model": {},
         "fill_policy": {},
         "tie_break_policy": {},
-        "environment": {},
-        "provenance": {},
+        "environment": _to_jsonable(env),
+        "provenance": _to_jsonable(prov),
         "checksums": {},
         # Trades serialized with ISO datetimes
         "trades": trades_json,
@@ -310,3 +318,27 @@ def compute_data_quality(df: pd.DataFrame) -> dict[str, Any]:
     result["nan_counts"] = nan_counts
     result["has_nans"] = any(nan_counts.values())
     return result
+
+
+def _compute_environment() -> dict[str, Any]:
+    tz = datetime.now().astimezone().tzinfo
+    return {
+        "python_version": sys.version.split(" ")[0],
+        "platform": platform.platform(),
+        "timezone": str(tz) if tz else None,
+    }
+
+
+def _compute_provenance(trades: list[Trade], meta: dict[str, Any]) -> dict[str, Any]:
+    # Derive minimal provenance from trades and meta
+    symbols = sorted({t.symbol for t in trades})
+    data_start = min((t.entry_time for t in trades), default=None)
+    data_end = max((t.exit_time for t in trades), default=None)
+    meta = meta or {}
+    return {
+        "run_id": meta.get("run_id"),
+        "strategy_name": meta.get("strategy_name"),
+        "data_start": data_start.isoformat() if data_start else None,
+        "data_end": data_end.isoformat() if data_end else None,
+        "symbols": symbols,
+    }
