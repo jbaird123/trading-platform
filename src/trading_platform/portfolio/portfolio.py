@@ -16,11 +16,13 @@ class PortfolioManager:
     consistent logic. For the MVP, it handles one position at a time.
     """
 
-    def __init__(self, initial_cash: float = 100000.0):
+    def __init__(self, initial_cash: float = 100000.0, instrument: dict | None = None):
         self.initial_cash = initial_cash
         self.cash = initial_cash
         self._open_position: Position | None = None
         self.trades: list[Trade] = []
+        # Optional instrument snapshot (scaffold; not used for PnL yet)
+        self.instrument: dict | None = instrument
 
     @property
     def current_position(self) -> Position | None:
@@ -36,6 +38,7 @@ class PortfolioManager:
         entry_time: datetime,
         stop_loss: float | None = None,
         take_profit: float | None = None,
+        instrument: dict | None = None,
     ) -> None:
         """Creates and holds a new open position."""
         if self._open_position:
@@ -54,6 +57,10 @@ class PortfolioManager:
                 if side == "long"
                 else entry_price - take_profit
             )
+
+        if instrument is not None:
+            # Update current instrument snapshot for this position lifecycle
+            self.instrument = instrument
 
         self._open_position = Position(
             symbol=symbol,
