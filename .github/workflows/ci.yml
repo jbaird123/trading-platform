@@ -53,10 +53,19 @@ jobs:
           poetry run mypy .
 
       - name: Run tests with coverage
-        run: poetry run pytest --cov=src --cov=tests --cov-report=xml
+        run: |
+          # Generate coverage.xml at repo root for SonarCloud
+          poetry run pytest --cov=src --cov-report=xml:coverage.xml
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          # Be explicit about paths so coverage is picked up on PRs
+          args: >
+            -Dsonar.sources=src
+            -Dsonar.tests=tests
+            -Dsonar.python.version=3.10
+            -Dsonar.python.coverage.reportPaths=coverage.xml
