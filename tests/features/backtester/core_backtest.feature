@@ -6,9 +6,9 @@ Feature: Core Backtester Logic
     Given a market data series with columns "open", "high", "low", "close", "volume"
     And a signal series with "long", "short", and "flat" signals
 
-  @req:BT-6.1
-  @req:BT-6.2
-  @req:BT-6.8
+  @req_BT_6_1
+  @req_BT_6_2
+  @req_BT_6_8
   Scenario: Process a simple long entry and exit
     Given the signal at bar 1 is "long"
     And the close price at bar 1 is 100.0

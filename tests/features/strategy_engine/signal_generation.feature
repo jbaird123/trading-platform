@@ -5,8 +5,8 @@ Feature: Strategy Signal Generation
   Background:
     Given a market data series with columns "open", "high", "low", "close", "volume"
 
-  @req:SE-3.1.2
-  @req:SE-3.2.1
+  @req_SE_3_1_2
+  @req_SE_3_2_1
   Scenario: Generate a long signal on a bullish EMA crossover
     Given the strategy is an EMA Crossover with fast_period=3 and slow_period=5
     And the market data is prepared for the strategy
@@ -17,8 +17,8 @@ Feature: Strategy Signal Generation
     When the strategy generates signals
     Then the signal for the current bar should be "long"
 
-  @req:SE-3.1.2
-  @req:SE-3.2.1
+  @req_SE_3_1_2
+  @req_SE_3_2_1
   Scenario: Generate a short signal on a bearish EMA crossover
     Given the strategy is an EMA Crossover with fast_period=3 and slow_period=5
     And the market data is prepared for the strategy
@@ -29,8 +29,8 @@ Feature: Strategy Signal Generation
     When the strategy generates signals
     Then the signal for the current bar should be "short"
 
-  @req:SE-3.1.2
-  @req:SE-3.2.1
+  @req_SE_3_1_2
+  @req_SE_3_2_1
   Scenario: Maintain a flat signal when there is no crossover
     Given the strategy is an EMA Crossover with fast_period=3 and slow_period=5
     And the market data is prepared for the strategy
