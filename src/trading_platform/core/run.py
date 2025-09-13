@@ -35,11 +35,19 @@ def finalize_run(
     cost_model: dict[str, Any] | None = None,
     fill_policy: dict[str, Any] | None = None,
     tie_break_policy: dict[str, Any] | None = None,
+    config: RunConfig | None = None,
 ) -> Path:
     """Generate and save a brief for this run under the run_path.
 
     Returns the path to `brief.json`.
     """
+    # If a config is provided, use its snapshots as defaults
+    if config is not None:
+        instrument_definitions = instrument_definitions or config.instrument_definitions
+        cost_model = cost_model or config.cost_model
+        fill_policy = fill_policy or config.fill_policy
+        tie_break_policy = tie_break_policy or config.tie_break_policy
+
     return save_run_brief(
         run_path,
         meta=meta,

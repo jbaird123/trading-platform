@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -24,3 +25,22 @@ class RunConfig(BaseModel):
         description="The root directory where run artifacts are stored.",
     )
     log_level: str = Field("INFO", description="The logging level for the run.")
+
+    # Optional runtime snapshots for reporting/traceability
+    instrument_definitions: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Per-symbol instrument metadata snapshot included in briefs.",
+    )
+    cost_model: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Global cost model snapshot (e.g., "
+        "spread/commission/slippage settings).",
+    )
+    fill_policy: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Fill policy snapshot (e.g., market, next-bar, bar-mid, etc.).",
+    )
+    tie_break_policy: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Exit tie-break policy snapshot (e.g., stop_then_tp).",
+    )
