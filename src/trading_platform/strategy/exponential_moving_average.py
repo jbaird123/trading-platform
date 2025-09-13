@@ -43,5 +43,7 @@ def generate_ema_crossover_signals(
         default="flat",
     )
 
-    # Return the signals as a pandas Series with the correct index and name.
-    return pd.Series(signals, index=data.index, name="signal")
+    # Return the signals as a pandas Series with the correct index and a
+    # descriptive name that includes the periods (uses the parameters).
+    series_name = f"ema_xover_{fast_period}_{slow_period}"
+    return pd.Series(signals, index=data.index, name=series_name)
