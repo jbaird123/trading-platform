@@ -44,3 +44,16 @@ class RunConfig(BaseModel):
         default_factory=dict,
         description="Exit tie-break policy snapshot (e.g., stop_then_tp).",
     )
+    # Analysis scaffolds (placeholders for brief)
+    monte_carlo: dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Monte Carlo placeholder (e.g., seed, n_paths) to echo into brief."
+        ),
+    )
+    walk_forward: dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Walk-forward placeholder (e.g., splits metadata) to echo into brief."
+        ),
+    )

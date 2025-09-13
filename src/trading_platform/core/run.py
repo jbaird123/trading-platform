@@ -37,6 +37,8 @@ def finalize_run(
     fill_policy: dict[str, Any] | None = None,
     tie_break_policy: dict[str, Any] | None = None,
     config: RunConfig | None = None,
+    monte_carlo: dict[str, Any] | None = None,
+    walk_forward: dict[str, Any] | None = None,
 ) -> Path:
     """Generate and save a brief for this run under the run_path.
 
@@ -48,6 +50,8 @@ def finalize_run(
         cost_model = cost_model or config.cost_model
         fill_policy = fill_policy or config.fill_policy
         tie_break_policy = tie_break_policy or config.tie_break_policy
+        monte_carlo = monte_carlo or config.monte_carlo
+        walk_forward = walk_forward or config.walk_forward
 
     brief_path = save_run_brief(
         run_path,
@@ -60,6 +64,8 @@ def finalize_run(
         cost_model=cost_model,
         fill_policy=fill_policy,
         tie_break_policy=tie_break_policy,
+        monte_carlo=monte_carlo,
+        walk_forward=walk_forward,
     )
     # Also export a minimal HTML report (skeleton)
     try:

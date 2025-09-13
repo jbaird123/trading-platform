@@ -122,10 +122,10 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Add `oanda_stub.py` (no network) that logs order placement attempts and uses PM for state.
   - [x] Tests: stub accepts a signal and produces a loggable action.
 
-- [ ] **Task 17: Monte Carlo + Walk-Forward Scaffolds**
-  - [ ] Add `monte_carlo` config + placeholder summary (e.g., seed, n_paths) to brief.
-  - [ ] Add `walk_forward` config + placeholder split metadata to brief.
-  - [ ] Tests: brief sections present with expected fields.
+- [x] **Task 17: Monte Carlo + Walk-Forward Scaffolds**
+  - [x] Add `monte_carlo` config + placeholder summary (e.g., seed, n_paths) to brief.
+  - [x] Add `walk_forward` config + placeholder split metadata to brief.
+  - [x] Tests: brief sections present with expected fields.
 
 - [ ] **Task 18: Docs & QA Sweep**
   - [ ] README quickstart updates (run → brief → report).
