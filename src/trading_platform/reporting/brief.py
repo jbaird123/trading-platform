@@ -265,3 +265,28 @@ def generate_brief(
 def save_brief(brief: dict[str, Any], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(brief, indent=2))
+
+
+def save_run_brief(
+    run_path: Path,
+    *,
+    meta: dict[str, Any],
+    params: dict[str, Any],
+    trades: list[Trade],
+    initial_cash: float,
+    regimes_at_entry: list[str] | None = None,
+) -> Path:
+    """Generate and save a brief to `run_path/brief.json`.
+
+    Returns the written path.
+    """
+    brief = generate_brief(
+        meta=meta,
+        params=params,
+        trades=trades,
+        initial_cash=initial_cash,
+        regimes_at_entry=regimes_at_entry,
+    )
+    out_path = run_path / "brief.json"
+    save_brief(brief, out_path)
+    return out_path

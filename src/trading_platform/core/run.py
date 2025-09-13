@@ -4,6 +4,8 @@ import logging
 from pathlib import Path
 
 from trading_platform.core.config import RunConfig
+from trading_platform.portfolio.trade import Trade
+from trading_platform.reporting.brief import save_run_brief
 
 
 def initialize_run(config: RunConfig) -> Path:
@@ -18,3 +20,26 @@ def initialize_run(config: RunConfig) -> Path:
 if __name__ == "__main__":
     default_config = RunConfig(user_id="default_user", log_level="INFO")
     initialize_run(default_config)
+
+
+def finalize_run(
+    run_path: Path,
+    *,
+    meta: dict,
+    params: dict,
+    trades: list[Trade],
+    initial_cash: float,
+    regimes_at_entry: list[str] | None = None,
+) -> Path:
+    """Generate and save a brief for this run under the run_path.
+
+    Returns the path to `brief.json`.
+    """
+    return save_run_brief(
+        run_path,
+        meta=meta,
+        params=params,
+        trades=trades,
+        initial_cash=initial_cash,
+        regimes_at_entry=regimes_at_entry,
+    )
