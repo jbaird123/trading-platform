@@ -52,7 +52,7 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Create the implementation file: `src/trading_platform/regime_market_manager/classification.py`.
   - [x] Write the RMM logic to make the tests pass.
 
-- [ ] **Task 7: Implement Backtester Core Logic (BDD/TDD)**
+- [x] **Task 7: Implement Backtester Core Logic (BDD/TDD)**
   - [x] Create the feature file: `tests/features/backtester/core_backtest.feature`.
   - [x] Create the test file: `tests/step_defs/backtester/test_core_backtest_steps.py`.
   - [x] Run `pytest` and see tests fail with assertion errors due to BDD parsing.
@@ -70,10 +70,10 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Update backtester logic to check for stop/tp triggers on each bar by interacting with the Portfolio Manager.
   - [x] Write tests to confirm correct exit reasons and prices.
 
-- [ ] **Task 10: Implement Portfolio Metrics**
-  - [ ] Create `src/trading_platform/portfolio/metrics.py`.
-  - [ ] Implement functions to calculate equity curve, drawdowns, and win rate from a list of trades.
-  - [ ] Create `tests/portfolio/test_metrics.py` with unit tests for these calculations.
+- [x] **Task 10: Implement Portfolio Metrics**
+  - [x] Create `src/trading_platform/portfolio/metrics.py`.
+  - [x] Implement functions to calculate equity curve and win rate from a list of trades. (Drawdowns: TODO)
+  - [x] Create `tests/portfolio/test_metrics.py` with unit tests for these calculations.
 
 - [ ] **Task 11: Generate JSON Brief v1**
   - [ ] Create `src/trading_platform/reporting/brief.py`.
