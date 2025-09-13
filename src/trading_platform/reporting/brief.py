@@ -7,6 +7,7 @@ from pathlib import Path
 from statistics import median
 from typing import Any
 
+import pandas as pd
 from trading_platform.portfolio.metrics import (
     calculate_equity_curve,
     calculate_win_rate,
@@ -192,6 +193,7 @@ def generate_brief(
     trades: list[Trade],
     initial_cash: float,
     regimes_at_entry: list[str] | None = None,
+    data_quality: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assemble a JSON brief from trades and metrics (incremental MVP)."""
     meta = meta or {}
@@ -249,7 +251,7 @@ def generate_brief(
         "parameter_search": {},
         "stationarity": {},
         "feature_analysis": {},
-        "data_quality": {},
+        "data_quality": _to_jsonable(data_quality or {}),
         "instrument_definitions": {},
         "cost_model": {},
         "fill_policy": {},
@@ -275,6 +277,7 @@ def save_run_brief(
     trades: list[Trade],
     initial_cash: float,
     regimes_at_entry: list[str] | None = None,
+    data_quality: dict[str, Any] | None = None,
 ) -> Path:
     """Generate and save a brief to `run_path/brief.json`.
 
@@ -286,7 +289,24 @@ def save_run_brief(
         trades=trades,
         initial_cash=initial_cash,
         regimes_at_entry=regimes_at_entry,
+        data_quality=data_quality,
     )
     out_path = run_path / "brief.json"
     save_brief(brief, out_path)
     return out_path
+
+
+def compute_data_quality(df: pd.DataFrame) -> dict[str, Any]:
+    """Return a simple data-quality snapshot for an OHLCV DataFrame.
+
+    - Index monotonic increasing
+    - Duplicate index count
+    - NaN counts per column
+    """
+    result: dict[str, Any] = {}
+    result["index_monotonic_increasing"] = bool(df.index.is_monotonic_increasing)
+    result["duplicate_bars_count"] = int(df.index.duplicated().sum())
+    nan_counts = {col: int(df[col].isna().sum()) for col in df.columns}
+    result["nan_counts"] = nan_counts
+    result["has_nans"] = any(nan_counts.values())
+    return result
