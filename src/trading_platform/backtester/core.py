@@ -13,6 +13,7 @@ def run_backtest(
     stop_loss: float | None = None,
     take_profit: float | None = None,
     allow_flip_on_bar: bool = False,
+    instrument: dict | None = None,
 ) -> list[Trade]:
     """
     Runs a simple, iterative (bar-by-bar) backtest to generate trades from signals.
@@ -51,7 +52,8 @@ def run_backtest(
         first_bad = market_data[market_data["close"].isna()].index[0]
         raise ValueError(f"market_data.close has NaNs; first at index: {first_bad}")
 
-    portfolio = PortfolioManager(initial_cash=initial_cash)
+    # Accept optional instrument snapshot; do not change PnL behavior yet.
+    portfolio = PortfolioManager(initial_cash=initial_cash, instrument=instrument)
 
     for i in range(len(market_data)):
         current_signal = signals.iloc[i]
@@ -76,6 +78,7 @@ def run_backtest(
                 entry_time=current_bar.name,
                 stop_loss=stop_loss,
                 take_profit=take_profit,
+                instrument=instrument,
             )
 
     return portfolio.trades
