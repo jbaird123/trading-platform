@@ -113,9 +113,9 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Tests: brief contains policies and cost placeholders.
 
 - [ ] **Task 15: Reporting – HTML Export (Skeleton)**
-  - [ ] Add `reporting/html_export.py` to generate a minimal HTML report (price + entry/exit markers from trades).
-  - [ ] Save to `runs/{run_id}/report.html` in finalize step.
-  - [ ] Tests: file is written; contains basic sections.
+  - [x] Add `reporting/html_export.py` to generate a minimal HTML report (skeleton with entries/exits table).
+  - [x] Save to `runs/{run_id}/report.html` in finalize step.
+  - [x] Tests: file is written; contains basic sections.
 
 - [ ] **Task 16: Execution Layer (EL) – MVP Interface**
   - [ ] Create `src/trading_platform/execution/__init__.py` and `adapter_base.py` defining a minimal interface.
