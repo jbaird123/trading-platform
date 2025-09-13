@@ -62,6 +62,11 @@ jobs:
                             --cov-report=xml:coverage.xml \
                             --cov-report=html
 
+      - name: Generate coverage summary
+        if: always()
+        run: |
+          poetry run coverage report -m | tee coverage_summary.txt
+
       - name: Upload coverage artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -70,6 +75,7 @@ jobs:
           path: |
             coverage.xml
             htmlcov/
+            coverage_summary.txt
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
