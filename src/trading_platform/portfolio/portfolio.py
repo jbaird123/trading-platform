@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import cast
 
 import pandas as pd
 from trading_platform.portfolio.position import Position
@@ -133,7 +134,7 @@ class PortfolioManager:
             if exit_triggered:
                 self.close_position(
                     exit_price=exit_price,
-                    exit_time=current_bar.name,
+                    exit_time=cast(datetime, current_bar.name),
                     exit_reason=exit_reason,
                 )
                 return  # Exit early if position was closed by SL/TP
@@ -141,7 +142,7 @@ class PortfolioManager:
         if self.current_position and current_signal != self.current_position.side:
             self.close_position(
                 exit_price=current_bar["close"],
-                exit_time=current_bar.name,
+                exit_time=cast(datetime, current_bar.name),
                 exit_reason="signal",
             )
             if not allow_flip_on_bar:

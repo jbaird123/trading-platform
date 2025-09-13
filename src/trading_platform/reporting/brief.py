@@ -19,7 +19,8 @@ from trading_platform.portfolio.trade import Trade
 
 def _to_jsonable(obj: Any) -> Any:
     """Convert objects (dataclasses, datetimes) to JSON-serializable forms."""
-    if is_dataclass(obj):
+    # asdict() only accepts dataclass instances, not classes.
+    if is_dataclass(obj) and not isinstance(obj, type):
         return {k: _to_jsonable(v) for k, v in asdict(obj).items()}
     if isinstance(obj, datetime):
         return obj.isoformat()
