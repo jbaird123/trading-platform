@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from trading_platform.reporting.brief import generate_brief
+from trading_platform.portfolio.trade import Trade
+from trading_platform.reporting.brief import (
+    _percentile,
+    compute_streaks,
+    generate_brief,
+)
 
 
 def test_generate_brief_with_no_trades_produces_zeroed_metrics():
@@ -56,3 +61,60 @@ def test_jsonable_handles_dataclass_values_and_datetimes():
     # Dataclass converted to dict and datetime to isoformat
     assert dd["value"] == 42
     assert isinstance(dd["when"], str) and dd["when"].startswith("2023-01-01T00:00:00")
+
+
+def test_percentile_and_streaks_additional_branches():
+    # _percentile on empty list hits the early return
+    assert _percentile([], 0.5) == 0.0
+
+    # Streaks: include zero-pnl, consecutive wins, and a loss
+    base = datetime(2023, 1, 1)
+    trades = [
+        Trade(
+            symbol="X",
+            entry_time=base,
+            exit_time=base + timedelta(hours=1),
+            entry_price=1.0,
+            exit_price=1.0,
+            side="long",
+            size=1.0,
+            pnl=0.0,
+            exit_reason="signal",
+        ),
+        Trade(
+            symbol="X",
+            entry_time=base + timedelta(days=1),
+            exit_time=base + timedelta(days=1, hours=1),
+            entry_price=1.0,
+            exit_price=1.1,
+            side="long",
+            size=1.0,
+            pnl=10.0,
+            exit_reason="signal",
+        ),
+        Trade(
+            symbol="X",
+            entry_time=base + timedelta(days=2),
+            exit_time=base + timedelta(days=2, hours=1),
+            entry_price=1.0,
+            exit_price=1.2,
+            side="long",
+            size=1.0,
+            pnl=20.0,
+            exit_reason="signal",
+        ),
+        Trade(
+            symbol="X",
+            entry_time=base + timedelta(days=3),
+            exit_time=base + timedelta(days=3, hours=1),
+            entry_price=1.0,
+            exit_price=0.9,
+            side="short",
+            size=1.0,
+            pnl=-10.0,
+            exit_reason="signal",
+        ),
+    ]
+    st = compute_streaks(trades)
+    assert st["longest_win_streak"] >= 2
+    assert st["longest_loss_streak"] >= 1

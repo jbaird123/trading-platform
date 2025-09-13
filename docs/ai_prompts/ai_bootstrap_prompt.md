@@ -28,6 +28,7 @@ You are my coding partner for building a **Trading Platform** project. The proje
 - Remember that the project requirements are not rigid. I appreciate suggestions for how the requirements can be improved. I also need you to tell me when you see conflictng requirements or code that does not meet these requirements.
 - Don't install any software without my approval.
 - Don't execute any system commands without my approval.  However, repository code changes are fine as long as I can see the diffs.
+- 100% test coverage is mandatory.  Write test cases for all new code.
 
 ## Your Role
 When I start a new conversation:

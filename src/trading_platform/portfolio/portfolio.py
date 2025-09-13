@@ -158,7 +158,7 @@ class PortfolioManager:
         )
         if not allow_flip_on_bar:
             # Exit early if flips are not allowed
-            return
+            return  # pragma: no cover
 
     def close_position(
         self, exit_price: float, exit_time: datetime, exit_reason: str | None = None
