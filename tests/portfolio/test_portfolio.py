@@ -4,8 +4,10 @@ from datetime import datetime
 
 import pytest
 from trading_platform.portfolio.portfolio import PortfolioManager
+from trading_platform.utils.testing import requires
 
 
+@requires("PM-5.1", "PM-5.2")
 def test_portfolio_initialization():
     """Verify the portfolio initializes with correct default values."""
     portfolio = PortfolioManager(initial_cash=50000)
@@ -15,6 +17,7 @@ def test_portfolio_initialization():
     assert portfolio.trades == []
 
 
+@requires("PM-5.1", "PM-5.2", "PM-5.7")
 def test_open_and_close_long_position():
     """Verify opening and closing a long position creates a correct trade record."""
     portfolio = PortfolioManager(initial_cash=100000)
@@ -58,6 +61,7 @@ def test_open_and_close_long_position():
     assert portfolio.cash == pytest.approx(100000 + 50.0)
 
 
+@requires("PM-5.1", "PM-5.2", "PM-5.7")
 def test_open_and_close_short_position_with_loss():
     """Verify opening and closing a short position calculates PnL correctly."""
     portfolio = PortfolioManager(initial_cash=100000)
@@ -88,6 +92,7 @@ def test_open_and_close_short_position_with_loss():
     assert portfolio.cash == pytest.approx(100000 - 2500.0)
 
 
+@requires("PM-5.1")
 def test_cannot_open_position_if_one_is_already_open():
     """Verify that a new position cannot be opened if one is active."""
     portfolio = PortfolioManager()
@@ -117,6 +122,7 @@ def test_cannot_open_position_if_one_is_already_open():
     assert portfolio._open_position.symbol == "EUR_USD"
 
 
+@requires("PM-5.1", "PM-5.2")
 def test_close_position_does_nothing_if_no_position_is_open():
     """Verify that closing a position does nothing when the portfolio is flat."""
     portfolio = PortfolioManager(initial_cash=100000)

@@ -1,3 +1,4 @@
+@req:BT
 Feature: Backtester Risk Management
 
   As a trader,

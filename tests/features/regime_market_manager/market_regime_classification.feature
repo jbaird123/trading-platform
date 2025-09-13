@@ -1,3 +1,4 @@
+@req:RMM
 Feature: Market Regime Classification
   As a user, I want to classify the market regime based on technical indicators
   so that I can filter trades and adapt my strategy to current market conditions.

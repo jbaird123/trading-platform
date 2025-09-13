@@ -1,3 +1,4 @@
+@req:BT
 Feature: Core Backtester Logic
   As a user, I want to run a backtest on a series of signals
   so that I can simulate a strategy's performance and generate a list of trades.
