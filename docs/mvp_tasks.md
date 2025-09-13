@@ -45,7 +45,7 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Create the implementation file: `src/trading_platform/strategy/exponential_moving_average.py`.
   - [x] Write the strategy logic to make the tests pass.
 
-- [ ] **Task 6: Implement Baseline Regime Market Manager (BDD/TDD)**
+- [x] **Task 6: Implement Baseline Regime Market Manager (BDD/TDD)**
   - [x] Create the feature file: `tests/features/regime_market_manager/market_regime_classification.feature`.
   - [x] Create the test file: `tests/step_defs/regime_market_manager/test_market_regime_classification_steps.py`.
   - [x] Run `pytest` and see tests fail with assertion errors.
@@ -75,7 +75,7 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Implement functions to calculate equity curve and win rate from a list of trades. (Drawdowns: TODO)
   - [x] Create `tests/portfolio/test_metrics.py` with unit tests for these calculations.
 
-- [ ] **Task 11: Generate JSON Brief v1**
+- [x] **Task 11: Generate JSON Brief v1**
   - [x] Create `src/trading_platform/reporting/brief.py`.
   - [x] Implement aggregation into the JSON Brief (instrument-agnostic):
     - [x] overall_performance (currency-based)
@@ -90,7 +90,7 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Populate `provenance` and `environment` (python/platform/timezone; data range, symbols). (Git/app/deps: TODO)
   - [x] Add `instrument_definitions` snapshot (per symbol metadata) and `cost_model`/`fill_policy`/`tie_break_policy` placeholders.
 
-- [ ] **Task 12: Backtester Input Validation & Guards**
+- [x] **Task 12: Backtester Input Validation & Guards**
   - [x] Validate required columns exist and have no NaNs (e.g., `close`).
   - [x] Validate `len(signals) == len(market_data)` and signal values in {long, short, flat}.
   - [x] Raise `ValueError` on invalid inputs (fail-fast), with actionable messages.
@@ -101,24 +101,24 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 
 ## Phase 6: Complete MVP Features
 
-- [ ] **Task 13: Instrument Definitions & Cost Model (Scaffold)**
+- [x] **Task 13: Instrument Definitions & Cost Model (Scaffold)**
   - [x] Create `src/trading_platform/data/instrument.py` with `InstrumentDefinition` (e.g., `symbol, tick_size, point_value, base_ccy, quote_ccy, lot_size, min_trade_unit, commission_structure, spread_model, slippage_model`).
   - [x] Add `instrument_definitions` snapshot to the brief (per-symbol JSON-serializable dict).
   - [x] Wire PM/BT to accept an `instrument` arg, but keep PnL in base currency (no behavior change yet).
   - [x] Tests: instrument dataclass creation + brief serialization.
 
-- [ ] **Task 14: Fill Policy, Tie-Break, and Cost Placeholders**
+- [x] **Task 14: Fill Policy, Tie-Break, and Cost Placeholders**
   - [x] Record `fill_policy` and `tie_break_policy` in the brief from run/config.
   - [x] Add per-trade `cost_breakdown` placeholder in brief (e.g., `{spread, commission, slippage}` defaulting to 0.0).
   - [x] Tests: brief contains policies and cost placeholders.
 
-- [ ] **Task 15: Reporting – HTML Export (Skeleton)**
+- [x] **Task 15: Reporting – HTML Export (Skeleton)**
   - [x] Add `reporting/html_export.py` to generate a minimal HTML report (skeleton with entries/exits table).
   - [x] Save to `runs/{run_id}/report.html` in finalize step.
   - [x] Tests: file is written; contains basic sections.
 
 - [ ] **Task 16: Execution Layer (EL) – MVP Interface**
-  - [ ] Create `src/trading_platform/execution/__init__.py` and `adapter_base.py` defining a minimal interface.
+  - [x] Create `src/trading_platform/execution/__init__.py` and `adapter_base.py` defining a minimal interface.
   - [ ] Add `oanda_stub.py` (no network) that logs order placement attempts and uses PM for state.
   - [ ] Tests: stub accepts a signal and produces a loggable action.
 
