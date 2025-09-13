@@ -275,14 +275,30 @@ _Last updated: 2025-09-09_
 - **params**: `{fast, slow, stop_type, stop_value, tp_type, tp_value, trail_type, trail_value, atr_length, tie_break}`.
 - **overall_performance** (base currency): `{n_trades, total_pnl, mean_pnl, median_pnl, by_side_total_pnl, win_rate, initial_equity, final_equity}`.
 - **risk_snapshot** (base currency): `{win_rate, avg_win, avg_loss, max_win, max_loss}`.
+- **equity_stats**: `{equity_curve: [[timestamp, equity], ...], max_drawdown, dd_duration_bars}`.
+- **distribution**: `{pnl_mean, pnl_median, pnl_std, p05, p95}` (base currency; placeholders acceptable initially).
+- **streaks**: `{longest_win_streak, longest_loss_streak, current_streak}`.
+- **holding_time**: `{median_secs}` and optional buckets.
+- **activity**: `{trades_per_day}` (optional baseline).
+- **timing_buckets**: `{by_hour, by_dow, by_month}` (optional baseline).
+- **costs**: `{total_costs, avg_cost_per_trade, breakdown:{spread, commission, fees, slippage}}`.
+- **exposure**: `{average_gross_exposure, peak_gross_exposure}` (optional baseline).
 - **contrasts**: feature-at-entry bins (RSI, ADX, ATR, BB width, etc.).
+- **regimes**: per-regime performance breakdown.
 - **stop_tp_candidates**: configs derived from MFE/MAE (in base currency; instrument-specific conversions occur via Instrument Definition at presentation/export time).
 - **monte_carlo**: resampling stats.
 - **walk_forward**: rolling OOS stats with instability flags.
-- **regimes**: per-regime performance breakdown.
 - **parameter_search**: top params, robustness notes.
 - **stationarity**: ADF, KPSS, drift tests.
 - **feature_analysis**: `{correlation_matrix, feature_importance_scores}`.
+- **data_quality**: loader flags, missing/duplicate bar counts, outlier flags.
+- **instrument_definitions**: snapshot per symbol `{tick_size, point_value, base_ccy, quote_ccy, lot_size, min_trade_unit}`.
+- **cost_model**: `{spread_model, commission_model, slippage_model, rollover_model, fee_params}`.
+- **fill_policy**: `{policy}` and details; **tie_break_policy**: `{policy}`.
+- **environment**: `{python_version, dependency_versions, platform, timezone}`.
+- **provenance**: `{app_version, git_commit, run_seed, data_start, data_end, symbols}`.
+- **checksums**: `{config_snapshot_hash, instrument_defs_hash}`.
+- **trades**: enhanced entries with `{r_multiple, mfe_currency, mae_currency, bars_held, holding_time_sec, features_at_entry, regime_label_at_entry, exit_reason, cost_breakdown}`.
 - Pure JSON types only (convert pandas objects).
 
 Notes:

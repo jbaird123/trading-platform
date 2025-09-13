@@ -64,16 +64,137 @@ def compute_risk_snapshot(trades: list[Trade]) -> dict[str, Any]:
     }
 
 
+def _percentile(values: list[float], pct: float) -> float:
+    if not values:
+        return 0.0
+    values = sorted(values)
+    k = (len(values) - 1) * pct
+    f = int(k)
+    c = min(f + 1, len(values) - 1)
+    if f == c:
+        return float(values[int(k)])
+    d0 = values[f] * (c - k)
+    d1 = values[c] * (k - f)
+    return float(d0 + d1)
+
+
+def compute_distribution(trades: list[Trade]) -> dict[str, Any]:
+    pnls = [t.pnl for t in trades]
+    if not pnls:
+        return {
+            "pnl_mean": 0.0,
+            "pnl_median": 0.0,
+            "pnl_std": 0.0,
+            "p05": 0.0,
+            "p95": 0.0,
+        }
+    n = len(pnls)
+    mean_val = sum(pnls) / n
+    median_val = median(pnls)
+    var = sum((x - mean_val) ** 2 for x in pnls) / n
+    std = var**0.5
+    return {
+        "pnl_mean": mean_val,
+        "pnl_median": median_val,
+        "pnl_std": std,
+        "p05": _percentile(pnls, 0.05),
+        "p95": _percentile(pnls, 0.95),
+    }
+
+
+def compute_streaks(trades: list[Trade]) -> dict[str, Any]:
+    longest_win = 0
+    longest_loss = 0
+    current = 0
+    current_sign = 0  # 1 win, -1 loss, 0 none
+    for t in trades:
+        sign = 1 if t.pnl > 0 else (-1 if t.pnl < 0 else 0)
+        if sign == 0:
+            current = 0
+            current_sign = 0
+        elif sign == current_sign:
+            current += 1
+        else:
+            current = 1
+            current_sign = sign
+        if current_sign == 1:
+            longest_win = max(longest_win, current)
+        elif current_sign == -1:
+            longest_loss = max(longest_loss, current)
+    return {
+        "longest_win_streak": longest_win,
+        "longest_loss_streak": longest_loss,
+        "current_streak": current if current_sign != 0 else 0,
+    }
+
+
+def compute_equity_stats(trades: list[Trade], initial_cash: float) -> dict[str, Any]:
+    ec = calculate_equity_curve(trades, initial_cash)
+    max_peak = float("-inf")
+    dd_curve: list[tuple[datetime, float]] = []
+    max_dd = 0.0
+    dd_duration = 0
+    temp_duration = 0
+    for ts, eq in ec:
+        if eq > max_peak:
+            max_peak = eq
+            temp_duration = 0
+        drawdown = max(0.0, max_peak - eq)
+        dd_curve.append((ts, drawdown))
+        if drawdown > 0:
+            temp_duration += 1
+            if drawdown > max_dd:
+                max_dd = drawdown
+                dd_duration = temp_duration
+    equity_curve = [[ts.isoformat(), float(eq)] for ts, eq in ec]
+    drawdown_curve = [[ts.isoformat(), float(dd)] for ts, dd in dd_curve]
+    return {
+        "equity_curve": equity_curve,
+        "drawdown_curve": drawdown_curve,
+        "max_drawdown": max_dd,
+        "dd_duration_bars": dd_duration,
+    }
+
+
+def _median_holding_secs(trades: list[Trade]) -> float:
+    if not trades:
+        return 0.0
+    vals = [max(0.0, (t.exit_time - t.entry_time).total_seconds()) for t in trades]
+    return float(median(vals))
+
+
+def _compute_regimes(
+    trades: list[Trade], regimes_at_entry: list[str] | None
+) -> dict[str, Any]:
+    if not regimes_at_entry or len(regimes_at_entry) != len(trades):
+        return {}
+    buckets: dict[str, list[float]] = {}
+    for t, label in zip(trades, regimes_at_entry):
+        buckets.setdefault(label, []).append(t.pnl)
+    result: dict[str, Any] = {}
+    for label, pnls in buckets.items():
+        n = len(pnls)
+        wins = sum(1 for p in pnls if p > 0)
+        result[label] = {
+            "n_trades": n,
+            "total_pnl": float(sum(pnls)),
+            "mean_pnl": float(sum(pnls) / n) if n else 0.0,
+            "median_pnl": float(median(pnls)) if pnls else 0.0,
+            "win_rate": (wins / n) if n else 0.0,
+        }
+    return result
+
+
 def generate_brief(
     *,
     meta: dict[str, Any] | None,
     params: dict[str, Any] | None,
     trades: list[Trade],
     initial_cash: float,
+    regimes_at_entry: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Assemble a minimal JSON brief from trades and metrics (MVP v1)."""
+    """Assemble a JSON brief from trades and metrics (incremental MVP)."""
     meta = meta or {}
-    # Normalize params to expected keys; instrument-agnostic core
     expected_params = [
         "fast",
         "slow",
@@ -90,6 +211,8 @@ def generate_brief(
     params = {k: params_in.get(k) for k in expected_params}
     performance = compute_overall_performance(trades, initial_cash)
     risk_snapshot = compute_risk_snapshot(trades)
+    equity_stats = compute_equity_stats(trades, initial_cash)
+    distribution = compute_distribution(trades)
     trades_json = [
         {
             "symbol": t.symbol,
@@ -110,14 +233,30 @@ def generate_brief(
         # Canonical, instrument-agnostic sections
         "overall_performance": performance,
         "risk_snapshot": risk_snapshot,
+        "equity_stats": equity_stats,
+        "distribution": distribution,
+        "streaks": compute_streaks(trades),
+        "holding_time": {"median_secs": _median_holding_secs(trades)},
+        "activity": {},
+        "timing_buckets": {},
+        "costs": {},
+        "exposure": {},
         "contrasts": {},
         "stop_tp_candidates": [],
         "monte_carlo": {},
         "walk_forward": {},
-        "regimes": {},
+        "regimes": _compute_regimes(trades, regimes_at_entry),
         "parameter_search": {},
         "stationarity": {},
         "feature_analysis": {},
+        "data_quality": {},
+        "instrument_definitions": {},
+        "cost_model": {},
+        "fill_policy": {},
+        "tie_break_policy": {},
+        "environment": {},
+        "provenance": {},
+        "checksums": {},
         # Trades serialized with ISO datetimes
         "trades": trades_json,
     }
