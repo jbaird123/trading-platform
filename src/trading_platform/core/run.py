@@ -19,9 +19,11 @@ def initialize_run(config: RunConfig) -> Path:
     return run_path
 
 
-if __name__ == "__main__":
-    default_config = RunConfig(user_id="default_user", log_level="INFO")
-    initialize_run(default_config)
+if __name__ == "__main__":  # pragma: no cover
+    default_config = RunConfig(
+        user_id="default_user", log_level="INFO"
+    )  # pragma: no cover
+    initialize_run(default_config)  # pragma: no cover
 
 
 def finalize_run(
