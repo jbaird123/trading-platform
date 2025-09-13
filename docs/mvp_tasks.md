@@ -117,10 +117,10 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Save to `runs/{run_id}/report.html` in finalize step.
   - [x] Tests: file is written; contains basic sections.
 
-- [ ] **Task 16: Execution Layer (EL) – MVP Interface**
+- [x] **Task 16: Execution Layer (EL) – MVP Interface**
   - [x] Create `src/trading_platform/execution/__init__.py` and `adapter_base.py` defining a minimal interface.
-  - [ ] Add `oanda_stub.py` (no network) that logs order placement attempts and uses PM for state.
-  - [ ] Tests: stub accepts a signal and produces a loggable action.
+  - [x] Add `oanda_stub.py` (no network) that logs order placement attempts and uses PM for state.
+  - [x] Tests: stub accepts a signal and produces a loggable action.
 
 - [ ] **Task 17: Monte Carlo + Walk-Forward Scaffolds**
   - [ ] Add `monte_carlo` config + placeholder summary (e.g., seed, n_paths) to brief.
