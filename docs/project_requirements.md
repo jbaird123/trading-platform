@@ -270,13 +270,13 @@ _Last updated: 2025-09-09_
 
 ---
 
-## 10) JSON Brief Schema
+## 10) JSON Brief Schema (Instrument-Agnostic)
 - **meta**: `{strategy_name, timeframe, universe, version, run_id, timestamp}`.
 - **params**: `{fast, slow, stop_type, stop_value, tp_type, tp_value, trail_type, trail_value, atr_length, tie_break}`.
-- **overall_pips**: `{n_trades, mean_pips, median_pips, total_pips, by_side_total_pips}`.
-- **risk_snapshot**: `{win_rate, avg_win, avg_loss, max_win, max_loss}`.
+- **overall_performance** (base currency): `{n_trades, total_pnl, mean_pnl, median_pnl, by_side_total_pnl, win_rate, initial_equity, final_equity}`.
+- **risk_snapshot** (base currency): `{win_rate, avg_win, avg_loss, max_win, max_loss}`.
 - **contrasts**: feature-at-entry bins (RSI, ADX, ATR, BB width, etc.).
-- **stop_tp_candidates**: configs derived from MFE/MAE (in pips).
+- **stop_tp_candidates**: configs derived from MFE/MAE (in base currency; instrument-specific conversions occur via Instrument Definition at presentation/export time).
 - **monte_carlo**: resampling stats.
 - **walk_forward**: rolling OOS stats with instability flags.
 - **regimes**: per-regime performance breakdown.
@@ -284,6 +284,9 @@ _Last updated: 2025-09-09_
 - **stationarity**: ADF, KPSS, drift tests.
 - **feature_analysis**: `{correlation_matrix, feature_importance_scores}`.
 - Pure JSON types only (convert pandas objects).
+
+Notes:
+- The brief is canonical and instrument-agnostic. Any UI/export layer may render instrument-native units (e.g., pips, ticks) by translating the canonical brief via the Instrument Definition (e.g., `tick_size`, `point_value`).
 
 ---
 
