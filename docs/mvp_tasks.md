@@ -104,13 +104,13 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 - [ ] **Task 13: Instrument Definitions & Cost Model (Scaffold)**
   - [x] Create `src/trading_platform/data/instrument.py` with `InstrumentDefinition` (e.g., `symbol, tick_size, point_value, base_ccy, quote_ccy, lot_size, min_trade_unit, commission_structure, spread_model, slippage_model`).
   - [x] Add `instrument_definitions` snapshot to the brief (per-symbol JSON-serializable dict).
-  - [ ] Wire PM/BT to accept an `instrument` arg, but keep PnL in base currency (no behavior change yet).
+  - [x] Wire PM/BT to accept an `instrument` arg, but keep PnL in base currency (no behavior change yet).
   - [x] Tests: instrument dataclass creation + brief serialization.
 
 - [ ] **Task 14: Fill Policy, Tie-Break, and Cost Placeholders**
-  - [ ] Record `fill_policy` and `tie_break_policy` in the brief from run/config.
-  - [ ] Add per-trade `cost_breakdown` placeholder in brief (e.g., `{spread, commission, slippage}` defaulting to 0.0).
-  - [ ] Tests: brief contains policies and cost placeholders.
+  - [x] Record `fill_policy` and `tie_break_policy` in the brief from run/config.
+  - [x] Add per-trade `cost_breakdown` placeholder in brief (e.g., `{spread, commission, slippage}` defaulting to 0.0).
+  - [x] Tests: brief contains policies and cost placeholders.
 
 - [ ] **Task 15: Reporting – HTML Export (Skeleton)**
   - [ ] Add `reporting/html_export.py` to generate a minimal HTML report (price + entry/exit markers from trades).

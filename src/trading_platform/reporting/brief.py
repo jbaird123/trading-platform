@@ -234,6 +234,12 @@ def generate_brief(
             "exit_price": t.exit_price,
             "pnl": t.pnl,
             "exit_reason": t.exit_reason,
+            # Placeholders for future cost modeling (Task 14)
+            "cost_breakdown": {
+                "spread": 0.0,
+                "commission": 0.0,
+                "slippage": 0.0,
+            },
         }
         for t in trades
     ]
