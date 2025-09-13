@@ -96,3 +96,38 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Raise `ValueError` on invalid inputs (fail-fast), with actionable messages.
 
 *This task list will be expanded as we complete each phase.*
+
+---
+
+## Phase 6: Complete MVP Features
+
+- [ ] **Task 13: Instrument Definitions & Cost Model (Scaffold)**
+  - [ ] Create `src/trading_platform/data/instrument.py` with `InstrumentDefinition` (e.g., `symbol, tick_size, point_value, base_ccy, quote_ccy, lot_size, min_trade_unit, commission_structure, spread_model, slippage_model`).
+  - [ ] Add `instrument_definitions` snapshot to the brief (per-symbol JSON-serializable dict).
+  - [ ] Wire PM/BT to accept an `instrument` arg, but keep PnL in base currency (no behavior change yet).
+  - [ ] Tests: instrument dataclass creation + brief serialization.
+
+- [ ] **Task 14: Fill Policy, Tie-Break, and Cost Placeholders**
+  - [ ] Record `fill_policy` and `tie_break_policy` in the brief from run/config.
+  - [ ] Add per-trade `cost_breakdown` placeholder in brief (e.g., `{spread, commission, slippage}` defaulting to 0.0).
+  - [ ] Tests: brief contains policies and cost placeholders.
+
+- [ ] **Task 15: Reporting – HTML Export (Skeleton)**
+  - [ ] Add `reporting/html_export.py` to generate a minimal HTML report (price + entry/exit markers from trades).
+  - [ ] Save to `runs/{run_id}/report.html` in finalize step.
+  - [ ] Tests: file is written; contains basic sections.
+
+- [ ] **Task 16: Execution Layer (EL) – MVP Interface**
+  - [ ] Create `src/trading_platform/execution/__init__.py` and `adapter_base.py` defining a minimal interface.
+  - [ ] Add `oanda_stub.py` (no network) that logs order placement attempts and uses PM for state.
+  - [ ] Tests: stub accepts a signal and produces a loggable action.
+
+- [ ] **Task 17: Monte Carlo + Walk-Forward Scaffolds**
+  - [ ] Add `monte_carlo` config + placeholder summary (e.g., seed, n_paths) to brief.
+  - [ ] Add `walk_forward` config + placeholder split metadata to brief.
+  - [ ] Tests: brief sections present with expected fields.
+
+- [ ] **Task 18: Docs & QA Sweep**
+  - [ ] README quickstart updates (run → brief → report).
+  - [ ] Ensure CI green; ruff/mypy tidy; re-run `pytest -q` locally.
+  - [ ] Add example brief under `docs/examples/brief.json`.
