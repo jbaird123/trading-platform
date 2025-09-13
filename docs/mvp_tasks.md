@@ -129,5 +129,5 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 
 - [ ] **Task 18: Docs & QA Sweep**
   - [x] README quickstart updates (run → brief → report).
-  - [ ] Ensure CI green; ruff/mypy tidy; re-run `pytest -q` locally.
+  - [x] Ensure CI green; ruff/mypy tidy; re-run `pytest -q` locally.
   - [x] Add example brief under `docs/examples/brief.json`.

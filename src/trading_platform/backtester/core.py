@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import datetime
+from typing import cast
+
 import pandas as pd
 
 from trading_platform.portfolio.portfolio import PortfolioManager
@@ -75,7 +78,7 @@ def run_backtest(
                 side=current_signal,
                 entry_price=current_bar["close"],
                 size=10000,
-                entry_time=current_bar.name,
+                entry_time=cast(datetime, current_bar.name),
                 stop_loss=stop_loss,
                 take_profit=take_profit,
                 instrument=instrument,
