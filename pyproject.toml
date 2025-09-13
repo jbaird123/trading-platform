@@ -40,5 +40,18 @@ packages = ["src/trading_platform"]
 # Ignore the benign "usefixtures" warning from pytest-bdd's scenario generator
 filterwarnings = ["ignore:usefixtures.*has no effect:pytest.PytestWarning"]
 markers = [
-    "req: Marks a test as covering a specific requirement.",
+    "req_DH_2_2: Marks a test as covering a specific requirement.",
+    "req_DH_2_3: Marks a test as covering a specific requirement.",
+    "req_DH_2_5: Marks a test as covering a specific requirement.",
+    "req_DH_2_6: Marks a test as covering a specific requirement.",
+    "req_RMM_4_1: Marks a test as covering a specific requirement.",
+    "req_RMM_4_2: Marks a test as covering a specific requirement.",
+    "req_RMM_4_3: Marks a test as covering a specific requirement.",
+    "req_SE_3_1_2: Marks a test as covering a specific requirement.",
+    "req_SE_3_2_1: Marks a test as covering a specific requirement.",
+    "req_BT_6_1: Marks a test as covering a specific requirement.",
+    "req_BT_6_2: Marks a test as covering a specific requirement.",
+    "req_BT_6_3: Marks a test as covering a specific requirement.",
+    "req_BT_6_4: Marks a test as covering a specific requirement.",
+    "req_BT_6_8: Marks a test as covering a specific requirement.",
 ]
