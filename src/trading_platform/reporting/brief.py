@@ -198,6 +198,10 @@ def generate_brief(
     data_quality: dict[str, Any] | None = None,
     provenance: dict[str, Any] | None = None,
     environment: dict[str, Any] | None = None,
+    instrument_definitions: dict[str, Any] | None = None,
+    cost_model: dict[str, Any] | None = None,
+    fill_policy: dict[str, Any] | None = None,
+    tie_break_policy: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assemble a JSON brief from trades and metrics (incremental MVP)."""
     meta = meta or {}
@@ -260,10 +264,11 @@ def generate_brief(
         "stationarity": {},
         "feature_analysis": {},
         "data_quality": _to_jsonable(data_quality or {}),
-        "instrument_definitions": {},
-        "cost_model": {},
-        "fill_policy": {},
-        "tie_break_policy": {},
+        # Snapshots and placeholders (configurable)
+        "instrument_definitions": _to_jsonable(instrument_definitions or {}),
+        "cost_model": _to_jsonable(cost_model or {}),
+        "fill_policy": _to_jsonable(fill_policy or {}),
+        "tie_break_policy": _to_jsonable(tie_break_policy or {}),
         "environment": _to_jsonable(env),
         "provenance": _to_jsonable(prov),
         "checksums": {},
@@ -286,6 +291,10 @@ def save_run_brief(
     initial_cash: float,
     regimes_at_entry: list[str] | None = None,
     data_quality: dict[str, Any] | None = None,
+    instrument_definitions: dict[str, Any] | None = None,
+    cost_model: dict[str, Any] | None = None,
+    fill_policy: dict[str, Any] | None = None,
+    tie_break_policy: dict[str, Any] | None = None,
 ) -> Path:
     """Generate and save a brief to `run_path/brief.json`.
 
@@ -298,6 +307,10 @@ def save_run_brief(
         initial_cash=initial_cash,
         regimes_at_entry=regimes_at_entry,
         data_quality=data_quality,
+        instrument_definitions=instrument_definitions,
+        cost_model=cost_model,
+        fill_policy=fill_policy,
+        tie_break_policy=tie_break_policy,
     )
     out_path = run_path / "brief.json"
     save_brief(brief, out_path)
