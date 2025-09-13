@@ -1,4 +1,3 @@
-@req:BT
 Feature: Core Backtester Logic
   As a user, I want to run a backtest on a series of signals
   so that I can simulate a strategy's performance and generate a list of trades.
@@ -7,6 +6,9 @@ Feature: Core Backtester Logic
     Given a market data series with columns "open", "high", "low", "close", "volume"
     And a signal series with "long", "short", and "flat" signals
 
+  @req:BT-6.1
+  @req:BT-6.2
+  @req:BT-6.8
   Scenario: Process a simple long entry and exit
     Given the signal at bar 1 is "long"
     And the close price at bar 1 is 100.0

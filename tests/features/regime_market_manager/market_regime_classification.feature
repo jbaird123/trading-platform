@@ -1,4 +1,3 @@
-@req:RMM
 Feature: Market Regime Classification
   As a user, I want to classify the market regime based on technical indicators
   so that I can filter trades and adapt my strategy to current market conditions.
@@ -6,6 +5,9 @@ Feature: Market Regime Classification
   Background:
     Given a market data series with pre-calculated indicator values
 
+  @req:RMM-4.1
+  @req:RMM-4.2
+  @req:RMM-4.3
   Scenario: Classify a strong trending regime
     Given the indicator "ADX(14)" has a value of 30.0
     And the indicator "EMA(200)_slope" has a value of 0.5
@@ -13,6 +15,9 @@ Feature: Market Regime Classification
     Then the regime should be "trend_up"
     And the confidence should be "high"
 
+  @req:RMM-4.1
+  @req:RMM-4.2
+  @req:RMM-4.3
   Scenario: Classify a ranging regime
     Given the indicator "ADX(14)" has a value of 15.0
     And the indicator "BB_width(20)" has a value of 0.02
