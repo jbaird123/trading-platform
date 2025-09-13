@@ -64,11 +64,11 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Create `src/trading_platform/portfolio/portfolio.py` with a `PortfolioManager` class to open/close positions.
   - [x] Create `tests/step_defs/portfolio/test_portfolio.py` with unit tests for the `PortfolioManager`.
 
-- [ ] **Task 9: Enhance Backtester with Risk Management (Stops/TP)**
-  - [ ] Create/update feature file: `tests/features/backtester/risk_management.feature`.
-  - [ ] Add scenarios for stop-loss and take-profit exits based on fixed prices.
-  - [ ] Update backtester logic to check for stop/tp triggers on each bar by interacting with the Portfolio Manager.
-  - [ ] Write tests to confirm correct exit reasons and prices.
+- [x] **Task 9: Enhance Backtester with Risk Management (Stops/TP)**
+  - [x] Create/update feature file: `tests/features/backtester/risk_management.feature`.
+  - [x] Add scenarios for stop-loss and take-profit exits based on fixed prices.
+  - [x] Update backtester logic to check for stop/tp triggers on each bar by interacting with the Portfolio Manager.
+  - [x] Write tests to confirm correct exit reasons and prices.
 
 - [ ] **Task 10: Implement Portfolio Metrics**
   - [ ] Create `src/trading_platform/portfolio/metrics.py`.

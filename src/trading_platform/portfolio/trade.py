@@ -21,4 +21,6 @@ class Trade:
     size: float
     pnl: float
     exit_reason: str | None = None
-    # 'mfe' and 'mae' will also be added later.
+    stop_loss: float | None = None
+    take_profit: float | None = None
+    # 'mfe' and 'mae' will be added later.

@@ -18,3 +18,5 @@ class Position:
     entry_price: float
     side: str  # "long" or "short"
     size: float
+    stop_loss: float | None = None
+    take_profit: float | None = None

@@ -4,6 +4,26 @@ _Last updated: 2025-09-09_
 
 > **Purpose**: Single source of truth for the Trading Engine project. This file captures **all requirements, at every level of detail** — functional, non-functional, system-wide, module-specific, and even small design details. It serves as the **authoritative requirements index** that goes beyond a master spec.
 
+## Table of Contents
+- [0) Scope & Definitions](#0-scope--definitions)
+- [1) System-Wide Requirements](#1-system-wide-requirements)
+- [2) Data Handler (DH)](#2-data-handler-dh)
+- [3) Strategy Engine (SE)](#3-strategy-engine-se)
+- [4) Regime Market Manager (RMM)](#4-regime-market-manager-rmm)
+- [5) Portfolio Manager (PM)](#5-portfolio-manager-pm)
+- [6) Backtester (BT)](#6-backtester-bt)
+- [7) Execution Layer (EL)](#7-execution-layer-el)
+- [8) Reporting & Visualization (RV)](#8-reporting--visualization-rv)
+- [9) AI Lab (AI)](#9-ai-lab-ai)
+- [10) JSON Brief Schema](#10-json-brief-schema)
+- [11) MVP Subset](#11-mvp-subset)
+- [12) Non-Functional Requirements](#12-non-functional-requirements)
+- [13) Detailed Notes & Edge Requirements](#13-detailed-notes--edge-requirements)
+- [14) Development Process & Governance](#14-development-process--governance)
+- [15) Open TODOs](#15-open-todos)
+- [16) Traceability](#16-traceability)
+- [17) Pending updates (awaiting approval)](#17-pending-updates-awaiting-approval)
+
 ---
 
 ## 0) Scope & Definitions
