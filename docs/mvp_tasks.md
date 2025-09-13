@@ -88,7 +88,7 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Add a step to the run flow to generate and save `runs/{run_id}/brief.json`.
   - [x] Populate `data_quality` section (missing/duplicate bars, NaNs, monotonic index).
   - [x] Populate `provenance` and `environment` (python/platform/timezone; data range, symbols). (Git/app/deps: TODO)
-  - [ ] Add `instrument_definitions` snapshot (per symbol metadata) and `cost_model`/`fill_policy`/`tie_break_policy` placeholders.
+  - [x] Add `instrument_definitions` snapshot (per symbol metadata) and `cost_model`/`fill_policy`/`tie_break_policy` placeholders.
 
 - [ ] **Task 12: Backtester Input Validation & Guards**
   - [x] Validate required columns exist and have no NaNs (e.g., `close`).
@@ -102,10 +102,10 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 ## Phase 6: Complete MVP Features
 
 - [ ] **Task 13: Instrument Definitions & Cost Model (Scaffold)**
-  - [ ] Create `src/trading_platform/data/instrument.py` with `InstrumentDefinition` (e.g., `symbol, tick_size, point_value, base_ccy, quote_ccy, lot_size, min_trade_unit, commission_structure, spread_model, slippage_model`).
-  - [ ] Add `instrument_definitions` snapshot to the brief (per-symbol JSON-serializable dict).
+  - [x] Create `src/trading_platform/data/instrument.py` with `InstrumentDefinition` (e.g., `symbol, tick_size, point_value, base_ccy, quote_ccy, lot_size, min_trade_unit, commission_structure, spread_model, slippage_model`).
+  - [x] Add `instrument_definitions` snapshot to the brief (per-symbol JSON-serializable dict).
   - [ ] Wire PM/BT to accept an `instrument` arg, but keep PnL in base currency (no behavior change yet).
-  - [ ] Tests: instrument dataclass creation + brief serialization.
+  - [x] Tests: instrument dataclass creation + brief serialization.
 
 - [ ] **Task 14: Fill Policy, Tie-Break, and Cost Placeholders**
   - [ ] Record `fill_policy` and `tie_break_policy` in the brief from run/config.
