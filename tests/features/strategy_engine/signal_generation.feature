@@ -1,3 +1,4 @@
+@req:SE
 Feature: Strategy Signal Generation
   As a user, I want to generate trading signals from market data using a strategy
   so that I can define entry and exit points for backtesting.
