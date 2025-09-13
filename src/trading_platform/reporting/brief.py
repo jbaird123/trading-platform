@@ -112,7 +112,12 @@ def compute_streaks(trades: list[Trade]) -> dict[str, Any]:
     current = 0
     current_sign = 0  # 1 win, -1 loss, 0 none
     for t in trades:
-        sign = 1 if t.pnl > 0 else (-1 if t.pnl < 0 else 0)
+        if t.pnl > 0:
+            sign = 1
+        elif t.pnl < 0:
+            sign = -1
+        else:
+            sign = 0
         if sign == 0:
             current = 0
             current_sign = 0
@@ -197,8 +202,6 @@ def generate_brief(
     initial_cash: float,
     regimes_at_entry: list[str] | None = None,
     data_quality: dict[str, Any] | None = None,
-    provenance: dict[str, Any] | None = None,
-    environment: dict[str, Any] | None = None,
     instrument_definitions: dict[str, Any] | None = None,
     cost_model: dict[str, Any] | None = None,
     fill_policy: dict[str, Any] | None = None,
@@ -246,9 +249,9 @@ def generate_brief(
         }
         for t in trades
     ]
-    # Defaults for provenance/environment if not provided
-    prov = provenance or _compute_provenance(trades, meta)
-    env = environment or _compute_environment()
+    # Compute provenance/environment
+    prov = _compute_provenance(trades, meta)
+    env = _compute_environment()
 
     return {
         "meta": _to_jsonable(meta),

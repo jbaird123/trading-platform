@@ -83,72 +83,82 @@ class PortfolioManager:
         Processes a new bar of data, updating positions based on the signal.
         This will become the primary interface for the backtester.
         """
-        # Check for stop-loss or take-profit triggers first
+        # 1) Exit triggers (SL/TP)
         if self._open_position:
-            position = self._open_position
-            exit_triggered = False
-            exit_price = 0.0
-            exit_reason = None
-
-            # Determine trigger prices based on position side
-            if position.side == "long":
-                # Check Stop Loss for Long Position
-                if (
-                    position.stop_loss is not None
-                    and current_bar["low"] <= position.stop_loss
-                ):
-                    exit_triggered = True
-                    exit_price = position.stop_loss
-                    exit_reason = "stop-loss"
-
-                # Check Take Profit for Long Position (only if SL not triggered)
-                if (
-                    not exit_triggered
-                    and position.take_profit is not None
-                    and current_bar["high"] >= position.take_profit
-                ):
-                    exit_triggered = True
-                    exit_price = position.take_profit
-                    exit_reason = "take-profit"
-
-            elif position.side == "short":
-                # Check Stop Loss for Short Position
-                if (
-                    position.stop_loss is not None
-                    and current_bar["high"] >= position.stop_loss
-                ):
-                    exit_triggered = True
-                    exit_price = position.stop_loss
-                    exit_reason = "stop-loss"
-
-                # Check Take Profit for Short Position (only if SL not triggered)
-                if (
-                    not exit_triggered
-                    and position.take_profit is not None
-                    and current_bar["low"] <= position.take_profit
-                ):
-                    exit_triggered = True
-                    exit_price = position.take_profit
-                    exit_reason = "take-profit"
-
-            if exit_triggered:
+            should_exit, price, reason = self._check_exit_triggers(current_bar)
+            if should_exit:
                 self.close_position(
-                    exit_price=exit_price,
+                    exit_price=price,
                     exit_time=cast(datetime, current_bar.name),
-                    exit_reason=exit_reason,
+                    exit_reason=reason,
                 )
-                return  # Exit early if position was closed by SL/TP
+                return
 
+        # 2) Signal reversal handling
         if self.current_position and current_signal != self.current_position.side:
-            self.close_position(
-                exit_price=current_bar["close"],
-                exit_time=cast(datetime, current_bar.name),
-                exit_reason="signal",
-            )
-            if not allow_flip_on_bar:
-                return  # Exit early if flips are not allowed
+            self._handle_signal_change(current_bar, allow_flip_on_bar)
 
-        # Entry decisions are orchestrated by the Backtester; no entry here.
+        # 3) Entry is orchestrated by Backtester; no action here.
+
+    def _check_exit_triggers(
+        self, current_bar: pd.Series
+    ) -> tuple[bool, float, str | None]:
+        position = self._open_position
+        assert position is not None
+        # Initialize
+        exit_triggered = False
+        exit_price = 0.0
+        exit_reason: str | None = None
+
+        if position.side == "long":
+            # Stop first
+            if (
+                position.stop_loss is not None
+                and current_bar["low"] <= position.stop_loss
+            ):
+                exit_triggered = True
+                exit_price = position.stop_loss
+                exit_reason = "stop-loss"
+            # Then TP
+            if (
+                not exit_triggered
+                and position.take_profit is not None
+                and current_bar["high"] >= position.take_profit
+            ):
+                exit_triggered = True
+                exit_price = position.take_profit
+                exit_reason = "take-profit"
+        else:  # short
+            # Stop first
+            if (
+                position.stop_loss is not None
+                and current_bar["high"] >= position.stop_loss
+            ):
+                exit_triggered = True
+                exit_price = position.stop_loss
+                exit_reason = "stop-loss"
+            # Then TP
+            if (
+                not exit_triggered
+                and position.take_profit is not None
+                and current_bar["low"] <= position.take_profit
+            ):
+                exit_triggered = True
+                exit_price = position.take_profit
+                exit_reason = "take-profit"
+        return exit_triggered, exit_price, exit_reason
+
+    def _handle_signal_change(
+        self, current_bar: pd.Series, allow_flip_on_bar: bool
+    ) -> None:
+        self.close_position(
+            exit_price=current_bar["close"],
+            exit_time=cast(datetime, current_bar.name),
+            exit_reason="signal",
+        )
+        if not allow_flip_on_bar:
+            # Exit early if flips are not allowed
+            return
 
     def close_position(
         self, exit_price: float, exit_time: datetime, exit_reason: str | None = None

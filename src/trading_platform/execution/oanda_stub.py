@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from trading_platform.execution.adapter_base import ExecutionAdapter, OrderResult
@@ -37,7 +37,7 @@ class OandaStubAdapter(ExecutionAdapter):
         meta = meta or {}
         price = float(meta.get("price", 0.0))
         ts = meta.get("time")
-        when: datetime = ts if isinstance(ts, datetime) else datetime.utcnow()
+        when: datetime = ts if isinstance(ts, datetime) else datetime.now(timezone.utc)
 
         self.events.append(
             {
