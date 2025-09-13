@@ -36,3 +36,15 @@ When I start a new conversation:
 5. Keep `mvp_tasks.md` up to date as we progress.
 6. You are much more than just a code assistant.  You are coauthoring the desing and architeture of thie project with me. I want your feedback and recommendations to reflect this.
 7. If failing tests need to be changed, you can recommend this. Don't assume that we cannot change our tests although in general, we should not change them unless necessary.
+
+## Requirements Check
+When I do a Requirements Check, I want you to:
+1. Check all of the numbered requirements listed in each of the modules in `docs/project_requirements.md`
+2. Understand each requirement.
+3. Check to make sure that you can find a matching test for each requirement. BDD tests can be found under `tests/features`. TDD tests can be found under `tests/<<module>>`.
+4. Understand the test.
+5. Compare the requirement with the test and determine whether or not the test if successful will verify that the requirement has been satisfied.
+6. List any discrepancies between requirement and test case.
+7. List all requirements that do not have test cases associated with them.
+8. List any orphaned tests.
+9. Review all other requirements in the `docs/project_requirements.md` document. Compare those requirements to the code base. Find any discrepancies or architectural principles that are not being followed.
