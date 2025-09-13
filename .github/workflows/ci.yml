@@ -54,8 +54,19 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          # Generate coverage.xml at repo root for SonarCloud
-          poetry run pytest --cov=src --cov-report=xml:coverage.xml
+          # Generate coverage.xml at repo root for SonarCloud and HTML for humans
+          poetry run pytest --cov=src \
+                            --cov-report=xml:coverage.xml \
+                            --cov-report=html
+
+      - name: Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: |
+            coverage.xml
+            htmlcov/
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
