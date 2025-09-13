@@ -1,0 +1,55 @@
+from __future__ import annotations
+
+import pandas as pd
+import pytest
+from trading_platform.backtester.core import run_backtest
+
+
+def _mdf(n: int = 3) -> pd.DataFrame:
+    idx = pd.date_range("2023-01-01", periods=n, freq="min")
+    df = pd.DataFrame(
+        {
+            "open": 1.0,
+            "high": 1.1,
+            "low": 0.9,
+            "close": 1.0,
+            "volume": 100,
+        },
+        index=idx,
+    )
+    return df
+
+
+def _signals(n: int = 3, value: str = "flat") -> pd.Series:
+    idx = pd.date_range("2023-01-01", periods=n, freq="min")
+    return pd.Series([value] * n, index=idx, dtype=str)
+
+
+def test_validation_missing_columns():
+    df = _mdf().drop(columns=["volume"])  # missing required column
+    sig = _signals()
+    with pytest.raises(ValueError, match="missing required columns"):
+        run_backtest(df, sig)
+
+
+def test_validation_close_has_nans():
+    df = _mdf()
+    df.loc[df.index[1], "close"] = pd.NA
+    sig = _signals()
+    with pytest.raises(ValueError, match="close has NaNs"):
+        run_backtest(df, sig)
+
+
+def test_validation_length_mismatch():
+    df = _mdf(3)
+    sig = _signals(2)
+    with pytest.raises(ValueError, match="signals length "):
+        run_backtest(df, sig)
+
+
+def test_validation_invalid_signal_value():
+    df = _mdf(2)
+    sig = _signals(2)
+    sig.iloc[1] = "hold"  # invalid
+    with pytest.raises(ValueError, match="invalid values"):
+        run_backtest(df, sig)

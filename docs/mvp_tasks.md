@@ -91,8 +91,8 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [ ] Add `instrument_definitions` snapshot (per symbol metadata) and `cost_model`/`fill_policy`/`tie_break_policy` placeholders.
 
 - [ ] **Task 12: Backtester Input Validation & Guards**
-  - [ ] Validate required columns exist and have no NaNs (e.g., `close`).
-  - [ ] Validate `len(signals) == len(market_data)` and signal values in {long, short, flat}.
-  - [ ] Raise `ValueError` on invalid inputs (fail-fast), with actionable messages.
+  - [x] Validate required columns exist and have no NaNs (e.g., `close`).
+  - [x] Validate `len(signals) == len(market_data)` and signal values in {long, short, flat}.
+  - [x] Raise `ValueError` on invalid inputs (fail-fast), with actionable messages.
 
 *This task list will be expanded as we complete each phase.*
