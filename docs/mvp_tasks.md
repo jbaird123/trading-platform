@@ -76,8 +76,23 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Create `tests/portfolio/test_metrics.py` with unit tests for these calculations.
 
 - [ ] **Task 11: Generate JSON Brief v1**
-  - [ ] Create `src/trading_platform/reporting/brief.py`.
-  - [ ] Implement logic to aggregate backtest results (trades, metrics) into the JSON Brief schema.
-  - [ ] Add a step to the main run script to generate and save `brief.json`.
+  - [x] Create `src/trading_platform/reporting/brief.py`.
+  - [x] Implement aggregation into the JSON Brief (instrument-agnostic):
+    - [x] overall_performance (currency-based)
+    - [x] risk_snapshot
+    - [x] equity_stats (equity_curve, drawdown)
+    - [x] distribution (mean/median/std, p05/p95)
+    - [x] streaks (longest/current)
+    - [x] regimes breakdown (per-regime performance)
+  - [x] Add micro-tests to validate section presence and basic types (`tests/reporting/test_brief.py`).
+  - [ ] Add a step to the run flow to generate and save `runs/{run_id}/brief.json`.
+  - [ ] Populate `data_quality` section (missing/duplicate bars, NaNs, monotonic index).
+  - [ ] Populate `provenance` and `environment` (git commit, app version, python/deps, platform, timezone, data range, symbols).
+  - [ ] Add `instrument_definitions` snapshot (per symbol metadata) and `cost_model`/`fill_policy`/`tie_break_policy` placeholders.
+
+- [ ] **Task 12: Backtester Input Validation & Guards**
+  - [ ] Validate required columns exist and have no NaNs (e.g., `close`).
+  - [ ] Validate `len(signals) == len(market_data)` and signal values in {long, short, flat}.
+  - [ ] Raise `ValueError` on invalid inputs (fail-fast), with actionable messages.
 
 *This task list will be expanded as we complete each phase.*
