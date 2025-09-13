@@ -1,0 +1,10 @@
+[run]
+branch = True
+source = src/trading_platform
+omit =
+    src/trading_platform/core/demo.py
+    */__init__.py
+
+[report]
+show_missing = True
+fail_under = 100

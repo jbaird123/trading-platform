@@ -55,7 +55,10 @@ jobs:
       - name: Run tests with coverage
         run: |
           # Generate coverage.xml at repo root for SonarCloud and HTML for humans
-          poetry run pytest --cov=src \
+          poetry run pytest \
+                            --cov=src/trading_platform \
+                            --cov-config=.coveragerc \
+                            --cov-fail-under=100 \
                             --cov-report=xml:coverage.xml \
                             --cov-report=html
 
