@@ -29,6 +29,28 @@ def run_backtest(
     Returns:
         A list of completed Trade objects.
     """
+    # --- Input validation (fail fast) ---
+    required_cols = {"open", "high", "low", "close", "volume"}
+    missing = required_cols.difference(set(market_data.columns))
+    if missing:
+        raise ValueError(f"market_data missing required columns: {sorted(missing)}")
+
+    if len(signals) != len(market_data):
+        msg = (
+            f"signals length ({len(signals)}) must equal "
+            f"market_data length ({len(market_data)})"
+        )
+        raise ValueError(msg)
+
+    allowed = {"long", "short", "flat"}
+    invalid_values = set(pd.Series(signals).astype(str).unique()) - allowed
+    if invalid_values:
+        raise ValueError(f"signals contain invalid values: {sorted(invalid_values)}")
+
+    if market_data["close"].isna().any():
+        first_bad = market_data[market_data["close"].isna()].index[0]
+        raise ValueError(f"market_data.close has NaNs; first at index: {first_bad}")
+
     portfolio = PortfolioManager(initial_cash=initial_cash)
 
     for i in range(len(market_data)):
