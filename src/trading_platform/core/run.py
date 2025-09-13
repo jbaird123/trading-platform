@@ -7,6 +7,7 @@ from typing import Any
 from trading_platform.core.config import RunConfig
 from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.brief import save_run_brief
+from trading_platform.reporting.html_export import save_html_report
 
 
 def initialize_run(config: RunConfig) -> Path:
@@ -48,7 +49,7 @@ def finalize_run(
         fill_policy = fill_policy or config.fill_policy
         tie_break_policy = tie_break_policy or config.tie_break_policy
 
-    return save_run_brief(
+    brief_path = save_run_brief(
         run_path,
         meta=meta,
         params=params,
@@ -60,3 +61,9 @@ def finalize_run(
         fill_policy=fill_policy,
         tie_break_policy=tie_break_policy,
     )
+    # Also export a minimal HTML report (skeleton)
+    try:
+        save_html_report(run_path, meta=meta, trades=trades)
+    except Exception:  # pragma: no cover - keep finalize robust
+        pass
+    return brief_path
