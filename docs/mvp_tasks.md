@@ -131,3 +131,48 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] README quickstart updates (run → brief → report).
   - [x] Ensure CI green; ruff/mypy tidy; re-run `pytest -q` locally.
   - [x] Add example brief under `docs/examples/brief.json`.
+
+---
+
+## Phase 7: Backtester Hardening & Risk Controls
+
+- [ ] **Task 19: Trading Sessions & Blackout Periods**
+  - [ ] Add config for static blackout windows (e.g., 23:00–01:00 UTC) and enforce in BT (no new entries during blackout; optional close-only).
+  - [ ] Add event-based blackout (accept event stream with `impact: high` windows) and enforce in BT; unit tests on synthetic schedules.
+  - [ ] Surface effective blackout policy in brief (adjacent to `fill_policy`/`tie_break_policy`) and verify via tests.
+
+- [ ] **Task 20: Indicator Warm-up Handling**
+  - [ ] Add `warmup_bars` to strategy/backtest config; ignore signals until warm-up complete.
+  - [ ] Tests: signals during warm-up do not create entries; warm-up boundary covered.
+
+- [ ] **Task 21: Cost Model v1 (Spread/Commission/Slippage)**
+  - [ ] Implement simple spread model (fixed or per-instrument) applied on entries/exits; update per-trade `cost_breakdown`.
+  - [ ] Add commission model (per million or per lot) and basic slippage model; apply consistently; unit tests for each model.
+  - [ ] Aggregate `costs` in brief (`total_costs`, `avg_cost_per_trade`, breakdown); tests assert correctness.
+
+- [ ] **Task 22: MFE/MAE and R-Multiple**
+  - [ ] Track per-trade bar highs/lows to compute `mfe_currency`/`mae_currency` and holding `bars_held`.
+  - [ ] Compute `r_multiple` using initial defined risk; add to Trade and brief; tests on controlled price paths.
+
+- [ ] **Task 23: Exposure Metrics**
+  - [ ] Compute `average_gross_exposure` and `peak_gross_exposure` during backtests; add to brief `exposure`.
+  - [ ] Tests: exposure metrics on small scenarios (flat, fully invested, flip-flop).
+
+---
+
+## Phase 8: Comparison Reporting & Brief Alignment
+
+- [ ] **Task 24: A/B Comparison Engine**
+  - [ ] Define comparison JSON schema for two+ briefs (key metrics side-by-side, deltas, significance placeholders).
+  - [ ] Implement `compare_briefs(briefs: list[dict]) -> dict` and HTML report skeleton; tests with two synthetic briefs.
+
+- [ ] **Task 25: Brief Schema Enhancements (Provenance/Checksums)**
+  - [ ] Add `provenance`: `{app_version, git_commit, run_seed}` and `environment.dependency_versions`.
+  - [ ] Add `checksums`: `{config_snapshot_hash, instrument_defs_hash}`; tests verify stable hashes given stable inputs.
+
+- [ ] **Task 26: Trades CSV Export**
+  - [ ] Add CSV export of trades to `runs/{run_id}/trades.csv` with enhanced fields; test file existence and column set.
+
+- [ ] **Task 27: Plotting Enhancements (Scaffold)**
+  - [ ] Detect overlays from strategy metadata; enrich HTML with price + overlays + entry/exit markers (no JS deps yet).
+  - [ ] Tests: HTML contains expected sections and overlay labels.
