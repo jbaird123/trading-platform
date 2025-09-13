@@ -23,7 +23,7 @@ class PortfolioManager:
         self.trades: list[Trade] = []
 
     @property
-    def open_position(self) -> Position | None:
+    def current_position(self) -> Position | None:
         """Public read-only access to the current open position, if any."""
         return self._open_position
 
@@ -34,17 +34,35 @@ class PortfolioManager:
         entry_price: float,
         size: float,
         entry_time: datetime,
+        stop_loss: float | None = None,
+        take_profit: float | None = None,
     ) -> None:
         """Creates and holds a new open position."""
         if self._open_position:
             # For simplicity, we don't handle multiple open positions for now.
             return
+        # Interpret provided stop_loss/take_profit as offsets from entry_price
+        sl_level = None
+        tp_level = None
+        if stop_loss is not None:
+            sl_level = (
+                entry_price - stop_loss if side == "long" else entry_price + stop_loss
+            )
+        if take_profit is not None:
+            tp_level = (
+                entry_price + take_profit
+                if side == "long"
+                else entry_price - take_profit
+            )
+
         self._open_position = Position(
             symbol=symbol,
             side=side,
             entry_price=entry_price,
             size=size,
             entry_time=entry_time,
+            stop_loss=sl_level,
+            take_profit=tp_level,
         )
 
     def on_bar(
@@ -57,9 +75,63 @@ class PortfolioManager:
         Processes a new bar of data, updating positions based on the signal.
         This will become the primary interface for the backtester.
         """
-        # For now, we will replicate the logic from the backtester here.
-        # In the future, this will be expanded with more sophisticated logic.
-        if self.open_position and current_signal != self.open_position.side:
+        # Check for stop-loss or take-profit triggers first
+        if self._open_position:
+            position = self._open_position
+            exit_triggered = False
+            exit_price = 0.0
+            exit_reason = None
+
+            # Determine trigger prices based on position side
+            if position.side == "long":
+                # Check Stop Loss for Long Position
+                if (
+                    position.stop_loss is not None
+                    and current_bar["low"] <= position.stop_loss
+                ):
+                    exit_triggered = True
+                    exit_price = position.stop_loss
+                    exit_reason = "stop-loss"
+
+                # Check Take Profit for Long Position (only if SL not triggered)
+                if (
+                    not exit_triggered
+                    and position.take_profit is not None
+                    and current_bar["high"] >= position.take_profit
+                ):
+                    exit_triggered = True
+                    exit_price = position.take_profit
+                    exit_reason = "take-profit"
+
+            elif position.side == "short":
+                # Check Stop Loss for Short Position
+                if (
+                    position.stop_loss is not None
+                    and current_bar["high"] >= position.stop_loss
+                ):
+                    exit_triggered = True
+                    exit_price = position.stop_loss
+                    exit_reason = "stop-loss"
+
+                # Check Take Profit for Short Position (only if SL not triggered)
+                if (
+                    not exit_triggered
+                    and position.take_profit is not None
+                    and current_bar["low"] <= position.take_profit
+                ):
+                    exit_triggered = True
+                    exit_price = position.take_profit
+                    exit_reason = "take-profit"
+
+            if exit_triggered:
+                self.close_position(
+                    exit_price=exit_price,
+                    exit_time=current_bar.name,
+                    exit_reason=exit_reason,
+                )
+                return  # Exit early if position was closed by SL/TP
+
+        if self.current_position and current_signal != self.current_position.side:
             self.close_position(
                 exit_price=current_bar["close"],
                 exit_time=current_bar.name,
@@ -68,15 +140,7 @@ class PortfolioManager:
             if not allow_flip_on_bar:
                 return  # Exit early if flips are not allowed
 
-        if not self.open_position and current_signal in ["long", "short"]:
-            # Sizing and symbol are still hardcoded, to be fixed next.
-            self.create_new_position(
-                symbol="EUR_USD",
-                side=current_signal,
-                entry_price=current_bar["close"],
-                size=10000,
-                entry_time=current_bar.name,
-            )
+        # Entry decisions are orchestrated by the Backtester; no entry here.
 
     def close_position(
         self, exit_price: float, exit_time: datetime, exit_reason: str | None = None

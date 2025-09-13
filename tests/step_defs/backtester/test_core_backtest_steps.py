@@ -7,36 +7,8 @@ import pytest
 from pytest_bdd import given, parsers, scenarios, then, when
 from trading_platform.backtester.core import run_backtest
 
-
-@pytest.fixture
-def shared_context() -> dict:
-    """A dictionary to share state between test steps."""
-    return {}
-
-
 # Link scenarios from the feature file
 scenarios("../../features/backtester/core_backtest.feature")
-
-
-# --- Given Steps ---
-
-
-@given('a market data series with columns "open", "high", "low", "close", "volume"')
-def given_market_data_series(shared_context: dict):
-    """Initializes a placeholder DataFrame for market data."""
-    # We'll create a DataFrame with enough rows for the test scenarios.
-    # The actual values will be set in subsequent step
-    num_bars = 5  # A reasonable default for the tests
-    logging.info(f"Creating market data series with {num_bars} bars")
-
-    df = pd.DataFrame(
-        index=range(num_bars),
-        columns=["open", "high", "low", "close", "volume"],
-        dtype=float,
-    )
-    # Ensure no NaNs in operative columns; default to 0.0 for tests.
-    df.loc[:, :] = 0.0
-    shared_context["market_data"] = df
 
 
 @given('a signal series with "long", "short", and "flat" signals')
@@ -58,7 +30,10 @@ def given_signal_at_bar(shared_context: dict, bar_index: int, signal_value: str)
 @given(parsers.parse("the close price at bar {bar_index:d} is {price:f}"))
 def given_close_price_at_bar(shared_context: dict, bar_index: int, price: float):
     """Sets the close price for a specific bar."""
-    shared_context["market_data"].loc[bar_index - 1, "close"] = price
+    df = shared_context["market_data"]
+    # Convert 1-based bar to actual index label (works for RangeIndex or DateTimeIndex)
+    idx = df.index[bar_index - 1]
+    df.loc[idx, "close"] = price
 
 
 @given("the backtest has enough market data")
