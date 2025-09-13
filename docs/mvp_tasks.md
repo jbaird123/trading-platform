@@ -85,8 +85,8 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
     - [x] streaks (longest/current)
     - [x] regimes breakdown (per-regime performance)
   - [x] Add micro-tests to validate section presence and basic types (`tests/reporting/test_brief.py`).
-  - [ ] Add a step to the run flow to generate and save `runs/{run_id}/brief.json`.
-  - [ ] Populate `data_quality` section (missing/duplicate bars, NaNs, monotonic index).
+  - [x] Add a step to the run flow to generate and save `runs/{run_id}/brief.json`.
+  - [x] Populate `data_quality` section (missing/duplicate bars, NaNs, monotonic index).
   - [ ] Populate `provenance` and `environment` (git commit, app version, python/deps, platform, timezone, data range, symbols).
   - [ ] Add `instrument_definitions` snapshot (per symbol metadata) and `cost_model`/`fill_policy`/`tie_break_policy` placeholders.
 
