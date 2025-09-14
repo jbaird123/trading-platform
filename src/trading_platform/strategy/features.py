@@ -62,6 +62,23 @@ def bb_width(series: pd.Series, length: int, ndev: float) -> pd.Series:
     return (hband - lband) / mavg
 
 
+def hhv(series: pd.Series, length: int) -> pd.Series:
+    length = max(1, int(length))
+    return series.rolling(window=length, min_periods=1).max()
+
+
+def llv(series: pd.Series, length: int) -> pd.Series:
+    length = max(1, int(length))
+    return series.rolling(window=length, min_periods=1).min()
+
+
+def donchian_channels(df: pd.DataFrame, length: int) -> tuple[pd.Series, pd.Series]:
+    length = max(1, int(length))
+    upper = pd.Series(df["high"]).rolling(length, min_periods=1).max()
+    lower = pd.Series(df["low"]).rolling(length, min_periods=1).min()
+    return upper, lower
+
+
 def compute_features(df: pd.DataFrame, specs: list[dict]) -> pd.DataFrame:
     """Compute features as configured in specs.
 
@@ -93,6 +110,18 @@ def compute_features(df: pd.DataFrame, specs: list[dict]) -> pd.DataFrame:
                 int(params.get("length", 20)),
                 float(params.get("ndev", 2.0)),
             )
+        elif typ == "HHV":
+            out[name] = hhv(
+                _price_series(df, source or "high"), int(params.get("length", 20))
+            )
+        elif typ == "LLV":
+            out[name] = llv(
+                _price_series(df, source or "low"), int(params.get("length", 20))
+            )
+        elif typ == "DC":
+            up, lo = donchian_channels(df, int(params.get("length", 20)))
+            out[f"{name}_upper"] = up
+            out[f"{name}_lower"] = lo
         else:
             out[name] = pd.NA
     return out

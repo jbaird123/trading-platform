@@ -138,4 +138,27 @@ INDICATORS: dict[str, dict] = {
         "params": [{"name": "window", "type": "int", "default": 100}],
         "ta": {"module": "", "class": ""},  # custom implementation TBD
     },
+    "HHV": {
+        "display": "Highest High Value",
+        "category": "levels",
+        "description": "Rolling maximum over a window (e.g., 20-day high).",
+        "params": [{"name": "length", "type": "int", "default": 20}],
+        "ta": {"module": "", "class": ""},
+    },
+    "LLV": {
+        "display": "Lowest Low Value",
+        "category": "levels",
+        "description": "Rolling minimum over a window (e.g., 20-day low).",
+        "params": [{"name": "length", "type": "int", "default": 20}],
+        "ta": {"module": "", "class": ""},
+    },
+    "DC": {
+        "display": "Donchian Channels",
+        "category": "levels",
+        "description": (
+            "Upper/lower bands from rolling high/low; exposes name_upper/name_lower"
+        ),
+        "params": [{"name": "length", "type": "int", "default": 20}],
+        "ta": {"module": "", "class": ""},
+    },
 }
