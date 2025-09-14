@@ -324,7 +324,7 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 
 - [x] **Task 47: Examples & docs**
   - [x] Add example configs for BT/EL + MC/WFE/Param search.
-  - [ ] README quickstart: backtest → brief → report → compare → live.
+  - [x] README quickstart: backtest → brief → report → compare → live.
   - [x] Tests (link validation or smoke as appropriate).
 
 ---
