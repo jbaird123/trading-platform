@@ -1,0 +1,113 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, cast
+
+import pandas as pd
+
+from .features import compute_features
+
+
+def load_strategy_config(doc: dict[str, Any] | str | Path) -> dict[str, Any]:
+    if isinstance(doc, dict):
+        return doc
+    p = Path(str(doc))
+    txt = p.read_text()
+    # Best-effort JSON/YAML parse without external deps: expect JSON here
+    import json
+
+    return cast(dict[str, Any], json.loads(txt))
+
+
+def _series_for_operand(df: pd.DataFrame, operand: Any) -> pd.Series:
+    if isinstance(operand, (int, float)):
+        return pd.Series([float(operand)] * len(df), index=df.index)
+    if isinstance(operand, str):
+        if operand in df.columns:
+            return pd.Series(df[operand], dtype="float64")
+    if isinstance(operand, dict) and "ref" in operand:
+        ref = str(operand["ref"])  # feature name
+        return pd.Series(df[ref], dtype="float64")
+    return pd.Series([0.0] * len(df), index=df.index)
+
+
+def _eval_predicate(df: pd.DataFrame, pred: dict[str, Any]) -> pd.Series:
+    cond = str(pred.get("condition"))
+    left = _series_for_operand(df, pred.get("left"))
+    right = _series_for_operand(df, pred.get("right"))
+    if cond == "is_above":
+        return left > right
+    if cond == "is_below":
+        return left < right
+    if cond == "cross_above":
+        prev = left.shift(1) <= right.shift(1)
+        now = left > right
+        return prev & now
+    if cond == "cross_below":
+        prev = left.shift(1) >= right.shift(1)
+        now = left < right
+        return prev & now
+    return pd.Series([False] * len(df), index=df.index)
+
+
+def _eval_rule_block(df: pd.DataFrame, block: dict[str, Any]) -> pd.Series:
+    if "all_of" in block:
+        preds = block["all_of"] or []
+        out = pd.Series([True] * len(df), index=df.index)
+        for p in preds:
+            out = out & _eval_predicate(df, p)
+        return out
+    if "any_of" in block:
+        preds = block["any_of"] or []
+        out = pd.Series([False] * len(df), index=df.index)
+        for p in preds:
+            out = out | _eval_predicate(df, p)
+        return out
+    return pd.Series([False] * len(df), index=df.index)
+
+
+@dataclass(frozen=True)
+class CompiledStrategy:
+    name: str
+    overlays: list[str]
+    features: list[dict]
+    entry_blocks: list[dict]
+    exit_blocks: list[dict]
+    risk: dict[str, Any]
+
+    def generate_signals(self, df: pd.DataFrame) -> pd.Series:
+        df2 = compute_features(df, self.features)
+        enter = pd.Series([False] * len(df2), index=df2.index)
+        for b in self.entry_blocks:
+            enter = enter | _eval_rule_block(df2, b)
+        exit_ = pd.Series([False] * len(df2), index=df2.index)
+        for b in self.exit_blocks:
+            exit_ = exit_ | _eval_rule_block(df2, b)
+        # Stateful signals: flat -> long on enter, long -> flat on exit
+        sig = []
+        state = "flat"
+        for i in range(len(df2)):
+            if state == "flat" and bool(enter.iloc[i]):
+                state = "long"
+            elif state == "long" and bool(exit_.iloc[i]):
+                state = "flat"
+            sig.append(state)
+        return pd.Series(sig, index=df2.index)
+
+
+def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
+    name = str(cfg.get("strategy_name", "Strategy"))
+    overlays = [str(x) for x in (cfg.get("overlays") or [])]
+    features = list(cfg.get("features") or [])
+    entry_blocks = list(cfg.get("entry_rules") or [])
+    exit_blocks = list(cfg.get("exit_rules") or [])
+    risk = dict(cfg.get("risk") or {})
+    return CompiledStrategy(
+        name=name,
+        overlays=overlays,
+        features=features,
+        entry_blocks=entry_blocks,
+        exit_blocks=exit_blocks,
+        risk=risk,
+    )

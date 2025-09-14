@@ -65,7 +65,7 @@
         },
         "type": {
           "type": "string",
-          "enum": ["EMA", "RSI", "ATR", "ADX", "BBWidth"],
+          "enum": ["EMA", "RSI", "ATR", "ADX", "BB"],
           "description": "Indicator type to compute."
         },
         "params": {
