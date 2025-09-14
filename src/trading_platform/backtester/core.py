@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import cast
+from typing import Any, cast
 
 import pandas as pd
 
@@ -19,6 +19,7 @@ def run_backtest(
     allow_flip_on_bar: bool = False,
     instrument: dict | None = None,
     blackout_utc: list[tuple[str, str]] | None = None,
+    blackout_events: list[dict[str, Any]] | None = None,
 ) -> list[Trade]:
     """
     Runs a simple, iterative (bar-by-bar) backtest to generate trades from signals.
@@ -60,7 +61,9 @@ def run_backtest(
     # Accept optional instrument snapshot; do not change PnL behavior yet.
     portfolio = PortfolioManager(initial_cash=initial_cash, instrument=instrument)
 
-    policy = TradingWindowPolicy.from_config(blackout_utc=blackout_utc)
+    policy = TradingWindowPolicy.from_config(
+        blackout_utc=blackout_utc, blackout_events=blackout_events
+    )
 
     for i in range(len(market_data)):
         current_signal = signals.iloc[i]
