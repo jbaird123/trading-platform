@@ -86,15 +86,23 @@
 
 ---
 
-## Phase 8 — Hardening
+## Phase 8 — Robustness & Search (in MVP)
 
 ### Monte Carlo + switches
-- **Deliverables**: MC toggles; results added to brief (summary stats).
+- **Deliverables**: MC toggles; run resampled paths; add summary stats to brief
+  (mean, p05/p95, max drawdown bands).
 - **DoD**: runs with/without MC; numbers stable on fixed seed.
 
-### Walk-forward scaffold
-- **Deliverables**: WFE driver (split, train, test windows) + OOS summary into brief.
-- **DoD**: minimal WFE on small data; OOS metrics appear in brief.
+### Walk-Forward Evaluation (WFE)
+- **Deliverables**: WFE driver (rolling splits with train/test windows); run OOS
+  evaluation; add OOS summary to brief.
+- **DoD**: deterministic toy WFE; OOS metrics in brief.
+
+### Parameter Search (Grid/Random)
+- **Deliverables**: parameter search driver (grid and random); capture top
+  parameter sets and basic robustness notes; write results to
+  `brief.parameter_search`.
+- **DoD**: search over small param grids; results reproducible with fixed seed.
 
 ### Docs & tests sweep
 - **Deliverables**: README quickstart, command examples, full test pass, lint/type clean.
