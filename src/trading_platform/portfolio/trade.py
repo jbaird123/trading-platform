@@ -23,4 +23,6 @@ class Trade:
     exit_reason: str | None = None
     stop_loss: float | None = None
     take_profit: float | None = None
+    cost_currency: float = 0.0
+    cost_breakdown: dict[str, float] | None = None
     # 'mfe' and 'mae' will be added later.

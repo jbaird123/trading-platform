@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import cast
 
 import pandas as pd
+from trading_platform.core.costs import CostModel
 from trading_platform.portfolio.position import Position
 from trading_platform.portfolio.trade import Trade
 
@@ -17,13 +18,19 @@ class PortfolioManager:
     consistent logic. For the MVP, it handles one position at a time.
     """
 
-    def __init__(self, initial_cash: float = 100000.0, instrument: dict | None = None):
+    def __init__(
+        self,
+        initial_cash: float = 100000.0,
+        instrument: dict | None = None,
+        cost_model: dict | None = None,
+    ):
         self.initial_cash = initial_cash
         self.cash = initial_cash
         self._open_position: Position | None = None
         self.trades: list[Trade] = []
         # Optional instrument snapshot (scaffold; not used for PnL yet)
         self.instrument: dict | None = instrument
+        self._cost_model = CostModel.from_dict(cost_model)
 
     @property
     def current_position(self) -> Position | None:
@@ -167,12 +174,28 @@ class PortfolioManager:
         if not self._open_position:
             return
 
-        pnl = (
+        pnl_gross = (
             (exit_price - self._open_position.entry_price) * self._open_position.size
             if self._open_position.side == "long"
             else (self._open_position.entry_price - exit_price)
             * self._open_position.size
         )
+        cost_entry, breakdown_entry = self._cost_model.compute_entry_cost(
+            self._open_position.size
+        )
+        cost_exit, breakdown_exit = self._cost_model.compute_exit_cost(
+            self._open_position.size
+        )
+        total_cost = cost_entry + cost_exit
+        cost_breakdown = {
+            "spread": breakdown_entry.get("spread", 0.0)
+            + breakdown_exit.get("spread", 0.0),
+            "commission": breakdown_entry.get("commission", 0.0)
+            + breakdown_exit.get("commission", 0.0),
+            "slippage": breakdown_entry.get("slippage", 0.0)
+            + breakdown_exit.get("slippage", 0.0),
+        }
+        pnl = pnl_gross - total_cost
 
         trade = Trade(
             **self._open_position.__dict__,
@@ -180,6 +203,8 @@ class PortfolioManager:
             exit_time=exit_time,
             pnl=pnl,
             exit_reason=exit_reason,
+            cost_currency=total_cost,
+            cost_breakdown=cost_breakdown,
         )
         self.trades.append(trade)
         self.cash += pnl
