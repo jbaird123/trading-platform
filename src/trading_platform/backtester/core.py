@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime, time
+from datetime import datetime
 from typing import cast
 
 import pandas as pd
 
+from trading_platform.core.policy import TradingWindowPolicy
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
 
@@ -59,29 +60,7 @@ def run_backtest(
     # Accept optional instrument snapshot; do not change PnL behavior yet.
     portfolio = PortfolioManager(initial_cash=initial_cash, instrument=instrument)
 
-    # Parse static blackout windows (UTC) like [("23:00","01:00"), ...]
-    parsed_windows: list[tuple[time, time]] = []
-    if blackout_utc:
-        for start, end in blackout_utc:
-            sh, sm = map(int, start.split(":"))
-            eh, em = map(int, end.split(":"))
-            parsed_windows.append((time(sh, sm), time(eh, em)))
-
-    def _is_in_blackout(ts) -> bool:
-        if not parsed_windows:
-            return False
-        t = getattr(ts, "time", lambda: None)()
-        if t is None:
-            return False
-        for start_t, end_t in parsed_windows:
-            # Window may wrap past midnight
-            if start_t <= end_t:
-                if start_t <= t < end_t:
-                    return True
-            else:
-                if t >= start_t or t < end_t:
-                    return True
-        return False
+    policy = TradingWindowPolicy.from_config(blackout_utc=blackout_utc)
 
     for i in range(len(market_data)):
         current_signal = signals.iloc[i]
@@ -99,7 +78,7 @@ def run_backtest(
         if (
             not portfolio.current_position
             and current_signal in ["long", "short"]
-            and not _is_in_blackout(current_bar.name)
+            and policy.can_open(cast(datetime, current_bar.name))
         ):
             # Sizing and symbol are still hardcoded, to be fixed next.
             portfolio.create_new_position(

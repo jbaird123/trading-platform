@@ -248,6 +248,7 @@ def generate_brief(
     tie_break_policy: dict[str, Any] | None = None,
     monte_carlo: dict[str, Any] | None = None,
     walk_forward: dict[str, Any] | None = None,
+    blackout_policy: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assemble a JSON brief from trades and metrics (incremental MVP)."""
     meta = meta or {}
@@ -293,6 +294,7 @@ def generate_brief(
         "cost_model": _to_jsonable(cost_model or {}),
         "fill_policy": _to_jsonable(fill_policy or {}),
         "tie_break_policy": _to_jsonable(tie_break_policy or {}),
+        "blackout_policy": _to_jsonable(blackout_policy or {}),
         "environment": _to_jsonable(env),
         "provenance": _to_jsonable(prov),
         # Trades serialized with ISO datetimes
@@ -322,6 +324,7 @@ def save_run_brief(
     tie_break_policy: dict[str, Any] | None = None,
     monte_carlo: dict[str, Any] | None = None,
     walk_forward: dict[str, Any] | None = None,
+    blackout_policy: dict[str, Any] | None = None,
 ) -> Path:
     """Generate and save a brief to `run_path/brief.json`.
 
@@ -340,6 +343,7 @@ def save_run_brief(
         tie_break_policy=tie_break_policy,
         monte_carlo=monte_carlo,
         walk_forward=walk_forward,
+        blackout_policy=blackout_policy,
     )
     out_path = run_path / "brief.json"
     save_brief(brief, out_path)
