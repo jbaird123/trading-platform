@@ -142,9 +142,9 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Surface effective blackout policy in brief (adjacent to `fill_policy`/`tie_break_policy`) and verify via tests.
   - [x] Execution Layer consults `TradingWindowPolicy` before opening positions; tests for reject/accept paths.
 
-- [ ] **Task 20: Indicator Warm-up Handling**
-  - [ ] Add `warmup_bars` to strategy/backtest config; ignore signals until warm-up complete.
-  - [ ] Tests: signals during warm-up do not create entries; warm-up boundary covered.
+- [x] **Task 20: Indicator Warm-up Handling**
+  - [x] Add `warmup_bars` to strategy/backtest config; ignore signals until warm-up complete.
+  - [x] Tests: signals during warm-up do not create entries; warm-up boundary covered.
 
 - [ ] **Task 21: Cost Model v1 (Spread/Commission/Slippage)**
   - [ ] Implement simple spread model (fixed or per-instrument) applied on entries/exits; update per-trade `cost_breakdown`.
