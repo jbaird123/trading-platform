@@ -66,11 +66,11 @@ def resample_ohlc(df: pd.DataFrame, rule: str) -> pd.DataFrame:
     - close: last
     - volume: sum
     """
-    agg = {
-        "open": "first",
-        "high": "max",
-        "low": "min",
-        "close": "last",
-        "volume": "sum",
-    }
-    return df.resample(rule).agg(agg).dropna(how="any")
+    out = df.resample(rule).agg(
+        open=("open", "first"),
+        high=("high", "max"),
+        low=("low", "min"),
+        close=("close", "last"),
+        volume=("volume", "sum"),
+    )
+    return out.dropna(how="any")
