@@ -70,3 +70,43 @@ def test_bps_notional_commission_ignores_lot_size():
     total, bd = cm.compute_entry_cost(size=10_000, price=2.0, instrument=instrument)
     assert bd["commission"] == 20.0
     assert total == 20.0
+
+
+def test_from_dict_invalid_values_coerce_to_defaults():
+    # Provide invalid strings; _as_float should coerce to defaults without raising
+    cm = CostModel.from_dict(
+        {
+            "spread_per_unit": "oops",
+            "slippage_per_unit": "oops",
+            "commission": {"type": "per_unit", "value": "oops"},
+        }
+    )
+    total, bd = cm.compute_entry_cost(size=10, price=1.0)
+    assert bd == {"spread": 0.0, "commission": 0.0, "slippage": 0.0}
+    assert total == 0.0
+
+
+def test_unknown_commission_type_falls_back_to_zero():
+    cm = CostModel.from_dict(
+        {
+            "spread_per_unit": 0.1,
+            "slippage_per_unit": 0.2,
+            "commission": {"type": "unknown", "value": 999.0},
+        }
+    )
+    total, bd = cm.compute_entry_cost(size=10, price=1.0)
+    # commission should be zero; only spread+slippage contribute
+    from pytest import approx
+
+    assert bd["commission"] == approx(0.0)
+    assert bd["spread"] == approx(1.0)
+    assert bd["slippage"] == approx(2.0)
+    assert total == approx(3.0)
+
+
+def test_effective_units_bad_lot_size_returns_size():
+    from trading_platform.core.costs import effective_units
+
+    size = 1234.0
+    units = effective_units(size, {"lot_size": "bad"})
+    assert units == size

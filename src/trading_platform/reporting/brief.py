@@ -272,8 +272,8 @@ def _compute_exposure_metrics(
     if not exposure_curve:
         return {}
     values = [float(v) for _, v in exposure_curve]
-    if not values:
-        return {}
+    if not values:  # defensive redundancy; values is empty only if input was empty
+        return {}  # pragma: no cover
     avg = sum(values) / len(values)
     peak = max(values)
     return {"average_gross_exposure": avg, "peak_gross_exposure": peak}
