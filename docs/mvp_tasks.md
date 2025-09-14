@@ -127,7 +127,7 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Add `walk_forward` config + placeholder split metadata to brief.
   - [x] Tests: brief sections present with expected fields.
 
-- [ ] **Task 18: Docs & QA Sweep**
+- [x] **Task 18: Docs & QA Sweep**
   - [x] README quickstart updates (run → brief → report).
   - [x] Ensure CI green; ruff/mypy tidy; re-run `pytest -q` locally.
   - [x] Add example brief under `docs/examples/brief.json`.
@@ -136,7 +136,7 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 
 ## Phase 7: Backtester Hardening & Risk Controls
 
-- [ ] **Task 19: Trading Sessions & Blackout Periods**
+- [x] **Task 19: Trading Sessions & Blackout Periods**
   - [x] Add config for static blackout windows (e.g., 23:00–01:00 UTC) and enforce in BT (no new entries during blackout; optional close-only).
   - [x] Add event-based blackout (accept event stream with `impact: high` windows) and enforce in BT; unit tests on synthetic schedules.
   - [x] Surface effective blackout policy in brief (adjacent to `fill_policy`/`tie_break_policy`) and verify via tests.
@@ -146,11 +146,11 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Add `warmup_bars` to strategy/backtest config; ignore signals until warm-up complete.
   - [x] Tests: signals during warm-up do not create entries; warm-up boundary covered.
 
-- [ ] **Task 21: Cost Model v1 (Spread/Commission/Slippage)**
-  - [ ] Implement simple spread model (fixed or per-instrument) applied on entries/exits; update per-trade `cost_breakdown`.
-  - [ ] Implement commission modes (per_unit, per_trade_flat, bps_notional) and basic slippage model; apply consistently; unit tests for each mode.
-  - [ ] Aggregate `costs` in brief (`total_costs`, `avg_cost_per_trade`, breakdown); tests assert correctness.
-  - [ ] Use canonical cost_model shape (legacy `commission_per_unit` is not supported):
+- [x] **Task 21: Cost Model v1 (Spread/Commission/Slippage)**
+  - [x] Implement simple spread model (fixed or per-instrument) applied on entries/exits; update per-trade `cost_breakdown`.
+  - [x] Implement commission modes (per_unit, per_trade_flat, bps_notional) and basic slippage model; apply consistently; unit tests for each mode.
+  - [x] Aggregate `costs` in brief (`total_costs`, `avg_cost_per_trade`, breakdown); tests assert correctness.
+  - [x] Use canonical cost_model shape (legacy `commission_per_unit` is not supported):
     ```yaml
     cost_model:
       spread_per_unit: 0.01
@@ -160,13 +160,13 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
         value: 0.05
     ```
 
-- [ ] **Task 22: MFE/MAE and R-Multiple**
-  - [ ] Track per-trade bar highs/lows to compute `mfe_currency`/`mae_currency` and holding `bars_held`.
-  - [ ] Compute `r_multiple` using initial defined risk; add to Trade and brief; tests on controlled price paths.
+- [x] **Task 22: MFE/MAE and R-Multiple**
+  - [x] Track per-trade bar highs/lows to compute `mfe_currency`/`mae_currency` and holding `bars_held`.
+  - [x] Compute `r_multiple` using initial defined risk; add to Trade and brief; tests on controlled price paths.
 
-- [ ] **Task 23: Exposure Metrics**
-  - [ ] Compute `average_gross_exposure` and `peak_gross_exposure` during backtests; add to brief `exposure`.
-  - [ ] Tests: exposure metrics on small scenarios (flat, fully invested, flip-flop).
+- [x] **Task 23: Exposure Metrics**
+  - [x] Compute `average_gross_exposure` and `peak_gross_exposure` during backtests; add to brief `exposure`.
+  - [x] Tests: exposure metrics on small scenarios (flat, fully invested, flip-flop).
 
 ---
 
