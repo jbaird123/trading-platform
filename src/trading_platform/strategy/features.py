@@ -5,11 +5,29 @@ from typing import cast
 import pandas as pd
 
 try:
-    from ta.momentum import RSIIndicator  # type: ignore[import-untyped]
-    from ta.trend import ADXIndicator, EMAIndicator  # type: ignore[import-untyped]
+    from ta.momentum import (  # type: ignore[import-untyped]
+        ROCIndicator,
+        RSIIndicator,
+        StochasticOscillator,
+    )
+    from ta.trend import (  # type: ignore[import-untyped]
+        MACD,
+        ADXIndicator,
+        CCIIndicator,
+        EMAIndicator,
+        PSARIndicator,
+        SMAIndicator,
+        WMAIndicator,
+    )
     from ta.volatility import (  # type: ignore[import-untyped]
         AverageTrueRange,
         BollingerBands,
+        KeltnerChannel,
+    )
+    from ta.volume import (  # type: ignore[import-untyped]
+        ChaikinMoneyFlowIndicator,
+        OnBalanceVolumeIndicator,
+        VolumeWeightedAveragePrice,
     )
 except Exception as exc:  # pragma: no cover
     raise ImportError(
@@ -123,6 +141,22 @@ def compute_features(df: pd.DataFrame, specs: list[dict]) -> pd.DataFrame:
         if typ == "EMA":
             length = int(params.get("length", 14))
             out[name] = ema(_price_series(df, source), length)
+        elif typ == "SMA":
+            length = int(params.get("length", 14))
+            out[name] = cast(
+                pd.Series,
+                SMAIndicator(
+                    close=_price_series(df, source), window=length, fillna=True
+                ).sma_indicator(),
+            )
+        elif typ == "WMA":
+            length = int(params.get("length", 14))
+            out[name] = cast(
+                pd.Series,
+                WMAIndicator(
+                    close=_price_series(df, source), window=length, fillna=True
+                ).wma(),
+            )
         elif typ == "RSI":
             length = int(params.get("length", 14))
             out[name] = rsi(_price_series(df, source), length)
@@ -147,6 +181,59 @@ def compute_features(df: pd.DataFrame, specs: list[dict]) -> pd.DataFrame:
                 int(params.get("length", 20)),
                 float(params.get("ndev", 2.0)),
             )
+        elif typ == "MACD":
+            macd = MACD(
+                close=_price_series(df, source),
+                window_slow=int(params.get("slow", 26)),
+                window_fast=int(params.get("fast", 12)),
+                window_sign=int(params.get("signal", 9)),
+                fillna=True,
+            )
+            out[f"{name}_macd"] = cast(pd.Series, macd.macd())
+            out[f"{name}_signal"] = cast(pd.Series, macd.macd_signal())
+            out[f"{name}_diff"] = cast(pd.Series, macd.macd_diff())
+        elif typ == "PSAR":
+            psar = PSARIndicator(
+                high=df["high"],
+                low=df["low"],
+                close=df["close"],
+                step=float(params.get("step", 0.02)),
+                max_step=float(params.get("max", 0.2)),
+                fillna=True,
+            )
+            out[f"{name}"] = cast(pd.Series, psar.psar())
+            out[f"{name}_up"] = cast(pd.Series, psar.psar_up())
+            out[f"{name}_down"] = cast(pd.Series, psar.psar_down())
+        elif typ == "STOCH":
+            st = StochasticOscillator(
+                high=df["high"],
+                low=df["low"],
+                close=df["close"],
+                window=int(params.get("length", 14)),
+                fillna=True,
+            )
+            out[f"{name}"] = cast(pd.Series, st.stoch())
+            out[f"{name}_signal"] = cast(pd.Series, st.stoch_signal())
+        elif typ == "CCI":
+            out[name] = cast(
+                pd.Series,
+                CCIIndicator(
+                    high=df["high"],
+                    low=df["low"],
+                    close=df["close"],
+                    window=int(params.get("length", 20)),
+                    fillna=True,
+                ).cci(),
+            )
+        elif typ == "ROC":
+            out[name] = cast(
+                pd.Series,
+                ROCIndicator(
+                    close=_price_series(df, source),
+                    window=int(params.get("length", 12)),
+                    fillna=True,
+                ).roc(),
+            )
         elif typ == "HHV":
             series_in = (
                 pd.Series(df[source_ref], dtype="float64")
@@ -165,6 +252,49 @@ def compute_features(df: pd.DataFrame, specs: list[dict]) -> pd.DataFrame:
             up, lo = donchian_channels(df, int(params.get("length", 20)))
             out[f"{name}_upper"] = up
             out[f"{name}_lower"] = lo
+        elif typ == "KC":
+            kc = KeltnerChannel(
+                high=df["high"],
+                low=df["low"],
+                close=df["close"],
+                window=int(params.get("length", 20)),
+                window_atr=int(params.get("length", 20)),
+                original_version=False,
+                fillna=True,
+            )
+            out[f"{name}_upper"] = cast(pd.Series, kc.keltner_channel_hband())
+            out[f"{name}_lower"] = cast(pd.Series, kc.keltner_channel_lband())
+            out[f"{name}_middle"] = cast(pd.Series, kc.keltner_channel_mband())
+        elif typ == "OBV":
+            out[name] = cast(
+                pd.Series,
+                OnBalanceVolumeIndicator(
+                    close=_price_series(df, source), volume=df["volume"], fillna=True
+                ).on_balance_volume(),
+            )
+        elif typ == "CMF":
+            out[name] = cast(
+                pd.Series,
+                ChaikinMoneyFlowIndicator(
+                    high=df["high"],
+                    low=df["low"],
+                    close=df["close"],
+                    volume=df["volume"],
+                    window=int(params.get("length", 20)),
+                    fillna=True,
+                ).chaikin_money_flow(),
+            )
+        elif typ == "VWAP":
+            out[name] = cast(
+                pd.Series,
+                VolumeWeightedAveragePrice(
+                    high=df["high"],
+                    low=df["low"],
+                    close=df["close"],
+                    volume=df["volume"],
+                    fillna=True,
+                ).vwap,
+            )
         else:
             out[name] = pd.NA
     return out
