@@ -107,6 +107,12 @@
           "type": "string",
           "enum": ["open", "high", "low", "close", "hl2", "ohlc4"],
           "description": "Input price series used by the indicator."
+        },
+        "source_ref": {
+          "type": "object",
+          "description": "Reference another computed feature as the input series.",
+          "properties": { "ref": { "type": "string" } },
+          "required": ["ref"]
         }
       },
       "required": ["name", "type"]
