@@ -266,6 +266,19 @@ def _compute_regimes(
     return result
 
 
+def _compute_exposure_metrics(
+    exposure_curve: list[tuple[datetime, float]] | None,
+) -> dict[str, Any]:
+    if not exposure_curve:
+        return {}
+    values = [float(v) for _, v in exposure_curve]
+    if not values:
+        return {}
+    avg = sum(values) / len(values)
+    peak = max(values)
+    return {"average_gross_exposure": avg, "peak_gross_exposure": peak}
+
+
 def generate_brief(
     *,
     meta: dict[str, Any] | None,
@@ -281,6 +294,7 @@ def generate_brief(
     monte_carlo: dict[str, Any] | None = None,
     walk_forward: dict[str, Any] | None = None,
     blackout_policy: dict[str, Any] | None = None,
+    exposure_curve: list[tuple[datetime, float]] | None = None,
 ) -> dict[str, Any]:
     """Assemble a JSON brief from trades and metrics (incremental MVP)."""
     meta = meta or {}
@@ -313,6 +327,8 @@ def generate_brief(
     prov = _compute_provenance(trades, meta)
     env = _compute_environment()
 
+    exposure = _compute_exposure_metrics(exposure_curve)
+
     base = {
         "meta": _to_jsonable(meta),
         "params": _to_jsonable(params),
@@ -324,6 +340,7 @@ def generate_brief(
         "streaks": compute_streaks(trades),
         "holding_time": {"median_secs": _median_holding_secs(trades)},
         "costs": compute_costs_aggregate(trades),
+        "exposure": _to_jsonable(exposure),
         "monte_carlo": _to_jsonable(monte_carlo or {}),
         "walk_forward": _to_jsonable(walk_forward or {}),
         "regimes": _compute_regimes(trades, regimes_at_entry),
@@ -365,6 +382,7 @@ def save_run_brief(
     monte_carlo: dict[str, Any] | None = None,
     walk_forward: dict[str, Any] | None = None,
     blackout_policy: dict[str, Any] | None = None,
+    exposure_curve: list[tuple[datetime, float]] | None = None,
 ) -> Path:
     """Generate and save a brief to `run_path/brief.json`.
 
@@ -384,6 +402,7 @@ def save_run_brief(
         monte_carlo=monte_carlo,
         walk_forward=walk_forward,
         blackout_policy=blackout_policy,
+        exposure_curve=exposure_curve,
     )
     out_path = run_path / "brief.json"
     save_brief(brief, out_path)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -41,6 +42,7 @@ def finalize_run(
     config: RunConfig | None = None,
     monte_carlo: dict[str, Any] | None = None,
     walk_forward: dict[str, Any] | None = None,
+    exposure_curve: list[tuple[datetime, float]] | None = None,
 ) -> Path:
     """Generate and save a brief for this run under the run_path.
 
@@ -74,6 +76,7 @@ def finalize_run(
         monte_carlo=monte_carlo,
         walk_forward=walk_forward,
         blackout_policy=blackout_policy,
+        exposure_curve=exposure_curve,
     )
     # Also export a minimal HTML report (skeleton)
     try:
