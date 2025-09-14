@@ -4,12 +4,33 @@ _Last updated: 2025-09-09_
 
 > **Purpose**: Single source of truth for the Trading Engine project. This file captures **all requirements, at every level of detail** — functional, non-functional, system-wide, module-specific, and even small design details. It serves as the **authoritative requirements index** that goes beyond a master spec.
 
+## Table of Contents
+- [0) Scope & Definitions](#0-scope--definitions)
+- [1) System-Wide Requirements](#1-system-wide-requirements)
+- [2) Data Handler (DH)](#2-data-handler-dh)
+- [3) Strategy Engine (SE)](#3-strategy-engine-se)
+- [4) Regime Market Manager (RMM)](#4-regime-market-manager-rmm)
+- [5) Portfolio Manager (PM)](#5-portfolio-manager-pm)
+- [6) Backtester (BT)](#6-backtester-bt)
+- [7) Execution Layer (EL)](#7-execution-layer-el)
+- [8) Reporting & Visualization (RV)](#8-reporting--visualization-rv)
+- [9) AI Lab (AI)](#9-ai-lab-ai)
+- [10) JSON Brief Schema](#10-json-brief-schema)
+- [11) MVP Subset](#11-mvp-subset)
+- [12) Non-Functional Requirements](#12-non-functional-requirements)
+- [13) Detailed Notes & Edge Requirements](#13-detailed-notes--edge-requirements)
+- [14) Development Process & Governance](#14-development-process--governance)
+- [15) Open TODOs](#15-open-todos)
+- [16) Traceability](#16-traceability)
+- [17) Pending updates (awaiting approval)](#17-pending-updates-awaiting-approval)
+
 ---
 
 ## 0) Scope & Definitions
 - **Data Handler (DH)**: Loads, normalizes, validates, and serves market data; resampling and feature pipelines.
 - **Strategy Engine (SE)**: Strategy lifecycle & interfaces; computes signals using indicators/features.
-- **Backtester (BT)**: Vectorized simulation of orders/fills, PnL, risk, and analytics over historical data.
+- **Portfolio Manager (PM)**: Manages state (positions, cash, equity). Processes orders, updates positions, and calculates PnL. Used by both the Backtester and Execution Layer to ensure logical consistency.
+- **Backtester (BT)**: The simulation engine. Iterates through time, feeding market data to the Strategy Engine and submitting the resulting signal-based orders to the Portfolio Manager.
 - **Regime Market Manager (RMM)**: Classifies regimes (trending, ranging, volatile, quiet, etc.) with confidence; used for filtering.
 - **Execution Layer (EL)**: Live trading adapter (OANDA first); order routing, risk controls, brokerage mapping.
 - **Reporting & Visualization (RV)**: JSON briefs, plots, dashboards, exports.
@@ -75,14 +96,14 @@ _Last updated: 2025-09-09_
 ---
 
 ## 2) Data Handler (DH)
-- Load historical and live market data (OANDA, Dukascopy).
-- Normalize schema: `timestamp, open, high, low, close, volume`.
-- Index must be UTC `timestamp`.
-- Resample safely (M1→H1→D) with OHLC rules.
-- Validation: detect missing/duplicate bars, zero volumes, outliers.
-- Produce `quality_flags`.
-- Data Governance: A strategy for versioning datasets (e.g., using DVC - Data Version Control) should be in place to link backtest results to a specific version of the data.
-- **Instrument Definition**: Provide comprehensive symbol metadata to drive the canonical model. This includes, but is not limited to:
+- **[DH-2.1]** Load historical and live market data (OANDA, Dukascopy).
+- **[DH-2.2]** Normalize data to a schema with columns: `timestamp, open, high, low, close, volume`.
+- **[DH-2.3]** The `timestamp` index must be timezone-aware and set to UTC.
+- **[DH-2.4]** Resample data safely between timeframes (e.g., M1→H1→D) using correct OHLC aggregation rules.
+- **[DH-2.5]** Perform validation checks to detect missing bars, duplicate timestamps, volume outliers, and price spikes.
+- **[DH-2.6]** Produce a `quality_flags` report based on validation results.
+- **[DH-2.7]** Implement a data versioning strategy (e.g., using DVC) to link backtest results to a specific dataset version.
+- **[DH-2.8]** **Instrument Definition**: Provide comprehensive symbol metadata to drive the canonical model. This includes, but is not limited to:
   - `asset_class`: (e.g., 'Forex', 'Future', 'Stock').
   - `point_value`: The value of a single full-point move in the base currency (e.g., $1 for most Forex pairs, $50 for ES futures).
   - `tick_size`: The minimum price fluctuation.
@@ -90,11 +111,11 @@ _Last updated: 2025-09-09_
   - `margin_requirement`.
   - `sessions`: A definition of the primary trading session (e.g., start/end times and timezone) used for correct daily resampling.
   - `holidays`: A calendar of non-trading days.
-- Chunked loading for large ranges; memory cap awareness.
-- Cache datasets persistently (parquet/feather) keyed by params.
-- Feature pipelines for computed cols (ATR, ADX, RSI, BB width, etc.).
-- **Unstructured & Event Data (News/Reports)**
-  - The system must support the ingestion, storage, and retrieval of time-series event data, such as historical news articles and economic reports, for use in AI-driven analysis.
+- **[DH-2.9]** Support chunked loading for large date ranges to manage memory usage.
+- **[DH-2.10]** Cache processed datasets persistently (e.g., in Parquet format) to speed up subsequent loads.
+- **[DH-2.11]** Provide feature pipelines for calculating and appending common technical indicators (e.g., ATR, ADX, RSI, BB width).
+- **[DH-2.12]** **Unstructured & Event Data (News/Reports)**
+  - **[DH-2.12.1]** The system must support the ingestion, storage, and retrieval of time-series event data (e.g., news, economic reports).
   - **Canonical Event Schema**: All event data must be normalized into a canonical format: `{event_id, timestamp, source, type, headline, summary, content, metadata}`.
     - `type`: e.g., 'news', 'economic_report', 'central_bank_speech'.
     - `metadata`: A flexible field for pre-computed sentiment scores, named entities, relevance, etc.
@@ -102,141 +123,193 @@ _Last updated: 2025-09-09_
   - **Alignment**: The Data Handler must provide an interface to retrieve all events that occurred within the timeframe of a given bar or a set of bars. This enables direct alignment with market data for backtesting and analysis, and must work for any bar timeframe (e.g., M1, H1, D1), including those generated through resampling.
   - **Sources**: Initial sources can include public news APIs or RSS feeds for economic calendars.
 - Interfaces:
-  - `DataRequest(symbol, timeframe, start, end, features=[...]) -> DataFrame`.
-  - `subscribe_events(callback) -> Subscription`: For live event streaming to the Execution Layer.
-- Testing: golden dataset fixtures; schema invariants; resampling correctness.
+  - **[DH-2.13]** Expose a `DataRequest(symbol, timeframe, start, end, features=[...]) -> DataFrame` interface.
+  - **[DH-2.14]** Expose a `subscribe_events(callback) -> Subscription` interface for live event streaming.
+- **[DH-2.15]** All functionality must be tested using golden dataset fixtures, schema invariants, and resampling correctness checks.
+
 
 ---
 
 ## 3) Strategy Engine (SE)
-- **Base Interface** (`BaseStrategy`)
-  - `prepare(data)`: compute indicators/features.
-  - `generate_signals(market_data, event_data) -> Series|DataFrame`: outputs long/short/flat signals, reacting to both market and event data streams.
-  - `risk_params`: stop/TP config, position sizing policy.
-  - `meta()`: name, version, required inputs/indicators.
-- **Built-in Strategies**
-  - These will be implemented in Python as reference examples and for performance-critical components.
-  - SMA crossover (fast/slow).
-  - PSAR with ADX filter (avoid whipsaws in ranges).
-  - Turtle breakout.
-- **Declarative Strategies (Low-Code/No-Code)**
-  - The system must support defining strategies using a Gherkin (`.feature` file) syntax. This allows for low-code/no-code strategy creation.
-  - The Strategy Engine will parse these `.feature` files and execute them as strategies.
-  - A comprehensive library of BDD step definitions for common trading conditions (e.g., "Given the indicator X crosses above Y", "And the feature Z is less than value V") must be developed and maintained to empower non-programmers.
+- **[SE-3.1]** Define a `BaseStrategy` interface with the following methods:
+  - **[SE-3.1.1]** `prepare(data)`: To compute indicators and features.
+  - **[SE-3.1.2]** `generate_signals(market_data, event_data) -> Series|DataFrame`: To output long/short/flat signals, reacting to both market and event data.
+  - **[SE-3.1.3]** `risk_params`: To define stop-loss, take-profit, and position sizing policies.
+  - **[SE-3.1.4]** `meta()`: To return strategy name, version, and required inputs.
+- **[SE-3.2]** Provide built-in, performance-critical strategies implemented in Python, including:
+  - **[SE-3.2.1]** SMA (Simple Moving Average) Crossover.
+  - **[SE-3.2.2]** PSAR (Parabolic SAR) with an ADX filter.
+  - **[SE-3.2.3]** BB (Bollinger Bands) Mean Reversion.
+- **[SE-3.3]** Strategy names should use common industry abbreviations (e.g., SMA, EMA, BB) for clarity.
+- **[SE-3.4]** **Declarative Strategies (Low-Code/No-Code)**
+  - **[SE-3.4.1]** The system must support defining strategies using a declarative **YAML format**, distinct from Gherkin BDD files.
+  - **Strategy Schema**: The YAML files will follow a defined schema representing rules, conditions, and indicators.
+  - **Parameterization**: YAML's key-value structure naturally supports parameterization. Parameter sweeps will be orchestrated by the AI Lab, which can easily read, modify, and generate these YAML files.
+  - **Execution**: The Strategy Engine will include a parser that loads a strategy definition from a YAML file and executes its logic.
+  - **Testing**: The behavior of the YAML strategy parser and execution engine will be tested rigorously using Behavior-Driven Development (BDD) with Gherkin (`.feature` files). This ensures the implementation correctly interprets the strategy definitions.
   - Example of a declarative strategy file:
-    ```gherkin
-    Feature: My Custom RSI Strategy
+    ```yaml
+    strategy_name: My Custom RSI Strategy
+    description: Go long on oversold condition with confirmation.
 
-    Scenario: Go long on oversold condition with confirmation
-      Given the indicator "RSI(14)" on the previous bar was below 30
-      And the indicator "RSI(14)" on the current bar is above 30
-      And the indicator "ADX(14)" on the current bar is above 20
-      When the strategy generates signals
-      Then a "long" signal should be produced
+    entry_rules:
+      - all_of: # All conditions must be true
+          - condition: cross_above
+            indicator: RSI(period=14)
+            value: 30
+          - condition: is_above
+            indicator: ADX(period=14)
+            value: 20
 
-    Scenario: Avoid entering trades during high-impact news
-      Given a "long" signal is generated
-      And an event of type "economic_report" with metadata "impact: high" occurred within the last 5 minutes
-      When the strategy filters signals
-      Then the "long" signal should be suppressed
+    exit_rules:
+      - any_of: # Any condition can trigger an exit
+          - condition: cross_below
+            indicator: RSI(period=14)
+            value: 70
+
+    event_filters:
+      - action: suppress_entry
+        event_type: economic_report
+        metadata_match: { "impact": "high" }
+        window: "5 minutes"
     ```
-- **Requirements**
-  - Use `ta` library indicators when possible; avoid duplicating.
-  - Strategy metadata must declare required overlays for plotting.
-  - Parameter sweeps supported.
+- **[SE-3.5]** Use indicators from established libraries (e.g., `ta`) where possible to avoid duplication.
+- **[SE-3.6]** Strategy metadata must declare required overlays for automatic plotting in the RV module.
+- **[SE-3.7]** The engine must support parameter sweeps orchestrated by the AI Lab.
 
 ---
 
 ## 4) Regime Market Manager (RMM)
-- Classify market regime: `trend_up`, `trend_down`, `range`, `volatile`, `quiet`, etc.
-- Must output both **label** and **confidence (0–1)**.
-- Inputs: ADX, MA slope, ATR pct, BB width, slope of EMA/price, Hurst exponent optional.
-- API:
-  - `RMMResult(timestamp, label, confidence, features={...})`.
-  - `is_trade_allowed(strategy, regime_label, confidence) -> bool`.
-- Policies: per-strategy filter config; hysteresis to reduce flip-flops.
-- Extensible: rule-based baseline, ML classifiers later.
-- Testing: synthetic sequences for edge cases.
+- **[RMM-4.1]** Classify the market into regimes, including but not limited to: `trend_up`, `trend_down`, `range`, `volatile`, `quiet`.
+- **[RMM-4.2]** Each classification must output both a `label` and a `confidence` score (0–1).
+- **[RMM-4.3]** The baseline implementation will be rule-based, using indicators such as ADX, MA slope, ATR %, and Bollinger Band Width.
+- **[RMM-4.4]** The RMM must be extensible to allow for future ML-based classifiers.
+- **[RMM-4.5]** The module must expose an API that returns the current regime, for example: `RMMResult(timestamp, label, confidence, features={...})`.
+- **[RMM-4.6]** The module must expose a policy function to determine if trading is allowed, for example: `is_trade_allowed(strategy, regime_label, confidence) -> bool`.
+- **[RMM-4.7]** Policies should be configurable per-strategy and include hysteresis to reduce rapid state changes (flip-flopping).
+- **[RMM-4.8]** All classification logic must be tested using synthetic data sequences that cover edge cases for each regime.
 
 ---
 
-## 5) Backtester (BT)
-- Vectorized core with event-driven fallback.
-- **Multi-Strategy & Comparative Runs**: The backtester must be able to execute multiple strategy configurations within a single "comparison run" to facilitate A/B testing.
-- Orders: market, stop, limit; ATR-based stops/TP; trailing stops; tie-breaks.
-- Models: slippage, rollover, and a canonical cost model driven by the instrument definition (commission, fees, spread).
-- Position sizing: fixed risk (in base currency) or fixed fraction.
-- Trades table schema: `entry_time, exit_time, side, entry_price, exit_price, pnl_currency, mfe_currency, mae_currency, r_multiple, notes`.
-- Metrics: equity curve (in base currency), drawdowns, hit rate, expectancy.
-- Risk: daily loss caps, per-trade caps, circuit breakers.
-- Monte Carlo resampling for trades/equity.
-- Warm-up window for indicators.
-- Testing: deterministic fills; stop/TP precedence validation.
+## 5) Portfolio Manager (PM)
+- **Core Responsibility**: To be the single source of truth for the portfolio's state at any given time. This component must be used identically by both the Backtester and the Execution Layer.
+- **State Management**:
+  - **[PM-5.1]** Track cash balance, open positions, and total equity (mark-to-market).
+  - **[PM-5.2]** Maintain a log of all executed trades.
+- **Order Processing**:
+  - **[PM-5.3]** `on_signal(signal)`: A method to process an incoming signal and generate the appropriate order (e.g., market, stop, limit).
+  - **[PM-5.4]** `update_positions(bar)`: A method to update the value of open positions based on the latest market data.
+- **Position Sizing**: Implement sizing logic, including:
+  - **[PM-5.5]** Fixed-risk (e.g., risk $100 per trade).
+  - **[PM-5.6]** Fixed-fraction (e.g., risk 1% of portfolio equity per trade).
+- **Trade & PnL Logic**:
+  - **[PM-5.7]** Generate a canonical `Trade` record upon position closure.
+  - **[PM-5.8]** Trades table schema: `entry_time, exit_time, side, entry_price, exit_price, pnl_currency, mfe_currency, mae_currency, r_multiple, notes`.
+  - **[PM-5.9]** Calculate equity curve, drawdowns, hit rate, and other key performance metrics.
+- **Portfolio-Level Risk Management**:
+  - **[PM-5.10]** Enforce rules like daily loss caps, maximum drawdown limits, and other circuit breakers.
 
 ---
 
-## 6) Execution Layer (EL)
-- Broker adapter: OANDA (initial).
-- Map internal → broker API; handle retries, backoff, rate-limits.
-- Paper trading mode (same interface as live).
-- Must handle live streams of both market data and event data, forwarding them to the active strategy for signal generation.
-- Structured logging; reconciliation of positions.
-- Risk: daily caps, circuit breakers.
+## 6) Backtester (BT)
+- **[BT-6.1]** **Core Responsibility**: To simulate the passage of time and orchestrate the interaction between the Data Handler, Strategy Engine, and Portfolio Manager.
+- **[BT-6.2]** The primary mechanism will be an event-driven or vectorized loop that iterates through historical data.
+- **[BT-6.3]** Support for multiple order types, including: market, stop, and limit.
+- **[BT-6.4]** Support for risk management orders, including ATR-based stops/take-profits and trailing stops.
+- **[BT-6.5]** A configurable tie-break mechanism for scenarios where multiple exit conditions are met on the same bar (e.g., stop and take-profit).
+- **[BT-6.6]** A configurable cost model to simulate slippage, rollover, commissions, fees, and spreads, driven by the instrument definition.
+- **[BT-6.7]** A "warm-up" period to ensure indicators are stable before trading signals are processed.
+- **[BT-6.8]** Backtests must be deterministic, producing the same results from the same inputs and configuration.
+- **[BT-6.9]** All backtesting logic must be validated, especially for fill logic and stop/TP precedence.
 
 ---
 
-## 7) Reporting & Visualization (RV)
-- **JSON Briefs** generated per run.
-- **Comparison Reports**: For A/B tests, the system must generate a consolidated report that presents key metrics side-by-side for each strategy variation.
-- Plots:
-  - Overlays (EMA/SMA) auto-detected from strategy metadata.
-  - Overlays: distinct colors, thinner lines.
-  - Non-overlays (ATR, RSI, ADX, BB width, Volume) each in separate panels.
-  - Entry/exit markers, stop/TP markers.
-  - Optional regime shading.
-  - For comparison reports, equity curves from all variations should be plotted on the same chart.
-- Exports: JSON, CSV, HTML reports.
-- Interactive controls: hide/show overlays; export to PNG/HTML.
+## 7) Execution Layer (EL)
+- **[EL-7.1]** Implement a broker adapter for OANDA as the initial target.
+- **[EL-7.2]** The adapter must map the internal canonical order format to the broker's specific API format.
+- **[EL-7.3]** The adapter must handle API connectivity issues, including retries, exponential backoff, and rate-limit management.
+- **[EL-7.4]** **Portfolio Interaction**: The EL must use the same `PortfolioManager` component as the backtester to ensure logical parity between simulation and live trading.
+- **[EL-7.5]** The EL must handle live streams of both market data and event data, forwarding them to the active strategy for signal generation.
+- **[EL-7.6]** All actions, orders, and broker responses must be captured via structured logging.
+- **[EL-7.7]** Implement a reconciliation process to periodically check for discrepancies between the internal portfolio state and the broker's state.
+- **[EL-7.8]** Enforce live risk management, including daily loss caps and other circuit breakers, as defined in the Portfolio Manager.
 
 ---
 
-## 8) AI Lab (AI)
-- Inputs: JSON briefs + artifacts.
-- **Core Mandate**: The AI Lab is the central analysis component of the system. It must consume the rich data from the JSON brief to function as an intelligent partner to the user.
-- **Analysis & Recommendations**:
-  - Identify losing clusters (features, regimes).
-  - In comparison reports, quantify the statistical significance of performance differences between variations.
-  - Recommend specific, machine-readable filters to improve performance (e.g., `{"feature": "ADX", "op": ">", "value": 25}`).
-  - Recommend optimized stop-loss and take-profit configurations based on MFE/MAE analysis.
-  - Highlight distributional drift, stationarity warnings.
-- **Advanced Testing Orchestration**:
-  - Orchestrate parameter searches (grid, random) to find optimal parameter sets.
-  - Perform walk-forward evaluation (WFE) to test strategy robustness on out-of-sample data.
-  - Conduct regime analysis to show how the strategy performs in different market conditions (trending, ranging, etc.).
-- **Outputs**: All findings must be available as both machine-readable JSON and human-readable summaries.
+## 8) Reporting & Visualization (RV)
+- **[RV-8.1]** Generate a machine-readable **JSON Brief** for each run, conforming to the schema in section 10.
+- **[RV-8.2]** Generate **Comparison Reports** for A/B tests, presenting key metrics side-by-side for each variation.
+- **[RV-8.3]** Generate plots with the following characteristics:
+  - **[RV-8.3.1]** Overlays (e.g., EMAs, SMAs) must be auto-detected from strategy metadata.
+  - **[RV-8.3.2]** Plotted lines for overlays must have distinct colors and be thinner than the primary price series.
+  - **[RV-8.3.3]** Non-overlay indicators (e.g., ATR, RSI, Volume) must each be rendered in a separate panel below the main price chart.
+  - **[RV-8.3.4]** The chart must include markers for trade entries, exits, stop-losses, and take-profits.
+  - **[RV-8.3.5]** The chart must support optional shading to indicate different market regimes.
+  - **[RV-8.3.6]** For comparison reports, the equity curves from all variations must be plotted on the same chart for easy comparison.
+- **[RV-8.4]** Support exporting reports to multiple formats, including JSON, CSV, and a self-contained HTML file.
+- **[RV-8.5]** Interactive controls for plots are desirable but not an MVP requirement, including toggling overlays and exporting the current view to PNG.
 
 ---
 
-## 9) JSON Brief Schema
+## 9) AI Lab (AI)
+- **[AI-9.1]** **Core Mandate**: The AI Lab must function as the central analysis component, consuming JSON briefs and other run artifacts to provide intelligent insights.
+- **[AI-9.2]** **Analysis & Recommendations**:
+  - **[AI-9.2.1]** Identify performance clusters (both winning and losing) based on features, regimes, and other trade attributes.
+  - **[AI-9.2.2]** In comparison reports, quantify the statistical significance of performance differences between variations.
+  - **[AI-9.2.3]** Recommend specific, machine-readable filters to improve performance (e.g., `{"feature": "ADX", "op": ">", "value": 25}`).
+  - **[AI-9.2.4]** Recommend optimized stop-loss and take-profit configurations based on MFE/MAE analysis from the backtest.
+  - **[AI-9.2.5]** Highlight potential data issues such as distributional drift and non-stationarity.
+- **[AI-9.3]** **Advanced Testing Orchestration**:
+  - **[AI-9.3.1]** Orchestrate parameter searches (e.g., grid search, random search) to find optimal parameter sets for a given strategy. This will be driven by a sweep configuration file.
+  - **[AI-9.3.2]** Perform walk-forward evaluation (WFE) to test strategy robustness on out-of-sample data.
+  - **[AI-9.3.3]** Conduct detailed regime analysis to break down strategy performance by market condition (e.g., trending, ranging).
+  - **[AI-9.3.4]** The standard validation workflow will be a two-stage process: 1) Use parameter sweeps to discover optimal parameter sets. 2) Use Monte Carlo analysis on the best-performing set to validate its robustness.
+- **[AI-9.4]** All findings and recommendations must be available in two formats:
+  - **[AI-9.4.1]** A machine-readable JSON format for consumption by other tools.
+  - **[AI-9.4.2]** A human-readable summary for direct user review.
+
+---
+
+## 10) JSON Brief Schema (Instrument-Agnostic)
 - **meta**: `{strategy_name, timeframe, universe, version, run_id, timestamp}`.
 - **params**: `{fast, slow, stop_type, stop_value, tp_type, tp_value, trail_type, trail_value, atr_length, tie_break}`.
-- **overall_pips**: `{n_trades, mean_pips, median_pips, total_pips, by_side_total_pips}`.
-- **risk_snapshot**: `{win_rate, avg_win, avg_loss, max_win, max_loss}`.
+- **overall_performance** (base currency): `{n_trades, total_pnl, mean_pnl, median_pnl, by_side_total_pnl, win_rate, initial_equity, final_equity}`.
+- **risk_snapshot** (base currency): `{win_rate, avg_win, avg_loss, max_win, max_loss}`.
+- **equity_stats**: `{equity_curve: [[timestamp, equity], ...], max_drawdown, dd_duration_bars}`.
+- **distribution**: `{pnl_mean, pnl_median, pnl_std, p05, p95}` (base currency; placeholders acceptable initially).
+- **streaks**: `{longest_win_streak, longest_loss_streak, current_streak}`.
+- **holding_time**: `{median_secs}` and optional buckets.
+- **activity**: `{trades_per_day}` (optional baseline).
+- **timing_buckets**: `{by_hour, by_dow, by_month}` (optional baseline).
+- **costs**: `{total_costs, avg_cost_per_trade, breakdown:{spread, commission, fees, slippage}}`.
+- **exposure**: `{average_gross_exposure, peak_gross_exposure}` (optional baseline).
 - **contrasts**: feature-at-entry bins (RSI, ADX, ATR, BB width, etc.).
-- **stop_tp_candidates**: configs derived from MFE/MAE (in pips).
+- **regimes**: per-regime performance breakdown.
+- **stop_tp_candidates**: configs derived from MFE/MAE (in base currency; instrument-specific conversions occur via Instrument Definition at presentation/export time).
 - **monte_carlo**: resampling stats.
 - **walk_forward**: rolling OOS stats with instability flags.
-- **regimes**: per-regime performance breakdown.
 - **parameter_search**: top params, robustness notes.
 - **stationarity**: ADF, KPSS, drift tests.
 - **feature_analysis**: `{correlation_matrix, feature_importance_scores}`.
+- **data_quality**: loader flags, missing/duplicate bar counts, outlier flags.
+- **instrument_definitions**: snapshot per symbol `{tick_size, point_value, base_ccy, quote_ccy, lot_size, min_trade_unit}`.
+- **cost_model**: `{spread_model, commission_model, slippage_model, rollover_model, fee_params}`.
+- **fill_policy**: `{policy}` and details; **tie_break_policy**: `{policy}`.
+- **environment**: `{python_version, dependency_versions, platform, timezone}`.
+- **provenance**: `{app_version, git_commit, run_seed, data_start, data_end, symbols}`.
+- **checksums**: `{config_snapshot_hash, instrument_defs_hash}`.
+- **trades**: enhanced entries with `{r_multiple, mfe_currency, mae_currency, bars_held, holding_time_sec, features_at_entry, regime_label_at_entry, exit_reason, cost_breakdown}`.
 - Pure JSON types only (convert pandas objects).
+
+Notes:
+- The brief is canonical and instrument-agnostic. Any UI/export layer may render instrument-native units (e.g., pips, ticks) by translating the canonical brief via the Instrument Definition (e.g., `tick_size`, `point_value`).
 
 ---
 
-## 10) MVP Subset
+## 11) MVP Subset
 - Data Handler with normalization, quality checks, caching.
-- Strategy Engine with SMA, PSAR+ADX, Turtle.
+- Strategy Engine with SMA, PSAR+ADX, BB Mean Reversion, ATR Channel Breakout.
+- Strategy Engine with SMA, PSAR+ADX, BB Mean Reversion.
 - RMM baseline (rule-based).
 - Backtester with ATR stops/TP, spreads/fees, trades table, equity.
 - JSON Brief v1 (meta, params, overall, contrasts, risk, stop/tp).
@@ -246,7 +319,7 @@ _Last updated: 2025-09-09_
 
 ---
 
-## 11) Non-Functional Requirements
+## 12) Non-Functional Requirements
 - **Performance**: Efficient with multi-year data.
 - **Reliability**: Deterministic backtests.
 - **Maintainability**: Clean modular package.
@@ -256,7 +329,7 @@ _Last updated: 2025-09-09_
 
 ---
 
-## 12) Detailed Notes & Edge Requirements
+## 13) Detailed Notes & Edge Requirements
 - Plots: overlays must not share identical colors; lines thinner than default.
 - ATR and Volume must be plotted in separate panels (not combined).
 - Each non-overlay indicator gets its own panel.
@@ -268,14 +341,14 @@ _Last updated: 2025-09-09_
 
 ---
 
-## 13) Development Process & Governance
+## 14) Development Process & Governance
 - **Branching Strategy**: A standardized branching model (e.g., GitFlow or GitHub Flow) will be used.
 - **Code Reviews**: All code must be submitted via Pull Requests and requires at least one approval before merging to the main branch.
 - **Issue Tracking**: All work should be tracked in an issue tracker, with issue numbers referenced in commit messages.
 
 ---
 
-## 14) Open TODOs
+## 15) Open TODOs
 - [ ] Decide pandas vs Polars for long-run performance.
 - [ ] Finalize baseline RMM thresholds and hysteresis.
 - [ ] Define standard slippage/spread models.
@@ -287,16 +360,51 @@ _Last updated: 2025-09-09_
 
 ---
 
-## 15) Traceability
+## 16) Traceability
 - Each requirement in this document will be linked to a corresponding BDD `.feature` file.
 - The Gherkin scenarios within these feature files will serve as the direct, automated mapping between the high-level requirement and the code that implements it.
 
 ---
 
-## 16) Pending updates (awaiting approval)
-> Proposed requirement changes I’ve flagged during design discussions. I will keep this list up to date and move items into the appropriate sections once you approve them.
+## 17) Pending updates (awaiting approval)
 
-- _None yet._
+> Proposed requirement changes identified during gap analysis (Sept 2025). Once approved, these will be merged into their respective module sections.
+
+### AI Lab
+- **[AI-9.x]** The AI Lab must support **automated hypothesis generation**, producing candidate entry/exit rules or strategy variants based on JSON briefs.
+- **[AI-9.x]** The AI Lab must provide **explainability outputs** (e.g., feature attribution, importance scores) to justify AI recommendations.
+
+### Regime Market Manager (RMM)
+- **[RMM-4.x]** The RMM must support **regime-adaptive portfolio allocation**, dynamically adjusting capital weighting by regime classification.
+- **[RMM-4.x]** The RMM must incorporate **event-aware overlays**, integrating economic/news event features into its classification logic.
+
+### Data Handler
+- **[DH-2.x]** The Data Handler must enable **sentiment/NLP features** from event metadata for direct use by the Strategy Engine, RMM, and AI Lab.
+- **[DH-2.x]** The Data Handler must support **distributed/scalable pipelines** for large-scale backtests, including parallelized or serverless execution.
+
+### Backtester
+- **[BT-6.x]** The Backtester must support **distributed/parallel execution**, enabling large-scale parameter sweeps and portfolio simulations.
+- **[BT-6.x]** The Backtester must provide **scenario stress testing**, allowing simulation of market shocks (e.g., volatility spikes, liquidity droughts).
+
+### Portfolio Manager
+- **[PM-5.x]** The Portfolio Manager must support **dynamic allocation policies** based on regime signals provided by the RMM.
+- **[PM-5.x]** The Portfolio Manager must support **portfolio optimization methods**, including risk parity, Kelly criterion, and volatility targeting.
+
+### Strategy Engine
+- **[SE-3.x]** The Strategy Engine must support **natural language–driven strategy definition**, allowing AI-assisted generation of strategies beyond YAML.
+- **[SE-3.x]** The Strategy Engine must support **automated feature selection**, where AI recommends or removes indicators/features during testing.
+
+### Reporting & Visualization
+- **[RV-8.x]** The Reporting module must support **interactive visual analytics**, including trade clustering, dynamic filtering, and zoomable regime overlays.
+- **[RV-8.x]** The Reporting module must support **Monte Carlo equity overlays**, displaying robustness bands on equity curves.
+
+### JSON Brief Schema
+- **[JSON-10.x]** The JSON Brief must include **explainability fields**, such as feature importances and attribution scores linked to AI insights.
+- **[JSON-10.x]** The JSON Brief must include **portfolio allocation rationale** whenever regime-based or optimization-driven allocation is applied.
+
+### System / DevOps
+- **[SYS-1.x]** The system must support **cloud-scale CI/CD execution**, enabling distributed parameter sweeps and backtests in CI pipelines.
+- **[SYS-1.x]** The system must include explicit **AI interpretability/traceability requirements**, ensuring all AI-driven outputs are reproducible and auditable.
 
 ---
 
