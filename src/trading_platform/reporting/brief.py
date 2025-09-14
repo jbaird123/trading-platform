@@ -270,7 +270,13 @@ def generate_brief(
     risk_snapshot = compute_risk_snapshot(trades)
     equity_stats = compute_equity_stats(trades, initial_cash)
     distribution = compute_distribution(trades)
-    trades_json = [_serialize_trade(t) for t in trades]
+    trades_json = []
+    for t in trades:
+        item = _serialize_trade(t)
+        # Attach cost breakdown if available
+        if getattr(t, "cost_breakdown", None) is not None:
+            item["cost_breakdown"] = t.cost_breakdown
+        trades_json.append(item)
     # Compute provenance/environment
     prov = _compute_provenance(trades, meta)
     env = _compute_environment()
