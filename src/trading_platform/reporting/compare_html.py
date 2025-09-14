@@ -21,15 +21,22 @@ def render_comparison_html(comp: dict[str, Any]) -> str:
             .replace(">", "&gt;")
         )
 
+    # Determine the row with the largest absolute delta for highlighting
+    max_abs_delta = 0.0
+    for m in metrics.values():
+        max_abs_delta = max(max_abs_delta, abs(float(m.get("delta", 0.0))))
+
     rows: list[str] = []
     for name in sorted(metrics.keys()):
         m = metrics[name]
+        delta = float(m.get("delta", 0.0))
+        cls = "best" if abs(delta) >= max_abs_delta and max_abs_delta > 0 else ""
         row_html = (
             "<tr>"
             f"<td>{esc(name)}</td>"
             f"<td>{m.get('a', 0.0):.6g}</td>"
             f"<td>{m.get('b', 0.0):.6g}</td>"
-            f"<td>{m.get('delta', 0.0):.6g}</td>"
+            f"<td class='{cls}'>{delta:.6g}</td>"
             "</tr>"
         )
         rows.append(row_html)
@@ -44,15 +51,28 @@ def render_comparison_html(comp: dict[str, Any]) -> str:
         "th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: right; }\n"
         "th:first-child, td:first-child { text-align: left; }\n"
         "thead { background: #f5f5f5; }\n"
-        "</style>\n</head>\n<body>\n"
+        ".best{background:#e9fbe9;font-weight:600} "
+        ".sortable th{cursor:pointer} .sorted{background:#eef}\n"
+        "</style>\n"
+        "<script>\n"
+        "function sortTable(idx){var t=document.getElementById('cmpt');"
+        "var b=t.tBodies[0];var r=[...b.rows];var a=t.dataset.asc==='1';"
+        "r.sort((x,y)=>{let xv=parseFloat(x.cells[idx].innerText)||0;"
+        "let yv=parseFloat(y.cells[idx].innerText)||0;return a?xv-yv:yv-xv});"
+        "b.append(...r);t.dataset.asc=a?'0':'1'}\n"
+        "</script>\n</head>\n<body>\n"
         "<h1>Comparison Report</h1>\n"
         f"<p><strong>Run A:</strong> {esc(a.get('strategy_name'))} "
         f"[{esc(a.get('run_id'))}]</p>\n"
         f"<p><strong>Run B:</strong> {esc(b.get('strategy_name'))} "
         f"[{esc(b.get('run_id'))}]</p>\n"
-        "<table>\n"
-        "  <thead><tr><th>Metric</th><th>A</th><th>B</th>"
-        "<th>Delta (B - A)</th></tr></thead>\n"
+        "<table id='cmpt' class='sortable' data-asc='1'>\n"
+        "  <thead><tr>"
+        "<th onclick='sortTable(0)'>Metric</th>"
+        "<th onclick='sortTable(1)'>A</th>"
+        "<th onclick='sortTable(2)'>B</th>"
+        "<th onclick='sortTable(3)'>Delta (B - A)</th>"
+        "</tr></thead>\n"
         "  <tbody>\n    " + "".join(rows) + "\n  </tbody>\n</table>\n</body>\n</html>\n"
     )
     return html

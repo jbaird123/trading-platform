@@ -82,7 +82,7 @@ def generate_html_report(
     meta: dict[str, Any],
     trades: list[Trade],
     *,
-    price_series: list[tuple[Any, float]] | None = None,
+    price_series: Any | None = None,
     overlays_data: dict[str, list[tuple[Any, float]]] | None = None,
 ) -> str:
     """Return a minimal HTML report with summary and entry/exit table.
@@ -122,13 +122,28 @@ def generate_html_report(
     else:
         parts.append("<p class='muted'>No overlays declared.</p>")
 
-    # Sparkline (optional)
+    # Sparkline (optional) — supports single or multi-symbol
     if price_series:
         ee = [(t.entry_time, t.exit_time) for t in trades]
-        svg = _spark_svg(price_series, overlays_data or {}, ee)
-        if svg:
-            parts.append("<h2>Price</h2>")
-            parts.append(svg)
+        if isinstance(price_series, dict):
+            parts.append("<h2>Prices</h2>")
+            parts.append("<div class='legend'><span>Price</span>")
+            for k in (overlays_data or {}).keys():
+                parts.append(f"<span>{k}</span>")
+            parts.append("</div>")
+            for sym, ser in price_series.items():
+                svg = _spark_svg(ser, overlays_data or {}, ee)
+                parts.append(f"<h3>{sym}</h3>")
+                parts.append(svg)
+        else:
+            svg = _spark_svg(price_series, overlays_data or {}, ee)
+            if svg:
+                parts.append("<h2>Price</h2>")
+                parts.append("<div class='legend'><span>Price</span>")
+                for k in (overlays_data or {}).keys():
+                    parts.append(f"<span>{k}</span>")
+                parts.append("</div>")
+                parts.append(svg)
 
     parts.append("<h2>Entries/Exits</h2>")
     parts.append(

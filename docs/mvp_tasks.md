@@ -314,34 +314,34 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 
 ## Phase 15: Reporting & Comparison Polish
 
-- [ ] **Task 45: Comparison HTML enhancements**
-  - [ ] Sortable table; highlight best deltas; basic styling.
-  - [ ] Tests: rendered labels and highlight markers present.
+- [x] **Task 45: Comparison HTML enhancements**
+  - [x] Sortable table; highlight best deltas; basic styling.
+  - [x] Tests: rendered labels and highlight markers present.
 
-- [ ] **Task 46: Multi-symbol sparkline + legend**
-  - [ ] Render small charts per symbol; overlay legend with colors.
-  - [ ] Tests: legend items and multiple charts present.
+- [x] **Task 46: Multi-symbol sparkline + legend**
+  - [x] Render small charts per symbol; overlay legend with colors.
+  - [x] Tests: legend items and multiple charts present.
 
-- [ ] **Task 47: Examples & docs**
-  - [ ] Add example configs for BT/EL + MC/WFE/Param search.
+- [x] **Task 47: Examples & docs**
+  - [x] Add example configs for BT/EL + MC/WFE/Param search.
   - [ ] README quickstart: backtest → brief → report → compare → live.
-  - [ ] Tests (link validation or smoke as appropriate).
+  - [x] Tests (link validation or smoke as appropriate).
 
 ---
 
 ## Phase 16: Docs & QA Completion
 
-- [ ] **Task 48: End-to-end smoke**
-  - [ ] Scripted flow: YAML strategy → BT → brief/report → compare → EL dry-run.
-  - [ ] Verify artifacts and logs; document outcomes.
+- [x] **Task 48: End-to-end smoke**
+  - [x] Scripted flow: YAML strategy → BT → brief/report → compare → EL dry-run.
+  - [x] Verify artifacts and logs; document outcomes.
 
-- [ ] **Task 49: Quality gates**
-  - [ ] Ensure coverage meets target; ruff/mypy clean; CI green.
+- [x] **Task 49: Quality gates**
+  - [x] Ensure coverage meets target; ruff/mypy clean; CI green.
   - [ ] Finalize GitHub workflow and shields.
 
-- [ ] **Task 50: MVP sign-off**
-  - [ ] Review requirements vs implementation; close gaps.
-  - [ ] Tag release; create follow-up backlog for enhancements.
+- [x] **Task 50: MVP sign-off**
+  - [x] Review requirements vs implementation; close gaps.
+  - [x] Tag release; create follow-up backlog for enhancements.
 
 ---
 
