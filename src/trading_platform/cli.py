@@ -18,6 +18,7 @@ from trading_platform.core.run import finalize_run, initialize_run
 from trading_platform.execution.oanda_stub import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
+from trading_platform.reporting.compare_html import save_comparison_report
 from trading_platform.strategy.yaml_strategy import compile_strategy
 
 
@@ -154,6 +155,18 @@ def cmd_run_live(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_compare(args: argparse.Namespace) -> int:
+    a = Path(args.a)
+    b = Path(args.b)
+    out = Path(str(args.out))
+    if not a.exists() or not b.exists():
+        print("Both input brief paths must exist", file=sys.stderr)
+        return 2
+    save_comparison_report(a, b, out)
+    print(f"Comparison written to: {out}")
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(prog="tp", description="Trading Platform CLI")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -168,6 +181,12 @@ def main() -> int:
     pl.add_argument("--config", help="Path to JSON/YAML RunConfig")
     pl.add_argument("--dry-run", action="store_true", help="No-op live run")
     pl.set_defaults(func=cmd_run_live)
+
+    pc = sub.add_parser("compare", help="Compare two briefs and write HTML")
+    pc.add_argument("a", help="Path to first brief.json")
+    pc.add_argument("b", help="Path to second brief.json")
+    pc.add_argument("--out", default="comparison.html", help="Output HTML path")
+    pc.set_defaults(func=cmd_compare)
 
     args = p.parse_args()
     return int(args.func(args))
