@@ -296,6 +296,7 @@ _Last updated: 2025-09-09_
 - **activity**: `{trades_per_day}` (optional baseline).
 - **timing_buckets**: `{by_hour, by_dow, by_month}` (optional baseline).
 - **costs**: `{total_costs, avg_cost_per_trade, breakdown:{spread, commission, fees, slippage}}`.
+  - See `docs/examples/brief_costs_section.md` for schema details and examples.
 - **exposure**: `{average_gross_exposure, peak_gross_exposure}` (optional baseline).
 - **contrasts**: feature-at-entry bins (RSI, ADX, ATR, BB width, etc.).
 - **regimes**: per-regime performance breakdown.
@@ -314,6 +315,7 @@ _Last updated: 2025-09-09_
 - **provenance**: `{app_version, git_commit, run_seed, data_start, data_end, symbols}`.
 - **checksums**: `{config_snapshot_hash, instrument_defs_hash}`.
 - **trades**: enhanced entries with `{r_multiple, mfe_currency, mae_currency, bars_held, holding_time_sec, features_at_entry, regime_label_at_entry, exit_reason, cost_breakdown}`.
+  - See `docs/examples/trades_cost_breakdown.md` for `cost_breakdown` semantics and how it rolls up to `costs`.
  - **skipped_trades**: list of counterfactuals for filtered entries `[{timestamp, symbol, reason_code, policy_snapshot, cf_exit_time, cf_exit_price, cf_pnl_currency, cf_mfe_currency, cf_mae_currency, cf_bars_held}]`.
  - **filter_impact**: per-reason aggregates `{reason_code: {n_skipped, total_cf_pnl, mean_cf_pnl, median_cf_pnl}}`.
 - Pure JSON types only (convert pandas objects).

@@ -62,9 +62,11 @@ class CostModel:
             commission_value=float(c_val),
         )
 
-    def _commission_cost(self, size: float, price: float | None) -> float:
+    def _commission_cost(
+        self, *, units: float, size: float, price: float | None
+    ) -> float:
         if self.commission_type == "per_unit":
-            return self.commission_value * size
+            return self.commission_value * units
         if self.commission_type == "per_trade_flat":
             return self.commission_value
         if self.commission_type == "bps_notional":
@@ -75,23 +77,30 @@ class CostModel:
         return 0.0
 
     def compute_entry_cost(
-        self, size: float, price: float | None = None
+        self,
+        size: float,
+        price: float | None = None,
+        instrument: dict[str, Any] | None = None,
     ) -> tuple[float, dict[str, float]]:
         """Cost charged at entry.
 
         Apply spread + commission + slippage at entry.
         """
-        spread = self.spread_per_unit * size
-        commission = self._commission_cost(size, price)
-        slippage = self.slippage_per_unit * size
+        units = effective_units(size, instrument)
+        spread = self.spread_per_unit * units
+        commission = self._commission_cost(units=units, size=size, price=price)
+        slippage = self.slippage_per_unit * units
         total = spread + commission + slippage
         return total, {"spread": spread, "commission": commission, "slippage": slippage}
 
     def compute_exit_cost(
-        self, size: float, price: float | None = None
+        self,
+        size: float,
+        price: float | None = None,
+        instrument: dict[str, Any] | None = None,
     ) -> tuple[float, dict[str, float]]:
         """Cost charged at exit (same as entry for the simple model)."""
-        return self.compute_entry_cost(size, price)
+        return self.compute_entry_cost(size, price, instrument)
 
 
 def effective_units(size: float, instrument: dict[str, Any] | None) -> float:
