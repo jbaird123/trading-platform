@@ -196,7 +196,27 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 
 ---
 
-## Phase 9: Filter Impact & Counterfactuals
+## Phase 9: Robustness & Search (in MVP)
+
+- [ ] **Task 33: Monte Carlo Simulation**
+  - [ ] Add MC toggles in config (trials, seed, resampling mode).
+  - [ ] Compute resampled equity curves and summary stats (mean, p05/p95,
+        max drawdown bands).
+  - [ ] Add `brief.monte_carlo` summary; tests with fixed seed.
+
+- [ ] **Task 34: Walk-Forward Evaluation (WFE)**
+  - [ ] Implement rolling split driver (train/test windows).
+  - [ ] Run OOS evaluation; add `brief.walk_forward` with OOS summary.
+  - [ ] Tests on toy data confirming deterministic splits and OOS fields.
+
+- [ ] **Task 35: Parameter Search (Grid/Random)**
+  - [ ] Add search driver (grid + random) with fixed-seed option.
+  - [ ] Record top parameter sets + notes into `brief.parameter_search`.
+  - [ ] Tests: small grid produces expected top set; reproducible with seed.
+
+---
+
+## Phase 10: Filter Impact & Counterfactuals
 
 - [x] **Task 28: Log Skipped Entries (BT)**
   - [x] Capture skipped attempted entries with {timestamp, symbol, reason_code,
@@ -222,7 +242,7 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 
 ---
 
-## Phase 10: New Requirements (Sept 2025)
+## Phase 11: New Requirements (Sept 2025)
 
 - [x] **Task 32: Directional Position Caps (PM-5.11 + BT/EL)**
   - [x] Add config (function args for MVP) for `pm_limits.max_open_long/max_open_short` (default 1).
