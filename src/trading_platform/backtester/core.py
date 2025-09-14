@@ -127,18 +127,13 @@ def run_backtest(
             and policy.can_open(cast(datetime, current_bar.name))
             and i >= max(0, warmup_bars)
         ):
-            # Enforce daily loss cap based on realized PnL for this date
+            # Enforce daily loss cap using PortfolioManager state
             if daily_loss_cap is not None and daily_loss_cap > 0:
-                today = cast(datetime, current_bar.name).date()
-                day_pnl = sum(
-                    float(t.pnl)
-                    for t in portfolio.trades
-                    if t.exit_time.date() == today
-                )
-                if day_pnl <= -float(daily_loss_cap):
+                now = cast(datetime, current_bar.name)
+                if portfolio.hit_daily_loss_cap(now, float(daily_loss_cap)):
                     skipped.append(
                         {
-                            "timestamp": cast(datetime, current_bar.name).isoformat(),
+                            "timestamp": now.isoformat(),
                             "symbol": "EUR_USD",
                             "reason_code": "risk_cap",
                             "policy_snapshot": {

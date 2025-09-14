@@ -20,6 +20,7 @@ class OandaStubAdapter(ExecutionAdapter):
         pm: PortfolioManager | None = None,
         policy: Any | None = None,
         pm_limits: dict[str, int] | None = None,
+        daily_loss_cap: float | None = None,
     ) -> None:
         self.pm = pm
         self.connected = False
@@ -28,6 +29,7 @@ class OandaStubAdapter(ExecutionAdapter):
         # Optional TradingWindowPolicy-like object with can_open(datetime) -> bool
         self.policy = policy
         self.pm_limits = pm_limits or {"max_open_long": 1, "max_open_short": 1}
+        self.daily_loss_cap = daily_loss_cap
 
     def connect(self) -> None:
         self.connected = True
@@ -65,6 +67,13 @@ class OandaStubAdapter(ExecutionAdapter):
                     self.events.append({"order_id": order_id, "rejected": "blackout"})
                     return OrderResult(
                         order_id=order_id, status="rejected", message="blackout"
+                    )
+            # Enforce daily loss cap if provided
+            if side in {"long", "short"} and self.daily_loss_cap:
+                if self.pm.hit_daily_loss_cap(when, float(self.daily_loss_cap)):
+                    self.events.append({"order_id": order_id, "rejected": "risk_cap"})
+                    return OrderResult(
+                        order_id=order_id, status="rejected", message="risk_cap"
                     )
             # Enforce simple directional cap: PM holds max one position
             if side in {"long", "short"} and self.pm.current_position:

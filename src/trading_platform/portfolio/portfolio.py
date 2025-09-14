@@ -87,6 +87,17 @@ class PortfolioManager:
             take_profit=tp_level,
         )
 
+    def hit_daily_loss_cap(self, ts: datetime, cap: float) -> bool:
+        """Return True if realized PnL for ts.date() is <= -cap.
+
+        Computes from recorded trades; cap is in base currency units.
+        """
+        if cap is None or cap <= 0:
+            return False
+        d = ts.date()
+        day_pnl = sum(float(t.pnl) for t in self.trades if t.exit_time.date() == d)
+        return day_pnl <= -float(cap)
+
     def on_bar(
         self,
         current_bar: pd.Series,
