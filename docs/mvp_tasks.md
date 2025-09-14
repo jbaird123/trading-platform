@@ -294,21 +294,21 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 
 ## Phase 14: Minimal Live Execution (EL)
 
-- [ ] **Task 42: Live controller**
-  - [ ] Poll or stream bars to strategy; collect signals.
-  - [ ] Place orders via adapter; share PortfolioManager logic.
-  - [ ] Enforce blackout policy and directional caps.
-  - [ ] Daily loss cap passthrough to PM.
-  - [ ] Tests: controller happy path with stub adapter.
+- [x] **Task 42: Live controller**
+  - [x] Poll or stream bars to strategy; collect signals.
+  - [x] Place orders via adapter; share PortfolioManager logic.
+  - [x] Enforce blackout policy and directional caps.
+  - [x] Daily loss cap passthrough to PM.
+  - [x] Tests: controller happy path with stub adapter.
 
-- [ ] **Task 43: Logging and safety**
-  - [ ] Structured logs for connect, signals, orders, errors.
-  - [ ] Dry-run mode; optional kill switch; graceful shutdown.
-  - [ ] Tests: dry-run emits logs; kill switch path covered.
+- [x] **Task 43: Logging and safety**
+  - [x] Structured logs for connect, signals, orders, errors.
+  - [x] Dry-run mode; optional kill switch; graceful shutdown.
+  - [x] Tests: dry-run emits logs; kill switch path covered.
 
-- [ ] **Task 44: Reconciliation stub**
-  - [ ] Compare PM vs adapter snapshot; log discrepancies.
-  - [ ] Tests: simulated diff reported.
+- [x] **Task 44: Reconciliation stub**
+  - [x] Compare PM vs adapter snapshot; log discrepancies.
+  - [x] Tests: simulated diff reported.
 
 ---
 
