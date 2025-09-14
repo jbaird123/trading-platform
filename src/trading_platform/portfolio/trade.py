@@ -25,4 +25,5 @@ class Trade:
     take_profit: float | None = None
     cost_currency: float = 0.0
     cost_breakdown: dict[str, float] | None = None
+    r_multiple: float | None = None
     # 'mfe' and 'mae' will be added later.

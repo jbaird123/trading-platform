@@ -211,6 +211,25 @@ class PortfolioManager:
         }
         pnl = pnl_gross - total_cost
 
+        # Compute initial risk for r-multiple if stop_loss was defined at entry
+        initial_risk_ccy = None
+        if self._open_position.stop_loss is not None:
+            if self._open_position.side == "long":
+                initial_risk_ccy = max(
+                    0.0,
+                    (self._open_position.entry_price - self._open_position.stop_loss)
+                    * self._open_position.size,
+                )
+            else:
+                initial_risk_ccy = max(
+                    0.0,
+                    (self._open_position.stop_loss - self._open_position.entry_price)
+                    * self._open_position.size,
+                )
+        r_multiple = None
+        if initial_risk_ccy and initial_risk_ccy > 0:
+            r_multiple = pnl / initial_risk_ccy
+
         trade = Trade(
             **self._open_position.__dict__,
             exit_price=exit_price,
@@ -219,6 +238,7 @@ class PortfolioManager:
             exit_reason=exit_reason,
             cost_currency=total_cost,
             cost_breakdown=cost_breakdown,
+            r_multiple=r_multiple,
         )
         self.trades.append(trade)
         self.cash += pnl
