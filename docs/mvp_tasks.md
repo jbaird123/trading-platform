@@ -288,7 +288,7 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 - [x] **Task 41: Config load + snapshots**
   - [x] Support YAML/JSON config loading in CLI.
   - [x] Snapshot config into brief checksums and `runs/.../config.json`.
-  - [ ] Tests: snapshot hash stable for stable inputs.  (Follow-up)
+  - [x] Tests: snapshot hash stable for stable inputs.
 
 ---
 

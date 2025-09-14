@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
 import pandas as pd
+
+try:
+    import jsonschema  # type: ignore[import-untyped]
+except Exception:  # pragma: no cover
+    jsonschema = None  # type: ignore[assignment]
 
 from .features import compute_features
 
@@ -20,6 +26,19 @@ def validate_strategy_config(cfg: dict[str, Any]) -> None:
     """
     if not isinstance(cfg, dict):
         raise ValueError("strategy must be an object")
+    # JSON Schema validation if available (prefer strict validation first)
+    if jsonschema is not None:
+        schema_path = (
+            Path(__file__).resolve().parents[3]
+            / "docs"
+            / "schemas"
+            / "strategy.schema.json"
+        )
+        try:
+            schema = json.loads(schema_path.read_text())
+            jsonschema.validate(cfg, schema)  # type: ignore[misc]
+        except Exception as exc:  # pragma: no cover
+            raise ValueError(f"strategy schema validation failed: {exc}") from exc
     for req in ("strategy_name", "entry_rules", "exit_rules"):
         if req not in cfg:
             raise ValueError(f"missing required field: {req}")
