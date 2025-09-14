@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -29,4 +30,6 @@ class Trade:
     mfe_currency: float | None = None
     mae_currency: float | None = None
     bars_held: int | None = None
+    context_at_entry: dict[str, Any] | None = None
+    context_at_exit: dict[str, Any] | None = None
     # 'mfe' and 'mae' will be added later.
