@@ -178,6 +178,13 @@ _Last updated: 2025-09-09_
 - **[SE-3.5]** Use indicators from established libraries (e.g., `ta`) where possible to avoid duplication.
 - **[SE-3.6]** Strategy metadata must declare required overlays for automatic plotting in the RV module.
 - **[SE-3.7]** The engine must support parameter sweeps orchestrated by the AI Lab.
+ - **[SE-3.8] YAML Schema Validation**
+   - Strategy definitions written in YAML must be validated against the
+     JSON Schema in `docs/schemas/strategy.schema.json` at load time.
+   - Validation errors must fail fast with actionable messages (field name,
+     expected type/enum, location path).
+   - Unit tests must include at least one valid and one invalid YAML sample
+     to verify the validator catches schema violations.
 
 ---
 
@@ -190,6 +197,13 @@ _Last updated: 2025-09-09_
 - **[RMM-4.6]** The module must expose a policy function to determine if trading is allowed, for example: `is_trade_allowed(strategy, regime_label, confidence) -> bool`.
 - **[RMM-4.7]** Policies should be configurable per-strategy and include hysteresis to reduce rapid state changes (flip-flopping).
 - **[RMM-4.8]** All classification logic must be tested using synthetic data sequences that cover edge cases for each regime.
+ - **[RMM-4.9] YAML Schema Validation**
+   - RMM configurations written in YAML must be validated against the JSON
+     Schema in `docs/schemas/rmm.schema.json` at load time.
+   - Validation errors must fail fast with actionable messages (field name,
+     expected type/enum, location path).
+   - Unit tests must include at least one valid and one invalid YAML sample
+     to verify the validator catches schema violations.
 
 ---
 
