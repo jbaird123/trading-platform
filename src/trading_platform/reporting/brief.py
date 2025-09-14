@@ -205,6 +205,34 @@ def compute_equity_stats(trades: list[Trade], initial_cash: float) -> dict[str, 
     }
 
 
+def compute_costs_aggregate(trades: list[Trade]) -> dict[str, Any]:
+    """Aggregate per-trade costs into totals/averages and breakdown sums.
+
+    If a trade lacks cost fields, it contributes zeros.
+    """
+    if not trades:
+        return {
+            "total_costs": 0.0,
+            "avg_cost_per_trade": 0.0,
+            "breakdown": {"spread": 0.0, "commission": 0.0, "slippage": 0.0},
+        }
+    total = 0.0
+    b_spread = 0.0
+    b_comm = 0.0
+    b_slip = 0.0
+    for t in trades:
+        total += getattr(t, "cost_currency", 0.0) or 0.0
+        bd = getattr(t, "cost_breakdown", None) or {}
+        b_spread += float(bd.get("spread", 0.0) or 0.0)
+        b_comm += float(bd.get("commission", 0.0) or 0.0)
+        b_slip += float(bd.get("slippage", 0.0) or 0.0)
+    return {
+        "total_costs": total,
+        "avg_cost_per_trade": total / len(trades),
+        "breakdown": {"spread": b_spread, "commission": b_comm, "slippage": b_slip},
+    }
+
+
 def _median_holding_secs(trades: list[Trade]) -> float:
     if not trades:
         return 0.0
@@ -291,6 +319,7 @@ def generate_brief(
         "distribution": distribution,
         "streaks": compute_streaks(trades),
         "holding_time": {"median_secs": _median_holding_secs(trades)},
+        "costs": compute_costs_aggregate(trades),
         "monte_carlo": _to_jsonable(monte_carlo or {}),
         "walk_forward": _to_jsonable(walk_forward or {}),
         "regimes": _compute_regimes(trades, regimes_at_entry),
