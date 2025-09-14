@@ -127,7 +127,7 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Add `walk_forward` config + placeholder split metadata to brief.
   - [x] Tests: brief sections present with expected fields.
 
-- [ ] **Task 18: Docs & QA Sweep**
+- [x] **Task 18: Docs & QA Sweep**
   - [x] README quickstart updates (run → brief → report).
   - [x] Ensure CI green; ruff/mypy tidy; re-run `pytest -q` locally.
   - [x] Add example brief under `docs/examples/brief.json`.
@@ -136,43 +136,244 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 
 ## Phase 7: Backtester Hardening & Risk Controls
 
-- [ ] **Task 19: Trading Sessions & Blackout Periods**
-  - [ ] Add config for static blackout windows (e.g., 23:00–01:00 UTC) and enforce in BT (no new entries during blackout; optional close-only).
-  - [ ] Add event-based blackout (accept event stream with `impact: high` windows) and enforce in BT; unit tests on synthetic schedules.
-  - [ ] Surface effective blackout policy in brief (adjacent to `fill_policy`/`tie_break_policy`) and verify via tests.
+- [x] **Task 19: Trading Sessions & Blackout Periods**
+  - [x] Add config for static blackout windows (e.g., 23:00–01:00 UTC) and enforce in BT (no new entries during blackout; optional close-only).
+  - [x] Add event-based blackout (accept event stream with `impact: high` windows) and enforce in BT; unit tests on synthetic schedules.
+  - [x] Surface effective blackout policy in brief (adjacent to `fill_policy`/`tie_break_policy`) and verify via tests.
+  - [x] Execution Layer consults `TradingWindowPolicy` before opening positions; tests for reject/accept paths.
 
-- [ ] **Task 20: Indicator Warm-up Handling**
-  - [ ] Add `warmup_bars` to strategy/backtest config; ignore signals until warm-up complete.
-  - [ ] Tests: signals during warm-up do not create entries; warm-up boundary covered.
+- [x] **Task 20: Indicator Warm-up Handling**
+  - [x] Add `warmup_bars` to strategy/backtest config; ignore signals until warm-up complete.
+  - [x] Tests: signals during warm-up do not create entries; warm-up boundary covered.
 
-- [ ] **Task 21: Cost Model v1 (Spread/Commission/Slippage)**
-  - [ ] Implement simple spread model (fixed or per-instrument) applied on entries/exits; update per-trade `cost_breakdown`.
-  - [ ] Add commission model (per million or per lot) and basic slippage model; apply consistently; unit tests for each model.
-  - [ ] Aggregate `costs` in brief (`total_costs`, `avg_cost_per_trade`, breakdown); tests assert correctness.
+- [x] **Task 21: Cost Model v1 (Spread/Commission/Slippage)**
+  - [x] Implement simple spread model (fixed or per-instrument) applied on entries/exits; update per-trade `cost_breakdown`.
+  - [x] Implement commission modes (per_unit, per_trade_flat, bps_notional) and basic slippage model; apply consistently; unit tests for each mode.
+  - [x] Aggregate `costs` in brief (`total_costs`, `avg_cost_per_trade`, breakdown); tests assert correctness.
+  - [x] Use canonical cost_model shape (legacy `commission_per_unit` is not supported):
+    ```yaml
+    cost_model:
+      spread_per_unit: 0.01
+      slippage_per_unit: 0.02
+      commission:
+        type: per_unit           # or: per_trade_flat | bps_notional
+        value: 0.05
+    ```
 
-- [ ] **Task 22: MFE/MAE and R-Multiple**
-  - [ ] Track per-trade bar highs/lows to compute `mfe_currency`/`mae_currency` and holding `bars_held`.
-  - [ ] Compute `r_multiple` using initial defined risk; add to Trade and brief; tests on controlled price paths.
+- [x] **Task 22: MFE/MAE and R-Multiple**
+  - [x] Track per-trade bar highs/lows to compute `mfe_currency`/`mae_currency` and holding `bars_held`.
+  - [x] Compute `r_multiple` using initial defined risk; add to Trade and brief; tests on controlled price paths.
 
-- [ ] **Task 23: Exposure Metrics**
-  - [ ] Compute `average_gross_exposure` and `peak_gross_exposure` during backtests; add to brief `exposure`.
-  - [ ] Tests: exposure metrics on small scenarios (flat, fully invested, flip-flop).
+- [x] **Task 23: Exposure Metrics**
+  - [x] Compute `average_gross_exposure` and `peak_gross_exposure` during backtests; add to brief `exposure`.
+  - [x] Tests: exposure metrics on small scenarios (flat, fully invested, flip-flop).
 
 ---
 
 ## Phase 8: Comparison Reporting & Brief Alignment
 
-- [ ] **Task 24: A/B Comparison Engine**
-  - [ ] Define comparison JSON schema for two+ briefs (key metrics side-by-side, deltas, significance placeholders).
-  - [ ] Implement `compare_briefs(briefs: list[dict]) -> dict` and HTML report skeleton; tests with two synthetic briefs.
+- [x] **Task 24: A/B Comparison Engine**
+  - [x] Define comparison JSON schema for two briefs (key metrics side-by-side, deltas, notes placeholder).
+  - [x] Implement `compare_briefs(briefs: list[dict]) -> dict` and HTML report skeleton; tests with two synthetic briefs.
+  - [x] Add IO helper to load two briefs and write `comparison.html`; test ensures file written.
 
-- [ ] **Task 25: Brief Schema Enhancements (Provenance/Checksums)**
-  - [ ] Add `provenance`: `{app_version, git_commit, run_seed}` and `environment.dependency_versions`.
-  - [ ] Add `checksums`: `{config_snapshot_hash, instrument_defs_hash}`; tests verify stable hashes given stable inputs.
+- [x] **Task 25: Brief Schema Enhancements (Provenance/Checksums)**
+  - [x] Add `provenance`: `{app_version, git_commit, run_seed}` and `environment.dependency_versions`.
+  - [x] Add `checksums`: `{config_snapshot_hash, instrument_defs_hash}`; tests verify stable hashes given stable inputs.
+  - [x] Add `field_definitions` section with `{description, why_useful, how_to_use}` for all brief fields (moved from Task 32).
+  - [x] Add trade context snapshots at decision points (moved from Task 33):
+    - [x] `context_at_entry`: `{regime:{label, confidence}, indicators:{<name>:<value>}, notes}`
+    - [x] `context_at_exit`: `{regime:{label, confidence}, indicators:{<name>:<value>}, notes}`
+    - [x] Tests: strategy stub provides indicator values; brief contains both snapshots per trade.
 
-- [ ] **Task 26: Trades CSV Export**
-  - [ ] Add CSV export of trades to `runs/{run_id}/trades.csv` with enhanced fields; test file existence and column set.
+- [x] **Task 26: Trades CSV Export**
+  - [x] Add CSV export of trades to `runs/{run_id}/trades.csv` with enhanced fields; test file existence and column set.
 
 - [ ] **Task 27: Plotting Enhancements (Scaffold)**
-  - [ ] Detect overlays from strategy metadata; enrich HTML with price + overlays + entry/exit markers (no JS deps yet).
-  - [ ] Tests: HTML contains expected sections and overlay labels.
+  - [x] Detect overlays from strategy metadata; enrich HTML with price + overlays
+        + entry/exit markers (no JS deps yet).
+  - [x] Tests: HTML contains expected sections and overlay labels.
+
+---
+
+## Phase 9: Robustness & Search (in MVP)
+
+- [ ] **Task 33: Monte Carlo Simulation**
+  - [x] Add MC toggles in config (trials, seed, resampling mode).
+  - [x] Compute resampled equity curves and summary stats (mean, p05/p95,
+        max drawdown bands).
+  - [x] Add `brief.monte_carlo` summary; tests with fixed seed.
+
+- [ ] **Task 34: Walk-Forward Evaluation (WFE)**
+  - [x] Implement rolling split driver (train/test windows).
+  - [x] Run OOS evaluation; add `brief.walk_forward` with OOS summary.
+  - [x] Tests on toy data confirming deterministic splits and OOS fields.
+
+- [ ] **Task 35: Parameter Search (Grid/Random)**
+  - [x] Add search driver (grid + random) with fixed-seed option.
+  - [x] Record top parameter sets + notes into `brief.parameter_search`.
+  - [x] Tests: small grid produces expected top set; reproducible with seed.
+
+---
+
+## Phase 10: Filter Impact & Counterfactuals
+
+- [x] **Task 28: Log Skipped Entries (BT)**
+  - [x] Capture skipped attempted entries with {timestamp, symbol, reason_code,
+        policy_snapshot, notes} when filters/policies block entries (e.g.,
+        blackout, regime, risk cap).
+  - [x] Tests: unit tests to verify reasons and snapshots are recorded.
+
+- [x] **Task 29: Counterfactual Simulation for Skipped Trades (BT)**
+  - [x] Simulate hypothetical outcomes using run's fill/exit/tie-break/cost policies for each skipped entry.
+  - [x] Produce cf_exit_time, cf_exit_price, cf_pnl_currency, cf_mfe_currency, cf_mae_currency, cf_bars_held.
+  - [x] Tests: deterministic scenarios to verify counterfactual outcomes.
+
+- [x] **Task 30: Brief Sections for Skips & Impact (RV)**
+  - [x] Add skipped_trades list and filter_impact aggregates to the brief,
+        including counts and cf_pnl totals/means/medians.
+  - [x] Tests: presence of skipped_trades and aggregation values.
+
+- [x] **Task 31: Execution Layer – Log Only**
+  - [x] Ensure EL logs skipped reasons (e.g., blackout) but does not simulate
+        counterfactuals.
+  - [x] Tests: adapter/controller emits reject with reason; no counterfactual
+        artifacts produced.
+
+---
+
+## Phase 11: New Requirements (Sept 2025)
+
+- [x] **Task 32: Directional Position Caps (PM-5.11 + BT/EL)**
+  - [x] Add config (function args for MVP) for `pm_limits.max_open_long/max_open_short` (default 1).
+  - [x] Enforce caps in BT and EL stub; unit tests for accept/reject paths.
+  - [x] When rejected, log or return reject with `reason_code: position_cap` and include in `skipped_trades`.
+  - [x] Tests: BT skipped-trade list contains position_cap; EL returns rejected.
+
+---
+
+## Phase 12: Strategy YAML + Feature Pipeline
+
+- [x] **Task 36: Strategy YAML schema + parser**
+  - [x] Define minimal YAML/JSON schema for entry/exit rules and params.
+  - [x] Implement parser that compiles rules into a callable strategy.
+  - [x] Support small predicate set (is_above/is_below/cross_*).
+  - [x] Strategy declares overlays; propagate to meta.overlays.
+  - [x] Tests: synthetic data produce expected signals from YAML.
+
+- [x] **Task 37: FeaturePipeline (EMA, RSI, ATR)**
+  - [x] Implement pipeline with ta-backed indicators (EMA, RSI, ATR, etc.).
+  - [x] Integrate warm-up handling with backtests (existing PM/BT warm-up).
+  - [x] Tests: indicator values on toy series present and reasonable.
+
+- [x] **Task 38: Overlays to brief/HTML**
+  - [x] Ensure overlays declared by strategy appear in brief and HTML.
+  - [x] Tests: HTML lists overlays; brief/meta can include overlays.
+
+---
+
+## Phase 13: CLI + Reproducibility
+
+- [x] **Task 39: CLI run-backtest**
+  - [x] Add console script `tp` with `run-backtest --config path`.
+  - [x] Loads config/strategy, runs BT, writes brief/report/trades.csv.
+  - [x] Exit codes and logs suitable for CI.
+  - [x] Tests: temp config runs and writes artifacts.
+
+- [x] **Task 40: CLI run-live**
+  - [x] `tp run-live --config path [--dry-run]` starts live controller.
+  - [x] Uses adapter; enforces blackout and pm_limits; logs actions.
+  - [x] Tests: stub adapter path; dry-run acceptance.
+
+- [x] **Task 41: Config load + snapshots**
+  - [x] Support YAML/JSON config loading in CLI.
+  - [x] Snapshot config into brief checksums and `runs/.../config.json`.
+  - [x] Tests: snapshot hash stable for stable inputs.
+
+---
+
+## Phase 14: Minimal Live Execution (EL)
+
+- [x] **Task 42: Live controller**
+  - [x] Poll or stream bars to strategy; collect signals.
+  - [x] Place orders via adapter; share PortfolioManager logic.
+  - [x] Enforce blackout policy and directional caps.
+  - [x] Daily loss cap passthrough to PM.
+  - [x] Tests: controller happy path with stub adapter.
+
+- [x] **Task 43: Logging and safety**
+  - [x] Structured logs for connect, signals, orders, errors.
+  - [x] Dry-run mode; optional kill switch; graceful shutdown.
+  - [x] Tests: dry-run emits logs; kill switch path covered.
+
+- [x] **Task 44: Reconciliation stub**
+  - [x] Compare PM vs adapter snapshot; log discrepancies.
+  - [x] Tests: simulated diff reported.
+
+---
+
+## Phase 15: Reporting & Comparison Polish
+
+- [x] **Task 45: Comparison HTML enhancements**
+  - [x] Sortable table; highlight best deltas; basic styling.
+  - [x] Tests: rendered labels and highlight markers present.
+
+- [x] **Task 46: Multi-symbol sparkline + legend**
+  - [x] Render small charts per symbol; overlay legend with colors.
+  - [x] Tests: legend items and multiple charts present.
+
+- [x] **Task 47: Examples & docs**
+  - [x] Add example configs for BT/EL + MC/WFE/Param search.
+  - [x] README quickstart: backtest → brief → report → compare → live.
+  - [x] Tests (link validation or smoke as appropriate).
+
+---
+
+## Phase 16: Docs & QA Completion
+
+- [x] **Task 48: End-to-end smoke**
+  - [x] Scripted flow: YAML strategy → BT → brief/report → compare → EL dry-run.
+  - [x] Verify artifacts and logs; document outcomes.
+
+- [x] **Task 49: Quality gates**
+  - [x] Ensure coverage meets target; ruff/mypy clean; CI green.
+  - [ ] Finalize GitHub workflow and shields.
+
+- [x] **Task 50: MVP sign-off**
+  - [x] Review requirements vs implementation; close gaps.
+  - [x] Tag release; create follow-up backlog for enhancements.
+
+---
+
+## Phase 17: MVP Gap Fixes & Conflicts
+
+ - [x] **Task 51: Strategy Schema Validation (SE-3.8)**
+  - [x] Validate strategy YAML/JSON against `docs/schemas/strategy.schema.json`.
+  - [x] Fail fast with clear pathful errors; add one valid and one invalid test.
+
+ - [x] **Task 52: RMM Schema Validation (RMM-4.9)**
+  - [x] Validate RMM config against `docs/schemas/rmm.schema.json`.
+  - [x] Add one valid and one invalid test verifying failures are actionable.
+
+ - [x] **Task 53: DH Resampling (DH-2.4, DH-2.15)**
+  - [x] Implement safe OHLC resampling (e.g., M1→H1→D) with correct rules.
+  - [x] Tests: round-trip and aggregation correctness on synthetic series.
+
+- [x] **Task 54: Daily Loss Cap (PM-5.10, EL-7.8)**
+  - [x] Add PM rule for daily loss cap and enforce in BT and EL.
+  - [x] Tests: accept/reject paths and interaction with other filters.
+
+ - [x] **Task 55: Tie-Break Policy Tests (BT-6.5)**
+  - [x] Ensure tie-break (e.g., `stop_then_tp`) exists and is covered by tests.
+
+ - [x] **Task 56: CLI run-backtest Completeness (Tasks 39–41)**
+  - [x] Ensure `tp run-backtest --config` executes BT (not only demo) and
+        writes brief/report/trades.csv; add config snapshot hash test.
+
+ - [x] **Task 57: Indicator Naming Alignment (Registry/Schemas/Features)**
+  - [x] Resolve BB vs BBWidth discrepancy: standardize "BB" (bands) and
+        "BBWidth" (width). Update registry and both schemas; add tiny tests.
+
+ - [x] **Task 58: CI Static Import/Boundary Checks**
+  - [x] Add lightweight check in CI to detect circular imports and enforce
+        public-API-only cross-module usage.

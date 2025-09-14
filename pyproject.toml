@@ -14,6 +14,8 @@ packages = [{include = "trading_platform", from = "src"}]
 python = ">=3.10"
 pydantic = "^2.7.1"
 pandas = "^2.2.2"
+ta = "^0.11.0"
+jsonschema = "^4.23.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"
@@ -39,7 +41,12 @@ packages = ["trading_platform"]
 
 [tool.pytest.ini_options]
 # Ignore the benign "usefixtures" warning from pytest-bdd's scenario generator
-filterwarnings = ["ignore:usefixtures.*has no effect:pytest.PytestWarning"]
+filterwarnings = [
+    "ignore:usefixtures.*has no effect:pytest.PytestWarning",
+    # Third-party ta library emits a FutureWarning inside PSAR when assigning
+    # float into an int-typed Series; harmless for our tests, ignore it.
+    "ignore:Setting an item of incompatible dtype is deprecated.*:FutureWarning:ta.trend",
+]
 markers = [
     "req_DH_2_2: Marks a test as covering a specific requirement.",
     "req_DH_2_3: Marks a test as covering a specific requirement.",
@@ -56,3 +63,6 @@ markers = [
     "req_BT_6_4: Marks a test as covering a specific requirement.",
     "req_BT_6_8: Marks a test as covering a specific requirement.",
 ]
+
+[tool.poetry.scripts]
+tp = "trading_platform.cli:main"

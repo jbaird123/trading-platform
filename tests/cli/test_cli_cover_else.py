@@ -1,0 +1,39 @@
+from __future__ import annotations
+
+import json
+from argparse import Namespace
+from pathlib import Path
+
+import trading_platform.cli as cli
+
+
+def test_cmd_run_backtest_else_branch(tmp_path: Path, monkeypatch) -> None:
+    # Force run_backtest to return non-tuple to exercise else branch
+    monkeypatch.setattr(cli, "run_backtest", lambda *a, **k: [])
+
+    called = {"finalize": False}
+
+    def fake_finalize(*args, **kwargs):
+        called["finalize"] = True
+
+    monkeypatch.setattr(cli, "finalize_run", fake_finalize)
+
+    cfg = {
+        "user_id": "else_user",
+        "runs_dir": str(tmp_path),
+        "initial_cash": 1000,
+        "strategy": {
+            "strategy_name": "S",
+            "entry_rules": [
+                {"any_of": [{"condition": "is_above", "left": 2, "right": 3}]}
+            ],
+            "exit_rules": [
+                {"any_of": [{"condition": "is_below", "left": 2, "right": 1}]}
+            ],
+        },
+    }
+    p = tmp_path / "cfg.json"
+    p.write_text(json.dumps(cfg))
+    ns = Namespace(demo=False, user="else_user", config=str(p))
+    rc = cli.cmd_run_backtest(ns)
+    assert rc == 0 and called["finalize"]

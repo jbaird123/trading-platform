@@ -58,6 +58,8 @@ _Last updated: 2025-09-09_
     - **Static Rules**: e.g., "do not trade between 23:00 and 01:00 UTC daily".
     - **Event-Based**: e.g., "pause trading 10 minutes before and 30 minutes after any event with `impact: high`".
   - This functionality will be managed centrally and applied by the Backtester (BT) and Execution Layer (EL) to ensure consistent behavior. Strategies may choose to override or ignore these blackouts via configuration.
+  - A centralized trading window policy in the core module (TradingWindowPolicy) will enforce blackout rules. Both BT and EL must consult this policy before opening new positions.
+  - The platform will support an event/news calendar to populate event-based blackout windows (for example high-impact economic releases), configurable per strategy or run.
 - **Instrument Agnostic Architecture**
   - The core engine (Backtester, Risk Manager) must operate on a canonical representation of trades, positions, and performance, independent of the asset class (Forex, Futures, Stocks, etc.).
   - An **Instrument Definition** module (part of the Data Handler) will provide rich metadata for each symbol (e.g., `point_value`, `tick_size`, `commission_structure`, `margin_requirement`).
@@ -176,6 +178,13 @@ _Last updated: 2025-09-09_
 - **[SE-3.5]** Use indicators from established libraries (e.g., `ta`) where possible to avoid duplication.
 - **[SE-3.6]** Strategy metadata must declare required overlays for automatic plotting in the RV module.
 - **[SE-3.7]** The engine must support parameter sweeps orchestrated by the AI Lab.
+ - **[SE-3.8] YAML Schema Validation**
+   - Strategy definitions written in YAML must be validated against the
+     JSON Schema in `docs/schemas/strategy.schema.json` at load time.
+   - Validation errors must fail fast with actionable messages (field name,
+     expected type/enum, location path).
+   - Unit tests must include at least one valid and one invalid YAML sample
+     to verify the validator catches schema violations.
 
 ---
 
@@ -188,6 +197,13 @@ _Last updated: 2025-09-09_
 - **[RMM-4.6]** The module must expose a policy function to determine if trading is allowed, for example: `is_trade_allowed(strategy, regime_label, confidence) -> bool`.
 - **[RMM-4.7]** Policies should be configurable per-strategy and include hysteresis to reduce rapid state changes (flip-flopping).
 - **[RMM-4.8]** All classification logic must be tested using synthetic data sequences that cover edge cases for each regime.
+ - **[RMM-4.9] YAML Schema Validation**
+   - RMM configurations written in YAML must be validated against the JSON
+     Schema in `docs/schemas/rmm.schema.json` at load time.
+   - Validation errors must fail fast with actionable messages (field name,
+     expected type/enum, location path).
+   - Unit tests must include at least one valid and one invalid YAML sample
+     to verify the validator catches schema violations.
 
 ---
 
@@ -221,6 +237,18 @@ _Last updated: 2025-09-09_
 - **[BT-6.7]** A "warm-up" period to ensure indicators are stable before trading signals are processed.
 - **[BT-6.8]** Backtests must be deterministic, producing the same results from the same inputs and configuration.
 - **[BT-6.9]** All backtesting logic must be validated, especially for fill logic and stop/TP precedence.
+ - **[BT-6.10] Counterfactual Skipped Trades (Filters/Policies)**
+   - The backtester must record attempted entries that were skipped due to a filter/policy (e.g., blackout window, regime filter, risk cap, user-defined filter).
+   - Each skipped item must include: `timestamp`, `symbol`, `reason_code` (e.g., `blackout_static`, `blackout_event`, `regime_filter`, `risk_cap`, `custom`), `policy_snapshot` (minimal), and optional `notes`.
+ - **[BT-6.11] Counterfactual Outcome Simulation**
+   - For each skipped entry, the backtester must simulate a counterfactual trade using the same fill and exit policies configured for the run (entry price convention, stop/tp rules, tie-breaks, costs).
+   - The counterfactual must produce canonical outcomes: `cf_exit_time`, `cf_exit_price`, `cf_pnl_currency`, and, when available, `cf_mfe_currency`, `cf_mae_currency`, `cf_bars_held`.
+   - Counterfactuals must be clearly flagged as hypothetical and must never affect the main equity/trades results.
+ - **[BT-6.12] Filter Impact Summary**
+   - The backtester must aggregate per-reason summaries (e.g., counts, total/mean/median `cf_pnl_currency`) to quantify the impact of each filter.
+   - Summaries must be included in the run brief for downstream analysis and A/B comparisons of filter configurations.
+ - **[BT-6.13] Live Trading Deviation**
+   - The Execution Layer (EL) must not simulate counterfactual outcomes; it may log skipped entries and reasons only. Counterfactual simulation is strictly a backtest-only feature.
 
 ---
 
@@ -282,6 +310,7 @@ _Last updated: 2025-09-09_
 - **activity**: `{trades_per_day}` (optional baseline).
 - **timing_buckets**: `{by_hour, by_dow, by_month}` (optional baseline).
 - **costs**: `{total_costs, avg_cost_per_trade, breakdown:{spread, commission, fees, slippage}}`.
+  - See `docs/examples/brief_costs_section.md` for schema details and examples.
 - **exposure**: `{average_gross_exposure, peak_gross_exposure}` (optional baseline).
 - **contrasts**: feature-at-entry bins (RSI, ADX, ATR, BB width, etc.).
 - **regimes**: per-regime performance breakdown.
@@ -295,10 +324,15 @@ _Last updated: 2025-09-09_
 - **instrument_definitions**: snapshot per symbol `{tick_size, point_value, base_ccy, quote_ccy, lot_size, min_trade_unit}`.
 - **cost_model**: `{spread_model, commission_model, slippage_model, rollover_model, fee_params}`.
 - **fill_policy**: `{policy}` and details; **tie_break_policy**: `{policy}`.
+ - **blackout_policy**: snapshot of blackout configuration `{blackout_utc, blackout_events}`.
 - **environment**: `{python_version, dependency_versions, platform, timezone}`.
 - **provenance**: `{app_version, git_commit, run_seed, data_start, data_end, symbols}`.
 - **checksums**: `{config_snapshot_hash, instrument_defs_hash}`.
 - **trades**: enhanced entries with `{r_multiple, mfe_currency, mae_currency, bars_held, holding_time_sec, features_at_entry, regime_label_at_entry, exit_reason, cost_breakdown}`.
+  - See `docs/examples/trades_cost_breakdown.md` for `cost_breakdown` semantics and how it rolls up to `costs`.
+  - New: context snapshots at entry/exit (see [RV-8.9]).
+ - **skipped_trades**: list of counterfactuals for filtered entries `[{timestamp, symbol, reason_code, policy_snapshot, cf_exit_time, cf_exit_price, cf_pnl_currency, cf_mfe_currency, cf_mae_currency, cf_bars_held}]`.
+ - **filter_impact**: per-reason aggregates `{reason_code: {n_skipped, total_cf_pnl, mean_cf_pnl, median_cf_pnl}}`.
 - Pure JSON types only (convert pandas objects).
 
 Notes:
@@ -338,6 +372,60 @@ Notes:
 - Repo may need splitting to satisfy SonarQube LOC cap.
 - JSON serialization: `Timestamp` → ISO8601; `Timedelta` → seconds.
 - AI briefs must include recommendations in machine-readable JSON.
+
+- Cost Model Canonical Shape (applies to BT & EL)
+  - The platform uses a single, canonical cost model shape. Legacy keys like `commission_per_unit` are not supported.
+  - Canonical config (JSON/YAML equivalent):
+    ```yaml
+    cost_model:
+      spread_per_unit: 0.0        # base-currency per unit, per side
+      slippage_per_unit: 0.0      # base-currency per unit, per side
+      commission:
+        type: per_unit            # one of: per_unit | per_trade_flat | bps_notional
+        value: 0.0                # float; meaning depends on type
+    ```
+  - Semantics:
+    - `per_unit`: commission = `value * size`
+    - `per_trade_flat`: commission = `value` per side
+    - `bps_notional`: commission = `(price * size) * (value / 10_000)`
+  - Spread and slippage are applied per side on both entry and exit.
+
+---
+
+## 8) Reporting & Visualization (RV) — Additions
+- **[RV-8.9] Field Definitions Section**
+  - The brief must include a top-level `field_definitions` section describing each field that appears anywhere in the brief. Each definition includes:
+    - `description`: what the field means,
+    - `why_useful`: why it matters for analysis/decision-making,
+    - `how_to_use`: guidance for downstream tools and humans.
+  - This section is auto-generated from a central registry to ensure consistency and versioned with the app.
+- **[RV-8.10] Trade Context Snapshots**
+  - For each trade, include context at both entry and exit:
+    - `context_at_entry`: `{regime: {label, confidence}, indicators: {<name>: <value>, ...}, notes}`
+    - `context_at_exit`: `{regime: {label, confidence}, indicators: {<name>: <value>, ...}, notes}`
+  - These snapshots capture the values of indicators/features actually used by the strategy at decision time.
+  - Downstream usage: performance slicing by regime/indicator ranges; explanation overlays in reports.
+
+---
+
+## 5) Portfolio Manager (PM) — Additions
+- **[PM-5.11] Directional Position Caps**
+  - Configurable limit on simultaneously open positions per direction (long/short) with a default of 1.
+  - Enforced identically in BT and EL. Configuration example:
+    ```yaml
+    pm_limits:
+      max_open_long: 1
+      max_open_short: 1
+    ```
+  - When limits would be exceeded, the attempted entry must be skipped.
+
+---
+
+## 6) Backtester (BT) — Additions
+- Extend skipped-trade logging requirements:
+  - Add `position_cap` to the allowed `reason_code` set in [BT-6.10].
+  - Ensure these skips are included in `skipped_trades` and summarized in `filter_impact` ([BT-6.12]).
+
 
 ---
 

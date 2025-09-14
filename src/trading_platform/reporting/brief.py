@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import importlib.metadata as ilmd
 import json
 import platform
 import sys
@@ -28,7 +30,61 @@ def _to_jsonable(obj: Any) -> Any:
         return [_to_jsonable(x) for x in obj]
     if isinstance(obj, dict):
         return {k: _to_jsonable(v) for k, v in obj.items()}
+    if isinstance(obj, Path):
+        return str(obj)
     return obj
+
+
+# Reusable defaults to reduce duplication in assembled briefs
+EMPTY_DISTRIBUTION = {
+    "pnl_mean": 0.0,
+    "pnl_median": 0.0,
+    "pnl_std": 0.0,
+    "p05": 0.0,
+    "p95": 0.0,
+}
+
+
+def _empty_sections() -> dict[str, Any]:
+    """Return fresh containers for always-present empty sections."""
+    return {
+        "activity": {},
+        "timing_buckets": {},
+        "costs": {},
+        "exposure": {},
+        "contrasts": {},
+        "stop_tp_candidates": [],
+        "parameter_search": {},
+        "stationarity": {},
+        "feature_analysis": {},
+        "checksums": {},
+    }
+
+
+def _serialize_trade(t: Trade) -> dict[str, Any]:
+    return {
+        "symbol": t.symbol,
+        "side": t.side,
+        "size": t.size,
+        "entry_time": t.entry_time.isoformat(),
+        "exit_time": t.exit_time.isoformat(),
+        "entry_price": t.entry_price,
+        "exit_price": t.exit_price,
+        "pnl": t.pnl,
+        "exit_reason": t.exit_reason,
+        "r_multiple": getattr(t, "r_multiple", None),
+        "mfe_currency": getattr(t, "mfe_currency", None),
+        "mae_currency": getattr(t, "mae_currency", None),
+        "bars_held": getattr(t, "bars_held", None),
+        "context_at_entry": getattr(t, "context_at_entry", None),
+        "context_at_exit": getattr(t, "context_at_exit", None),
+        # Placeholders for future cost modeling (Task 14)
+        "cost_breakdown": {
+            "spread": 0.0,
+            "commission": 0.0,
+            "slippage": 0.0,
+        },
+    }
 
 
 def compute_overall_performance(
@@ -85,13 +141,7 @@ def _percentile(values: list[float], pct: float) -> float:
 def compute_distribution(trades: list[Trade]) -> dict[str, Any]:
     pnls = [t.pnl for t in trades]
     if not pnls:
-        return {
-            "pnl_mean": 0.0,
-            "pnl_median": 0.0,
-            "pnl_std": 0.0,
-            "p05": 0.0,
-            "p95": 0.0,
-        }
+        return EMPTY_DISTRIBUTION
     n = len(pnls)
     mean_val = sum(pnls) / n
     median_val = median(pnls)
@@ -165,6 +215,34 @@ def compute_equity_stats(trades: list[Trade], initial_cash: float) -> dict[str, 
     }
 
 
+def compute_costs_aggregate(trades: list[Trade]) -> dict[str, Any]:
+    """Aggregate per-trade costs into totals/averages and breakdown sums.
+
+    If a trade lacks cost fields, it contributes zeros.
+    """
+    if not trades:
+        return {
+            "total_costs": 0.0,
+            "avg_cost_per_trade": 0.0,
+            "breakdown": {"spread": 0.0, "commission": 0.0, "slippage": 0.0},
+        }
+    total = 0.0
+    b_spread = 0.0
+    b_comm = 0.0
+    b_slip = 0.0
+    for t in trades:
+        total += getattr(t, "cost_currency", 0.0) or 0.0
+        bd = getattr(t, "cost_breakdown", None) or {}
+        b_spread += float(bd.get("spread", 0.0) or 0.0)
+        b_comm += float(bd.get("commission", 0.0) or 0.0)
+        b_slip += float(bd.get("slippage", 0.0) or 0.0)
+    return {
+        "total_costs": total,
+        "avg_cost_per_trade": total / len(trades),
+        "breakdown": {"spread": b_spread, "commission": b_comm, "slippage": b_slip},
+    }
+
+
 def _median_holding_secs(trades: list[Trade]) -> float:
     if not trades:
         return 0.0
@@ -194,6 +272,19 @@ def _compute_regimes(
     return result
 
 
+def _compute_exposure_metrics(
+    exposure_curve: list[tuple[datetime, float]] | None,
+) -> dict[str, Any]:
+    if not exposure_curve:
+        return {}
+    values = [float(v) for _, v in exposure_curve]
+    if not values:  # defensive redundancy; values is empty only if input was empty
+        return {}  # pragma: no cover
+    avg = sum(values) / len(values)
+    peak = max(values)
+    return {"average_gross_exposure": avg, "peak_gross_exposure": peak}
+
+
 def generate_brief(
     *,
     meta: dict[str, Any] | None,
@@ -208,6 +299,11 @@ def generate_brief(
     tie_break_policy: dict[str, Any] | None = None,
     monte_carlo: dict[str, Any] | None = None,
     walk_forward: dict[str, Any] | None = None,
+    blackout_policy: dict[str, Any] | None = None,
+    exposure_curve: list[tuple[datetime, float]] | None = None,
+    config_snapshot: dict[str, Any] | None = None,
+    skipped_trades: list[dict[str, Any]] | None = None,
+    parameter_search: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assemble a JSON brief from trades and metrics (incremental MVP)."""
     meta = meta or {}
@@ -229,31 +325,121 @@ def generate_brief(
     risk_snapshot = compute_risk_snapshot(trades)
     equity_stats = compute_equity_stats(trades, initial_cash)
     distribution = compute_distribution(trades)
-    trades_json = [
-        {
-            "symbol": t.symbol,
-            "side": t.side,
-            "size": t.size,
-            "entry_time": t.entry_time.isoformat(),
-            "exit_time": t.exit_time.isoformat(),
-            "entry_price": t.entry_price,
-            "exit_price": t.exit_price,
-            "pnl": t.pnl,
-            "exit_reason": t.exit_reason,
-            # Placeholders for future cost modeling (Task 14)
-            "cost_breakdown": {
-                "spread": 0.0,
-                "commission": 0.0,
-                "slippage": 0.0,
-            },
-        }
-        for t in trades
-    ]
+    trades_json = []
+    for t in trades:
+        item = _serialize_trade(t)
+        # Attach cost breakdown if available
+        if getattr(t, "cost_breakdown", None) is not None:
+            item["cost_breakdown"] = t.cost_breakdown
+        trades_json.append(item)
     # Compute provenance/environment
     prov = _compute_provenance(trades, meta)
     env = _compute_environment()
 
-    return {
+    exposure = _compute_exposure_metrics(exposure_curve)
+    checksums: dict[str, Any] = {}
+    if instrument_definitions is not None:
+        checksums["instrument_defs_hash"] = _stable_hash(instrument_definitions)
+    if config_snapshot is not None:
+        checksums["config_snapshot_hash"] = _stable_hash(config_snapshot)
+
+    field_definitions = {
+        "overall_performance.total_pnl": {
+            "description": "Sum of per-trade pnl in base currency.",
+            "why_useful": "Measures total outcome over the run.",
+            "how_to_use": (
+                "Compare across runs; normalize by starting equity if needed."
+            ),
+        },
+        "equity_stats.max_drawdown": {
+            "description": "Peak-to-trough equity loss in base currency.",
+            "why_useful": "Captures worst loss magnitude.",
+            "how_to_use": "Lower is better; monitor alongside pnl.",
+        },
+        "costs.total_costs": {
+            "description": (
+                "Sum of spread, commission, and slippage across all trades."
+            ),
+            "why_useful": "Quantifies drag from costs.",
+            "how_to_use": "Assess robustness under realistic costs.",
+        },
+    }
+
+    def _def_entry(desc: str) -> dict[str, str]:
+        return {
+            "description": desc,
+            "why_useful": "Provides context for analysis and reporting.",
+            "how_to_use": "Use in dashboards, filters, and comparisons.",
+        }
+
+    def _add_leaf_defs(prefix: str, obj: Any) -> None:
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if k == "field_definitions":
+                    continue
+                path = f"{prefix}.{k}" if prefix else k
+                _add_leaf_defs(path, v)
+        elif isinstance(obj, list):
+            # Known list shapes
+            if prefix in (
+                "equity_stats.equity_curve",
+                "equity_stats.drawdown_curve",
+            ):
+                field_definitions.setdefault(
+                    prefix,
+                    _def_entry("List of [timestamp, value] pairs ordered by time."),
+                )
+                return
+            if prefix == "trades":
+                field_definitions.setdefault(
+                    "trades", _def_entry("List of trade records (objects).")
+                )
+                if obj and isinstance(obj[0], dict):
+                    for tk in obj[0].keys():
+                        tpath = f"trades[].{tk}"
+                        field_definitions.setdefault(
+                            tpath,
+                            _def_entry(f"Trade field '{tk}' at per-trade level."),
+                        )
+                return
+            # Generic list container
+            field_definitions.setdefault(
+                prefix, _def_entry("List of values (container field).")
+            )
+        else:
+            # Primitive leaf
+            field_definitions.setdefault(
+                prefix,
+                _def_entry("Scalar value (number, string, boolean, or null)."),
+            )
+
+    # Build definitions for any missing fields by walking the brief so far
+    preview = {
+        "meta": _to_jsonable(meta),
+        "params": _to_jsonable(params),
+        "overall_performance": performance,
+        "risk_snapshot": risk_snapshot,
+        "equity_stats": equity_stats,
+        "distribution": distribution,
+        "streaks": compute_streaks(trades),
+        "holding_time": {"median_secs": _median_holding_secs(trades)},
+        "costs": compute_costs_aggregate(trades),
+        "exposure": _to_jsonable(exposure),
+        "regimes": _compute_regimes(trades, regimes_at_entry),
+        "instrument_definitions": _to_jsonable(instrument_definitions or {}),
+        "cost_model": _to_jsonable(cost_model or {}),
+        "fill_policy": _to_jsonable(fill_policy or {}),
+        "tie_break_policy": _to_jsonable(tie_break_policy or {}),
+        "blackout_policy": _to_jsonable(blackout_policy or {}),
+        "environment": _to_jsonable(env),
+        "provenance": _to_jsonable(prov),
+        "checksums": _to_jsonable(checksums),
+        "trades": trades_json,
+        "stop_tp_candidates": [],
+    }
+    _add_leaf_defs("", preview)
+
+    base = {
         "meta": _to_jsonable(meta),
         "params": _to_jsonable(params),
         # Canonical, instrument-agnostic sections
@@ -263,30 +449,59 @@ def generate_brief(
         "distribution": distribution,
         "streaks": compute_streaks(trades),
         "holding_time": {"median_secs": _median_holding_secs(trades)},
-        "activity": {},
-        "timing_buckets": {},
-        "costs": {},
-        "exposure": {},
-        "contrasts": {},
-        "stop_tp_candidates": [],
+        "costs": compute_costs_aggregate(trades),
+        "exposure": _to_jsonable(exposure),
         "monte_carlo": _to_jsonable(monte_carlo or {}),
         "walk_forward": _to_jsonable(walk_forward or {}),
+        "parameter_search": _to_jsonable(parameter_search or {}),
         "regimes": _compute_regimes(trades, regimes_at_entry),
-        "parameter_search": {},
-        "stationarity": {},
-        "feature_analysis": {},
         "data_quality": _to_jsonable(data_quality or {}),
         # Snapshots and placeholders (configurable)
         "instrument_definitions": _to_jsonable(instrument_definitions or {}),
         "cost_model": _to_jsonable(cost_model or {}),
         "fill_policy": _to_jsonable(fill_policy or {}),
         "tie_break_policy": _to_jsonable(tie_break_policy or {}),
+        "blackout_policy": _to_jsonable(blackout_policy or {}),
         "environment": _to_jsonable(env),
         "provenance": _to_jsonable(prov),
-        "checksums": {},
+        "checksums": _to_jsonable(checksums),
+        "field_definitions": _to_jsonable(field_definitions),
         # Trades serialized with ISO datetimes
         "trades": trades_json,
     }
+    placeholders = _empty_sections()
+    placeholders.update(base)
+    # Attach skipped trades and filter impact if provided
+    if skipped_trades:
+        placeholders["skipped_trades"] = _to_jsonable(skipped_trades)
+        # Aggregate impact metrics by reason_code
+        agg: dict[str, Any] = {}
+        for s in skipped_trades:
+            rc = s.get("reason_code") or "unknown"
+            st = agg.setdefault(
+                rc,
+                {
+                    "n_skipped": 0,
+                    "total_cf_pnl": 0.0,
+                    "mean_cf_pnl": 0.0,
+                    "median_cf_pnl": 0.0,
+                },
+            )
+            st["n_skipped"] += 1
+        # Compute totals/means/medians for cf_pnl where present
+        from statistics import median as _med
+
+        for rc, st in agg.items():
+            vals = [
+                float(s.get("cf_pnl_currency", 0.0))
+                for s in skipped_trades
+                if (s.get("reason_code") or "unknown") == rc
+            ]
+            st["total_cf_pnl"] = float(sum(vals))
+            st["mean_cf_pnl"] = float(sum(vals) / len(vals)) if vals else 0.0
+            st["median_cf_pnl"] = float(_med(vals)) if vals else 0.0
+        placeholders["filter_impact"] = agg
+    return placeholders
 
 
 def save_brief(brief: dict[str, Any], path: Path) -> None:
@@ -309,6 +524,10 @@ def save_run_brief(
     tie_break_policy: dict[str, Any] | None = None,
     monte_carlo: dict[str, Any] | None = None,
     walk_forward: dict[str, Any] | None = None,
+    blackout_policy: dict[str, Any] | None = None,
+    exposure_curve: list[tuple[datetime, float]] | None = None,
+    config_snapshot: dict[str, Any] | None = None,
+    parameter_search: dict[str, Any] | None = None,
 ) -> Path:
     """Generate and save a brief to `run_path/brief.json`.
 
@@ -327,6 +546,10 @@ def save_run_brief(
         tie_break_policy=tie_break_policy,
         monte_carlo=monte_carlo,
         walk_forward=walk_forward,
+        blackout_policy=blackout_policy,
+        exposure_curve=exposure_curve,
+        config_snapshot=config_snapshot,
+        parameter_search=parameter_search,
     )
     out_path = run_path / "brief.json"
     save_brief(brief, out_path)
@@ -351,10 +574,21 @@ def compute_data_quality(df: pd.DataFrame) -> dict[str, Any]:
 
 def _compute_environment() -> dict[str, Any]:
     tz = datetime.now().astimezone().tzinfo
+
+    def _ver(pkg: str) -> str | None:
+        try:
+            return ilmd.version(pkg)
+        except Exception:  # pragma: no cover
+            return None
+
     return {
         "python_version": sys.version.split(" ")[0],
         "platform": platform.platform(),
         "timezone": str(tz) if tz else None,
+        "dependency_versions": {
+            "pandas": _ver("pandas"),
+            "pydantic": _ver("pydantic"),
+        },
     }
 
 
@@ -364,10 +598,23 @@ def _compute_provenance(trades: list[Trade], meta: dict[str, Any]) -> dict[str, 
     data_start = min((t.entry_time for t in trades), default=None)
     data_end = max((t.exit_time for t in trades), default=None)
     meta = meta or {}
+    try:
+        app_version = ilmd.version("trading-platform")
+    except Exception:  # pragma: no cover
+        app_version = None
     return {
         "run_id": meta.get("run_id"),
         "strategy_name": meta.get("strategy_name"),
         "data_start": data_start.isoformat() if data_start else None,
         "data_end": data_end.isoformat() if data_end else None,
         "symbols": symbols,
+        "app_version": app_version,
+        "git_commit": meta.get("git_commit"),
+        "run_seed": meta.get("run_seed"),
     }
+
+
+def _stable_hash(obj: Any) -> str:
+    jsonable = _to_jsonable(obj)
+    s = json.dumps(jsonable, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(s.encode("utf-8")).hexdigest()

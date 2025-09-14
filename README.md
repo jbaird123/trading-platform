@@ -1,41 +1,25 @@
-# Trading Platform (MVP)
-This repository contains the Minimum Viable Product (MVP) for a modular trading platform.
+Trading Platform – Quickstart
 
-## Setup
+Backtest → Brief → Report → Compare → Live (dry-run)
 
-This project uses [Poetry](https://python-poetry.org/) for dependency management.
+1) Backtest (demo)
+   - `poetry run tp run-backtest --demo`
+   - Outputs: `runs/<user>/<run_id>/brief.json`, `report.html`, `trades.csv`
 
-1.  **Install Poetry:**
-    If you do not have Poetry installed, you can install it by following the instructions on the [official website](https://python-poetry.org/docs/#installation). The recommended method is:
-    ```bash
-    curl -sSL https://install.python-poetry.org | python3 -
-    ```
-    After installation, you may need to restart your terminal or configure your shell's `PATH` for the `poetry` command to be available.
+2) Backtest (config)
+   - `poetry run tp run-backtest --config docs/examples/backtest_config.json`
+   - Minimal strategy runs on toy data and writes artifacts under `runs/...`.
 
-2.  **Install Project Dependencies:**
-    Once Poetry is installed, navigate to the project root and run:
-    ```bash
-    poetry install
-    ```
-    This will create a virtual environment and install all required packages.
+3) Compare two runs (HTML)
+   - Use reporting helpers directly or CLI (if enabled):
+     - Python: `compare_briefs` + `render_comparison_html`
+     - CLI: `poetry run tp compare A/brief.json B/brief.json --out cmp.html`
 
-## Quickstart
-1.  **Initialize a run (writes config.json):**
-    ```bash
-    poetry run python -m trading_platform.core.run
-    ```
-    This creates `runs/{user}/{run_id}/config.json`.
+4) Live (stub, dry-run)
+   - `poetry run tp run-live --dry-run`
+   - For config path: `poetry run tp run-live --config docs/examples/live_config.json`
+   - Uses OandaStubAdapter; enforces blackout and position caps.
 
-2.  **Generate a demo run (brief + HTML report):**
-    ```bash
-    poetry run python -m trading_platform.core.demo
-    ```
-    Then open the generated files:
-    - `runs/demo_user/{run_id}/brief.json`
-    - `runs/demo_user/{run_id}/report.html`
-
-3.  **Run tests:**
-    ```bash
-    poetry run pytest -q
-    ```
-    Executes the full test suite (unit + BDD-style tests).
+Notes
+- Keep line length ≤88 in code/tests. Run `ruff`, `mypy`, `pytest -q`.
+- See `docs/examples/` for minimal JSON configs.
