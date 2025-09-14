@@ -8,7 +8,7 @@ import pandas as pd
 
 from trading_platform.execution.oanda_stub import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
-from trading_platform.strategy.yaml_strategy import compile_strategy
+from trading_platform.strategy import compile_strategy
 
 
 @dataclass(frozen=True)
