@@ -356,6 +356,23 @@ Notes:
 - JSON serialization: `Timestamp` → ISO8601; `Timedelta` → seconds.
 - AI briefs must include recommendations in machine-readable JSON.
 
+- Cost Model Canonical Shape (applies to BT & EL)
+  - The platform uses a single, canonical cost model shape. Legacy keys like `commission_per_unit` are not supported.
+  - Canonical config (JSON/YAML equivalent):
+    ```yaml
+    cost_model:
+      spread_per_unit: 0.0        # base-currency per unit, per side
+      slippage_per_unit: 0.0      # base-currency per unit, per side
+      commission:
+        type: per_unit            # one of: per_unit | per_trade_flat | bps_notional
+        value: 0.0                # float; meaning depends on type
+    ```
+  - Semantics:
+    - `per_unit`: commission = `value * size`
+    - `per_trade_flat`: commission = `value` per side
+    - `bps_notional`: commission = `(price * size) * (value / 10_000)`
+  - Spread and slippage are applied per side on both entry and exit.
+
 ---
 
 ## 14) Development Process & Governance

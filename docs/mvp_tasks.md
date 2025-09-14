@@ -148,8 +148,17 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 
 - [ ] **Task 21: Cost Model v1 (Spread/Commission/Slippage)**
   - [ ] Implement simple spread model (fixed or per-instrument) applied on entries/exits; update per-trade `cost_breakdown`.
-  - [ ] Add commission model (per million or per lot) and basic slippage model; apply consistently; unit tests for each model.
+  - [ ] Implement commission modes (per_unit, per_trade_flat, bps_notional) and basic slippage model; apply consistently; unit tests for each mode.
   - [ ] Aggregate `costs` in brief (`total_costs`, `avg_cost_per_trade`, breakdown); tests assert correctness.
+  - [ ] Use canonical cost_model shape (legacy `commission_per_unit` is not supported):
+    ```yaml
+    cost_model:
+      spread_per_unit: 0.01
+      slippage_per_unit: 0.02
+      commission:
+        type: per_unit           # or: per_trade_flat | bps_notional
+        value: 0.05
+    ```
 
 - [ ] **Task 22: MFE/MAE and R-Multiple**
   - [ ] Track per-trade bar highs/lows to compute `mfe_currency`/`mae_currency` and holding `bars_held`.
