@@ -8,6 +8,7 @@ from typing import Any
 from trading_platform.core.config import RunConfig
 from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.brief import save_run_brief
+from trading_platform.reporting.csv_export import save_trades_csv
 from trading_platform.reporting.html_export import save_html_report
 
 
@@ -83,5 +84,10 @@ def finalize_run(
     try:
         save_html_report(run_path, meta=meta, trades=trades)
     except Exception:  # pragma: no cover - keep finalize robust
+        pass
+    # Export trades CSV for convenience
+    try:
+        save_trades_csv(run_path / "trades.csv", trades)
+    except Exception:  # pragma: no cover
         pass
     return brief_path
