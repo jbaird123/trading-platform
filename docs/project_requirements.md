@@ -223,6 +223,18 @@ _Last updated: 2025-09-09_
 - **[BT-6.7]** A "warm-up" period to ensure indicators are stable before trading signals are processed.
 - **[BT-6.8]** Backtests must be deterministic, producing the same results from the same inputs and configuration.
 - **[BT-6.9]** All backtesting logic must be validated, especially for fill logic and stop/TP precedence.
+ - **[BT-6.10] Counterfactual Skipped Trades (Filters/Policies)**
+   - The backtester must record attempted entries that were skipped due to a filter/policy (e.g., blackout window, regime filter, risk cap, user-defined filter).
+   - Each skipped item must include: `timestamp`, `symbol`, `reason_code` (e.g., `blackout_static`, `blackout_event`, `regime_filter`, `risk_cap`, `custom`), `policy_snapshot` (minimal), and optional `notes`.
+ - **[BT-6.11] Counterfactual Outcome Simulation**
+   - For each skipped entry, the backtester must simulate a counterfactual trade using the same fill and exit policies configured for the run (entry price convention, stop/tp rules, tie-breaks, costs).
+   - The counterfactual must produce canonical outcomes: `cf_exit_time`, `cf_exit_price`, `cf_pnl_currency`, and, when available, `cf_mfe_currency`, `cf_mae_currency`, `cf_bars_held`.
+   - Counterfactuals must be clearly flagged as hypothetical and must never affect the main equity/trades results.
+ - **[BT-6.12] Filter Impact Summary**
+   - The backtester must aggregate per-reason summaries (e.g., counts, total/mean/median `cf_pnl_currency`) to quantify the impact of each filter.
+   - Summaries must be included in the run brief for downstream analysis and A/B comparisons of filter configurations.
+ - **[BT-6.13] Live Trading Deviation**
+   - The Execution Layer (EL) must not simulate counterfactual outcomes; it may log skipped entries and reasons only. Counterfactual simulation is strictly a backtest-only feature.
 
 ---
 
@@ -297,10 +309,13 @@ _Last updated: 2025-09-09_
 - **instrument_definitions**: snapshot per symbol `{tick_size, point_value, base_ccy, quote_ccy, lot_size, min_trade_unit}`.
 - **cost_model**: `{spread_model, commission_model, slippage_model, rollover_model, fee_params}`.
 - **fill_policy**: `{policy}` and details; **tie_break_policy**: `{policy}`.
+ - **blackout_policy**: snapshot of blackout configuration `{blackout_utc, blackout_events}`.
 - **environment**: `{python_version, dependency_versions, platform, timezone}`.
 - **provenance**: `{app_version, git_commit, run_seed, data_start, data_end, symbols}`.
 - **checksums**: `{config_snapshot_hash, instrument_defs_hash}`.
 - **trades**: enhanced entries with `{r_multiple, mfe_currency, mae_currency, bars_held, holding_time_sec, features_at_entry, regime_label_at_entry, exit_reason, cost_breakdown}`.
+ - **skipped_trades**: list of counterfactuals for filtered entries `[{timestamp, symbol, reason_code, policy_snapshot, cf_exit_time, cf_exit_price, cf_pnl_currency, cf_mfe_currency, cf_mae_currency, cf_bars_held}]`.
+ - **filter_impact**: per-reason aggregates `{reason_code: {n_skipped, total_cf_pnl, mean_cf_pnl, median_cf_pnl}}`.
 - Pure JSON types only (convert pandas objects).
 
 Notes:
