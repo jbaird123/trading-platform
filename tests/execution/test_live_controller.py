@@ -45,6 +45,9 @@ def test_live_controller_happy_path_with_stub_adapter():
     # Should have placed at least one order and produced logs
     assert res.orders >= 1
     assert any(e.get("event") == "reconcile" for e in res.logs)
+    # Ensure reconcile has a report with severity
+    rec = [e for e in res.logs if e.get("event") == "reconcile"]
+    assert rec and rec[0].get("report") and rec[0]["report"].get("severity")
 
 
 def test_live_controller_dry_run_and_kill_switch():
@@ -88,6 +91,7 @@ def test_live_controller_reconciliation_detects_diff(monkeypatch):
     res = run_live_controller(
         market_data=df, strategy_cfg=_strat(), adapter=adapter, pm=pm
     )
-    # Look for reconcile event with diffs
+    # Look for reconcile event with report diffs/severity
     rec = [e for e in res.logs if e.get("event") == "reconcile"]
-    assert rec and rec[0].get("diffs")
+    assert rec and rec[0].get("report")
+    assert rec[0]["report"].get("position_diffs")
