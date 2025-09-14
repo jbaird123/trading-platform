@@ -284,7 +284,7 @@ def _simulate_counterfactual(
             exit_price=float(market_data.iloc[last_idx]["close"]),
             exit_time=cast(datetime, market_data.index[last_idx]),
         )
-    if not pm.trades:
+    if not pm.trades:  # pragma: no cover - defensive fallback
         return {}
     t = pm.trades[0]
     return {
