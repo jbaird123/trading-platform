@@ -249,3 +249,96 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Enforce caps in BT and EL stub; unit tests for accept/reject paths.
   - [x] When rejected, log or return reject with `reason_code: position_cap` and include in `skipped_trades`.
   - [x] Tests: BT skipped-trade list contains position_cap; EL returns rejected.
+
+---
+
+## Phase 12: Strategy YAML + Feature Pipeline
+
+- [ ] **Task 36: Strategy YAML schema + parser**
+  - [ ] Define minimal YAML schema for entry/exit rules and params.
+  - [ ] Implement parser that compiles rules into a callable strategy.
+  - [ ] Support small predicate set (EMA cross, RSI threshold, ADX min).
+  - [ ] Strategy declares overlays; propagate to meta.overlays.
+  - [ ] Tests: synthetic data produce expected signals from YAML.
+
+- [ ] **Task 37: FeaturePipeline (EMA, RSI, ATR)**
+  - [ ] Implement pipeline with pluggable indicators (EMA, RSI, ATR).
+  - [ ] Integrate warm-up handling with backtests.
+  - [ ] Tests: indicator values on toy series match expectations.
+
+- [ ] **Task 38: Overlays to brief/HTML**
+  - [ ] Ensure overlays declared by strategy appear in brief and HTML.
+  - [ ] Tests: HTML lists overlays; brief.meta includes overlays.
+
+---
+
+## Phase 13: CLI + Reproducibility
+
+- [ ] **Task 39: CLI run-backtest**
+  - [ ] Add console script `tp` with `run-backtest --config path`.
+  - [ ] Loads config/strategy, runs BT, writes brief/report/trades.csv.
+  - [ ] Exit codes and logs suitable for CI.
+  - [ ] Tests: temp config runs and writes artifacts.
+
+- [ ] **Task 40: CLI run-live**
+  - [ ] `tp run-live --config path [--dry-run]` starts live controller.
+  - [ ] Uses adapter; enforces blackout and pm_limits; logs actions.
+  - [ ] Tests: stub adapter path; dry-run acceptance.
+
+- [ ] **Task 41: Config load + snapshots**
+  - [ ] Support YAML/JSON config loading in CLI.
+  - [ ] Snapshot config into brief checksums and `runs/.../config.json`.
+  - [ ] Tests: snapshot hash stable for stable inputs.
+
+---
+
+## Phase 14: Minimal Live Execution (EL)
+
+- [ ] **Task 42: Live controller**
+  - [ ] Poll or stream bars to strategy; collect signals.
+  - [ ] Place orders via adapter; share PortfolioManager logic.
+  - [ ] Enforce blackout policy and directional caps.
+  - [ ] Daily loss cap passthrough to PM.
+  - [ ] Tests: controller happy path with stub adapter.
+
+- [ ] **Task 43: Logging and safety**
+  - [ ] Structured logs for connect, signals, orders, errors.
+  - [ ] Dry-run mode; optional kill switch; graceful shutdown.
+  - [ ] Tests: dry-run emits logs; kill switch path covered.
+
+- [ ] **Task 44: Reconciliation stub**
+  - [ ] Compare PM vs adapter snapshot; log discrepancies.
+  - [ ] Tests: simulated diff reported.
+
+---
+
+## Phase 15: Reporting & Comparison Polish
+
+- [ ] **Task 45: Comparison HTML enhancements**
+  - [ ] Sortable table; highlight best deltas; basic styling.
+  - [ ] Tests: rendered labels and highlight markers present.
+
+- [ ] **Task 46: Multi-symbol sparkline + legend**
+  - [ ] Render small charts per symbol; overlay legend with colors.
+  - [ ] Tests: legend items and multiple charts present.
+
+- [ ] **Task 47: Examples & docs**
+  - [ ] Add example configs for BT/EL + MC/WFE/Param search.
+  - [ ] README quickstart: backtest → brief → report → compare → live.
+  - [ ] Tests (link validation or smoke as appropriate).
+
+---
+
+## Phase 16: Docs & QA Completion
+
+- [ ] **Task 48: End-to-end smoke**
+  - [ ] Scripted flow: YAML strategy → BT → brief/report → compare → EL dry-run.
+  - [ ] Verify artifacts and logs; document outcomes.
+
+- [ ] **Task 49: Quality gates**
+  - [ ] Ensure coverage meets target; ruff/mypy clean; CI green.
+  - [ ] Finalize GitHub workflow and shields.
+
+- [ ] **Task 50: MVP sign-off**
+  - [ ] Review requirements vs implementation; close gaps.
+  - [ ] Tag release; create follow-up backlog for enhancements.
