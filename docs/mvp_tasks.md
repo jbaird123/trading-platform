@@ -207,3 +207,21 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 - [ ] **Task 31: Execution Layer – Log Only**
   - [ ] Ensure EL logs skipped reasons (e.g., blackout) but does not simulate counterfactuals.
   - [ ] Tests: adapter/controller emits reject with reason; no counterfactual artifacts produced.
+
+---
+
+## Phase 10: New Requirements (Sept 2025)
+
+- [ ] **Task 32: Brief Field Definitions Section (RV-8.9)**
+  - [ ] Create a central registry of brief fields with `{description, why_useful, how_to_use}`.
+  - [ ] Emit `field_definitions` into every brief; tests ensure presence and key coverage.
+
+- [ ] **Task 33: Trade Context Snapshots (RV-8.10)**
+  - [ ] Add `context_at_entry` and `context_at_exit` to trades with regime label/confidence and indicator values used at decision time.
+  - [ ] Tests: strategy stub provides indicator values; brief contains snapshots for each trade.
+
+- [ ] **Task 34: Directional Position Caps (PM-5.11 + BT)**
+  - [ ] Add config for `pm_limits.max_open_long/max_open_short` (defaults 1).
+  - [ ] Enforce caps in BT/EL; unit tests for accept/reject paths.
+  - [ ] When rejected, log skipped trade with `reason_code: position_cap` and include in `skipped_trades`.
+  - [ ] Tests: skipped-trade list contains position_cap items; `filter_impact` aggregates include this reason.
