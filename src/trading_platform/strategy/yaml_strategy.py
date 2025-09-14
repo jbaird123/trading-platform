@@ -131,23 +131,37 @@ class CompiledStrategy:
     entry_blocks: list[dict]
     exit_blocks: list[dict]
     risk: dict[str, Any]
+    allow_bearish_entry_from_exit: bool = False
 
     def generate_signals(self, df: pd.DataFrame) -> pd.Series:
         df2 = compute_features(df, self.features)
-        enter = pd.Series([False] * len(df2), index=df2.index)
+        enter_long = pd.Series([False] * len(df2), index=df2.index)
         for b in self.entry_blocks:
-            enter = enter | _eval_rule_block(df2, b)
-        exit_ = pd.Series([False] * len(df2), index=df2.index)
+            enter_long = enter_long | _eval_rule_block(df2, b)
+        exit_or_enter_short = pd.Series([False] * len(df2), index=df2.index)
         for b in self.exit_blocks:
-            exit_ = exit_ | _eval_rule_block(df2, b)
-        # Stateful signals: flat -> long on enter, long -> flat on exit
+            exit_or_enter_short = exit_or_enter_short | _eval_rule_block(df2, b)
+        # Stateful signals supporting flat, long, short (minimal semantics):
+        # - flat -> long when entry rules true
+        # - flat -> short when exit rules true (used as bearish entry)
+        # - long -> flat when exit rules true
+        # - short -> flat when entry rules true
         sig = []
         state = "flat"
         for i in range(len(df2)):
-            if state == "flat" and bool(enter.iloc[i]):
-                state = "long"
-            elif state == "long" and bool(exit_.iloc[i]):
-                state = "flat"
+            if state == "flat":
+                if bool(enter_long.iloc[i]):
+                    state = "long"
+                elif self.allow_bearish_entry_from_exit and bool(
+                    exit_or_enter_short.iloc[i]
+                ):
+                    state = "short"
+            elif state == "long":
+                if bool(exit_or_enter_short.iloc[i]):
+                    state = "flat"
+            elif state == "short":
+                if bool(enter_long.iloc[i]):
+                    state = "flat"
             sig.append(state)
         return pd.Series(sig, index=df2.index)
 
@@ -160,6 +174,19 @@ def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
     entry_blocks = list(cfg.get("entry_rules") or [])
     exit_blocks = list(cfg.get("exit_rules") or [])
     risk = dict(cfg.get("risk") or {})
+
+    # Allow bearish entry from exit rules only if exit blocks use crossing
+    def _has_cross(b: dict[str, Any]) -> bool:
+        arr = b.get("all_of") or b.get("any_of") or []
+        for p in arr:
+            if isinstance(p, dict) and p.get("condition") in {
+                "cross_above",
+                "cross_below",
+            }:
+                return True
+        return False
+
+    allow_short = any(_has_cross(b) for b in exit_blocks)
     return CompiledStrategy(
         name=name,
         overlays=overlays,
@@ -167,4 +194,5 @@ def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
         entry_blocks=entry_blocks,
         exit_blocks=exit_blocks,
         risk=risk,
+        allow_bearish_entry_from_exit=allow_short,
     )
