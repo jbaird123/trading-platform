@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/strategy.schema.json",
+  "title": "Declarative Strategy",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "strategy_name": { "type": "string" },
+    "description": { "type": "string" },
+    "version": { "type": "string" },
+    "metadata": { "type": "object" },
+    "parameters": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          { "type": "number" },
+          { "type": "integer" },
+          { "type": "string" },
+          { "type": "boolean" }
+        ]
+      }
+    },
+    "features": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/feature" }
+    },
+    "overlays": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "risk": { "$ref": "#/$defs/risk" },
+    "entry_rules": { "$ref": "#/$defs/rule_block_array" },
+    "exit_rules": { "$ref": "#/$defs/rule_block_array" }
+  },
+  "required": ["strategy_name", "entry_rules", "exit_rules"],
+  "$defs": {
+    "feature": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["EMA", "RSI", "ATR", "ADX", "BBWidth"]
+        },
+        "params": { "type": "object" },
+        "source": {
+          "type": "string",
+          "enum": ["open", "high", "low", "close", "hl2", "ohlc4"]
+        }
+      },
+      "required": ["name", "type"]
+    },
+    "risk": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "stop": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": { "type": "string", "enum": ["fixed", "atr"] },
+            "value": { "type": "number" }
+          },
+          "required": ["type", "value"]
+        },
+        "take_profit": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": { "type": "string", "enum": ["fixed", "atr"] },
+            "value": { "type": "number" }
+          },
+          "required": ["type", "value"]
+        },
+        "warmup_bars": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "rule_block_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/rule_block" },
+      "minItems": 1
+    },
+    "rule_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "properties": {
+            "all_of": { "$ref": "#/$defs/predicate_array" }
+          },
+          "required": ["all_of"]
+        },
+        {
+          "properties": {
+            "any_of": { "$ref": "#/$defs/predicate_array" }
+          },
+          "required": ["any_of"]
+        }
+      ]
+    },
+    "predicate_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/predicate" },
+      "minItems": 1
+    },
+    "predicate": {
+      "type": "object",
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "title": "cross_above",
+          "properties": {
+            "condition": { "const": "cross_above" },
+            "left": { "$ref": "#/$defs/operand" },
+            "right": { "$ref": "#/$defs/operand" }
+          },
+          "required": ["condition", "left", "right"]
+        },
+        {
+          "title": "cross_below",
+          "properties": {
+            "condition": { "const": "cross_below" },
+            "left": { "$ref": "#/$defs/operand" },
+            "right": { "$ref": "#/$defs/operand" }
+          },
+          "required": ["condition", "left", "right"]
+        },
+        {
+          "title": "is_above",
+          "properties": {
+            "condition": { "const": "is_above" },
+            "left": { "$ref": "#/$defs/operand" },
+            "right": { "$ref": "#/$defs/operand" }
+          },
+          "required": ["condition", "left", "right"]
+        },
+        {
+          "title": "is_below",
+          "properties": {
+            "condition": { "const": "is_below" },
+            "left": { "$ref": "#/$defs/operand" },
+            "right": { "$ref": "#/$defs/operand" }
+          },
+          "required": ["condition", "left", "right"]
+        }
+      ]
+    },
+    "operand": {
+      "oneOf": [
+        { "$ref": "#/$defs/indicator_ref" },
+        { "type": "number" },
+        { "type": "string", "enum": ["open", "high", "low", "close"] }
+      ]
+    },
+    "indicator_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ref": { "type": "string" }
+      },
+      "required": ["ref"]
+    }
+  }
+}

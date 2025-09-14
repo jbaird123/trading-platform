@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/rmm.schema.json",
+  "title": "Regime Market Manager Config",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string" },
+    "version": { "type": "string" },
+    "features": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/feature" }
+    },
+    "hysteresis": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "min_bars": { "type": "integer", "minimum": 0 },
+        "cooldown_bars": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "min_confidence": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "allow_labels": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "block_labels": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "regimes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/regime" },
+      "minItems": 1
+    }
+  },
+  "required": ["regimes"],
+  "$defs": {
+    "feature": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["EMA", "RSI", "ATR", "ADX", "BBWidth"]
+        },
+        "params": { "type": "object" },
+        "source": {
+          "type": "string",
+          "enum": ["open", "high", "low", "close", "hl2", "ohlc4"]
+        }
+      },
+      "required": ["name", "type"]
+    },
+    "regime": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "label": { "type": "string" },
+        "conditions": { "$ref": "#/$defs/rule_block" },
+        "confidence": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        }
+      },
+      "required": ["label", "conditions", "confidence"]
+    },
+    "rule_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "properties": {
+            "all_of": { "$ref": "#/$defs/predicate_array" }
+          },
+          "required": ["all_of"]
+        },
+        {
+          "properties": {
+            "any_of": { "$ref": "#/$defs/predicate_array" }
+          },
+          "required": ["any_of"]
+        }
+      ]
+    },
+    "predicate_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/predicate" },
+      "minItems": 1
+    },
+    "predicate": {
+      "type": "object",
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "title": "is_above",
+          "properties": {
+            "condition": { "const": "is_above" },
+            "left": { "$ref": "#/$defs/operand" },
+            "right": { "$ref": "#/$defs/operand" }
+          },
+          "required": ["condition", "left", "right"]
+        },
+        {
+          "title": "is_below",
+          "properties": {
+            "condition": { "const": "is_below" },
+            "left": { "$ref": "#/$defs/operand" },
+            "right": { "$ref": "#/$defs/operand" }
+          },
+          "required": ["condition", "left", "right"]
+        }
+      ]
+    },
+    "operand": {
+      "oneOf": [
+        { "$ref": "#/$defs/indicator_ref" },
+        { "type": "number" },
+        { "type": "string", "enum": ["open", "high", "low", "close"] }
+      ]
+    },
+    "indicator_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "ref": { "type": "string" } },
+      "required": ["ref"]
+    }
+  }
+}
