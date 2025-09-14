@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -23,4 +24,12 @@ class Trade:
     exit_reason: str | None = None
     stop_loss: float | None = None
     take_profit: float | None = None
+    cost_currency: float = 0.0
+    cost_breakdown: dict[str, float] | None = None
+    r_multiple: float | None = None
+    mfe_currency: float | None = None
+    mae_currency: float | None = None
+    bars_held: int | None = None
+    context_at_entry: dict[str, Any] | None = None
+    context_at_exit: dict[str, Any] | None = None
     # 'mfe' and 'mae' will be added later.

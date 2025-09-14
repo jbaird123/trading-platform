@@ -3,9 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 from pytest_bdd import given, parsers, scenarios, then, when
-from trading_platform.strategy.exponential_moving_average import (
-    generate_ema_crossover_signals,
-)
+from trading_platform.strategy.yaml_strategy import compile_strategy
 
 
 @pytest.fixture
@@ -78,12 +76,34 @@ def given_indicator_at_current_bar(shared_context: dict, indicator: str, value: 
 @when("the strategy generates signals")
 def when_strategy_generates_signals(shared_context: dict):
     """Calls the strategy logic to generate signals and stores them in the context."""
-    params = shared_context["strategy_params"]
-    signals = generate_ema_crossover_signals(
-        data=shared_context["market_data"],
-        fast_period=params["fast_period"],
-        slow_period=params["slow_period"],
-    )
+    _ = shared_context["strategy_params"]
+    # Compile a simple crossover strategy using refs to prepared EMA columns
+    cfg = {
+        "strategy_name": "EMA Crossover",
+        "entry_rules": [
+            {
+                "any_of": [
+                    {
+                        "condition": "cross_above",
+                        "left": {"ref": "ema_fast"},
+                        "right": {"ref": "ema_slow"},
+                    }
+                ]
+            }
+        ],
+        "exit_rules": [
+            {
+                "any_of": [
+                    {
+                        "condition": "cross_below",
+                        "left": {"ref": "ema_fast"},
+                        "right": {"ref": "ema_slow"},
+                    }
+                ]
+            }
+        ],
+    }
+    signals = compile_strategy(cfg).generate_signals(shared_context["market_data"])
     shared_context["signals"] = signals
 
 

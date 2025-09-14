@@ -57,3 +57,26 @@ class RunConfig(BaseModel):
             "Walk-forward placeholder (e.g., splits metadata) to echo into brief."
         ),
     )
+    parameter_search: dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Parameter search config/results (e.g., grid, random, top result) "
+            "to include in brief."
+        ),
+    )
+    warmup_bars: int = Field(
+        default=0,
+        description="Number of initial bars to ignore for entries (indicator warm-up).",
+    )
+    # Trading window / blackout policy
+    blackout_utc: list[tuple[str, str]] = Field(
+        default_factory=list,
+        description="Static UTC blackout windows as [(start,end)]",
+    )
+    blackout_events: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description=(
+            "Event-based blackout windows with start/end datetimes "
+            "and optional metadata."
+        ),
+    )
