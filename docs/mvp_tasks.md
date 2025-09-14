@@ -180,6 +180,11 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 - [ ] **Task 25: Brief Schema Enhancements (Provenance/Checksums)**
   - [ ] Add `provenance`: `{app_version, git_commit, run_seed}` and `environment.dependency_versions`.
   - [ ] Add `checksums`: `{config_snapshot_hash, instrument_defs_hash}`; tests verify stable hashes given stable inputs.
+  - [ ] Add `field_definitions` section with `{description, why_useful, how_to_use}` for all brief fields (moved from Task 32).
+  - [ ] Add trade context snapshots at decision points (moved from Task 33):
+    - [ ] `context_at_entry`: `{regime:{label, confidence}, indicators:{<name>:<value>}, notes}`
+    - [ ] `context_at_exit`: `{regime:{label, confidence}, indicators:{<name>:<value>}, notes}`
+    - [ ] Tests: strategy stub provides indicator values; brief contains both snapshots per trade.
 
 - [ ] **Task 26: Trades CSV Export**
   - [ ] Add CSV export of trades to `runs/{run_id}/trades.csv` with enhanced fields; test file existence and column set.
@@ -213,15 +218,7 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 
 ## Phase 10: New Requirements (Sept 2025)
 
-- [ ] **Task 32: Brief Field Definitions Section (RV-8.9)**
-  - [ ] Create a central registry of brief fields with `{description, why_useful, how_to_use}`.
-  - [ ] Emit `field_definitions` into every brief; tests ensure presence and key coverage.
-
-- [ ] **Task 33: Trade Context Snapshots (RV-8.10)**
-  - [ ] Add `context_at_entry` and `context_at_exit` to trades with regime label/confidence and indicator values used at decision time.
-  - [ ] Tests: strategy stub provides indicator values; brief contains snapshots for each trade.
-
-- [ ] **Task 34: Directional Position Caps (PM-5.11 + BT)**
+- [ ] **Task 32: Directional Position Caps (PM-5.11 + BT)**
   - [ ] Add config for `pm_limits.max_open_long/max_open_short` (defaults 1).
   - [ ] Enforce caps in BT/EL; unit tests for accept/reject paths.
   - [ ] When rejected, log skipped trade with `reason_code: position_cap` and include in `skipped_trades`.
