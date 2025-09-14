@@ -138,9 +138,9 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 
 - [ ] **Task 19: Trading Sessions & Blackout Periods**
   - [x] Add config for static blackout windows (e.g., 23:00–01:00 UTC) and enforce in BT (no new entries during blackout; optional close-only).
-  - [ ] Add event-based blackout (accept event stream with `impact: high` windows) and enforce in BT; unit tests on synthetic schedules.
-  - [ ] Surface effective blackout policy in brief (adjacent to `fill_policy`/`tie_break_policy`) and verify via tests.
-  - [ ] Execution Layer consults `TradingWindowPolicy` before opening positions; tests for reject/accept paths.
+  - [x] Add event-based blackout (accept event stream with `impact: high` windows) and enforce in BT; unit tests on synthetic schedules.
+  - [x] Surface effective blackout policy in brief (adjacent to `fill_policy`/`tie_break_policy`) and verify via tests.
+  - [x] Execution Layer consults `TradingWindowPolicy` before opening positions; tests for reject/accept paths.
 
 - [ ] **Task 20: Indicator Warm-up Handling**
   - [ ] Add `warmup_bars` to strategy/backtest config; ignore signals until warm-up complete.
