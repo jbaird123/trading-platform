@@ -1,0 +1,36 @@
+from __future__ import annotations
+
+from datetime import datetime, timedelta
+
+import pandas as pd
+from trading_platform.backtester.core import run_backtest
+
+
+def _mk_df() -> pd.DataFrame:
+    idx = [datetime(2023, 1, 1) + timedelta(days=i) for i in range(3)]
+    data = {
+        "open": [1.0, 1.1, 1.2],
+        "high": [1.1, 1.2, 1.3],
+        "low": [0.9, 1.0, 1.1],
+        "close": [1.0, 1.15, 1.25],
+        "volume": [100, 100, 100],
+    }
+    df = pd.DataFrame(data, index=idx)
+    return df
+
+
+def test_run_backtest_accepts_instrument_snapshot():
+    df = _mk_df()
+    signals = pd.Series(["flat", "long", "flat"], index=df.index)
+    instr = {"symbol": "EUR_USD", "tick_size": 0.0001}
+    trades = run_backtest(
+        market_data=df,
+        signals=signals,
+        initial_cash=1000.0,
+        stop_loss=None,
+        take_profit=None,
+        allow_flip_on_bar=False,
+        instrument=instr,
+    )
+    # Still produces trades as usual; instrument is accepted without side effects
+    assert isinstance(trades, list)

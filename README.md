@@ -20,14 +20,22 @@ This project uses [Poetry](https://python-poetry.org/) for dependency management
     This will create a virtual environment and install all required packages.
 
 ## Quickstart
-1.  **Run the application:**
+1.  **Initialize a run (writes config.json):**
     ```bash
     poetry run python -m trading_platform.core.run
     ```
-    This creates a new run directory `runs/{run_id}/config.json` and writes a log line.
+    This creates `runs/{user}/{run_id}/config.json`.
 
-2.  **Run tests:**
+2.  **Generate a demo run (brief + HTML report):**
     ```bash
-    poetry run pytest
+    poetry run python -m trading_platform.core.demo
     ```
-    This will execute the test suite to verify the core functionality.
+    Then open the generated files:
+    - `runs/demo_user/{run_id}/brief.json`
+    - `runs/demo_user/{run_id}/report.html`
+
+3.  **Run tests:**
+    ```bash
+    poetry run pytest -q
+    ```
+    Executes the full test suite (unit + BDD-style tests).

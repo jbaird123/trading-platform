@@ -53,10 +53,39 @@ jobs:
           poetry run mypy .
 
       - name: Run tests with coverage
-        run: poetry run pytest --cov=src --cov-report=xml
+        run: |
+          # Generate coverage.xml at repo root for SonarCloud and HTML for humans
+          poetry run pytest \
+                            --cov=src/trading_platform \
+                            --cov-config=.coveragerc \
+                            --cov-fail-under=100 \
+                            --cov-report=xml:coverage.xml \
+                            --cov-report=html
+
+      - name: Generate coverage summary
+        if: always()
+        run: |
+          poetry run coverage report -m | tee coverage_summary.txt
+
+      - name: Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: |
+            coverage.xml
+            htmlcov/
+            coverage_summary.txt
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          # Be explicit about paths so coverage is picked up on PRs
+          args: >
+            -Dsonar.sources=src/trading_platform
+            -Dsonar.tests=tests
+            -Dsonar.python.version=3.10
+            -Dsonar.python.coverage.reportPaths=coverage.xml
