@@ -316,6 +316,7 @@ _Last updated: 2025-09-09_
 - **checksums**: `{config_snapshot_hash, instrument_defs_hash}`.
 - **trades**: enhanced entries with `{r_multiple, mfe_currency, mae_currency, bars_held, holding_time_sec, features_at_entry, regime_label_at_entry, exit_reason, cost_breakdown}`.
   - See `docs/examples/trades_cost_breakdown.md` for `cost_breakdown` semantics and how it rolls up to `costs`.
+  - New: context snapshots at entry/exit (see [RV-8.9]).
  - **skipped_trades**: list of counterfactuals for filtered entries `[{timestamp, symbol, reason_code, policy_snapshot, cf_exit_time, cf_exit_price, cf_pnl_currency, cf_mfe_currency, cf_mae_currency, cf_bars_held}]`.
  - **filter_impact**: per-reason aggregates `{reason_code: {n_skipped, total_cf_pnl, mean_cf_pnl, median_cf_pnl}}`.
 - Pure JSON types only (convert pandas objects).
@@ -374,6 +375,43 @@ Notes:
     - `per_trade_flat`: commission = `value` per side
     - `bps_notional`: commission = `(price * size) * (value / 10_000)`
   - Spread and slippage are applied per side on both entry and exit.
+
+---
+
+## 8) Reporting & Visualization (RV) — Additions
+- **[RV-8.9] Field Definitions Section**
+  - The brief must include a top-level `field_definitions` section describing each field that appears anywhere in the brief. Each definition includes:
+    - `description`: what the field means,
+    - `why_useful`: why it matters for analysis/decision-making,
+    - `how_to_use`: guidance for downstream tools and humans.
+  - This section is auto-generated from a central registry to ensure consistency and versioned with the app.
+- **[RV-8.10] Trade Context Snapshots**
+  - For each trade, include context at both entry and exit:
+    - `context_at_entry`: `{regime: {label, confidence}, indicators: {<name>: <value>, ...}, notes}`
+    - `context_at_exit`: `{regime: {label, confidence}, indicators: {<name>: <value>, ...}, notes}`
+  - These snapshots capture the values of indicators/features actually used by the strategy at decision time.
+  - Downstream usage: performance slicing by regime/indicator ranges; explanation overlays in reports.
+
+---
+
+## 5) Portfolio Manager (PM) — Additions
+- **[PM-5.11] Directional Position Caps**
+  - Configurable limit on simultaneously open positions per direction (long/short) with a default of 1.
+  - Enforced identically in BT and EL. Configuration example:
+    ```yaml
+    pm_limits:
+      max_open_long: 1
+      max_open_short: 1
+    ```
+  - When limits would be exceeded, the attempted entry must be skipped.
+
+---
+
+## 6) Backtester (BT) — Additions
+- Extend skipped-trade logging requirements:
+  - Add `position_cap` to the allowed `reason_code` set in [BT-6.10].
+  - Ensure these skips are included in `skipped_trades` and summarized in `filter_impact` ([BT-6.12]).
+
 
 ---
 
