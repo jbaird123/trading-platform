@@ -88,6 +88,9 @@ def run_backtest(
     skipped: list[dict[str, Any]] = []
     limits = pm_limits or {"max_open_long": 1, "max_open_short": 1}
 
+    def _fmt_ts(val: Any) -> str:
+        return val.isoformat() if isinstance(val, datetime) else str(val)
+
     for i in range(len(market_data)):
         current_signal = signals.iloc[i]
         current_bar = market_data.iloc[i]
@@ -112,7 +115,7 @@ def run_backtest(
             if open_ct >= cap_now:
                 skipped.append(
                     {
-                        "timestamp": cast(datetime, current_bar.name).isoformat(),
+                        "timestamp": _fmt_ts(current_bar.name),
                         "symbol": "EUR_USD",
                         "reason_code": "position_cap",
                         "policy_snapshot": {"cap": cap_now},
@@ -133,7 +136,7 @@ def run_backtest(
                 if portfolio.hit_daily_loss_cap(now, float(daily_loss_cap)):
                     skipped.append(
                         {
-                            "timestamp": now.isoformat(),
+                            "timestamp": _fmt_ts(now),
                             "symbol": "EUR_USD",
                             "reason_code": "risk_cap",
                             "policy_snapshot": {
@@ -156,7 +159,7 @@ def run_backtest(
             if open_ct >= cap:
                 skipped.append(
                     {
-                        "timestamp": cast(datetime, current_bar.name).isoformat(),
+                        "timestamp": _fmt_ts(current_bar.name),
                         "symbol": "EUR_USD",
                         "reason_code": "position_cap",
                         "policy_snapshot": {"cap": cap},
@@ -190,7 +193,7 @@ def run_backtest(
             }
             skipped.append(
                 {
-                    "timestamp": cast(datetime, current_bar.name).isoformat(),
+                    "timestamp": _fmt_ts(current_bar.name),
                     "symbol": "EUR_USD",
                     "reason_code": reason,
                     "policy_snapshot": snap,

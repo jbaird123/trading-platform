@@ -41,10 +41,10 @@ jobs:
           path: .venv
           key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
 
-      - name: Install dependencies
+      - name: Install dependencies (with dev)
         run: |
-          # Install dependencies, including the project itself in editable mode.
-          poetry install --no-interaction
+          # Install runtime + dev dependencies, including the project itself.
+          poetry install --no-interaction --with dev
 
       - name: Run quality checks
         run: |
