@@ -34,19 +34,32 @@ class CostModel:
     @classmethod
     def from_dict(cls, d: dict[str, Any] | None) -> CostModel:
         d = d or {}
-        # Back-compat: allow commission_per_unit in config
+        # Reject legacy/alias keys in greenfield to avoid ambiguity
+        if "commission_per_unit" in d:
+            raise ValueError(
+                "Unsupported key 'commission_per_unit'. "
+                "Use commission: {type: 'per_unit', value: <float>} instead."
+            )
+
+        # Safe float parser to satisfy type checker and handle None/str
+        def _as_float(value: Any, default: float = 0.0) -> float:
+            try:
+                return float(value) if value is not None else default
+            except (TypeError, ValueError):
+                return default
+
         comm = d.get("commission")
-        c_type = comm.get("type") if isinstance(comm, dict) else None
-        c_val = comm.get("value") if isinstance(comm, dict) else None
-        if c_type is None and c_val is None:
-            # fallback to legacy key
+        if isinstance(comm, dict):
+            c_type = str(comm.get("type", "per_unit"))
+            c_val = _as_float(comm.get("value"), 0.0)
+        else:
             c_type = "per_unit"
-            c_val = d.get("commission_per_unit", 0.0)
+            c_val = 0.0
         return cls(
-            spread_per_unit=float(d.get("spread_per_unit", 0.0)),
-            slippage_per_unit=float(d.get("slippage_per_unit", 0.0)),
-            commission_type=str(c_type or "per_unit"),
-            commission_value=float(c_val or 0.0),
+            spread_per_unit=_as_float(d.get("spread_per_unit"), 0.0),
+            slippage_per_unit=_as_float(d.get("slippage_per_unit"), 0.0),
+            commission_type=str(c_type),
+            commission_value=float(c_val),
         )
 
     def _commission_cost(self, size: float, price: float | None) -> float:
@@ -79,3 +92,26 @@ class CostModel:
     ) -> tuple[float, dict[str, float]]:
         """Cost charged at exit (same as entry for the simple model)."""
         return self.compute_entry_cost(size, price)
+
+
+def effective_units(size: float, instrument: dict[str, Any] | None) -> float:
+    """Return size expressed in instrument-native units when possible.
+
+    Examples
+    - Equities (shares): lot_size=1 → effective_units(size)=size
+    - Futures (contracts): lot_size=1 contract → effective_units=size
+    - FX (lots): if lot_size=100000 and size is notional units (e.g., 10,000),
+      effective_units = 10000 / 100000 = 0.1 lots.
+
+    If instrument or lot_size is unspecified, returns the input size unchanged.
+    """
+    if not instrument:
+        return size
+    lot = instrument.get("lot_size")
+    try:
+        lot_val = float(lot) if lot is not None else None
+    except (TypeError, ValueError):
+        lot_val = None
+    if lot_val and lot_val > 0:
+        return size / lot_val
+    return size
