@@ -302,6 +302,7 @@ def generate_brief(
     blackout_policy: dict[str, Any] | None = None,
     exposure_curve: list[tuple[datetime, float]] | None = None,
     config_snapshot: dict[str, Any] | None = None,
+    skipped_trades: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Assemble a JSON brief from trades and metrics (incremental MVP)."""
     meta = meta or {}
@@ -468,6 +469,16 @@ def generate_brief(
     }
     placeholders = _empty_sections()
     placeholders.update(base)
+    # Attach skipped trades and filter impact if provided
+    if skipped_trades:
+        placeholders["skipped_trades"] = _to_jsonable(skipped_trades)
+        # Aggregate simple impact metrics by reason_code (counts only for MVP)
+        agg: dict[str, Any] = {}
+        for s in skipped_trades:
+            rc = s.get("reason_code") or "unknown"
+            st = agg.setdefault(rc, {"n_skipped": 0})
+            st["n_skipped"] += 1
+        placeholders["filter_impact"] = agg
     return placeholders
 
 

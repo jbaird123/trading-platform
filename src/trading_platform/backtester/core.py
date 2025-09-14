@@ -29,7 +29,13 @@ def run_backtest(
     warmup_bars: int = 0,
     cost_model: dict | None = None,
     return_exposure: bool = False,
-) -> list[Trade] | tuple[list[Trade], list[tuple[datetime, float]]]:
+    return_skips: bool = False,
+    pm_limits: dict[str, int] | None = None,
+) -> (
+    list[Trade]
+    | tuple[list[Trade], list[tuple[datetime, float]]]
+    | tuple[list[Trade], list[tuple[datetime, float]], list[dict[str, Any]]]
+):
     """
     Runs a simple, iterative (bar-by-bar) backtest to generate trades from signals.
 
@@ -78,6 +84,8 @@ def run_backtest(
 
     # Track gross exposure per bar (absolute notional = |size * close|)
     exposure_curve: list[tuple[datetime, float]] = []
+    skipped: list[dict[str, Any]] = []
+    limits = pm_limits or {"max_open_long": 1, "max_open_short": 1}
 
     for i in range(len(market_data)):
         current_signal = signals.iloc[i]
@@ -92,6 +100,25 @@ def run_backtest(
             allow_flip_on_bar=allow_flip_on_bar,
         )
 
+        # If trying to add in same direction while already open, enforce cap
+        if portfolio.current_position and current_signal in ["long", "short"]:
+            cap_now = (
+                limits.get("max_open_long", 1)
+                if current_signal == "long"
+                else limits.get("max_open_short", 1)
+            )
+            open_ct = 1  # PM supports one open position in MVP
+            if open_ct >= cap_now:
+                skipped.append(
+                    {
+                        "timestamp": cast(datetime, current_bar.name).isoformat(),
+                        "symbol": "EUR_USD",
+                        "reason_code": "position_cap",
+                        "policy_snapshot": {"cap": cap_now},
+                        "notes": None,
+                    }
+                )
+
         # Potentially open a new position based on signal and policy
         if (
             not portfolio.current_position
@@ -99,16 +126,53 @@ def run_backtest(
             and policy.can_open(cast(datetime, current_bar.name))
             and i >= max(0, warmup_bars)
         ):
-            # Sizing and symbol are still hardcoded, to be fixed next.
-            portfolio.create_new_position(
-                symbol="EUR_USD",
-                side=current_signal,
-                entry_price=current_bar["close"],
-                size=10000,
-                entry_time=cast(datetime, current_bar.name),
-                stop_loss=stop_loss,
-                take_profit=take_profit,
-                instrument=instrument,
+            # Enforce simple directional cap (PM holds at most one position)
+            cap = (
+                limits.get("max_open_long", 1)
+                if current_signal == "long"
+                else limits.get("max_open_short", 1)
+            )
+            open_ct = 1 if portfolio.current_position else 0
+            if open_ct >= cap:
+                skipped.append(
+                    {
+                        "timestamp": cast(datetime, current_bar.name).isoformat(),
+                        "symbol": "EUR_USD",
+                        "reason_code": "position_cap",
+                        "policy_snapshot": {"cap": cap},
+                        "notes": None,
+                    }
+                )
+            else:
+                portfolio.create_new_position(
+                    symbol="EUR_USD",
+                    side=current_signal,
+                    entry_price=current_bar["close"],
+                    size=10000,
+                    entry_time=cast(datetime, current_bar.name),
+                    stop_loss=stop_loss,
+                    take_profit=take_profit,
+                    instrument=instrument,
+                )
+        elif (
+            not portfolio.current_position
+            and current_signal in ["long", "short"]
+            and not policy.can_open(cast(datetime, current_bar.name))
+        ):
+            # Log blackout skip
+            reason = policy.reason(cast(datetime, current_bar.name)) or "blackout"
+            snap = {
+                "blackout_utc": blackout_utc or [],
+                "blackout_events": blackout_events or [],
+            }
+            skipped.append(
+                {
+                    "timestamp": cast(datetime, current_bar.name).isoformat(),
+                    "symbol": "EUR_USD",
+                    "reason_code": reason,
+                    "policy_snapshot": snap,
+                    "notes": None,
+                }
             )
 
         # Capture gross exposure for this bar AFTER applying entries/exits
@@ -118,6 +182,10 @@ def run_backtest(
             exposure_val = float(abs(pos.size) * float(current_bar["close"]))
         exposure_curve.append((cast(datetime, current_bar.name), exposure_val))
 
+    if return_exposure and return_skips:
+        return (portfolio.trades, exposure_curve, skipped)
     if return_exposure:
         return (portfolio.trades, exposure_curve)
+    if return_skips:
+        return (portfolio.trades, [], skipped)
     return portfolio.trades
