@@ -5,6 +5,7 @@ from typing import cast
 
 import pandas as pd
 from trading_platform.core.costs import CostModel
+from trading_platform.core.precision import FloatEngine, PrecisionEngine
 from trading_platform.portfolio.position import Position
 from trading_platform.portfolio.trade import Trade
 
@@ -23,6 +24,7 @@ class PortfolioManager:
         initial_cash: float = 100000.0,
         instrument: dict | None = None,
         cost_model: dict | None = None,
+        precision_engine: PrecisionEngine | None = None,
     ):
         self.initial_cash = initial_cash
         self.cash = initial_cash
@@ -31,6 +33,11 @@ class PortfolioManager:
         # Optional instrument snapshot (scaffold; not used for PnL yet)
         self.instrument: dict | None = instrument
         self._cost_model = CostModel.from_dict(cost_model)
+        # Default to float engine (BT); live can pass DecimalEngine for money math.
+        self._engine: PrecisionEngine = cast(
+            PrecisionEngine,
+            precision_engine if precision_engine is not None else FloatEngine(),
+        )
 
     @property
     def current_position(self) -> Position | None:
@@ -174,11 +181,14 @@ class PortfolioManager:
         if not self._open_position:
             return
 
-        pnl_gross = (
-            (exit_price - self._open_position.entry_price) * self._open_position.size
-            if self._open_position.side == "long"
-            else (self._open_position.entry_price - exit_price)
-            * self._open_position.size
+        # Use precision engine for PnL arithmetic to segregate float (BT)
+        # vs decimal (EL) and reduce rounding issues
+        if self._open_position.side == "long":
+            diff = self._engine.sub(exit_price, self._open_position.entry_price)
+        else:
+            diff = self._engine.sub(self._open_position.entry_price, exit_price)
+        pnl_gross = self._engine.to_float(
+            self._engine.mul(diff, self._open_position.size)
         )
         cost_entry, breakdown_entry = self._cost_model.compute_entry_cost(
             self._open_position.size
