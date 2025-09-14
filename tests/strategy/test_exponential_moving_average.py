@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
-from trading_platform.strategy.exponential_moving_average import (
-    generate_ema_crossover_signals,
-)
+from trading_platform.strategy.yaml_strategy import compile_strategy
 
 
 def test_generate_long_signal_on_crossover():
@@ -19,8 +17,33 @@ def test_generate_long_signal_on_crossover():
         }
     )
 
-    # Action: Generate signals
-    signals = generate_ema_crossover_signals(data, fast_period=10, slow_period=20)
+    # Action: Generate signals via YAML strategy using refs
+    cfg = {
+        "strategy_name": "EMA Crossover",
+        "entry_rules": [
+            {
+                "any_of": [
+                    {
+                        "condition": "cross_above",
+                        "left": {"ref": "ema_fast"},
+                        "right": {"ref": "ema_slow"},
+                    }
+                ]
+            }
+        ],
+        "exit_rules": [
+            {
+                "any_of": [
+                    {
+                        "condition": "cross_below",
+                        "left": {"ref": "ema_fast"},
+                        "right": {"ref": "ema_slow"},
+                    }
+                ]
+            }
+        ],
+    }
+    signals = compile_strategy(cfg).generate_signals(data)
 
     # Assert: Check for 'long' signal on the current (last) bar
     assert signals.iloc[-1] == "long"
@@ -40,7 +63,32 @@ def test_generate_short_signal_on_crossunder():
     )
 
     # Action: Generate signals
-    signals = generate_ema_crossover_signals(data, fast_period=10, slow_period=20)
+    cfg = {
+        "strategy_name": "EMA Crossover",
+        "entry_rules": [
+            {
+                "any_of": [
+                    {
+                        "condition": "cross_above",
+                        "left": {"ref": "ema_fast"},
+                        "right": {"ref": "ema_slow"},
+                    }
+                ]
+            }
+        ],
+        "exit_rules": [
+            {
+                "any_of": [
+                    {
+                        "condition": "cross_below",
+                        "left": {"ref": "ema_fast"},
+                        "right": {"ref": "ema_slow"},
+                    }
+                ]
+            }
+        ],
+    }
+    signals = compile_strategy(cfg).generate_signals(data)
 
     # Assert: Check for 'short' signal on the current (last) bar
     assert signals.iloc[-1] == "short"
@@ -57,5 +105,30 @@ def test_generate_flat_signal_when_no_crossover():
             "ema_slow": [100.0, 100.0],
         }
     )
-    signals = generate_ema_crossover_signals(data, fast_period=10, slow_period=20)
+    cfg = {
+        "strategy_name": "EMA Crossover",
+        "entry_rules": [
+            {
+                "any_of": [
+                    {
+                        "condition": "cross_above",
+                        "left": {"ref": "ema_fast"},
+                        "right": {"ref": "ema_slow"},
+                    }
+                ]
+            }
+        ],
+        "exit_rules": [
+            {
+                "any_of": [
+                    {
+                        "condition": "cross_below",
+                        "left": {"ref": "ema_fast"},
+                        "right": {"ref": "ema_slow"},
+                    }
+                ]
+            }
+        ],
+    }
+    signals = compile_strategy(cfg).generate_signals(data)
     assert signals.iloc[-1] == "flat"
