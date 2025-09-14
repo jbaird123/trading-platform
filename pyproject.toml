@@ -14,6 +14,7 @@ packages = [{include = "trading_platform", from = "src"}]
 python = ">=3.10"
 pydantic = "^2.7.1"
 pandas = "^2.2.2"
+ta = "^0.11.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"
