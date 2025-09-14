@@ -47,6 +47,7 @@ def finalize_run(
     Returns the path to `brief.json`.
     """
     # If a config is provided, use its snapshots as defaults
+    blackout_policy: dict[str, Any] | None = None
     if config is not None:
         instrument_definitions = instrument_definitions or config.instrument_definitions
         cost_model = cost_model or config.cost_model
@@ -54,6 +55,10 @@ def finalize_run(
         tie_break_policy = tie_break_policy or config.tie_break_policy
         monte_carlo = monte_carlo or config.monte_carlo
         walk_forward = walk_forward or config.walk_forward
+        blackout_policy = {
+            "blackout_utc": config.blackout_utc,
+            "blackout_events": config.blackout_events,
+        }
 
     brief_path = save_run_brief(
         run_path,
@@ -68,6 +73,7 @@ def finalize_run(
         tie_break_policy=tie_break_policy,
         monte_carlo=monte_carlo,
         walk_forward=walk_forward,
+        blackout_policy=blackout_policy,
     )
     # Also export a minimal HTML report (skeleton)
     try:

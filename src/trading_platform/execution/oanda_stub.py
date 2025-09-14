@@ -15,11 +15,15 @@ class OandaStubAdapter(ExecutionAdapter):
       provided `meta` (expects `price` and optional `time`).
     """
 
-    def __init__(self, pm: PortfolioManager | None = None) -> None:
+    def __init__(
+        self, pm: PortfolioManager | None = None, policy: Any | None = None
+    ) -> None:
         self.pm = pm
         self.connected = False
         self._seq = 0
         self.events: list[dict[str, Any]] = []
+        # Optional TradingWindowPolicy-like object with can_open(datetime) -> bool
+        self.policy = policy
 
     def connect(self) -> None:
         self.connected = True
@@ -51,6 +55,13 @@ class OandaStubAdapter(ExecutionAdapter):
 
         # Optional: reflect into PortfolioManager
         if self.pm is not None:
+            # Block new opens if policy forbids at this time
+            if side in {"long", "short"} and self.policy is not None:
+                if not self.policy.can_open(when):
+                    self.events.append({"order_id": order_id, "rejected": "blackout"})
+                    return OrderResult(
+                        order_id=order_id, status="rejected", message="blackout"
+                    )
             if side in {"long", "short"}:
                 if self.pm.current_position and self.pm.current_position.side != side:
                     self.pm.close_position(

@@ -58,6 +58,8 @@ _Last updated: 2025-09-09_
     - **Static Rules**: e.g., "do not trade between 23:00 and 01:00 UTC daily".
     - **Event-Based**: e.g., "pause trading 10 minutes before and 30 minutes after any event with `impact: high`".
   - This functionality will be managed centrally and applied by the Backtester (BT) and Execution Layer (EL) to ensure consistent behavior. Strategies may choose to override or ignore these blackouts via configuration.
+  - A centralized trading window policy in the core module (TradingWindowPolicy) will enforce blackout rules. Both BT and EL must consult this policy before opening new positions.
+  - The platform will support an event/news calendar to populate event-based blackout windows (for example high-impact economic releases), configurable per strategy or run.
 - **Instrument Agnostic Architecture**
   - The core engine (Backtester, Risk Manager) must operate on a canonical representation of trades, positions, and performance, independent of the asset class (Forex, Futures, Stocks, etc.).
   - An **Instrument Definition** module (part of the Data Handler) will provide rich metadata for each symbol (e.g., `point_value`, `tick_size`, `commission_structure`, `margin_requirement`).
