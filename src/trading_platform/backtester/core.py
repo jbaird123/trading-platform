@@ -21,6 +21,7 @@ def run_backtest(
     blackout_utc: list[tuple[str, str]] | None = None,
     blackout_events: list[dict[str, Any]] | None = None,
     warmup_bars: int = 0,
+    cost_model: dict | None = None,
 ) -> list[Trade]:
     """
     Runs a simple, iterative (bar-by-bar) backtest to generate trades from signals.
@@ -60,7 +61,9 @@ def run_backtest(
         raise ValueError(f"market_data.close has NaNs; first at index: {first_bad}")
 
     # Accept optional instrument snapshot; do not change PnL behavior yet.
-    portfolio = PortfolioManager(initial_cash=initial_cash, instrument=instrument)
+    portfolio = PortfolioManager(
+        initial_cash=initial_cash, instrument=instrument, cost_model=cost_model
+    )
 
     policy = TradingWindowPolicy.from_config(
         blackout_utc=blackout_utc, blackout_events=blackout_events
