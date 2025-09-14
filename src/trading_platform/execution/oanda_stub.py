@@ -114,3 +114,9 @@ class OandaStubAdapter(ExecutionAdapter):
 
     def shutdown(self) -> None:
         self.connected = False
+
+    def account_snapshot(self) -> dict[str, float | str | None]:
+        if self.pm is None or self.pm.current_position is None:
+            return {"open_side": None, "size": 0.0}
+        pos = self.pm.current_position
+        return {"open_side": pos.side, "size": float(pos.size)}
