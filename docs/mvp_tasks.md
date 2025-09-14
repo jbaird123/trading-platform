@@ -172,9 +172,10 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 
 ## Phase 8: Comparison Reporting & Brief Alignment
 
-- [ ] **Task 24: A/B Comparison Engine**
-  - [ ] Define comparison JSON schema for two+ briefs (key metrics side-by-side, deltas, significance placeholders).
-  - [ ] Implement `compare_briefs(briefs: list[dict]) -> dict` and HTML report skeleton; tests with two synthetic briefs.
+- [x] **Task 24: A/B Comparison Engine**
+  - [x] Define comparison JSON schema for two briefs (key metrics side-by-side, deltas, notes placeholder).
+  - [x] Implement `compare_briefs(briefs: list[dict]) -> dict` and HTML report skeleton; tests with two synthetic briefs.
+  - [x] Add IO helper to load two briefs and write `comparison.html`; test ensures file written.
 
 - [ ] **Task 25: Brief Schema Enhancements (Provenance/Checksums)**
   - [ ] Add `provenance`: `{app_version, git_commit, run_seed}` and `environment.dependency_versions`.
