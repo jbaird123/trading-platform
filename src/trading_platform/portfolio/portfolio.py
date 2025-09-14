@@ -191,11 +191,11 @@ class PortfolioManager:
             self._engine.mul(diff, self._open_position.size)
         )
         cost_entry, breakdown_entry = self._cost_model.compute_entry_cost(
-            self._open_position.size
-        )
+            self._open_position.size, price=self._open_position.entry_price
+        )  # noqa: E501
         cost_exit, breakdown_exit = self._cost_model.compute_exit_cost(
-            self._open_position.size
-        )
+            self._open_position.size, price=exit_price
+        )  # noqa: E501
         total_cost = cost_entry + cost_exit
         cost_breakdown = {
             "spread": breakdown_entry.get("spread", 0.0)
