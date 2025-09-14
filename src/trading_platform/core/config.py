@@ -57,6 +57,10 @@ class RunConfig(BaseModel):
             "Walk-forward placeholder (e.g., splits metadata) to echo into brief."
         ),
     )
+    warmup_bars: int = Field(
+        default=0,
+        description="Number of initial bars to ignore for entries (indicator warm-up).",
+    )
     # Trading window / blackout policy
     blackout_utc: list[tuple[str, str]] = Field(
         default_factory=list,
