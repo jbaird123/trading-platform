@@ -65,7 +65,25 @@
         },
         "type": {
           "type": "string",
-          "enum": ["EMA", "RSI", "ATR", "ADX", "BB"],
+          "enum": [
+            "SMA",
+            "EMA",
+            "WMA",
+            "MACD",
+            "PSAR",
+            "ADX",
+            "RSI",
+            "STOCH",
+            "CCI",
+            "ROC",
+            "BB",
+            "ATR",
+            "KC",
+            "OBV",
+            "CMF",
+            "VWAP",
+            "FIB"
+          ],
           "description": "Indicator type to compute."
         },
         "params": {
