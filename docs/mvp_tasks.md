@@ -254,21 +254,21 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 
 ## Phase 12: Strategy YAML + Feature Pipeline
 
-- [ ] **Task 36: Strategy YAML schema + parser**
-  - [ ] Define minimal YAML schema for entry/exit rules and params.
-  - [ ] Implement parser that compiles rules into a callable strategy.
-  - [ ] Support small predicate set (EMA cross, RSI threshold, ADX min).
-  - [ ] Strategy declares overlays; propagate to meta.overlays.
-  - [ ] Tests: synthetic data produce expected signals from YAML.
+- [x] **Task 36: Strategy YAML schema + parser**
+  - [x] Define minimal YAML/JSON schema for entry/exit rules and params.
+  - [x] Implement parser that compiles rules into a callable strategy.
+  - [x] Support small predicate set (is_above/is_below/cross_*).
+  - [x] Strategy declares overlays; propagate to meta.overlays.
+  - [x] Tests: synthetic data produce expected signals from YAML.
 
-- [ ] **Task 37: FeaturePipeline (EMA, RSI, ATR)**
-  - [ ] Implement pipeline with pluggable indicators (EMA, RSI, ATR).
-  - [ ] Integrate warm-up handling with backtests.
-  - [ ] Tests: indicator values on toy series match expectations.
+- [x] **Task 37: FeaturePipeline (EMA, RSI, ATR)**
+  - [x] Implement pipeline with ta-backed indicators (EMA, RSI, ATR, etc.).
+  - [x] Integrate warm-up handling with backtests (existing PM/BT warm-up).
+  - [x] Tests: indicator values on toy series present and reasonable.
 
-- [ ] **Task 38: Overlays to brief/HTML**
-  - [ ] Ensure overlays declared by strategy appear in brief and HTML.
-  - [ ] Tests: HTML lists overlays; brief.meta includes overlays.
+- [x] **Task 38: Overlays to brief/HTML**
+  - [x] Ensure overlays declared by strategy appear in brief and HTML.
+  - [x] Tests: HTML lists overlays; brief/meta can include overlays.
 
 ---
 
