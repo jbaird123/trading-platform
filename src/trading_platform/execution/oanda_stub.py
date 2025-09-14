@@ -116,7 +116,20 @@ class OandaStubAdapter(ExecutionAdapter):
         self.connected = False
 
     def account_snapshot(self) -> dict[str, float | str | None]:
+        # Minimal values for reconciliation; equity approximated as cash.
         if self.pm is None or self.pm.current_position is None:
-            return {"open_side": None, "size": 0.0}
+            return {
+                "open_side": None,
+                "size": 0.0,
+                "cash_balance": float(self.pm.cash) if self.pm else 0.0,
+                "equity": float(self.pm.cash) if self.pm else 0.0,
+                "realized_pnl_today": 0.0,
+            }
         pos = self.pm.current_position
-        return {"open_side": pos.side, "size": float(pos.size)}
+        return {
+            "open_side": pos.side,
+            "size": float(pos.size),
+            "cash_balance": float(self.pm.cash),
+            "equity": float(self.pm.cash),
+            "realized_pnl_today": 0.0,
+        }
