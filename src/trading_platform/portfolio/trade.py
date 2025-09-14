@@ -26,4 +26,7 @@ class Trade:
     cost_currency: float = 0.0
     cost_breakdown: dict[str, float] | None = None
     r_multiple: float | None = None
+    mfe_currency: float | None = None
+    mae_currency: float | None = None
+    bars_held: int | None = None
     # 'mfe' and 'mae' will be added later.
