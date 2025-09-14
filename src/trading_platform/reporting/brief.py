@@ -303,6 +303,7 @@ def generate_brief(
     exposure_curve: list[tuple[datetime, float]] | None = None,
     config_snapshot: dict[str, Any] | None = None,
     skipped_trades: list[dict[str, Any]] | None = None,
+    parameter_search: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assemble a JSON brief from trades and metrics (incremental MVP)."""
     meta = meta or {}
@@ -452,6 +453,7 @@ def generate_brief(
         "exposure": _to_jsonable(exposure),
         "monte_carlo": _to_jsonable(monte_carlo or {}),
         "walk_forward": _to_jsonable(walk_forward or {}),
+        "parameter_search": _to_jsonable(parameter_search or {}),
         "regimes": _compute_regimes(trades, regimes_at_entry),
         "data_quality": _to_jsonable(data_quality or {}),
         # Snapshots and placeholders (configurable)
@@ -525,6 +527,7 @@ def save_run_brief(
     blackout_policy: dict[str, Any] | None = None,
     exposure_curve: list[tuple[datetime, float]] | None = None,
     config_snapshot: dict[str, Any] | None = None,
+    parameter_search: dict[str, Any] | None = None,
 ) -> Path:
     """Generate and save a brief to `run_path/brief.json`.
 
@@ -546,6 +549,7 @@ def save_run_brief(
         blackout_policy=blackout_policy,
         exposure_curve=exposure_curve,
         config_snapshot=config_snapshot,
+        parameter_search=parameter_search,
     )
     out_path = run_path / "brief.json"
     save_brief(brief, out_path)
