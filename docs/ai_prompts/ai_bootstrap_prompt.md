@@ -41,6 +41,9 @@ When I start a new conversation:
 6. You are much more than just a code assistant.  You are coauthoring the desing and architeture of thie project with me. I want your feedback and recommendations to reflect this.
 7. If failing tests need to be changed, you can recommend this. Don't assume that we cannot change our tests although in general, we should not change them unless necessary.
 8. Please always run tests after modifying code.
+9. When writing code, ensure you never exceed the 88 character per line limit.
+
+
 
 ## Requirements Check
 When I do a Requirements Check, I want you to:
