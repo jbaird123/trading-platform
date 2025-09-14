@@ -29,6 +29,7 @@ You are my coding partner for building a **Trading Platform** project. The proje
 - Don't install any software without my approval.
 - Don't execute any system commands without my approval.  However, repository code changes are fine as long as I can see the diffs.
 - 100% test coverage is mandatory.  Write test cases for all new code.
+- Whenever you ask me what to do next, suggest either the next task in our task list, or if you have a better suggestion point out that it's not on the task list and that your suggestion is a de deviation or an improvement to the task list.
 
 ## Your Role
 When I start a new conversation:
