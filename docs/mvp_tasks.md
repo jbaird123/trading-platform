@@ -342,3 +342,38 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 - [ ] **Task 50: MVP sign-off**
   - [ ] Review requirements vs implementation; close gaps.
   - [ ] Tag release; create follow-up backlog for enhancements.
+
+---
+
+## Phase 17: MVP Gap Fixes & Conflicts
+
+- [ ] **Task 51: Strategy Schema Validation (SE-3.8)**
+  - [ ] Validate strategy YAML/JSON against `docs/schemas/strategy.schema.json`.
+  - [ ] Fail fast with clear pathful errors; add one valid and one invalid test.
+
+- [ ] **Task 52: RMM Schema Validation (RMM-4.9)**
+  - [ ] Validate RMM config against `docs/schemas/rmm.schema.json`.
+  - [ ] Add one valid and one invalid test verifying failures are actionable.
+
+- [ ] **Task 53: DH Resampling (DH-2.4, DH-2.15)**
+  - [ ] Implement safe OHLC resampling (e.g., M1→H1→D) with correct rules.
+  - [ ] Tests: round-trip and aggregation correctness on synthetic series.
+
+- [ ] **Task 54: Daily Loss Cap (PM-5.10, EL-7.8)**
+  - [ ] Add PM rule for daily loss cap and enforce in BT and EL.
+  - [ ] Tests: accept/reject paths and interaction with other filters.
+
+- [ ] **Task 55: Tie-Break Policy Tests (BT-6.5)**
+  - [ ] Ensure tie-break (e.g., `stop_then_tp`) exists and is covered by tests.
+
+- [ ] **Task 56: CLI run-backtest Completeness (Tasks 39–41)**
+  - [ ] Ensure `tp run-backtest --config` executes BT (not only demo) and
+        writes brief/report/trades.csv; add config snapshot hash test.
+
+- [ ] **Task 57: Indicator Naming Alignment (Registry/Schemas/Features)**
+  - [ ] Resolve BB vs BBWidth discrepancy: standardize "BB" (bands) and
+        "BBWidth" (width). Update registry and both schemas; add tiny tests.
+
+- [ ] **Task 58: CI Static Import/Boundary Checks**
+  - [ ] Add lightweight check in CI to detect circular imports and enforce
+        public-API-only cross-module usage.
