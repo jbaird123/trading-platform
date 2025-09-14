@@ -204,17 +204,15 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
         blackout, regime, risk cap).
   - [x] Tests: unit tests to verify reasons and snapshots are recorded.
 
-- [ ] **Task 29: Counterfactual Simulation for Skipped Trades (BT)**
-  - [ ] Simulate hypothetical outcomes using run's fill/exit/tie-break/cost policies for each skipped entry.
-  - [ ] Produce cf_exit_time, cf_exit_price, cf_pnl_currency, cf_mfe_currency, cf_mae_currency, cf_bars_held.
-  - [ ] Tests: deterministic scenarios to verify counterfactual outcomes.
+- [x] **Task 29: Counterfactual Simulation for Skipped Trades (BT)**
+  - [x] Simulate hypothetical outcomes using run's fill/exit/tie-break/cost policies for each skipped entry.
+  - [x] Produce cf_exit_time, cf_exit_price, cf_pnl_currency, cf_mfe_currency, cf_mae_currency, cf_bars_held.
+  - [x] Tests: deterministic scenarios to verify counterfactual outcomes.
 
-- [ ] **Task 30: Brief Sections for Skips & Impact (RV)**
-  - [x] Add skipped_trades list and counts-only filter_impact aggregates to
-        the brief.
-  - [x] Tests: presence of skipped_trades and counts per reason.
-  - [ ] Enhancement (after Task 29): include cf_pnl aggregates in
-        filter_impact (total/mean/median) once counterfactuals exist.
+- [x] **Task 30: Brief Sections for Skips & Impact (RV)**
+  - [x] Add skipped_trades list and filter_impact aggregates to the brief,
+        including counts and cf_pnl totals/means/medians.
+  - [x] Tests: presence of skipped_trades and aggregation values.
 
 - [x] **Task 31: Execution Layer – Log Only**
   - [x] Ensure EL logs skipped reasons (e.g., blackout) but does not simulate
@@ -226,8 +224,8 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 
 ## Phase 10: New Requirements (Sept 2025)
 
-- [ ] **Task 32: Directional Position Caps (PM-5.11 + BT)**
-  - [ ] Add config for `pm_limits.max_open_long/max_open_short` (defaults 1).
-  - [ ] Enforce caps in BT/EL; unit tests for accept/reject paths.
-  - [ ] When rejected, log skipped trade with `reason_code: position_cap` and include in `skipped_trades`.
-  - [ ] Tests: skipped-trade list contains position_cap items; `filter_impact` aggregates include this reason.
+- [x] **Task 32: Directional Position Caps (PM-5.11 + BT/EL)**
+  - [x] Add config (function args for MVP) for `pm_limits.max_open_long/max_open_short` (default 1).
+  - [x] Enforce caps in BT and EL stub; unit tests for accept/reject paths.
+  - [x] When rejected, log or return reject with `reason_code: position_cap` and include in `skipped_trades`.
+  - [x] Tests: BT skipped-trade list contains position_cap; EL returns rejected.
