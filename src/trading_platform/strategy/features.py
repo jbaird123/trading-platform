@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+from typing import cast
+
 import pandas as pd
 
 try:
-    from ta.momentum import RSIIndicator
-    from ta.trend import ADXIndicator, EMAIndicator
-    from ta.volatility import AverageTrueRange, BollingerBands
+    from ta.momentum import RSIIndicator  # type: ignore[import-untyped]
+    from ta.trend import ADXIndicator, EMAIndicator  # type: ignore[import-untyped]
+    from ta.volatility import (  # type: ignore[import-untyped]
+        AverageTrueRange,
+        BollingerBands,
+    )
 except Exception as exc:  # pragma: no cover
     raise ImportError(
         "The 'ta' library is required for indicator computations. Please "
@@ -30,36 +35,53 @@ def _price_series(df: pd.DataFrame, source: str) -> pd.Series:
 
 def ema(series: pd.Series, length: int) -> pd.Series:
     length = max(1, int(length))
-    return EMAIndicator(close=series, window=length, fillna=True).ema_indicator()
+    return cast(
+        pd.Series,
+        EMAIndicator(close=series, window=length, fillna=True).ema_indicator(),
+    )
 
 
 def rsi(series: pd.Series, length: int) -> pd.Series:
     length = max(1, int(length))
-    return RSIIndicator(close=series, window=length, fillna=True).rsi()
+    return cast(pd.Series, RSIIndicator(close=series, window=length, fillna=True).rsi())
 
 
 def atr(df: pd.DataFrame, length: int) -> pd.Series:
     length = max(1, int(length))
-    return AverageTrueRange(
-        high=df["high"], low=df["low"], close=df["close"], window=length, fillna=True
-    ).average_true_range()
+    return cast(
+        pd.Series,
+        AverageTrueRange(
+            high=df["high"],
+            low=df["low"],
+            close=df["close"],
+            window=length,
+            fillna=True,
+        ).average_true_range(),
+    )
 
 
 def adx(df: pd.DataFrame, length: int) -> pd.Series:
     length = max(1, int(length))
-    return ADXIndicator(
-        high=df["high"], low=df["low"], close=df["close"], window=length, fillna=True
-    ).adx()
+    return cast(
+        pd.Series,
+        ADXIndicator(
+            high=df["high"],
+            low=df["low"],
+            close=df["close"],
+            window=length,
+            fillna=True,
+        ).adx(),
+    )
 
 
 def bb_width(series: pd.Series, length: int, ndev: float) -> pd.Series:
     length = max(1, int(length))
     ndev = float(ndev)
     bb = BollingerBands(close=series, window=length, window_dev=ndev, fillna=True)
-    hband = bb.bollinger_hband()
-    lband = bb.bollinger_lband()
-    mavg = bb.bollinger_mavg().replace(0, 1.0)
-    return (hband - lband) / mavg
+    hband = cast(pd.Series, bb.bollinger_hband())
+    lband = cast(pd.Series, bb.bollinger_lband())
+    mavg = cast(pd.Series, bb.bollinger_mavg()).replace(0, 1.0)
+    return cast(pd.Series, (hband - lband) / mavg)
 
 
 def hhv(series: pd.Series, length: int) -> pd.Series:
@@ -91,6 +113,11 @@ def compute_features(df: pd.DataFrame, specs: list[dict]) -> pd.DataFrame:
         typ = str(spec.get("type"))
         params = spec.get("params") or {}
         source = str(spec.get("source", "close"))
+        source_ref = None
+        _src_ref_val = spec.get("source_ref")
+        if isinstance(_src_ref_val, dict) and ("ref" in _src_ref_val):
+            ref_val = _src_ref_val.get("ref")
+            source_ref = str(ref_val) if ref_val is not None else None
         if not name:
             continue
         if typ == "EMA":
@@ -105,19 +132,35 @@ def compute_features(df: pd.DataFrame, specs: list[dict]) -> pd.DataFrame:
         elif typ == "ADX":
             out[name] = adx(df, int(params.get("length", 14)))
         elif typ == "BB":
+            bb = BollingerBands(
+                close=_price_series(df, source),
+                window=int(params.get("length", 20)),
+                window_dev=float(params.get("ndev", 2.0)),
+                fillna=True,
+            )
+            out[f"{name}_upper"] = cast(pd.Series, bb.bollinger_hband())
+            out[f"{name}_lower"] = cast(pd.Series, bb.bollinger_lband())
+            out[f"{name}_middle"] = cast(pd.Series, bb.bollinger_mavg())
+        elif typ == "BBWidth":
             out[name] = bb_width(
                 _price_series(df, source),
                 int(params.get("length", 20)),
                 float(params.get("ndev", 2.0)),
             )
         elif typ == "HHV":
-            out[name] = hhv(
-                _price_series(df, source or "high"), int(params.get("length", 20))
+            series_in = (
+                pd.Series(df[source_ref], dtype="float64")
+                if source_ref
+                else _price_series(df, source or "high")
             )
+            out[name] = hhv(series_in, int(params.get("length", 20)))
         elif typ == "LLV":
-            out[name] = llv(
-                _price_series(df, source or "low"), int(params.get("length", 20))
+            series_in = (
+                pd.Series(df[source_ref], dtype="float64")
+                if source_ref
+                else _price_series(df, source or "low")
             )
+            out[name] = llv(series_in, int(params.get("length", 20)))
         elif typ == "DC":
             up, lo = donchian_channels(df, int(params.get("length", 20)))
             out[f"{name}_upper"] = up
