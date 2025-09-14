@@ -9,6 +9,12 @@ from trading_platform.core.policy import TradingWindowPolicy
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
 
+"""Backtester core loop with optional exposure capture.
+
+When `return_exposure` is True, returns `(trades, exposure_curve)`; otherwise
+returns just `trades`.
+"""
+
 
 def run_backtest(
     market_data: pd.DataFrame,
@@ -22,7 +28,8 @@ def run_backtest(
     blackout_events: list[dict[str, Any]] | None = None,
     warmup_bars: int = 0,
     cost_model: dict | None = None,
-) -> list[Trade]:
+    return_exposure: bool = False,
+) -> list[Trade] | tuple[list[Trade], list[tuple[datetime, float]]]:
     """
     Runs a simple, iterative (bar-by-bar) backtest to generate trades from signals.
 
@@ -69,6 +76,9 @@ def run_backtest(
         blackout_utc=blackout_utc, blackout_events=blackout_events
     )
 
+    # Track gross exposure per bar (absolute notional = |size * close|)
+    exposure_curve: list[tuple[datetime, float]] = []
+
     for i in range(len(market_data)):
         current_signal = signals.iloc[i]
         current_bar = market_data.iloc[i]
@@ -82,6 +92,7 @@ def run_backtest(
             allow_flip_on_bar=allow_flip_on_bar,
         )
 
+        # Potentially open a new position based on signal and policy
         if (
             not portfolio.current_position
             and current_signal in ["long", "short"]
@@ -100,4 +111,13 @@ def run_backtest(
                 instrument=instrument,
             )
 
+        # Capture gross exposure for this bar AFTER applying entries/exits
+        pos = portfolio.current_position
+        exposure_val = 0.0
+        if pos is not None:
+            exposure_val = float(abs(pos.size) * float(current_bar["close"]))
+        exposure_curve.append((cast(datetime, current_bar.name), exposure_val))
+
+    if return_exposure:
+        return (portfolio.trades, exposure_curve)
     return portfolio.trades
