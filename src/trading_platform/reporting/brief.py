@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import importlib.metadata as ilmd
 import json
 import platform
 import sys
@@ -28,6 +30,8 @@ def _to_jsonable(obj: Any) -> Any:
         return [_to_jsonable(x) for x in obj]
     if isinstance(obj, dict):
         return {k: _to_jsonable(v) for k, v in obj.items()}
+    if isinstance(obj, Path):
+        return str(obj)
     return obj
 
 
@@ -72,6 +76,8 @@ def _serialize_trade(t: Trade) -> dict[str, Any]:
         "mfe_currency": getattr(t, "mfe_currency", None),
         "mae_currency": getattr(t, "mae_currency", None),
         "bars_held": getattr(t, "bars_held", None),
+        "context_at_entry": getattr(t, "context_at_entry", None),
+        "context_at_exit": getattr(t, "context_at_exit", None),
         # Placeholders for future cost modeling (Task 14)
         "cost_breakdown": {
             "spread": 0.0,
@@ -295,6 +301,7 @@ def generate_brief(
     walk_forward: dict[str, Any] | None = None,
     blackout_policy: dict[str, Any] | None = None,
     exposure_curve: list[tuple[datetime, float]] | None = None,
+    config_snapshot: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assemble a JSON brief from trades and metrics (incremental MVP)."""
     meta = meta or {}
@@ -328,6 +335,33 @@ def generate_brief(
     env = _compute_environment()
 
     exposure = _compute_exposure_metrics(exposure_curve)
+    checksums: dict[str, Any] = {}
+    if instrument_definitions is not None:
+        checksums["instrument_defs_hash"] = _stable_hash(instrument_definitions)
+    if config_snapshot is not None:
+        checksums["config_snapshot_hash"] = _stable_hash(config_snapshot)
+
+    field_definitions = {
+        "overall_performance.total_pnl": {
+            "description": "Sum of per-trade pnl in base currency.",
+            "why_useful": "Measures total outcome over the run.",
+            "how_to_use": (
+                "Compare across runs; normalize by starting equity if needed."
+            ),
+        },
+        "equity_stats.max_drawdown": {
+            "description": "Peak-to-trough equity loss in base currency.",
+            "why_useful": "Captures worst loss magnitude.",
+            "how_to_use": "Lower is better; monitor alongside pnl.",
+        },
+        "costs.total_costs": {
+            "description": (
+                "Sum of spread, commission, and slippage across all trades."
+            ),
+            "why_useful": "Quantifies drag from costs.",
+            "how_to_use": "Assess robustness under realistic costs.",
+        },
+    }
 
     base = {
         "meta": _to_jsonable(meta),
@@ -353,6 +387,8 @@ def generate_brief(
         "blackout_policy": _to_jsonable(blackout_policy or {}),
         "environment": _to_jsonable(env),
         "provenance": _to_jsonable(prov),
+        "checksums": _to_jsonable(checksums),
+        "field_definitions": _to_jsonable(field_definitions),
         # Trades serialized with ISO datetimes
         "trades": trades_json,
     }
@@ -383,6 +419,7 @@ def save_run_brief(
     walk_forward: dict[str, Any] | None = None,
     blackout_policy: dict[str, Any] | None = None,
     exposure_curve: list[tuple[datetime, float]] | None = None,
+    config_snapshot: dict[str, Any] | None = None,
 ) -> Path:
     """Generate and save a brief to `run_path/brief.json`.
 
@@ -403,6 +440,7 @@ def save_run_brief(
         walk_forward=walk_forward,
         blackout_policy=blackout_policy,
         exposure_curve=exposure_curve,
+        config_snapshot=config_snapshot,
     )
     out_path = run_path / "brief.json"
     save_brief(brief, out_path)
@@ -427,10 +465,21 @@ def compute_data_quality(df: pd.DataFrame) -> dict[str, Any]:
 
 def _compute_environment() -> dict[str, Any]:
     tz = datetime.now().astimezone().tzinfo
+
+    def _ver(pkg: str) -> str | None:
+        try:
+            return ilmd.version(pkg)
+        except Exception:  # pragma: no cover
+            return None
+
     return {
         "python_version": sys.version.split(" ")[0],
         "platform": platform.platform(),
         "timezone": str(tz) if tz else None,
+        "dependency_versions": {
+            "pandas": _ver("pandas"),
+            "pydantic": _ver("pydantic"),
+        },
     }
 
 
@@ -440,10 +489,23 @@ def _compute_provenance(trades: list[Trade], meta: dict[str, Any]) -> dict[str, 
     data_start = min((t.entry_time for t in trades), default=None)
     data_end = max((t.exit_time for t in trades), default=None)
     meta = meta or {}
+    try:
+        app_version = ilmd.version("trading-platform")
+    except Exception:  # pragma: no cover
+        app_version = None
     return {
         "run_id": meta.get("run_id"),
         "strategy_name": meta.get("strategy_name"),
         "data_start": data_start.isoformat() if data_start else None,
         "data_end": data_end.isoformat() if data_end else None,
         "symbols": symbols,
+        "app_version": app_version,
+        "git_commit": meta.get("git_commit"),
+        "run_seed": meta.get("run_seed"),
     }
+
+
+def _stable_hash(obj: Any) -> str:
+    jsonable = _to_jsonable(obj)
+    s = json.dumps(jsonable, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(s.encode("utf-8")).hexdigest()

@@ -77,6 +77,7 @@ def finalize_run(
         walk_forward=walk_forward,
         blackout_policy=blackout_policy,
         exposure_curve=exposure_curve,
+        config_snapshot=(config.model_dump() if config is not None else None),
     )
     # Also export a minimal HTML report (skeleton)
     try:
