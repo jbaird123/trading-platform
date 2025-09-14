@@ -137,7 +137,7 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 ## Phase 7: Backtester Hardening & Risk Controls
 
 - [ ] **Task 19: Trading Sessions & Blackout Periods**
-  - [ ] Add config for static blackout windows (e.g., 23:00–01:00 UTC) and enforce in BT (no new entries during blackout; optional close-only).
+  - [x] Add config for static blackout windows (e.g., 23:00–01:00 UTC) and enforce in BT (no new entries during blackout; optional close-only).
   - [ ] Add event-based blackout (accept event stream with `impact: high` windows) and enforce in BT; unit tests on synthetic schedules.
   - [ ] Surface effective blackout policy in brief (adjacent to `fill_policy`/`tie_break_policy`) and verify via tests.
 
