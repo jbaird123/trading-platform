@@ -40,7 +40,12 @@ packages = ["trading_platform"]
 
 [tool.pytest.ini_options]
 # Ignore the benign "usefixtures" warning from pytest-bdd's scenario generator
-filterwarnings = ["ignore:usefixtures.*has no effect:pytest.PytestWarning"]
+filterwarnings = [
+    "ignore:usefixtures.*has no effect:pytest.PytestWarning",
+    # Third-party ta library emits a FutureWarning inside PSAR when assigning
+    # float into an int-typed Series; harmless for our tests, ignore it.
+    "ignore:Setting an item of incompatible dtype is deprecated.*:FutureWarning:ta.trend",
+]
 markers = [
     "req_DH_2_2: Marks a test as covering a specific requirement.",
     "req_DH_2_3: Marks a test as covering a specific requirement.",
