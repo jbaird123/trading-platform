@@ -57,3 +57,6 @@ markers = [
     "req_BT_6_4: Marks a test as covering a specific requirement.",
     "req_BT_6_8: Marks a test as covering a specific requirement.",
 ]
+
+[tool.poetry.scripts]
+tp = "trading_platform.cli:main"
