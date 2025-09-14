@@ -69,6 +69,9 @@ def _serialize_trade(t: Trade) -> dict[str, Any]:
         "pnl": t.pnl,
         "exit_reason": t.exit_reason,
         "r_multiple": getattr(t, "r_multiple", None),
+        "mfe_currency": getattr(t, "mfe_currency", None),
+        "mae_currency": getattr(t, "mae_currency", None),
+        "bars_held": getattr(t, "bars_held", None),
         # Placeholders for future cost modeling (Task 14)
         "cost_breakdown": {
             "spread": 0.0,

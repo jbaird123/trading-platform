@@ -97,8 +97,10 @@ class PortfolioManager:
         Processes a new bar of data, updating positions based on the signal.
         This will become the primary interface for the backtester.
         """
-        # 1) Exit triggers (SL/TP)
-        if self._open_position:
+        # 1) Update tracking metrics (bars_held, MFE/MAE) on the open position
+        if self._open_position is not None:
+            self._update_position_metrics(current_bar)
+            # Then check exit triggers (SL/TP)
             should_exit, price, reason = self._check_exit_triggers(current_bar)
             if should_exit:
                 self.close_position(
@@ -173,6 +175,43 @@ class PortfolioManager:
         if not allow_flip_on_bar:
             # Exit early if flips are not allowed
             return  # pragma: no cover
+
+    def _update_position_metrics(self, current_bar: pd.Series) -> None:
+        """Increment bars_held and update MFE/MAE using bar extremes.
+
+        For long positions:
+          - favorable = max(0, (high - entry_price) * size)
+          - adverse = max(0, (entry_price - low) * size)
+        For short positions:
+          - favorable = max(0, (entry_price - low) * size)
+          - adverse = max(0, (high - entry_price) * size)
+        """
+        pos = self._open_position
+        assert pos is not None
+        size = pos.size
+        entry = pos.entry_price
+        high = float(current_bar["high"]) if "high" in current_bar else entry
+        low = float(current_bar["low"]) if "low" in current_bar else entry
+        if pos.side == "long":
+            favorable = max(0.0, (high - entry) * size)
+            adverse = max(0.0, (entry - low) * size)
+        else:
+            favorable = max(0.0, (entry - low) * size)
+            adverse = max(0.0, (high - entry) * size)
+        # Create an updated immutable Position with incremented bars and
+        # updated excursions
+        self._open_position = Position(
+            symbol=pos.symbol,
+            side=pos.side,
+            entry_price=pos.entry_price,
+            size=pos.size,
+            entry_time=pos.entry_time,
+            stop_loss=pos.stop_loss,
+            take_profit=pos.take_profit,
+            bars_held=pos.bars_held + 1,
+            mfe_currency=max(pos.mfe_currency, favorable),
+            mae_currency=max(pos.mae_currency, adverse),
+        )
 
     def close_position(
         self, exit_price: float, exit_time: datetime, exit_reason: str | None = None
