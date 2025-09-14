@@ -20,6 +20,7 @@ def run_backtest(
     instrument: dict | None = None,
     blackout_utc: list[tuple[str, str]] | None = None,
     blackout_events: list[dict[str, Any]] | None = None,
+    warmup_bars: int = 0,
 ) -> list[Trade]:
     """
     Runs a simple, iterative (bar-by-bar) backtest to generate trades from signals.
@@ -82,6 +83,7 @@ def run_backtest(
             not portfolio.current_position
             and current_signal in ["long", "short"]
             and policy.can_open(cast(datetime, current_bar.name))
+            and i >= max(0, warmup_bars)
         ):
             # Sizing and symbol are still hardcoded, to be fixed next.
             portfolio.create_new_position(
