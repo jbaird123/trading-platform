@@ -82,6 +82,16 @@ INDICATORS: dict[str, dict] = {
     },
     # Volatility / bands & channels
     "BB": {
+        "display": "Bollinger Bands",
+        "category": "volatility",
+        "description": "Upper/lower/middle bands computed from price.",
+        "params": [
+            {"name": "length", "type": "int", "default": 20},
+            {"name": "ndev", "type": "float", "default": 2.0},
+        ],
+        "ta": {"module": "ta.volatility", "class": "BollingerBands"},
+    },
+    "BBWidth": {
         "display": "Bollinger Bands Width",
         "category": "volatility",
         "description": "Normalized width of Bollinger Bands.",
