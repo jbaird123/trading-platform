@@ -335,8 +335,9 @@ def generate_brief(
         # Trades serialized with ISO datetimes
         "trades": trades_json,
     }
-    base.update(_empty_sections())
-    return base
+    placeholders = _empty_sections()
+    placeholders.update(base)
+    return placeholders
 
 
 def save_brief(brief: dict[str, Any], path: Path) -> None:
