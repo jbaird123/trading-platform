@@ -51,6 +51,9 @@ jobs:
           poetry run ruff check .
           poetry run ruff format --check .
           poetry run mypy .
+      - name: Enforce import boundaries
+        run: |
+          poetry run python tools/check_import_boundaries.py
 
       - name: Run tests with coverage
         run: |
