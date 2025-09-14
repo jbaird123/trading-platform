@@ -141,6 +141,9 @@ def run_backtest(
                         "reason_code": "position_cap",
                         "policy_snapshot": {"cap": cap},
                         "notes": None,
+                        "side": current_signal,
+                        "entry_index": i,
+                        "entry_price": float(current_bar["close"]),
                     }
                 )
             else:
@@ -172,6 +175,9 @@ def run_backtest(
                     "reason_code": reason,
                     "policy_snapshot": snap,
                     "notes": None,
+                    "side": current_signal,
+                    "entry_index": i,
+                    "entry_price": float(current_bar["close"]),
                 }
             )
 
@@ -182,6 +188,32 @@ def run_backtest(
             exposure_val = float(abs(pos.size) * float(current_bar["close"]))
         exposure_curve.append((cast(datetime, current_bar.name), exposure_val))
 
+    # Counterfactual simulation for each skipped entry (backtest-only)
+    if skipped:
+        for s in skipped:
+            val = s.get("entry_index")
+            if isinstance(val, int):
+                si = val
+            else:
+                try:
+                    si = int(str(val))
+                except Exception:
+                    continue
+            side = str(s.get("side", "long"))
+            entry_px = float(s.get("entry_price", market_data.iloc[si]["close"]))
+            cf = _simulate_counterfactual(
+                market_data,
+                start_index=si,
+                side=side,
+                entry_price=entry_px,
+                size=10000.0,
+                stop_loss=stop_loss,
+                take_profit=take_profit,
+                instrument=instrument,
+                cost_model=cost_model,
+            )
+            s.update(cf)
+
     if return_exposure and return_skips:
         return (portfolio.trades, exposure_curve, skipped)
     if return_exposure:
@@ -189,3 +221,54 @@ def run_backtest(
     if return_skips:
         return (portfolio.trades, [], skipped)
     return portfolio.trades
+
+
+def _simulate_counterfactual(
+    market_data: pd.DataFrame,
+    *,
+    start_index: int,
+    side: str,
+    entry_price: float,
+    size: float,
+    stop_loss: float | None,
+    take_profit: float | None,
+    instrument: dict | None,
+    cost_model: dict | None,
+) -> dict[str, Any]:
+    pm = PortfolioManager(
+        initial_cash=0.0, instrument=instrument, cost_model=cost_model
+    )
+    entry_time = cast(datetime, market_data.index[start_index])
+    pm.create_new_position(
+        symbol="EUR_USD",
+        side=side,
+        entry_price=entry_price,
+        size=size,
+        entry_time=entry_time,
+        stop_loss=stop_loss,
+        take_profit=take_profit,
+        instrument=instrument,
+    )
+    # Step forward including the entry bar to allow immediate TP/SL hits
+    for i in range(start_index, len(market_data)):
+        pm.on_bar(current_bar=market_data.iloc[i], current_signal=side)
+        if not pm.current_position:
+            break
+    # If still open at end, close at last bar close
+    if pm.current_position:
+        last_idx = len(market_data) - 1
+        pm.close_position(
+            exit_price=float(market_data.iloc[last_idx]["close"]),
+            exit_time=cast(datetime, market_data.index[last_idx]),
+        )
+    if not pm.trades:
+        return {}
+    t = pm.trades[0]
+    return {
+        "cf_exit_time": t.exit_time.isoformat(),
+        "cf_exit_price": float(t.exit_price),
+        "cf_pnl_currency": float(t.pnl),
+        "cf_mfe_currency": float(t.mfe_currency or 0.0),
+        "cf_mae_currency": float(t.mae_currency or 0.0),
+        "cf_bars_held": int(t.bars_held or 0),
+    }

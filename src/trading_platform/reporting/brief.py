@@ -472,12 +472,32 @@ def generate_brief(
     # Attach skipped trades and filter impact if provided
     if skipped_trades:
         placeholders["skipped_trades"] = _to_jsonable(skipped_trades)
-        # Aggregate simple impact metrics by reason_code (counts only for MVP)
+        # Aggregate impact metrics by reason_code
         agg: dict[str, Any] = {}
         for s in skipped_trades:
             rc = s.get("reason_code") or "unknown"
-            st = agg.setdefault(rc, {"n_skipped": 0})
+            st = agg.setdefault(
+                rc,
+                {
+                    "n_skipped": 0,
+                    "total_cf_pnl": 0.0,
+                    "mean_cf_pnl": 0.0,
+                    "median_cf_pnl": 0.0,
+                },
+            )
             st["n_skipped"] += 1
+        # Compute totals/means/medians for cf_pnl where present
+        from statistics import median as _med
+
+        for rc, st in agg.items():
+            vals = [
+                float(s.get("cf_pnl_currency", 0.0))
+                for s in skipped_trades
+                if (s.get("reason_code") or "unknown") == rc
+            ]
+            st["total_cf_pnl"] = float(sum(vals))
+            st["mean_cf_pnl"] = float(sum(vals) / len(vals)) if vals else 0.0
+            st["median_cf_pnl"] = float(_med(vals)) if vals else 0.0
         placeholders["filter_impact"] = agg
     return placeholders
 
