@@ -274,21 +274,21 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 
 ## Phase 13: CLI + Reproducibility
 
-- [ ] **Task 39: CLI run-backtest**
-  - [ ] Add console script `tp` with `run-backtest --config path`.
-  - [ ] Loads config/strategy, runs BT, writes brief/report/trades.csv.
-  - [ ] Exit codes and logs suitable for CI.
-  - [ ] Tests: temp config runs and writes artifacts.
+- [x] **Task 39: CLI run-backtest**
+  - [x] Add console script `tp` with `run-backtest --config path`.
+  - [x] Loads config/strategy, runs BT, writes brief/report/trades.csv.
+  - [x] Exit codes and logs suitable for CI.
+  - [x] Tests: temp config runs and writes artifacts.
 
-- [ ] **Task 40: CLI run-live**
-  - [ ] `tp run-live --config path [--dry-run]` starts live controller.
-  - [ ] Uses adapter; enforces blackout and pm_limits; logs actions.
-  - [ ] Tests: stub adapter path; dry-run acceptance.
+- [x] **Task 40: CLI run-live**
+  - [x] `tp run-live --config path [--dry-run]` starts live controller.
+  - [x] Uses adapter; enforces blackout and pm_limits; logs actions.
+  - [x] Tests: stub adapter path; dry-run acceptance.
 
-- [ ] **Task 41: Config load + snapshots**
-  - [ ] Support YAML/JSON config loading in CLI.
-  - [ ] Snapshot config into brief checksums and `runs/.../config.json`.
-  - [ ] Tests: snapshot hash stable for stable inputs.
+- [x] **Task 41: Config load + snapshots**
+  - [x] Support YAML/JSON config loading in CLI.
+  - [x] Snapshot config into brief checksums and `runs/.../config.json`.
+  - [ ] Tests: snapshot hash stable for stable inputs.  (Follow-up)
 
 ---
 
