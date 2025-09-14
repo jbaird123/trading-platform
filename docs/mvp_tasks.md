@@ -140,6 +140,7 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
   - [x] Add config for static blackout windows (e.g., 23:00–01:00 UTC) and enforce in BT (no new entries during blackout; optional close-only).
   - [ ] Add event-based blackout (accept event stream with `impact: high` windows) and enforce in BT; unit tests on synthetic schedules.
   - [ ] Surface effective blackout policy in brief (adjacent to `fill_policy`/`tie_break_policy`) and verify via tests.
+  - [ ] Execution Layer consults `TradingWindowPolicy` before opening positions; tests for reject/accept paths.
 
 - [ ] **Task 20: Indicator Warm-up Handling**
   - [ ] Add `warmup_bars` to strategy/backtest config; ignore signals until warm-up complete.
@@ -176,3 +177,24 @@ This document breaks down the `mvp_roadmap.md` into a granular, actionable check
 - [ ] **Task 27: Plotting Enhancements (Scaffold)**
   - [ ] Detect overlays from strategy metadata; enrich HTML with price + overlays + entry/exit markers (no JS deps yet).
   - [ ] Tests: HTML contains expected sections and overlay labels.
+
+---
+
+## Phase 9: Filter Impact & Counterfactuals
+
+- [ ] **Task 28: Log Skipped Entries (BT)**
+  - [ ] Capture skipped attempted entries with {timestamp, symbol, reason_code, policy_snapshot, notes} when filters/policies block entries (e.g., blackout, regime, risk cap).
+  - [ ] Tests: unit tests to verify reasons and snapshots are recorded.
+
+- [ ] **Task 29: Counterfactual Simulation for Skipped Trades (BT)**
+  - [ ] Simulate hypothetical outcomes using run's fill/exit/tie-break/cost policies for each skipped entry.
+  - [ ] Produce cf_exit_time, cf_exit_price, cf_pnl_currency, cf_mfe_currency, cf_mae_currency, cf_bars_held.
+  - [ ] Tests: deterministic scenarios to verify counterfactual outcomes.
+
+- [ ] **Task 30: Brief Sections for Skips & Impact (RV)**
+  - [ ] Add skipped_trades list and filter_impact aggregates to the brief.
+  - [ ] Tests: schema and aggregation values present and correct.
+
+- [ ] **Task 31: Execution Layer – Log Only**
+  - [ ] Ensure EL logs skipped reasons (e.g., blackout) but does not simulate counterfactuals.
+  - [ ] Tests: adapter/controller emits reject with reason; no counterfactual artifacts produced.
