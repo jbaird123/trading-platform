@@ -5,18 +5,33 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "name": { "type": "string" },
-    "version": { "type": "string" },
+    "name": {
+      "type": "string",
+      "description": "Human-friendly name for this RMM configuration."
+    },
+    "version": {
+      "type": "string",
+      "description": "Optional version tag for this RMM config."
+    },
     "features": {
       "type": "array",
+      "description": "Indicators/features used to classify regimes.",
       "items": { "$ref": "#/$defs/feature" }
     },
     "hysteresis": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "min_bars": { "type": "integer", "minimum": 0 },
-        "cooldown_bars": { "type": "integer", "minimum": 0 }
+        "min_bars": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Bars a label must persist before switching."
+        },
+        "cooldown_bars": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Bars to wait after a switch before switching again."
+        }
       }
     },
     "policy": {
@@ -26,20 +41,24 @@
         "min_confidence": {
           "type": "number",
           "minimum": 0.0,
-          "maximum": 1.0
+          "maximum": 1.0,
+          "description": "Lowest confidence required to accept a regime."
         },
         "allow_labels": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "description": "Whitelist of labels permitted for trading."
         },
         "block_labels": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "description": "Blacklist of labels to block from trading."
         }
       }
     },
     "regimes": {
       "type": "array",
+      "description": "List of regime definitions and their conditions.",
       "items": { "$ref": "#/$defs/regime" },
       "minItems": 1
     }
@@ -50,15 +69,23 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "name": { "type": "string" },
+        "name": {
+          "type": "string",
+          "description": "Local identifier used by conditions (e.g., ema_slope)."
+        },
         "type": {
           "type": "string",
-          "enum": ["EMA", "RSI", "ATR", "ADX", "BBWidth"]
+          "enum": ["EMA", "RSI", "ATR", "ADX", "BBWidth"],
+          "description": "Indicator type to compute for regime logic."
         },
-        "params": { "type": "object" },
+        "params": {
+          "type": "object",
+          "description": "Indicator-specific parameters (e.g., length)."
+        },
         "source": {
           "type": "string",
-          "enum": ["open", "high", "low", "close", "hl2", "ohlc4"]
+          "enum": ["open", "high", "low", "close", "hl2", "ohlc4"],
+          "description": "Input price series used by the indicator."
         }
       },
       "required": ["name", "type"]
@@ -67,12 +94,18 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "label": { "type": "string" },
-        "conditions": { "$ref": "#/$defs/rule_block" },
+        "label": {
+          "type": "string",
+          "description": "Regime name (e.g., trend_up, range, volatile)."
+        },
+        "conditions": {
+          "$ref": "#/$defs/rule_block"
+        },
         "confidence": {
           "type": "number",
           "minimum": 0.0,
-          "maximum": 1.0
+          "maximum": 1.0,
+          "description": "Confidence assigned when conditions are met."
         }
       },
       "required": ["label", "conditions", "confidence"]
@@ -83,13 +116,19 @@
       "oneOf": [
         {
           "properties": {
-            "all_of": { "$ref": "#/$defs/predicate_array" }
+            "all_of": {
+              "$ref": "#/$defs/predicate_array",
+              "description": "All predicates must be true."
+            }
           },
           "required": ["all_of"]
         },
         {
           "properties": {
-            "any_of": { "$ref": "#/$defs/predicate_array" }
+            "any_of": {
+              "$ref": "#/$defs/predicate_array",
+              "description": "At least one predicate must be true."
+            }
           },
           "required": ["any_of"]
         }
@@ -97,6 +136,7 @@
     },
     "predicate_array": {
       "type": "array",
+      "description": "List of conditions used to define a regime.",
       "items": { "$ref": "#/$defs/predicate" },
       "minItems": 1
     },
@@ -107,7 +147,10 @@
         {
           "title": "is_above",
           "properties": {
-            "condition": { "const": "is_above" },
+            "condition": {
+              "const": "is_above",
+              "description": "True if left value is strictly greater than right."
+            },
             "left": { "$ref": "#/$defs/operand" },
             "right": { "$ref": "#/$defs/operand" }
           },
@@ -116,7 +159,10 @@
         {
           "title": "is_below",
           "properties": {
-            "condition": { "const": "is_below" },
+            "condition": {
+              "const": "is_below",
+              "description": "True if left value is strictly less than right."
+            },
             "left": { "$ref": "#/$defs/operand" },
             "right": { "$ref": "#/$defs/operand" }
           },
@@ -126,15 +172,29 @@
     },
     "operand": {
       "oneOf": [
-        { "$ref": "#/$defs/indicator_ref" },
-        { "type": "number" },
-        { "type": "string", "enum": ["open", "high", "low", "close"] }
+        {
+          "$ref": "#/$defs/indicator_ref"
+        },
+        {
+          "type": "number",
+          "description": "Literal numeric value."
+        },
+        {
+          "type": "string",
+          "enum": ["open", "high", "low", "close"],
+          "description": "Reference to an OHLC price field."
+        }
       ]
     },
     "indicator_ref": {
       "type": "object",
       "additionalProperties": false,
-      "properties": { "ref": { "type": "string" } },
+      "properties": {
+        "ref": {
+          "type": "string",
+          "description": "Name of a feature defined in the features list."
+        }
+      },
       "required": ["ref"]
     }
   }

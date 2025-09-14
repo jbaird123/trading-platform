@@ -5,12 +5,25 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "strategy_name": { "type": "string" },
-    "description": { "type": "string" },
-    "version": { "type": "string" },
-    "metadata": { "type": "object" },
+    "strategy_name": {
+      "type": "string",
+      "description": "Human-friendly name shown across the UI."
+    },
+    "description": {
+      "type": "string",
+      "description": "Short summary of what the strategy does."
+    },
+    "version": {
+      "type": "string",
+      "description": "Optional version tag for this strategy definition."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Miscellaneous info to show or track with the strategy."
+    },
     "parameters": {
       "type": "object",
+      "description": "Tunable parameters referenced by rules or features.",
       "additionalProperties": {
         "oneOf": [
           { "type": "number" },
@@ -22,15 +35,23 @@
     },
     "features": {
       "type": "array",
+      "description": "Indicators/features to compute before evaluating rules.",
       "items": { "$ref": "#/$defs/feature" }
     },
     "overlays": {
       "type": "array",
+      "description": "Series names to render on the price chart as overlays.",
       "items": { "type": "string" }
     },
-    "risk": { "$ref": "#/$defs/risk" },
-    "entry_rules": { "$ref": "#/$defs/rule_block_array" },
-    "exit_rules": { "$ref": "#/$defs/rule_block_array" }
+    "risk": {
+      "$ref": "#/$defs/risk"
+    },
+    "entry_rules": {
+      "$ref": "#/$defs/rule_block_array"
+    },
+    "exit_rules": {
+      "$ref": "#/$defs/rule_block_array"
+    }
   },
   "required": ["strategy_name", "entry_rules", "exit_rules"],
   "$defs": {
@@ -38,15 +59,23 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "name": { "type": "string" },
+        "name": {
+          "type": "string",
+          "description": "Local identifier used by rules (e.g., ema_fast)."
+        },
         "type": {
           "type": "string",
-          "enum": ["EMA", "RSI", "ATR", "ADX", "BBWidth"]
+          "enum": ["EMA", "RSI", "ATR", "ADX", "BBWidth"],
+          "description": "Indicator type to compute."
         },
-        "params": { "type": "object" },
+        "params": {
+          "type": "object",
+          "description": "Indicator-specific parameters (e.g., length)."
+        },
         "source": {
           "type": "string",
-          "enum": ["open", "high", "low", "close", "hl2", "ohlc4"]
+          "enum": ["open", "high", "low", "close", "hl2", "ohlc4"],
+          "description": "Input price series used by the indicator."
         }
       },
       "required": ["name", "type"]
@@ -59,8 +88,15 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "type": { "type": "string", "enum": ["fixed", "atr"] },
-            "value": { "type": "number" }
+            "type": {
+              "type": "string",
+              "enum": ["fixed", "atr"],
+              "description": "Stop style: fixed amount or ATR-based."
+            },
+            "value": {
+              "type": "number",
+              "description": "Stop distance (price units or ATR multiples)."
+            }
           },
           "required": ["type", "value"]
         },
@@ -68,16 +104,28 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "type": { "type": "string", "enum": ["fixed", "atr"] },
-            "value": { "type": "number" }
+            "type": {
+              "type": "string",
+              "enum": ["fixed", "atr"],
+              "description": "Take-profit style: fixed or ATR-based."
+            },
+            "value": {
+              "type": "number",
+              "description": "TP distance (price units or ATR multiples)."
+            }
           },
           "required": ["type", "value"]
         },
-        "warmup_bars": { "type": "integer", "minimum": 0 }
+        "warmup_bars": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Bars to ignore while indicators stabilize."
+        }
       }
     },
     "rule_block_array": {
       "type": "array",
+      "description": "Ordered list of rule blocks; each must evaluate true.",
       "items": { "$ref": "#/$defs/rule_block" },
       "minItems": 1
     },
@@ -87,13 +135,19 @@
       "oneOf": [
         {
           "properties": {
-            "all_of": { "$ref": "#/$defs/predicate_array" }
+            "all_of": {
+              "$ref": "#/$defs/predicate_array",
+              "description": "All predicates must be true."
+            }
           },
           "required": ["all_of"]
         },
         {
           "properties": {
-            "any_of": { "$ref": "#/$defs/predicate_array" }
+            "any_of": {
+              "$ref": "#/$defs/predicate_array",
+              "description": "At least one predicate must be true."
+            }
           },
           "required": ["any_of"]
         }
@@ -101,6 +155,7 @@
     },
     "predicate_array": {
       "type": "array",
+      "description": "List of conditions used inside a rule block.",
       "items": { "$ref": "#/$defs/predicate" },
       "minItems": 1
     },
@@ -111,16 +166,28 @@
         {
           "title": "cross_above",
           "properties": {
-            "condition": { "const": "cross_above" },
-            "left": { "$ref": "#/$defs/operand" },
-            "right": { "$ref": "#/$defs/operand" }
+            "condition": {
+              "const": "cross_above",
+              "description": "Trigger when left crosses above right."
+            },
+            "left": {
+              "$ref": "#/$defs/operand",
+              "description": "Left-hand side (indicator/price/number)."
+            },
+            "right": {
+              "$ref": "#/$defs/operand",
+              "description": "Right-hand side (indicator/price/number)."
+            }
           },
           "required": ["condition", "left", "right"]
         },
         {
           "title": "cross_below",
           "properties": {
-            "condition": { "const": "cross_below" },
+            "condition": {
+              "const": "cross_below",
+              "description": "Trigger when left crosses below right."
+            },
             "left": { "$ref": "#/$defs/operand" },
             "right": { "$ref": "#/$defs/operand" }
           },
@@ -129,7 +196,10 @@
         {
           "title": "is_above",
           "properties": {
-            "condition": { "const": "is_above" },
+            "condition": {
+              "const": "is_above",
+              "description": "True if left value is strictly greater than right."
+            },
             "left": { "$ref": "#/$defs/operand" },
             "right": { "$ref": "#/$defs/operand" }
           },
@@ -138,7 +208,10 @@
         {
           "title": "is_below",
           "properties": {
-            "condition": { "const": "is_below" },
+            "condition": {
+              "const": "is_below",
+              "description": "True if left value is strictly less than right."
+            },
             "left": { "$ref": "#/$defs/operand" },
             "right": { "$ref": "#/$defs/operand" }
           },
@@ -148,16 +221,28 @@
     },
     "operand": {
       "oneOf": [
-        { "$ref": "#/$defs/indicator_ref" },
-        { "type": "number" },
-        { "type": "string", "enum": ["open", "high", "low", "close"] }
+        {
+          "$ref": "#/$defs/indicator_ref"
+        },
+        {
+          "type": "number",
+          "description": "Literal numeric value."
+        },
+        {
+          "type": "string",
+          "enum": ["open", "high", "low", "close"],
+          "description": "Reference to an OHLC price field."
+        }
       ]
     },
     "indicator_ref": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "ref": { "type": "string" }
+        "ref": {
+          "type": "string",
+          "description": "Name of a feature defined in the features list."
+        }
       },
       "required": ["ref"]
     }
