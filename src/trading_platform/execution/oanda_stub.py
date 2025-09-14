@@ -16,7 +16,10 @@ class OandaStubAdapter(ExecutionAdapter):
     """
 
     def __init__(
-        self, pm: PortfolioManager | None = None, policy: Any | None = None
+        self,
+        pm: PortfolioManager | None = None,
+        policy: Any | None = None,
+        pm_limits: dict[str, int] | None = None,
     ) -> None:
         self.pm = pm
         self.connected = False
@@ -24,6 +27,7 @@ class OandaStubAdapter(ExecutionAdapter):
         self.events: list[dict[str, Any]] = []
         # Optional TradingWindowPolicy-like object with can_open(datetime) -> bool
         self.policy = policy
+        self.pm_limits = pm_limits or {"max_open_long": 1, "max_open_short": 1}
 
     def connect(self) -> None:
         self.connected = True
@@ -61,6 +65,23 @@ class OandaStubAdapter(ExecutionAdapter):
                     self.events.append({"order_id": order_id, "rejected": "blackout"})
                     return OrderResult(
                         order_id=order_id, status="rejected", message="blackout"
+                    )
+            # Enforce simple directional cap: PM holds max one position
+            if side in {"long", "short"} and self.pm.current_position:
+                cap = (
+                    self.pm_limits.get("max_open_long", 1)
+                    if side == "long"
+                    else self.pm_limits.get("max_open_short", 1)
+                )
+                open_ct = 1
+                if open_ct >= cap and self.pm.current_position.side == side:
+                    self.events.append(
+                        {"order_id": order_id, "rejected": "position_cap"}
+                    )
+                    return OrderResult(
+                        order_id=order_id,
+                        status="rejected",
+                        message="position_cap",
                     )
             if side in {"long", "short"}:
                 if self.pm.current_position and self.pm.current_position.side != side:
