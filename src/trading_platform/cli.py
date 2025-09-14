@@ -59,7 +59,7 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         p = Path(str(data["csv_path"]))
         df = pd.read_csv(p, parse_dates=[0], index_col=0)
     else:
-        idx = pd.date_range("2024-01-01", periods=5, freq="H")
+        idx = pd.date_range("2024-01-01", periods=5, freq="h")
         vals = [1.0, 2.0, 3.0, 2.0, 1.0]
         df = pd.DataFrame(
             {
