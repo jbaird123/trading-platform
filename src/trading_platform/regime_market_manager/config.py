@@ -26,3 +26,35 @@ class RegimeManagerConfig(BaseModel):
         default=0.1,
         description="Absolute slope value to confirm trend direction.",
     )
+
+
+def validate_rmm_config(cfg: dict) -> None:
+    """Lightweight validation aligned to docs/schemas/rmm.schema.json.
+
+    Required top-level: regimes (non-empty array). Each regime:
+    - label: str
+    - confidence: number in [0,1]
+    - conditions: object with all_of or any_of -> list of predicates
+    """
+    if not isinstance(cfg, dict):
+        raise ValueError("rmm config must be an object")
+    regimes = cfg.get("regimes")
+    if not isinstance(regimes, list) or not regimes:
+        raise ValueError("regimes must be a non-empty array")
+    for r in regimes:
+        if not isinstance(r, dict):
+            raise ValueError("regime must be an object")
+        if not isinstance(r.get("label"), str):
+            raise ValueError("regime.label must be a string")
+        conf = r.get("confidence")
+        if not isinstance(conf, (int, float)) or not (0.0 <= float(conf) <= 1.0):
+            raise ValueError("regime.confidence must be 0..1")
+        conds = r.get("conditions")
+        if not isinstance(conds, dict):
+            raise ValueError("regime.conditions must be an object")
+        present = [k for k in ("all_of", "any_of") if k in conds]
+        if not present:
+            raise ValueError("regime.conditions requires all_of or any_of")
+        preds = conds[present[0]]
+        if not isinstance(preds, list) or not preds:
+            raise ValueError("predicate list must be a non-empty array")

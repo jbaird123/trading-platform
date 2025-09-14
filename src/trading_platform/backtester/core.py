@@ -31,6 +31,7 @@ def run_backtest(
     return_exposure: bool = False,
     return_skips: bool = False,
     pm_limits: dict[str, int] | None = None,
+    daily_loss_cap: float | None = None,
 ) -> (
     list[Trade]
     | tuple[list[Trade], list[tuple[datetime, float]]]
@@ -126,6 +127,30 @@ def run_backtest(
             and policy.can_open(cast(datetime, current_bar.name))
             and i >= max(0, warmup_bars)
         ):
+            # Enforce daily loss cap based on realized PnL for this date
+            if daily_loss_cap is not None and daily_loss_cap > 0:
+                today = cast(datetime, current_bar.name).date()
+                day_pnl = sum(
+                    float(t.pnl)
+                    for t in portfolio.trades
+                    if t.exit_time.date() == today
+                )
+                if day_pnl <= -float(daily_loss_cap):
+                    skipped.append(
+                        {
+                            "timestamp": cast(datetime, current_bar.name).isoformat(),
+                            "symbol": "EUR_USD",
+                            "reason_code": "risk_cap",
+                            "policy_snapshot": {
+                                "daily_loss_cap": float(daily_loss_cap)
+                            },
+                            "notes": None,
+                            "side": current_signal,
+                            "entry_index": i,
+                            "entry_price": float(current_bar["close"]),
+                        }
+                    )
+                    continue
             # Enforce simple directional cap (PM holds at most one position)
             cap = (
                 limits.get("max_open_long", 1)

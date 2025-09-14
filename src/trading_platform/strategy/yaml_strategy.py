@@ -9,6 +9,43 @@ import pandas as pd
 from .features import compute_features
 
 
+def validate_strategy_config(cfg: dict[str, Any]) -> None:
+    """Lightweight validation aligned to docs/schemas/strategy.schema.json.
+
+    This avoids a full jsonschema dependency while enforcing key structure:
+    - required: strategy_name (str), entry_rules (list), exit_rules (list)
+    - features: optional list of {name:str, type:str}
+    - rule blocks: each item has all_of or any_of with a list of predicates
+    - predicate: {condition, left, right} with known conditions
+    """
+    if not isinstance(cfg, dict):
+        raise ValueError("strategy must be an object")
+    for req in ("strategy_name", "entry_rules", "exit_rules"):
+        if req not in cfg:
+            raise ValueError(f"missing required field: {req}")
+    if not isinstance(cfg["strategy_name"], str):
+        raise ValueError("strategy_name must be a string")
+    for k in ("entry_rules", "exit_rules"):
+        if not isinstance(cfg[k], list) or not cfg[k]:
+            raise ValueError(f"{k} must be a non-empty array")
+        for block in cfg[k]:
+            if not isinstance(block, dict):
+                raise ValueError("rule block must be an object")
+            choices = ["all_of", "any_of"]
+            present = [c for c in choices if c in block]
+            if not present:
+                raise ValueError("rule block must have all_of or any_of")
+            preds = block[present[0]]
+            if not isinstance(preds, list) or not preds:
+                raise ValueError("predicate list must be a non-empty array")
+            for pred in preds:
+                if not isinstance(pred, dict):
+                    raise ValueError("predicate must be an object")
+                cond = str(pred.get("condition", ""))
+                if cond not in {"is_above", "is_below", "cross_above", "cross_below"}:
+                    raise ValueError(f"unsupported condition: {cond}")
+
+
 def load_strategy_config(doc: dict[str, Any] | str | Path) -> dict[str, Any]:
     if isinstance(doc, dict):
         return doc
@@ -97,6 +134,7 @@ class CompiledStrategy:
 
 
 def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
+    validate_strategy_config(cfg)
     name = str(cfg.get("strategy_name", "Strategy"))
     overlays = [str(x) for x in (cfg.get("overlays") or [])]
     features = list(cfg.get("features") or [])

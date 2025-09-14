@@ -55,3 +55,22 @@ def load_and_normalize_data(file_path: Path) -> tuple[pd.DataFrame, list[str]]:
         error_message = f"unexpected_error: {e}"
         quality_flags.append(error_message)
         return pd.DataFrame(), quality_flags
+
+
+def resample_ohlc(df: pd.DataFrame, rule: str) -> pd.DataFrame:
+    """Resample an OHLCV DataFrame using canonical aggregation rules.
+
+    - open: first
+    - high: max
+    - low: min
+    - close: last
+    - volume: sum
+    """
+    agg = {
+        "open": "first",
+        "high": "max",
+        "low": "min",
+        "close": "last",
+        "volume": "sum",
+    }
+    return df.resample(rule).agg(agg).dropna(how="any")

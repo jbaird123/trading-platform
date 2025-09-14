@@ -87,6 +87,7 @@
             "CCI",
             "ROC",
             "BB",
+            "BBWidth",
             "ATR",
             "HHV",
             "LLV",
