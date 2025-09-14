@@ -31,6 +31,52 @@ def _to_jsonable(obj: Any) -> Any:
     return obj
 
 
+# Reusable defaults to reduce duplication in assembled briefs
+EMPTY_DISTRIBUTION = {
+    "pnl_mean": 0.0,
+    "pnl_median": 0.0,
+    "pnl_std": 0.0,
+    "p05": 0.0,
+    "p95": 0.0,
+}
+
+
+def _empty_sections() -> dict[str, Any]:
+    """Return fresh containers for always-present empty sections."""
+    return {
+        "activity": {},
+        "timing_buckets": {},
+        "costs": {},
+        "exposure": {},
+        "contrasts": {},
+        "stop_tp_candidates": [],
+        "parameter_search": {},
+        "stationarity": {},
+        "feature_analysis": {},
+        "checksums": {},
+    }
+
+
+def _serialize_trade(t: Trade) -> dict[str, Any]:
+    return {
+        "symbol": t.symbol,
+        "side": t.side,
+        "size": t.size,
+        "entry_time": t.entry_time.isoformat(),
+        "exit_time": t.exit_time.isoformat(),
+        "entry_price": t.entry_price,
+        "exit_price": t.exit_price,
+        "pnl": t.pnl,
+        "exit_reason": t.exit_reason,
+        # Placeholders for future cost modeling (Task 14)
+        "cost_breakdown": {
+            "spread": 0.0,
+            "commission": 0.0,
+            "slippage": 0.0,
+        },
+    }
+
+
 def compute_overall_performance(
     trades: list[Trade], initial_cash: float
 ) -> dict[str, Any]:
@@ -85,13 +131,7 @@ def _percentile(values: list[float], pct: float) -> float:
 def compute_distribution(trades: list[Trade]) -> dict[str, Any]:
     pnls = [t.pnl for t in trades]
     if not pnls:
-        return {
-            "pnl_mean": 0.0,
-            "pnl_median": 0.0,
-            "pnl_std": 0.0,
-            "p05": 0.0,
-            "p95": 0.0,
-        }
+        return EMPTY_DISTRIBUTION
     n = len(pnls)
     mean_val = sum(pnls) / n
     median_val = median(pnls)
@@ -229,31 +269,12 @@ def generate_brief(
     risk_snapshot = compute_risk_snapshot(trades)
     equity_stats = compute_equity_stats(trades, initial_cash)
     distribution = compute_distribution(trades)
-    trades_json = [
-        {
-            "symbol": t.symbol,
-            "side": t.side,
-            "size": t.size,
-            "entry_time": t.entry_time.isoformat(),
-            "exit_time": t.exit_time.isoformat(),
-            "entry_price": t.entry_price,
-            "exit_price": t.exit_price,
-            "pnl": t.pnl,
-            "exit_reason": t.exit_reason,
-            # Placeholders for future cost modeling (Task 14)
-            "cost_breakdown": {
-                "spread": 0.0,
-                "commission": 0.0,
-                "slippage": 0.0,
-            },
-        }
-        for t in trades
-    ]
+    trades_json = [_serialize_trade(t) for t in trades]
     # Compute provenance/environment
     prov = _compute_provenance(trades, meta)
     env = _compute_environment()
 
-    return {
+    base = {
         "meta": _to_jsonable(meta),
         "params": _to_jsonable(params),
         # Canonical, instrument-agnostic sections
@@ -263,18 +284,9 @@ def generate_brief(
         "distribution": distribution,
         "streaks": compute_streaks(trades),
         "holding_time": {"median_secs": _median_holding_secs(trades)},
-        "activity": {},
-        "timing_buckets": {},
-        "costs": {},
-        "exposure": {},
-        "contrasts": {},
-        "stop_tp_candidates": [],
         "monte_carlo": _to_jsonable(monte_carlo or {}),
         "walk_forward": _to_jsonable(walk_forward or {}),
         "regimes": _compute_regimes(trades, regimes_at_entry),
-        "parameter_search": {},
-        "stationarity": {},
-        "feature_analysis": {},
         "data_quality": _to_jsonable(data_quality or {}),
         # Snapshots and placeholders (configurable)
         "instrument_definitions": _to_jsonable(instrument_definitions or {}),
@@ -283,10 +295,11 @@ def generate_brief(
         "tie_break_policy": _to_jsonable(tie_break_policy or {}),
         "environment": _to_jsonable(env),
         "provenance": _to_jsonable(prov),
-        "checksums": {},
         # Trades serialized with ISO datetimes
         "trades": trades_json,
     }
+    base.update(_empty_sections())
+    return base
 
 
 def save_brief(brief: dict[str, Any], path: Path) -> None:
