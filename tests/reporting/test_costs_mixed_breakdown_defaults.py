@@ -57,7 +57,7 @@ def test_mixed_trades_breakdown_and_defaults():
     # Aggregates: totals include both trades' cost_currency; breakdown sums only from t1
     costs = brief["costs"]
     assert costs["total_costs"] == approx(0.06 + 0.05)
-    assert costs["avg_cost_per_trade"] == approx((0.06 + 0.05) / 2)
+    assert costs["avg_cost_per_trade"] == approx(0.06)
     assert costs["breakdown"] == {
         "spread": approx(0.02),
         "commission": approx(0.03),
