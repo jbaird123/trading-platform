@@ -80,7 +80,7 @@ def when_strategy_generates_signals(shared_context: dict):
     # Compile a simple crossover strategy using refs to prepared EMA columns
     cfg = {
         "strategy_name": "EMA Crossover",
-        "entry_rules": [
+        "long_entry_rules": [
             {
                 "any_of": [
                     {
@@ -91,11 +91,33 @@ def when_strategy_generates_signals(shared_context: dict):
                 ]
             }
         ],
-        "exit_rules": [
+        "long_exit_rules": [
             {
                 "any_of": [
                     {
                         "condition": "cross_below",
+                        "left": {"ref": "ema_fast"},
+                        "right": {"ref": "ema_slow"},
+                    }
+                ]
+            }
+        ],
+        "short_entry_rules": [
+            {
+                "any_of": [
+                    {
+                        "condition": "cross_below",
+                        "left": {"ref": "ema_fast"},
+                        "right": {"ref": "ema_slow"},
+                    }
+                ]
+            }
+        ],
+        "short_exit_rules": [
+            {
+                "any_of": [
+                    {
+                        "condition": "cross_above",
                         "left": {"ref": "ema_fast"},
                         "right": {"ref": "ema_slow"},
                     }

@@ -55,7 +55,7 @@
             "ema_fast",
             "ema_slow"
         ],
-        "entry_rules": [
+        "long_entry_rules": [
             {
                 "all_of": [
                     {
@@ -84,7 +84,7 @@
                 ]
             }
         ],
-        "exit_rules": [
+        "long_exit_rules": [
             {
                 "any_of": [
                     {

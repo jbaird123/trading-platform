@@ -14,10 +14,10 @@ def test_cmd_run_backtest_toy_data_path(tmp_path: Path) -> None:
         "initial_cash": 1000,
         "strategy": {
             "strategy_name": "S",
-            "entry_rules": [
+            "long_entry_rules": [
                 {"any_of": [{"condition": "is_above", "left": "close", "right": 1.5}]}
             ],
-            "exit_rules": [
+            "long_exit_rules": [
                 {"any_of": [{"condition": "is_below", "left": "close", "right": 1.5}]}
             ],
         },

@@ -7,10 +7,10 @@ from trading_platform.strategy.yaml_strategy import validate_strategy_config
 def test_strategy_jsonschema_validates_required_fields():
     valid = {
         "strategy_name": "X",
-        "entry_rules": [
+        "long_entry_rules": [
             {"any_of": [{"condition": "is_above", "left": "close", "right": 1}]}
         ],
-        "exit_rules": [
+        "long_exit_rules": [
             {"any_of": [{"condition": "is_below", "left": "close", "right": 1}]}
         ],
     }
@@ -19,13 +19,12 @@ def test_strategy_jsonschema_validates_required_fields():
 
 def test_strategy_jsonschema_reports_missing_name():
     invalid = {
-        "entry_rules": [
+        "long_entry_rules": [
             {"any_of": [{"condition": "is_above", "left": "close", "right": 1}]}
         ],
-        "exit_rules": [
+        "long_exit_rules": [
             {"any_of": [{"condition": "is_below", "left": "close", "right": 1}]}
         ],
     }
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="missing required field: strategy_name"):
         validate_strategy_config(invalid)
-    assert "strategy" in str(e.value)

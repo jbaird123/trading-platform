@@ -26,10 +26,10 @@ def _df():
 def _strat():
     return {
         "strategy_name": "LiveTest",
-        "entry_rules": [
+        "long_entry_rules": [
             {"any_of": [{"condition": "is_above", "left": "close", "right": 1.5}]}
         ],
-        "exit_rules": [
+        "long_exit_rules": [
             {"any_of": [{"condition": "is_below", "left": "close", "right": 1.5}]}
         ],
     }

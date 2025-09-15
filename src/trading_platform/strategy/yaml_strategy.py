@@ -16,13 +16,14 @@ from .features import compute_features
 
 
 def validate_strategy_config(cfg: dict[str, Any]) -> None:
-    """Lightweight validation aligned to docs/schemas/strategy.schema.json.
+    """Validate strategy config against key schema expectations.
 
-    This avoids a full jsonschema dependency while enforcing key structure:
-    - required: strategy_name (str), entry_rules (list), exit_rules (list)
-    - features: optional list of {name:str, type:str}
-    - rule blocks: each item has all_of or any_of with a list of predicates
-    - predicate: {condition, left, right} with known conditions
+    We prefer jsonschema when available, but also enforce minimal rules:
+    - required: strategy_name (str)
+    - at least one pair present: (long_entry_rules & long_exit_rules) or
+      (short_entry_rules & short_exit_rules)
+    - rule blocks: each has all_of or any_of with a non-empty predicate list
+    - predicate: {condition, left, right} with supported conditions
     """
     if not isinstance(cfg, dict):
         raise ValueError("strategy must be an object")
@@ -41,19 +42,26 @@ def validate_strategy_config(cfg: dict[str, Any]) -> None:
             # Some schema constructs (oneOf + additionalProperties) can be
             # overly strict for minimal configs; fall back to lightweight checks.
             pass
-    for req in ("strategy_name", "entry_rules", "exit_rules"):
-        if req not in cfg:
-            raise ValueError(f"missing required field: {req}")
+    if "strategy_name" not in cfg:
+        raise ValueError("missing required field: strategy_name")
     if not isinstance(cfg["strategy_name"], str):
         raise ValueError("strategy_name must be a string")
-    for k in ("entry_rules", "exit_rules"):
-        if not isinstance(cfg[k], list) or not cfg[k]:
-            raise ValueError(f"{k} must be a non-empty array")
-        for block in cfg[k]:
+    pairs = [
+        ("long_entry_rules", "long_exit_rules"),
+        ("short_entry_rules", "short_exit_rules"),
+    ]
+    if not any(all(k in cfg for k in pair) for pair in pairs):
+        raise ValueError(
+            "missing required rule pairs: provide long_* or short_* rule sets"
+        )
+
+    def _validate_blocks(blocks: list[dict[str, Any]], key: str) -> None:
+        if not isinstance(blocks, list) or not blocks:
+            raise ValueError(f"{key} must be a non-empty array")
+        for block in blocks:
             if not isinstance(block, dict):
                 raise ValueError("rule block must be an object")
-            choices = ["all_of", "any_of"]
-            present = [c for c in choices if c in block]
+            present = [c for c in ("all_of", "any_of") if c in block]
             if not present:
                 raise ValueError("rule block must have all_of or any_of")
             preds = block[present[0]]
@@ -63,8 +71,18 @@ def validate_strategy_config(cfg: dict[str, Any]) -> None:
                 if not isinstance(pred, dict):
                     raise ValueError("predicate must be an object")
                 cond = str(pred.get("condition", ""))
-                if cond not in {"is_above", "is_below", "cross_above", "cross_below"}:
+                if cond not in {
+                    "is_above",
+                    "is_below",
+                    "cross_above",
+                    "cross_below",
+                }:
                     raise ValueError(f"unsupported condition: {cond}")
+
+    for a, b in pairs:
+        if a in cfg and b in cfg:
+            _validate_blocks(cfg[a], a)
+            _validate_blocks(cfg[b], b)
 
 
 def load_strategy_config(doc: dict[str, Any] | str | Path) -> dict[str, Any]:
@@ -130,39 +148,40 @@ class CompiledStrategy:
     name: str
     overlays: list[str]
     features: list[dict]
-    entry_blocks: list[dict]
-    exit_blocks: list[dict]
+    long_entry_blocks: list[dict]
+    long_exit_blocks: list[dict]
+    short_entry_blocks: list[dict]
+    short_exit_blocks: list[dict]
     risk: dict[str, Any]
-    allow_bearish_entry_from_exit: bool = False
 
     def generate_signals(self, df: pd.DataFrame) -> pd.Series:
         df2 = compute_features(df, self.features)
-        enter_long = pd.Series([False] * len(df2), index=df2.index)
-        for b in self.entry_blocks:
-            enter_long = enter_long | _eval_rule_block(df2, b)
-        exit_or_enter_short = pd.Series([False] * len(df2), index=df2.index)
-        for b in self.exit_blocks:
-            exit_or_enter_short = exit_or_enter_short | _eval_rule_block(df2, b)
-        # Stateful signals supporting flat, long, short (minimal semantics):
-        # - flat -> long when entry rules true
-        # - flat -> short when exit rules true (used as bearish entry)
-        # - long -> flat when exit rules true
-        # - short -> flat when entry rules true
-        sig = []
+        le = pd.Series([False] * len(df2), index=df2.index)
+        for b in self.long_entry_blocks:
+            le = le | _eval_rule_block(df2, b)
+        lx = pd.Series([False] * len(df2), index=df2.index)
+        for b in self.long_exit_blocks:
+            lx = lx | _eval_rule_block(df2, b)
+        se = pd.Series([False] * len(df2), index=df2.index)
+        for b in self.short_entry_blocks:
+            se = se | _eval_rule_block(df2, b)
+        sx = pd.Series([False] * len(df2), index=df2.index)
+        for b in self.short_exit_blocks:
+            sx = sx | _eval_rule_block(df2, b)
+
+        sig: list[str] = []
         state = "flat"
         for i in range(len(df2)):
             if state == "flat":
-                if bool(enter_long.iloc[i]):
+                if bool(le.iloc[i]):
                     state = "long"
-                elif self.allow_bearish_entry_from_exit and bool(
-                    exit_or_enter_short.iloc[i]
-                ):
+                elif bool(se.iloc[i]):
                     state = "short"
             elif state == "long":
-                if bool(exit_or_enter_short.iloc[i]):
+                if bool(lx.iloc[i]):
                     state = "flat"
             elif state == "short":
-                if bool(enter_long.iloc[i]):
+                if bool(sx.iloc[i]):
                     state = "flat"
             sig.append(state)
         return pd.Series(sig, index=df2.index)
@@ -173,31 +192,18 @@ def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
     name = str(cfg.get("strategy_name", "Strategy"))
     overlays = [str(x) for x in (cfg.get("overlays") or [])]
     features = list(cfg.get("features") or [])
-    entry_blocks = list(cfg.get("entry_rules") or [])
-    exit_blocks = list(cfg.get("exit_rules") or [])
+    le = list(cfg.get("long_entry_rules") or [])
+    lx = list(cfg.get("long_exit_rules") or [])
+    se = list(cfg.get("short_entry_rules") or [])
+    sx = list(cfg.get("short_exit_rules") or [])
     risk = dict(cfg.get("risk") or {})
-
-    # Allow bearish entry from exit rules only if exit blocks use crossing
-    def _has_cross(b: dict[str, Any]) -> bool:
-        arr = b.get("all_of") or b.get("any_of") or []
-        for p in arr:
-            if isinstance(p, dict) and p.get("condition") in {
-                "cross_above",
-                "cross_below",
-            }:
-                return True
-        return False
-
-    allow_short = any(_has_cross(b) for b in exit_blocks)
-    # Optional override: allow short entries from exit_rules regardless of cross
-    if isinstance(cfg.get("allow_short_from_exit"), bool):
-        allow_short = bool(cfg.get("allow_short_from_exit"))
     return CompiledStrategy(
         name=name,
         overlays=overlays,
         features=features,
-        entry_blocks=entry_blocks,
-        exit_blocks=exit_blocks,
+        long_entry_blocks=le,
+        long_exit_blocks=lx,
+        short_entry_blocks=se,
+        short_exit_blocks=sx,
         risk=risk,
-        allow_bearish_entry_from_exit=allow_short,
     )
