@@ -11,10 +11,10 @@ def test_yaml_strategy_compile_and_signals_is_above_below():
         "strategy_name": "TestStrat",
         "overlays": ["ema_fast", "ema_slow"],
         "features": [],
-        "entry_rules": [
+        "long_entry_rules": [
             {"any_of": [{"condition": "is_above", "left": "close", "right": 1.5}]}
         ],
-        "exit_rules": [
+        "long_exit_rules": [
             {"any_of": [{"condition": "is_below", "left": "close", "right": 1.5}]}
         ],
     }

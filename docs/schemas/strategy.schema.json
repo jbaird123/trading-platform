@@ -46,12 +46,6 @@
     "risk": {
       "$ref": "#/$defs/risk"
     },
-    "entry_rules": {
-      "$ref": "#/$defs/rule_block_array"
-    },
-    "exit_rules": {
-      "$ref": "#/$defs/rule_block_array"
-    },
     "long_entry_rules": {
       "$ref": "#/$defs/rule_block_array"
     },
@@ -65,7 +59,11 @@
       "$ref": "#/$defs/rule_block_array"
     }
   },
-  "required": ["strategy_name", "entry_rules", "exit_rules"],
+  "required": ["strategy_name"],
+  "anyOf": [
+    { "required": ["long_entry_rules", "long_exit_rules"] },
+    { "required": ["short_entry_rules", "short_exit_rules"] }
+  ],
   "$defs": {
     "feature": {
       "type": "object",

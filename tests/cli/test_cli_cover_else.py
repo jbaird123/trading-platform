@@ -24,10 +24,10 @@ def test_cmd_run_backtest_else_branch(tmp_path: Path, monkeypatch) -> None:
         "initial_cash": 1000,
         "strategy": {
             "strategy_name": "S",
-            "entry_rules": [
+            "long_entry_rules": [
                 {"any_of": [{"condition": "is_above", "left": 2, "right": 3}]}
             ],
-            "exit_rules": [
+            "long_exit_rules": [
                 {"any_of": [{"condition": "is_below", "left": 2, "right": 1}]}
             ],
         },

@@ -36,7 +36,7 @@ strategy:
   overlays:
     - ema_fast
     - ema_slow
-  entry_rules:
+  long_entry_rules:
     - all_of:
         - condition: is_above
           left:
@@ -51,7 +51,7 @@ strategy:
           left:
             ref: bb_width
           right: 0.3
-  exit_rules:
+  long_exit_rules:
     - any_of:
         - condition: is_below
           left:
@@ -62,3 +62,29 @@ strategy:
           left:
             ref: rsi
           right: 30
+  short_entry_rules:
+    - all_of:
+        - condition: is_below
+          left:
+            ref: ema_fast
+          right:
+            ref: ema_slow
+        - condition: is_below
+          left:
+            ref: adx
+          right: 20
+        - condition: is_below
+          left:
+            ref: bb_width
+          right: 0.3
+  short_exit_rules:
+    - any_of:
+        - condition: is_above
+          left:
+            ref: ema_fast
+          right:
+            ref: ema_slow
+        - condition: is_above
+          left:
+            ref: rsi
+          right: 70

@@ -21,7 +21,7 @@ def test_cmd_run_backtest_config_minimal(tmp_path: Path) -> None:
         "initial_cash": 1000,
         "strategy": {
             "strategy_name": "TestStrat",
-            "entry_rules": [
+            "long_entry_rules": [
                 {
                     "any_of": [
                         {
@@ -32,7 +32,7 @@ def test_cmd_run_backtest_config_minimal(tmp_path: Path) -> None:
                     ]
                 }
             ],
-            "exit_rules": [
+            "long_exit_rules": [
                 {
                     "any_of": [
                         {

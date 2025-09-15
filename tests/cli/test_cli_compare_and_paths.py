@@ -61,10 +61,10 @@ def test_cmd_run_backtest_reads_csv_path(tmp_path: Path) -> None:
         "data": {"csv_path": str(csv)},
         "strategy": {
             "strategy_name": "TestStrat",
-            "entry_rules": [
+            "long_entry_rules": [
                 {"any_of": [{"condition": "is_above", "left": "close", "right": 1}]}
             ],
-            "exit_rules": [
+            "long_exit_rules": [
                 {"any_of": [{"condition": "is_below", "left": "close", "right": 2}]}
             ],
         },
