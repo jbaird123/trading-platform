@@ -189,6 +189,9 @@ def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
         return False
 
     allow_short = any(_has_cross(b) for b in exit_blocks)
+    # Optional override: allow short entries from exit_rules regardless of cross
+    if isinstance(cfg.get("allow_short_from_exit"), bool):
+        allow_short = bool(cfg.get("allow_short_from_exit"))
     return CompiledStrategy(
         name=name,
         overlays=overlays,

@@ -129,6 +129,7 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         df,
         signals,
         initial_cash=float(cfg_raw.get("initial_cash", 100000.0)),
+        allow_flip_on_bar=bool(cfg_raw.get("allow_flip_on_bar", False)),
         warmup_bars=int(cfg.warmup_bars),
         blackout_utc=cfg.blackout_utc,
         blackout_events=cfg.blackout_events,

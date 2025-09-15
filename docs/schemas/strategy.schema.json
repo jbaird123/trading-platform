@@ -51,6 +51,18 @@
     },
     "exit_rules": {
       "$ref": "#/$defs/rule_block_array"
+    },
+    "long_entry_rules": {
+      "$ref": "#/$defs/rule_block_array"
+    },
+    "long_exit_rules": {
+      "$ref": "#/$defs/rule_block_array"
+    },
+    "short_entry_rules": {
+      "$ref": "#/$defs/rule_block_array"
+    },
+    "short_exit_rules": {
+      "$ref": "#/$defs/rule_block_array"
     }
   },
   "required": ["strategy_name", "entry_rules", "exit_rules"],
