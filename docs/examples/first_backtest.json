@@ -3,7 +3,8 @@
     "runs_dir": "runs",
     "initial_cash": 10000,
     "data": {
-        "csv_path": "~/Documents/personal/eurusd_interval_minute_1_20130101_20250823.csv"
+        "csv_path": "~/Documents/personal/eurusd_interval_minute_1_20130101_20250823.csv",
+        "resample": "1D"
     },
     "strategy": {
         "strategy_name": "My Real Strategy",

@@ -15,6 +15,7 @@ from trading_platform.core.config import RunConfig
 from trading_platform.core.demo import generate_demo_run
 from trading_platform.core.policy import TradingWindowPolicy
 from trading_platform.core.run import finalize_run, initialize_run
+from trading_platform.data.schema import resample_ohlc
 from trading_platform.execution.oanda_stub import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
@@ -73,6 +74,10 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
                     "ISO timestamps or '%Y-%m-%d %H:%M:%S' format in the first "
                     "column."
                 ) from exc
+        # Optional resample: e.g., "1D" for daily, "1H" for hourly
+        rs = str(data.get("resample", "")).strip() if isinstance(data, dict) else ""
+        if rs:
+            df = resample_ohlc(df, rs)
         # Final guard: ensure we have a DatetimeIndex
         if not isinstance(df.index, pd.DatetimeIndex):  # pragma: no cover
             raise SystemExit(
