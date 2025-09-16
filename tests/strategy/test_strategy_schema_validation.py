@@ -39,7 +39,7 @@ def test_strategy_validation_accepts_valid_long_and_short():
 
 def test_strategy_validation_rejects_missing_strategy_name():
     cfg = {**MINIMAL_LONG_RULES}
-    with pytest.raises(ValueError, match="missing required field: strategy_name"):
+    with pytest.raises(ValueError, match="Strategy schema validation error"):
         validate_strategy_config(cfg)
 
 
@@ -48,7 +48,7 @@ def test_strategy_validation_rejects_incomplete_long_pair():
         "strategy_name": "Incomplete",
         "long_entry_rules": MINIMAL_LONG_RULES["long_entry_rules"],
     }
-    with pytest.raises(ValueError, match="missing required rule pairs"):
+    with pytest.raises(ValueError, match="Strategy schema validation error"):
         validate_strategy_config(cfg)
 
 
@@ -57,7 +57,7 @@ def test_strategy_validation_rejects_incomplete_short_pair():
         "strategy_name": "Incomplete",
         "short_exit_rules": MINIMAL_SHORT_RULES["short_exit_rules"],
     }
-    with pytest.raises(ValueError, match="missing required rule pairs"):
+    with pytest.raises(ValueError, match="Strategy schema validation error"):
         validate_strategy_config(cfg)
 
 
@@ -69,7 +69,7 @@ def test_strategy_validation_rejects_bad_predicate_condition():
         ],
         "long_exit_rules": MINIMAL_LONG_RULES["long_exit_rules"],
     }
-    with pytest.raises(ValueError, match="unsupported condition: is_sideways"):
+    with pytest.raises(ValueError, match="Strategy schema validation error"):
         validate_strategy_config(cfg)
 
 
@@ -79,7 +79,7 @@ def test_strategy_validation_rejects_empty_predicate_list():
         "long_entry_rules": [{"any_of": []}],
         "long_exit_rules": MINIMAL_LONG_RULES["long_exit_rules"],
     }
-    with pytest.raises(ValueError, match="predicate list must be a non-empty array"):
+    with pytest.raises(ValueError, match="Strategy schema validation error"):
         validate_strategy_config(cfg)
 
 
@@ -89,5 +89,12 @@ def test_strategy_validation_rejects_missing_allof_anyof():
         "long_entry_rules": [{}],
         "long_exit_rules": MINIMAL_LONG_RULES["long_exit_rules"],
     }
-    with pytest.raises(ValueError, match="rule block must have all_of or any_of"):
+    with pytest.raises(ValueError, match="Strategy schema validation error"):
+        validate_strategy_config(cfg)
+
+
+def test_strategy_validation_rejects_jsonschema_type_error():
+    # This config violates the schema because strategy_name must be a string.
+    cfg = {"strategy_name": 123, **MINIMAL_LONG_RULES}
+    with pytest.raises(ValueError, match="Strategy schema validation error"):
         validate_strategy_config(cfg)

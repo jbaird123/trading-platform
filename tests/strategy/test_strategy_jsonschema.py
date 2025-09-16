@@ -26,5 +26,5 @@ def test_strategy_jsonschema_reports_missing_name():
             {"any_of": [{"condition": "is_below", "left": "close", "right": 1}]}
         ],
     }
-    with pytest.raises(ValueError, match="missing required field: strategy_name"):
+    with pytest.raises(ValueError, match="'strategy_name' is a required property"):
         validate_strategy_config(invalid)
