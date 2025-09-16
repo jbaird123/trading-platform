@@ -56,6 +56,25 @@ When I do a Requirements Check, I want you to:
 7. List all requirements that do not have test cases associated with them.
 8. List any orphaned tests.
 9. Review all other requirements in the `docs/project_requirements.md` document. Compare those requirements to the code base. Find any discrepancies or architectural principles that are not being followed.
+10. **NEVER** recommend removing an existing numbered requirement. They are considered immutable and linked to test cases. If a requirement becomes obsolete, we will mark it as 'deprecated' but will not delete it.
+
+---
+
+## Core Architectural Principles & Invariants
+
+- **Strategy vs. Risk Separation**: This is a critical architectural principle.
+  - **Strategy Engine (SE)**: Is for **signal generation only**. Strategy definitions must be abstract, reusable, and instrument-agnostic. They **must not** contain trade management logic like stop-loss or take-profit rules.
+  - **Risk & Exit Manager (REM)**: Is a separate, pluggable component. It defines how an open position is managed (e.g., stop-loss, take-profit). These models can be instrument-aware and use native terms (pips, points, etc.).
+  - **Run Configuration**: Binds a `Strategy`, a `Risk & Exit Model`, and an `Instrument` together for a specific backtest or live run.
+
+- **Canonical-First Engine**:
+  - The core engine (Backtester, Portfolio Manager) and strategy definitions must operate exclusively on **canonical, generic values** (e.g., absolute price offsets).
+  - The translation from native terms (e.g., "50 pips") into a canonical value is the responsibility of a higher-level UI or tooling layer. The backtester's role is to consume the pre-translated canonical values or perform translation at runtime based on explicit native-term rules from a Risk Model.
+
+- **MVP Definition**:
+  - The primary MVP goal is a **fully functioning backtester** that produces a **fully populated `brief.json`**, including all advanced analysis sections (Monte Carlo, Walk-Forward, Parameter Search).
+  - A secondary goal is a minimal live environment to deploy and run a strategy.
+  - The `docs/mvp_roadmap.md` and `docs/mvp_tasks.md` should be considered secondary to this definition.
 
 ---
 
