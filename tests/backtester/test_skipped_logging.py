@@ -5,6 +5,8 @@ from datetime import datetime
 import pandas as pd
 from trading_platform.backtester.core import run_backtest
 
+from tests.backtester.dummy_objects import _dummy_strategy_cfg
+
 
 def _df() -> pd.DataFrame:
     idx = [
@@ -30,6 +32,7 @@ def test_skip_logged_for_blackout():
     trades, _exp, skips = run_backtest(
         market_data=df,
         signals=sig,
+        strategy=_dummy_strategy_cfg(),
         initial_cash=1000.0,
         blackout_utc=[("00:00", "00:30")],
         return_exposure=True,
@@ -47,6 +50,7 @@ def test_skip_logged_for_position_cap():
     trades, _exp, skips = run_backtest(
         market_data=df,
         signals=sig,
+        strategy=_dummy_strategy_cfg(),
         initial_cash=1000.0,
         return_exposure=True,
         return_skips=True,

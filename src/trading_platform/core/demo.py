@@ -15,6 +15,7 @@ def generate_demo_run(user_id: str = "demo_user") -> Path:
     """
     cfg = RunConfig(
         user_id=user_id,
+        run_seed=42,
         log_level="INFO",
         instrument_definitions={
             "EURUSD": {

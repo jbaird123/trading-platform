@@ -5,6 +5,20 @@ from argparse import Namespace
 from pathlib import Path
 
 from trading_platform.cli import cmd_run_backtest, cmd_run_live
+from trading_platform.strategy.yaml_strategy import CompiledStrategy
+
+
+def _dummy_strategy() -> CompiledStrategy:
+    return CompiledStrategy(
+        name="dummy",
+        features=[],
+        overlays=[],
+        long_entry_blocks=[],
+        long_exit_blocks=[],
+        short_entry_blocks=[],
+        short_exit_blocks=[],
+        risk={},
+    )
 
 
 def test_cmd_run_backtest_demo(tmp_path: Path) -> None:

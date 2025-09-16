@@ -3,6 +3,7 @@ from __future__ import annotations
 #! ruff: noqa: I001
 import argparse
 import json
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -19,8 +20,21 @@ from trading_platform.data.schema import resample_ohlc
 from trading_platform.execution.oanda_stub import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
+from trading_platform.reporting.brief import compute_data_quality
 from trading_platform.reporting.compare_html import save_comparison_report
 from trading_platform.strategy.yaml_strategy import compile_strategy
+
+
+def _get_git_commit() -> str | None:
+    """Return the short git commit hash, or None if git fails."""
+    try:
+        return (
+            subprocess.check_output(["git", "rev-parse", "--short", "HEAD"])
+            .decode("ascii")
+            .strip()
+        )
+    except Exception:
+        return None
 
 
 def _load_config(path: Path) -> dict[str, Any]:
@@ -125,10 +139,16 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     strat = compile_strategy(strat_cfg)
     signals = strat.generate_signals(df)
 
+    # Extract risk parameters from the strategy config
+    risk_params = strat_cfg.get("risk", {})
+    stop_loss_val = risk_params.get("stop", {}).get("value")
+
     res = run_backtest(
         df,
         signals,
+        strategy=strat,
         initial_cash=float(cfg_raw.get("initial_cash", 100000.0)),
+        stop_loss=float(stop_loss_val) if stop_loss_val is not None else None,
         allow_flip_on_bar=bool(cfg_raw.get("allow_flip_on_bar", False)),
         warmup_bars=int(cfg.warmup_bars),
         blackout_utc=cfg.blackout_utc,
@@ -142,7 +162,12 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         trades = cast(list[Trade], res)
         exposure = []
 
-    meta = {"strategy_name": strat.name, "run_id": cfg.run_id}
+    meta = {
+        "strategy_name": strat.name,
+        "run_id": cfg.run_id,
+        "git_commit": _get_git_commit(),
+        "run_seed": cfg.run_seed,
+    }
     params: dict[str, Any] = {}
     finalize_run(
         run_path,
@@ -152,6 +177,7 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         initial_cash=float(cfg_raw.get("initial_cash", 100000.0)),
         config=cfg,
         exposure_curve=exposure,
+        data_quality=compute_data_quality(df),
     )
     print(f"Run created at: {run_path}")
     print(f"- Brief: {run_path / 'brief.json'}")

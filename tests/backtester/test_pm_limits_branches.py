@@ -4,6 +4,20 @@ from datetime import datetime
 
 import pandas as pd
 from trading_platform.backtester.core import run_backtest
+from trading_platform.strategy.yaml_strategy import CompiledStrategy
+
+
+def _dummy_strategy() -> CompiledStrategy:
+    return CompiledStrategy(
+        name="dummy",
+        features=[],
+        overlays=[],
+        long_entry_blocks=[],
+        long_exit_blocks=[],
+        short_entry_blocks=[],
+        short_exit_blocks=[],
+        risk={},
+    )
 
 
 def _df():
@@ -24,7 +38,12 @@ def test_cap_not_reached_no_skip_when_already_open():
     df = _df()
     sig = pd.Series(["long", "long"], index=df.index)
     trades, _, skipped = run_backtest(
-        df, sig, pm_limits={"max_open_long": 2}, return_exposure=True, return_skips=True
+        df,
+        sig,
+        strategy=_dummy_strategy(),
+        pm_limits={"max_open_long": 2},
+        return_exposure=True,
+        return_skips=True,
     )
     # No skip due to cap; still no closed trades with flat prices
     assert len(trades) == 0
@@ -35,7 +54,12 @@ def test_cap_zero_blocks_new_entry():
     df = _df()
     sig = pd.Series(["long", "long"], index=df.index)
     trades, _, skipped = run_backtest(
-        df, sig, pm_limits={"max_open_long": 0}, return_exposure=True, return_skips=True
+        df,
+        sig,
+        strategy=_dummy_strategy(),
+        pm_limits={"max_open_long": 0},
+        return_exposure=True,
+        return_skips=True,
     )
     # First attempt skipped due to cap 0
     assert any(s.get("reason_code") == "position_cap" for s in skipped)

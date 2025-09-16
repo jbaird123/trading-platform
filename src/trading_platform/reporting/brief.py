@@ -27,6 +27,13 @@ def _round_currency(value: float | None) -> float | None:
     return float(Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
 
+def _round_percentage(value: float | None) -> float | None:
+    if value is None:
+        return None
+    # Round percentages to 3 decimal places
+    return float(Decimal(str(value)).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP))
+
+
 def _to_jsonable(obj: Any) -> Any:
     """Convert objects (dataclasses, datetimes) to JSON-serializable forms."""
     # asdict() only accepts dataclass instances, not classes.
@@ -117,7 +124,7 @@ def compute_overall_performance(
             "long": _round_currency(by_side_total_pnl["long"]),
             "short": _round_currency(by_side_total_pnl["short"]),
         },
-        "win_rate": calculate_win_rate(trades),
+        "win_rate": _round_percentage(calculate_win_rate(trades)),
         "initial_equity": _round_currency(initial_cash),
         "final_equity": _round_currency(final_equity),
     }
@@ -127,7 +134,7 @@ def compute_risk_snapshot(trades: list[Trade]) -> dict[str, Any]:
     wins = [t.pnl for t in trades if t.pnl > 0]
     losses = [t.pnl for t in trades if t.pnl < 0]
     return {
-        "win_rate": calculate_win_rate(trades),
+        "win_rate": _round_percentage(calculate_win_rate(trades)),
         "avg_win": _round_currency((sum(wins) / len(wins)) if wins else 0.0),
         "avg_loss": _round_currency((sum(losses) / len(losses)) if losses else 0.0),
         "max_win": _round_currency(max(wins) if wins else 0.0),
@@ -284,7 +291,7 @@ def _compute_regimes(
             "total_pnl": _round_currency(float(sum(pnls))),
             "mean_pnl": _round_currency(float(sum(pnls) / n) if n else 0.0),
             "median_pnl": _round_currency(float(median(pnls)) if pnls else 0.0),
-            "win_rate": (wins / n) if n else 0.0,
+            "win_rate": _round_percentage((wins / n) if n else 0.0),
         }
     return result
 

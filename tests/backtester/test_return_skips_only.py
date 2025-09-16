@@ -4,6 +4,20 @@ from datetime import datetime
 
 import pandas as pd
 from trading_platform.backtester.core import run_backtest
+from trading_platform.strategy.yaml_strategy import CompiledStrategy
+
+
+def _dummy_strategy() -> CompiledStrategy:
+    return CompiledStrategy(
+        name="dummy",
+        features=[],
+        overlays=[],
+        long_entry_blocks=[],
+        long_exit_blocks=[],
+        short_entry_blocks=[],
+        short_exit_blocks=[],
+        risk={},
+    )
 
 
 def test_return_skips_without_exposure():
@@ -13,6 +27,6 @@ def test_return_skips_without_exposure():
     )
     sig = pd.Series(["long"], index=df.index)
     trades, exposure, skipped = run_backtest(
-        df, sig, return_exposure=False, return_skips=True
+        df, sig, strategy=_dummy_strategy(), return_exposure=False, return_skips=True
     )
     assert exposure == [] and isinstance(skipped, list)

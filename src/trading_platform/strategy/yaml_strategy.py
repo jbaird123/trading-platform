@@ -153,9 +153,14 @@ class CompiledStrategy:
     short_entry_blocks: list[dict]
     short_exit_blocks: list[dict]
     risk: dict[str, Any]
+    # Internal state populated during signal generation
+    _feature_df: pd.DataFrame | None = None
 
     def generate_signals(self, df: pd.DataFrame) -> pd.Series:
         df2 = compute_features(df, self.features)
+        # Persist the feature dataframe for context lookups
+        super().__setattr__("_feature_df", df2)
+
         le = pd.Series([False] * len(df2), index=df2.index)
         for b in self.long_entry_blocks:
             le = le | _eval_rule_block(df2, b)
@@ -185,6 +190,15 @@ class CompiledStrategy:
                     state = "flat"
             sig.append(state)
         return pd.Series(sig, index=df2.index)
+
+    def get_context(self, index: int) -> dict[str, Any]:
+        """Return a dict of feature values at a specific integer index."""
+        if self._feature_df is None or index >= len(self._feature_df):
+            return {}
+        # Get the row for the given index
+        row = self._feature_df.iloc[index]
+        # Return a dictionary of feature names and their values
+        return {f["name"]: row[f["name"]] for f in self.features if f["name"] in row}
 
 
 def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:

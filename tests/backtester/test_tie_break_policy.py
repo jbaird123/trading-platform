@@ -5,6 +5,8 @@ from datetime import datetime
 import pandas as pd
 from trading_platform.backtester.core import run_backtest
 
+from tests.backtester.dummy_objects import _dummy_strategy_cfg
+
 
 def test_tie_break_stop_then_tp_for_long():
     idx = [datetime(2024, 1, 1, h) for h in range(2)]
@@ -22,6 +24,7 @@ def test_tie_break_stop_then_tp_for_long():
     trades = run_backtest(
         df,
         sig,
+        strategy=_dummy_strategy_cfg(),
         stop_loss=5.0,
         take_profit=5.0,
     )
