@@ -139,16 +139,11 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     strat = compile_strategy(strat_cfg)
     signals = strat.generate_signals(df)
 
-    # Extract risk parameters from the strategy config
-    risk_params = strat_cfg.get("risk", {})
-    stop_loss_val = risk_params.get("stop", {}).get("value")
-
     res = run_backtest(
         df,
         signals,
         strategy=strat,
         initial_cash=float(cfg_raw.get("initial_cash", 100000.0)),
-        stop_loss=float(stop_loss_val) if stop_loss_val is not None else None,
         allow_flip_on_bar=bool(cfg_raw.get("allow_flip_on_bar", False)),
         warmup_bars=int(cfg.warmup_bars),
         blackout_utc=cfg.blackout_utc,

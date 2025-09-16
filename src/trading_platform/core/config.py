@@ -68,6 +68,9 @@ class RunConfig(BaseModel):
     strategy: dict[str, Any] = Field(
         default_factory=dict, description="Strategy definition (e.g., from YAML)."
     )
+    rmm_config: dict[str, Any] | None = Field(
+        default=None, description="Regime Market Manager configuration, if any."
+    )
     warmup_bars: int = Field(
         default=0,
         description="Number of initial bars to ignore for entries (indicator warm-up).",

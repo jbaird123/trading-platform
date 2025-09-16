@@ -18,8 +18,7 @@ class Position:
     entry_price: float
     side: str  # "long" or "short"
     size: float
-    stop_loss: float | None = None
-    take_profit: float | None = None
+    initial_risk_ccy: float | None = None
     # Tracking fields updated as new bars arrive
     bars_held: int = 0
     mfe_currency: float = 0.0

@@ -1,111 +1,88 @@
-user_id: real_run
-runs_dir: runs
-initial_cash: 10000
-data:
-  csv_path: "~/Documents/personal/eurusd_interval_minute_1_20130101_20250823.csv"
-  resample: "1D"
-allow_flip_on_bar: true
-cost_model:
-  spread_per_unit: 0.0001  # Example spread for EUR/USD
-  commission:
-    type: per_trade_flat
-    value: 0.50            # Example commission per trade
-fill_policy:
-  policy: next_bar_open
-tie_break_policy:
-  policy: stop_then_tp
-instrument_definitions:
-  EUR_USD:
-    point_value: 1.0
-    tick_size: 0.00001
-    base_ccy: EUR
-    quote_ccy: USD
-    lot_size: 100000
-    min_trade_unit: 1000
-strategy:
-  strategy_name: "My Real Strategy"
-  risk:
-    stop:
-      type: fixed
-      value: 0.0150  # 150 pips
-  features:
-    - name: ema_fast
-      type: EMA
-      params:
-        length: 21
-      source: close
-    - name: ema_slow
-      type: EMA
-      params:
-        length: 50
-      source: close
-    - name: rsi
-      type: RSI
-      params:
-        length: 14
-      source: close
-    - name: adx
-      type: ADX
-      params:
-        length: 14
-    - name: bb_width
-      type: BBWidth
-      params:
-        length: 20
-        ndev: 2.0
-      source: close
-  overlays:
-    - ema_fast
-    - ema_slow
-  long_entry_rules:
-    - all_of:
-        - condition: is_above
-          left:
-            ref: ema_fast
-          right:
-            ref: ema_slow
-        - condition: is_above
-          left:
-            ref: adx
-          right: 20
-        - condition: is_below
-          left:
-            ref: bb_width
-          right: 0.3
-  long_exit_rules:
-    - any_of:
-        - condition: is_below
-          left:
-            ref: ema_fast
-          right:
-            ref: ema_slow
-        - condition: is_below
-          left:
-            ref: rsi
-          right: 30
-  short_entry_rules:
-    - all_of:
-        - condition: is_below
-          left:
-            ref: ema_fast
-          right:
-            ref: ema_slow
-        - condition: is_below
-          left:
-            ref: adx
-          right: 20
-        - condition: is_below
-          left:
-            ref: bb_width
-          right: 0.3
-  short_exit_rules:
-    - any_of:
-        - condition: is_above
-          left:
-            ref: ema_fast
-          right:
-            ref: ema_slow
-        - condition: is_above
-          left:
-            ref: rsi
-          right: 70
+strategy_name: "My Real Strategy"
+features:
+  - name: ema_fast
+    type: EMA
+    params:
+      length: 21
+    source: close
+  - name: ema_slow
+    type: EMA
+    params:
+      length: 50
+    source: close
+  - name: rsi
+    type: RSI
+    params:
+      length: 14
+    source: close
+  - name: adx
+    type: ADX
+    params:
+      length: 14
+  - name: bb_width
+    type: BBWidth
+    params:
+      length: 20
+      ndev: 2.0
+    source: close
+overlays:
+  - ema_fast
+  - ema_slow
+long_entry_rules:
+  - all_of:
+      - condition: is_above
+        left:
+          ref: ema_fast
+        right:
+          ref: ema_slow
+      - condition: is_above
+        left:
+          ref: adx
+        right: 20
+      - condition: is_below
+        left:
+          ref: bb_width
+        right: 0.3
+long_exit_rules:
+  - any_of:
+      - condition: is_below
+        left:
+          ref: ema_fast
+        right:
+          ref: ema_slow
+      - condition: is_below
+        left:
+          ref: rsi
+        right: 30
+  - stop_loss:
+      value: 0.0150
+      type: price
+short_entry_rules:
+  - all_of:
+      - condition: is_below
+        left:
+          ref: ema_fast
+        right:
+          ref: ema_slow
+      - condition: is_below
+        left:
+          ref: adx
+        right: 20
+      - condition: is_below
+        left:
+          ref: bb_width
+        right: 0.3
+short_exit_rules:
+  - any_of:
+      - condition: is_above
+        left:
+          ref: ema_fast
+        right:
+          ref: ema_slow
+      - condition: is_above
+        left:
+          ref: rsi
+        right: 70
+  - stop_loss:
+      value: 0.0150
+      type: price

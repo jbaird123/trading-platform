@@ -30,10 +30,8 @@ class PortfolioManager:
         self.cash = initial_cash
         self._open_position: Position | None = None
         self.trades: list[Trade] = []
-        # Optional instrument snapshot (scaffold; not used for PnL yet)
         self.instrument: dict | None = instrument
         self._cost_model = CostModel.from_dict(cost_model)
-        # Default to float engine (BT); live can pass DecimalEngine for money math.
         self._engine: PrecisionEngine = cast(
             PrecisionEngine,
             precision_engine if precision_engine is not None else FloatEngine(),
@@ -51,31 +49,15 @@ class PortfolioManager:
         entry_price: float,
         size: float,
         entry_time: datetime,
-        stop_loss: float | None = None,
-        take_profit: float | None = None,
         instrument: dict | None = None,
         context_at_entry: dict | None = None,
+        initial_risk_ccy: float | None = None,
     ) -> None:
         """Creates and holds a new open position."""
         if self._open_position:
-            # For simplicity, we don't handle multiple open positions for now.
             return
-        # Interpret provided stop_loss/take_profit as offsets from entry_price
-        sl_level = None
-        tp_level = None
-        if stop_loss is not None:
-            sl_level = (
-                entry_price - stop_loss if side == "long" else entry_price + stop_loss
-            )
-        if take_profit is not None:
-            tp_level = (
-                entry_price + take_profit
-                if side == "long"
-                else entry_price - take_profit
-            )
 
         if instrument is not None:
-            # Update current instrument snapshot for this position lifecycle
             self.instrument = instrument
 
         self._open_position = Position(
@@ -84,16 +66,12 @@ class PortfolioManager:
             entry_price=entry_price,
             size=size,
             entry_time=entry_time,
-            stop_loss=sl_level,
-            take_profit=tp_level,
             context_at_entry=context_at_entry,
+            initial_risk_ccy=initial_risk_ccy,
         )
 
     def hit_daily_loss_cap(self, ts: datetime, cap: float) -> bool:
-        """Return True if realized PnL for ts.date() is <= -cap.
-
-        Computes from recorded trades; cap is in base currency units.
-        """
+        """Return True if realized PnL for ts.date() is <= -cap."""
         if cap is None or cap <= 0:
             return False
         d = ts.date()
@@ -108,74 +86,30 @@ class PortfolioManager:
     ) -> None:
         """
         Processes a new bar of data, updating positions based on the signal.
-        This will become the primary interface for the backtester.
         """
-        # 1) Update tracking metrics (bars_held, MFE/MAE) on the open position
         if self._open_position is not None:
             self._update_position_metrics(current_bar)
-            # Then check exit triggers (SL/TP)
-            should_exit, price, reason = self._check_exit_triggers(current_bar)
-            if should_exit:
-                self.close_position(
-                    exit_price=price,
-                    exit_time=cast(datetime, current_bar.name),
-                    exit_reason=reason,
-                )
-                return
 
-        # 2) Signal reversal handling
         if self.current_position and current_signal != self.current_position.side:
             self._handle_signal_change(current_bar, allow_flip_on_bar)
 
-        # 3) Entry is orchestrated by Backtester; no action here.
-
-    def _check_exit_triggers(
-        self, current_bar: pd.Series
-    ) -> tuple[bool, float, str | None]:
+    def check_stop_loss(self, current_bar: pd.Series, stop_price: float) -> bool:
         position = self._open_position
-        assert position is not None
-        # Initialize
-        exit_triggered = False
-        exit_price = 0.0
-        exit_reason: str | None = None
-
+        if position is None or stop_price <= 0:
+            return False
         if position.side == "long":
-            # Stop first
-            if (
-                position.stop_loss is not None
-                and current_bar["low"] <= position.stop_loss
-            ):
-                exit_triggered = True
-                exit_price = position.stop_loss
-                exit_reason = "stop-loss"
-            # Then TP
-            if (
-                not exit_triggered
-                and position.take_profit is not None
-                and current_bar["high"] >= position.take_profit
-            ):
-                exit_triggered = True
-                exit_price = position.take_profit
-                exit_reason = "take-profit"
+            return bool(current_bar["low"] <= stop_price)
         else:  # short
-            # Stop first
-            if (
-                position.stop_loss is not None
-                and current_bar["high"] >= position.stop_loss
-            ):
-                exit_triggered = True
-                exit_price = position.stop_loss
-                exit_reason = "stop-loss"
-            # Then TP
-            if (
-                not exit_triggered
-                and position.take_profit is not None
-                and current_bar["low"] <= position.take_profit
-            ):
-                exit_triggered = True
-                exit_price = position.take_profit
-                exit_reason = "take-profit"
-        return exit_triggered, exit_price, exit_reason
+            return bool(current_bar["high"] >= stop_price)
+
+    def check_take_profit(self, current_bar: pd.Series, profit_price: float) -> bool:
+        position = self._open_position
+        if position is None or profit_price <= 0:
+            return False
+        if position.side == "long":
+            return bool(current_bar["high"] >= profit_price)
+        else:  # short
+            return bool(current_bar["low"] <= profit_price)
 
     def _handle_signal_change(
         self, current_bar: pd.Series, allow_flip_on_bar: bool
@@ -186,19 +120,10 @@ class PortfolioManager:
             exit_reason="signal",
         )
         if not allow_flip_on_bar:
-            # Exit early if flips are not allowed
             return  # pragma: no cover
 
     def _update_position_metrics(self, current_bar: pd.Series) -> None:
-        """Increment bars_held and update MFE/MAE using bar extremes.
-
-        For long positions:
-          - favorable = max(0, (high - entry_price) * size)
-          - adverse = max(0, (entry_price - low) * size)
-        For short positions:
-          - favorable = max(0, (entry_price - low) * size)
-          - adverse = max(0, (high - entry_price) * size)
-        """
+        """Increment bars_held and update MFE/MAE using bar extremes."""
         pos = self._open_position
         assert pos is not None
         size = pos.size
@@ -211,19 +136,17 @@ class PortfolioManager:
         else:
             favorable = max(0.0, (entry - low) * size)
             adverse = max(0.0, (high - entry) * size)
-        # Create an updated immutable Position with incremented bars and
-        # updated excursions
+
         self._open_position = Position(
             symbol=pos.symbol,
             side=pos.side,
             entry_price=pos.entry_price,
             size=pos.size,
             entry_time=pos.entry_time,
-            stop_loss=pos.stop_loss,
-            take_profit=pos.take_profit,
             bars_held=pos.bars_held + 1,
             mfe_currency=max(pos.mfe_currency, favorable),
             mae_currency=max(pos.mae_currency, adverse),
+            initial_risk_ccy=pos.initial_risk_ccy,
         )
 
     def close_position(
@@ -233,8 +156,6 @@ class PortfolioManager:
         if not self._open_position:
             return
 
-        # Use precision engine for PnL arithmetic to segregate float (BT)
-        # vs decimal (EL) and reduce rounding issues
         if self._open_position.side == "long":
             diff = self._engine.sub(exit_price, self._open_position.entry_price)
         else:
@@ -246,12 +167,10 @@ class PortfolioManager:
             self._open_position.size,
             price=self._open_position.entry_price,
             instrument=self.instrument,
-        )  # noqa: E501
+        )
         cost_exit, breakdown_exit = self._cost_model.compute_exit_cost(
-            self._open_position.size,
-            price=exit_price,
-            instrument=self.instrument,
-        )  # noqa: E501
+            self._open_position.size, price=exit_price, instrument=self.instrument
+        )
         total_cost = cost_entry + cost_exit
         cost_breakdown = {
             "spread": breakdown_entry.get("spread", 0.0)
@@ -263,21 +182,7 @@ class PortfolioManager:
         }
         pnl = pnl_gross - total_cost
 
-        # Compute initial risk for r-multiple if stop_loss was defined at entry
-        initial_risk_ccy = None
-        if self._open_position.stop_loss is not None:
-            if self._open_position.side == "long":
-                initial_risk_ccy = max(
-                    0.0,
-                    (self._open_position.entry_price - self._open_position.stop_loss)
-                    * self._open_position.size,
-                )
-            else:
-                initial_risk_ccy = max(
-                    0.0,
-                    (self._open_position.stop_loss - self._open_position.entry_price)
-                    * self._open_position.size,
-                )
+        initial_risk_ccy = self._open_position.initial_risk_ccy
         r_multiple = None
         if initial_risk_ccy and initial_risk_ccy > 0:
             r_multiple = pnl / initial_risk_ccy
