@@ -3,6 +3,20 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 from trading_platform.backtester.core import run_backtest
+from trading_platform.strategy.yaml_strategy import CompiledStrategy
+
+
+def _dummy_strategy() -> CompiledStrategy:
+    return CompiledStrategy(
+        name="dummy",
+        features=[],
+        overlays=[],
+        long_entry_blocks=[],
+        long_exit_blocks=[],
+        short_entry_blocks=[],
+        short_exit_blocks=[],
+        risk={},
+    )
 
 
 def _mdf(n: int = 3) -> pd.DataFrame:
@@ -29,7 +43,7 @@ def test_validation_missing_columns():
     df = _mdf().drop(columns=["volume"])  # missing required column
     sig = _signals()
     with pytest.raises(ValueError, match="missing required columns"):
-        run_backtest(df, sig)
+        run_backtest(df, sig, strategy=_dummy_strategy())
 
 
 def test_validation_close_has_nans():
@@ -37,14 +51,14 @@ def test_validation_close_has_nans():
     df.loc[df.index[1], "close"] = pd.NA
     sig = _signals()
     with pytest.raises(ValueError, match="close has NaNs"):
-        run_backtest(df, sig)
+        run_backtest(df, sig, strategy=_dummy_strategy())
 
 
 def test_validation_length_mismatch():
     df = _mdf(3)
     sig = _signals(2)
     with pytest.raises(ValueError, match="signals length "):
-        run_backtest(df, sig)
+        run_backtest(df, sig, strategy=_dummy_strategy())
 
 
 def test_validation_invalid_signal_value():
@@ -52,4 +66,4 @@ def test_validation_invalid_signal_value():
     sig = _signals(2)
     sig.iloc[1] = "hold"  # invalid
     with pytest.raises(ValueError, match="invalid values"):
-        run_backtest(df, sig)
+        run_backtest(df, sig, strategy=_dummy_strategy())

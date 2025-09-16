@@ -5,6 +5,8 @@ from datetime import datetime
 import pandas as pd
 from trading_platform.backtester.core import run_backtest
 
+from tests.backtester.dummy_objects import _dummy_strategy_cfg
+
 
 def _mk_df_with_times(times: list[str]) -> pd.DataFrame:
     idx = [datetime.fromisoformat(t) for t in times]
@@ -34,6 +36,7 @@ def test_static_blackout_blocks_new_entries_but_allows_other_ops():
     trades = run_backtest(
         market_data=df,
         signals=signals,
+        strategy=_dummy_strategy_cfg(),
         initial_cash=1000.0,
         blackout_utc=[("23:00", "01:00")],
     )

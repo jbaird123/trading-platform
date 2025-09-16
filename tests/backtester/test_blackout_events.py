@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 import pandas as pd
 from trading_platform.backtester.core import run_backtest
 
+from tests.backtester.dummy_objects import _dummy_strategy_cfg
+
 
 def _mk_df(start: datetime, n: int, step_minutes: int = 60) -> pd.DataFrame:
     idx = [start + timedelta(minutes=i * step_minutes) for i in range(n)]
@@ -21,6 +23,7 @@ def test_event_blackout_blocks_new_entries():
     trades = run_backtest(
         market_data=df,
         signals=signals,
+        strategy=_dummy_strategy_cfg(),
         initial_cash=1000.0,
         blackout_events=[ev],
     )

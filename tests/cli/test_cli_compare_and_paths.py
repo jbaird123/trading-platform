@@ -6,6 +6,20 @@ from pathlib import Path
 
 import pandas as pd
 from trading_platform.cli import cmd_compare, cmd_run_backtest, cmd_run_live
+from trading_platform.strategy.yaml_strategy import CompiledStrategy
+
+
+def _dummy_strategy() -> CompiledStrategy:
+    return CompiledStrategy(
+        name="dummy",
+        features=[],
+        overlays=[],
+        long_entry_blocks=[],
+        long_exit_blocks=[],
+        short_entry_blocks=[],
+        short_exit_blocks=[],
+        risk={},
+    )
 
 
 def _write_brief(path: Path, run_id: str, strat: str, total_pnl: float) -> None:

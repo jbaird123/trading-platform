@@ -20,6 +20,7 @@ class RunConfig(BaseModel):
     run_id: str = Field(
         default_factory=gen_run_id, description="Unique identifier for the run."
     )
+    run_seed: int = Field(42, description="Seed for all random number generators.")
     runs_dir: Path = Field(
         default=Path("runs"),
         description="The root directory where run artifacts are stored.",
@@ -63,6 +64,9 @@ class RunConfig(BaseModel):
             "Parameter search config/results (e.g., grid, random, top result) "
             "to include in brief."
         ),
+    )
+    strategy: dict[str, Any] = Field(
+        default_factory=dict, description="Strategy definition (e.g., from YAML)."
     )
     warmup_bars: int = Field(
         default=0,

@@ -6,6 +6,8 @@ import pandas as pd
 from pytest import approx
 from trading_platform.backtester.core import run_backtest
 
+from tests.backtester.dummy_objects import _dummy_strategy_cfg
+
 
 def _mk_df() -> pd.DataFrame:
     idx = [
@@ -31,6 +33,7 @@ def test_counterfactual_for_blackout_skip_with_tp():
     trades, _exp, skips = run_backtest(
         market_data=df,
         signals=sig,
+        strategy=_dummy_strategy_cfg(),
         initial_cash=1000.0,
         stop_loss=None,
         take_profit=2.0,  # for long, TP at entry+2 => 102 triggers on bar 2 high

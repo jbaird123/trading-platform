@@ -5,6 +5,20 @@ from datetime import datetime
 from trading_platform.execution import OandaStubAdapter
 from trading_platform.execution.controller import reconcile, reconcile_report
 from trading_platform.portfolio.portfolio import PortfolioManager
+from trading_platform.strategy.yaml_strategy import CompiledStrategy
+
+
+def _dummy_strategy() -> CompiledStrategy:
+    return CompiledStrategy(
+        name="dummy",
+        features=[],
+        overlays=[],
+        long_entry_blocks=[],
+        long_exit_blocks=[],
+        short_entry_blocks=[],
+        short_exit_blocks=[],
+        risk={},
+    )
 
 
 def test_reconcile_short_equity_and_legacy_reconcile():

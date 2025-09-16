@@ -13,7 +13,11 @@ def test_initialize_run_creates_artifacts(tmp_path: Path):
     """
     # 1. Setup: Create a config pointing to a temporary directory
     config = RunConfig(
-        user_id="test_user", run_id="test_run_123", runs_dir=tmp_path, log_level="INFO"
+        user_id="test_user",
+        run_id="test_run_123",
+        runs_dir=tmp_path,
+        log_level="INFO",
+        run_seed=42,
     )
 
     # 2. Action: Call the function to be tested

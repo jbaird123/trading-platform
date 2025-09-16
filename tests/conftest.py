@@ -5,6 +5,9 @@ import logging
 import pandas as pd
 import pytest
 from pytest_bdd import given, parsers, then, when
+from trading_platform.backtester.core import run_backtest
+
+from tests.backtester.dummy_objects import _dummy_strategy_cfg
 
 
 @pytest.fixture
@@ -70,11 +73,10 @@ def given_the_backtest_has_enough_market_data(shared_context: dict):
 @when("the backtest is run")
 def when_backtest_is_run(shared_context: dict) -> None:
     """Calls the backtester logic and stores the resulting trades."""
-    from trading_platform.backtester.core import run_backtest
-
     trades = run_backtest(
         market_data=shared_context["market_data"],
         signals=shared_context["signals"],
+        strategy=_dummy_strategy_cfg(),
         stop_loss=shared_context.get("stop_loss"),
         take_profit=shared_context.get("take_profit"),
     )

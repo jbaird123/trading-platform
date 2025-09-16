@@ -24,3 +24,4 @@ class Position:
     bars_held: int = 0
     mfe_currency: float = 0.0
     mae_currency: float = 0.0
+    context_at_entry: dict | None = None

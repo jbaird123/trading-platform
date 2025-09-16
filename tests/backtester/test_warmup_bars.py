@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 import pandas as pd
 from trading_platform.backtester.core import run_backtest
 
+from tests.backtester.dummy_objects import _dummy_strategy_cfg
+
 
 def _mk_df(n: int) -> pd.DataFrame:
     start = datetime(2023, 1, 1)
@@ -21,6 +23,7 @@ def test_warmup_delays_first_entry_until_threshold():
     trades = run_backtest(
         market_data=df,
         signals=sig,
+        strategy=_dummy_strategy_cfg(),
         initial_cash=1000.0,
         warmup_bars=3,
     )
@@ -35,6 +38,7 @@ def test_no_warmup_allows_immediate_entry():
     trades = run_backtest(
         market_data=df,
         signals=sig,
+        strategy=_dummy_strategy_cfg(),
         initial_cash=1000.0,
         warmup_bars=0,
     )

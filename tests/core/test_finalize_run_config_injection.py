@@ -6,6 +6,20 @@ from datetime import datetime, timedelta
 from trading_platform.core.config import RunConfig
 from trading_platform.core.run import finalize_run
 from trading_platform.portfolio.trade import Trade
+from trading_platform.strategy.yaml_strategy import CompiledStrategy
+
+
+def _dummy_strategy() -> CompiledStrategy:
+    return CompiledStrategy(
+        name="dummy",
+        features=[],
+        overlays=[],
+        long_entry_blocks=[],
+        long_exit_blocks=[],
+        short_entry_blocks=[],
+        short_exit_blocks=[],
+        risk={},
+    )
 
 
 def _t(ts: datetime, pnl: float) -> Trade:

@@ -54,6 +54,7 @@ class PortfolioManager:
         stop_loss: float | None = None,
         take_profit: float | None = None,
         instrument: dict | None = None,
+        context_at_entry: dict | None = None,
     ) -> None:
         """Creates and holds a new open position."""
         if self._open_position:
@@ -85,6 +86,7 @@ class PortfolioManager:
             entry_time=entry_time,
             stop_loss=sl_level,
             take_profit=tp_level,
+            context_at_entry=context_at_entry,
         )
 
     def hit_daily_loss_cap(self, ts: datetime, cap: float) -> bool:

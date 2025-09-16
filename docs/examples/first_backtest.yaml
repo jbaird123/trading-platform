@@ -5,8 +5,29 @@ data:
   csv_path: "~/Documents/personal/eurusd_interval_minute_1_20130101_20250823.csv"
   resample: "1D"
 allow_flip_on_bar: true
+cost_model:
+  spread_per_unit: 0.0001  # Example spread for EUR/USD
+  commission:
+    type: per_trade_flat
+    value: 0.50            # Example commission per trade
+fill_policy:
+  policy: next_bar_open
+tie_break_policy:
+  policy: stop_then_tp
+instrument_definitions:
+  EUR_USD:
+    point_value: 1.0
+    tick_size: 0.00001
+    base_ccy: EUR
+    quote_ccy: USD
+    lot_size: 100000
+    min_trade_unit: 1000
 strategy:
   strategy_name: "My Real Strategy"
+  risk:
+    stop:
+      type: fixed
+      value: 0.0150  # 150 pips
   features:
     - name: ema_fast
       type: EMA

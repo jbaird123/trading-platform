@@ -28,7 +28,7 @@ def initialize_run(config: RunConfig) -> Path:
 
 if __name__ == "__main__":  # pragma: no cover
     default_config = RunConfig(
-        user_id="default_user", log_level="INFO"
+        user_id="default_user", log_level="INFO", run_seed=42
     )  # pragma: no cover
     initialize_run(default_config)  # pragma: no cover
 
@@ -41,6 +41,7 @@ def finalize_run(
     trades: list[Trade],
     initial_cash: float,
     regimes_at_entry: list[str] | None = None,
+    data_quality: dict[str, Any] | None = None,
     instrument_definitions: dict[str, Any] | None = None,
     cost_model: dict[str, Any] | None = None,
     fill_policy: dict[str, Any] | None = None,
@@ -57,6 +58,10 @@ def finalize_run(
     # If a config is provided, use its snapshots as defaults
     blackout_policy: dict[str, Any] | None = None
     if config is not None:
+        # If params are not explicitly provided, try to get them from the strategy
+        if not params:
+            params = config.strategy.get("parameters", {})
+
         instrument_definitions = instrument_definitions or config.instrument_definitions
         cost_model = cost_model or config.cost_model
         fill_policy = fill_policy or config.fill_policy
@@ -125,6 +130,7 @@ def finalize_run(
         trades=trades,
         initial_cash=initial_cash,
         regimes_at_entry=regimes_at_entry,
+        data_quality=data_quality,
         instrument_definitions=instrument_definitions,
         cost_model=cost_model,
         fill_policy=fill_policy,

@@ -7,6 +7,8 @@ import pytest
 from pytest_bdd import given, parsers, scenarios, then, when
 from trading_platform.backtester.core import run_backtest
 
+from tests.backtester.dummy_objects import _dummy_strategy_cfg
+
 # Link scenarios from the feature file
 scenarios("../../features/backtester/core_backtest.feature")
 
@@ -49,7 +51,9 @@ def given_the_backtest_has_enough_market_data(shared_context: dict):
 def when_backtest_is_run(shared_context: dict) -> None:
     """Calls the backtester logic and stores the resulting trades."""
     trades = run_backtest(
-        market_data=shared_context["market_data"], signals=shared_context["signals"]
+        market_data=shared_context["market_data"],
+        signals=shared_context["signals"],
+        strategy=_dummy_strategy_cfg(),
     )
     shared_context["trades"] = trades
     logging.info(f"Backtest generated {len(trades)} trades")

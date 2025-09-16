@@ -8,6 +8,7 @@ import pandas as pd
 from trading_platform.core.policy import TradingWindowPolicy
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
+from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
 """Backtester core loop with optional exposure capture.
 
@@ -19,6 +20,7 @@ returns just `trades`.
 def run_backtest(
     market_data: pd.DataFrame,
     signals: pd.Series,
+    strategy: CompiledStrategy,
     initial_cash: float = 100000.0,
     stop_loss: float | None = None,
     take_profit: float | None = None,
@@ -170,6 +172,7 @@ def run_backtest(
                     }
                 )
             else:
+                context = strategy.get_context(i)
                 portfolio.create_new_position(
                     symbol="EUR_USD",
                     side=current_signal,
@@ -179,6 +182,7 @@ def run_backtest(
                     stop_loss=stop_loss,
                     take_profit=take_profit,
                     instrument=instrument,
+                    context_at_entry=context,
                 )
         elif (
             not portfolio.current_position

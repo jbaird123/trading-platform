@@ -6,6 +6,20 @@ import pandas as pd
 from trading_platform.execution import OandaStubAdapter
 from trading_platform.execution.controller import reconcile_report, run_live_controller
 from trading_platform.portfolio.portfolio import PortfolioManager
+from trading_platform.strategy.yaml_strategy import CompiledStrategy
+
+
+def _dummy_strategy() -> CompiledStrategy:
+    return CompiledStrategy(
+        name="dummy",
+        features=[],
+        overlays=[],
+        long_entry_blocks=[],
+        long_exit_blocks=[],
+        short_entry_blocks=[],
+        short_exit_blocks=[],
+        risk={},
+    )
 
 
 def test_reconcile_warn_on_cash_delta():
