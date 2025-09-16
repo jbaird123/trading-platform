@@ -5,20 +5,8 @@ from datetime import datetime
 import pandas as pd
 from pytest import approx
 from trading_platform.backtester.core import run_backtest
-from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
-
-def _dummy_strategy() -> CompiledStrategy:
-    return CompiledStrategy(
-        name="dummy",
-        features=[],
-        overlays=[],
-        long_entry_blocks=[],
-        long_exit_blocks=[],
-        short_entry_blocks=[],
-        short_exit_blocks=[],
-        risk={},
-    )
+from tests.backtester.dummy_objects import _dummy_strategy_cfg
 
 
 def _mk_df() -> pd.DataFrame:
@@ -48,10 +36,8 @@ def test_exposure_curve_tracks_gross_notional_per_bar():
     trades, curve = run_backtest(
         market_data=df,
         signals=sig,
-        strategy=_dummy_strategy(),
+        strategy=_dummy_strategy_cfg(),
         initial_cash=1000.0,
-        stop_loss=None,
-        take_profit=None,
         allow_flip_on_bar=False,
         warmup_bars=0,
         return_exposure=True,

@@ -25,8 +25,9 @@ class Trade:
     stop_loss: float | None = None
     take_profit: float | None = None
     cost_currency: float = 0.0
-    cost_breakdown: dict[str, float] | None = None
+    cost_breakdown: dict | None = None
     r_multiple: float | None = None
+    initial_risk_ccy: float | None = None
     mfe_currency: float | None = None
     mae_currency: float | None = None
     bars_held: int | None = None

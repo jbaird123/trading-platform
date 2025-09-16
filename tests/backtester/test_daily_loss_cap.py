@@ -5,7 +5,7 @@ from datetime import datetime
 import pandas as pd
 from trading_platform.backtester.core import run_backtest
 
-from tests.backtester.dummy_objects import _dummy_strategy_cfg
+from tests.backtester.dummy_objects import _dummy_strategy_with_sl
 
 
 def test_daily_loss_cap_blocks_new_entries_after_loss():
@@ -26,9 +26,7 @@ def test_daily_loss_cap_blocks_new_entries_after_loss():
     trades, _, skipped = run_backtest(
         df,
         sig,
-        strategy=_dummy_strategy_cfg(),
-        stop_loss=10.0,
-        take_profit=None,
+        strategy=_dummy_strategy_with_sl(10.0),
         return_exposure=True,
         return_skips=True,
         daily_loss_cap=5.0,

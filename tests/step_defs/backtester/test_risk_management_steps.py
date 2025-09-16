@@ -3,7 +3,7 @@ from __future__ import annotations
 from pytest_bdd import given, parsers, scenarios, then, when
 from trading_platform.backtester.core import run_backtest
 
-from tests.backtester.dummy_objects import _dummy_strategy_cfg
+from tests.backtester.dummy_objects import _dummy_strategy_with_sl_tp
 
 # Link scenarios from the feature file
 scenarios("../../features/backtester/risk_management.feature")
@@ -48,11 +48,13 @@ def then_trade_exit_reason_is(shared_context: dict, reason: str):
 @when("the backtest is run")
 def when_backtest_is_run(shared_context: dict) -> None:
     """Calls the backtester logic and stores the resulting trades."""
+    sl = shared_context.get("stop_loss")
+    tp = shared_context.get("take_profit")
+    strategy = _dummy_strategy_with_sl_tp(float(sl or 0.0), float(tp or 0.0))
+
     trades = run_backtest(
         market_data=shared_context["market_data"],
         signals=shared_context["signals"],
-        strategy=_dummy_strategy_cfg(),
-        stop_loss=shared_context.get("stop_loss"),
-        take_profit=shared_context.get("take_profit"),
+        strategy=strategy,
     )
     shared_context["trades"] = trades

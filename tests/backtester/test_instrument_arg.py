@@ -4,20 +4,8 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 from trading_platform.backtester.core import run_backtest
-from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
-
-def _dummy_strategy() -> CompiledStrategy:
-    return CompiledStrategy(
-        name="dummy",
-        features=[],
-        overlays=[],
-        long_entry_blocks=[],
-        long_exit_blocks=[],
-        short_entry_blocks=[],
-        short_exit_blocks=[],
-        risk={},
-    )
+from tests.backtester.dummy_objects import _dummy_strategy_cfg
 
 
 def _mk_df() -> pd.DataFrame:
@@ -40,10 +28,8 @@ def test_run_backtest_accepts_instrument_snapshot():
     trades = run_backtest(
         market_data=df,
         signals=signals,
-        strategy=_dummy_strategy(),
+        strategy=_dummy_strategy_cfg(),
         initial_cash=1000.0,
-        stop_loss=None,
-        take_profit=None,
         allow_flip_on_bar=False,
         instrument=instr,
     )

@@ -22,8 +22,6 @@ def run_backtest(
     signals: pd.Series,
     strategy: CompiledStrategy,
     initial_cash: float = 100000.0,
-    stop_loss: float | None = None,
-    take_profit: float | None = None,
     allow_flip_on_bar: bool = False,
     instrument: dict | None = None,
     blackout_utc: list[tuple[str, str]] | None = None,
@@ -46,8 +44,6 @@ def run_backtest(
         market_data: DataFrame with OHLCV data.
         signals: Series with 'long', 'short', and 'flat' signals.
         initial_cash: The starting cash for the portfolio.
-        stop_loss: Optional stop-loss price for new positions.
-        take_profit: Optional take-profit price for new positions.
         allow_flip_on_bar: If True, allows closing a position and opening a new
                            one on the same bar. Defaults to False.
 
@@ -76,7 +72,6 @@ def run_backtest(
         first_bad = market_data[market_data["close"].isna()].index[0]
         raise ValueError(f"market_data.close has NaNs; first at index: {first_bad}")
 
-    # Accept optional instrument snapshot; do not change PnL behavior yet.
     portfolio = PortfolioManager(
         initial_cash=initial_cash, instrument=instrument, cost_model=cost_model
     )
@@ -85,7 +80,6 @@ def run_backtest(
         blackout_utc=blackout_utc, blackout_events=blackout_events
     )
 
-    # Track gross exposure per bar (absolute notional = |size * close|)
     exposure_curve: list[tuple[datetime, float]] = []
     skipped: list[dict[str, Any]] = []
     limits = pm_limits or {"max_open_long": 1, "max_open_short": 1}
@@ -97,9 +91,58 @@ def run_backtest(
         current_signal = signals.iloc[i]
         current_bar = market_data.iloc[i]
 
-        # The backtester's job is to orchestrate, not to decide.
-        # It passes the current state to the PortfolioManager, which
-        # contains the actual position management logic.
+        # Evaluate strategy-defined exits (SL/TP) BEFORE signal-based exits
+        if portfolio.current_position:
+            exit_rules = (
+                strategy.long_exit_blocks
+                if portfolio.current_position.side == "long"
+                else strategy.short_exit_blocks
+            )
+            for rule in exit_rules:
+                if "stop_loss" in rule:
+                    sl_rule = rule["stop_loss"]
+                    stop_price = 0.0
+                    if sl_rule["type"] == "price":
+                        stop_price = (
+                            portfolio.current_position.entry_price - sl_rule["value"]
+                            if portfolio.current_position.side == "long"
+                            else portfolio.current_position.entry_price
+                            + sl_rule["value"]
+                        )
+                    if stop_price > 0 and portfolio.check_stop_loss(
+                        current_bar, stop_price
+                    ):
+                        portfolio.close_position(
+                            exit_price=stop_price,
+                            exit_time=cast(datetime, current_bar.name),
+                            exit_reason="stop-loss",
+                        )
+                        break
+                elif "take_profit" in rule:
+                    tp_rule = rule["take_profit"]
+                    profit_price = 0.0
+                    if tp_rule["type"] == "price":
+                        profit_price = (
+                            portfolio.current_position.entry_price + tp_rule["value"]
+                            if portfolio.current_position.side == "long"
+                            else portfolio.current_position.entry_price
+                            - tp_rule["value"]
+                        )
+                    if profit_price > 0 and portfolio.check_take_profit(
+                        current_bar, profit_price
+                    ):
+                        portfolio.close_position(
+                            exit_price=profit_price,
+                            exit_time=cast(datetime, current_bar.name),
+                            exit_reason="take-profit",
+                        )
+                        break
+            if not portfolio.current_position:
+                # Update exposure and skip to next bar if position was closed by SL/TP
+                exposure_curve.append((cast(datetime, current_bar.name), 0.0))
+                continue
+
+        # Process signal-based exits and update position metrics
         portfolio.on_bar(
             current_bar=current_bar,
             current_signal=current_signal,
@@ -113,7 +156,7 @@ def run_backtest(
                 if current_signal == "long"
                 else limits.get("max_open_short", 1)
             )
-            open_ct = 1  # PM supports one open position in MVP
+            open_ct = 1
             if open_ct >= cap_now:
                 skipped.append(
                     {
@@ -132,7 +175,6 @@ def run_backtest(
             and policy.can_open(cast(datetime, current_bar.name))
             and i >= max(0, warmup_bars)
         ):
-            # Enforce daily loss cap using PortfolioManager state
             if daily_loss_cap is not None and daily_loss_cap > 0:
                 now = cast(datetime, current_bar.name)
                 if portfolio.hit_daily_loss_cap(now, float(daily_loss_cap)):
@@ -151,7 +193,6 @@ def run_backtest(
                         }
                     )
                     continue
-            # Enforce simple directional cap (PM holds at most one position)
             cap = (
                 limits.get("max_open_long", 1)
                 if current_signal == "long"
@@ -173,23 +214,37 @@ def run_backtest(
                 )
             else:
                 context = strategy.get_context(i)
+                entry_price = current_bar["close"]
+                size = 10000.0
+
+                exit_rules = (
+                    strategy.long_exit_blocks
+                    if current_signal == "long"
+                    else strategy.short_exit_blocks
+                )
+                initial_risk_ccy = None
+                for rule in exit_rules:
+                    if "stop_loss" in rule:
+                        sl_rule = rule["stop_loss"]
+                        if sl_rule["type"] == "price":
+                            initial_risk_ccy = sl_rule["value"] * size
+                        break
+
                 portfolio.create_new_position(
                     symbol="EUR_USD",
                     side=current_signal,
-                    entry_price=current_bar["close"],
-                    size=10000,
+                    entry_price=entry_price,
+                    size=size,
                     entry_time=cast(datetime, current_bar.name),
-                    stop_loss=stop_loss,
-                    take_profit=take_profit,
                     instrument=instrument,
                     context_at_entry=context,
+                    initial_risk_ccy=initial_risk_ccy,
                 )
         elif (
             not portfolio.current_position
             and current_signal in ["long", "short"]
             and not policy.can_open(cast(datetime, current_bar.name))
         ):
-            # Log blackout skip
             reason = policy.reason(cast(datetime, current_bar.name)) or "blackout"
             snap = {
                 "blackout_utc": blackout_utc or [],
@@ -208,14 +263,12 @@ def run_backtest(
                 }
             )
 
-        # Capture gross exposure for this bar AFTER applying entries/exits
         pos = portfolio.current_position
         exposure_val = 0.0
         if pos is not None:
             exposure_val = float(abs(pos.size) * float(current_bar["close"]))
         exposure_curve.append((cast(datetime, current_bar.name), exposure_val))
 
-    # Counterfactual simulation for each skipped entry (backtest-only)
     if skipped:
         for s in skipped:
             val = s.get("entry_index")
@@ -230,12 +283,11 @@ def run_backtest(
             entry_px = float(s.get("entry_price", market_data.iloc[si]["close"]))
             cf = _simulate_counterfactual(
                 market_data,
+                strategy,
                 start_index=si,
                 side=side,
                 entry_price=entry_px,
                 size=10000.0,
-                stop_loss=stop_loss,
-                take_profit=take_profit,
                 instrument=instrument,
                 cost_model=cost_model,
             )
@@ -252,13 +304,12 @@ def run_backtest(
 
 def _simulate_counterfactual(
     market_data: pd.DataFrame,
+    strategy: CompiledStrategy,
     *,
     start_index: int,
     side: str,
     entry_price: float,
     size: float,
-    stop_loss: float | None,
-    take_profit: float | None,
     instrument: dict | None,
     cost_model: dict | None,
 ) -> dict[str, Any]:
@@ -266,29 +317,80 @@ def _simulate_counterfactual(
         initial_cash=0.0, instrument=instrument, cost_model=cost_model
     )
     entry_time = cast(datetime, market_data.index[start_index])
+
+    exit_rules = (
+        strategy.long_exit_blocks if side == "long" else strategy.short_exit_blocks
+    )
+    initial_risk_ccy = None
+    for rule in exit_rules:
+        if "stop_loss" in rule:
+            sl_rule = rule["stop_loss"]
+            if sl_rule["type"] == "price":
+                initial_risk_ccy = sl_rule["value"] * size
+            break
+
     pm.create_new_position(
         symbol="EUR_USD",
         side=side,
         entry_price=entry_price,
         size=size,
         entry_time=entry_time,
-        stop_loss=stop_loss,
-        take_profit=take_profit,
         instrument=instrument,
+        initial_risk_ccy=initial_risk_ccy,
     )
-    # Step forward including the entry bar to allow immediate TP/SL hits
+
     for i in range(start_index, len(market_data)):
-        pm.on_bar(current_bar=market_data.iloc[i], current_signal=side)
+        current_bar = market_data.iloc[i]
+
+        if pm.current_position:
+            for rule in exit_rules:
+                if "stop_loss" in rule:
+                    sl_rule = rule["stop_loss"]
+                    stop_price = 0.0
+                    if sl_rule["type"] == "price":
+                        stop_price = (
+                            pm.current_position.entry_price - sl_rule["value"]
+                            if pm.current_position.side == "long"
+                            else pm.current_position.entry_price + sl_rule["value"]
+                        )
+                    if stop_price > 0 and pm.check_stop_loss(current_bar, stop_price):
+                        pm.close_position(
+                            exit_price=stop_price,
+                            exit_time=cast(datetime, current_bar.name),
+                            exit_reason="stop-loss",
+                        )
+                        break
+                elif "take_profit" in rule:
+                    tp_rule = rule["take_profit"]
+                    profit_price = 0.0
+                    if tp_rule["type"] == "price":
+                        profit_price = (
+                            pm.current_position.entry_price + tp_rule["value"]
+                            if pm.current_position.side == "long"
+                            else pm.current_position.entry_price - tp_rule["value"]
+                        )
+                    if profit_price > 0 and pm.check_take_profit(
+                        current_bar, profit_price
+                    ):
+                        pm.close_position(
+                            exit_price=profit_price,
+                            exit_time=cast(datetime, current_bar.name),
+                            exit_reason="take-profit",
+                        )
+                        break
+
         if not pm.current_position:
             break
-    # If still open at end, close at last bar close
+
+        pm.on_bar(current_bar=current_bar, current_signal=side)
+
     if pm.current_position:
         last_idx = len(market_data) - 1
         pm.close_position(
             exit_price=float(market_data.iloc[last_idx]["close"]),
             exit_time=cast(datetime, market_data.index[last_idx]),
         )
-    if not pm.trades:  # pragma: no cover - defensive fallback
+    if not pm.trades:
         return {}
     t = pm.trades[0]
     return {
