@@ -169,27 +169,18 @@
     },
     "rule_block": {
       "type": "object",
-      "additionalProperties": false,
-      "oneOf": [
-        {
-          "properties": {
-            "all_of": {
-              "$ref": "#/$defs/predicate_array",
-              "description": "All predicates must be true."
-            }
-          },
-          "required": ["all_of"]
+      "properties": {
+        "all_of": {
+          "$ref": "#/$defs/predicate_array",
+          "description": "All predicates must be true."
         },
-        {
-          "properties": {
-            "any_of": {
-              "$ref": "#/$defs/predicate_array",
-              "description": "At least one predicate must be true."
-            }
-          },
-          "required": ["any_of"]
+        "any_of": {
+          "$ref": "#/$defs/predicate_array",
+          "description": "At least one predicate must be true."
         }
-      ]
+      },
+      "additionalProperties": false,
+      "oneOf": [{ "required": ["all_of"] }, { "required": ["any_of"] }]
     },
     "predicate_array": {
       "type": "array",
@@ -199,63 +190,22 @@
     },
     "predicate": {
       "type": "object",
-      "additionalProperties": false,
-      "oneOf": [
-        {
-          "title": "cross_above",
-          "properties": {
-            "condition": {
-              "const": "cross_above",
-              "description": "Trigger when left crosses above right."
-            },
-            "left": {
-              "$ref": "#/$defs/operand",
-              "description": "Left-hand side (indicator/price/number)."
-            },
-            "right": {
-              "$ref": "#/$defs/operand",
-              "description": "Right-hand side (indicator/price/number)."
-            }
-          },
-          "required": ["condition", "left", "right"]
+      "properties": {
+        "condition": {
+          "type": "string",
+          "enum": ["cross_above", "cross_below", "is_above", "is_below"]
         },
-        {
-          "title": "cross_below",
-          "properties": {
-            "condition": {
-              "const": "cross_below",
-              "description": "Trigger when left crosses below right."
-            },
-            "left": { "$ref": "#/$defs/operand" },
-            "right": { "$ref": "#/$defs/operand" }
-          },
-          "required": ["condition", "left", "right"]
+        "left": {
+          "$ref": "#/$defs/operand",
+          "description": "Left-hand side (indicator/price/number)."
         },
-        {
-          "title": "is_above",
-          "properties": {
-            "condition": {
-              "const": "is_above",
-              "description": "True if left value is strictly greater than right."
-            },
-            "left": { "$ref": "#/$defs/operand" },
-            "right": { "$ref": "#/$defs/operand" }
-          },
-          "required": ["condition", "left", "right"]
-        },
-        {
-          "title": "is_below",
-          "properties": {
-            "condition": {
-              "const": "is_below",
-              "description": "True if left value is strictly less than right."
-            },
-            "left": { "$ref": "#/$defs/operand" },
-            "right": { "$ref": "#/$defs/operand" }
-          },
-          "required": ["condition", "left", "right"]
+        "right": {
+          "$ref": "#/$defs/operand",
+          "description": "Right-hand side (indicator/price/number)."
         }
-      ]
+      },
+      "required": ["condition", "left", "right"],
+      "additionalProperties": false
     },
     "operand": {
       "oneOf": [

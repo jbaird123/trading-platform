@@ -9,8 +9,8 @@ import pandas as pd
 
 try:
     import jsonschema  # type: ignore[import-untyped]
-except Exception:  # pragma: no cover
-    jsonschema = None  # type: ignore[assignment]
+except ImportError:
+    jsonschema = None
 
 from .features import compute_features
 
@@ -27,7 +27,6 @@ def validate_strategy_config(cfg: dict[str, Any]) -> None:
     """
     if not isinstance(cfg, dict):
         raise ValueError("strategy must be an object")
-    # JSON Schema validation if available (best-effort, non-fatal)
     if jsonschema is not None:
         schema_path = (
             Path(__file__).resolve().parents[3]
@@ -35,54 +34,11 @@ def validate_strategy_config(cfg: dict[str, Any]) -> None:
             / "schemas"
             / "strategy.schema.json"
         )
+        schema = json.loads(schema_path.read_text())
         try:
-            schema = json.loads(schema_path.read_text())
-            jsonschema.validate(cfg, schema)  # type: ignore[misc]
-        except Exception:  # pragma: no cover
-            # Some schema constructs (oneOf + additionalProperties) can be
-            # overly strict for minimal configs; fall back to lightweight checks.
-            pass
-    if "strategy_name" not in cfg:
-        raise ValueError("missing required field: strategy_name")
-    if not isinstance(cfg["strategy_name"], str):
-        raise ValueError("strategy_name must be a string")
-    pairs = [
-        ("long_entry_rules", "long_exit_rules"),
-        ("short_entry_rules", "short_exit_rules"),
-    ]
-    if not any(all(k in cfg for k in pair) for pair in pairs):
-        raise ValueError(
-            "missing required rule pairs: provide long_* or short_* rule sets"
-        )
-
-    def _validate_blocks(blocks: list[dict[str, Any]], key: str) -> None:
-        if not isinstance(blocks, list) or not blocks:
-            raise ValueError(f"{key} must be a non-empty array")
-        for block in blocks:
-            if not isinstance(block, dict):
-                raise ValueError("rule block must be an object")
-            present = [c for c in ("all_of", "any_of") if c in block]
-            if not present:
-                raise ValueError("rule block must have all_of or any_of")
-            preds = block[present[0]]
-            if not isinstance(preds, list) or not preds:
-                raise ValueError("predicate list must be a non-empty array")
-            for pred in preds:
-                if not isinstance(pred, dict):
-                    raise ValueError("predicate must be an object")
-                cond = str(pred.get("condition", ""))
-                if cond not in {
-                    "is_above",
-                    "is_below",
-                    "cross_above",
-                    "cross_below",
-                }:
-                    raise ValueError(f"unsupported condition: {cond}")
-
-    for a, b in pairs:
-        if a in cfg and b in cfg:
-            _validate_blocks(cfg[a], a)
-            _validate_blocks(cfg[b], b)
+            jsonschema.validate(cfg, schema)
+        except jsonschema.ValidationError as e:
+            raise ValueError(f"Strategy schema validation error: {e.message}") from e
 
 
 def load_strategy_config(doc: dict[str, Any] | str | Path) -> dict[str, Any]:
