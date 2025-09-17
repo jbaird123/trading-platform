@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import cast
+from typing import Any, cast
 
 import pandas as pd
 from trading_platform.core.costs import CostModel
@@ -150,7 +150,10 @@ class PortfolioManager:
         )
 
     def close_position(
-        self, exit_price: float, exit_time: datetime, exit_reason: str | None = None
+        self,
+        exit_price: float,
+        exit_time: datetime,
+        exit_reason: dict[str, Any] | str | None = None,
     ) -> None:
         """Closes the current open position and records it as a Trade."""
         if not self._open_position:

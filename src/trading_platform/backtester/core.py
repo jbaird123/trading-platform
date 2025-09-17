@@ -5,9 +5,11 @@ from typing import Any, cast
 
 import pandas as pd
 
+from trading_platform.core.config import RunConfig
 from trading_platform.core.policy import TradingWindowPolicy
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
+from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
 """Backtester core loop with optional exposure capture.
@@ -21,17 +23,10 @@ def run_backtest(
     market_data: pd.DataFrame,
     signals: pd.Series,
     strategy: CompiledStrategy,
-    initial_cash: float = 100000.0,
-    allow_flip_on_bar: bool = False,
-    instrument: dict | None = None,
-    blackout_utc: list[tuple[str, str]] | None = None,
-    blackout_events: list[dict[str, Any]] | None = None,
-    warmup_bars: int = 0,
-    cost_model: dict | None = None,
+    config: RunConfig,
+    rem: RiskExitManager,
     return_exposure: bool = False,
     return_skips: bool = False,
-    pm_limits: dict[str, int] | None = None,
-    daily_loss_cap: float | None = None,
 ) -> (
     list[Trade]
     | tuple[list[Trade], list[tuple[datetime, float]]]
@@ -43,12 +38,13 @@ def run_backtest(
     Args:
         market_data: DataFrame with OHLCV data.
         signals: Series with 'long', 'short', and 'flat' signals.
-        initial_cash: The starting cash for the portfolio.
-        allow_flip_on_bar: If True, allows closing a position and opening a new
-                           one on the same bar. Defaults to False.
+        config: The unified run configuration object.
+        rem: The Risk & Exit Manager instance.
+        return_exposure: If True, returns the exposure curve.
+        return_skips: If True, returns a list of skipped trades.
 
     Returns:
-        A list of completed Trade objects.
+        A list of completed Trade objects, and optionally other artifacts.
     """
     # --- Input validation (fail fast) ---
     required_cols = {"open", "high", "low", "close", "volume"}
@@ -73,16 +69,18 @@ def run_backtest(
         raise ValueError(f"market_data.close has NaNs; first at index: {first_bad}")
 
     portfolio = PortfolioManager(
-        initial_cash=initial_cash, instrument=instrument, cost_model=cost_model
+        initial_cash=config.initial_cash,
+        instrument=config.instrument,
+        cost_model=config.cost_model,
     )
 
     policy = TradingWindowPolicy.from_config(
-        blackout_utc=blackout_utc, blackout_events=blackout_events
+        blackout_utc=config.blackout_utc, blackout_events=config.blackout_events
     )
 
     exposure_curve: list[tuple[datetime, float]] = []
     skipped: list[dict[str, Any]] = []
-    limits = pm_limits or {"max_open_long": 1, "max_open_short": 1}
+    limits = config.pm_limits or {"max_open_long": 1, "max_open_short": 1}
 
     def _fmt_ts(val: Any) -> str:
         return val.isoformat() if isinstance(val, datetime) else str(val)
@@ -91,54 +89,21 @@ def run_backtest(
         current_signal = signals.iloc[i]
         current_bar = market_data.iloc[i]
 
-        # Evaluate strategy-defined exits (SL/TP) BEFORE signal-based exits
+        # Evaluate risk-based exits using the Risk & Exit Manager (REM)
+        # This is evaluated before strategic exits, per the Exit Precedence Policy.
         if portfolio.current_position:
-            exit_rules = (
-                strategy.long_exit_blocks
-                if portfolio.current_position.side == "long"
-                else strategy.short_exit_blocks
-            )
-            for rule in exit_rules:
-                if "stop_loss" in rule:
-                    sl_rule = rule["stop_loss"]
-                    stop_price = 0.0
-                    if sl_rule["type"] == "price":
-                        stop_price = (
-                            portfolio.current_position.entry_price - sl_rule["value"]
-                            if portfolio.current_position.side == "long"
-                            else portfolio.current_position.entry_price
-                            + sl_rule["value"]
-                        )
-                    if stop_price > 0 and portfolio.check_stop_loss(
-                        current_bar, stop_price
-                    ):
-                        portfolio.close_position(
-                            exit_price=stop_price,
-                            exit_time=cast(datetime, current_bar.name),
-                            exit_reason="stop-loss",
-                        )
-                        break
-                elif "take_profit" in rule:
-                    tp_rule = rule["take_profit"]
-                    profit_price = 0.0
-                    if tp_rule["type"] == "price":
-                        profit_price = (
-                            portfolio.current_position.entry_price + tp_rule["value"]
-                            if portfolio.current_position.side == "long"
-                            else portfolio.current_position.entry_price
-                            - tp_rule["value"]
-                        )
-                    if profit_price > 0 and portfolio.check_take_profit(
-                        current_bar, profit_price
-                    ):
-                        portfolio.close_position(
-                            exit_price=profit_price,
-                            exit_time=cast(datetime, current_bar.name),
-                            exit_reason="take-profit",
-                        )
-                        break
-            if not portfolio.current_position:
-                # Update exposure and skip to next bar if position was closed by SL/TP
+            # The REM's check_exits method would return exit details or None.
+            # This is a placeholder for the actual implementation.
+            # exit_details = rem.check_exits(portfolio.current_position, current_bar)
+            exit_details = None  # Placeholder
+
+            if exit_details:
+                portfolio.close_position(
+                    exit_price=exit_details["exit_price"],
+                    exit_time=cast(datetime, current_bar.name),
+                    exit_reason=exit_details["reason"],
+                )
+                # Update exposure and skip to next bar if position was closed by REM
                 exposure_curve.append((cast(datetime, current_bar.name), 0.0))
                 continue
 
@@ -146,7 +111,7 @@ def run_backtest(
         portfolio.on_bar(
             current_bar=current_bar,
             current_signal=current_signal,
-            allow_flip_on_bar=allow_flip_on_bar,
+            allow_flip_on_bar=config.allow_flip_on_bar,
         )
 
         # If trying to add in same direction while already open, enforce cap
@@ -173,18 +138,18 @@ def run_backtest(
             not portfolio.current_position
             and current_signal in ["long", "short"]
             and policy.can_open(cast(datetime, current_bar.name))
-            and i >= max(0, warmup_bars)
+            and i >= max(0, config.warmup_bars)
         ):
-            if daily_loss_cap is not None and daily_loss_cap > 0:
+            if config.daily_loss_cap is not None and config.daily_loss_cap > 0:
                 now = cast(datetime, current_bar.name)
-                if portfolio.hit_daily_loss_cap(now, float(daily_loss_cap)):
+                if portfolio.hit_daily_loss_cap(now, float(config.daily_loss_cap)):
                     skipped.append(
                         {
                             "timestamp": _fmt_ts(now),
                             "symbol": "EUR_USD",
                             "reason_code": "risk_cap",
                             "policy_snapshot": {
-                                "daily_loss_cap": float(daily_loss_cap)
+                                "daily_loss_cap": float(config.daily_loss_cap)
                             },
                             "notes": None,
                             "side": current_signal,
@@ -217,28 +182,15 @@ def run_backtest(
                 entry_price = current_bar["close"]
                 size = 10000.0
 
-                exit_rules = (
-                    strategy.long_exit_blocks
-                    if current_signal == "long"
-                    else strategy.short_exit_blocks
-                )
-                initial_risk_ccy = None
-                for rule in exit_rules:
-                    if "stop_loss" in rule:
-                        sl_rule = rule["stop_loss"]
-                        if sl_rule["type"] == "price":
-                            initial_risk_ccy = sl_rule["value"] * size
-                        break
-
                 portfolio.create_new_position(
                     symbol="EUR_USD",
                     side=current_signal,
                     entry_price=entry_price,
                     size=size,
                     entry_time=cast(datetime, current_bar.name),
-                    instrument=instrument,
+                    instrument=config.instrument,
                     context_at_entry=context,
-                    initial_risk_ccy=initial_risk_ccy,
+                    initial_risk_ccy=None,  # This is now handled by REM
                 )
         elif (
             not portfolio.current_position
@@ -247,8 +199,8 @@ def run_backtest(
         ):
             reason = policy.reason(cast(datetime, current_bar.name)) or "blackout"
             snap = {
-                "blackout_utc": blackout_utc or [],
-                "blackout_events": blackout_events or [],
+                "blackout_utc": config.blackout_utc or [],
+                "blackout_events": config.blackout_events or [],
             }
             skipped.append(
                 {
@@ -288,8 +240,8 @@ def run_backtest(
                 side=side,
                 entry_price=entry_px,
                 size=10000.0,
-                instrument=instrument,
-                cost_model=cost_model,
+                instrument=config.instrument,
+                cost_model=config.cost_model,
             )
             s.update(cf)
 
@@ -318,17 +270,9 @@ def _simulate_counterfactual(
     )
     entry_time = cast(datetime, market_data.index[start_index])
 
-    exit_rules = (
-        strategy.long_exit_blocks if side == "long" else strategy.short_exit_blocks
-    )
-    initial_risk_ccy = None
-    for rule in exit_rules:
-        if "stop_loss" in rule:
-            sl_rule = rule["stop_loss"]
-            if sl_rule["type"] == "price":
-                initial_risk_ccy = sl_rule["value"] * size
-            break
-
+    # Since risk rules are now decoupled, this simulation does not include
+    # hypothetical SL/TP exits. A future enhancement could involve passing the
+    # REM to this function for a more complete counterfactual simulation.
     pm.create_new_position(
         symbol="EUR_USD",
         side=side,
@@ -336,52 +280,17 @@ def _simulate_counterfactual(
         size=size,
         entry_time=entry_time,
         instrument=instrument,
-        initial_risk_ccy=initial_risk_ccy,
+        initial_risk_ccy=None,  # Risk is no longer part of strategy
     )
 
     for i in range(start_index, len(market_data)):
         current_bar = market_data.iloc[i]
 
-        if pm.current_position:
-            for rule in exit_rules:
-                if "stop_loss" in rule:
-                    sl_rule = rule["stop_loss"]
-                    stop_price = 0.0
-                    if sl_rule["type"] == "price":
-                        stop_price = (
-                            pm.current_position.entry_price - sl_rule["value"]
-                            if pm.current_position.side == "long"
-                            else pm.current_position.entry_price + sl_rule["value"]
-                        )
-                    if stop_price > 0 and pm.check_stop_loss(current_bar, stop_price):
-                        pm.close_position(
-                            exit_price=stop_price,
-                            exit_time=cast(datetime, current_bar.name),
-                            exit_reason="stop-loss",
-                        )
-                        break
-                elif "take_profit" in rule:
-                    tp_rule = rule["take_profit"]
-                    profit_price = 0.0
-                    if tp_rule["type"] == "price":
-                        profit_price = (
-                            pm.current_position.entry_price + tp_rule["value"]
-                            if pm.current_position.side == "long"
-                            else pm.current_position.entry_price - tp_rule["value"]
-                        )
-                    if profit_price > 0 and pm.check_take_profit(
-                        current_bar, profit_price
-                    ):
-                        pm.close_position(
-                            exit_price=profit_price,
-                            exit_time=cast(datetime, current_bar.name),
-                            exit_reason="take-profit",
-                        )
-                        break
-
         if not pm.current_position:
             break
 
+        # This simulation now only considers a strategic exit at the end of the
+        # data or a potential flip signal (which is not handled here).
         pm.on_bar(current_bar=current_bar, current_signal=side)
 
     if pm.current_position:

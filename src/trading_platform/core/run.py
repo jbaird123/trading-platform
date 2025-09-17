@@ -28,7 +28,11 @@ def initialize_run(config: RunConfig) -> Path:
 
 if __name__ == "__main__":  # pragma: no cover
     default_config = RunConfig(
-        user_id="default_user", log_level="INFO", run_seed=42
+        user_id="default_user",
+        log_level="INFO",
+        run_seed=42,
+        initial_cash=100000.0,
+        allow_flip_on_bar=False,
     )  # pragma: no cover
     initialize_run(default_config)  # pragma: no cover
 

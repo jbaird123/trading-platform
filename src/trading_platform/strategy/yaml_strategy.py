@@ -108,7 +108,6 @@ class CompiledStrategy:
     long_exit_blocks: list[dict]
     short_entry_blocks: list[dict]
     short_exit_blocks: list[dict]
-    risk: dict[str, Any]
     # Internal state populated during signal generation
     _feature_df: pd.DataFrame | None = None
 
@@ -166,7 +165,6 @@ def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
     lx = list(cfg.get("long_exit_rules") or [])
     se = list(cfg.get("short_entry_rules") or [])
     sx = list(cfg.get("short_exit_rules") or [])
-    risk = dict(cfg.get("risk") or {})
     return CompiledStrategy(
         name=name,
         overlays=overlays,
@@ -175,5 +173,4 @@ def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
         long_exit_blocks=lx,
         short_entry_blocks=se,
         short_exit_blocks=sx,
-        risk=risk,
     )
