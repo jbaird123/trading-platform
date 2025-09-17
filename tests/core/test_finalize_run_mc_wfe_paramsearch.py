@@ -1,3 +1,4 @@
+# Validates: [JSON-F.1], [JSON-F.2], [JSON-F.3]
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -17,7 +18,6 @@ def _dummy_strategy() -> CompiledStrategy:
         long_exit_blocks=[],
         short_entry_blocks=[],
         short_exit_blocks=[],
-        risk={},
     )
 
 

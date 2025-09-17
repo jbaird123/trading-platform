@@ -1,3 +1,4 @@
+# Validates: [SYS-1.7.2]
 from __future__ import annotations
 
 import json
@@ -17,7 +18,6 @@ def _dummy_strategy() -> CompiledStrategy:
         long_exit_blocks=[],
         short_entry_blocks=[],
         short_exit_blocks=[],
-        risk={},
     )
 
 
@@ -39,5 +39,11 @@ def test_cmd_run_backtest_toy_data_path(tmp_path: Path) -> None:
     p = tmp_path / "cfg.json"
     p.write_text(json.dumps(cfg))
     ns = Namespace(demo=False, user="toy_user", config=str(p))
+    rc = cmd_run_backtest(ns)
+    assert rc == 0
+
+
+def test_cmd_run_backtest_demo_flag(tmp_path: Path) -> None:
+    ns = Namespace(demo=True, user="demo_user", config=None)
     rc = cmd_run_backtest(ns)
     assert rc == 0

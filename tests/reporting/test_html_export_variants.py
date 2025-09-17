@@ -1,3 +1,4 @@
+# Validates: [RV-9.4]
 from __future__ import annotations
 
 from trading_platform.reporting.html_export import generate_html_report

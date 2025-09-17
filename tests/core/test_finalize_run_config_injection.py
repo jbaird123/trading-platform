@@ -1,3 +1,4 @@
+# Validates: [JSON-11.18], [JSON-11.19], [JSON-11.20]
 from __future__ import annotations
 
 import json
@@ -18,7 +19,6 @@ def _dummy_strategy() -> CompiledStrategy:
         long_exit_blocks=[],
         short_entry_blocks=[],
         short_exit_blocks=[],
-        risk={},
     )
 
 

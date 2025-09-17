@@ -1,3 +1,4 @@
+# Validates: [BT-7.4], [NOTE-14.9]
 from __future__ import annotations
 
 from trading_platform.core.costs import CostModel

@@ -13,7 +13,6 @@ def _dummy_strategy_cfg() -> CompiledStrategy:
         long_exit_blocks=[],
         short_entry_blocks=[],
         short_exit_blocks=[],
-        risk={},
     )
 
 
@@ -31,7 +30,6 @@ def _dummy_strategy_with_tp(tp_price: float) -> CompiledStrategy:
             {"any_of": [{"condition": "is_above", "left": 1, "right": 0}]}
         ],
         short_exit_blocks=[{"take_profit": {"value": tp_price, "type": "price"}}],
-        risk={},
     )
 
 
@@ -49,7 +47,6 @@ def _dummy_strategy_with_sl(sl_price: float) -> CompiledStrategy:
             {"any_of": [{"condition": "is_above", "left": 1, "right": 0}]}
         ],
         short_exit_blocks=[{"stop_loss": {"value": sl_price, "type": "price"}}],
-        risk={},
     )
 
 
@@ -73,5 +70,4 @@ def _dummy_strategy_with_sl_tp(sl: float, tp: float) -> CompiledStrategy:
             {"stop_loss": {"value": sl, "type": "price"}},
             {"take_profit": {"value": tp, "type": "price"}},
         ],
-        risk={},
     )
