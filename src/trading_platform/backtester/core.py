@@ -82,6 +82,8 @@ def run_backtest(
     skipped: list[dict[str, Any]] = []
     limits = config.pm_limits or {"max_open_long": 1, "max_open_short": 1}
 
+    rem = RiskExitManager(config=config.rem_config or {})
+
     def _fmt_ts(val: Any) -> str:
         return val.isoformat() if isinstance(val, datetime) else str(val)
 
@@ -92,10 +94,7 @@ def run_backtest(
         # Evaluate risk-based exits using the Risk & Exit Manager (REM)
         # This is evaluated before strategic exits, per the Exit Precedence Policy.
         if portfolio.current_position:
-            # The REM's check_exits method would return exit details or None.
-            # This is a placeholder for the actual implementation.
-            # exit_details = rem.check_exits(portfolio.current_position, current_bar)
-            exit_details = None  # Placeholder
+            exit_details = rem.check_exits(portfolio.current_position, current_bar)
 
             if exit_details:
                 portfolio.close_position(

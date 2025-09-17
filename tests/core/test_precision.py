@@ -1,3 +1,4 @@
+# Validates: [BT-7.8]
 from __future__ import annotations
 
 from trading_platform.core.precision import DecimalEngine, FloatEngine

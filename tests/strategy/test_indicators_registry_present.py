@@ -1,3 +1,4 @@
+# Validates: [SE-3.6]
 from __future__ import annotations
 
 from trading_platform.strategy.indicators_registry import INDICATORS

@@ -1,3 +1,4 @@
+# Validates: [RMM-4.9]
 from __future__ import annotations
 
 from trading_platform.regime_market_manager.config import validate_rmm_config

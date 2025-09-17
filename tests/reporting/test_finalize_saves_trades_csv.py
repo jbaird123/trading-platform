@@ -1,3 +1,4 @@
+# Validates: [RV-9.4]
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -39,4 +40,4 @@ def test_finalize_run_writes_trades_csv(tmp_path):
     csv_path = run_path / "trades.csv"
     assert csv_path.exists()
     content = csv_path.read_text()
-    assert "symbol,side,size,entry_time,exit_time" in content
+    assert "symbol,side,size,entry_time,exit_time,entry_price,exit_price" in content

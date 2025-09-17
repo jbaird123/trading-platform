@@ -1,9 +1,12 @@
+# Validates: [PM-5.7]
 from __future__ import annotations
 
 from datetime import datetime
 
 import pandas as pd
 from trading_platform.backtester.core import run_backtest
+from trading_platform.core.config import RunConfig
+from trading_platform.risk_manager.core import RiskExitManager
 
 from tests.backtester.dummy_objects import _dummy_strategy_with_sl
 
@@ -23,13 +26,16 @@ def test_daily_loss_cap_blocks_new_entries_after_loss():
     )
     # Signals: enter long at bar 0 and bar 2
     sig = pd.Series(["long", "flat", "long"], index=df.index)
+    config = RunConfig(daily_loss_cap=5.0)
+    rem = RiskExitManager(config={})
     trades, _, skipped = run_backtest(
         df,
         sig,
         strategy=_dummy_strategy_with_sl(10.0),
+        config=config,
+        rem=rem,
         return_exposure=True,
         return_skips=True,
-        daily_loss_cap=5.0,
     )
     # First trade loses 10 (stop at 90), then bar 2 attempt is skipped by cap
     assert len(trades) == 1

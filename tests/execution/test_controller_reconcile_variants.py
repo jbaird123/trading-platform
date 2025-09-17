@@ -1,3 +1,4 @@
+# Validates: [EL-8.8]
 from __future__ import annotations
 
 from datetime import datetime
@@ -18,7 +19,6 @@ def _dummy_strategy() -> CompiledStrategy:
         long_exit_blocks=[],
         short_entry_blocks=[],
         short_exit_blocks=[],
-        risk={},
     )
 
 

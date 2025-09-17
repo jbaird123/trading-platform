@@ -1,3 +1,4 @@
+# Validates: [JSON-11.25]
 from __future__ import annotations
 
 from datetime import datetime

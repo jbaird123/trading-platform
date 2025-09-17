@@ -1,9 +1,12 @@
+# Validates: [SYS-1.3.2]
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 
 import pandas as pd
 from trading_platform.backtester.core import run_backtest
+from trading_platform.core.config import RunConfig
+from trading_platform.risk_manager.core import RiskExitManager
 
 from tests.backtester.dummy_objects import _dummy_strategy_cfg
 
@@ -25,13 +28,14 @@ def test_run_backtest_accepts_instrument_snapshot():
     df = _mk_df()
     signals = pd.Series(["flat", "long", "flat"], index=df.index)
     instr = {"symbol": "EUR_USD", "tick_size": 0.0001}
+    config = RunConfig(initial_cash=1000.0, allow_flip_on_bar=False, instrument=instr)
+    rem = RiskExitManager(config={})
     trades = run_backtest(
         market_data=df,
         signals=signals,
         strategy=_dummy_strategy_cfg(),
-        initial_cash=1000.0,
-        allow_flip_on_bar=False,
-        instrument=instr,
+        config=config,
+        rem=rem,
     )
     # Still produces trades as usual; instrument is accepted without side effects
     assert isinstance(trades, list)

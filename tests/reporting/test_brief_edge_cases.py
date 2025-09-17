@@ -1,3 +1,4 @@
+# Validates: [RV-9.1], [JSON-11.18]
 from __future__ import annotations
 
 from dataclasses import dataclass

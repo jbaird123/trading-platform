@@ -1,3 +1,4 @@
+# Validates: [SYS-1.2.4]
 from __future__ import annotations
 
 import logging
@@ -23,3 +24,12 @@ def test_get_logger_adds_handler_once():
     log2 = get_logger(name)
     assert log2 is log1
     assert len(log2.handlers) == first_count
+
+
+def test_get_logger_with_level():
+    name = "tp.test.logger.level"
+    log = get_logger(name)
+    log.setLevel(logging.DEBUG)
+    assert log.level == logging.DEBUG
+    # Reset level for other tests
+    log.setLevel(logging.INFO)

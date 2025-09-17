@@ -1,9 +1,12 @@
+# Validates: [SYS-1.5.2]
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 
 import pandas as pd
 from trading_platform.backtester.core import run_backtest
+from trading_platform.core.config import RunConfig
+from trading_platform.risk_manager.core import RiskExitManager
 
 from tests.backtester.dummy_objects import _dummy_strategy_cfg
 
@@ -20,12 +23,14 @@ def test_event_blackout_blocks_new_entries():
     signals = pd.Series(["long", "long", "long", "long"], index=df.index)
 
     ev = {"start": datetime(2023, 1, 1, 11, 0), "end": datetime(2023, 1, 1, 12, 30)}
+    config = RunConfig(initial_cash=1000.0, blackout_events=[ev])
+    rem = RiskExitManager(config={})
     trades = run_backtest(
         market_data=df,
         signals=signals,
         strategy=_dummy_strategy_cfg(),
-        initial_cash=1000.0,
-        blackout_events=[ev],
+        config=config,
+        rem=rem,
     )
 
     assert isinstance(trades, list)

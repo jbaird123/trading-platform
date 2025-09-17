@@ -1,9 +1,12 @@
+# Validates: [BT-7.6]
 from __future__ import annotations
 
 from datetime import datetime
 
 import pandas as pd
 from trading_platform.backtester.core import run_backtest
+from trading_platform.core.config import RunConfig
+from trading_platform.risk_manager.core import RiskExitManager
 
 from tests.backtester.dummy_objects import _dummy_strategy_with_sl_tp
 
@@ -21,10 +24,19 @@ def test_tie_break_stop_then_tp_for_long():
         index=idx,
     )
     sig = pd.Series(["long", "flat"], index=df.index)
+    config = RunConfig(
+        rem_config={
+            "stop_loss": {"value": 95.0, "type": "price"},
+            "take_profit": {"value": 105.0, "type": "price"},
+        }
+    )
+    rem = RiskExitManager(config=config.rem_config)
     trades = run_backtest(
         df,
         sig,
-        strategy=_dummy_strategy_with_sl_tp(5.0, 5.0),
+        strategy=_dummy_strategy_with_sl_tp(95.0, 105.0),
+        config=config,
+        rem=rem,
     )
     assert len(trades) == 1
     t = trades[0]

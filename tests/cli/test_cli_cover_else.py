@@ -1,3 +1,4 @@
+# Validates: [SYS-1.7.2]
 from __future__ import annotations
 
 import json
@@ -17,7 +18,6 @@ def _dummy_strategy() -> CompiledStrategy:
         long_exit_blocks=[],
         short_entry_blocks=[],
         short_exit_blocks=[],
-        risk={},
     )
 
 

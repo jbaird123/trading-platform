@@ -1,3 +1,4 @@
+# Validates: [JSON-11.12], [JSON-11.19]
 from __future__ import annotations
 
 import json

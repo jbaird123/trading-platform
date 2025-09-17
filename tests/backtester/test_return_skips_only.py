@@ -1,9 +1,12 @@
+# Validates: [BT-7.10]
 from __future__ import annotations
 
 from datetime import datetime
 
 import pandas as pd
 from trading_platform.backtester.core import run_backtest
+from trading_platform.core.config import RunConfig
+from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
 
@@ -16,7 +19,6 @@ def _dummy_strategy() -> CompiledStrategy:
         long_exit_blocks=[],
         short_entry_blocks=[],
         short_exit_blocks=[],
-        risk={},
     )
 
 
@@ -26,7 +28,15 @@ def test_return_skips_without_exposure():
         {"open": [1], "high": [1], "low": [1], "close": [1], "volume": [1]}, index=idx
     )
     sig = pd.Series(["long"], index=df.index)
+    config = RunConfig()
+    rem = RiskExitManager(config={})
     trades, exposure, skipped = run_backtest(
-        df, sig, strategy=_dummy_strategy(), return_exposure=False, return_skips=True
+        df,
+        sig,
+        strategy=_dummy_strategy(),
+        config=config,
+        rem=rem,
+        return_exposure=False,
+        return_skips=True,
     )
     assert exposure == [] and isinstance(skipped, list)
