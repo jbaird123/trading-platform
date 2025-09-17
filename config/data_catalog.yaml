@@ -1,0 +1,10 @@
+# Map symbols to their canonical raw data source(s).
+# The Data Handler resolves a data_request against this catalog.
+
+# Example small sample (tracked):
+EUR_USD:
+  csv_path: "data/full/eurusd_interval_minute_1_20130101_20250823.csv"
+
+# Example full dataset (ignored by Git, uncomment to use):
+#EUR_USD:
+#  csv_path: "data/full/eurusd_m1_2010_2024.csv"

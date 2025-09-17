@@ -16,7 +16,7 @@ from trading_platform.core.config import RunConfig
 from trading_platform.core.demo import generate_demo_run
 from trading_platform.core.policy import TradingWindowPolicy
 from trading_platform.core.run import finalize_run, initialize_run
-from trading_platform.data.schema import resample_ohlc
+from trading_platform.data.loader import load_from_catalog
 from trading_platform.execution.oanda_stub import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
@@ -70,34 +70,12 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     run_path = initialize_run(cfg)
 
     # Minimal pipeline: toy data unless provided, simple strategy compile.
-    data = cfg_raw.get("data") or {}
     df: pd.DataFrame
-    if isinstance(data, dict) and data.get("csv_path"):
-        p = Path(str(data["csv_path"]))
-        # Read CSV with first column as index; require a datetime-like index.
-        df = pd.read_csv(p, index_col=0)
-        # First try an explicit format commonly used in OHLCV CSVs.
-        try:
-            df.index = pd.to_datetime(df.index, format="%Y-%m-%d %H:%M:%S")
-        except Exception:
-            # Fallback to generic parsing (dateutil) without warnings at read time.
-            try:
-                df.index = pd.to_datetime(df.index)
-            except Exception as exc:  # pragma: no cover
-                raise SystemExit(
-                    "CSV index could not be parsed as datetime. Please provide "
-                    "ISO timestamps or '%Y-%m-%d %H:%M:%S' format in the first "
-                    "column."
-                ) from exc
-        # Optional resample: e.g., "1D" for daily, "1H" for hourly
-        rs = str(data.get("resample", "")).strip() if isinstance(data, dict) else ""
-        if rs:
-            df = resample_ohlc(df, rs)
-        # Final guard: ensure we have a DatetimeIndex
-        if not isinstance(df.index, pd.DatetimeIndex):  # pragma: no cover
-            raise SystemExit(
-                "CSV index must be datetime-like. Provide parseable timestamps."
-            )
+    dq_flags: list[str] = []
+    data_req = cfg_raw.get("data_request")
+    if isinstance(data_req, dict):
+        # Delegate sourcing to Data Handler via catalog
+        df, dq_flags = load_from_catalog(data_req)
     else:
         idx = pd.date_range("2024-01-01", periods=5, freq="h")
         vals = [1.0, 2.0, 3.0, 2.0, 1.0]
@@ -165,6 +143,10 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         "run_seed": cfg.run_seed,
     }
     params: dict[str, Any] = {}
+    dq = compute_data_quality(df)
+    if dq_flags:
+        dq = {**dq, "loader_flags": dq_flags}
+
     finalize_run(
         run_path,
         meta=meta,
@@ -173,7 +155,7 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         initial_cash=float(cfg_raw.get("initial_cash", 100000.0)),
         config=cfg,
         exposure_curve=exposure,
-        data_quality=compute_data_quality(df),
+        data_quality=dq,
     )
     print(f"Run created at: {run_path}")
     print(f"- Brief: {run_path / 'brief.json'}")
