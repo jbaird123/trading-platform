@@ -1,0 +1,53 @@
+user_id: "researcher"
+runs_dir: "runs"
+initial_cash: 100000
+warmup_bars: 50
+tie_break_policy:
+  rule: "stop_then_tp"
+
+# Data source is owned by the Data Handler. This run config
+# declares only the intent of what to request.
+data_request:
+  symbol: "EUR_USD"
+  timeframe: "1H"
+  start: "2023-01-01"
+  end: "2023-03-01"
+
+rem_config:
+  stop_loss:
+    type: "price"
+    value: 0.0100
+  take_profit:
+    type: "price"
+    value: 0.0200
+
+strategy:
+  strategy_name: "EMA_Crossover"
+  features:
+    - name: ema_fast
+      type: EMA
+      params:
+        length: 12
+      source: close
+    - name: ema_slow
+      type: EMA
+      params:
+        length: 26
+      source: close
+  overlays: [ema_fast, ema_slow]
+  long_entry_rules:
+    - all_of:
+        - condition: is_above
+          left:
+            ref: ema_fast
+          right:
+            ref: ema_slow
+  long_exit_rules:
+    - any_of:
+        - condition: cross_below
+          left:
+            ref: ema_fast
+          right:
+            ref: ema_slow
+  short_entry_rules: []
+  short_exit_rules: []
