@@ -62,6 +62,9 @@ markers = [
     "req_BT_6_3: Marks a test as covering a specific requirement.",
     "req_BT_6_4: Marks a test as covering a specific requirement.",
     "req_BT_6_8: Marks a test as covering a specific requirement.",
+    # Additional BDD tags used in feature files
+    "req_BT_7_3: Marks a test as covering a specific requirement.",
+    "req_SE_3_2: Marks a test as covering a specific requirement.",
 ]
 
 [tool.poetry.scripts]
