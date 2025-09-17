@@ -106,12 +106,13 @@ _Last updated: 2025-09-16_
 ## 2) Data Handler (DH)
 
 ### Core Requirements
-- **[DH-2.1]** Load historical market data (OANDA, Dukascopy).
-- **[DH-2.2]** Normalize data to a schema with columns: `timestamp, open, high, low, close, volume`.
-- **[DH-2.3]** The `timestamp` index must be timezone-aware and set to UTC.
-- **[DH-2.4]** Resample data safely between timeframes (e.g., M1→H1→D) using correct OHLC aggregation rules.
-- **[DH-2.5]** Perform validation checks to detect missing bars, duplicate timestamps, volume outliers, and price spikes.
-- **[DH-2.6]** Produce a `quality_flags` report based on validation results.
+- **[DH-2.1]** Load historical market data from local CSV files that are pre-downloaded and conform to the system's normalized schema. (Note: MVP data is sourced from Dukascopy).
+- **[DH-2.2]** Implement a live market data streaming connector for OANDA to be used by the Execution Layer during live trading.
+- **[DH-2.3]** Normalize data to a schema with columns: `timestamp, open, high, low, close, volume`.
+- **[DH-2.4]** The `timestamp` index must be timezone-aware and set to UTC.
+- **[DH-2.5]** Resample data safely between timeframes (e.g., M1→H1→D) using correct OHLC aggregation rules.
+- **[DH-2.6]** Perform validation checks to detect missing bars, duplicate timestamps, volume outliers, and price spikes.
+- **[DH-2.7]** Produce a `quality_flags` report based on validation results.
 - **[DH-2.8]** **Instrument Definition**: Provide comprehensive symbol metadata to drive the canonical model. This includes, but is not limited to:
   - `asset_class`: (e.g., 'Forex', 'Future', 'Stock').
   - `point_value`: The value of a single full-point move in the base currency (e.g., $1 for most Forex pairs, $50 for ES futures).
@@ -123,15 +124,15 @@ _Last updated: 2025-09-16_
 - **[DH-2.9]** Support chunked loading for large date ranges to manage memory usage.
 - **[DH-2.10]** Cache processed datasets persistently (e.g., in Parquet format) to speed up subsequent loads.
 - **[DH-2.11]** Provide feature pipelines for calculating and appending common technical indicators (e.g., ATR, ADX, RSI, BB width).
-- **[DH-2.13]** Expose a `DataRequest(symbol, timeframe, start, end, features=[...]) -> DataFrame` interface.
-- **[DH-2.14]** All functionality must be tested using golden dataset fixtures, schema invariants, and resampling correctness checks.
+- **[DH-2.12]** Expose a `DataRequest(symbol, timeframe, start, end, features=[...]) -> DataFrame` interface.
+- **[DH-2.13]** All functionality must be tested using golden dataset fixtures, schema invariants, and resampling correctness checks.
 
 ### Future Enhancements
-- **[DH-F.1]** Implement a data versioning strategy (e.g., using DVC) to link backtest results to a specific dataset version ([DH-2.7]).
-- **[DH-F.2]** Support for live data streaming and event subscription ([DH-2.1], [DH-2.13.2]).
-- **[DH-F.3]** **Unstructured & Event Data (News/Reports)**: Ingest, store, and align time-series event data (news, economic reports) with market data ([DH-2.12]).
-- **[DH-F.4]** Enable **sentiment/NLP features** from event metadata for direct use by other components ([DH-2.15]).
-- **[DH-F.5]** Support **distributed/scalable pipelines** for large-scale backtests ([DH-2.16]).
+- **[DH-F.1]** Implement an automated data synchronization service to connect to Dukascopy's API and regularly update the local historical CSV data, ensuring it remains current.
+- **[DH-F.2]** Implement a data versioning strategy (e.g., using DVC) to link backtest results to a specific dataset version.
+- **[DH-F.3]** **Unstructured & Event Data (News/Reports)**: Ingest, store, and align time-series event data (news, economic reports) with market data.
+- **[DH-F.4]** Enable **sentiment/NLP features** from event metadata for direct use by other components.
+- **[DH-F.5]** Support **distributed/scalable pipelines** for large-scale backtests.
 
 ---
 
