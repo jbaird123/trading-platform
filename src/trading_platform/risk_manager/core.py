@@ -39,15 +39,48 @@ class RiskExitManager:
         stop_loss = self.config.get("stop_loss", {})
         take_profit = self.config.get("take_profit", {})
 
+        sl_val = stop_loss.get("value")
+        tp_val = take_profit.get("value")
+        sl_type = stop_loss.get("type", "price")
+        tp_type = take_profit.get("type", "price")
+
         if position.side == "long":
-            if stop_loss.get("value") and current_bar["low"] <= stop_loss["value"]:
-                return {"exit_price": stop_loss["value"], "reason": "stop-loss"}
-            if take_profit.get("value") and current_bar["high"] >= take_profit["value"]:
-                return {"exit_price": take_profit["value"], "reason": "take-profit"}
+            sl_price = None
+            tp_price = None
+            if sl_val is not None:
+                sl_price = (
+                    position.entry_price - float(sl_val)
+                    if sl_type in ("offset",)
+                    else float(sl_val)
+                )
+            if tp_val is not None:
+                tp_price = (
+                    position.entry_price + float(tp_val)
+                    if tp_type in ("offset",)
+                    else float(tp_val)
+                )
+            if sl_price is not None and current_bar["low"] <= sl_price:
+                return {"exit_price": sl_price, "reason": "stop-loss"}
+            if tp_price is not None and current_bar["high"] >= tp_price:
+                return {"exit_price": tp_price, "reason": "take-profit"}
         elif position.side == "short":
-            if stop_loss.get("value") and current_bar["high"] >= stop_loss["value"]:
-                return {"exit_price": stop_loss["value"], "reason": "stop-loss"}
-            if take_profit.get("value") and current_bar["low"] <= take_profit["value"]:
-                return {"exit_price": take_profit["value"], "reason": "take-profit"}
+            sl_price = None
+            tp_price = None
+            if sl_val is not None:
+                sl_price = (
+                    position.entry_price + float(sl_val)
+                    if sl_type in ("offset",)
+                    else float(sl_val)
+                )
+            if tp_val is not None:
+                tp_price = (
+                    position.entry_price - float(tp_val)
+                    if tp_type in ("offset",)
+                    else float(tp_val)
+                )
+            if sl_price is not None and current_bar["high"] >= sl_price:
+                return {"exit_price": sl_price, "reason": "stop-loss"}
+            if tp_price is not None and current_bar["low"] <= tp_price:
+                return {"exit_price": tp_price, "reason": "take-profit"}
 
         return None
