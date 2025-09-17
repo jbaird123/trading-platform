@@ -84,7 +84,7 @@ _Last updated: 2025-09-16_
   - **[SYS-1.9.2]** Able to process multi-year minute data on laptop/Colab.
 - **[SYS-1.10] Test & Behavior-Driven Development (TDD/BDD)**:
   - **[SYS-1.10.1]** All new functionality must be developed using Test-Driven Development (TDD). Tests must be written before the implementation code.
-  - **[SYS-1.10.2]** Every function, module, and component must have corresponding unit and integration tests. 100% test coverage is the target for all new code.
+  - **[SYS-1.10.2]** Every function, module, and component must have corresponding unit and integration tests. 100% test coverage is the target for all code.
   - **[SYS-1.10.3]** Behavior-Driven Development (BDD) with Gherkin (`.feature` files) will be used to ensure requirements are directly translated into executable specifications. This provides living documentation and guarantees alignment between requirements and deliverables.
 - **[SYS-1.11] Quality & Tooling**:
   - **[SYS-1.11.1]** SonarQube for static analysis.
@@ -380,5 +380,6 @@ _Last updated: 2025-09-16_
 ---
 
 ## 17) Traceability
-- **[TRACE-17.1]** Each requirement in this document will be linked to a corresponding BDD `.feature` file.
-- **[TRACE-17.2]** The Gherkin scenarios within these feature files will serve as the direct, automated mapping between the high-level requirement and the code that implements it.
+- **[TRACE-17.1]** Each requirement must be traceable to one or more automated tests.
+- **[TRACE-17.2]** For requirements validated by **BDD**, this link is achieved through corresponding `.feature` files and Gherkin scenarios.
+- **[TRACE-17.3]** For requirements validated by **TDD**, the corresponding unit or integration test files must include a comment referencing the requirement ID(s) they satisfy (e.g., `# Validates: [SYS-1.10.2]`).
