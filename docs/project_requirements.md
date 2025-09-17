@@ -4,8 +4,6 @@ _Last updated: 2025-09-16_
 
 > **Purpose**: Single source of truth for the Trading Engine project. This file captures **all requirements, at every level of detail** — functional, non-functional, system-wide, module-specific, and even small design details. It serves as the **authoritative requirements index** that goes beyond a master spec.
 
-> Traceability: See `docs/requirements_traceability.md` for a live mapping
-> of implemented requirements to their associated tests (BDD and TDD).
 
 ## Table of Contents
 - [0) Scope & Definitions](#0-scope--definitions)

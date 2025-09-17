@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 import pandas as pd
+import pytest
 from trading_platform.backtester.core import run_backtest
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
@@ -18,6 +19,7 @@ def _mk_df(n: int) -> pd.DataFrame:
     return pd.DataFrame([data] * n, index=idx)
 
 
+@pytest.mark.req_BT_7_7
 def test_warmup_delays_first_entry_until_threshold():
     # 5 bars hourly, warmup of 3 bars → first entry allowed at index 3 (4th bar)
     df = _mk_df(5)
@@ -37,6 +39,7 @@ def test_warmup_delays_first_entry_until_threshold():
     assert trades[0].entry_time == df.index[3]
 
 
+@pytest.mark.req_BT_7_7
 def test_no_warmup_allows_immediate_entry():
     df = _mk_df(3)
     sig = pd.Series(["long", "flat", "flat"], index=df.index)

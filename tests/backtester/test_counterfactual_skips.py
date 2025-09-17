@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 
 import pandas as pd
+import pytest
 from pytest import approx
 from trading_platform.backtester.core import run_backtest
 from trading_platform.core.config import RunConfig
@@ -30,6 +31,7 @@ def _mk_df() -> pd.DataFrame:
     )
 
 
+@pytest.mark.req_BT_7_11
 def test_counterfactual_for_blackout_skip_with_tp():
     df = _mk_df()
     sig = pd.Series(["long", "flat", "flat"], index=df.index)

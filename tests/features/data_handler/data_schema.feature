@@ -6,6 +6,7 @@ Feature: Data Schema Contract
 
   @req_DH_2_1
   @req_DH_2_3
+  @req_DH_2_4
   @req_DH_2_6
   Scenario: Loading and normalizing valid market data
     Given a raw data file "valid_market_data.csv" with columns "UTCTime, Open, High, Low, Close, Volume"
