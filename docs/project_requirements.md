@@ -83,7 +83,7 @@ _Last updated: 2025-09-16_
   - **[SYS-1.9.1]** Vectorized core operations; batch I/O; memory-aware iterators.
   - **[SYS-1.9.2]** Able to process multi-year minute data on laptop/Colab.
 - **[SYS-1.10] Test & Behavior-Driven Development (TDD/BDD)**:
-  - **[SYS-1.10.1]** All new functionality must be developed using Test-Driven Development (TDD). Tests must be written before the implementation code.
+  - **[SYS-1.10.1]** All functionality must be developed using Test-Driven Development (TDD). Tests must be written before the implementation code.
   - **[SYS-1.10.2]** Every function, module, and component must have corresponding unit and integration tests. 100% test coverage is the target for all code.
   - **[SYS-1.10.3]** Behavior-Driven Development (BDD) with Gherkin (`.feature` files) will be used to ensure requirements are directly translated into executable specifications. This provides living documentation and guarantees alignment between requirements and deliverables.
 - **[SYS-1.11] Quality & Tooling**:
