@@ -21,7 +21,7 @@ class Trade:
     side: str  # "long" or "short"
     size: float
     pnl: float
-    exit_reason: str | None = None
+    exit_reason: dict[str, Any] | str | None = None
     stop_loss: float | None = None
     take_profit: float | None = None
     cost_currency: float = 0.0

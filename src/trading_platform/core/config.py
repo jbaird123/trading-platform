@@ -87,3 +87,27 @@ class RunConfig(BaseModel):
             "and optional metadata."
         ),
     )
+    # Backtester-specific parameters
+    initial_cash: float = Field(
+        100000.0, description="The starting cash for the portfolio."
+    )
+    allow_flip_on_bar: bool = Field(
+        False,
+        description=(
+            "If True, allows closing a position and opening a new one on the "
+            "same bar."
+        ),
+    )
+    daily_loss_cap: float | None = Field(
+        default=None, description="Portfolio-level daily loss cap in base currency."
+    )
+    # Component configurations
+    instrument: dict[str, Any] | None = Field(
+        default=None, description="Instrument definition for the run."
+    )
+    pm_limits: dict[str, int] | None = Field(
+        default=None, description="Position manager limits (e.g., max_open_long)."
+    )
+    rem_config: dict[str, Any] | None = Field(
+        default=None, description="Risk & Exit Manager configuration."
+    )

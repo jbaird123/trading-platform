@@ -22,6 +22,7 @@ from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.brief import compute_data_quality
 from trading_platform.reporting.compare_html import save_comparison_report
+from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
 
 
@@ -139,15 +140,15 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     strat = compile_strategy(strat_cfg)
     signals = strat.generate_signals(df)
 
+    rem_cfg = cfg_raw.get("rem_config") or {}
+    rem = RiskExitManager(config=rem_cfg)
+
     res = run_backtest(
-        df,
-        signals,
+        market_data=df,
+        signals=signals,
         strategy=strat,
-        initial_cash=float(cfg_raw.get("initial_cash", 100000.0)),
-        allow_flip_on_bar=bool(cfg_raw.get("allow_flip_on_bar", False)),
-        warmup_bars=int(cfg.warmup_bars),
-        blackout_utc=cfg.blackout_utc,
-        blackout_events=cfg.blackout_events,
+        config=cfg,
+        rem=rem,
         return_exposure=True,
     )
     if isinstance(res, tuple):
