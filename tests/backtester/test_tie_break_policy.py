@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 
 import pandas as pd
+import pytest
 from trading_platform.backtester.core import run_backtest
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
@@ -11,6 +12,7 @@ from trading_platform.risk_manager.core import RiskExitManager
 from tests.backtester.dummy_objects import _dummy_strategy_with_sl_tp
 
 
+@pytest.mark.req_BT_7_6
 def test_tie_break_stop_then_tp_for_long():
     idx = [datetime(2024, 1, 1, h) for h in range(2)]
     df = pd.DataFrame(

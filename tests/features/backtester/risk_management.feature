@@ -10,7 +10,6 @@ Feature: Backtester Risk Management
     And the backtester is configured with a stop-loss of 10.0 and a take-profit of 20.0
 
   @req_BT_7_9
-  @req_BT_6_4
   Scenario: A long trade is closed by a stop-loss
     Given the signal at bar 2 is "long"
     And the close price at bar 2 is 100.0  # Entry price
@@ -23,7 +22,6 @@ Feature: Backtester Risk Management
     And the trade should have an exit reason of "stop-loss"
 
   @req_BT_7_9
-  @req_BT_6_4
   Scenario: A long trade is closed by a take-profit
     Given the signal at bar 2 is "long"
     And the close price at bar 2 is 100.0  # Entry price

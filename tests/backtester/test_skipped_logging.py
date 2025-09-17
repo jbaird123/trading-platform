@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 
 import pandas as pd
+import pytest
 from trading_platform.backtester.core import run_backtest
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
@@ -29,6 +30,7 @@ def _df() -> pd.DataFrame:
     )
 
 
+@pytest.mark.req_BT_7_10
 def test_skip_logged_for_blackout():
     df = _df()
     sig = pd.Series(["long", "flat", "flat"], index=df.index)
@@ -49,6 +51,7 @@ def test_skip_logged_for_blackout():
     assert "policy_snapshot" in s0
 
 
+@pytest.mark.req_BT_7_10
 def test_skip_logged_for_position_cap():
     df = _df()
     sig = pd.Series(["long", "long", "flat"], index=df.index)

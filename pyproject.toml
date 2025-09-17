@@ -48,23 +48,26 @@ filterwarnings = [
     "ignore:Setting an item of incompatible dtype is deprecated.*:FutureWarning:ta.trend",
 ]
 markers = [
+    "req_DH_2_1: Marks a test as covering a specific requirement.",
     "req_DH_2_2: Marks a test as covering a specific requirement.",
     "req_DH_2_3: Marks a test as covering a specific requirement.",
+    "req_DH_2_4: Marks a test as covering a specific requirement.",
     "req_DH_2_5: Marks a test as covering a specific requirement.",
     "req_DH_2_6: Marks a test as covering a specific requirement.",
     "req_RMM_4_1: Marks a test as covering a specific requirement.",
     "req_RMM_4_2: Marks a test as covering a specific requirement.",
     "req_RMM_4_3: Marks a test as covering a specific requirement.",
-    "req_SE_3_1_2: Marks a test as covering a specific requirement.",
-    "req_SE_3_2_1: Marks a test as covering a specific requirement.",
-    "req_BT_6_1: Marks a test as covering a specific requirement.",
-    "req_BT_6_2: Marks a test as covering a specific requirement.",
-    "req_BT_6_3: Marks a test as covering a specific requirement.",
-    "req_BT_6_4: Marks a test as covering a specific requirement.",
-    "req_BT_6_8: Marks a test as covering a specific requirement.",
+    "req_SE_3_1: Marks a test as covering a specific requirement.",
+    "req_SE_3_2: Marks a test as covering a specific requirement.",
+    "req_BT_7_1: Marks a test as covering a specific requirement.",
     # Additional BDD tags used in feature files
     "req_BT_7_3: Marks a test as covering a specific requirement.",
-    "req_SE_3_2: Marks a test as covering a specific requirement.",
+    "req_BT_7_6: Marks a test as covering a specific requirement.",
+    "req_BT_7_7: Marks a test as covering a specific requirement.",
+    "req_BT_7_9: Marks a test as covering a specific requirement.",
+    "req_BT_7_10: Marks a test as covering a specific requirement.",
+    "req_BT_7_11: Marks a test as covering a specific requirement.",
+    "req_BT_7_16: Marks a test as covering a specific requirement.",
 ]
 
 [tool.poetry.scripts]
