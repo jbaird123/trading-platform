@@ -20,3 +20,12 @@ repos:
       - id: mypy
         # The project uses pydantic, so it's needed for type checking
         additional_dependencies: [pydantic]
+
+  - repo: local
+    hooks:
+      - id: strategy-risk-separation-check
+        name: Check for risk logic in strategy files
+        entry: tools/check_strategy_risk_separation.py
+        language: python
+        types: [yaml]
+        files: ^config/strategy/.*\.yaml$
