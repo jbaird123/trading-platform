@@ -19,6 +19,61 @@ from trading_platform.portfolio.metrics import (
 )
 from trading_platform.portfolio.trade import Trade
 
+# Path to the JSON Schema for brief field documentation
+SCHEMA_PATH = Path("docs/schemas/brief.schema.json")
+
+
+def _schema_node_type(node: dict[str, Any]) -> str:
+    t = node.get("type")
+    if isinstance(t, list):
+        parts = sorted(map(str, t))
+        return "/".join(parts)
+    return str(t) if t else "object"
+
+
+def _lookup_schema(schema: dict[str, Any], path: list[str]) -> dict[str, Any] | None:
+    node: dict[str, Any] | None = schema
+    for i, seg in enumerate(path):
+        if not isinstance(node, dict):
+            return None
+        props = node.get("properties")
+        if isinstance(props, dict) and seg in props:
+            node = props[seg]
+            continue
+        # Support object schemas that use additionalProperties to describe children
+        ntype = node.get("type")
+        is_object = (isinstance(ntype, str) and ntype == "object") or (
+            isinstance(ntype, list) and "object" in ntype
+        )
+        if is_object and "additionalProperties" in node:
+            ap = node.get("additionalProperties")
+            if isinstance(ap, dict):
+                node = ap
+                continue
+            return None
+        # If no explicit schema for this child and we're at the last segment,
+        # return the current node (generic object schema) so long as it has a
+        # description. This still enforces schema-provided descriptions.
+        if is_object and i == len(path) - 1 and node.get("description"):
+            return node
+        return None
+    return node
+
+
+def _leaf_paths(obj: Any, prefix: str = "") -> list[str]:
+    paths: list[str] = []
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if k == "field_definitions":
+                continue
+            p = f"{prefix}.{k}" if prefix else k
+            paths.extend(_leaf_paths(v, p))
+    elif isinstance(obj, list):
+        paths.append(prefix)
+    else:
+        paths.append(prefix)
+    return paths
+
 
 def _round_currency(value: float | None) -> float | None:
     if value is None:
@@ -407,6 +462,24 @@ def generate_brief(
     }
     placeholders = _empty_sections()
     placeholders.update(base)
+    # Populate field_definitions strictly from the JSON Schema if not provided
+    if not field_definitions:
+        try:
+            schema = json.loads(SCHEMA_PATH.read_text())
+        except Exception:  # pragma: no cover
+            schema = {}
+        fdefs: dict[str, Any] = {}
+        for p in _leaf_paths(placeholders):
+            parts = p.split(".") if p else []
+            node = _lookup_schema(schema, parts)
+            if not node or not node.get("description"):
+                # Strict mode: require schema coverage for every leaf
+                raise ValueError(f"Missing schema description for brief path: {p}")
+            fdefs[p] = {
+                "description": node["description"],
+                "type": _schema_node_type(node),
+            }
+        placeholders["field_definitions"] = fdefs
     # Attach skipped trades and filter impact if provided
     if skipped_trades:
         for trade in skipped_trades:

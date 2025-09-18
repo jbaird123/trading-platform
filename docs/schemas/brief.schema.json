@@ -19,7 +19,10 @@
     "strategy_params": {
       "type": "object",
       "description": "A snapshot of the parameters and configuration used to define the strategy for this run. This includes any user-defined parameters, feature configurations, and rule sets.",
-      "additionalProperties": true
+      "additionalProperties": {
+        "description": "Scalar value (number, string, boolean, or null).",
+        "type": ["integer", "number", "string", "boolean", "null"]
+      }
     },
     "overall_performance": {
       "type": "object",
@@ -157,11 +160,12 @@
         "type": "object",
         "properties": {
           "n_trades": { "type": "integer", "description": "Number of trades in this regime." },
-          "total_cf_pnl": { "type": "number", "description": "Total counterfactual PnL for this regime." },
-          "mean_cf_pnl": { "type": "number", "description": "Mean counterfactual PnL for this regime." },
-          "median_cf_pnl": { "type": "number", "description": "Median counterfactual PnL for this regime." }
+          "total_pnl": { "type": "number", "description": "Total PnL for this regime." },
+          "mean_pnl": { "type": "number", "description": "Mean PnL for this regime." },
+          "median_pnl": { "type": "number", "description": "Median PnL for this regime." },
+          "win_rate": { "type": "number", "description": "Win rate for this regime." }
         },
-        "required": ["n_trades", "total_cf_pnl", "mean_cf_pnl", "median_cf_pnl"]
+        "required": ["n_trades", "total_pnl", "mean_pnl", "median_pnl", "win_rate"]
       }
     },
     "data_quality": {
@@ -184,7 +188,10 @@
         "nan_counts": {
           "type": "object",
           "description": "Count of NaN (Not a Number) values per data column.",
-          "additionalProperties": { "type": "integer" }
+          "additionalProperties": {
+            "type": "integer",
+            "description": "NaN count for the column."
+          }
         },
         "has_nans": {
           "type": "boolean",
@@ -215,7 +222,14 @@
         "python_version": { "type": "string", "description": "Version of Python used (e.g., '3.10.12')." },
         "platform": { "type": "string", "description": "Operating system and architecture (e.g., 'Linux-5.15.0-76-generic-x86_64-with-glibc2.35')." },
         "timezone": { "type": ["string", "null"], "description": "Timezone of the execution environment." },
-        "dependency_versions": { "type": "object", "description": "Key dependency names and their installed versions." }
+        "dependency_versions": {
+          "type": "object",
+          "description": "Key dependency names and their installed versions.",
+          "additionalProperties": {
+            "type": "string",
+            "description": "Dependency version string."
+          }
+        }
       },
       "required": ["python_version", "platform", "timezone", "dependency_versions"]
     },
@@ -289,42 +303,95 @@
     "monte_carlo": {
       "type": "object",
       "description": "Results and statistics from Monte Carlo simulations, if enabled.",
-      "additionalProperties": true
+      "additionalProperties": {
+        "type": ["object", "array", "number", "string", "boolean", "null"],
+        "description": "Monte Carlo configuration/result field.",
+        "additionalProperties": {
+          "type": ["object", "array", "number", "string", "boolean", "null"],
+          "description": "Monte Carlo configuration/result field."
+        }
+      }
     },
     "walk_forward": {
       "type": "object",
       "description": "Results and performance metrics from walk-forward optimization, if enabled.",
-      "additionalProperties": true
+      "additionalProperties": {
+        "type": ["object", "array", "number", "string", "boolean", "null"],
+        "description": "Walk-forward configuration/result field.",
+        "additionalProperties": {
+          "type": ["object", "array", "number", "string", "boolean", "null"],
+          "description": "Walk-forward configuration/result field."
+        }
+      }
     },
     "parameter_search": {
       "type": "object",
       "description": "Results from parameter optimization or search, if enabled.",
-      "additionalProperties": true
+      "additionalProperties": {
+        "type": ["object", "array", "number", "string", "boolean", "null"],
+        "description": "Parameter search configuration/result field.",
+        "additionalProperties": {
+          "type": ["object", "array", "number", "string", "boolean", "null"],
+          "description": "Parameter search configuration/result field."
+        }
+      }
     },
     "instrument_definitions": {
       "type": "object",
       "description": "A snapshot of the instrument metadata used during the run, including details like point value, tick size, and commission model.",
-      "additionalProperties": true
+      "additionalProperties": {
+        "type": "object",
+        "description": "Instrument metadata object.",
+        "additionalProperties": {
+          "type": ["string", "number", "boolean", "object", "array", "null"],
+          "description": "Instrument metadata field."
+        }
+      }
     },
     "cost_model": {
       "type": "object",
       "description": "The configuration of the cost model applied during the run (e.g., spread, commission, slippage settings).",
-      "additionalProperties": true
+      "additionalProperties": {
+        "type": "object",
+        "description": "Cost model component configuration.",
+        "additionalProperties": {
+          "type": ["number", "string", "boolean", "null"],
+          "description": "Cost model parameter."
+        }
+      }
     },
     "fill_policy": {
       "type": "object",
       "description": "The configuration of the order fill policy used during the run.",
-      "additionalProperties": true
+      "additionalProperties": {
+        "type": ["number", "string", "boolean", "null"],
+        "description": "Fill policy parameter."
+      }
     },
     "tie_break_policy": {
       "type": "object",
       "description": "The configuration of the policy used to resolve simultaneous exit conditions (e.g., stop-loss vs. take-profit).",
-      "additionalProperties": true
+      "additionalProperties": {
+        "type": ["number", "string", "boolean", "null"],
+        "description": "Tie-break policy parameter."
+      }
     },
     "blackout_policy": {
       "type": "object",
       "description": "The configuration of the trading blackout policy applied during the run.",
-      "additionalProperties": true
+      "properties": {
+        "blackout_utc": {
+          "type": "array",
+          "description": "List of UTC blackout intervals or timestamps.",
+          "items": { "type": "string" }
+        },
+        "blackout_events": {
+          "type": "array",
+          "description": "List of event identifiers that trigger blackout windows.",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
     },
     "checksums": {
       "type": "object",
@@ -334,6 +401,11 @@
         "instrument_defs_hash": { "type": "string", "description": "SHA256 hash of the instrument definitions used." }
       },
       "required": ["config_snapshot_hash", "instrument_defs_hash"]
+    },
+    "stop_tp_candidates": {
+      "type": "array",
+      "description": "List of stop-loss/take-profit candidate levels considered during analysis.",
+      "items": {}
     },
     "field_definitions": {
       "type": "object",
