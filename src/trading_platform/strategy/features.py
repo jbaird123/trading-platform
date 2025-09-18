@@ -52,7 +52,8 @@ def _price_series(df: pd.DataFrame, source: str) -> pd.Series:
 
 
 def ema(series: pd.Series, length: int) -> pd.Series:
-    length = max(1, int(length))
+    n = len(series)
+    length = max(1, min(int(length), n))
     return cast(
         pd.Series,
         EMAIndicator(close=series, window=length, fillna=True).ema_indicator(),
@@ -65,7 +66,8 @@ def rsi(series: pd.Series, length: int) -> pd.Series:
 
 
 def atr(df: pd.DataFrame, length: int) -> pd.Series:
-    length = max(1, int(length))
+    n = len(df)
+    length = max(1, min(int(length), n))
     return cast(
         pd.Series,
         AverageTrueRange(
@@ -79,7 +81,12 @@ def atr(df: pd.DataFrame, length: int) -> pd.Series:
 
 
 def adx(df: pd.DataFrame, length: int) -> pd.Series:
-    length = max(1, int(length))
+    n = len(df)
+    # ADX needs at least 3 bars; for very short windows, return zeros safely
+    if n < 3:
+        return pd.Series([0.0] * n, index=df.index, dtype="float64")
+    # Clamp window to available length to avoid internal indexing errors
+    length = max(3, min(int(length), n))
     return cast(
         pd.Series,
         ADXIndicator(

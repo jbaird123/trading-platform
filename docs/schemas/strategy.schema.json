@@ -25,9 +25,9 @@
       "type": "object",
       "description": "Tunable parameters referenced by rules or features.",
       "additionalProperties": {
-        "oneOf": [
-          { "type": "number" },
+        "anyOf": [
           { "type": "integer" },
+          { "type": "number" },
           { "type": "string" },
           { "type": "boolean" }
         ]
