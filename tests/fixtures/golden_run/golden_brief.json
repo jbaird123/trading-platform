@@ -135,329 +135,300 @@
   },
   "field_definitions": {
     "overall_performance.total_pnl": {
-      "description": "Sum of per-trade pnl in base currency.",
-      "why_useful": "Measures total outcome over the run.",
-      "how_to_use": "Compare across runs; normalize by starting equity if needed."
+      "description": "Sum of all trade profits and losses.",
+      "type": "number"
     },
     "equity_stats.max_drawdown": {
-      "description": "Peak-to-trough equity loss in base currency.",
-      "why_useful": "Captures worst loss magnitude.",
-      "how_to_use": "Lower is better; monitor alongside pnl."
+      "description": "The largest peak-to-trough drop in equity.",
+      "type": "number"
     },
     "costs.total_costs": {
-      "description": "Sum of spread, commission, and slippage across all trades.",
-      "why_useful": "Quantifies drag from costs.",
-      "how_to_use": "Assess robustness under realistic costs."
+      "description": "Total sum of all trading costs (spread, commission, slippage).",
+      "type": "number"
     },
     "meta.strategy_name": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Name of the strategy used.",
+      "type": "string"
     },
     "meta.run_id": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Unique identifier for the run.",
+      "type": "string"
     },
     "strategy_params.fast": {
       "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "type": "boolean/integer/null/number/string"
     },
     "strategy_params.slow": {
       "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "type": "boolean/integer/null/number/string"
     },
     "strategy_params.stop_type": {
       "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "type": "boolean/integer/null/number/string"
     },
     "strategy_params.stop_value": {
       "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "type": "boolean/integer/null/number/string"
     },
     "strategy_params.tp_type": {
       "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "type": "boolean/integer/null/number/string"
     },
     "strategy_params.tp_value": {
       "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "type": "boolean/integer/null/number/string"
     },
     "strategy_params.trail_type": {
       "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "type": "boolean/integer/null/number/string"
     },
     "strategy_params.trail_value": {
       "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "type": "boolean/integer/null/number/string"
     },
     "strategy_params.atr_length": {
       "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "type": "boolean/integer/null/number/string"
     },
     "strategy_params.tie_break": {
       "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "type": "boolean/integer/null/number/string"
     },
     "overall_performance.n_trades": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Total number of trades executed.",
+      "type": "integer"
     },
     "overall_performance.mean_pnl": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Average PnL per trade.",
+      "type": "number"
     },
     "overall_performance.median_pnl": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Median PnL per trade.",
+      "type": "number"
     },
     "overall_performance.by_side_total_pnl.long": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Total PnL for long trades.",
+      "type": "number"
     },
     "overall_performance.by_side_total_pnl.short": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Total PnL for short trades.",
+      "type": "number"
     },
     "overall_performance.win_rate": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Percentage of trades with PnL > 0.",
+      "type": "number"
     },
     "overall_performance.initial_equity": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Starting equity of the portfolio.",
+      "type": "number"
     },
     "overall_performance.final_equity": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Ending equity of the portfolio after all trades.",
+      "type": "number"
     },
     "risk_snapshot.win_rate": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Percentage of trades with PnL > 0.",
+      "type": "number"
     },
     "risk_snapshot.avg_win": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Average PnL of winning trades.",
+      "type": "number"
     },
     "risk_snapshot.avg_loss": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Average PnL of losing trades.",
+      "type": "number"
     },
     "risk_snapshot.max_win": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Largest single winning trade.",
+      "type": "number"
     },
     "risk_snapshot.max_loss": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Largest single losing trade (most negative PnL).",
+      "type": "number"
     },
     "equity_stats.equity_curve": {
-      "description": "List of [timestamp, value] pairs ordered by time.",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Time series of portfolio equity (timestamp, value) pairs.",
+      "type": "array"
     },
     "equity_stats.drawdown_curve": {
-      "description": "List of [timestamp, value] pairs ordered by time.",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Time series of portfolio drawdown (timestamp, value) pairs.",
+      "type": "array"
     },
     "equity_stats.dd_duration_bars": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "The duration in bars of the longest drawdown period.",
+      "type": "integer"
     },
     "distribution.pnl_mean": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Mean of trade PnL.",
+      "type": "number"
     },
     "distribution.pnl_median": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Median of trade PnL.",
+      "type": "number"
     },
     "distribution.pnl_std": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Standard deviation of trade PnL.",
+      "type": "number"
     },
     "distribution.p05": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "5th percentile of PnL.",
+      "type": "number"
     },
     "distribution.p95": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "95th percentile of PnL.",
+      "type": "number"
     },
     "streaks.longest_win_streak": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Longest consecutive winning trades.",
+      "type": "integer"
     },
     "streaks.longest_loss_streak": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Longest consecutive losing trades.",
+      "type": "integer"
     },
     "streaks.current_streak": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Current consecutive winning or losing trades.",
+      "type": "integer"
     },
     "holding_time.median_secs": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Median trade holding time in seconds.",
+      "type": "number"
     },
     "costs.avg_cost_per_trade": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Average cost incurred per trade.",
+      "type": "number"
     },
     "costs.breakdown.spread": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Total cost due to bid-ask spread.",
+      "type": "number"
     },
     "costs.breakdown.commission": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Total cost due to commission.",
+      "type": "number"
     },
     "costs.breakdown.slippage": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Total cost due to slippage.",
+      "type": "number"
     },
     "exposure.average_gross_exposure": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Average absolute value of open position size during the run.",
+      "type": "number"
     },
     "exposure.peak_gross_exposure": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Maximum absolute value of open position size during the run.",
+      "type": "number"
     },
     "blackout_policy.blackout_utc": {
-      "description": "List of values (container field).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "List of UTC blackout intervals or timestamps.",
+      "type": "array"
     },
     "blackout_policy.blackout_events": {
-      "description": "List of values (container field).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "List of event identifiers that trigger blackout windows.",
+      "type": "array"
     },
     "environment.python_version": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Version of Python used (e.g., '3.10.12').",
+      "type": "string"
     },
     "environment.platform": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Operating system and architecture (e.g., 'Linux-5.15.0-76-generic-x86_64-with-glibc2.35').",
+      "type": "string"
     },
     "environment.timezone": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Timezone of the execution environment.",
+      "type": "null/string"
     },
     "environment.dependency_versions.pandas": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Dependency version string.",
+      "type": "string"
     },
     "environment.dependency_versions.pydantic": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Dependency version string.",
+      "type": "string"
     },
     "provenance.run_id": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Unique identifier for this specific run.",
+      "type": "null/string"
     },
     "provenance.strategy_name": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Name of the strategy that was executed.",
+      "type": "null/string"
     },
     "provenance.data_start": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Start timestamp of the historical data used for the run.",
+      "type": "null/string"
     },
     "provenance.data_end": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "End timestamp of the historical data used for the run.",
+      "type": "null/string"
     },
     "provenance.symbols": {
-      "description": "List of values (container field).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "List of trading symbols (instruments) included in the run.",
+      "type": "array"
     },
     "provenance.app_version": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Version of the trading platform application that performed the run.",
+      "type": "null/string"
     },
     "provenance.git_commit": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Git commit hash of the codebase at the time of the run.",
+      "type": "null/string"
     },
     "provenance.run_seed": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "Seed value used for any random number generation to ensure reproducibility.",
+      "type": "integer/null"
     },
     "checksums.instrument_defs_hash": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "SHA256 hash of the instrument definitions used.",
+      "type": "string"
     },
     "checksums.config_snapshot_hash": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "SHA256 hash of the run configuration snapshot.",
+      "type": "string"
     },
     "trades": {
-      "description": "List of trade records (objects).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "A list of all executed trades, including entry, exit, and performance details.",
+      "type": "array"
     },
     "stop_tp_candidates": {
-      "description": "List of values (container field).",
-      "why_useful": "Provides context for analysis and reporting.",
-      "how_to_use": "Use in dashboards, filters, and comparisons."
+      "description": "List of stop-loss/take-profit candidate levels considered during analysis.",
+      "type": "array"
+    },
+    "data_quality.loader_flags": {
+      "description": "Flags or warnings generated during data loading (e.g., missing files, format issues).",
+      "type": "array"
+    },
+    "data_quality.index_monotonic_increasing": {
+      "description": "True if the data index (timestamps) is strictly increasing.",
+      "type": "boolean"
+    },
+    "data_quality.duplicate_bars_count": {
+      "description": "Number of duplicate timestamp entries found in the data.",
+      "type": "integer"
+    },
+    "data_quality.nan_counts.open": {
+      "description": "NaN count for the column.",
+      "type": "integer"
+    },
+    "data_quality.nan_counts.high": {
+      "description": "NaN count for the column.",
+      "type": "integer"
+    },
+    "data_quality.nan_counts.low": {
+      "description": "NaN count for the column.",
+      "type": "integer"
+    },
+    "data_quality.nan_counts.close": {
+      "description": "NaN count for the column.",
+      "type": "integer"
+    },
+    "data_quality.nan_counts.volume": {
+      "description": "NaN count for the column.",
+      "type": "integer"
+    },
+    "data_quality.has_nans": {
+      "description": "True if any NaN values were found in the data.",
+      "type": "boolean"
     }
   },
   "trades": [],
