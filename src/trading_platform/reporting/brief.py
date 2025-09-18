@@ -475,10 +475,7 @@ def generate_brief(
             if not node or not node.get("description"):
                 # Strict mode: require schema coverage for every leaf
                 raise ValueError(f"Missing schema description for brief path: {p}")
-            fdefs[p] = {
-                "description": node["description"],
-                "type": _schema_node_type(node),
-            }
+            fdefs[p] = node["description"]
         placeholders["field_definitions"] = fdefs
     # Attach skipped trades and filter impact if provided
     if skipped_trades:
