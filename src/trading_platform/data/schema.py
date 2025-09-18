@@ -32,8 +32,13 @@ def load_and_normalize_data(file_path: Path) -> tuple[pd.DataFrame, list[str]]:
     quality_flags = []
 
     try:
-        # Robust read: handle BOM and auto-detect common delimiters
-        df = pd.read_csv(file_path, sep=None, engine="python", encoding="utf-8-sig")
+        # Faster CSV read with C engine and memory mapping
+        df = pd.read_csv(
+            file_path,
+            encoding="utf-8-sig",
+            engine="c",
+            memory_map=True,
+        )
         # Normalize column names (trim whitespace)
         df.columns = [str(c).strip() for c in df.columns]
 
@@ -72,7 +77,7 @@ def load_and_normalize_data(file_path: Path) -> tuple[pd.DataFrame, list[str]]:
             return pd.DataFrame(), quality_flags
 
         # Ensure timestamp index in UTC
-        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, errors="coerce")
         df = df.set_index("timestamp")
 
         return df, quality_flags
