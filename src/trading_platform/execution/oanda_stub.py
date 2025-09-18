@@ -95,7 +95,10 @@ class OandaStubAdapter(ExecutionAdapter):
             if side in {"long", "short"}:
                 if self.pm.current_position and self.pm.current_position.side != side:
                     self.pm.close_position(
-                        exit_price=price, exit_time=when, exit_reason="flip"
+                        exit_price=price,
+                        exit_time=when,
+                        exit_reason="flip",
+                        exit_context=None,
                     )
                 if not self.pm.current_position:
                     self.pm.create_new_position(
@@ -107,7 +110,10 @@ class OandaStubAdapter(ExecutionAdapter):
                     )
             elif side == "flat" and self.pm.current_position:
                 self.pm.close_position(
-                    exit_price=price, exit_time=when, exit_reason="flat"
+                    exit_price=price,
+                    exit_time=when,
+                    exit_reason="flat",
+                    exit_context=None,
                 )
 
         return OrderResult(order_id=order_id, status="accepted", message="stub")

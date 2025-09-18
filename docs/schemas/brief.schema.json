@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/brief.schema.json",
+  "title": "Backtest Brief",
+  "type": "object",
+  "properties": {
+    "meta": {
+      "type": "object",
+      "properties": {
+        "run_id": { "type": "string" },
+        "strategy_name": { "type": "string" }
+      },
+      "required": ["run_id", "strategy_name"]
+    },
+    "strategy_params": {
+      "type": "object"
+    },
+    "overall_performance": {
+      "type": "object",
+      "properties": {
+        "n_trades": { "type": "integer" },
+        "total_pnl": { "type": "number" }
+      },
+      "required": ["n_trades", "total_pnl"]
+    },
+    "risk_snapshot": {
+      "type": "object",
+      "properties": {
+        "win_rate": { "type": "number" },
+        "avg_win": { "type": "number" },
+        "avg_loss": { "type": "number" }
+      },
+      "required": ["win_rate"]
+    }
+  },
+  "required": [
+    "meta",
+    "strategy_params",
+    "overall_performance",
+    "risk_snapshot"
+  ]
+}

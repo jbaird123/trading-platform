@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/rem.schema.json",
+  "title": "Risk and Exit Manager (REM) Configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Human-friendly name for this REM configuration."
+    },
+    "version": {
+      "type": "string",
+      "description": "Optional version tag for this REM config."
+    },
+    "stop_loss": {
+      "oneOf": [
+        { "$ref": "#/$defs/staticStop" },
+        { "$ref": "#/$defs/dynamicStop" }
+      ]
+    },
+    "take_profit": {
+      "oneOf": [
+        { "$ref": "#/$defs/staticTakeProfit" },
+        { "$ref": "#/$defs/dynamicTakeProfit" }
+      ]
+    }
+  },
+  "required": ["stop_loss"],
+  "$defs": {
+    "staticStop": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "static" },
+        "pips": { "type": "number" },
+        "price_offset": { "type": "number" }
+      },
+      "required": ["type"],
+      "oneOf": [{ "required": ["pips"] }, { "required": ["price_offset"] }]
+    },
+    "dynamicStop": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "dynamic" },
+        "atr_multiplier": { "type": "number" }
+      },
+      "required": ["type", "atr_multiplier"]
+    },
+    "staticTakeProfit": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "static" },
+        "pips": { "type": "number" },
+        "price_offset": { "type": "number" }
+      },
+      "required": ["type"],
+      "oneOf": [{ "required": ["pips"] }, { "required": ["price_offset"] }]
+    },
+    "dynamicTakeProfit": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "dynamic" },
+        "atr_multiplier": { "type": "number" }
+      },
+      "required": ["type", "atr_multiplier"]
+    }
+  }
+}

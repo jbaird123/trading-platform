@@ -35,7 +35,9 @@ def _mk_df() -> pd.DataFrame:
 def test_counterfactual_for_blackout_skip_with_tp():
     df = _mk_df()
     sig = pd.Series(["long", "flat", "flat"], index=df.index)
-    config = RunConfig(initial_cash=1000.0, blackout_utc=[("00:00", "00:30")])
+    config = RunConfig(
+        initial_cash=1000.0, blackout_utc=[("00:00", "00:30")], position_size=10000.0
+    )
     rem = RiskExitManager(config={})
     trades, _exp, skips = run_backtest(
         market_data=df,
