@@ -54,6 +54,7 @@ def finalize_run(
     monte_carlo: dict[str, Any] | None = None,
     walk_forward: dict[str, Any] | None = None,
     exposure_curve: list[tuple[datetime, float]] | None = None,
+    skipped_trades: list[dict[str, Any]] | None = None,
 ) -> Path:
     """Generate and save a brief for this run under the run_path.
 
@@ -147,6 +148,7 @@ def finalize_run(
         parameter_search=ps_summary
         if ps_summary is not None
         else (config.parameter_search if config is not None else None),
+        skipped_trades=skipped_trades,
     )
     # Also export a minimal HTML report (skeleton)
     try:
