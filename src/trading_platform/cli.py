@@ -20,6 +20,7 @@ from trading_platform.data.loader import load_from_catalog
 from trading_platform.execution.oanda_stub import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
+from trading_platform.regime_market_manager.engine import RMMEngine
 from trading_platform.reporting.brief import compute_data_quality
 from trading_platform.reporting.compare_html import save_comparison_report
 from trading_platform.risk_manager.core import RiskExitManager
@@ -121,12 +122,39 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     rem_cfg = cfg_raw.get("rem_config") or {}
     rem = RiskExitManager(config=rem_cfg)
 
+    # RMM is mandatory: require rmm_config and build per-bar context
+    rmm_cfg = cfg.rmm_config
+    if not isinstance(rmm_cfg, dict) or not rmm_cfg:
+        raise SystemExit(
+            "rmm_config is required in the run configuration to enforce "
+            "regime gating."
+        )
+    # Validate and classify daily regimes, then project to hourly index
+    try:
+        RMMEngine.validate_config(rmm_cfg)
+    except Exception as exc:  # pragma: no cover
+        raise SystemExit(f"RMM config validation failed: {exc}") from exc
+    rmm_engine = RMMEngine(config=rmm_cfg)
+    daily_regimes = rmm_engine.classify_daily(df)
+    rmm_policy = rmm_cfg.get("policy") or {}
+    per_bar = rmm_engine.project_to_index(daily_regimes, df.index, policy=rmm_policy)
+    rmm_context: dict[datetime, dict[str, Any]] = {
+        ts: {
+            "label": str(row["label"]),
+            "confidence": float(row["confidence"]),
+            "allowed_sides": list(row["allowed_sides"] or []),
+            "policy": rmm_policy,
+        }
+        for ts, row in per_bar.iterrows()
+    }
+
     res = run_backtest(
         market_data=df,
         signals=signals,
         strategy=strat,
         config=cfg,
         rem=rem,
+        rmm_context=rmm_context,
         return_exposure=True,
     )
     if isinstance(res, tuple):

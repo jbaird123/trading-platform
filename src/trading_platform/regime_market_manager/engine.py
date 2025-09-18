@@ -10,8 +10,9 @@ import pandas as pd
 from trading_platform.data.schema import resample_ohlc
 from trading_platform.strategy.features import compute_features
 
-try:  # optional hard validation against JSON Schema
+try:
     import jsonschema  # type: ignore[import-untyped]
+    from jsonschema import ValidationError  # type: ignore[import-untyped]
 except Exception:  # pragma: no cover
     jsonschema = None  # type: ignore[assignment]
 
@@ -63,12 +64,17 @@ class RMMEngine:
     @staticmethod
     def validate_config(cfg: dict[str, Any]) -> None:
         if jsonschema is None:
-            return
+            raise ValueError(
+                "jsonschema is required for RMM validation but is not installed."
+            )
         schema_path = (
             Path(__file__).resolve().parents[3] / "docs" / "schemas" / "rmm.schema.json"
         )
         schema = json.loads(schema_path.read_text())
-        jsonschema.validate(cfg, schema)  # type: ignore[misc]
+        try:
+            jsonschema.validate(cfg, schema)  # type: ignore[misc]
+        except ValidationError as e:  # pragma: no cover
+            raise ValueError(f"rmm schema validation error: {e.message}") from e
 
     def classify_daily(self, df_hourly: pd.DataFrame) -> pd.DataFrame:
         """Return daily regime labels/confidence based on RMM config rules."""
