@@ -74,7 +74,9 @@ class RMMEngine:
         try:
             jsonschema.validate(cfg, schema)  # type: ignore[misc]
         except ValidationError as e:  # pragma: no cover
-            raise ValueError(f"rmm schema validation error: {e.message}") from e
+            path = ".".join(str(p) for p in getattr(e, "path", []))
+            where = f" at '{path}'" if path else ""
+            raise ValueError(f"rmm schema validation error{where}: {e.message}") from e
 
     def classify_daily(self, df_hourly: pd.DataFrame) -> pd.DataFrame:
         """Return daily regime labels/confidence based on RMM config rules."""
@@ -103,6 +105,18 @@ class RMMEngine:
 
     @staticmethod
     def allowed_sides_for(label: str, confidence: float, policy: dict) -> list[str]:
+        """Decide allowed sides based on policy + conventional mapping.
+
+        Policy (per schema):
+        - min_confidence: float
+        - allow_labels: [str]
+        - block_labels: [str]
+
+        Conventional mapping:
+        - trend_up -> ["long"]
+        - trend_down -> ["short"]
+        - range/unknown -> []
+        """
         min_c = (
             float(policy.get("min_confidence", 0.0))
             if isinstance(policy, dict)
@@ -110,11 +124,17 @@ class RMMEngine:
         )
         if confidence < min_c:
             return []
-        mapping = (policy or {}).get(
-            "allow_map",
-            {"trend_up": ["long"], "trend_down": ["short"], "range": []},
-        )
-        return list(mapping.get(label, []))
+        allow_labels = policy.get("allow_labels") or None
+        if isinstance(allow_labels, list) and label not in allow_labels:
+            return []
+        block_labels = policy.get("block_labels") or None
+        if isinstance(block_labels, list) and label in block_labels:
+            return []
+        if label == "trend_up":
+            return ["long"]
+        if label == "trend_down":
+            return ["short"]
+        return []
 
     def project_to_index(
         self, daily: pd.DataFrame, target_index: pd.DatetimeIndex, policy: dict | None
