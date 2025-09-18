@@ -91,6 +91,13 @@ class RunConfig(BaseModel):
     initial_cash: float = Field(
         100000.0, description="The starting cash for the portfolio."
     )
+    # Position sizing (simple fixed-size for now)
+    position_size: float = Field(
+        ...,  # required
+        description=(
+            "Fixed trade size (units/contracts/shares) used when opening a position."
+        ),
+    )
     allow_flip_on_bar: bool = Field(
         False,
         description=(

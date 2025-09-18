@@ -4,16 +4,16 @@ initial_cash: 100000
 warmup_bars: 50
 tie_break_policy:
   rule: "stop_then_tp"
-
+position_size: 25000
 # Data source is owned by the Data Handler. This run config
 # declares only the intent of what to request.
 data_request:
   symbol: "EUR_USD"
   timeframe: "1H"
-  start: "2014-01-01"
+  start: "2021-01-01"
   end: "2023-03-01"
 
-counterfactual_mode: fast   # Literal["fast","exact"] with default "fast".
+counterfactual_mode: exact   # Literal["fast","exact"] with default "fast".
 #fast_mode:
 #  limit_bars: 5000
 

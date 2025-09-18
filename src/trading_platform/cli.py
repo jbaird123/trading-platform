@@ -188,6 +188,10 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             for ts, row in per_bar.iterrows()
         }
 
+    # Output toggles; default to no exposure unless explicitly requested
+    ret_exp = bool(cfg_raw.get("return_exposure", False))
+    ret_skips = bool(cfg_raw.get("return_skips", True))
+
     res = run_backtest(
         market_data=df,
         signals=signals,
@@ -195,8 +199,8 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         config=cfg,
         rem=rem,
         rmm_context=rmm_context,
-        return_exposure=True,
-        return_skips=True,
+        return_exposure=ret_exp,
+        return_skips=ret_skips,
     )
     skips: list[dict[str, Any]] = []
     if isinstance(res, tuple):

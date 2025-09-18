@@ -33,6 +33,7 @@ if __name__ == "__main__":  # pragma: no cover
         run_seed=42,
         initial_cash=100000.0,
         allow_flip_on_bar=False,
+        position_size=10000.0,
     )  # pragma: no cover
     initialize_run(default_config)  # pragma: no cover
 
