@@ -251,6 +251,10 @@ def run_backtest(
             exposure_curve.append((cast(datetime, current_bar.name), exposure_val))
 
     if skipped:
+        # Choose counterfactual mode
+        mode = getattr(config, "counterfactual_mode", "fast") or "fast"
+        use_fast = True if mode == "fast" else False
+
         for s in skipped:
             val = s.get("entry_index")
             if isinstance(val, int):
@@ -262,16 +266,29 @@ def run_backtest(
                     continue
             side = str(s.get("side", "long"))
             entry_px = float(s.get("entry_price", market_data.iloc[si]["close"]))
-            cf = _simulate_counterfactual(
-                market_data,
-                strategy,
-                start_index=si,
-                side=side,
-                entry_price=entry_px,
-                size=10000.0,
-                instrument=config.instrument,
-                cost_model=config.cost_model,
-            )
+            if use_fast:
+                cf = _simulate_counterfactual_fast(
+                    market_data,
+                    strategy,
+                    start_index=si,
+                    side=side,
+                    entry_price=entry_px,
+                    size=10000.0,
+                    instrument=config.instrument,
+                    cost_model=config.cost_model,
+                )
+            else:
+                cf = _simulate_counterfactual_exact(
+                    market_data,
+                    strategy,
+                    start_index=si,
+                    side=side,
+                    entry_price=entry_px,
+                    size=10000.0,
+                    instrument=config.instrument,
+                    cost_model=config.cost_model,
+                    rem=rem,
+                )
             s.update(cf)
 
     if return_exposure and return_skips:
@@ -283,7 +300,7 @@ def run_backtest(
     return portfolio.trades
 
 
-def _simulate_counterfactual(
+def _simulate_counterfactual_fast(
     market_data: pd.DataFrame,
     strategy: CompiledStrategy,  # kept for signature compatibility
     *,
@@ -344,4 +361,72 @@ def _simulate_counterfactual(
         "cf_mfe_currency": float(favorable),
         "cf_mae_currency": float(adverse),
         "cf_bars_held": bars_held,
+    }
+
+
+def _simulate_counterfactual_exact(
+    market_data: pd.DataFrame,
+    strategy: CompiledStrategy,  # kept for signature compatibility
+    *,
+    start_index: int,
+    side: str,
+    entry_price: float,
+    size: float,
+    instrument: dict | None,
+    cost_model: dict | None,
+    rem: RiskExitManager,
+) -> dict[str, Any]:
+    """Exact counterfactual: bar-by-bar re-simulation with REM."""
+    if start_index < 0 or start_index >= len(market_data):
+        return {}
+
+    pm = PortfolioManager(
+        initial_cash=0.0, instrument=instrument, cost_model=cost_model
+    )
+    entry_time = cast(datetime, market_data.index[start_index])
+    pm.create_new_position(
+        symbol="EUR_USD",
+        side=side,
+        entry_price=entry_price,
+        size=size,
+        entry_time=entry_time,
+        instrument=instrument,
+        initial_risk_ccy=None,
+    )
+
+    for i in range(start_index, len(market_data)):
+        cb = market_data.iloc[i]
+        # Apply REM exits first for fidelity
+        if pm.current_position:
+            exit_details = rem.check_exits(pm.current_position, cb)
+            if exit_details:
+                pm.close_position(
+                    exit_price=exit_details["exit_price"],
+                    exit_time=cast(datetime, cb.name),
+                    exit_reason=exit_details["reason"],
+                )
+                break
+
+        if not pm.current_position:
+            break
+
+        # Update metrics; force the same side so no flips occur
+        pm.on_bar(current_bar=cb, current_signal=side)
+
+    if pm.current_position:
+        last_idx = len(market_data) - 1
+        pm.close_position(
+            exit_price=float(market_data.iloc[last_idx]["close"]),
+            exit_time=cast(datetime, market_data.index[last_idx]),
+        )
+    if not pm.trades:
+        return {}
+    t = pm.trades[0]
+    return {
+        "cf_exit_time": t.exit_time.isoformat(),
+        "cf_exit_price": float(t.exit_price),
+        "cf_pnl_currency": float(t.pnl),
+        "cf_mfe_currency": float(t.mfe_currency or 0.0),
+        "cf_mae_currency": float(t.mae_currency or 0.0),
+        "cf_bars_held": int(t.bars_held or 0),
     }

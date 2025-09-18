@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -110,4 +110,13 @@ class RunConfig(BaseModel):
     )
     rem_config: dict[str, Any] | None = Field(
         default=None, description="Risk & Exit Manager configuration."
+    )
+    # Counterfactual computation mode for skipped entries
+    counterfactual_mode: Literal["fast", "exact"] = Field(
+        default="fast",
+        description=(
+            "How to compute counterfactuals for skipped entries: "
+            "'fast' uses a vectorized hold-to-end approximation; "
+            "'exact' re-simulates bar-by-bar with REM."
+        ),
     )
