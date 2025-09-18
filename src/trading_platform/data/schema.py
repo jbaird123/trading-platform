@@ -76,8 +76,8 @@ def load_and_normalize_data(file_path: Path) -> tuple[pd.DataFrame, list[str]]:
             quality_flags.append(f"columns:{sorted(list(cols_set))}")
             return pd.DataFrame(), quality_flags
 
-        # Ensure timestamp index in UTC
-        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, errors="coerce")
+        # Ensure timestamp index in UTC; treat parse failures as errors
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, errors="raise")
         df = df.set_index("timestamp")
 
         return df, quality_flags
