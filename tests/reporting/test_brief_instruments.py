@@ -24,7 +24,14 @@ def _t(ts: datetime, pnl: float) -> Trade:
 
 def test_brief_includes_instrument_snapshot_when_provided():
     instr = InstrumentDefinition(
-        symbol="EURUSD", tick_size=0.0001, base_ccy="EUR", quote_ccy="USD"
+        symbol="EURUSD",
+        tick_size=0.0001,
+        base_ccy="EUR",
+        quote_ccy="USD",
+        asset_class="Forex",
+        point_value=1.0,
+        commission_model={},
+        sessions=[],
     )
     instruments = {instr.symbol: instr.to_dict()}
 

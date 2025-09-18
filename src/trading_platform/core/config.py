@@ -93,7 +93,7 @@ class RunConfig(BaseModel):
     )
     # Position sizing (simple fixed-size for now)
     position_size: float = Field(
-        ...,  # required
+        1.0,
         description=(
             "Fixed trade size (units/contracts/shares) used when opening a position."
         ),

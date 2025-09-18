@@ -447,7 +447,7 @@ def generate_brief(
     # Build definitions for any missing fields by walking the brief so far
     preview = {
         "meta": _to_jsonable(meta),
-        "params": _to_jsonable(params),
+        "strategy_params": _to_jsonable(params),
         "overall_performance": performance,
         "risk_snapshot": risk_snapshot,
         "equity_stats": equity_stats,
@@ -472,7 +472,7 @@ def generate_brief(
 
     base = {
         "meta": _to_jsonable(meta),
-        "params": _to_jsonable(params),
+        "strategy_params": _to_jsonable(params),
         # Canonical, instrument-agnostic sections
         "overall_performance": performance,
         "risk_snapshot": risk_snapshot,

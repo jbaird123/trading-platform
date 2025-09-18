@@ -36,7 +36,12 @@ def test_exposure_curve_tracks_gross_notional_per_bar():
     df = _mk_df()
     # long from bar 1 to bar 2; flat at bar 3
     sig = pd.Series(["flat", "long", "long", "flat"], index=df.index)
-    config = RunConfig(initial_cash=1000.0, allow_flip_on_bar=False, warmup_bars=0)
+    config = RunConfig(
+        initial_cash=1000.0,
+        allow_flip_on_bar=False,
+        warmup_bars=0,
+        position_size=10000.0,
+    )
     rem = RiskExitManager(config={})
     trades, curve = run_backtest(
         market_data=df,

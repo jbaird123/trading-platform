@@ -8,6 +8,28 @@ import pytest
 from trading_platform.data.schema import load_and_normalize_data
 
 
+def test_load_and_normalize_success_path(tmp_path: Path):
+    """Tests the ideal path for data loading and normalization."""
+    # Arrange: create a perfect CSV file
+    f = tmp_path / "perfect.csv"
+    f.write_text(
+        "UTCTime,Open,High,Low,Close,Volume\n"
+        "2023-01-01 00:00:00,1,2,0.5,1.5,100\n"
+        "2023-01-01 01:00:00,1.5,2.5,1.0,2.0,200"
+    )
+
+    # Act
+    df, flags = load_and_normalize_data(f)
+
+    # Assert: df is correct and no flags are raised
+    assert len(df) == 2
+    assert not flags
+    assert list(df.columns) == ["open", "high", "low", "close", "volume"]
+    assert isinstance(df.index, pd.DatetimeIndex)
+    assert str(df.index.tz) == "UTC"
+    assert df.iloc[0]["close"] == 1.5
+
+
 def test_load_and_normalize_handles_read_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):

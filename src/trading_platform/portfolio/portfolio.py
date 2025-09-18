@@ -118,6 +118,7 @@ class PortfolioManager:
             exit_price=current_bar["close"],
             exit_time=cast(datetime, current_bar.name),
             exit_reason="signal",
+            exit_context=None,
         )
         if not allow_flip_on_bar:
             return  # pragma: no cover
@@ -153,7 +154,8 @@ class PortfolioManager:
         self,
         exit_price: float,
         exit_time: datetime,
-        exit_reason: dict[str, Any] | str | None = None,
+        exit_reason: str | None = None,
+        exit_context: dict[str, Any] | None = None,
     ) -> None:
         """Closes the current open position and records it as a Trade."""
         if not self._open_position:
@@ -196,6 +198,7 @@ class PortfolioManager:
             exit_time=exit_time,
             pnl=pnl,
             exit_reason=exit_reason,
+            exit_context=exit_context,
             cost_currency=total_cost,
             cost_breakdown=cost_breakdown,
             r_multiple=r_multiple,

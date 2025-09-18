@@ -1,28 +1,47 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 from typing import Any
 
+from pydantic import BaseModel
 
-@dataclass(frozen=True)
-class InstrumentDefinition:
-    """Minimal instrument metadata for snapshots and reporting.
 
-    This is a scaffold for future expansion (tick_size, point_value, etc.).
-    """
+class InstrumentDefinition(BaseModel):
+    """Defines the metadata for a financial instrument."""
 
-    symbol: str
-    tick_size: float | None = None
-    point_value: float | None = None
+    asset_class: str
+    point_value: float
+    tick_size: float
+    commission_model: dict
+    sessions: list[tuple[str, str]]
+    symbol: str | None = None
     base_ccy: str | None = None
     quote_ccy: str | None = None
-    lot_size: float | None = None
-    min_trade_unit: float | None = None
-    commission_structure: dict[str, Any] | None = None
-    spread_model: dict[str, Any] | None = None
-    slippage_model: dict[str, Any] | None = None
 
-    def to_dict(self) -> dict[str, Any]:
-        """Return a JSON-serializable dict with None fields pruned."""
-        d = asdict(self)
-        return {k: v for k, v in d.items() if v is not None}
+    def to_dict(self) -> dict:
+        return self.model_dump()
+
+
+# Placeholder for a more robust instrument definition provider.
+_INSTRUMENT_DEFINITIONS: dict[str, dict[str, Any]] = {
+    "EUR_USD": {
+        "asset_class": "Forex",
+        "point_value": 1.0,  # Canonical value, not lot-specific
+        "tick_size": 0.00001,
+        "commission_model": {"type": "spread"},
+        "sessions": [("00:00", "23:59")],
+    },
+    "GBP_JPY": {
+        "asset_class": "Forex",
+        "point_value": 1.0,
+        "tick_size": 0.001,
+        "commission_model": {"type": "spread"},
+        "sessions": [("00:00", "23:59")],
+    },
+}
+
+
+def get_instrument_definition(symbol: str) -> InstrumentDefinition:
+    """Retrieves the instrument definition for a given symbol."""
+    if symbol not in _INSTRUMENT_DEFINITIONS:
+        raise ValueError(f"No instrument definition found for symbol: {symbol}")
+    return InstrumentDefinition(**_INSTRUMENT_DEFINITIONS[symbol])
