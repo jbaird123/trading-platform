@@ -82,8 +82,7 @@ def run_backtest(
     exposure_curve: list[tuple[datetime, float]] = []
     skipped: list[dict[str, Any]] = []
     limits = config.pm_limits or {"max_open_long": 1, "max_open_short": 1}
-
-    rem = RiskExitManager(config=config.rem_config or {})
+    # Use the provided RiskExitManager instance; do not override it here.
 
     def _fmt_ts(val: Any) -> str:
         return val.isoformat() if isinstance(val, datetime) else str(val)
@@ -103,8 +102,9 @@ def run_backtest(
                     exit_time=cast(datetime, current_bar.name),
                     exit_reason=exit_details["reason"],
                 )
-                # Update exposure and skip to next bar if position was closed by REM
-                exposure_curve.append((cast(datetime, current_bar.name), 0.0))
+                # Update exposure only if requested
+                if return_exposure:
+                    exposure_curve.append((cast(datetime, current_bar.name), 0.0))
                 continue
 
         # Process signal-based exits and update position metrics
@@ -243,11 +243,12 @@ def run_backtest(
                 }
             )
 
-        pos = portfolio.current_position
-        exposure_val = 0.0
-        if pos is not None:
-            exposure_val = float(abs(pos.size) * float(current_bar["close"]))
-        exposure_curve.append((cast(datetime, current_bar.name), exposure_val))
+        if return_exposure:
+            pos = portfolio.current_position
+            exposure_val = 0.0
+            if pos is not None:
+                exposure_val = float(abs(pos.size) * float(current_bar["close"]))
+            exposure_curve.append((cast(datetime, current_bar.name), exposure_val))
 
     if skipped:
         for s in skipped:
@@ -284,7 +285,7 @@ def run_backtest(
 
 def _simulate_counterfactual(
     market_data: pd.DataFrame,
-    strategy: CompiledStrategy,
+    strategy: CompiledStrategy,  # kept for signature compatibility
     *,
     start_index: int,
     side: str,
@@ -293,48 +294,54 @@ def _simulate_counterfactual(
     instrument: dict | None,
     cost_model: dict | None,
 ) -> dict[str, Any]:
-    pm = PortfolioManager(
-        initial_cash=0.0, instrument=instrument, cost_model=cost_model
-    )
-    entry_time = cast(datetime, market_data.index[start_index])
+    """Fast counterfactual: hold to end, compute extremes vectorially.
 
-    # Since risk rules are now decoupled, this simulation does not include
-    # hypothetical SL/TP exits. A future enhancement could involve passing the
-    # REM to this function for a more complete counterfactual simulation.
-    pm.create_new_position(
-        symbol="EUR_USD",
-        side=side,
-        entry_price=entry_price,
-        size=size,
-        entry_time=entry_time,
-        instrument=instrument,
-        initial_risk_ccy=None,  # Risk is no longer part of strategy
-    )
-
-    for i in range(start_index, len(market_data)):
-        current_bar = market_data.iloc[i]
-
-        if not pm.current_position:
-            break
-
-        # This simulation now only considers a strategic exit at the end of the
-        # data or a potential flip signal (which is not handled here).
-        pm.on_bar(current_bar=current_bar, current_signal=side)
-
-    if pm.current_position:
-        last_idx = len(market_data) - 1
-        pm.close_position(
-            exit_price=float(market_data.iloc[last_idx]["close"]),
-            exit_time=cast(datetime, market_data.index[last_idx]),
-        )
-    if not pm.trades:
+    Matches the previous behavior where the counterfactual did not apply REM
+    exits and simply updated MFE/MAE each bar, then exited on the last close.
+    """
+    if start_index < 0 or start_index >= len(market_data):
         return {}
-    t = pm.trades[0]
+
+    idx = market_data.index
+    last_idx = len(market_data) - 1
+
+    # Exit at the final bar's close
+    exit_time = cast(datetime, idx[last_idx])
+    exit_price = float(market_data.iloc[last_idx]["close"])
+
+    # Compute MFE/MAE via extremes across the holding window
+    window = market_data.iloc[start_index:]
+    high_max = float(window["high"].max()) if "high" in window else entry_price
+    low_min = float(window["low"].min()) if "low" in window else entry_price
+
+    if side == "long":
+        favorable = max(0.0, (high_max - entry_price) * size)
+        adverse = max(0.0, (entry_price - low_min) * size)
+        pnl_gross = (exit_price - entry_price) * size
+    else:  # short
+        favorable = max(0.0, (entry_price - low_min) * size)
+        adverse = max(0.0, (high_max - entry_price) * size)
+        pnl_gross = (entry_price - exit_price) * size
+
+    # Apply costs using the same CostModel as PortfolioManager
+    from trading_platform.core.costs import CostModel
+
+    cm = CostModel.from_dict(cost_model)
+    cost_entry, _ = cm.compute_entry_cost(
+        size, price=entry_price, instrument=instrument
+    )
+    cost_exit, _ = cm.compute_exit_cost(size, price=exit_price, instrument=instrument)
+    total_cost = float(cost_entry + cost_exit)
+
+    pnl_net = float(pnl_gross) - total_cost
+
+    bars_held = int(len(market_data) - start_index)
+
     return {
-        "cf_exit_time": t.exit_time.isoformat(),
-        "cf_exit_price": float(t.exit_price),
-        "cf_pnl_currency": float(t.pnl),
-        "cf_mfe_currency": float(t.mfe_currency or 0.0),
-        "cf_mae_currency": float(t.mae_currency or 0.0),
-        "cf_bars_held": int(t.bars_held or 0),
+        "cf_exit_time": exit_time.isoformat(),
+        "cf_exit_price": exit_price,
+        "cf_pnl_currency": pnl_net,
+        "cf_mfe_currency": float(favorable),
+        "cf_mae_currency": float(adverse),
+        "cf_bars_held": bars_held,
     }

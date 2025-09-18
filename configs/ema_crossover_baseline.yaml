@@ -10,11 +10,11 @@ tie_break_policy:
 data_request:
   symbol: "EUR_USD"
   timeframe: "1H"
-  start: "2022-01-01"
+  start: "2014-01-01"
   end: "2023-03-01"
 
-fast_mode:
-  limit_bars: 5000
+#fast_mode:
+#  limit_bars: 5000
 
 rem_path: "config/rem/basic_price_exits.yaml"
 
