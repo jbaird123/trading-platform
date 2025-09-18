@@ -13,6 +13,9 @@ data_request:
   start: "2022-01-01"
   end: "2023-03-01"
 
+fast_mode:
+  limit_bars: 5000
+
 rem_path: "config/rem/basic_price_exits.yaml"
 
 strategy_path: "config/strategy/ema_crossover.yaml"
@@ -22,9 +25,9 @@ strategy_path: "config/strategy/ema_crossover.yaml"
 strategy_overrides:
   features:
     ema_fast:
-      length: 12
+      length: 16
     ema_slow:
-      length: 26
+      length: 50
 
 # Regime Market Manager (mandatory) - referenced by path
 rmm_path: "config/rmm/daily_trend.yaml"

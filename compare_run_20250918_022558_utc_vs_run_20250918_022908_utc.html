@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Comparison Report</title>
+<style>
+body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; padding: 16px; }
+table { border-collapse: collapse; width: 100%; max-width: 960px; }
+th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: right; }
+th:first-child, td:first-child { text-align: left; }
+thead { background: #f5f5f5; }
+.best{background:#e9fbe9;font-weight:600} .sortable th{cursor:pointer} .sorted{background:#eef}
+</style>
+<script>
+function sortTable(idx){var t=document.getElementById('cmpt');var b=t.tBodies[0];var r=[...b.rows];var a=t.dataset.asc==='1';r.sort((x,y)=>{let xv=parseFloat(x.cells[idx].innerText)||0;let yv=parseFloat(y.cells[idx].innerText)||0;return a?xv-yv:yv-xv});b.append(...r);t.dataset.asc=a?'0':'1'}
+</script>
+</head>
+<body>
+<h1>Comparison Report</h1>
+<p><strong>Run A:</strong> EMA_Crossover_Generic [run_20250918_022558_utc]</p>
+<p><strong>Run B:</strong> EMA_Crossover_Generic [run_20250918_022908_utc]</p>
+<table id='cmpt' class='sortable' data-asc='1'>
+  <thead><tr><th onclick='sortTable(0)'>Metric</th><th onclick='sortTable(1)'>A</th><th onclick='sortTable(2)'>B</th><th onclick='sortTable(3)'>Delta (B - A)</th></tr></thead>
+  <tbody>
+    <tr><td>average_gross_exposure</td><td>9074.13</td><td>9241.25</td><td class=''>167.12</td></tr><tr><td>avg_cost_per_trade</td><td>0</td><td>0</td><td class=''>0</td></tr><tr><td>max_drawdown</td><td>1078.8</td><td>874.7</td><td class='best'>-204.1</td></tr><tr><td>mean_pnl</td><td>-16.1</td><td>-15.9</td><td class=''>0.2</td></tr><tr><td>peak_gross_exposure</td><td>11019.9</td><td>11019.9</td><td class=''>0</td></tr><tr><td>total_costs</td><td>0</td><td>0</td><td class=''>0</td></tr><tr><td>total_pnl</td><td>-1078.8</td><td>-874.7</td><td class='best'>204.1</td></tr><tr><td>win_rate</td><td>0.239</td><td>0.236</td><td class=''>-0.003</td></tr>
+  </tbody>
+</table>
+</body>
+</html>
