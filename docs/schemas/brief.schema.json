@@ -2,41 +2,263 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.com/schemas/brief.schema.json",
   "title": "Backtest Brief",
+  "description": "A comprehensive summary of a backtest or live trading run.",
   "type": "object",
   "properties": {
     "meta": {
       "type": "object",
+      "description": "High-level metadata about the run.",
       "properties": {
-        "run_id": { "type": "string" },
-        "strategy_name": { "type": "string" }
+        "run_id": { "type": "string", "description": "Unique identifier for the run." },
+        "strategy_name": { "type": "string", "description": "Name of the strategy used." },
+        "git_commit": { "type": ["string", "null"], "description": "The git commit hash at the time of the run." },
+        "run_seed": { "type": "integer", "description": "Seed used for all random number generators." }
       },
       "required": ["run_id", "strategy_name"]
     },
     "strategy_params": {
-      "type": "object"
+      "type": "object",
+      "description": "Snapshot of the parameters used by the strategy."
     },
     "overall_performance": {
       "type": "object",
+      "description": "Run-level performance metrics in the portfolio's base currency.",
       "properties": {
-        "n_trades": { "type": "integer" },
-        "total_pnl": { "type": "number" }
+        "n_trades": { "type": "integer", "description": "Total number of trades executed." },
+        "total_pnl": { "type": "number", "description": "Sum of all trade profits and losses." },
+        "mean_pnl": { "type": "number", "description": "Average PnL per trade." },
+        "median_pnl": { "type": "number", "description": "Median PnL per trade." },
+        "by_side_total_pnl": {
+          "type": "object",
+          "description": "Total PnL broken down by trade side.",
+          "properties": {
+            "long": { "type": "number" },
+            "short": { "type": "number" }
+          },
+          "required": ["long", "short"]
+        },
+        "win_rate": { "type": "number", "description": "Percentage of trades with PnL > 0." },
+        "initial_equity": { "type": "number", "description": "Starting equity of the portfolio." },
+        "final_equity": { "type": "number", "description": "Ending equity of the portfolio after all trades." }
       },
-      "required": ["n_trades", "total_pnl"]
+      "required": ["n_trades", "total_pnl", "mean_pnl", "median_pnl", "by_side_total_pnl", "win_rate", "initial_equity", "final_equity"]
     },
     "risk_snapshot": {
       "type": "object",
+      "description": "Key risk metrics based on trade outcomes.",
       "properties": {
-        "win_rate": { "type": "number" },
-        "avg_win": { "type": "number" },
-        "avg_loss": { "type": "number" }
+        "win_rate": { "type": "number", "description": "Percentage of trades with PnL > 0." },
+        "avg_win": { "type": "number", "description": "Average PnL of winning trades." },
+        "avg_loss": { "type": "number", "description": "Average PnL of losing trades." },
+        "max_win": { "type": "number", "description": "Largest single winning trade." },
+        "max_loss": { "type": "number", "description": "Largest single losing trade (most negative PnL)." }
       },
-      "required": ["win_rate"]
-    }
+      "required": ["win_rate", "avg_win", "avg_loss", "max_win", "max_loss"]
+    },
+    "equity_stats": {
+      "type": "object",
+      "description": "Statistics related to the portfolio equity curve.",
+      "properties": {
+        "equity_curve": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": [{ "type": "string", "format": "date-time" }, { "type": "number" }],
+            "minItems": 2,
+            "maxItems": 2
+          }
+        },
+        "drawdown_curve": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": [{ "type": "string", "format": "date-time" }, { "type": "number" }],
+            "minItems": 2,
+            "maxItems": 2
+          }
+        },
+        "max_drawdown": { "type": "number", "description": "The largest peak-to-trough drop in equity." },
+        "dd_duration_bars": { "type": "integer", "description": "The duration in bars of the longest drawdown period." }
+      },
+      "required": ["equity_curve", "drawdown_curve", "max_drawdown", "dd_duration_bars"]
+    },
+    "distribution": {
+      "type": "object",
+      "description": "Statistical distribution of trade PnL.",
+      "properties": {
+        "pnl_mean": { "type": "number" },
+        "pnl_median": { "type": "number" },
+        "pnl_std": { "type": "number" },
+        "p05": { "type": "number", "description": "5th percentile of PnL." },
+        "p95": { "type": "number", "description": "95th percentile of PnL." }
+      },
+      "required": ["pnl_mean", "pnl_median", "pnl_std", "p05", "p95"]
+    },
+    "streaks": {
+      "type": "object",
+      "description": "Analysis of consecutive winning and losing trades.",
+      "properties": {
+        "longest_win_streak": { "type": "integer" },
+        "longest_loss_streak": { "type": "integer" },
+        "current_streak": { "type": "integer" }
+      },
+      "required": ["longest_win_streak", "longest_loss_streak", "current_streak"]
+    },
+    "holding_time": {
+      "type": "object",
+      "properties": {
+        "median_secs": { "type": "number", "description": "Median trade holding time in seconds." }
+      },
+      "required": ["median_secs"]
+    },
+    "costs": {
+      "type": "object",
+      "description": "Aggregated trading cost metrics.",
+      "properties": {
+        "total_costs": { "type": "number" },
+        "avg_cost_per_trade": { "type": "number" },
+        "breakdown": {
+          "type": "object",
+          "properties": {
+            "spread": { "type": "number" },
+            "commission": { "type": "number" },
+            "slippage": { "type": "number" }
+          },
+          "required": ["spread", "commission", "slippage"]
+        }
+      },
+      "required": ["total_costs", "avg_cost_per_trade", "breakdown"]
+    },
+    "exposure": {
+      "type": "object",
+      "description": "Portfolio exposure metrics.",
+      "properties": {
+        "average_gross_exposure": { "type": "number" },
+        "peak_gross_exposure": { "type": "number" }
+      }
+    },
+    "regimes": {
+      "type": "object",
+      "description": "Performance breakdown by market regime.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "n_trades": { "type": "integer" },
+          "total_pnl": { "type": "number" },
+          "mean_pnl": { "type": "number" },
+          "median_pnl": { "type": "number" },
+          "win_rate": { "type": "number" }
+        },
+        "required": ["n_trades", "total_pnl", "mean_pnl", "median_pnl", "win_rate"]
+      }
+    },
+    "data_quality": {
+      "type": "object",
+      "description": "Summary of data quality checks.",
+      "properties": {
+        "loader_flags": { "type": "array", "items": { "type": "string" } },
+        "index_monotonic_increasing": { "type": "boolean" },
+        "duplicate_bars_count": { "type": "integer" },
+        "nan_counts": { "type": "object", "additionalProperties": { "type": "integer" } },
+        "has_nans": { "type": "boolean" }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Information about the origin of the run and data.",
+      "properties": {
+        "run_id": { "type": ["string", "null"] },
+        "strategy_name": { "type": ["string", "null"] },
+        "data_start": { "type": ["string", "null"], "format": "date-time" },
+        "data_end": { "type": ["string", "null"], "format": "date-time" },
+        "symbols": { "type": "array", "items": { "type": "string" } },
+        "app_version": { "type": ["string", "null"] },
+        "git_commit": { "type": ["string", "null"] },
+        "run_seed": { "type": ["integer", "null"] }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "description": "Details of the execution environment.",
+      "properties": {
+        "python_version": { "type": "string" },
+        "platform": { "type": "string" },
+        "timezone": { "type": ["string", "null"] },
+        "dependency_versions": { "type": "object" }
+      }
+    },
+    "trades": {
+      "type": "array",
+      "description": "A list of all executed trades.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "symbol": { "type": "string" },
+          "side": { "type": "string", "enum": ["long", "short"] },
+          "size": { "type": "number" },
+          "entry_time": { "type": "string", "format": "date-time" },
+          "exit_time": { "type": "string", "format": "date-time" },
+          "entry_price": { "type": "number" },
+          "exit_price": { "type": "number" },
+          "pnl": { "type": "number" },
+          "exit_reason": { "type": ["string", "null"] },
+          "r_multiple": { "type": ["number", "null"] },
+          "mfe_currency": { "type": ["number", "null"] },
+          "mae_currency": { "type": ["number", "null"] },
+          "bars_held": { "type": ["integer", "null"] },
+          "context_at_entry": { "type": ["object", "null"] },
+          "context_at_exit": { "type": ["object", "null"] },
+          "cost_breakdown": {
+            "type": "object",
+            "properties": {
+              "spread": { "type": "number" },
+              "commission": { "type": "number" },
+              "slippage": { "type": "number" }
+            }
+          }
+        },
+        "required": ["symbol", "side", "size", "entry_time", "exit_time", "entry_price", "exit_price", "pnl"]
+      }
+    },
+    "skipped_trades": {
+      "type": "array",
+      "description": "A list of counterfactual trades that were skipped due to filters.",
+      "items": { "type": "object" }
+    },
+    "filter_impact": {
+      "type": "object",
+      "description": "Aggregated performance impact of skipped trades, by reason.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "n_skipped": { "type": "integer" },
+          "total_cf_pnl": { "type": "number" },
+          "mean_cf_pnl": { "type": "number" },
+          "median_cf_pnl": { "type": "number" }
+        }
+      }
+    },
+    "monte_carlo": { "type": "object" },
+    "walk_forward": { "type": "object" },
+    "parameter_search": { "type": "object" },
+    "instrument_definitions": { "type": "object" },
+    "cost_model": { "type": "object" },
+    "fill_policy": { "type": "object" },
+    "tie_break_policy": { "type": "object" },
+    "blackout_policy": { "type": "object" },
+    "checksums": { "type": "object" },
+    "field_definitions": { "type": "object" }
   },
   "required": [
     "meta",
     "strategy_params",
     "overall_performance",
-    "risk_snapshot"
+    "risk_snapshot",
+    "equity_stats",
+    "distribution",
+    "streaks",
+    "holding_time",
+    "costs",
+    "trades"
   ]
 }
