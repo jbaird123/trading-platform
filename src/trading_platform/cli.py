@@ -120,6 +120,18 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     strat_path = cfg_raw.get("strategy_path")
     if strat_path:
         strat_cfg = _load_config(Path(str(strat_path)))
+    # Apply optional per-run overrides for strategy tunables
+    overrides = cfg_raw.get("strategy_overrides") or {}
+    if isinstance(overrides, dict):
+        feat_over = (overrides.get("features") or {}) if overrides else {}
+        if isinstance(feat_over, dict) and isinstance(strat_cfg.get("features"), list):
+            for f in strat_cfg["features"]:
+                name = str(f.get("name", ""))
+                if name and name in feat_over and isinstance(feat_over[name], dict):
+                    params = f.get("params") or {}
+                    if isinstance(params, dict):
+                        params.update({k: v for k, v in feat_over[name].items()})
+                        f["params"] = params
     strat = compile_strategy(strat_cfg)
     signals = strat.generate_signals(df)
 
@@ -180,7 +192,13 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         "git_commit": _get_git_commit(),
         "run_seed": cfg.run_seed,
     }
-    params: dict[str, Any] = {}
+    # Snapshot parameters in brief: prefer explicit run-time params,
+    # then strategy defaults
+    params_snapshot: dict[str, Any] = {}
+    if isinstance(cfg_raw.get("strategy_params"), dict):
+        params_snapshot = dict(cfg_raw["strategy_params"])  # user-specified
+    elif isinstance(strat_cfg.get("parameters"), dict):
+        params_snapshot = dict(strat_cfg["parameters"])  # strategy defaults
     dq = compute_data_quality(df)
     if dq_flags:
         dq = {**dq, "loader_flags": dq_flags}
@@ -188,7 +206,7 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     finalize_run(
         run_path,
         meta=meta,
-        params=params,
+        params=params_snapshot,
         trades=trades,
         initial_cash=float(cfg_raw.get("initial_cash", 100000.0)),
         config=cfg,
