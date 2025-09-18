@@ -179,10 +179,17 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         rem=rem,
         rmm_context=rmm_context,
         return_exposure=True,
+        return_skips=True,
     )
+    skips: list[dict[str, Any]] = []
     if isinstance(res, tuple):
-        trades = cast(list[Trade], res[0])
-        exposure = cast(list[tuple[datetime, float]], res[1])
+        if len(res) == 3:
+            trades = cast(list[Trade], res[0])
+            exposure = cast(list[tuple[datetime, float]], res[1])
+            skips = cast(list[dict[str, Any]], res[2])
+        else:
+            trades = cast(list[Trade], res[0])
+            exposure = cast(list[tuple[datetime, float]], res[1])
     else:
         trades = cast(list[Trade], res)
         exposure = []
@@ -213,6 +220,7 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         config=cfg,
         exposure_curve=exposure,
         data_quality=dq,
+        skipped_trades=skips,
     )
     print(f"Run created at: {run_path}")
     print(f"- Brief: {run_path / 'brief.json'}")

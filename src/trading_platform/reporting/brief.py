@@ -564,6 +564,7 @@ def save_run_brief(
     exposure_curve: list[tuple[datetime, float]] | None = None,
     config_snapshot: dict[str, Any] | None = None,
     parameter_search: dict[str, Any] | None = None,
+    skipped_trades: list[dict[str, Any]] | None = None,
 ) -> Path:
     """Generate and save a brief to `run_path/brief.json`.
 
@@ -586,6 +587,7 @@ def save_run_brief(
         exposure_curve=exposure_curve,
         config_snapshot=config_snapshot,
         parameter_search=parameter_search,
+        skipped_trades=skipped_trades,
     )
     out_path = run_path / "brief.json"
     save_brief(brief, out_path)
