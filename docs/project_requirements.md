@@ -284,34 +284,34 @@ _Last updated: 2025-09-16_
 ---
 
 ## 11) JSON Brief Schema (Instrument-Agnostic)
-- **[JSON-11.1]** **meta**: `{strategy_name, timeframe, universe, version, run_id, timestamp}`.
+- **[JSON-11.1]** **meta**: High-level metadata including `run_id`, `strategy_name`, `git_commit`, and `run_seed`.
 - **[JSON-11.2]** **strategy_params**: A snapshot of the parameters used by the Strategy Engine.
-- **[JSON-11.3]** **rem_config**: A complete snapshot of the Risk & Exit Manager configuration used for the run.
-- **[JSON-11.4]** **overall_performance** (base currency): `{n_trades, total_pnl, mean_pnl, median_pnl, by_side_total_pnl, win_rate, initial_equity, final_equity}`.
-- **[JSON-11.5]** **risk_snapshot** (base currency): `{win_rate, avg_win, avg_loss, max_win, max_loss}`.
-- **[JSON-11.6]** **equity_stats**: `{equity_curve: [[timestamp, equity], ...], max_drawdown, dd_duration_bars}`.
-- **[JSON-11.7]** **distribution**: `{pnl_mean, pnl_median, pnl_std, p05, p95}`.
-- **[JSON-11.8]** **streaks**: `{longest_win_streak, longest_loss_streak, current_streak}`.
-- **[JSON-11.9]** **holding_time**: `{median_secs}` and optional buckets.
-- **[JSON-11.10]** **activity**: `{trades_per_day}`.
-- **[JSON-11.11]** **timing_buckets**: `{by_hour, by_dow, by_month}`.
-- **[JSON-11.12]** **costs**: `{total_costs, avg_cost_per_trade, breakdown:{spread, commission, fees, slippage}}`.
-- **[JSON-11.13]** **exposure**: `{average_gross_exposure, peak_gross_exposure}`.
-- **[JSON-11.14]** **contrasts**: feature-at-entry bins (RSI, ADX, ATR, BB width, etc.).
-- **[JSON-11.15]** **regimes**: per-regime performance breakdown.
-- **[JSON-11.16]** **stop_tp_candidates**: configs derived from MFE/MAE.
-- **[JSON-11.17]** **data_quality**: loader flags, missing/duplicate bar counts, outlier flags.
-- **[JSON-11.18]** **instrument_definitions**: snapshot per symbol.
-- **[JSON-11.19]** **cost_model**: snapshot of cost parameters.
-- **[JSON-11.20]** **fill_policy** & **tie_break_policy**: snapshots of policies.
-- **[JSON-11.21]** **blackout_policy**: snapshot of blackout configuration.
-- **[JSON-11.22]** **environment**: `{python_version, dependency_versions, platform, timezone}`.
-- **[JSON-11.23]** **provenance**: `{app_version, git_commit, run_seed, data_start, data_end, symbols}`.
-- **[JSON-11.24]** **checksums**: `{config_snapshot_hash, instrument_defs_hash}`.
-- **[JSON-11.25]** **trades**: enhanced entries with context, MFE/MAE, etc.
-- **[JSON-11.26]** **skipped_trades**: list of counterfactuals for filtered entries.
-- **[JSON-11.27]** **filter_impact**: per-reason aggregates.
-- **[JSON-11.28]** All objects must be pure JSON types.
+- **[JSON-11.3]** **overall_performance**: `{n_trades, total_pnl, mean_pnl, median_pnl, by_side_total_pnl, win_rate, initial_equity, final_equity}`.
+- **[JSON-11.4]** **risk_snapshot**: `{win_rate, avg_win, avg_loss, max_win, max_loss}`.
+- **[JSON-11.5]** **equity_stats**: `{equity_curve, drawdown_curve, max_drawdown, dd_duration_bars}`.
+- **[JSON-11.6]** **distribution**: Statistical distribution of PnL including `{pnl_mean, pnl_median, pnl_std, p05, p95}`.
+- **[JSON-11.7]** **streaks**: `{longest_win_streak, longest_loss_streak, current_streak}`.
+- **[JSON-11.8]** **holding_time**: `{median_secs}`.
+- **[JSON-11.9]** **costs**: `{total_costs, avg_cost_per_trade, breakdown: {spread, commission, slippage}}`.
+- **[JSON-11.10]** **exposure**: `{average_gross_exposure, peak_gross_exposure}`.
+- **[JSON-11.11]** **regimes**: A dictionary mapping each regime label to its performance breakdown.
+- **[JSON-11.12]** **data_quality**: `{loader_flags, index_monotonic_increasing, duplicate_bars_count, nan_counts, has_nans}`.
+- **[JSON-11.13]** **provenance**: `{run_id, strategy_name, data_start, data_end, symbols, app_version, git_commit, run_seed}`.
+- **[JSON-11.14]** **environment**: `{python_version, platform, timezone, dependency_versions}`.
+- **[JSON-11.15]** **trades**: An array of trade objects, each with full details including `pnl`, `entry_time`, `exit_time`, `mfe_currency`, `mae_currency`, etc.
+- **[JSON-11.16]** **skipped_trades**: An array of counterfactual trade objects that were skipped by a filter.
+- **[JSON-11.17]** **filter_impact**: An object mapping each filter reason to its aggregated impact metrics.
+- **[JSON-11.18]** **monte_carlo**: Placeholder for Monte Carlo simulation results.
+- **[JSON-11.19]** **walk_forward**: Placeholder for walk-forward analysis results.
+- **[JSON-11.20]** **parameter_search**: Placeholder for parameter search results.
+- **[JSON-11.21]** **instrument_definitions**: A snapshot of the instrument metadata used in the run.
+- **[JSON-11.22]** **cost_model**: A snapshot of the cost model configuration.
+- **[JSON-11.23]** **fill_policy**: A snapshot of the fill policy configuration.
+- **[JSON-11.24]** **tie_break_policy**: A snapshot of the exit tie-break policy.
+- **[JSON-11.25]** **blackout_policy**: A snapshot of the blackout policy configuration.
+- **[JSON-11.26]** **checksums**: `{config_snapshot_hash, instrument_defs_hash}`.
+- **[JSON-11.27]** **field_definitions**: Auto-generated descriptions for all fields in the brief.
+
 
 ### Future Enhancements
 - **[JSON-F.1]** Add **monte_carlo** resampling stats.
