@@ -91,6 +91,7 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             index=idx,
         )
 
+    # Strategy can be embedded or referenced via a separate YAML/JSON file
     strat_cfg = cfg_raw.get("strategy") or {
         "strategy_name": "CLI_Default",
         "entry_rules": [
@@ -116,19 +117,24 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             }
         ],
     }
+    strat_path = cfg_raw.get("strategy_path")
+    if strat_path:
+        strat_cfg = _load_config(Path(str(strat_path)))
     strat = compile_strategy(strat_cfg)
     signals = strat.generate_signals(df)
 
     rem_cfg = cfg_raw.get("rem_config") or {}
     rem = RiskExitManager(config=rem_cfg)
 
-    # RMM is mandatory: require rmm_config and build per-bar context
-    rmm_cfg = cfg.rmm_config
+    # RMM is mandatory: allow embedded dict or external file via rmm_path
+    rmm_cfg: dict[str, Any] | None = (
+        cfg.rmm_config if isinstance(cfg.rmm_config, dict) else None
+    )
+    rmm_path = cfg_raw.get("rmm_path")
+    if rmm_path:
+        rmm_cfg = _load_config(Path(str(rmm_path)))
     if not isinstance(rmm_cfg, dict) or not rmm_cfg:
-        raise SystemExit(
-            "rmm_config is required in the run configuration to enforce "
-            "regime gating."
-        )
+        raise SystemExit("RMM config is required (provide 'rmm_config' or 'rmm_path').")
     # Validate and classify daily regimes, then project to hourly index
     try:
         RMMEngine.validate_config(rmm_cfg)
