@@ -331,6 +331,7 @@ def generate_brief(
     config_snapshot: dict[str, Any] | None = None,
     skipped_trades: list[dict[str, Any]] | None = None,
     parameter_search: dict[str, Any] | None = None,
+    field_definitions: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assemble a JSON brief from trades and metrics (incremental MVP)."""
     meta = meta or {}
@@ -374,102 +375,6 @@ def generate_brief(
     if config_snapshot is not None:
         checksums["config_snapshot_hash"] = _stable_hash(config_snapshot)
 
-    field_definitions = {
-        "overall_performance.total_pnl": {
-            "description": "Sum of per-trade pnl in base currency.",
-            "why_useful": "Measures total outcome over the run.",
-            "how_to_use": (
-                "Compare across runs; " "normalize by starting equity if needed."
-            ),
-        },
-        "equity_stats.max_drawdown": {
-            "description": "Peak-to-trough equity loss in base currency.",
-            "why_useful": "Captures worst loss magnitude.",
-            "how_to_use": "Lower is better; monitor alongside pnl.",
-        },
-        "costs.total_costs": {
-            "description": (
-                "Sum of spread, commission, and slippage across all trades."
-            ),
-            "why_useful": "Quantifies drag from costs.",
-            "how_to_use": "Assess robustness under realistic costs.",
-        },
-    }
-
-    def _def_entry(desc: str) -> dict[str, str]:
-        return {
-            "description": desc,
-            "why_useful": "Provides context for analysis and reporting.",
-            "how_to_use": "Use in dashboards, filters, and comparisons.",
-        }
-
-    def _add_leaf_defs(prefix: str, obj: Any) -> None:
-        if isinstance(obj, dict):
-            for k, v in obj.items():
-                if k == "field_definitions":
-                    continue
-                path = f"{prefix}.{k}" if prefix else k
-                _add_leaf_defs(path, v)
-        elif isinstance(obj, list):
-            # Known list shapes
-            if prefix in (
-                "equity_stats.equity_curve",
-                "equity_stats.drawdown_curve",
-            ):
-                field_definitions.setdefault(
-                    prefix,
-                    _def_entry("List of [timestamp, value] pairs ordered by time."),
-                )
-                return
-            if prefix == "trades":
-                field_definitions.setdefault(
-                    "trades", _def_entry("List of trade records (objects).")
-                )
-                if obj and isinstance(obj[0], dict):
-                    for tk in obj[0].keys():
-                        tpath = f"trades[].{tk}"
-                        field_definitions.setdefault(
-                            tpath,
-                            _def_entry(f"Trade field '{tk}' at per-trade level."),
-                        )
-                return
-            # Generic list container
-            field_definitions.setdefault(
-                prefix, _def_entry("List of values (container field).")
-            )
-        else:
-            # Primitive leaf
-            field_definitions.setdefault(
-                prefix,
-                _def_entry("Scalar value (number, string, boolean, or null)."),
-            )
-
-    # Build definitions for any missing fields by walking the brief so far
-    preview = {
-        "meta": _to_jsonable(meta),
-        "strategy_params": _to_jsonable(params),
-        "overall_performance": performance,
-        "risk_snapshot": risk_snapshot,
-        "equity_stats": equity_stats,
-        "distribution": distribution,
-        "streaks": compute_streaks(trades),
-        "holding_time": {"median_secs": _median_holding_secs(trades)},
-        "costs": compute_costs_aggregate(trades),
-        "exposure": _to_jsonable(exposure),
-        "regimes": _compute_regimes(trades, regimes_at_entry),
-        "instrument_definitions": _to_jsonable(instrument_definitions or {}),
-        "cost_model": _to_jsonable(cost_model or {}),
-        "fill_policy": _to_jsonable(fill_policy or {}),
-        "tie_break_policy": _to_jsonable(tie_break_policy or {}),
-        "blackout_policy": _to_jsonable(blackout_policy or {}),
-        "environment": _to_jsonable(env),
-        "provenance": _to_jsonable(prov),
-        "checksums": _to_jsonable(checksums),
-        "trades": trades_json,
-        "stop_tp_candidates": [],
-    }
-    _add_leaf_defs("", preview)
-
     base = {
         "meta": _to_jsonable(meta),
         "strategy_params": _to_jsonable(params),
@@ -496,7 +401,7 @@ def generate_brief(
         "environment": _to_jsonable(env),
         "provenance": _to_jsonable(prov),
         "checksums": _to_jsonable(checksums),
-        "field_definitions": _to_jsonable(field_definitions),
+        "field_definitions": _to_jsonable(field_definitions or {}),
         # Trades serialized with ISO datetimes
         "trades": trades_json,
     }
