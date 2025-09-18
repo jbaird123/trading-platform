@@ -142,33 +142,34 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         rem_cfg = _load_config(Path(str(rem_path)))
     rem = RiskExitManager(config=rem_cfg)
 
-    # RMM is mandatory: allow embedded dict or external file via rmm_path
+    # RMM optional for legacy configs; if present, build per-bar context
+    rmm_context: dict[datetime, dict[str, Any]] | None = None
     rmm_cfg: dict[str, Any] | None = (
         cfg.rmm_config if isinstance(cfg.rmm_config, dict) else None
     )
     rmm_path = cfg_raw.get("rmm_path")
     if rmm_path:
         rmm_cfg = _load_config(Path(str(rmm_path)))
-    if not isinstance(rmm_cfg, dict) or not rmm_cfg:
-        raise SystemExit("RMM config is required (provide 'rmm_config' or 'rmm_path').")
-    # Validate and classify daily regimes, then project to hourly index
-    try:
-        RMMEngine.validate_config(rmm_cfg)
-    except Exception as exc:  # pragma: no cover
-        raise SystemExit(f"RMM config validation failed: {exc}") from exc
-    rmm_engine = RMMEngine(config=rmm_cfg)
-    daily_regimes = rmm_engine.classify_daily(df)
-    rmm_policy = rmm_cfg.get("policy") or {}
-    per_bar = rmm_engine.project_to_index(daily_regimes, df.index, policy=rmm_policy)
-    rmm_context: dict[datetime, dict[str, Any]] = {
-        ts: {
-            "label": str(row["label"]),
-            "confidence": float(row["confidence"]),
-            "allowed_sides": list(row["allowed_sides"] or []),
-            "policy": rmm_policy,
+    if isinstance(rmm_cfg, dict) and rmm_cfg:
+        try:
+            RMMEngine.validate_config(rmm_cfg)
+        except Exception as exc:  # pragma: no cover
+            raise SystemExit(f"RMM config validation failed: {exc}") from exc
+        rmm_engine = RMMEngine(config=rmm_cfg)
+        daily_regimes = rmm_engine.classify_daily(df)
+        rmm_policy = rmm_cfg.get("policy") or {}
+        per_bar = rmm_engine.project_to_index(
+            daily_regimes, df.index, policy=rmm_policy
+        )
+        rmm_context = {
+            ts: {
+                "label": str(row["label"]),
+                "confidence": float(row["confidence"]),
+                "allowed_sides": list(row["allowed_sides"] or []),
+                "policy": rmm_policy,
+            }
+            for ts, row in per_bar.iterrows()
         }
-        for ts, row in per_bar.iterrows()
-    }
 
     res = run_backtest(
         market_data=df,

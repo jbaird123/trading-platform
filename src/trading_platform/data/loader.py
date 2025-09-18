@@ -49,17 +49,17 @@ def load_from_catalog(
         )
         raise ValueError(msg)
 
-    # Filter by start/end if provided
+    # Resample if timeframe provided
+    tf = data_request.get("timeframe")
+    if tf:
+        df = resample_ohlc(df, str(tf))
+
+    # Filter by start/end AFTER resample for index alignment
     start = data_request.get("start")
     end = data_request.get("end")
     if start:
         df = df.loc[pd.to_datetime(start, utc=True) :]  # noqa: E203
     if end:
         df = df.loc[: pd.to_datetime(end, utc=True)]
-
-    # Resample if timeframe provided
-    tf = data_request.get("timeframe")
-    if tf:
-        df = resample_ohlc(df, str(tf))
 
     return df, flags
