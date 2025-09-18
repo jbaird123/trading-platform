@@ -13,6 +13,7 @@ data_request:
   start: "2014-01-01"
   end: "2023-03-01"
 
+counterfactual_mode: fast   # Literal["fast","exact"] with default "fast".
 #fast_mode:
 #  limit_bars: 5000
 
