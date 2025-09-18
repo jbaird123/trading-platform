@@ -56,6 +56,7 @@ def when_backtest_is_run(shared_context: dict) -> None:
         run_seed=123,
         log_level="INFO",
         initial_cash=10000.0,
+        position_size=1.0,
         allow_flip_on_bar=True,
         rem_config=rem_config,
     )

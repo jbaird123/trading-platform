@@ -1,0 +1,573 @@
+{
+  "activity": {},
+  "timing_buckets": {},
+  "costs": {
+    "total_costs": 0.0,
+    "avg_cost_per_trade": 0.0,
+    "breakdown": {
+      "spread": 0.0,
+      "commission": 0.0,
+      "slippage": 0.0
+    }
+  },
+  "exposure": {
+    "average_gross_exposure": 97.85,
+    "peak_gross_exposure": 110.0
+  },
+  "contrasts": {},
+  "stop_tp_candidates": [],
+  "parameter_search": {},
+  "stationarity": {},
+  "feature_analysis": {},
+  "checksums": {
+    "instrument_defs_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "config_snapshot_hash": "67abddd1e49806d98bef076cc39baf45dc45a8856d24bcd6c794f612fc9d059f"
+  },
+  "meta": {
+    "strategy_name": "Golden_EMA_Crossover",
+    "run_id": "golden_run"
+  },
+  "strategy_params": {
+    "fast": null,
+    "slow": null,
+    "stop_type": null,
+    "stop_value": null,
+    "tp_type": null,
+    "tp_value": null,
+    "trail_type": null,
+    "trail_value": null,
+    "atr_length": null,
+    "tie_break": null
+  },
+  "overall_performance": {
+    "n_trades": 0,
+    "total_pnl": 0.0,
+    "mean_pnl": 0.0,
+    "median_pnl": 0.0,
+    "by_side_total_pnl": {
+      "long": 0.0,
+      "short": 0.0
+    },
+    "win_rate": 0.0,
+    "initial_equity": 100000.0,
+    "final_equity": 100000.0
+  },
+  "risk_snapshot": {
+    "win_rate": 0.0,
+    "avg_win": 0.0,
+    "avg_loss": 0.0,
+    "max_win": 0.0,
+    "max_loss": 0.0
+  },
+  "equity_stats": {
+    "equity_curve": [
+      [
+        "0001-01-01T00:00:00",
+        100000.0
+      ]
+    ],
+    "drawdown_curve": [
+      [
+        "0001-01-01T00:00:00",
+        0.0
+      ]
+    ],
+    "max_drawdown": 0.0,
+    "dd_duration_bars": 0
+  },
+  "distribution": {
+    "pnl_mean": 0.0,
+    "pnl_median": 0.0,
+    "pnl_std": 0.0,
+    "p05": 0.0,
+    "p95": 0.0
+  },
+  "streaks": {
+    "longest_win_streak": 0,
+    "longest_loss_streak": 0,
+    "current_streak": 0
+  },
+  "holding_time": {
+    "median_secs": 0.0
+  },
+  "monte_carlo": {},
+  "walk_forward": {},
+  "regimes": {},
+  "data_quality": {
+    "index_monotonic_increasing": true,
+    "duplicate_bars_count": 0,
+    "nan_counts": {
+      "open": 0,
+      "high": 0,
+      "low": 0,
+      "close": 0,
+      "volume": 0
+    },
+    "has_nans": false,
+    "loader_flags": []
+  },
+  "instrument_definitions": {},
+  "cost_model": {},
+  "fill_policy": {},
+  "tie_break_policy": {},
+  "blackout_policy": {
+    "blackout_utc": [],
+    "blackout_events": []
+  },
+  "environment": {
+    "python_version": "3.11.4",
+    "platform": "macOS-15.7-arm64-arm-64bit",
+    "timezone": "EDT",
+    "dependency_versions": {
+      "pandas": "2.3.2",
+      "pydantic": "2.11.7"
+    }
+  },
+  "provenance": {
+    "run_id": "golden_run",
+    "strategy_name": "Golden_EMA_Crossover",
+    "data_start": null,
+    "data_end": null,
+    "symbols": [],
+    "app_version": "0.0.1",
+    "git_commit": null,
+    "run_seed": null
+  },
+  "field_definitions": {
+    "overall_performance.total_pnl": {
+      "description": "Sum of per-trade pnl in base currency.",
+      "why_useful": "Measures total outcome over the run.",
+      "how_to_use": "Compare across runs; normalize by starting equity if needed."
+    },
+    "equity_stats.max_drawdown": {
+      "description": "Peak-to-trough equity loss in base currency.",
+      "why_useful": "Captures worst loss magnitude.",
+      "how_to_use": "Lower is better; monitor alongside pnl."
+    },
+    "costs.total_costs": {
+      "description": "Sum of spread, commission, and slippage across all trades.",
+      "why_useful": "Quantifies drag from costs.",
+      "how_to_use": "Assess robustness under realistic costs."
+    },
+    "meta.strategy_name": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "meta.run_id": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "strategy_params.fast": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "strategy_params.slow": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "strategy_params.stop_type": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "strategy_params.stop_value": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "strategy_params.tp_type": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "strategy_params.tp_value": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "strategy_params.trail_type": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "strategy_params.trail_value": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "strategy_params.atr_length": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "strategy_params.tie_break": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "overall_performance.n_trades": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "overall_performance.mean_pnl": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "overall_performance.median_pnl": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "overall_performance.by_side_total_pnl.long": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "overall_performance.by_side_total_pnl.short": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "overall_performance.win_rate": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "overall_performance.initial_equity": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "overall_performance.final_equity": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "risk_snapshot.win_rate": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "risk_snapshot.avg_win": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "risk_snapshot.avg_loss": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "risk_snapshot.max_win": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "risk_snapshot.max_loss": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "equity_stats.equity_curve": {
+      "description": "List of [timestamp, value] pairs ordered by time.",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "equity_stats.drawdown_curve": {
+      "description": "List of [timestamp, value] pairs ordered by time.",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "equity_stats.dd_duration_bars": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "distribution.pnl_mean": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "distribution.pnl_median": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "distribution.pnl_std": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "distribution.p05": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "distribution.p95": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "streaks.longest_win_streak": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "streaks.longest_loss_streak": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "streaks.current_streak": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "holding_time.median_secs": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "costs.avg_cost_per_trade": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "costs.breakdown.spread": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "costs.breakdown.commission": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "costs.breakdown.slippage": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "exposure.average_gross_exposure": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "exposure.peak_gross_exposure": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "blackout_policy.blackout_utc": {
+      "description": "List of values (container field).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "blackout_policy.blackout_events": {
+      "description": "List of values (container field).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "environment.python_version": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "environment.platform": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "environment.timezone": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "environment.dependency_versions.pandas": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "environment.dependency_versions.pydantic": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "provenance.run_id": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "provenance.strategy_name": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "provenance.data_start": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "provenance.data_end": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "provenance.symbols": {
+      "description": "List of values (container field).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "provenance.app_version": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "provenance.git_commit": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "provenance.run_seed": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "checksums.instrument_defs_hash": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "checksums.config_snapshot_hash": {
+      "description": "Scalar value (number, string, boolean, or null).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "trades": {
+      "description": "List of trade records (objects).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    },
+    "stop_tp_candidates": {
+      "description": "List of values (container field).",
+      "why_useful": "Provides context for analysis and reporting.",
+      "how_to_use": "Use in dashboards, filters, and comparisons."
+    }
+  },
+  "trades": [],
+  "skipped_trades": [
+    {
+      "timestamp": "2023-01-01T02:00:00+00:00",
+      "symbol": "EUR_USD",
+      "reason_code": "position_cap",
+      "policy_snapshot": {
+        "cap": 1
+      },
+      "notes": null
+    },
+    {
+      "timestamp": "2023-01-01T03:00:00+00:00",
+      "symbol": "EUR_USD",
+      "reason_code": "position_cap",
+      "policy_snapshot": {
+        "cap": 1
+      },
+      "notes": null
+    },
+    {
+      "timestamp": "2023-01-01T04:00:00+00:00",
+      "symbol": "EUR_USD",
+      "reason_code": "position_cap",
+      "policy_snapshot": {
+        "cap": 1
+      },
+      "notes": null
+    },
+    {
+      "timestamp": "2023-01-01T05:00:00+00:00",
+      "symbol": "EUR_USD",
+      "reason_code": "position_cap",
+      "policy_snapshot": {
+        "cap": 1
+      },
+      "notes": null
+    },
+    {
+      "timestamp": "2023-01-01T06:00:00+00:00",
+      "symbol": "EUR_USD",
+      "reason_code": "position_cap",
+      "policy_snapshot": {
+        "cap": 1
+      },
+      "notes": null
+    },
+    {
+      "timestamp": "2023-01-01T07:00:00+00:00",
+      "symbol": "EUR_USD",
+      "reason_code": "position_cap",
+      "policy_snapshot": {
+        "cap": 1
+      },
+      "notes": null
+    },
+    {
+      "timestamp": "2023-01-01T08:00:00+00:00",
+      "symbol": "EUR_USD",
+      "reason_code": "position_cap",
+      "policy_snapshot": {
+        "cap": 1
+      },
+      "notes": null
+    },
+    {
+      "timestamp": "2023-01-01T09:00:00+00:00",
+      "symbol": "EUR_USD",
+      "reason_code": "position_cap",
+      "policy_snapshot": {
+        "cap": 1
+      },
+      "notes": null
+    },
+    {
+      "timestamp": "2023-01-01T10:00:00+00:00",
+      "symbol": "EUR_USD",
+      "reason_code": "position_cap",
+      "policy_snapshot": {
+        "cap": 1
+      },
+      "notes": null
+    },
+    {
+      "timestamp": "2023-01-01T11:00:00+00:00",
+      "symbol": "EUR_USD",
+      "reason_code": "position_cap",
+      "policy_snapshot": {
+        "cap": 1
+      },
+      "notes": null
+    },
+    {
+      "timestamp": "2023-01-01T12:00:00+00:00",
+      "symbol": "EUR_USD",
+      "reason_code": "position_cap",
+      "policy_snapshot": {
+        "cap": 1
+      },
+      "notes": null
+    }
+  ],
+  "filter_impact": {
+    "position_cap": {
+      "n_skipped": 11,
+      "total_cf_pnl": 0.0,
+      "mean_cf_pnl": 0.0,
+      "median_cf_pnl": 0.0
+    }
+  }
+}

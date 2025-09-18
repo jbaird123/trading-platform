@@ -1,0 +1,10 @@
+run_id: "golden_run_1"
+strategy: "tests/fixtures/golden_run/strategy.yaml"
+rem: "tests/fixtures/golden_run/rem.yaml"
+instrument:
+  symbol: "GOLDEN_TICKER"
+  timeframe: "1H"
+data:
+  source: "tests/fixtures/golden_run/data.csv"
+  start_date: "2023-01-01"
+  end_date: "2023-01-31"
