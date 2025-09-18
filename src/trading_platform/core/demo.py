@@ -19,6 +19,7 @@ def generate_demo_run(user_id: str = "demo_user") -> Path:
         log_level="INFO",
         initial_cash=100000.0,
         allow_flip_on_bar=False,
+        position_size=10000.0,
         instrument_definitions={
             "EURUSD": {
                 "symbol": "EURUSD",

@@ -208,7 +208,7 @@ def run_backtest(
             else:
                 context = strategy.get_context(i)
                 entry_price = current_bar["close"]
-                size = 10000.0
+                size = float(config.position_size)
 
                 portfolio.create_new_position(
                     symbol="EUR_USD",
@@ -273,7 +273,7 @@ def run_backtest(
                     start_index=si,
                     side=side,
                     entry_price=entry_px,
-                    size=10000.0,
+                    size=float(config.position_size),
                     instrument=config.instrument,
                     cost_model=config.cost_model,
                 )
@@ -284,7 +284,7 @@ def run_backtest(
                     start_index=si,
                     side=side,
                     entry_price=entry_px,
-                    size=10000.0,
+                    size=float(config.position_size),
                     instrument=config.instrument,
                     cost_model=config.cost_model,
                     rem=rem,
@@ -361,6 +361,7 @@ def _simulate_counterfactual_fast(
         "cf_mfe_currency": float(favorable),
         "cf_mae_currency": float(adverse),
         "cf_bars_held": bars_held,
+        "cf_mode": "fast",
     }
 
 
@@ -394,8 +395,11 @@ def _simulate_counterfactual_exact(
         initial_risk_ccy=None,
     )
 
+    bars_touched = 0
+    rem_exit = False
     for i in range(start_index, len(market_data)):
         cb = market_data.iloc[i]
+        bars_touched += 1
         # Apply REM exits first for fidelity
         if pm.current_position:
             exit_details = rem.check_exits(pm.current_position, cb)
@@ -405,6 +409,7 @@ def _simulate_counterfactual_exact(
                     exit_time=cast(datetime, cb.name),
                     exit_reason=exit_details["reason"],
                 )
+                rem_exit = True
                 break
 
         if not pm.current_position:
@@ -422,6 +427,14 @@ def _simulate_counterfactual_exact(
     if not pm.trades:
         return {}
     t = pm.trades[0]
+    # Derive a consistent bars_touched from observed holding in case
+    # loop early-break logic changes.
+    derived_bars_touched = int(max(1, t.bars_held or 0))
+    # Prefer the measured loop count when it's larger
+    # (e.g., when on_bar increments differ).
+    bars_touched = int(max(bars_touched, derived_bars_touched))
+    last_index = len(market_data) - 1
+    exit_kind = "rem" if rem_exit else "end"
     return {
         "cf_exit_time": t.exit_time.isoformat(),
         "cf_exit_price": float(t.exit_price),
@@ -429,4 +442,9 @@ def _simulate_counterfactual_exact(
         "cf_mfe_currency": float(t.mfe_currency or 0.0),
         "cf_mae_currency": float(t.mae_currency or 0.0),
         "cf_bars_held": int(t.bars_held or 0),
+        "cf_bars_touched": bars_touched,
+        "cf_start_index": int(start_index),
+        "cf_last_index": int(last_index),
+        "cf_exit_kind": exit_kind,
+        "cf_mode": "exact",
     }
