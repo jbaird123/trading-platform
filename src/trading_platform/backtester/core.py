@@ -25,6 +25,7 @@ def run_backtest(
     strategy: CompiledStrategy,
     config: RunConfig,
     rem: RiskExitManager,
+    rmm_context: dict[datetime, dict[str, Any]] | None = None,
     return_exposure: bool = False,
     return_skips: bool = False,
 ) -> (
@@ -139,6 +140,34 @@ def run_backtest(
             and policy.can_open(cast(datetime, current_bar.name))
             and i >= max(0, config.warmup_bars)
         ):
+            # Enforce RMM side gating if provided
+            if rmm_context is not None:
+                ctx = rmm_context.get(cast(datetime, current_bar.name))
+                if ctx is not None:
+                    allowed_sides = list(ctx.get("allowed_sides") or [])
+                    if current_signal not in allowed_sides:
+                        skipped.append(
+                            {
+                                "timestamp": _fmt_ts(current_bar.name),
+                                "symbol": "EUR_USD",
+                                "reason_code": "rmm_block",
+                                "regime": {
+                                    "label": ctx.get("label"),
+                                    "confidence": ctx.get("confidence"),
+                                },
+                                "policy_snapshot": {
+                                    "allowed_sides": allowed_sides,
+                                    "min_confidence": (
+                                        (ctx.get("policy") or {}).get("min_confidence")
+                                    ),
+                                },
+                                "notes": None,
+                                "side": current_signal,
+                                "entry_index": i,
+                                "entry_price": float(current_bar["close"]),
+                            }
+                        )
+                        continue
             if config.daily_loss_cap is not None and config.daily_loss_cap > 0:
                 now = cast(datetime, current_bar.name)
                 if portfolio.hit_daily_loss_cap(now, float(config.daily_loss_cap)):
