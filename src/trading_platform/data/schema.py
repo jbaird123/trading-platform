@@ -32,19 +32,46 @@ def load_and_normalize_data(file_path: Path) -> tuple[pd.DataFrame, list[str]]:
     quality_flags = []
 
     try:
-        df = pd.read_csv(file_path)
+        # Robust read: handle BOM and auto-detect common delimiters
+        df = pd.read_csv(file_path, sep=None, engine="python", encoding="utf-8-sig")
+        # Normalize column names (trim whitespace)
+        df.columns = [str(c).strip() for c in df.columns]
 
-        # --- Validation Step 1: Check for the essential timestamp column ---
-        if "UTCTime" not in df.columns:
+        # Accept strict normalized format or map legacy raw format.
+        cols_set = set(df.columns)
+        normalized_required = {
+            "timestamp",
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+        }
+        if "timestamp" in cols_set:
+            unknown = sorted(cols_set - normalized_required)
+            missing = sorted(normalized_required - cols_set)
+            if unknown or missing:
+                quality_flags.append(
+                    f"unexpected_columns: missing={missing} unknown={unknown}"
+                )
+                return pd.DataFrame(), quality_flags
+        elif "UTCTime" in cols_set:
+            # Map legacy raw -> normalized
+            required_raw = set(COLUMN_MAP.keys())
+            unknown = sorted(cols_set - required_raw)
+            missing = sorted(required_raw - cols_set)
+            if unknown or missing:
+                quality_flags.append(
+                    f"unexpected_columns: missing={missing} unknown={unknown}"
+                )
+                return pd.DataFrame(), quality_flags
+            df = df.rename(columns=COLUMN_MAP)
+        else:
             quality_flags.append("missing_timestamp")
-            # If the timestamp is missing, the data is unusable.
-            # So return an empty DataFrame.
+            quality_flags.append(f"columns:{sorted(list(cols_set))}")
             return pd.DataFrame(), quality_flags
 
-        # --- Normalization Step 1: Rename columns to snake_case ---
-        df = df.rename(columns=COLUMN_MAP)
-
-        # --- Normalization Step 2: Convert timestamp and set as index ---
+        # Ensure timestamp index in UTC
         df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
         df = df.set_index("timestamp")
 
@@ -66,6 +93,8 @@ def resample_ohlc(df: pd.DataFrame, rule: str) -> pd.DataFrame:
     - close: last
     - volume: sum
     """
+    # Normalize rule to lowercase (avoid pandas deprecation warnings)
+    rule = str(rule).lower()
     out = df.resample(rule).agg(
         open=("open", "first"),
         high=("high", "max"),

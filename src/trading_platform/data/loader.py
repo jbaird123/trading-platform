@@ -41,6 +41,14 @@ def load_from_catalog(
 
     df, flags = load_and_normalize_data(Path(str(csv_path)).expanduser())
 
+    # Fail fast if loader detected unusable data
+    if df.empty:
+        msg = (
+            "Loaded data is empty or missing timestamp. "
+            f"Flags: {flags}. Ensure CSV has 'timestamp' plus OHLCV columns."
+        )
+        raise ValueError(msg)
+
     # Filter by start/end if provided
     start = data_request.get("start")
     end = data_request.get("end")
