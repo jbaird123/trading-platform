@@ -117,6 +117,23 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             }
         ],
     }
+    # Optional fast-mode: limit dataset for quicker iterations
+    fast_mode = cfg_raw.get("fast_mode") or {}
+    if isinstance(fast_mode, dict):
+        try:
+            from datetime import timedelta
+
+            last_days = int(fast_mode.get("last_days", 0) or 0)
+            limit_bars = int(fast_mode.get("limit_bars", 0) or 0)
+        except Exception:
+            last_days = 0
+            limit_bars = 0
+        if last_days > 0 and isinstance(df.index, pd.DatetimeIndex):
+            cutoff = df.index.max() - timedelta(days=last_days)
+            df = df.loc[cutoff:]
+        elif limit_bars > 0:
+            df = df.tail(limit_bars)
+
     strat_path = cfg_raw.get("strategy_path")
     if strat_path:
         strat_cfg = _load_config(Path(str(strat_path)))
@@ -249,7 +266,43 @@ def cmd_run_live(args: argparse.Namespace) -> int:
     return 0
 
 
+def _find_last_briefs(runs_dir: Path, user: str | None, n: int) -> list[Path]:
+    base = runs_dir / user if user else runs_dir
+    briefs: list[tuple[float, Path]] = []
+    if not base.exists():
+        return []
+    for run_dir in base.iterdir():
+        if run_dir.is_dir():
+            brief = run_dir / "brief.json"
+            if brief.exists():
+                briefs.append((brief.stat().st_mtime, brief))
+    briefs.sort(key=lambda x: x[0], reverse=True)
+    return [b for _, b in briefs[: max(0, n)]]
+
+
 def cmd_compare(args: argparse.Namespace) -> int:
+    last = int(getattr(args, "last", 0) or 0)
+    if last >= 2:
+        runs_dir = Path(str(getattr(args, "runs_dir", "runs")))
+        user = getattr(args, "user", None)
+        paths = _find_last_briefs(runs_dir, user, last)
+        if len(paths) < 2:
+            print("Not enough briefs found for --last.", file=sys.stderr)
+            return 2
+        # Generate pairwise consecutive comparisons: [0..1], [1..2], ...
+        written: list[Path] = []
+        for i in range(len(paths) - 1):
+            a, b = paths[i + 1], paths[i]
+            aid = json.loads(a.read_text()).get("meta", {}).get("run_id", a.parent.name)
+            bid = json.loads(b.read_text()).get("meta", {}).get("run_id", b.parent.name)
+            out = Path(f"compare_{aid}_vs_{bid}.html")
+            save_comparison_report(a, b, out)
+            written.append(out)
+        print("Wrote:")
+        for p in written:
+            print(f"- {p}")
+        return 0
+    # Fallback: explicit a/b compare
     a = Path(args.a)
     b = Path(args.b)
     out = Path(str(args.out))
@@ -276,10 +329,22 @@ def main() -> int:
     pl.add_argument("--dry-run", action="store_true", help="No-op live run")
     pl.set_defaults(func=cmd_run_live)
 
-    pc = sub.add_parser("compare", help="Compare two briefs and write HTML")
-    pc.add_argument("a", help="Path to first brief.json")
-    pc.add_argument("b", help="Path to second brief.json")
+    pc = sub.add_parser("compare", help="Compare briefs and write HTML")
+    pc.add_argument("a", nargs="?", help="Path to first brief.json")
+    pc.add_argument("b", nargs="?", help="Path to second brief.json")
     pc.add_argument("--out", default="comparison.html", help="Output HTML path")
+    pc.add_argument(
+        "--last",
+        type=int,
+        default=0,
+        help="Compare the last N runs (pairwise); ignores a/b when set",
+    )
+    pc.add_argument(
+        "--runs-dir", default="runs", help="Root runs directory (for --last)"
+    )
+    pc.add_argument(
+        "--user", default=None, help="User id under runs/ to search (for --last)"
+    )
     pc.set_defaults(func=cmd_compare)
 
     args = p.parse_args()
