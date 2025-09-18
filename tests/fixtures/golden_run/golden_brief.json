@@ -134,302 +134,80 @@
     "run_seed": null
   },
   "field_definitions": {
-    "overall_performance.total_pnl": {
-      "description": "Sum of all trade profits and losses.",
-      "type": "number"
-    },
-    "equity_stats.max_drawdown": {
-      "description": "The largest peak-to-trough drop in equity.",
-      "type": "number"
-    },
-    "costs.total_costs": {
-      "description": "Total sum of all trading costs (spread, commission, slippage).",
-      "type": "number"
-    },
-    "meta.strategy_name": {
-      "description": "Name of the strategy used.",
-      "type": "string"
-    },
-    "meta.run_id": {
-      "description": "Unique identifier for the run.",
-      "type": "string"
-    },
-    "strategy_params.fast": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "type": "boolean/integer/null/number/string"
-    },
-    "strategy_params.slow": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "type": "boolean/integer/null/number/string"
-    },
-    "strategy_params.stop_type": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "type": "boolean/integer/null/number/string"
-    },
-    "strategy_params.stop_value": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "type": "boolean/integer/null/number/string"
-    },
-    "strategy_params.tp_type": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "type": "boolean/integer/null/number/string"
-    },
-    "strategy_params.tp_value": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "type": "boolean/integer/null/number/string"
-    },
-    "strategy_params.trail_type": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "type": "boolean/integer/null/number/string"
-    },
-    "strategy_params.trail_value": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "type": "boolean/integer/null/number/string"
-    },
-    "strategy_params.atr_length": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "type": "boolean/integer/null/number/string"
-    },
-    "strategy_params.tie_break": {
-      "description": "Scalar value (number, string, boolean, or null).",
-      "type": "boolean/integer/null/number/string"
-    },
-    "overall_performance.n_trades": {
-      "description": "Total number of trades executed.",
-      "type": "integer"
-    },
-    "overall_performance.mean_pnl": {
-      "description": "Average PnL per trade.",
-      "type": "number"
-    },
-    "overall_performance.median_pnl": {
-      "description": "Median PnL per trade.",
-      "type": "number"
-    },
-    "overall_performance.by_side_total_pnl.long": {
-      "description": "Total PnL for long trades.",
-      "type": "number"
-    },
-    "overall_performance.by_side_total_pnl.short": {
-      "description": "Total PnL for short trades.",
-      "type": "number"
-    },
-    "overall_performance.win_rate": {
-      "description": "Percentage of trades with PnL > 0.",
-      "type": "number"
-    },
-    "overall_performance.initial_equity": {
-      "description": "Starting equity of the portfolio.",
-      "type": "number"
-    },
-    "overall_performance.final_equity": {
-      "description": "Ending equity of the portfolio after all trades.",
-      "type": "number"
-    },
-    "risk_snapshot.win_rate": {
-      "description": "Percentage of trades with PnL > 0.",
-      "type": "number"
-    },
-    "risk_snapshot.avg_win": {
-      "description": "Average PnL of winning trades.",
-      "type": "number"
-    },
-    "risk_snapshot.avg_loss": {
-      "description": "Average PnL of losing trades.",
-      "type": "number"
-    },
-    "risk_snapshot.max_win": {
-      "description": "Largest single winning trade.",
-      "type": "number"
-    },
-    "risk_snapshot.max_loss": {
-      "description": "Largest single losing trade (most negative PnL).",
-      "type": "number"
-    },
-    "equity_stats.equity_curve": {
-      "description": "Time series of portfolio equity (timestamp, value) pairs.",
-      "type": "array"
-    },
-    "equity_stats.drawdown_curve": {
-      "description": "Time series of portfolio drawdown (timestamp, value) pairs.",
-      "type": "array"
-    },
-    "equity_stats.dd_duration_bars": {
-      "description": "The duration in bars of the longest drawdown period.",
-      "type": "integer"
-    },
-    "distribution.pnl_mean": {
-      "description": "Mean of trade PnL.",
-      "type": "number"
-    },
-    "distribution.pnl_median": {
-      "description": "Median of trade PnL.",
-      "type": "number"
-    },
-    "distribution.pnl_std": {
-      "description": "Standard deviation of trade PnL.",
-      "type": "number"
-    },
-    "distribution.p05": {
-      "description": "5th percentile of PnL.",
-      "type": "number"
-    },
-    "distribution.p95": {
-      "description": "95th percentile of PnL.",
-      "type": "number"
-    },
-    "streaks.longest_win_streak": {
-      "description": "Longest consecutive winning trades.",
-      "type": "integer"
-    },
-    "streaks.longest_loss_streak": {
-      "description": "Longest consecutive losing trades.",
-      "type": "integer"
-    },
-    "streaks.current_streak": {
-      "description": "Current consecutive winning or losing trades.",
-      "type": "integer"
-    },
-    "holding_time.median_secs": {
-      "description": "Median trade holding time in seconds.",
-      "type": "number"
-    },
-    "costs.avg_cost_per_trade": {
-      "description": "Average cost incurred per trade.",
-      "type": "number"
-    },
-    "costs.breakdown.spread": {
-      "description": "Total cost due to bid-ask spread.",
-      "type": "number"
-    },
-    "costs.breakdown.commission": {
-      "description": "Total cost due to commission.",
-      "type": "number"
-    },
-    "costs.breakdown.slippage": {
-      "description": "Total cost due to slippage.",
-      "type": "number"
-    },
-    "exposure.average_gross_exposure": {
-      "description": "Average absolute value of open position size during the run.",
-      "type": "number"
-    },
-    "exposure.peak_gross_exposure": {
-      "description": "Maximum absolute value of open position size during the run.",
-      "type": "number"
-    },
-    "blackout_policy.blackout_utc": {
-      "description": "List of UTC blackout intervals or timestamps.",
-      "type": "array"
-    },
-    "blackout_policy.blackout_events": {
-      "description": "List of event identifiers that trigger blackout windows.",
-      "type": "array"
-    },
-    "environment.python_version": {
-      "description": "Version of Python used (e.g., '3.10.12').",
-      "type": "string"
-    },
-    "environment.platform": {
-      "description": "Operating system and architecture (e.g., 'Linux-5.15.0-76-generic-x86_64-with-glibc2.35').",
-      "type": "string"
-    },
-    "environment.timezone": {
-      "description": "Timezone of the execution environment.",
-      "type": "null/string"
-    },
-    "environment.dependency_versions.pandas": {
-      "description": "Dependency version string.",
-      "type": "string"
-    },
-    "environment.dependency_versions.pydantic": {
-      "description": "Dependency version string.",
-      "type": "string"
-    },
-    "provenance.run_id": {
-      "description": "Unique identifier for this specific run.",
-      "type": "null/string"
-    },
-    "provenance.strategy_name": {
-      "description": "Name of the strategy that was executed.",
-      "type": "null/string"
-    },
-    "provenance.data_start": {
-      "description": "Start timestamp of the historical data used for the run.",
-      "type": "null/string"
-    },
-    "provenance.data_end": {
-      "description": "End timestamp of the historical data used for the run.",
-      "type": "null/string"
-    },
-    "provenance.symbols": {
-      "description": "List of trading symbols (instruments) included in the run.",
-      "type": "array"
-    },
-    "provenance.app_version": {
-      "description": "Version of the trading platform application that performed the run.",
-      "type": "null/string"
-    },
-    "provenance.git_commit": {
-      "description": "Git commit hash of the codebase at the time of the run.",
-      "type": "null/string"
-    },
-    "provenance.run_seed": {
-      "description": "Seed value used for any random number generation to ensure reproducibility.",
-      "type": "integer/null"
-    },
-    "checksums.instrument_defs_hash": {
-      "description": "SHA256 hash of the instrument definitions used.",
-      "type": "string"
-    },
-    "checksums.config_snapshot_hash": {
-      "description": "SHA256 hash of the run configuration snapshot.",
-      "type": "string"
-    },
-    "trades": {
-      "description": "A list of all executed trades, including entry, exit, and performance details.",
-      "type": "array"
-    },
-    "stop_tp_candidates": {
-      "description": "List of stop-loss/take-profit candidate levels considered during analysis.",
-      "type": "array"
-    },
-    "data_quality.loader_flags": {
-      "description": "Flags or warnings generated during data loading (e.g., missing files, format issues).",
-      "type": "array"
-    },
-    "data_quality.index_monotonic_increasing": {
-      "description": "True if the data index (timestamps) is strictly increasing.",
-      "type": "boolean"
-    },
-    "data_quality.duplicate_bars_count": {
-      "description": "Number of duplicate timestamp entries found in the data.",
-      "type": "integer"
-    },
-    "data_quality.nan_counts.open": {
-      "description": "NaN count for the column.",
-      "type": "integer"
-    },
-    "data_quality.nan_counts.high": {
-      "description": "NaN count for the column.",
-      "type": "integer"
-    },
-    "data_quality.nan_counts.low": {
-      "description": "NaN count for the column.",
-      "type": "integer"
-    },
-    "data_quality.nan_counts.close": {
-      "description": "NaN count for the column.",
-      "type": "integer"
-    },
-    "data_quality.nan_counts.volume": {
-      "description": "NaN count for the column.",
-      "type": "integer"
-    },
-    "data_quality.has_nans": {
-      "description": "True if any NaN values were found in the data.",
-      "type": "boolean"
-    }
+  "blackout_policy.blackout_events": "List of event identifiers that trigger blackout windows.",
+  "blackout_policy.blackout_utc": "List of UTC blackout intervals or timestamps.",
+  "checksums.config_snapshot_hash": "SHA256 hash of the run configuration snapshot.",
+  "checksums.instrument_defs_hash": "SHA256 hash of the instrument definitions used.",
+  "costs.avg_cost_per_trade": "Average cost incurred per trade.",
+  "costs.breakdown.commission": "Total cost due to commission.",
+  "costs.breakdown.slippage": "Total cost due to slippage.",
+  "costs.breakdown.spread": "Total cost due to bid-ask spread.",
+  "costs.total_costs": "Total sum of all trading costs (spread, commission, slippage).",
+  "data_quality.duplicate_bars_count": "Number of duplicate timestamp entries found in the data.",
+  "data_quality.has_nans": "True if any NaN values were found in the data.",
+  "data_quality.index_monotonic_increasing": "True if the data index (timestamps) is strictly increasing.",
+  "data_quality.loader_flags": "Flags or warnings generated during data loading (e.g., missing files, format issues).",
+  "data_quality.nan_counts.close": "NaN count for the column.",
+  "data_quality.nan_counts.high": "NaN count for the column.",
+  "data_quality.nan_counts.low": "NaN count for the column.",
+  "data_quality.nan_counts.open": "NaN count for the column.",
+  "data_quality.nan_counts.volume": "NaN count for the column.",
+  "distribution.p05": "5th percentile of PnL.",
+  "distribution.p95": "95th percentile of PnL.",
+  "distribution.pnl_mean": "Mean of trade PnL.",
+  "distribution.pnl_median": "Median of trade PnL.",
+  "distribution.pnl_std": "Standard deviation of trade PnL.",
+  "environment.dependency_versions.pandas": "Dependency version string.",
+  "environment.dependency_versions.pydantic": "Dependency version string.",
+  "environment.platform": "Operating system and architecture (e.g., 'Linux-5.15.0-76-generic-x86_64-with-glibc2.35').",
+  "environment.python_version": "Version of Python used (e.g., '3.10.12').",
+  "environment.timezone": "Timezone of the execution environment.",
+  "equity_stats.dd_duration_bars": "The duration in bars of the longest drawdown period.",
+  "equity_stats.drawdown_curve": "Time series of portfolio drawdown (timestamp, value) pairs.",
+  "equity_stats.equity_curve": "Time series of portfolio equity (timestamp, value) pairs.",
+  "equity_stats.max_drawdown": "The largest peak-to-trough drop in equity.",
+  "exposure.average_gross_exposure": "Average absolute value of open position size during the run.",
+  "exposure.peak_gross_exposure": "Maximum absolute value of open position size during the run.",
+  "holding_time.median_secs": "Median trade holding time in seconds.",
+  "meta.run_id": "Unique identifier for the run.",
+  "meta.strategy_name": "Name of the strategy used.",
+  "overall_performance.by_side_total_pnl.long": "Total PnL for long trades.",
+  "overall_performance.by_side_total_pnl.short": "Total PnL for short trades.",
+  "overall_performance.final_equity": "Ending equity of the portfolio after all trades.",
+  "overall_performance.initial_equity": "Starting equity of the portfolio.",
+  "overall_performance.mean_pnl": "Average PnL per trade.",
+  "overall_performance.median_pnl": "Median PnL per trade.",
+  "overall_performance.n_trades": "Total number of trades executed.",
+  "overall_performance.total_pnl": "Sum of all trade profits and losses.",
+  "overall_performance.win_rate": "Percentage of trades with PnL > 0.",
+  "provenance.app_version": "Version of the trading platform application that performed the run.",
+  "provenance.data_end": "End timestamp of the historical data used for the run.",
+  "provenance.data_start": "Start timestamp of the historical data used for the run.",
+  "provenance.git_commit": "Git commit hash of the codebase at the time of the run.",
+  "provenance.run_id": "Unique identifier for this specific run.",
+  "provenance.run_seed": "Seed value used for any random number generation to ensure reproducibility.",
+  "provenance.strategy_name": "Name of the strategy that was executed.",
+  "provenance.symbols": "List of trading symbols (instruments) included in the run.",
+  "risk_snapshot.avg_loss": "Average PnL of losing trades.",
+  "risk_snapshot.avg_win": "Average PnL of winning trades.",
+  "risk_snapshot.max_loss": "Largest single losing trade (most negative PnL).",
+  "risk_snapshot.max_win": "Largest single winning trade.",
+  "risk_snapshot.win_rate": "Percentage of trades with PnL > 0.",
+  "stop_tp_candidates": "List of stop-loss/take-profit candidate levels considered during analysis.",
+  "strategy_params.atr_length": "Scalar value (number, string, boolean, or null).",
+  "strategy_params.fast": "Scalar value (number, string, boolean, or null).",
+  "strategy_params.slow": "Scalar value (number, string, boolean, or null).",
+  "strategy_params.stop_type": "Scalar value (number, string, boolean, or null).",
+  "strategy_params.stop_value": "Scalar value (number, string, boolean, or null).",
+  "strategy_params.tie_break": "Scalar value (number, string, boolean, or null).",
+  "strategy_params.tp_type": "Scalar value (number, string, boolean, or null).",
+  "strategy_params.tp_value": "Scalar value (number, string, boolean, or null).",
+  "strategy_params.trail_type": "Scalar value (number, string, boolean, or null).",
+  "strategy_params.trail_value": "Scalar value (number, string, boolean, or null).",
+  "streaks.current_streak": "Current consecutive winning or losing trades.",
+  "streaks.longest_loss_streak": "Longest consecutive losing trades.",
+  "streaks.longest_win_streak": "Longest consecutive winning trades.",
+  "trades": "A list of all executed trades, including entry, exit, and performance details."
   },
   "trades": [],
   "skipped_trades": [

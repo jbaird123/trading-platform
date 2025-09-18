@@ -43,24 +43,18 @@ def test_minimal_brief_validates_against_schema(brief_schema):
         "instrument_defs_hash": "dummy_instrument_hash",
     }
 
-    # Add minimal field_definitions to satisfy schema
+    # Add minimal field_definitions to satisfy schema (string values only)
     brief["field_definitions"] = {
-        "meta": {"description": "Metadata about the run.", "type": "object"},
-        "strategy_params": {"description": "Strategy parameters.", "type": "object"},
-        "overall_performance": {
-            "description": "Overall performance metrics.",
-            "type": "object",
-        },
-        "risk_snapshot": {"description": "Key risk metrics.", "type": "object"},
-        "equity_stats": {"description": "Equity curve statistics.", "type": "object"},
-        "distribution": {"description": "Trade PnL distribution.", "type": "object"},
-        "streaks": {"description": "Win/loss streaks.", "type": "object"},
-        "holding_time": {
-            "description": "Trade holding time metrics.",
-            "type": "object",
-        },
-        "costs": {"description": "Trading costs.", "type": "object"},
-        "trades": {"description": "List of executed trades.", "type": "array"},
+        "meta": "Metadata about the run.",
+        "strategy_params": "Strategy parameters.",
+        "overall_performance": "Overall performance metrics.",
+        "risk_snapshot": "Key risk metrics.",
+        "equity_stats": "Equity curve statistics.",
+        "distribution": "Trade PnL distribution.",
+        "streaks": "Win/loss streaks.",
+        "holding_time": "Trade holding time metrics.",
+        "costs": "Trading costs.",
+        "trades": "List of executed trades.",
     }
 
     # Add minimal equity_stats curves to satisfy schema

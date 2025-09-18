@@ -410,14 +410,7 @@
     "field_definitions": {
       "type": "object",
       "description": "Auto-generated descriptions for all fields within this brief, useful for programmatic interpretation and UI generation.",
-      "additionalProperties": {
-        "type": "object",
-        "properties": {
-          "description": { "type": "string" },
-          "type": { "type": "string" }
-        },
-        "required": ["description", "type"]
-      }
+      "additionalProperties": { "type": "string" }
     }
   },
   "required": [
