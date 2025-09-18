@@ -1,0 +1,6 @@
+stop_loss:
+  type: "price"
+  value: 0.0100
+take_profit:
+  type: "price"
+  value: 0.0200
