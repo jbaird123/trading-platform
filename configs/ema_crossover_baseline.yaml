@@ -49,5 +49,17 @@ strategy:
             ref: ema_fast
           right:
             ref: ema_slow
-  short_entry_rules: []
-  short_exit_rules: []
+  short_entry_rules:
+    - all_of:
+        - condition: is_below
+          left:
+            ref: ema_fast
+          right:
+            ref: ema_slow
+  short_exit_rules:
+    - any_of:
+        - condition: cross_above
+          left:
+            ref: ema_fast
+          right:
+            ref: ema_slow
