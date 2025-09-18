@@ -17,10 +17,7 @@ features:
       length: 14
 policy:
   min_confidence: 0.6
-  allow_map:
-    trend_up: ["long"]
-    trend_down: ["short"]
-    range: []
+  allow_labels: ["trend_up", "trend_down"]
 regimes:
   - label: trend_up
     confidence: 0.9
@@ -31,10 +28,6 @@ regimes:
             ref: d_ema_fast
           right:
             ref: d_ema_slow
-        - condition: is_above
-          left:
-            ref: d_adx
-          right: 20
   - label: trend_down
     confidence: 0.9
     conditions:
@@ -44,10 +37,6 @@ regimes:
             ref: d_ema_fast
           right:
             ref: d_ema_slow
-        - condition: is_above
-          left:
-            ref: d_adx
-          right: 20
   - label: range
     confidence: 0.7
     conditions:
