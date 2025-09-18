@@ -28,6 +28,10 @@ regimes:
             ref: d_ema_fast
           right:
             ref: d_ema_slow
+        - condition: is_above
+          left:
+            ref: d_adx
+          right: 20
   - label: trend_down
     confidence: 0.9
     conditions:
@@ -37,6 +41,10 @@ regimes:
             ref: d_ema_fast
           right:
             ref: d_ema_slow
+        - condition: is_above
+          left:
+            ref: d_adx
+          right: 20
   - label: range
     confidence: 0.7
     conditions:
