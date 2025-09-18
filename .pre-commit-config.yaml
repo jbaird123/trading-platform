@@ -19,7 +19,7 @@ repos:
     hooks:
       - id: mypy
         # The project uses pydantic, so it's needed for type checking
-        additional_dependencies: [pydantic]
+        additional_dependencies: [pydantic, types-PyYAML]
 
   - repo: local
     hooks:
