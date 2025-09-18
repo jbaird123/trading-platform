@@ -42,7 +42,7 @@ def test_generate_brief_sections_and_types():
     # Required top-level sections present
     required_keys = [
         "meta",
-        "params",
+        "strategy_params",
         "overall_performance",
         "risk_snapshot",
         "equity_stats",
