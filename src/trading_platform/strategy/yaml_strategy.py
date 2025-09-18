@@ -52,6 +52,21 @@ def load_strategy_config(doc: dict[str, Any] | str | Path) -> dict[str, Any]:
     return cast(dict[str, Any], json.loads(txt))
 
 
+def _resolve_param_value(val: Any, params: dict[str, Any]) -> Any:
+    """Resolve a value that may reference a named parameter.
+
+    Supports either a direct name (e.g., "ema_fast_length") or a
+    ${name} placeholder. Falls back to the original value if no match.
+    """
+    if isinstance(val, str):
+        key = val
+        if val.startswith("${") and val.endswith("}"):
+            key = val[2:-1]
+        if key in params:
+            return params[key]
+    return val
+
+
 def _series_for_operand(df: pd.DataFrame, operand: Any) -> pd.Series:
     if isinstance(operand, (int, float)):
         return pd.Series([float(operand)] * len(df), index=df.index)
@@ -161,6 +176,15 @@ def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
     name = str(cfg.get("strategy_name", "Strategy"))
     overlays = [str(x) for x in (cfg.get("overlays") or [])]
     features = list(cfg.get("features") or [])
+    # Resolve feature params against named parameters, if provided
+    param_map = dict(cfg.get("parameters") or {})
+    if param_map and features:
+        for f in features:
+            p = f.get("params") or {}
+            if isinstance(p, dict):
+                for k, v in list(p.items()):
+                    p[k] = _resolve_param_value(v, param_map)
+                f["params"] = p
     le = list(cfg.get("long_entry_rules") or [])
     lx = list(cfg.get("long_exit_rules") or [])
     se = list(cfg.get("short_entry_rules") or [])
