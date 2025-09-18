@@ -65,9 +65,13 @@
           "description": "Time series of portfolio equity (timestamp, value) pairs.",
           "items": {
             "type": "array",
-            "items": [{ "type": "string", "format": "date-time" }, { "type": "number" }],
+            "prefixItems": [
+              { "type": "string", "format": "date-time", "description": "Timestamp of the data point." },
+              { "type": "number", "description": "Equity value at the given timestamp." }
+            ],
             "minItems": 2,
-            "maxItems": 2
+            "maxItems": 2,
+            "items": false
           }
         },
         "drawdown_curve": {
@@ -75,9 +79,13 @@
           "description": "Time series of portfolio drawdown (timestamp, value) pairs.",
           "items": {
             "type": "array",
-            "items": [{ "type": "string", "format": "date-time" }, { "type": "number" }],
+            "prefixItems": [
+              { "type": "string", "format": "date-time", "description": "Timestamp of the data point." },
+              { "type": "number", "description": "Drawdown value at the given timestamp." }
+            ],
             "minItems": 2,
-            "maxItems": 2
+            "maxItems": 2,
+            "items": false
           }
         },
         "max_drawdown": { "type": "number", "description": "The largest peak-to-trough drop in equity." },
@@ -259,8 +267,7 @@
           "skip_reason": { "type": "string", "description": "The reason the trade was skipped (e.g., 'blackout_period', 'rmm_filter', 'risk_cap')." },
           "counterfactual_pnl": { "type": "number", "description": "Simulated PnL if the trade had been executed." },
           "counterfactual_mfe_currency": { "type": ["number", "null"], "description": "Simulated Maximum Favorable Excursion in currency units." },
-          "counterfactual_mae_currency": { "type": ["number", "null"], "description": "Simulated Maximum Adverse Excursion in currency units." },
-          "context_at_entry": { "type": ["object", "null"], "description": "Snapshot of relevant market context at the intended entry time." }
+          "counterfactual_mae_currency": { "type": ["number", "null"], "description": "Simulated Maximum Adverse Excursion in currency units." }
         },
         "required": ["symbol", "side", "size", "entry_time", "skip_reason", "counterfactual_pnl"]
       }
@@ -339,7 +346,8 @@
         },
         "required": ["description", "type"]
       }
-    },
+    }
+  },
   "required": [
     "meta",
     "strategy_params",
