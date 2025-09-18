@@ -123,7 +123,11 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     strat = compile_strategy(strat_cfg)
     signals = strat.generate_signals(df)
 
+    # REM can be embedded or referenced via a separate file
     rem_cfg = cfg_raw.get("rem_config") or {}
+    rem_path = cfg_raw.get("rem_path")
+    if rem_path:
+        rem_cfg = _load_config(Path(str(rem_path)))
     rem = RiskExitManager(config=rem_cfg)
 
     # RMM is mandatory: allow embedded dict or external file via rmm_path

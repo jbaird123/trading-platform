@@ -13,13 +13,7 @@ data_request:
   start: "2023-01-01"
   end: "2023-03-01"
 
-rem_config:
-  stop_loss:
-    type: "price"
-    value: 0.0100
-  take_profit:
-    type: "price"
-    value: 0.0200
+rem_path: "config/rem/basic_price_exits.yaml"
 
 strategy:
   strategy_name: "EMA_Crossover"
