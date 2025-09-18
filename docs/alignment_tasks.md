@@ -1,57 +1,60 @@
-# Requirements Alignment Task List
+# Project Alignment Tasks
 
-This document provides a checklist of tasks required to bring the codebase into alignment with the core architectural principles and requirements defined in `docs/project_requirements.md`. The tasks are derived from the findings in `docs/requirements_compliance_check.md`.
+_Last updated: 2025-09-18_
 
----
+This document outlines the tasks required to bring the project into alignment with its requirements, based on the combined analysis from the Gemini and Codex requirements checks.
 
-## 1. New Module: Risk & Exit Manager (REM)
+## High Priority
 
-*These tasks address the critical architectural violation of mixing risk logic into the backtester and strategy modules.*
+- [ ] **Add comprehensive tests for the Risk & Exit Manager (REM) module.**
+    - `[REM-6.1]` Test core mandate: stop-loss and take-profit logic.
+    - `[REM-6.2]` Test REM configuration loading and validation from YAML.
+    - `[REM-6.3]` Test support for multiple exit rule types (static and dynamic).
+    - `[REM-6.4]` Test that REM is a pluggable component.
 
-- [ ] Create the new module directory: `src/trading_platform/risk_manager/`.
-- [ ] Create an `__init__.py` file within the new module.
-- [ ] Define a `RiskExitManager` class within the module. This class will be responsible for loading and interpreting REM configurations as defined in the project requirements.
+- [ ] **Create and validate the REM configuration schema.**
+    - `[REM-6.2]` Create `docs/schemas/rem.schema.json`.
+    - Add a loader and validation tests for the REM schema.
 
----
+- [ ] **Create and validate the RunConfig JSON Schema.**
+    - `[SYS-1.7.3]` Create `docs/schemas/run_config.schema.json`.
+    - Add validation tests for the RunConfig schema.
 
-## 2. Strategy Module (`src/trading_platform/strategy/`)
+## Medium Priority
 
-*These tasks decouple risk management from strategy definitions.*
+- [ ] **Increase Data Handler (DH) test coverage.**
+    - `[DH-2.1]` Test loading historical market data from local CSV files.
+    - `[DH-2.2]` Test the live market data streaming connector for OANDA.
+    - `[DH-2.4]` Test that timestamps are timezone-aware and set to UTC.
+    - `[DH-2.7]` Test the production of the `quality_flags` report.
+    - `[DH-2.8]` Test the Instrument Definition provider.
 
-- [ ] In `yaml_strategy.py`, refactor the `compile_strategy` function to no longer load the `risk` block from strategy YAML files.
-- [ ] In `yaml_strategy.py`, remove the `risk` attribute from the `CompiledStrategy` dataclass.
+- [ ] **Tag orphaned tests.**
+    - `tests/backtester/test_rmm_enforcement.py`
+    - `tests/data/test_data_catalog_loader.py`
+    - `tests/strategy/test_strategy_parameter_substitution.py`
+    - `tests/regime_market_manager/test_rmm_engine_daily.py`
+    - `tests/execution/test_dummy_file.py`
 
----
+- [ ] **Implement structured REM exit context.**
+    - `[JSON-11.25]` Add a structured `exit_context` dictionary to the `Trade` object and the brief, in addition to the existing `exit_reason` string.
 
-## 3. Backtester Module (`src/trading_platform/backtester/`)
+- [ ] **Add JSON Schema validation tests for the main brief sections.**
+    - `[JSON-11.1]` `meta`
+    - `[JSON-11.2]` `strategy_params`
+    - `[JSON-11.4]` `overall_performance`
+    - `[JSON-11.5]` `risk_snapshot`
 
-*These tasks refactor the backtester to use the new REM module and a unified run configuration.*
+## Low Priority
 
-- [ ] In `core.py`, refactor the `run_backtest` function signature to accept a single `RunConfig` object and a `RiskExitManager` object, removing the multiple ad-hoc arguments.
-- [ ] In `core.py`, remove all hard-coded stop-loss and take-profit logic from the main `run_backtest` loop.
-- [ ] In the `run_backtest` loop, add a call to the `RiskExitManager` instance (e.g., `rem.check_exits()`) to determine if a risk-based exit should occur for the current position and bar.
-- [ ] When a risk exit is triggered by the REM, ensure the backtester constructs the detailed, structured `exit_reason` dictionary (as required by `[JSON-11.25]`) to be passed to the portfolio.
+- [ ] **Implement or defer placeholder brief sections.**
+    - `[JSON-11.14]` `contrasts`
+    - `[JSON-11.16]` `stop_tp_candidates`
 
----
+- [ ] **Add tests for architectural principles where feasible.**
+    - `[SYS-1.3.1]` Test canonical representation in the Portfolio Manager.
+    - `[SYS-1.3.3]` Test native-to-canonical translation.
 
-## 4. CLI Module (`src/trading_platform/cli.py`)
-
-*This task ensures the CLI adheres to the unified run configuration principle.*
-
-- [ ] In `cmd_run_backtest`, update the call to `run_backtest` to pass the single, validated `RunConfig` object instead of multiple individual arguments.
-
----
-
-## 5. Portfolio Module (`src/trading_platform/portfolio/`)
-
-*This task enables detailed exit reason tracking.*
-
-- [ ] In `portfolio.py`, modify the `PortfolioManager.close_position` method to accept a structured dictionary for the `exit_reason` argument, not just a simple string.
-
----
-
-## 6. Reporting Module (`src/trading_platform/reporting/`)
-
-*This task ensures the final report contains the required level of detail for trade exits.*
-
-- [ ] In `brief.py`, update the `_serialize_trade` function to handle the new structured `exit_reason` object, ensuring it is serialized as a dictionary in the final JSON brief and not flattened into a string.
+- [ ] **Improve Strategy Engine (SE) test coverage.**
+    - `[SE-3.1]` Test signal generation only mandate.
+    - `[SE-3.2]` Test the `BaseStrategy` interface.
