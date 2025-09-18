@@ -6,12 +6,12 @@ features:
   - name: ema_fast
     type: EMA
     params:
-      length: 12
+      length: ${ema_fast_length}
     source: close
   - name: ema_slow
     type: EMA
     params:
-      length: 26
+      length: ${ema_slow_length}
     source: close
 overlays: [ema_fast, ema_slow]
 long_entry_rules:
