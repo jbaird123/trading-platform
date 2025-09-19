@@ -1,6 +1,4 @@
 stop_loss:
-  type: "offset"
-  value: 0.0020
+  price_offset: 0.0020
 take_profit:
-  type: "offset"
-  value: 0.0040
+  price_offset: 0.0040
