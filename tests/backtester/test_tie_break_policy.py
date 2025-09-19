@@ -28,8 +28,8 @@ def test_tie_break_stop_then_tp_for_long():
     sig = pd.Series(["long", "flat"], index=df.index)
     config = RunConfig(
         rem_config={
-            "stop_loss": {"value": 95.0, "type": "price"},
-            "take_profit": {"value": 105.0, "type": "price"},
+            "stop_loss": {"absolute_price": 95.0},
+            "take_profit": {"absolute_price": 105.0},
         }
     )
     rem = RiskExitManager(config=config.rem_config)

@@ -34,8 +34,8 @@ def when_backtest_is_run(shared_context: dict) -> None:
         position_size=1.0,
         allow_flip_on_bar=True,
         rem_config={
-            "stop_loss": {"value": sl, "type": "price"},
-            "take_profit": {"value": tp, "type": "price"},
+            "stop_loss": {"price_offset": sl},
+            "take_profit": {"price_offset": tp},
         },
     )
     rem = RiskExitManager(config=config.rem_config or {})

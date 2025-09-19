@@ -13,56 +13,82 @@
       "type": "string",
       "description": "Optional version tag for this REM config."
     },
-    "stop_loss": {
-      "oneOf": [
-        { "$ref": "#/$defs/staticStop" },
-        { "$ref": "#/$defs/dynamicStop" }
-      ]
-    },
-    "take_profit": {
-      "oneOf": [
-        { "$ref": "#/$defs/staticTakeProfit" },
-        { "$ref": "#/$defs/dynamicTakeProfit" }
-      ]
-    }
+    "stop_loss": { "$ref": "#/$defs/levelRule" },
+    "take_profit": { "$ref": "#/$defs/levelRule" },
+    "trailing_stop": { "$ref": "#/$defs/trailingRule" }
   },
   "required": ["stop_loss"],
   "$defs": {
-    "staticStop": {
+    "levelRule": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "type": { "const": "static" },
-        "pips": { "type": "number" },
-        "price_offset": { "type": "number" }
+        "absolute_price": {
+          "type": "number",
+          "description": "Exit at this exact price level."
+        },
+        "price_offset": {
+          "type": "number",
+          "description": "Exit at entry_price ± price_offset (canonical units)."
+        },
+        "pips": {
+          "type": "number",
+          "description": "Exit at entry_price ± pips×pip_size(symbol)."
+        },
+        "atr_multiple": {
+          "type": "number",
+          "description": "Exit at entry_price ± atr_multiple×ATR."
+        },
+        "atr_length": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "ATR window length (default 14) if atr_multiple used."
+        }
       },
-      "required": ["type"],
-      "oneOf": [{ "required": ["pips"] }, { "required": ["price_offset"] }]
+      "oneOf": [
+        { "required": ["absolute_price"], "description": "Absolute price." },
+        { "required": ["price_offset"], "description": "Fixed price distance." },
+        { "required": ["pips"], "description": "Instrument-native pips distance." },
+        { "required": ["atr_multiple"], "description": "ATR-multiple distance." }
+      ]
     },
-    "dynamicStop": {
+    "trailingRule": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "type": { "const": "dynamic" },
-        "atr_multiplier": { "type": "number" }
+        "price_offset": {
+          "type": "number",
+          "description": "Trail distance in price units."
+        },
+        "pips": {
+          "type": "number",
+          "description": "Trail distance in pips (instrument-aware)."
+        },
+        "atr_multiple": {
+          "type": "number",
+          "description": "Trail distance as multiples of ATR."
+        },
+        "atr_length": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "ATR window length (default 14) if atr_multiple used."
+        },
+        "step": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Minimum improvement required to tighten (optional)."
+        },
+        "update": {
+          "type": "string",
+          "enum": ["bar", "tick"],
+          "description": "Update cadence hint; 'bar' by default."
+        }
       },
-      "required": ["type", "atr_multiplier"]
-    },
-    "staticTakeProfit": {
-      "type": "object",
-      "properties": {
-        "type": { "const": "static" },
-        "pips": { "type": "number" },
-        "price_offset": { "type": "number" }
-      },
-      "required": ["type"],
-      "oneOf": [{ "required": ["pips"] }, { "required": ["price_offset"] }]
-    },
-    "dynamicTakeProfit": {
-      "type": "object",
-      "properties": {
-        "type": { "const": "dynamic" },
-        "atr_multiplier": { "type": "number" }
-      },
-      "required": ["type", "atr_multiplier"]
+      "oneOf": [
+        { "required": ["price_offset"] },
+        { "required": ["pips"] },
+        { "required": ["atr_multiple"] }
+      ]
     }
   }
 }

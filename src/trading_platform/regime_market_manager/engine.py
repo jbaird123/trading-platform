@@ -159,5 +159,7 @@ class RMMEngine:
             )
             for _, row in aligned.iterrows()
         ]
-        aligned = aligned.assign(allowed_sides=allowed)
+        aligned = aligned.assign(
+            allowed_sides=pd.Series(allowed, index=aligned.index, dtype=object)
+        )
         return aligned
