@@ -12,6 +12,7 @@ from pathlib import Path
 from statistics import median
 from typing import Any
 
+import jsonschema  # type: ignore
 import pandas as pd
 from trading_platform.portfolio.metrics import (
     calculate_equity_curve,
@@ -477,6 +478,12 @@ def generate_brief(
                 raise ValueError(f"Missing schema description for brief path: {p}")
             fdefs[p] = node["description"]
         placeholders["field_definitions"] = fdefs
+    # Omit optional sections when empty to satisfy schema
+    if not data_quality:
+        placeholders.pop("data_quality", None)
+    checks = placeholders.get("checksums")
+    if isinstance(checks, dict) and not checks:
+        placeholders.pop("checksums", None)
     # Attach skipped trades and filter impact if provided
     if skipped_trades:
         for trade in skipped_trades:
@@ -540,6 +547,7 @@ def save_run_brief(
     config_snapshot: dict[str, Any] | None = None,
     parameter_search: dict[str, Any] | None = None,
     skipped_trades: list[dict[str, Any]] | None = None,
+    validate_schema: bool = False,
 ) -> Path:
     """Generate and save a brief to `run_path/brief.json`.
 
@@ -564,6 +572,12 @@ def save_run_brief(
         parameter_search=parameter_search,
         skipped_trades=skipped_trades,
     )
+    if validate_schema:
+        try:
+            schema = json.loads(SCHEMA_PATH.read_text())
+            jsonschema.validate(instance=brief, schema=schema)
+        except Exception as exc:  # pragma: no cover (error path)
+            raise ValueError(f"Brief failed schema validation: {exc}") from exc
     out_path = run_path / "brief.json"
     save_brief(brief, out_path)
     return out_path
