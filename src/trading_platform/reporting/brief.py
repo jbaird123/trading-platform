@@ -90,6 +90,19 @@ def _round_percentage(value: float | None) -> float | None:
     return float(Decimal(str(value)).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP))
 
 
+def _round_price(value: float | None) -> float | None:
+    """Round price values to 4 decimal places.
+
+    Keeps currency (PnL, costs) at 2 decimals while allowing FX-like prices
+    to retain finer precision in briefs.
+    """
+    if value is None:
+        return None
+    return float(
+        Decimal(str(value)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+    )
+
+
 def _to_jsonable(obj: Any) -> Any:
     """Convert objects (dataclasses, datetimes) to JSON-serializable forms."""
     # asdict() only accepts dataclass instances, not classes.
@@ -139,8 +152,8 @@ def _serialize_trade(t: Trade) -> dict[str, Any]:
         "size": t.size,
         "entry_time": t.entry_time.isoformat(),
         "exit_time": t.exit_time.isoformat(),
-        "entry_price": _round_currency(t.entry_price),
-        "exit_price": _round_currency(t.exit_price),
+        "entry_price": _round_price(t.entry_price),
+        "exit_price": _round_price(t.exit_price),
         "pnl": _round_currency(t.pnl),
         "exit_reason": t.exit_reason,
         "r_multiple": getattr(t, "r_multiple", None),
