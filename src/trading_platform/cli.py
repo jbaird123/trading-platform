@@ -176,10 +176,10 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         daily_regimes = rmm_engine.classify_daily(df)
         rmm_policy = rmm_cfg.get("policy") or {}
         per_bar = rmm_engine.project_to_index(
-            daily_regimes, df.index, policy=rmm_policy
+            daily_regimes, cast(pd.DatetimeIndex, df.index), policy=rmm_policy
         )
         rmm_context = {
-            ts: {
+            cast(datetime, ts): {
                 "label": str(row["label"]),
                 "confidence": float(row["confidence"]),
                 "allowed_sides": list(row["allowed_sides"] or []),

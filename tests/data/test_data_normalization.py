@@ -25,8 +25,9 @@ def test_load_and_normalize_data_handles_naive_timestamps(
 
     assert not df.empty
     assert flags == []
-    assert df.index.tz is not None
-    assert str(df.index.tz) == "UTC"
+    idx = pd.DatetimeIndex(df.index)
+    assert idx.tz is not None
+    assert str(idx.tz) == "UTC"
     # Check if the time is correctly interpreted as 10:00 UTC
     assert df.index[0] == pd.Timestamp("2023-01-01 10:00:00", tz="UTC")
 
@@ -45,8 +46,9 @@ def test_load_and_normalize_data_converts_other_timezones_to_utc(
 
     assert not df.empty
     assert flags == []
-    assert df.index.tz is not None
-    assert str(df.index.tz) == "UTC"
+    idx2 = pd.DatetimeIndex(df.index)
+    assert idx2.tz is not None
+    assert str(idx2.tz) == "UTC"
     # 10:00 EST should be 15:00 UTC
     assert df.index[0] == pd.Timestamp("2023-01-01 15:00:00", tz="UTC")
 

@@ -24,22 +24,25 @@ def test_schema_is_valid_json(rem_schema):
 def test_valid_rem_configs(rem_schema):
     """Test that valid REM configurations validate successfully."""
     valid_configs = [
-        # Static pips-based stop-loss only
-        {"stop_loss": {"type": "static", "pips": 50}},
-        # Static price-offset-based stop-loss and take-profit
+        # Pips-based stop only
+        {"stop_loss": {"pips": 50}},
+        # Price-offset-based stop and take-profit
         {
-            "stop_loss": {"type": "static", "price_offset": 0.0050},
-            "take_profit": {"type": "static", "price_offset": 0.0100},
+            "stop_loss": {"price_offset": 0.0050},
+            "take_profit": {"price_offset": 0.0100},
         },
-        # Dynamic ATR-based stop-loss and take-profit
+        # ATR-based stop and take-profit
         {
-            "stop_loss": {"type": "dynamic", "atr_multiplier": 2.5},
-            "take_profit": {"type": "dynamic", "atr_multiplier": 5.0},
+            "stop_loss": {"atr_multiple": 2.5, "atr_length": 14},
+            "take_profit": {"atr_multiple": 5.0},
         },
-        # Mixed static and dynamic
+        # Absolute stop
+        {"stop_loss": {"absolute_price": 1.0950}},
+        # With trailing stop
         {
-            "stop_loss": {"type": "static", "pips": 100},
-            "take_profit": {"type": "dynamic", "atr_multiplier": 3.0},
+            "stop_loss": {"price_offset": 0.0020},
+            "take_profit": {"price_offset": 0.0040},
+            "trailing_stop": {"price_offset": 0.0015, "update": "bar"},
         },
     ]
 
@@ -55,19 +58,14 @@ def test_invalid_rem_configs(rem_schema):
     invalid_configs = [
         # Missing stop_loss
         {},
-        # Invalid stop_loss type
-        {"stop_loss": {"type": "invalid_type", "pips": 50}},
-        # Missing required field for static stop (pips or price_offset)
-        {"stop_loss": {"type": "static"}},
-        # Missing required field for dynamic stop (atr_multiplier)
-        {"stop_loss": {"type": "dynamic"}},
-        # Extra unknown property
-        {
-            "stop_loss": {"type": "static", "pips": 50},
-            "unknown_field": "some_value",
-        },
-        # Both pips and price_offset defined
-        {"stop_loss": {"type": "static", "pips": 50, "price_offset": 0.0050}},
+        # Empty stop_loss
+        {"stop_loss": {}},
+        # Too many fields in stop_loss
+        {"stop_loss": {"pips": 10, "price_offset": 0.0010}},
+        # Unknown top-level field
+        {"stop_loss": {"pips": 10}, "unknown_field": "x"},
+        # Trailing without any distance
+        {"stop_loss": {"price_offset": 0.0010}, "trailing_stop": {"update": "bar"}},
     ]
 
     for config in invalid_configs:

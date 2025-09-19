@@ -44,8 +44,8 @@ def when_backtest_is_run(shared_context: dict) -> None:
     if sl is not None or tp is not None:
         strategy = _dummy_strategy_with_sl_tp(float(sl or 0.0), float(tp or 0.0))
         rem_config = {
-            "stop_loss": {"value": sl, "type": "offset"},
-            "take_profit": {"value": tp, "type": "offset"},
+            "stop_loss": {"price_offset": sl},
+            "take_profit": {"price_offset": tp},
         }
     else:
         strategy = _dummy_strategy_cfg()
