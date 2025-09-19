@@ -43,9 +43,6 @@
       "description": "Series names to render on the price chart as overlays.",
       "items": { "type": "string" }
     },
-    "risk": {
-      "$ref": "#/$defs/risk"
-    },
     "long_entry_rules": {
       "$ref": "#/$defs/rule_block_array"
     },
@@ -117,49 +114,6 @@
         }
       },
       "required": ["name", "type"]
-    },
-    "risk": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "stop": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "type": {
-              "type": "string",
-              "enum": ["fixed", "atr"],
-              "description": "Stop style: fixed amount or ATR-based."
-            },
-            "value": {
-              "type": "number",
-              "description": "Stop distance (price units or ATR multiples)."
-            }
-          },
-          "required": ["type", "value"]
-        },
-        "take_profit": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "type": {
-              "type": "string",
-              "enum": ["fixed", "atr"],
-              "description": "Take-profit style: fixed or ATR-based."
-            },
-            "value": {
-              "type": "number",
-              "description": "TP distance (price units or ATR multiples)."
-            }
-          },
-          "required": ["type", "value"]
-        },
-        "warmup_bars": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "Bars to ignore while indicators stabilize."
-        }
-      }
     },
     "rule_block_array": {
       "type": "array",

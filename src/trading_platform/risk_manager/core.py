@@ -16,15 +16,17 @@ class RiskExitManager:
     take-profit rules.
     """
 
-    def __init__(self, config: dict[str, Any]):
+    def __init__(self, config: dict[str, Any], instrument: dict | None = None):
         """
         Initializes the RiskExitManager with a given risk configuration.
 
         Args:
             config: A dictionary representing the REM configuration, conforming
                     to the schema defined in the project requirements.
+            instrument: A dictionary with instrument-specific metadata.
         """
         self.config = config
+        self.instrument = instrument or {}
 
     def check_exits(
         self, position: Position, current_bar: pd.Series
@@ -40,8 +42,9 @@ class RiskExitManager:
         take_profit = self.config.get("take_profit", {}) or {}
         trailing = self.config.get("trailing_stop", {}) or {}
 
-        def _pip_size(sym: str) -> float:
-            return 0.01 if "JPY" in sym else 0.0001
+        def _pip_size() -> float:
+            # Use pip_location from the instrument definition.
+            return float(self.instrument.get("pip_location", 0.0001))
 
         def _atr_value(length: int | None) -> float | None:
             # ATR not present in current_bar; placeholder for integration.
@@ -51,7 +54,7 @@ class RiskExitManager:
             if "price_offset" in rule:
                 return float(rule["price_offset"])
             if "pips" in rule:
-                return float(rule["pips"]) * _pip_size(position.symbol)
+                return float(rule["pips"]) * _pip_size()
             if "atr_multiple" in rule:
                 length = int(rule.get("atr_length", 14))
                 atr = _atr_value(length)
