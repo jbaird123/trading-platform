@@ -14,8 +14,8 @@ data_request:
   end: "2023-03-01"
 
 counterfactual_mode: exact   # Literal["fast","exact"] with default "fast".
-#fast_mode:
-#  limit_bars: 5000
+fast_mode:
+  limit_bars: 10000
 
 rem_path: "config/rem/basic_price_exits.yaml"
 
