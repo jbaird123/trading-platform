@@ -87,6 +87,8 @@ _Last updated: 2025-09-16_
   - **[SYS-1.10.1]** All functionality must be developed using Test-Driven Development (TDD). Tests must be written before the implementation code.
   - **[SYS-1.10.2]** Every function, module, and component must have corresponding unit and integration tests. 100% test coverage is the target for all code.
   - **[SYS-1.10.3]** Behavior-Driven Development (BDD) with Gherkin (`.feature` files) will be used to ensure requirements are directly translated into executable specifications. This provides living documentation and guarantees alignment between requirements and deliverables.
+  - **[SYS-1.10.4]** All functions must be tested directly; indirect testing is insufficient. Tests should focus on the specific behavior of the function under test.
+  - **[SYS-1.10.5]** Test cases must be written and approved *before* any corresponding code changes are implemented. This enforces a strict Test-Driven Development (TDD) workflow.
 - **[SYS-1.11] Quality & Tooling**:
   - **[SYS-1.11.1]** SonarQube for static analysis.
   - **[SYS-1.11.2]** Cloud free tier limit = ~50k LOC; repo split required beyond ~100k LOC.
