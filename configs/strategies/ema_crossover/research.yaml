@@ -1,0 +1,52 @@
+user_id: "researcher"
+runs_dir: "runs"
+initial_cash: 100000
+position_size: 25000
+warmup_bars: 50
+tie_break_policy:
+  rule: "stop_then_tp"
+
+# Data source (delegated to Data Handler via catalog)
+data_request:
+  symbol: "EUR_USD"
+  timeframe: "1H"
+  start: "2014-01-01"
+  end: "2023-03-01"
+
+# Strategy and risk configs
+strategy_path: "config/strategy/ema_crossover.yaml"
+rem_path: "config/rem/basic_price_exits.yaml"
+#rmm_path: "config/rmm/daily_trend.yaml"
+
+# For faster iteration during sweeps
+#fast_mode:
+#  limit_bars: 10000
+
+# Parameter search (full re-runs per candidate)
+parameter_search:
+  objective: "pnl_dd_vol"  # total_pnl | pnl_minus_dd | pnl_dd_vol
+  dd_penalty: 0.5
+  vol_penalty: 0.1
+  seed: 42
+  grid:
+    ema_fast_length: [8, 12, 16, 20]
+    ema_slow_length: [26, 50, 80, 100]
+
+# Walk-forward optimize→test
+walk_forward:
+  window: 1000
+  step: 250
+
+# Monte Carlo resimulation (bar-level)
+monte_carlo:
+  mode: "bar_resimulation"  # bar_bootstrap | bar_resimulation
+  trials: 500
+  seed: 42
+  cost_jitter:
+    spread_jitter_pct: 0.1
+    slippage_jitter_pct: 0.1
+    per_trade_cost_jitter_pct: 0.05
+  perturbation:
+    mode: "block"
+    block_len: 8
+    std_pct: 0.001

@@ -5,6 +5,7 @@ warmup_bars: 50
 tie_break_policy:
   rule: "stop_then_tp"
 position_size: 25000
+
 # Data source is owned by the Data Handler. This run config
 # declares only the intent of what to request.
 data_request:
@@ -13,16 +14,14 @@ data_request:
   start: "2021-01-01"
   end: "2023-03-01"
 
-counterfactual_mode: exact   # Literal["fast","exact"] with default "fast".
+counterfactual_mode: exact   # fast | exact; default is fast
 fast_mode:
   limit_bars: 10000
 
 rem_path: "config/rem/basic_price_exits.yaml"
-
 strategy_path: "config/strategy/ema_crossover.yaml"
 
 # Optional: per-run overrides to strategy tunables
-# Example: adjust EMA lengths without editing the strategy file
 strategy_overrides:
   features:
     ema_fast:
@@ -30,5 +29,5 @@ strategy_overrides:
     ema_slow:
       length: 50
 
-# Regime Market Manager (mandatory) - referenced by path
+# Regime Market Manager (mandatory)
 rmm_path: "config/rmm/daily_trend.yaml"

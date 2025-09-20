@@ -363,12 +363,15 @@ def cmd_compare(args: argparse.Namespace) -> int:
             print("Not enough briefs found for --last.", file=sys.stderr)
             return 2
         # Generate pairwise consecutive comparisons: [0..1], [1..2], ...
+        # Write comparisons under runs/<user>/comparisons by default
+        out_dir = runs_dir / (user or "") / "comparisons"
+        out_dir.mkdir(parents=True, exist_ok=True)
         written: list[Path] = []
         for i in range(len(paths) - 1):
             a, b = paths[i + 1], paths[i]
             aid = json.loads(a.read_text()).get("meta", {}).get("run_id", a.parent.name)
             bid = json.loads(b.read_text()).get("meta", {}).get("run_id", b.parent.name)
-            out = Path(f"compare_{aid}_vs_{bid}.html")
+            out = out_dir / f"compare_{aid}_vs_{bid}.html"
             save_comparison_report(a, b, out)
             written.append(out)
         print("Wrote:")

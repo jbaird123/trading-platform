@@ -13,7 +13,8 @@ It is strategy‑agnostic and works for any YAML strategy in the repo.
 Generate a ready‑to‑run research config from a small JSON grid using the helper
 tool. The output is a YAML file you can run immediately.
 
-1) Create a grid file (example: `grid.json`):
+1) Create a grid file (example: `grid.json`) or reuse
+   `configs/strategies/ema_crossover/grid.json`:
    {
      "ema_fast_length": [8, 12, 16, 20],
      "ema_slow_length": [26, 50, 80, 100]
@@ -32,6 +33,25 @@ tool. The output is a YAML file you can run immediately.
 3) Run the research backtest:
    poetry run python -m trading_platform.cli run-backtest \
      --config configs/research_ema.yaml --user researcher
+
+Shortcut scripts (no flags to remember):
+- Make executable once:
+  chmod +x tools/run_research.sh \
+    configs/strategies/ema_crossover/run_research.sh \
+    configs/strategies/ema_crossover/run_backtest.sh
+- Then run the EMA profile:
+  configs/strategies/ema_crossover/run_research.sh
+- Or run a single baseline backtest:
+  configs/strategies/ema_crossover/run_backtest.sh
+
+You can duplicate `configs/strategies/ema_crossover/` and edit `run_research.sh`
+and `grid.json` to create more pre-filled profiles (e.g., RSI, BB mean reversion).
+
+## Organizing profiles per strategy
+- Create a folder under `configs/strategies/<name>/` with:
+  - `run.sh` calling `tools/run_research.sh` with your parameters
+  - `grid.json` for the parameter sweep
+- See `configs/strategies/ema_crossover/` for a complete example you can copy.
 
 Artifacts are saved under `runs/<user>/<run_id>/` including `brief.json` and
 `report.html`.

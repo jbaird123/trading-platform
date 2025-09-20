@@ -306,7 +306,18 @@
       "properties": {
         "mode": { "type": "string", "description": "MC engine mode (e.g., bootstrap_trades, block_bootstrap_trades, bar_bootstrap, bar_resimulation)." },
         "trials": { "type": "integer", "description": "Number of Monte Carlo trials executed." },
-        "config": { "type": "object", "description": "Echo of the configuration used to run Monte Carlo (e.g., jitter and perturbation)." },
+        "config": {
+          "type": "object",
+          "description": "Echo of the configuration used to run Monte Carlo (e.g., jitter and perturbation).",
+          "additionalProperties": {
+            "type": ["object", "array", "number", "string", "boolean", "null"],
+            "description": "Monte Carlo configuration field.",
+            "additionalProperties": {
+              "type": ["object", "array", "number", "string", "boolean", "null"],
+              "description": "Nested Monte Carlo configuration field."
+            }
+          }
+        },
         "final_equity": {
           "type": "object",
           "description": "Distribution summary for final equity across trials.",
