@@ -36,6 +36,10 @@ def test_monte_carlo_summary_deterministic_with_seed():
     assert "final_equity" in mc and "total_pnl" in mc
     # Deterministic mean near 1000 due to symmetric pnl
     assert mc["final_equity"]["mean"] == approx(1000.0, abs=10.0)
+    # Richer metrics should be present and numeric
+    assert "max_drawdown" in mc and "win_rate" in mc
+    assert isinstance(mc["max_drawdown"]["mean"], float)
+    assert 0.0 <= mc["win_rate"]["mean"] <= 1.0
 
 
 def test_walk_forward_summary_aggregates_oos():
@@ -62,3 +66,17 @@ def test_parameter_search_grid_and_random():
         evaluate=eval_fn,
     )
     assert len(out2["results"]) == 5
+
+
+def test_monte_carlo_block_bootstrap_mode():
+    trades = _trades()
+    mc = monte_carlo_summary(
+        trades,
+        initial_cash=1000.0,
+        trials=50,
+        seed=7,
+        mode="block_bootstrap_trades",
+        block_len=3,
+    )
+    assert mc["trials"] == 50
+    assert "max_drawdown" in mc and "win_rate" in mc
