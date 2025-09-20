@@ -20,18 +20,30 @@ SLOW_EMA = 20
 
 # --- Data Loading and Preparation ---
 # Load OHLC data
+print("--- Loading Data ---")
 ohlc_df = pd.read_csv(
     OHLC_DATA_PATH,
     names=["timestamp", "open", "high", "low", "close", "volume"],
     parse_dates=["timestamp"],
     skiprows=1,  # Added to skip the header row
 )
+print("--- Data Loaded. Info after loading: ---")
+ohlc_df.info()
+print("\n--- Head after loading: ---")
+print(ohlc_df.head())
+
 
 # Filter data to the relevant period for performance
+print("\n--- Filtering Data... ---")
 ohlc_df = ohlc_df[
     (ohlc_df["timestamp"] >= pd.to_datetime(RUN_START_DATE, utc=True))
     & (ohlc_df["timestamp"] <= pd.to_datetime(RUN_END_DATE, utc=True))
 ]
+print("--- Data Filtered. Info after filtering: ---")
+ohlc_df.info()
+print("\n--- Head after filtering: ---")
+print(ohlc_df.head())
+
 ohlc_df.set_index("timestamp", inplace=True)
 
 
@@ -119,4 +131,4 @@ app.layout = html.Div(
 )
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run(debug=True)
