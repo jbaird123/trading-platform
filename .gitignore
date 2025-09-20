@@ -226,4 +226,5 @@ __marimo__/
 .DS_Store
 
 # Trading Platform specific
+# Run outputs & comparisons
 runs/

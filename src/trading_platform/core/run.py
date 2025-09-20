@@ -134,6 +134,18 @@ def finalize_run(
         except Exception:
             ps_summary = None  # pragma: no cover
 
+    # Choose parameter_search payload preference order:
+    # 1) explicit argument, 2) computed summary, 3) config snapshot
+    param_search_payload = (
+        parameter_search
+        if parameter_search is not None
+        else (
+            ps_summary
+            if ps_summary is not None
+            else (config.parameter_search if config is not None else None)
+        )
+    )
+
     brief_path = save_run_brief(
         run_path,
         meta=meta,
@@ -151,9 +163,7 @@ def finalize_run(
         blackout_policy=blackout_policy,
         exposure_curve=exposure_curve,
         config_snapshot=(config.model_dump() if config is not None else None),
-        parameter_search=ps_summary
-        if ps_summary is not None
-        else (config.parameter_search if config is not None else None),
+        parameter_search=param_search_payload,
         skipped_trades=skipped_trades,
     )
     # Also export a minimal HTML report (skeleton)
