@@ -8,8 +8,10 @@ from typing import Any
 from trading_platform.core.config import RunConfig
 from trading_platform.core.robustness import (
     monte_carlo_summary,
-    parameter_search,
     walk_forward_summary,
+)
+from trading_platform.core.robustness import (
+    parameter_search as robustness_parameter_search,
 )
 from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.brief import save_run_brief
@@ -54,6 +56,7 @@ def finalize_run(
     config: RunConfig | None = None,
     monte_carlo: dict[str, Any] | None = None,
     walk_forward: dict[str, Any] | None = None,
+    parameter_search: dict[str, Any] | None = None,
     exposure_curve: list[tuple[datetime, float]] | None = None,
     skipped_trades: list[dict[str, Any]] | None = None,
 ) -> Path:
@@ -85,49 +88,51 @@ def finalize_run(
     ps_cfg = config.parameter_search if config is not None else {}
 
     mc_summary = None
-    try:
-        trials = int(mc_cfg.get("trials", 0)) if isinstance(mc_cfg, dict) else 0
-        if trials > 0 or mc_cfg.get("enabled"):
-            mc_summary = monte_carlo_summary(
-                trades,
-                initial_cash=initial_cash,
-                trials=max(trials, 100),
-                seed=mc_cfg.get("seed"),
-                mode=str(mc_cfg.get("mode", "bootstrap_trades")),
-            )
-    except Exception:
-        mc_summary = None  # pragma: no cover
+    if monte_carlo is None:
+        try:
+            trials = int(mc_cfg.get("trials", 0)) if isinstance(mc_cfg, dict) else 0
+            if trials > 0 or (isinstance(mc_cfg, dict) and mc_cfg.get("enabled")):
+                mc_summary = monte_carlo_summary(
+                    trades,
+                    initial_cash=initial_cash,
+                    trials=max(trials, 100),
+                    seed=mc_cfg.get("seed"),
+                    mode=str(mc_cfg.get("mode", "bootstrap_trades")),
+                )
+        except Exception:
+            mc_summary = None  # pragma: no cover
 
     wf_summary = None
-    try:
-        window = int(wf_cfg.get("window", 0)) if isinstance(wf_cfg, dict) else 0
-        step = int(wf_cfg.get("step", 0)) if isinstance(wf_cfg, dict) else 0
-        if window > 0 and step > 0:
-            wf_summary = walk_forward_summary(trades, window=window, step=step)
-    except Exception:
-        wf_summary = None  # pragma: no cover
+    if walk_forward is None:
+        try:
+            window = int(wf_cfg.get("window", 0)) if isinstance(wf_cfg, dict) else 0
+            step = int(wf_cfg.get("step", 0)) if isinstance(wf_cfg, dict) else 0
+            if window > 0 and step > 0:
+                wf_summary = walk_forward_summary(trades, window=window, step=step)
+        except Exception:
+            wf_summary = None  # pragma: no cover
 
     ps_summary = None
-    try:
-        if isinstance(ps_cfg, dict) and (
-            ps_cfg.get("grid") or ps_cfg.get("random_space")
-        ):
-            # Simple objective based on current trades
-            total_pnl = float(sum(t.pnl for t in trades))
+    if parameter_search is None:
+        try:
+            if isinstance(ps_cfg, dict) and (
+                ps_cfg.get("grid") or ps_cfg.get("random_space")
+            ):
+                total_pnl = float(sum(t.pnl for t in trades))
 
-            def eval_fn(_p: dict[str, Any]) -> float:
-                obj = str(ps_cfg.get("objective", "total_pnl"))
-                return total_pnl if obj == "total_pnl" else total_pnl
+                def eval_fn(_p: dict[str, Any]) -> float:
+                    obj = str(ps_cfg.get("objective", "total_pnl"))
+                    return total_pnl if obj == "total_pnl" else total_pnl
 
-            ps_summary = parameter_search(
-                grid=ps_cfg.get("grid"),
-                random_space=ps_cfg.get("random_space"),
-                n_samples=ps_cfg.get("n_samples"),
-                seed=ps_cfg.get("seed"),
-                evaluate=eval_fn,
-            )
-    except Exception:
-        ps_summary = None  # pragma: no cover
+                ps_summary = robustness_parameter_search(
+                    grid=ps_cfg.get("grid"),
+                    random_space=ps_cfg.get("random_space"),
+                    n_samples=ps_cfg.get("n_samples"),
+                    seed=ps_cfg.get("seed"),
+                    evaluate=eval_fn,
+                )
+        except Exception:
+            ps_summary = None  # pragma: no cover
 
     brief_path = save_run_brief(
         run_path,

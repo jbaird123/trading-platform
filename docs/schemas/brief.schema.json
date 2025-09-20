@@ -303,6 +303,66 @@
     "monte_carlo": {
       "type": "object",
       "description": "Results and statistics from Monte Carlo simulations, if enabled.",
+      "properties": {
+        "mode": { "type": "string", "description": "MC engine mode (e.g., bootstrap_trades, block_bootstrap_trades, bar_bootstrap, bar_resimulation)." },
+        "trials": { "type": "integer", "description": "Number of Monte Carlo trials executed." },
+        "config": { "type": "object", "description": "Echo of the configuration used to run Monte Carlo (e.g., jitter and perturbation)." },
+        "final_equity": {
+          "type": "object",
+          "description": "Distribution summary for final equity across trials.",
+          "properties": {
+            "mean": { "type": "number", "description": "Mean final equity." },
+            "p05": { "type": "number", "description": "5th percentile of final equity." },
+            "p95": { "type": "number", "description": "95th percentile of final equity." }
+          }
+        },
+        "total_pnl": {
+          "type": "object",
+          "description": "Distribution summary for total PnL across trials.",
+          "properties": {
+            "mean": { "type": "number", "description": "Mean total PnL." },
+            "p05": { "type": "number", "description": "5th percentile of total PnL." },
+            "p95": { "type": "number", "description": "95th percentile of total PnL." }
+          }
+        },
+        "max_drawdown": {
+          "type": "object",
+          "description": "Distribution summary for max drawdown across trials.",
+          "properties": {
+            "mean": { "type": "number", "description": "Mean max drawdown." },
+            "p05": { "type": "number", "description": "5th percentile of max drawdown." },
+            "p95": { "type": "number", "description": "95th percentile of max drawdown." }
+          }
+        },
+        "win_rate": {
+          "type": "object",
+          "description": "Distribution summary for win rate across trials.",
+          "properties": {
+            "mean": { "type": "number", "description": "Mean win rate (0–1)." },
+            "p05": { "type": "number", "description": "5th percentile of win rate." },
+            "p95": { "type": "number", "description": "95th percentile of win rate." }
+          }
+        },
+        "risk": {
+          "type": "object",
+          "description": "Risk metrics computed from tail distributions.",
+          "properties": {
+            "var_95": { "type": "number", "description": "Value-at-Risk at 95% confidence for total PnL." },
+            "cvar_95": { "type": "number", "description": "Conditional VaR (expected shortfall) at 95%." }
+          }
+        },
+        "ruin_prob": { "type": "number", "description": "Probability of final equity falling to or below zero (0–1)." },
+        "time_under_water_mean": { "type": "number", "description": "Mean fraction of bars under previous equity peak across trials (0–1)." },
+        "exemplars": {
+          "type": "object",
+          "description": "Representative equity paths from worst/median/best trials.",
+          "properties": {
+            "worst": { "type": "object", "description": "Worst-path exemplar." },
+            "median": { "type": "object", "description": "Median-path exemplar." },
+            "best": { "type": "object", "description": "Best-path exemplar." }
+          }
+        }
+      },
       "additionalProperties": {
         "type": ["object", "array", "number", "string", "boolean", "null"],
         "description": "Monte Carlo configuration/result field.",
@@ -315,6 +375,26 @@
     "walk_forward": {
       "type": "object",
       "description": "Results and performance metrics from walk-forward optimization, if enabled.",
+      "properties": {
+        "splits": {
+          "type": "array",
+          "description": "List of train/test split results and chosen parameters.",
+          "items": {
+            "type": "object",
+            "description": "A single walk-forward split result.",
+            "additionalProperties": true
+          }
+        },
+        "oos_total_pnl": {
+          "type": "object",
+          "description": "Aggregate out-of-sample performance across splits.",
+          "properties": {
+            "mean": { "type": "number", "description": "Mean OOS total PnL." },
+            "median": { "type": "number", "description": "Median OOS total PnL." },
+            "n_splits": { "type": "integer", "description": "Number of OOS splits." }
+          }
+        }
+      },
       "additionalProperties": {
         "type": ["object", "array", "number", "string", "boolean", "null"],
         "description": "Walk-forward configuration/result field.",
@@ -327,6 +407,36 @@
     "parameter_search": {
       "type": "object",
       "description": "Results from parameter optimization or search, if enabled.",
+      "properties": {
+        "top": {
+          "type": "object",
+          "description": "Best-performing parameter set and score.",
+          "additionalProperties": {
+            "type": ["object", "array", "number", "string", "boolean", "null"],
+            "description": "Top-level field of the best candidate.",
+            "additionalProperties": {
+              "type": ["object", "array", "number", "string", "boolean", "null"],
+              "description": "Nested field of the best candidate."
+            }
+          }
+        },
+        "results": {
+          "type": "array",
+          "description": "All candidate parameter sets with scores.",
+          "items": {
+            "type": "object",
+            "description": "A candidate parameter set and its score.",
+            "additionalProperties": {
+              "type": ["object", "array", "number", "string", "boolean", "null"],
+              "description": "Candidate field.",
+              "additionalProperties": {
+                "type": ["object", "array", "number", "string", "boolean", "null"],
+                "description": "Nested candidate field."
+              }
+            }
+          }
+        }
+      },
       "additionalProperties": {
         "type": ["object", "array", "number", "string", "boolean", "null"],
         "description": "Parameter search configuration/result field.",

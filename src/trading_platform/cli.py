@@ -16,6 +16,10 @@ from trading_platform.core.config import RunConfig
 from trading_platform.core.demo import generate_demo_run
 from trading_platform.core.policy import TradingWindowPolicy
 from trading_platform.core.run import finalize_run, initialize_run
+from trading_platform.core.sweeps import (
+    run_parameter_sweep,
+    walk_forward_optimize_and_test,
+)
 from trading_platform.data.loader import load_from_catalog
 from trading_platform.execution.oanda_stub import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
@@ -232,6 +236,68 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     if dq_flags:
         dq = {**dq, "loader_flags": dq_flags}
 
+    # Optional parameter sweep (full re-runs for candidates)
+    ps_cfg = cfg_raw.get("parameter_search") or {}
+    ps_results = None
+    if isinstance(ps_cfg, dict) and (ps_cfg.get("grid") or ps_cfg.get("random_space")):
+        ps_results = run_parameter_sweep(
+            df,
+            cfg_raw,
+            strat_cfg,
+            grid=ps_cfg.get("grid"),
+            random_space=ps_cfg.get("random_space"),
+            n_samples=ps_cfg.get("n_samples"),
+            seed=ps_cfg.get("seed"),
+            objective=str(ps_cfg.get("objective", "total_pnl")),
+            dd_penalty=ps_cfg.get("dd_penalty"),
+            vol_penalty=ps_cfg.get("vol_penalty"),
+        )
+
+    # Optional walk-forward optimize→test (requires grid)
+    wf_cfg = cfg_raw.get("walk_forward") or {}
+    wf_results = None
+    if (
+        isinstance(wf_cfg, dict)
+        and int(wf_cfg.get("window", 0)) > 0
+        and int(wf_cfg.get("step", 0)) > 0
+        and isinstance(ps_cfg, dict)
+        and ps_cfg.get("grid")
+    ):
+        grid_cfg = ps_cfg.get("grid")
+        grid_typed = cast(dict[str, list[Any]], grid_cfg)
+        wf_results = walk_forward_optimize_and_test(
+            df,
+            cfg_raw,
+            strat_cfg,
+            window=int(wf_cfg.get("window", 0)),
+            step=int(wf_cfg.get("step", 0)),
+            grid=grid_typed,
+            seed=ps_cfg.get("seed"),
+            objective=str(ps_cfg.get("objective", "total_pnl")),
+            dd_penalty=ps_cfg.get("dd_penalty"),
+            vol_penalty=ps_cfg.get("vol_penalty"),
+        )
+
+    # Optional Monte Carlo (bar-level resimulation)
+    mc_cfg = cfg_raw.get("monte_carlo") or {}
+    mc_results = None
+    if isinstance(mc_cfg, dict) and str(mc_cfg.get("mode")) in {
+        "bar_resimulation",
+        "bar_bootstrap",
+    }:
+        from trading_platform.core.sweeps import monte_carlo_resimulation
+
+        mc_results = monte_carlo_resimulation(
+            df,
+            cfg_raw,
+            strat_cfg,
+            trials=int(mc_cfg.get("trials", 100)),
+            seed=mc_cfg.get("seed"),
+            mode=str(mc_cfg.get("mode")),
+            cost_jitter=mc_cfg.get("cost_jitter"),
+            perturbation=mc_cfg.get("perturbation"),
+        )
+
     finalize_run(
         run_path,
         meta=meta,
@@ -242,6 +308,9 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         exposure_curve=exposure,
         data_quality=dq,
         skipped_trades=skips,
+        parameter_search=ps_results,
+        walk_forward=wf_results,
+        monte_carlo=mc_results,
     )
     print(f"Run created at: {run_path}")
     print(f"- Brief: {run_path / 'brief.json'}")
