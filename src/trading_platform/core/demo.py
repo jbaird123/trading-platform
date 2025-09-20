@@ -6,6 +6,7 @@ from pathlib import Path
 from trading_platform.core.config import RunConfig
 from trading_platform.core.run import finalize_run, initialize_run
 from trading_platform.portfolio.trade import Trade
+from trading_platform.reporting.csv_export import save_prices_csv
 
 
 def generate_demo_run(user_id: str = "demo_user") -> Path:
@@ -61,6 +62,24 @@ def generate_demo_run(user_id: str = "demo_user") -> Path:
             exit_reason="stop-loss",
         ),
     ]
+    # Minimal OHLCV for candlesticks
+    from pandas import DataFrame, date_range
+
+    idx = date_range(t0, periods=3, freq="H")
+    df = DataFrame(
+        {
+            "open": [1.0, 1.001, 1.002],
+            "high": [1.002, 1.003, 1.004],
+            "low": [0.999, 1.000, 1.001],
+            "close": [1.001, 1.002, 1.003],
+            "volume": [1, 1, 1],
+        },
+        index=idx,
+    )
+    try:
+        save_prices_csv(run_path / "prices.csv", df)
+    except Exception:
+        pass
 
     meta = {"strategy_name": "DemoStrategy", "run_id": cfg.run_id}
     params = {"fast": 10, "slow": 20}

@@ -88,6 +88,14 @@ def test_cmd_run_backtest_reads_csv_path(tmp_path: Path) -> None:
     ns = Namespace(demo=False, user="cli_csv", config=str(cfg_path))
     rc = cmd_run_backtest(ns)
     assert rc == 0
+    # Ensure prices.csv and charts.html exist under the run directory
+    runs_root = tmp_path / "cli_csv"
+    # Find the single run directory
+    run_dirs = [p for p in runs_root.iterdir() if p.is_dir()]
+    assert run_dirs, "No run directory created"
+    rp = run_dirs[0]
+    assert (rp / "prices.csv").exists()
+    assert (rp / "chart.html").exists()
 
 
 def test_cmd_run_live_missing_config() -> None:

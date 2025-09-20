@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -15,6 +16,9 @@ from trading_platform.core.robustness import (
 )
 from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.brief import save_run_brief
+from trading_platform.reporting.chart_export import (
+    save_chart_from_brief,
+)
 from trading_platform.reporting.csv_export import save_trades_csv
 from trading_platform.reporting.html_export import save_html_report
 
@@ -166,10 +170,41 @@ def finalize_run(
         parameter_search=param_search_payload,
         skipped_trades=skipped_trades,
     )
+    # Export parameter search results, if available
+    try:
+        ps = param_search_payload
+        if isinstance(ps, dict) and isinstance(ps.get("results"), list):
+            rows = []
+            for item in ps.get("results", []):
+                params = item.get("params") or {}
+                row = {
+                    **{str(k): v for k, v in params.items()},
+                    "score": item.get("score"),
+                }
+                rows.append(row)
+            if rows:
+                out_csv = run_path / "parameter_search_results.csv"
+                # Collect all keys to ensure stable headers
+                keys: list[str] = []
+                for r in rows:
+                    for k in r.keys():
+                        if k not in keys:
+                            keys.append(k)
+                with out_csv.open("w", newline="") as f:
+                    w = csv.DictWriter(f, fieldnames=keys)
+                    w.writeheader()
+                    w.writerows(rows)
+    except Exception:
+        pass
     # Also export a minimal HTML report (skeleton)
     try:
         save_html_report(run_path, meta=meta, trades=trades)
     except Exception:  # pragma: no cover - keep finalize robust
+        pass
+    # Export a lightweight-charts visualization from the brief
+    try:
+        save_chart_from_brief(run_path)
+    except Exception:  # pragma: no cover
         pass
     # Export trades CSV for convenience
     try:
