@@ -20,6 +20,7 @@ HTML_TMPL = r"""<!doctype html>
     #c-main{position:relative}
     #rmm-shades{position:absolute;inset:0;pointer-events:none;z-index:5}
     .rmm-shade{position:absolute;top:0;bottom:0}
+
     header{padding:8px 12px;font:14px/1.4 system-ui,sans-serif;
       border-bottom:1px solid #eee}
     header h1{margin:0;font-size:16px}
@@ -44,13 +45,9 @@ lightweight-charts.standalone.production.js"
     <div class="sub" id="subtitle"></div>
   </header>
   <div id="legend"></div>
-  <div id="controls">
-    <label>Line width
-      <input id="lw" type="range" min="1" max="9" step="1" value="5" />
-      <span id="lw-val">5</span>
-    </label>
+  <div id="c-main">
+    <div id="rmm-shades"></div>
   </div>
-  <div id="c-main"><div id="rmm-shades"></div></div>
   <div id="panels"></div>
   <div id="tt" style="display:none"></div>
   <script id="equity" type="application/json">__EQUITY_JSON__</script>
@@ -81,6 +78,10 @@ lightweight-charts.standalone.production.js"
         rightPriceScale:{visible:true},
         // Allow deep compression; library will manage tick density
         timeScale:{ timeVisible:true, secondsVisible:false, minBarSpacing: 0.5 }
+      });
+      // Prevent excessive panning beyond data with small right/left buffers
+      chart.applyOptions({
+        timeScale: { rightOffset: 6, fixLeftEdge: true, fixRightEdge: true },
       });
       // Built-in zoom/pan: wheel zoom + drag pan
       chart.applyOptions({
@@ -267,8 +268,17 @@ lightweight-charts.standalone.production.js"
             const x1 = chart.timeScale().timeToCoordinate(t1);
             const x2 = chart.timeScale().timeToCoordinate(t2);
             if (x1 == null || x2 == null) return;
-            const left = Math.min(x1, x2);
-            const width = Math.max(1, Math.abs(x2 - x1));
+            const rect = el.getBoundingClientRect();
+            const contW = rect.width;
+            let left = Math.min(x1, x2);
+            let width = Math.max(1, Math.abs(x2 - x1));
+            if (left < 0) {
+              width -= -left;
+              left = 0;
+            }
+            if (left + width > contW) {
+              width = Math.max(1, contW - left);
+            }
             const d = document.createElement('div');
             d.className = 'rmm-shade';
             d.style.left = `${left}px`;
@@ -381,14 +391,7 @@ lightweight-charts.standalone.production.js"
 
       // Note: Using library's native wheel zoom to ensure reliability.
 
-      // Controls: line width and dot size
-      const lw = document.getElementById('lw');
-      const lwVal = document.getElementById('lw-val');
-      lw.addEventListener('input', () => {
-        currentLineWidth = Number(lw.value) || 1;
-        lwVal.textContent = String(currentLineWidth);
-        tradeLines.forEach(s => s.applyOptions({ lineWidth: currentLineWidth }));
-      });
+      // No interactive controls for line width; using default thickness.
     })();
   </script>
 </body>
