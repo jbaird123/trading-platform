@@ -123,6 +123,8 @@ class CompiledStrategy:
     long_exit_blocks: list[dict]
     short_entry_blocks: list[dict]
     short_exit_blocks: list[dict]
+    slope_filter: bool = False
+    slope_feature: str | None = None
     # Internal state populated during signal generation
     _feature_df: pd.DataFrame | None = None
 
@@ -144,13 +146,27 @@ class CompiledStrategy:
         for b in self.short_exit_blocks:
             sx = sx | _eval_rule_block(df2, b)
 
+        # Optional slope gating
+        slope_up = pd.Series([True] * len(df2), index=df2.index)
+        slope_down = pd.Series([True] * len(df2), index=df2.index)
+        if self.slope_filter:
+            src = self.slope_feature or "ema_slow"
+            if src in df2.columns:
+                s = pd.Series(df2[src], dtype="float64")
+                slope_up = s > s.shift(1)
+                slope_down = s < s.shift(1)
+
         sig: list[str] = []
         state = "flat"
         for i in range(len(df2)):
             if state == "flat":
-                if bool(le.iloc[i]):
+                if bool(le.iloc[i]) and (
+                    not self.slope_filter or bool(slope_up.iloc[i])
+                ):
                     state = "long"
-                elif bool(se.iloc[i]):
+                elif bool(se.iloc[i]) and (
+                    not self.slope_filter or bool(slope_down.iloc[i])
+                ):
                     state = "short"
             elif state == "long":
                 if bool(lx.iloc[i]):
@@ -178,6 +194,8 @@ def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
     features = list(cfg.get("features") or [])
     # Resolve feature params against named parameters, if provided
     param_map = dict(cfg.get("parameters") or {})
+    slope_filter = bool(param_map.get("slope_filter", False))
+    slope_feature = str(param_map.get("slope_feature", "ema_slow"))
     if param_map and features:
         for f in features:
             p = f.get("params") or {}
@@ -197,4 +215,6 @@ def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
         long_exit_blocks=lx,
         short_entry_blocks=se,
         short_exit_blocks=sx,
+        slope_filter=slope_filter,
+        slope_feature=slope_feature,
     )

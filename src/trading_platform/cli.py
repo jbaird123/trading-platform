@@ -26,7 +26,12 @@ from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
 from trading_platform.regime_market_manager.engine import RMMEngine
 from trading_platform.reporting.brief import compute_data_quality
+from trading_platform.reporting.chart_export import (
+    save_chart_from_brief,
+    save_features_for_chart,
+)
 from trading_platform.reporting.compare_html import save_comparison_report
+from trading_platform.reporting.csv_export import save_prices_csv
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
 
@@ -144,6 +149,14 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     # Apply optional per-run overrides for strategy tunables
     overrides = cfg_raw.get("strategy_overrides") or {}
     if isinstance(overrides, dict):
+        # 1) Parameter-level overrides (e.g., slope_filter)
+        param_over = overrides.get("parameters") or {}
+        if isinstance(param_over, dict):
+            base_params = strat_cfg.get("parameters") or {}
+            if isinstance(base_params, dict):
+                base_params.update({k: v for k, v in param_over.items()})
+                strat_cfg["parameters"] = base_params
+        # 2) Feature-level overrides (existing behavior)
         feat_over = (overrides.get("features") or {}) if overrides else {}
         if isinstance(feat_over, dict) and isinstance(strat_cfg.get("features"), list):
             for f in strat_cfg["features"]:
@@ -155,6 +168,17 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
                         f["params"] = params
     strat = compile_strategy(strat_cfg)
     signals = strat.generate_signals(df)
+    # Persist prices and features for charts before finalize_run
+    try:
+        save_prices_csv(run_path / "prices.csv", df)
+    except Exception:
+        pass
+    try:
+        fdf = getattr(strat, "_feature_df", None)
+        if fdf is not None:
+            save_features_for_chart(run_path, fdf, strat.features)
+    except Exception:
+        pass
 
     # REM can be embedded or referenced via a separate file
     rem_cfg = cfg_raw.get("rem_config") or {}
@@ -191,6 +215,54 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             }
             for ts, row in per_bar.iterrows()
         }
+        # Persist RMM spans for chart shading
+        try:
+
+            def _mode(sides: list[str] | None) -> str:
+                s = set(sides or [])
+                if "long" in s and "short" in s:
+                    return "both"
+                if "long" in s:
+                    return "long_only"
+                if "short" in s:
+                    return "short_only"
+                return "blocked"
+
+            spans: list[dict[str, object]] = []
+            prev_mode: str | None = None
+            start_ts: datetime | None = None
+            prev_ts: datetime | None = None
+            for ts, row in per_bar.iterrows():
+                ts_dt = cast(datetime, ts)
+                mode = _mode(list(row["allowed_sides"] or []))
+                if prev_mode is None:
+                    prev_mode = mode
+                    start_ts = ts_dt
+                elif mode != prev_mode:
+                    if start_ts is not None and prev_ts is not None:
+                        spans.append(
+                            {
+                                "start": start_ts.isoformat(),
+                                "end": prev_ts.isoformat(),
+                                "mode": prev_mode,
+                            }
+                        )
+                    prev_mode = mode
+                    start_ts = ts_dt
+                prev_ts = ts_dt
+            if prev_mode is not None and start_ts is not None and prev_ts is not None:
+                spans.append(
+                    {
+                        "start": start_ts.isoformat(),
+                        "end": prev_ts.isoformat(),
+                        "mode": prev_mode,
+                    }
+                )
+            spans_path = run_path / "rmm_spans.json"
+            spans_path.write_text(json.dumps(spans))
+            print(f"- RMM spans: {spans_path}")
+        except Exception:
+            pass
 
     # Output toggles; default to no exposure unless explicitly requested
     ret_exp = bool(cfg_raw.get("return_exposure", False))
@@ -251,6 +323,7 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             objective=str(ps_cfg.get("objective", "total_pnl")),
             dd_penalty=ps_cfg.get("dd_penalty"),
             vol_penalty=ps_cfg.get("vol_penalty"),
+            debug_dir=run_path / "debug",
         )
 
     # Optional walk-forward optimize→test (requires grid)
@@ -316,6 +389,7 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     print(f"- Brief: {run_path / 'brief.json'}")
     print(f"- Report: {run_path / 'report.html'}")
     print(f"- Trades: {run_path / 'trades.csv'}")
+    print(f"- Chart: {run_path / 'chart.html'}")
     return 0
 
 
@@ -390,6 +464,33 @@ def cmd_compare(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_open_chart(args: argparse.Namespace) -> int:
+    runs_dir = Path(str(getattr(args, "runs_dir", "runs")))
+    user = getattr(args, "user", None)
+    paths = _find_last_briefs(runs_dir, user, int(getattr(args, "last", 1)))
+    if not paths:
+        print("No runs found.", file=sys.stderr)
+        return 2
+    brief = paths[0]
+    run_path = brief.parent
+    out = run_path / "chart.html"
+    if not out.exists():
+        try:
+            save_chart_from_brief(run_path)
+        except Exception as exc:  # pragma: no cover
+            print(f"Failed to generate chart: {exc}", file=sys.stderr)
+            return 1
+    print(f"Chart: {out}")
+    if bool(getattr(args, "open", False)):
+        try:
+            import webbrowser
+
+            webbrowser.open(out.resolve().as_uri())
+        except Exception:
+            pass
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(prog="tp", description="Trading Platform CLI")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -422,6 +523,13 @@ def main() -> int:
         "--user", default=None, help="User id under runs/ to search (for --last)"
     )
     pc.set_defaults(func=cmd_compare)
+
+    po = sub.add_parser("open-chart", help="Open latest run chart")
+    po.add_argument("--runs-dir", default="runs", help="Root runs directory")
+    po.add_argument("--user", default=None, help="User id under runs/")
+    po.add_argument("--last", type=int, default=1, help="Pick Nth latest run")
+    po.add_argument("--open", action="store_true", help="Open in browser")
+    po.set_defaults(func=cmd_open_chart)
 
     args = p.parse_args()
     return int(args.func(args))

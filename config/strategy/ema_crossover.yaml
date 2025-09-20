@@ -2,6 +2,8 @@ strategy_name: "EMA_Crossover_Generic"
 parameters:
   ema_fast_length: 12
   ema_slow_length: 26
+  slope_filter: false  # when true, require slope up for longs, down for shorts
+  slope_feature: ema_slow  # which feature to use for slope checks
 features:
   - name: ema_fast
     type: EMA

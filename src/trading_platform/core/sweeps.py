@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 from copy import deepcopy
+from pathlib import Path
 from typing import Any, cast
 
 import pandas as pd
@@ -59,6 +60,7 @@ def run_parameter_sweep(
     objective: str = "total_pnl",
     dd_penalty: float | None = None,
     vol_penalty: float | None = None,
+    debug_dir: str | Path | None = None,
 ) -> dict[str, Any]:
     if seed is not None:
         random.seed(seed)
@@ -101,6 +103,16 @@ def run_parameter_sweep(
     rem = RiskExitManager(config=rem_cfg)
 
     results: list[dict[str, Any]] = []
+    log_file: Path | None = None
+    if debug_dir is not None:
+        try:
+            d = Path(str(debug_dir))
+            d.mkdir(parents=True, exist_ok=True)
+            log_file = d / "sweep_debug.log"
+            with log_file.open("a") as f:
+                f.write("# sweep start\n")
+        except Exception:
+            log_file = None
     for cand in cands:
         scfg = deepcopy(strategy_cfg)
         params = dict(scfg.get("parameters") or {})
@@ -152,6 +164,19 @@ def run_parameter_sweep(
         else:
             score = total_pnl
         results.append({"params": cand, "score": score})
+        # Debug logging per candidate
+        try:
+            if log_file is not None:
+                vc = sig.value_counts()  # type: ignore[attr-defined]
+                long_ct = int(vc.get("long", 0)) if hasattr(vc, "get") else 0
+                short_ct = int(vc.get("short", 0)) if hasattr(vc, "get") else 0
+                with log_file.open("a") as f:
+                    f.write(
+                        f"params={cand} long={long_ct} short={short_ct} "
+                        f"trades={len(trades)} score={score}\n"
+                    )
+        except Exception:
+            pass
     results.sort(key=lambda r: float(r["score"]), reverse=True)
     top = results[0] if results else {"params": {}, "score": 0.0}
     return {"top": top, "results": results}

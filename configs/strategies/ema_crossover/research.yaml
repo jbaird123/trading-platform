@@ -29,8 +29,15 @@ parameter_search:
   vol_penalty: 0.1
   seed: 42
   grid:
-    ema_fast_length: [8, 12, 16, 20]
-    ema_slow_length: [26, 50, 80, 100]
+    ema_fast_length: [10, 20]
+    ema_slow_length: [80, 200]
+
+# Optional per-run overrides to base strategy parameters
+# Toggle slope_filter here without editing the base strategy file.
+strategy_overrides:
+  parameters:
+    slope_filter: true         # set true to enable
+    slope_feature: ema_slow    # which feature to use for slope
 
 # Walk-forward optimize→test
 walk_forward:
