@@ -82,10 +82,10 @@ lightweight-charts.standalone.production.js"
         // Allow deep compression; library will manage tick density
         timeScale:{ timeVisible:true, secondsVisible:false, minBarSpacing: 0.5 }
       });
-      // Disable built-in wheel zoom so we can center zoom at cursor
+      // Built-in zoom/pan: wheel zoom + drag pan
       chart.applyOptions({
         handleScale: {
-          mouseWheel: false,
+          mouseWheel: true,
           pinch: true,
           axisPressedMouseMove: { time: true, price: true },
         },
@@ -379,30 +379,7 @@ lightweight-charts.standalone.production.js"
         });
       });
 
-      // Cursor-centered wheel zoom on X-axis
-      (function(){
-        const ts = chart.timeScale();
-        const onWheel = (e) => {
-          if (!e || e.deltaY === 0) return;
-          e.preventDefault();
-          const rect = el.getBoundingClientRect();
-          const x = e.clientX - rect.left;
-          const anchor = ts.coordinateToLogical(x);
-          const vr = ts.getVisibleLogicalRange();
-          if (anchor == null || !vr || vr.from == null || vr.to == null) return;
-          const width = vr.to - vr.from;
-          // Zoom factor: scroll up (deltaY<0) -> zoom in (<1), down -> out (>1)
-          // ~0.999 per delta unit
-          const factor = Math.exp(e.deltaY * 0.001);
-          const newWidth = Math.max(5, width * factor);
-          const leftPortion = anchor - vr.from;
-          const leftRatio = leftPortion / width;
-          const newFrom = anchor - newWidth * leftRatio;
-          const newTo = newFrom + newWidth;
-          ts.setVisibleLogicalRange({ from: newFrom, to: newTo });
-        };
-        el.addEventListener('wheel', onWheel, { passive: false });
-      })();
+      // Note: Using library's native wheel zoom to ensure reliability.
 
       // Controls: line width and dot size
       const lw = document.getElementById('lw');
