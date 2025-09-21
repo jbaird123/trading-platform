@@ -83,6 +83,7 @@ class PortfolioManager:
         current_bar: pd.Series,
         current_signal: str,
         allow_flip_on_bar: bool = False,
+        context: dict | None = None,
     ) -> None:
         """
         Processes a new bar of data, updating positions based on the signal.
@@ -91,7 +92,7 @@ class PortfolioManager:
             self._update_position_metrics(current_bar)
 
         if self.current_position and current_signal != self.current_position.side:
-            self._handle_signal_change(current_bar, allow_flip_on_bar)
+            self._handle_signal_change(current_bar, allow_flip_on_bar, context)
 
     def check_stop_loss(self, current_bar: pd.Series, stop_price: float) -> bool:
         position = self._open_position
@@ -112,13 +113,13 @@ class PortfolioManager:
             return bool(current_bar["low"] <= profit_price)
 
     def _handle_signal_change(
-        self, current_bar: pd.Series, allow_flip_on_bar: bool
+        self, current_bar: pd.Series, allow_flip_on_bar: bool, context: dict | None
     ) -> None:
         self.close_position(
             exit_price=current_bar["close"],
             exit_time=cast(datetime, current_bar.name),
             exit_reason="signal",
-            exit_context=None,
+            context_at_exit=context,
         )
         if not allow_flip_on_bar:
             return  # pragma: no cover
@@ -155,7 +156,7 @@ class PortfolioManager:
         exit_price: float,
         exit_time: datetime,
         exit_reason: str | None = None,
-        exit_context: dict[str, Any] | None = None,
+        context_at_exit: dict[str, Any] | None = None,
     ) -> None:
         """Closes the current open position and records it as a Trade."""
         if not self._open_position:
@@ -198,7 +199,7 @@ class PortfolioManager:
             exit_time=exit_time,
             pnl=pnl,
             exit_reason=exit_reason,
-            exit_context=exit_context,
+            context_at_exit=context_at_exit,
             cost_currency=total_cost,
             cost_breakdown=cost_breakdown,
             r_multiple=r_multiple,

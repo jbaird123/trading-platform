@@ -90,6 +90,7 @@ def run_backtest(
     for i in range(len(market_data)):
         current_signal = signals.iloc[i]
         current_bar = market_data.iloc[i]
+        context = strategy.get_context(i)
 
         # Evaluate risk-based exits using the Risk & Exit Manager (REM)
         # This is evaluated before strategic exits, per the Exit Precedence Policy.
@@ -101,6 +102,7 @@ def run_backtest(
                     exit_price=exit_details["exit_price"],
                     exit_time=cast(datetime, current_bar.name),
                     exit_reason=exit_details["reason"],
+                    context_at_exit=context,
                 )
                 # Update exposure only if requested
                 if return_exposure:
@@ -112,6 +114,7 @@ def run_backtest(
             current_bar=current_bar,
             current_signal=current_signal,
             allow_flip_on_bar=config.allow_flip_on_bar,
+            context=context,
         )
 
         # If trying to add in same direction while already open, enforce cap
@@ -206,7 +209,6 @@ def run_backtest(
                     }
                 )
             else:
-                context = strategy.get_context(i)
                 entry_price = current_bar["close"]
                 size = float(config.position_size)
 

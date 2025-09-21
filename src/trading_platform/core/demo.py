@@ -65,7 +65,7 @@ def generate_demo_run(user_id: str = "demo_user") -> Path:
     # Minimal OHLCV for candlesticks
     from pandas import DataFrame, date_range
 
-    idx = date_range(t0, periods=3, freq="H")
+    idx = date_range(t0, periods=3, freq="h")
     df = DataFrame(
         {
             "open": [1.0, 1.001, 1.002],

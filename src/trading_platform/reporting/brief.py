@@ -401,6 +401,7 @@ def generate_brief(
     skipped_trades: list[dict[str, Any]] | None = None,
     parameter_search: dict[str, Any] | None = None,
     field_definitions: dict[str, Any] | None = None,
+    signals_path: str | None = None,
 ) -> dict[str, Any]:
     """Assemble a JSON brief from trades and metrics (incremental MVP)."""
     meta = meta or {}
@@ -444,6 +445,10 @@ def generate_brief(
     if config_snapshot is not None:
         checksums["config_snapshot_hash"] = _stable_hash(config_snapshot)
 
+    artifacts: dict[str, Any] = {}
+    if signals_path:
+        artifacts["signals_path"] = signals_path
+
     base = {
         "meta": _to_jsonable(meta),
         "strategy_params": _to_jsonable(params),
@@ -470,6 +475,7 @@ def generate_brief(
         "environment": _to_jsonable(env),
         "provenance": _to_jsonable(prov),
         "checksums": _to_jsonable(checksums),
+        "artifacts": _to_jsonable(artifacts),
         "field_definitions": _to_jsonable(field_definitions or {}),
         # Trades serialized with ISO datetimes
         "trades": trades_json,
@@ -560,6 +566,7 @@ def save_run_brief(
     config_snapshot: dict[str, Any] | None = None,
     parameter_search: dict[str, Any] | None = None,
     skipped_trades: list[dict[str, Any]] | None = None,
+    signals_path: str | None = None,
     validate_schema: bool = False,
 ) -> Path:
     """Generate and save a brief to `run_path/brief.json`.
@@ -584,6 +591,7 @@ def save_run_brief(
         config_snapshot=config_snapshot,
         parameter_search=parameter_search,
         skipped_trades=skipped_trades,
+        signals_path=signals_path,
     )
     if validate_schema:
         try:

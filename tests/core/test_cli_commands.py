@@ -72,6 +72,41 @@ def test_cmd_run_backtest_config_minimal(tmp_path: Path) -> None:
     assert briefs, "brief.json not written for config run"
 
 
+def test_cmd_run_backtest_saves_signals_artifact(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "cfg.json"
+    cfg_obj = {
+        "user_id": "cli_cfg_signals",
+        "runs_dir": str(tmp_path),
+        "strategy": {
+            "strategy_name": "TestStrat",
+            "long_entry_rules": [
+                {"any_of": [{"condition": "is_above", "left": "close", "right": 0}]}
+            ],
+            "long_exit_rules": [
+                {"any_of": [{"condition": "is_below", "left": "close", "right": 0}]}
+            ],
+        },
+    }
+    cfg_path.write_text(json.dumps(cfg_obj))
+    ns = Namespace(demo=False, user="cli_cfg_signals", config=str(cfg_path))
+    rc = cmd_run_backtest(ns)
+    assert rc == 0
+
+    user_dir = tmp_path / "cli_cfg_signals"
+    briefs = list(user_dir.rglob("brief.json"))
+    assert briefs
+    brief_path = briefs[0]
+    run_path = brief_path.parent
+
+    signals_parquet_path = run_path / "signals.parquet"
+    assert signals_parquet_path.exists()
+
+    brief_data = json.loads(brief_path.read_text())
+    artifacts = brief_data.get("artifacts", {})
+    assert "signals_path" in artifacts
+    assert artifacts["signals_path"] == str(signals_parquet_path)
+
+
 def test_cmd_run_live_dry_run() -> None:
     ns = Namespace(config=None, dry_run=True)
     assert cmd_run_live(ns) == 0

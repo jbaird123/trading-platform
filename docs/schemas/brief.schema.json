@@ -523,6 +523,16 @@
       },
       "required": ["config_snapshot_hash", "instrument_defs_hash"]
     },
+    "artifacts": {
+      "type": "object",
+      "description": "Paths to run artifacts saved alongside the brief.",
+      "properties": {
+        "signals_path": {
+          "type": "string",
+          "description": "Path to the saved signals file (e.g., signals.parquet)."
+        }
+      }
+    },
     "stop_tp_candidates": {
       "type": "array",
       "description": "List of stop-loss/take-profit candidate levels considered during analysis.",

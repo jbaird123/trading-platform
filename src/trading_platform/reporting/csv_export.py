@@ -12,8 +12,8 @@ def save_trades_csv(path: Path, trades: list[Trade]) -> Path:
     """Save trades to CSV with enhanced fields.
 
     Columns: symbol, side, size, entry_time, exit_time, entry_price, exit_price,
-    pnl, r_multiple, mfe_currency, mae_currency, bars_held, cost_currency,
-    spread, commission, slippage
+    exit_reason, pnl, r_multiple, mfe_currency, mae_currency, bars_held,
+    cost_currency, spread, commission, slippage
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     cols = [
@@ -24,6 +24,7 @@ def save_trades_csv(path: Path, trades: list[Trade]) -> Path:
         "exit_time",
         "entry_price",
         "exit_price",
+        "exit_reason",
         "pnl",
         "r_multiple",
         "mfe_currency",
@@ -47,6 +48,7 @@ def save_trades_csv(path: Path, trades: list[Trade]) -> Path:
                 "exit_time": t.exit_time.isoformat(),
                 "entry_price": t.entry_price,
                 "exit_price": t.exit_price,
+                "exit_reason": getattr(t, "exit_reason", None),
                 "pnl": t.pnl,
                 "r_multiple": getattr(t, "r_multiple", None),
                 "mfe_currency": getattr(t, "mfe_currency", None),
