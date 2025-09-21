@@ -2,12 +2,15 @@
 This module defines the automated model training pipeline for the AI Lab.
 """
 
+import os
 from pathlib import Path
 from typing import Any, Dict, Tuple, cast
 
 import mlflow
 import pandas as pd
 import yaml
+from skl2onnx import convert_sklearn
+from skl2onnx.common.data_types import FloatTensorType
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
 from trading_platform.ai.data_connectors import AIDataConnector, DataCatalog
@@ -163,10 +166,24 @@ class AITrainingPipeline:
         model_info = mlflow.sklearn.log_model(model, "model")
         print(f"Model saved to MLflow: {model_info.model_uri}")
 
-        # 3. Run Diagnostic Synthesis Engine
-        print("Running Diagnostic Synthesis Engine...")
-        from trading_platform.ai.synthesis.engine import DiagnosticSynthesisEngine
+        # 3. Convert and Log ONNX model
+        print("Converting model to ONNX and logging...")
+        # Infer input types from the training data X
+        initial_type = [("float_input", FloatTensorType([None, X.shape[1]]))]  # type: ignore
+        onnx_model = convert_sklearn(model, initial_types=initial_type)
 
+        # Save ONNX model to a temporary file
+        onnx_path = "model.onnx"
+        with open(onnx_path, "wb") as f:
+            f.write(onnx_model.SerializeToString())
+
+        # Log ONNX model as an MLflow artifact
+        mlflow.log_artifact(onnx_path, "onnx_model")
+        print(f"ONNX model saved to MLflow: {onnx_path}")
+        os.remove(onnx_path)  # Clean up temporary file
+
+        # 4. Run Diagnostic Synthesis Engine
+        print("Running Diagnostic Synthesis Engine...")
         synthesis_engine = DiagnosticSynthesisEngine(
             config=self.config.get("synthesis", {})
         )
