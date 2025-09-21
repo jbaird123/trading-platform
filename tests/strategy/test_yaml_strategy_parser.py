@@ -10,6 +10,7 @@ from trading_platform.strategy.yaml_strategy import compile_strategy
 def test_yaml_strategy_compile_and_signals_is_above_below():
     cfg = {
         "strategy_name": "TestStrat",
+        "parameters": {},
         "overlays": ["ema_fast", "ema_slow"],
         "features": [],
         "long_entry_rules": [
@@ -38,6 +39,7 @@ def test_yaml_strategy_compile_and_signals_is_above_below():
 def test_yaml_strategy_cross_above_below():
     cfg = {
         "strategy_name": "TestStrat",
+        "parameters": {},
         "features": [
             {"name": "ema_fast", "type": "EMA", "params": {"length": 2}},
             {"name": "ema_slow", "type": "EMA", "params": {"length": 4}},
@@ -84,6 +86,7 @@ def test_yaml_strategy_cross_above_below():
 def test_yaml_strategy_all_of_and_short_side():
     cfg = {
         "strategy_name": "TestStrat",
+        "parameters": {},
         "short_entry_rules": [
             {
                 "all_of": [

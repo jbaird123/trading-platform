@@ -370,7 +370,7 @@ def monte_carlo_resimulation(
             cm["spread_per_unit"] = _j(base_sp, sp)
             cm["slippage_per_unit"] = _j(base_sl, sl)
             cfg_trial = cfg.model_copy(update={"cost_model": cm})
-        strat = compile_strategy(strategy_cfg)
+        strat = compile_strategy({**strategy_cfg, "parameters": strategy_cfg.get("parameters", {})})
         sig = strat.generate_signals(sim_df)
         _res3 = run_backtest(
             market_data=sim_df,

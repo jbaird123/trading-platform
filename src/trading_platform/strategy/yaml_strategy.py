@@ -57,21 +57,6 @@ def load_strategy_config(doc: dict[str, Any] | str | Path) -> dict[str, Any]:
     return cast(dict[str, Any], json.loads(txt))
 
 
-def _resolve_param_value(val: Any, params: dict[str, Any]) -> Any:
-    """Resolve a value that may reference a named parameter.
-
-    Supports either a direct name (e.g., "ema_fast_length") or a
-    ${name} placeholder. Falls back to the original value if no match.
-    """
-    if isinstance(val, str):
-        key = val
-        if val.startswith("${{") and val.endswith("}}"):
-            key = val[2:-1]
-        if key in params:
-            return params[key]
-    return val
-
-
 def _series_for_operand(df: pd.DataFrame, operand: Any) -> pd.Series:
     if isinstance(operand, (int, float)):
         return pd.Series([float(operand)] * len(df), index=df.index)
@@ -128,6 +113,7 @@ class CompiledStrategy:
     long_exit_blocks: list[dict]
     short_entry_blocks: list[dict]
     short_exit_blocks: list[dict]
+    parameters: dict[str, Any]
     slope_filter: bool = False
     slope_feature: str | None = None
     ai_filter_enabled: bool = False
@@ -138,7 +124,7 @@ class CompiledStrategy:
     _feature_df: pd.DataFrame | None = None
 
     def generate_signals(self, df: pd.DataFrame) -> pd.Series:
-        df2 = compute_features(df, self.features)
+        df2 = compute_features(df, self.features, self.parameters)
         # Persist the feature dataframe for context lookups
         super().__setattr__("_feature_df", df2)
 
@@ -242,12 +228,14 @@ class CompiledStrategy:
 
 
 def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
+    cfg.setdefault("parameters", {})
     validate_strategy_config(cfg)
     name = str(cfg.get("strategy_name", "Strategy"))
     overlays = [str(x) for x in (cfg.get("overlays") or [])]
     features = list(cfg.get("features") or [])
-    # Resolve feature params against named parameters, if provided
-    param_map = dict(cfg.get("parameters") or {})
+    param_map = cfg.get("parameters", {})
+    if not isinstance(param_map, dict):
+        param_map = {}
     slope_filter = bool(param_map.get("slope_filter", False))
     slope_feature = str(param_map.get("slope_feature", "ema_slow"))
     ai_filter_config = cfg.get("ai_filter", {})
@@ -257,13 +245,7 @@ def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
     ai_confidence_threshold = float(ai_filter_config.get("confidence_threshold", 0.0))
     ai_input_features = [str(x) for x in (ai_filter_config.get("input_features") or [])]
     ai_inference_client = AIInferenceClient() if ai_filter_enabled else None
-    if param_map and features:
-        for f in features:
-            p = f.get("params") or {}
-            if isinstance(p, dict):
-                for k, v in list(p.items()):
-                    p[k] = _resolve_param_value(v, param_map)
-                f["params"] = p
+    
     le = list(cfg.get("long_entry_rules") or [])
     lx = list(cfg.get("long_exit_rules") or [])
     se = list(cfg.get("short_entry_rules") or [])
@@ -276,6 +258,7 @@ def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
         long_exit_blocks=lx,
         short_entry_blocks=se,
         short_exit_blocks=sx,
+        parameters=param_map,
         slope_filter=slope_filter,
         slope_feature=slope_feature,
         ai_filter_enabled=ai_filter_enabled,

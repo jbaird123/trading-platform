@@ -8,6 +8,7 @@ from trading_platform.strategy.yaml_strategy import compile_strategy
 # This will be used by all tests in this file.
 CROSSOVER_CFG = {
     "strategy_name": "EMA Crossover",
+    "parameters": {},
     "long_entry_rules": [
         {
             "any_of": [

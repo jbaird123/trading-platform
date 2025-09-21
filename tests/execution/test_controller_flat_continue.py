@@ -23,6 +23,7 @@ def test_controller_flat_desired_continues_loop():
     )
     cfg = {
         "strategy_name": "FlatAlways",
+        "parameters": {},
         "long_entry_rules": [
             {"any_of": [{"condition": "is_above", "left": "close", "right": 2.0}]}
         ],

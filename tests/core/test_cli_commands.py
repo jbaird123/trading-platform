@@ -18,6 +18,7 @@ def _dummy_strategy() -> CompiledStrategy:
         long_exit_blocks=[],
         short_entry_blocks=[],
         short_exit_blocks=[],
+        parameters={},
     )
 
 
@@ -61,6 +62,7 @@ def test_cmd_run_backtest_config_minimal(tmp_path: Path) -> None:
     }
     cfg_path.write_text(json.dumps(cfg_obj))
     ns = Namespace(demo=False, user="cli_cfg", config=str(cfg_path))
+    cfg_obj["strategy"]["parameters"] = cfg_obj["strategy"].get("parameters", {})
     rc = cmd_run_backtest(ns)
     assert rc == 0
     # Verify artifacts exist
@@ -89,6 +91,7 @@ def test_cmd_run_backtest_saves_signals_artifact(tmp_path: Path) -> None:
     }
     cfg_path.write_text(json.dumps(cfg_obj))
     ns = Namespace(demo=False, user="cli_cfg_signals", config=str(cfg_path))
+    cfg_obj["strategy"]["parameters"] = cfg_obj["strategy"].get("parameters", {})
     rc = cmd_run_backtest(ns)
     assert rc == 0
 
@@ -138,6 +141,7 @@ def test_cmd_run_backtest_saves_rmm_spans_artifact(tmp_path: Path) -> None:
     }
     cfg_path.write_text(json.dumps(cfg_obj))
     ns = Namespace(demo=False, user="cli_cfg_rmm_spans", config=str(cfg_path))
+    cfg_obj["strategy"]["parameters"] = cfg_obj["strategy"].get("parameters", {})
     rc = cmd_run_backtest(ns)
     assert rc == 0
 

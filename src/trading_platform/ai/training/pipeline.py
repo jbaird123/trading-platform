@@ -120,7 +120,7 @@ class AITrainingPipeline:
         model_type = model_config["type"]
 
         if model_type == "lightgbm":
-            if lgb is None or not hasattr(lgb, 'LGBMClassifier'):
+            if lgb is None or not hasattr(lgb, 'LGBMClassifier') or not callable(lgb.LGBMClassifier):
                 raise ImportError("LightGBM is not installed or cannot be imported.")
             model = lgb.LGBMClassifier(**model_config.get("params", {}))
         elif model_type == "random_forest":

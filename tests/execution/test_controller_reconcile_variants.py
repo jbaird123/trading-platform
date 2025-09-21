@@ -19,6 +19,7 @@ def _dummy_strategy() -> CompiledStrategy:
         long_exit_blocks=[],
         short_entry_blocks=[],
         short_exit_blocks=[],
+        parameters={},
     )
 
 
@@ -55,6 +56,7 @@ def test_controller_mark_price_equity_path():
     # Strategy: enter long at second bar
     cfg = {
         "strategy_name": "S",
+        "parameters": {},
         "long_entry_rules": [
             {"any_of": [{"condition": "is_above", "left": "close", "right": 1.5}]}
         ],

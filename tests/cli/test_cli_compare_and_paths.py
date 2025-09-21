@@ -19,6 +19,7 @@ def _dummy_strategy() -> CompiledStrategy:
         long_exit_blocks=[],
         short_entry_blocks=[],
         short_exit_blocks=[],
+        parameters={},
     )
 
 
@@ -86,6 +87,7 @@ def test_cmd_run_backtest_reads_csv_path(tmp_path: Path) -> None:
     cfg_path = tmp_path / "cfg.json"
     cfg_path.write_text(json.dumps(cfg))
     ns = Namespace(demo=False, user="cli_csv", config=str(cfg_path))
+    cfg["strategy"]["parameters"] = cfg["strategy"].get("parameters", {})
     rc = cmd_run_backtest(ns)
     assert rc == 0
     # Ensure prices.csv and charts.html exist under the run directory
