@@ -4,8 +4,11 @@ import yaml
 import os
 import shutil
 import mlflow
+import json
+from unittest.mock import patch
 
 from src.trading_platform.ai.training.pipeline import AITrainingPipeline
+from src.trading_platform.ai.data_connectors import DataCatalog
 
 # Fixture for a temporary MLflow tracking URI
 @pytest.fixture(scope="module")
@@ -47,18 +50,60 @@ def mock_external_dependencies_for_e2e():
         patch("src.trading_platform.ai.data_connectors.DataCatalog") as mock_data_catalog_cls,
         patch("src.trading_platform.ai.training.pipeline.lgb", new=None), # Ensure lightgbm is not imported
     ):
-        # Mock DataCatalog to return dummy data
+        # Mock DataCatalog behavior
         mock_data_catalog_instance = mock_data_catalog_cls.return_value
-        mock_data_catalog_instance.get_data.return_value = pd.DataFrame({
-            "timestamp": pd.to_datetime([f"2023-01-0{i}" for i in range(1, 6)]),
-            "open": [100, 101, 102, 103, 104],
-            "high": [102, 103, 104, 105, 106],
-            "low": [99, 100, 101, 102, 103],
-            "close": [101, 102, 103, 104, 105],
-            "volume": [1000, 1100, 1200, 1300, 1400],
-        }).set_index("timestamp")
+        mock_data_catalog_instance.get_historical_data.return_value = pd.DataFrame({
+            "open": [100, 101, 102, 103, 104, 105, 106, 107, 108, 109],
+            "high": [102, 103, 104, 105, 106, 107, 108, 109, 110, 111],
+            "low": [99, 100, 101, 102, 103, 104, 105, 106, 107, 108],
+            "close": [101, 102, 103, 104, 105, 106, 107, 108, 109, 110],
+            "volume": [1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900],
+        }, index=pd.to_datetime([f"2023-01-{i+1:02d}" for i in range(10)]))
 
         yield
+
+
+def test_full_training_pipeline_e2e(tmp_path):
+    # Create a dummy config file
+    config_content = {
+        "run_id": "e2e_test_run",
+        "experiment_name": "E2E Test Experiment",
+        "mlflow_tracking_uri": f"file://{tmp_path}/mlruns",
+        "data": {
+            "symbol": "TEST",
+            "timeframe": "1D",
+            "start_date": "2023-01-01",
+            "end_date": "2023-01-10",
+        },
+        "features": [
+            {"name": "sma_5", "type": "SMA", "params": {"length": 5}, "source": "close"},
+        ],
+        "labeling": {
+            "look_ahead_bars": 1,
+            "price_change_threshold": 0.001,
+        },
+        "model": {
+            "type": "lightgbm",
+            "params": {"n_estimators": 10},
+        },
+        "evaluation": {
+            "cross_validation": {"n_splits": 2},
+        },
+    }
+    config_path = tmp_path / "config.yaml"
+    with open(config_path, "w") as f:
+        yaml.dump(config_content, f)
+
+    # Run the pipeline
+    pipeline = AITrainingPipeline(str(config_path))
+    pipeline.run()
+
+    # Basic assertions to check if MLflow logged something
+    # This is a very high-level check for e2e
+    assert (tmp_path / "mlruns").exists()
+    # Further checks could involve parsing MLflow artifacts or checking specific metrics
+
+    yield
 
 
 def test_full_training_pipeline_e2e(minimal_training_config, temp_mlflow_uri):
