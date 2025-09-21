@@ -10,9 +10,13 @@ class AIDeploymentManager:
     def __init__(self, config: Dict[str, Any]) -> None:
         self.config = config
         self.deployment_strategy = config.get("strategy", "direct_deploy")
-        logger.info(f"AIDeploymentManager initialized with strategy: {self.deployment_strategy}")
+        logger.info(
+            f"AIDeploymentManager initialized with strategy: {self.deployment_strategy}"
+        )
 
-    def deploy_new_model(self, model_version: str, traffic_split: Dict[str, float] = None) -> bool:
+    def deploy_new_model(
+        self, model_version: str, traffic_split: Dict[str, float] = None
+    ) -> bool:
         """Initiates the deployment of a new model version based on the configured strategy."""
         logger.info(f"Attempting to deploy new model version: {model_version}")
 
@@ -44,7 +48,9 @@ class AIDeploymentManager:
             logger.error(f"Unknown deployment strategy: {self.deployment_strategy}")
             return False
 
-    def evaluate_deployment(self, model_version: str, metrics_data: Dict[str, Any]) -> bool:
+    def evaluate_deployment(
+        self, model_version: str, metrics_data: Dict[str, Any]
+    ) -> bool:
         """Evaluates the performance of a deployed model version."""
         logger.info(f"Evaluating deployment for model {model_version}...")
         # This is a placeholder. In a real system, this would compare metrics_data
@@ -52,7 +58,9 @@ class AIDeploymentManager:
 
         # Example: Check if a key metric (e.g., PnL contribution) is above a threshold
         current_pnl_contribution = metrics_data.get("pnl_contribution", 0.0)
-        required_pnl = self.config.get("evaluation_criteria", {}).get("min_pnl_contribution", 0.0)
+        required_pnl = self.config.get("evaluation_criteria", {}).get(
+            "min_pnl_contribution", 0.0
+        )
 
         if current_pnl_contribution < required_pnl:
             logger.warning(
