@@ -46,8 +46,17 @@ class AIEvaluationProcedure:
             fold_scores = get_classification_metrics(y_test, y_pred, y_prob)
             all_scores.append(fold_scores)
 
-        # Placeholder for aggregating scores across folds
-        aggregated_scores = {"mean_accuracy": 0.9, "std_accuracy": 0.05}  # Dummy data
+        # Aggregate scores across all folds
+        df_scores = pd.DataFrame(all_scores)
+        mean_scores = df_scores.mean().to_dict()
+        std_scores = df_scores.std().to_dict()
+
+        # Format the final report
+        aggregated_scores = {f"mean_{key}": value for key, value in mean_scores.items()}
+        aggregated_scores.update(
+            {f"std_{key}": value for key, value in std_scores.items()}
+        )
+
         print("Cross-validation complete.")
         return aggregated_scores
 
