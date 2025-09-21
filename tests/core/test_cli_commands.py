@@ -107,6 +107,55 @@ def test_cmd_run_backtest_saves_signals_artifact(tmp_path: Path) -> None:
     assert artifacts["signals_path"] == str(signals_parquet_path)
 
 
+def test_cmd_run_backtest_saves_rmm_spans_artifact(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "cfg.json"
+    cfg_obj = {
+        "user_id": "cli_cfg_rmm_spans",
+        "runs_dir": str(tmp_path),
+        "strategy": {
+            "strategy_name": "TestStrat",
+            "long_entry_rules": [
+                {"any_of": [{"condition": "is_above", "left": "close", "right": 0}]}
+            ],
+            "long_exit_rules": [
+                {"any_of": [{"condition": "is_below", "left": "close", "right": 0}]}
+            ],
+        },
+        "rmm_config": {
+            "regimes": [
+                {
+                    "label": "daily_trend",
+                    "conditions": {
+                        "all_of": [
+                            {"condition": "is_above", "left": "close", "right": 0}
+                        ]
+                    },
+                    "confidence": 1.0,
+                }
+            ],
+            "policy": {},
+        },
+    }
+    cfg_path.write_text(json.dumps(cfg_obj))
+    ns = Namespace(demo=False, user="cli_cfg_rmm_spans", config=str(cfg_path))
+    rc = cmd_run_backtest(ns)
+    assert rc == 0
+
+    user_dir = tmp_path / "cli_cfg_rmm_spans"
+    briefs = list(user_dir.rglob("brief.json"))
+    assert briefs
+    brief_path = briefs[0]
+    run_path = brief_path.parent
+
+    rmm_spans_path = run_path / "rmm_spans.json"
+    assert rmm_spans_path.exists()
+
+    brief_data = json.loads(brief_path.read_text())
+    artifacts = brief_data.get("artifacts", {})
+    assert "rmm_spans_path" in artifacts
+    assert artifacts["rmm_spans_path"] == str(rmm_spans_path)
+
+
 def test_cmd_run_live_dry_run() -> None:
     ns = Namespace(config=None, dry_run=True)
     assert cmd_run_live(ns) == 0

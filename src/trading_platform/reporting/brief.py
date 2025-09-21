@@ -402,6 +402,8 @@ def generate_brief(
     parameter_search: dict[str, Any] | None = None,
     field_definitions: dict[str, Any] | None = None,
     signals_path: str | None = None,
+    rmm_spans_path: str | None = None,
+    processed_data_path: str | None = None,
 ) -> dict[str, Any]:
     """Assemble a JSON brief from trades and metrics (incremental MVP)."""
     meta = meta or {}
@@ -448,6 +450,10 @@ def generate_brief(
     artifacts: dict[str, Any] = {}
     if signals_path:
         artifacts["signals_path"] = signals_path
+    if rmm_spans_path:
+        artifacts["rmm_spans_path"] = rmm_spans_path
+    if processed_data_path:
+        artifacts["processed_data_path"] = processed_data_path
 
     base = {
         "meta": _to_jsonable(meta),
@@ -567,6 +573,8 @@ def save_run_brief(
     parameter_search: dict[str, Any] | None = None,
     skipped_trades: list[dict[str, Any]] | None = None,
     signals_path: str | None = None,
+    rmm_spans_path: str | None = None,
+    processed_data_path: str | None = None,
     validate_schema: bool = False,
 ) -> Path:
     """Generate and save a brief to `run_path/brief.json`.
@@ -592,6 +600,8 @@ def save_run_brief(
         parameter_search=parameter_search,
         skipped_trades=skipped_trades,
         signals_path=signals_path,
+        rmm_spans_path=rmm_spans_path,
+        processed_data_path=processed_data_path,
     )
     if validate_schema:
         try:

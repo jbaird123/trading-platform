@@ -530,6 +530,10 @@
         "signals_path": {
           "type": "string",
           "description": "Path to the saved signals file (e.g., signals.parquet)."
+        },
+        "rmm_spans_path": {
+          "type": "string",
+          "description": "Path to the saved RMM spans file (e.g., rmm_spans.json)."
         }
       }
     },
