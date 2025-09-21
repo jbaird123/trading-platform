@@ -62,10 +62,12 @@ This document outlines the detailed tasks required to fully implement the AI Mod
     - [x] Implement placeholder for bias detection techniques.
     - [x] Implement placeholder for model stress testing.
 
-- [ ] **4.3. Develop Model Versioning and Experiment Tracking:**
+- [x] **4.3. Develop Model Versioning and Experiment Tracking:**
     - [x] Add `mlflow-skinny` dependency to solve installation issues while preserving tracking APIs.
-    - [ ] Integrate `mlflow` tracking into the `AITrainingPipeline` to log parameters, metrics, and artifacts.
-    - [ ] Document the process for launching the `mlflow ui` to view experiment results.
+    - [x] Integrate `mlflow` tracking into the `AITrainingPipeline` to log parameters, metrics, and artifacts.
+    - [x] Document the process for launching the `mlflow ui` to view experiment results.
+    - **How to launch MLflow UI:**
+        To view the experiment results, navigate to your project's root directory in the terminal and run the command: `mlflow ui`. This will start the MLflow user interface, typically accessible at `http://localhost:5000` in your web browser.
 
 - [ ] **4.4. Implement Diagnostic Synthesis Engine:**
     - [x] Create `src/trading_platform/ai/synthesis` module for the engine.
