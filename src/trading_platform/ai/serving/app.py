@@ -122,7 +122,7 @@ async def get_metrics(api_key: str = Depends(get_api_key)):
     """
     Monitoring endpoint to expose metrics.
     (Placeholder: Actual metrics collection would be implemented here.)
-    "" "
+    """
     logger.info("Metrics endpoint requested.")
     return {
         "status": "metrics_endpoint_placeholder",

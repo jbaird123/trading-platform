@@ -70,7 +70,7 @@ def scores_no_significant_difference():
 
 
 class TestFinancialMetrics:
-    def test_calculate_sharpe_ratio_positive_pnl(positive_pnl_series):
+    def test_calculate_sharpe_ratio_positive_pnl(self, positive_pnl_series):
         sharpe = calculate_sharpe_ratio(positive_pnl_series)
         # Expected value calculated manually or with a known library
         expected_sharpe = (
@@ -78,37 +78,37 @@ class TestFinancialMetrics:
         ) * np.sqrt(252)
         assert pytest.approx(sharpe) == expected_sharpe
 
-    def test_calculate_sharpe_ratio_negative_pnl(negative_pnl_series):
+    def test_calculate_sharpe_ratio_negative_pnl(self, negative_pnl_series):
         sharpe = calculate_sharpe_ratio(negative_pnl_series)
         expected_sharpe = (
             negative_pnl_series.mean() / negative_pnl_series.std()
         ) * np.sqrt(252)
         assert pytest.approx(sharpe) == expected_sharpe
 
-    def test_calculate_sharpe_ratio_mixed_pnl(mixed_pnl_series):
+    def test_calculate_sharpe_ratio_mixed_pnl(self, mixed_pnl_series):
         sharpe = calculate_sharpe_ratio(mixed_pnl_series)
         expected_sharpe = (
             mixed_pnl_series.mean() / mixed_pnl_series.std()
         ) * np.sqrt(252)
         assert pytest.approx(sharpe) == expected_sharpe
 
-    def test_calculate_sharpe_ratio_zero_std(zero_std_pnl_series):
+    def test_calculate_sharpe_ratio_zero_std(self, zero_std_pnl_series):
         sharpe = calculate_sharpe_ratio(zero_std_pnl_series)
         assert sharpe == 0.0
 
-    def test_calculate_sharpe_ratio_custom_periods(positive_pnl_series):
+    def test_calculate_sharpe_ratio_custom_periods(self, positive_pnl_series):
         sharpe = calculate_sharpe_ratio(positive_pnl_series, periods_per_year=12)
         expected_sharpe = (
             positive_pnl_series.mean() / positive_pnl_series.std()
         ) * np.sqrt(12)
         assert pytest.approx(sharpe) == expected_sharpe
 
-    def test_calculate_sortino_ratio_positive_pnl(positive_pnl_series):
+    def test_calculate_sortino_ratio_positive_pnl(self, positive_pnl_series):
         sortino = calculate_sortino_ratio(positive_pnl_series)
         # For positive PnL, downside_returns.std() will be 0, so Sortino should be 0.0
         assert sortino == 0.0
 
-    def test_calculate_sortino_ratio_negative_pnl(negative_pnl_series):
+    def test_calculate_sortino_ratio_negative_pnl(self, negative_pnl_series):
         sortino = calculate_sortino_ratio(negative_pnl_series)
         downside_returns = negative_pnl_series[negative_pnl_series < 0]
         expected_sortino = (
@@ -116,7 +116,7 @@ class TestFinancialMetrics:
         ) * np.sqrt(252)
         assert pytest.approx(sortino) == expected_sortino
 
-    def test_calculate_sortino_ratio_mixed_pnl(mixed_pnl_series):
+    def test_calculate_sortino_ratio_mixed_pnl(self, mixed_pnl_series):
         sortino = calculate_sortino_ratio(mixed_pnl_series)
         downside_returns = mixed_pnl_series[mixed_pnl_series < 0]
         expected_sortino = (
@@ -124,11 +124,11 @@ class TestFinancialMetrics:
         ) * np.sqrt(252)
         assert pytest.approx(sortino) == expected_sortino
 
-    def test_calculate_sortino_ratio_zero_downside_std(zero_downside_std_pnl_series):
+    def test_calculate_sortino_ratio_zero_downside_std(self, zero_downside_std_pnl_series):
         sortino = calculate_sortino_ratio(zero_downside_std_pnl_series)
         assert sortino == 0.0
 
-    def test_calculate_sortino_ratio_custom_periods(mixed_pnl_series):
+    def test_calculate_sortino_ratio_custom_periods(self, mixed_pnl_series):
         sortino = calculate_sortino_ratio(mixed_pnl_series, periods_per_year=12)
         downside_returns = mixed_pnl_series[mixed_pnl_series < 0]
         expected_sortino = (
