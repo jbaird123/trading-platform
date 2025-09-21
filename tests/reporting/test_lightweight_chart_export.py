@@ -72,7 +72,7 @@ def test_chart_uses_prices_and_trades(tmp_path):
     out = save_chart_from_brief(run_path)
     html = out.read_text()
     assert "Candlestick" in html or "candlestick" in html.lower()
-    assert "setMarkers" in html
+    assert "rebuildTradeLines" in html
     # Ensure we embed trades JSON
     assert "entry_time" in html and "exit_time" in html
 

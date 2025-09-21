@@ -168,6 +168,14 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
                         f["params"] = params
     strat = compile_strategy(strat_cfg)
     signals = strat.generate_signals(df)
+
+    # Persist raw signals for AI Lab analysis
+    try:
+        signals_path = run_path / "signals.parquet"
+        pd.DataFrame(signals).to_parquet(signals_path)
+    except Exception:
+        signals_path = None
+
     # Persist prices and features for charts before finalize_run
     try:
         save_prices_csv(run_path / "prices.csv", df)
@@ -384,6 +392,7 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         parameter_search=ps_results,
         walk_forward=wf_results,
         monte_carlo=mc_results,
+        signals_path=signals_path,
     )
     print(f"Run created at: {run_path}")
     print(f"- Brief: {run_path / 'brief.json'}")
