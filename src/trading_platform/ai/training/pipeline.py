@@ -149,7 +149,7 @@ class AITrainingPipeline:
         """
         print("Step 3: Evaluating model and logging artifacts...")
 
-        # 1. Evaluate model
+        metrics: Dict[str, Any] = {}
         eval_config = self.config.get("evaluation", {})
         if eval_config:
             evaluator = AIEvaluationProcedure(config=eval_config)
@@ -162,6 +162,18 @@ class AITrainingPipeline:
         # 2. Log model
         model_info = mlflow.sklearn.log_model(model, "model")
         print(f"Model saved to MLflow: {model_info.model_uri}")
+
+        # 3. Run Diagnostic Synthesis Engine
+        print("Running Diagnostic Synthesis Engine...")
+        from trading_platform.ai.synthesis.engine import DiagnosticSynthesisEngine
+
+        synthesis_engine = DiagnosticSynthesisEngine(
+            config=self.config.get("synthesis", {})
+        )
+        # Pass model, X, y, and evaluation metrics to the synthesis engine
+        synthesis_results = synthesis_engine.run(model, X, y, metrics)
+        print(f"Diagnostic Synthesis Engine results: {synthesis_results}")
+        mlflow.log_dict(synthesis_results, "diagnostic_synthesis_results.json")
 
     def run(self):
         """

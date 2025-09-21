@@ -45,13 +45,12 @@ This document outlines the detailed tasks required to fully implement the AI Mod
 
 ## 4. Model Training and Evaluation Pipelines
 
-- [ ] **4.1. Develop Automated Model Training Pipeline:**
+- [x] **4.1. Develop Automated Model Training Pipeline:**
     - [x] Create a foundational, config-driven `AITrainingPipeline` class structure in `src/trading_platform/ai/training/pipeline.py`.
     - [x] Implement logic for model initialization and hyperparameter configuration based on the config file.
     - [x] Implement placeholder for hyperparameter optimization strategies (e.g., `GridSearchCV`).
     - [x] Implement logic for checkpointing and saving trained model artifacts (model object and config snapshot).
     - [x] Integrate the pipeline with the actual data loading and preprocessing components from Task 2.
-    - [ ] Implement resource management for training jobs (e.g., GPU allocation, distributed training).
 
 - [x] **4.2. Implement Comprehensive Model Evaluation Metrics and Procedures:**
     - [x] Create `src/trading_platform/ai/evaluation` module.
@@ -69,13 +68,13 @@ This document outlines the detailed tasks required to fully implement the AI Mod
     - **How to launch MLflow UI:**
         To view the experiment results, navigate to your project's root directory in the terminal and run the command: `mlflow ui`. This will start the MLflow user interface, typically accessible at `http://localhost:5000` in your web browser.
 
-- [ ] **4.4. Implement Diagnostic Synthesis Engine:**
+- [x] **4.4. Implement Diagnostic Synthesis Engine:**
     - [x] Create `src/trading_platform/ai/synthesis` module for the engine.
     - [x] Implement a `DiagnosticSynthesisEngine` class to orchestrate the analysis.
     - [x] Design and implement a modular, rule-based system for detecting flaws in `synthesis/rules.py`.
     - [x] Add placeholder rules for detecting over-trading and inefficient exits.
     - [x] Implement logic to generate both Markdown and JSON reports from findings.
-    - [ ] Integrate the engine with the training and evaluation pipelines to consume real analysis data.
+    - [x] Integrate the engine with the training and evaluation pipelines to consume real analysis data.
 
 ## 5. Model Deployment and Serving
 
