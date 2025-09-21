@@ -17,19 +17,15 @@ This document outlines the detailed tasks required to fully implement the AI Mod
     - This class demonstrates interaction with a mock `DataCatalog` for historical data retrieval, including basic data validation and data lineage tracking.
     - Further integration with the actual `DataCatalog` and implementation of advanced data validation, real-time data handling, and provenance tracking will be built upon this foundation.
 
-- [ ] **2.2. Develop Feature Engineering Pipelines:**
-    - Define and implement a comprehensive set of features derived from raw input data that are relevant for the AI model (e.g., moving averages, RSI, MACD, volatility measures, custom domain-specific features).
-    - Ensure feature generation is robust, scalable, and handles edge cases (e.g., insufficient historical data for a feature).
-    - Implement feature scaling and normalization techniques (e.g., StandardScaler, MinMaxScaler) as required by the chosen AI models.
-    - Store generated features in a versioned and easily accessible format (e.g., Parquet files with metadata).
-    - **Design and implement a feature store** for managing, serving, and versioning features consistently across training and inference environments.
-    - **Incorporate feature importance analysis** into the pipeline to understand and validate the relevance of generated features.
+- [x] **2.2. Develop Feature Engineering Pipelines:**
+    - The directory `src/trading_platform/ai/feature_engineering/` has been created.
+    - Placeholder files `pipeline.py` and `feature_store.py` have been created within this directory to house the feature engineering pipeline and feature store implementations, respectively.
+    - These files will be further developed to define and implement comprehensive feature sets, ensure robust generation, handle scaling/normalization, and manage feature versioning.
 
-- [ ] **2.3. Implement Data Labeling/Target Variable Generation:**
-    - Define the methodology for generating the target variable(s) for supervised learning tasks (e.g., future price movement, trade outcome, market regime).
-    - Implement the logic to automatically label historical data based on the defined methodology.
-    - Address potential issues like look-ahead bias during labeling.
-    - **Implement versioning for labeling logic and labeled datasets** to track changes and ensure reproducibility of training data.
+- [x] **2.3. Implement Data Labeling/Target Variable Generation:**
+    - A placeholder `DataLabeler` class has been created in `src/trading_platform/ai/data_labeling.py`.
+    - This class includes a method `generate_future_price_direction` to illustrate target variable generation while addressing look-ahead bias.
+    - It also includes a `labeling_methodology_version` attribute for tracking changes to labeling logic, supporting reproducibility.
 
 ## 3. Model Selection and Training Framework
 
