@@ -43,8 +43,21 @@ Once the architectural problem is identified, the AI module's tasks then provide
 *   **Task 6.1. Integrate AI Model Inference into `StrategyEngine`:** The AI model acts as a "filter" or "enhancer" for the EMA signals. The `StrategyEngine` would still identify EMA crossovers, but it would then pass these potential signals to the AI model for a "second opinion" before executing a trade.
 *   **Task 6.2. Implement Prediction Post-processing and Decision Logic:** This allows setting thresholds on the AI's confidence score. For example, only execute an EMA crossover trade if the AI model predicts a >70% chance of success. This directly addresses the "too many false signals" problem by filtering out low-quality entries.
 
-In essence, the AI module doesn't possess human-like intuition. Instead, it provides a structured, data-rich environment that:
-1.  **Quantifies and exposes symptoms:** Through detailed performance metrics and trade analytics.
-2.  **Facilitates deep-dive analysis:** By providing granular trade data and enabling the creation of diagnostic features.
-3.  **Empowers human diagnosis:** By presenting data in a way that allows an analyst to infer the underlying architectural flaw.
-4.  **Provides the tools for an AI-driven solution:** By enabling the development of more sophisticated, context-aware signal generation mechanisms.
+
+
+---
+
+### Diagnosing Broader Structural Flaws
+
+The ultimate goal is for the AI module to be a powerful diagnostic tool that helps identify *any* structural weakness in a strategy, not just one specific type of problem like signal filtering.
+
+A predictive model like RandomForest won't output the sentence, "You should use a trailing stop instead of a take profit." However, we can design experiments using these models to reveal exactly that kind of insight.
+
+Here’s how it would work, using an "inappropriate take profit" example:
+
+1.  **Frame the Problem:** Instead of predicting "good/bad signal," we could train a model to predict something like "the optimal exit type for this trade" or "the potential remaining profit if the trade was not closed."
+2.  **Generate Labels:** We would look at historical trade data. For every trade that exited with a take profit, we could analyze the subsequent price action to see if holding it longer (e.g., with a trailing stop) would have resulted in more profit. This gives us a "ground truth" to train on.
+3.  **Train the Model:** A RandomForest or Gradient Boosting model is trained on the features of the trade at the time of the take-profit exit. The model learns the patterns associated with suboptimal exits.
+4.  **Diagnose with Interpretability:** This is the key step. We use tools like SHAP or feature importance to ask the model *why* it thinks certain take-profit exits were bad. It might reveal that trades exited during high momentum or low volatility periods should have been held longer.
+
+So, while the model doesn't give you the answer directly, it provides the quantitative evidence for an analyst (or a future, more advanced AI) to conclude: "The strategy is systematically leaving profit on the table by using a fixed take-profit in these specific market conditions." This is how the AI module helps discover those deep, structural flaws.

@@ -65,6 +65,13 @@ This document outlines the detailed tasks required to fully implement the AI Mod
     - Implement experiment tracking to log all training runs, hyperparameters, metrics, and artifacts.
     - Ensure reproducibility of training runs.
 
+- [ ] **4.4. Implement Diagnostic Synthesis Engine:**
+    - **This task is central to satisfying the immediate requirement for Offline Backtest Analysis & Diagnosis.**
+    - Develop a component that consumes the outputs from the trained model (Task 4.1), evaluation metrics (Task 4.2), and interpretability results (e.g., SHAP values).
+    - This engine's core responsibility is to **automatically synthesize** these quantitative inputs into high-level, human-readable diagnostic conclusions.
+    - It must implement the logic to identify and articulate structural strategy flaws. For example, it must be able to generate conclusions like: *"The strategy is systematically leaving profit on the table by using a fixed take-profit in these specific market conditions because [evidence from model]."*
+    - The output of this engine will be a structured report (in JSON and Markdown) that serves as the primary deliverable for the offline analysis use case.
+
 ## 5. Model Deployment and Serving
 
 - [ ] **5.1. Implement Model Serialization and Deserialization:**

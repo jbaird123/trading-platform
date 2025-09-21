@@ -266,9 +266,17 @@ _Last updated: 2025-09-16_
 
 ### Core Requirements
 - **[AI-10.1]** **Core Mandate**: The AI Lab must function as the central analysis component, consuming JSON briefs to provide intelligent insights.
-- **[AI-10.1.1] Primary Objective(s):** The AI module will have a dual primary objective:
-    1. **Strategy Performance Diagnosis and Improvement:** Automatically analyze backtest results (`brief.json`) and live trading performance to identify root causes of underperformance, suggest improvements, and detect "unknown unknowns" in strategy design. This includes identifying issues like over-trading, false signals, lack of robustness, or suboptimal parameterization.
-    2. **Adaptive Signal Generation/Refinement:** (Future phase, but acknowledge here) Potentially generate or refine trading signals based on identified market regimes or predictive analytics, working in conjunction with the `StrategyEngine`.
+- **[AI-10.1.1] Primary Objectives & Use Cases:** The AI Lab serves two distinct, high-level use cases with different requirements and priorities.
+
+    - **Use Case #1: Offline Backtest Analysis & Diagnosis (Immediate Priority)**
+        - **Goal:** To perform deep, post-hoc analysis of backtest results (`brief.json`) to uncover structural flaws, understand the drivers of P&L, and generate actionable insights for strategy improvement. This moves beyond simple parameter optimization to fundamental strategy diagnosis (e.g., identifying an inappropriate exit strategy).
+        - **Requirements:** Analytical depth and model interpretability are the highest priorities. Inference speed is not a concern.
+        - **Appropriate Models:** This use case allows for complex, computationally expensive models. Strong candidates include Gradient Boosting models (LightGBM, XGBoost), RandomForest, and model ensembles. More advanced techniques like sequential models (LSTMs, Transformers) or even Reinforcement Learning can be explored for deep research. Extensive use of interpretability libraries (e.g., SHAP) is expected.
+
+    - **Use Case #2: Real-Time Decision Making (Future Goal)**
+        - **Goal:** To provide a live, low-latency "second opinion" or filter for trading decisions made by the `StrategyEngine` or `ExecutionLayer`.
+        - **Requirements:** Low-latency inference (e.g., sub-100ms) is the primary constraint.
+        - **Appropriate Models:** Models must be lightweight and highly optimized for speed. Candidates include smaller Gradient Boosting models, simpler models like Logistic Regression on powerful features, or models "distilled" from the more complex analysis models developed in Use Case #1.
 - **[AI-10.1.2] Input Data Required:**
     - **Backtest Briefs (`brief.json`):** Full backtest results, including trade logs, performance metrics (Sharpe, Sortino, PnL, drawdowns), MFE/MAE analysis, skipped trades with counterfactuals, and environment/provenance data.
     - **Strategy Definitions (YAML):** The raw strategy configuration, including indicator parameters and predicate logic.
