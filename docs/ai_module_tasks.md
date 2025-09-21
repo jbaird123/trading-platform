@@ -34,10 +34,10 @@ This document outlines the detailed tasks required to fully implement the AI Mod
     - The primary selection is a **Gradient Boosting** model (e.g., LightGBM), with **RandomForest** as a baseline.
     - **SHAP** has been selected as the primary method for model interpretability.
 
-- [ ] **3.2. Set Up AI Training Environment and Framework:**
-    - Configure the development and production environments for AI model training (e.g., Python virtual environments, Docker containers).
-    - Integrate a suitable machine learning framework (e.g., scikit-learn, TensorFlow, PyTorch) into the project.
-    - Establish best practices for dependency management and environment reproducibility.
+- [x] **3.2. Set Up AI Training Environment and Framework:**
+    - Added `lightgbm`, `scikit-learn`, and `shap` to the project dependencies using Poetry.
+    - Created a `Dockerfile` in the project root to ensure a reproducible environment for development and production.
+    - The project's use of `poetry` for dependency management satisfies the requirement for best practices.
 
 ## 4. Model Training and Evaluation Pipelines
 
