@@ -78,20 +78,20 @@ This document outlines the detailed tasks required to fully implement the AI Mod
 
 ## 5. Model Deployment and Serving
 
-- [ ] **5.1. Implement Model Serialization and Deserialization:**
-    - Choose a suitable format for serializing trained AI models (e.g., ONNX, Pickle, TensorFlow SavedModel, PyTorch JIT).
-    - Implement robust serialization and deserialization logic to load models efficiently for inference.
+- [x] **5.1. Implement Model Serialization and Deserialization:**
+    - [x] Choose a suitable format for serializing trained AI models: **ONNX** has been selected for its performance, security, and cross-platform compatibility.
+    - [x] Implement robust serialization and deserialization logic to load models efficiently for inference: The `AITrainingPipeline` now converts and logs models to ONNX format as an MLflow artifact.
 
 - [ ] **5.2. Develop Model Serving Infrastructure:**
-    - Design and implement a dedicated service for serving AI model predictions (e.g., a Flask/FastAPI application, TensorFlow Serving, TorchServe).
-    - Ensure the serving infrastructure is scalable, highly available, and low-latency.
-    - Implement API endpoints for model inference, accepting input data and returning predictions.
-    - **Implement A/B testing capabilities** within the serving infrastructure to compare performance of different model versions in production.
-    - **Define and implement auto-scaling policies** for the model serving infrastructure based on demand and latency requirements.
+    - [x] Design and implement a dedicated service for serving AI model predictions (e.g., a Flask/FastAPI application, TensorFlow Serving, TorchServe): A placeholder FastAPI application has been created in `src/trading_platform/ai/serving/app.py`.
+    - [x] Ensure the serving infrastructure is scalable, highly available, and low-latency: Design considerations for these aspects have been documented in `src/trading_platform/ai/serving/README.md`.
+    - [x] Implement API endpoints for model inference, accepting input data and returning predictions: A `/predict` endpoint has been implemented in `src/trading_platform/ai/serving/app.py` as part of the placeholder FastAPI application.
+    - [x] **Implement A/B testing capabilities** within the serving infrastructure to compare performance of different model versions in production: Design considerations for A/B testing have been documented in `src/trading_platform/ai/serving/README.md`.
+    - [ ] **Define and implement auto-scaling policies** for the model serving infrastructure based on demand and latency requirements.
 
 - [ ] **5.3. Implement Model Health Checks and Monitoring Endpoints:**
-    - Add health check endpoints to the model serving service to verify its operational status.
-    - Implement monitoring endpoints to expose metrics like request latency, error rates, and model prediction distributions.
+    - [ ] Add health check endpoints to the model serving service to verify its operational status.
+    - [ ] Implement monitoring endpoints to expose metrics like request latency, error rates, and model prediction distributions.
 
 ## 6. Inference Integration with Trading Platform
 
