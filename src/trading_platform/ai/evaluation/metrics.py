@@ -3,8 +3,11 @@ This module defines evaluation metrics for the AI Lab's models.
 It includes standard ML metrics as well as custom trading-specific metrics.
 """
 
+from typing import Dict, List
+
 import numpy as np
 import pandas as pd
+from scipy.stats import ttest_ind
 from sklearn.metrics import (
     accuracy_score,
     f1_score,
@@ -64,6 +67,23 @@ def get_classification_metrics(
         "roc_auc": roc_auc_score(y_true, y_prob),
     }
     return metrics
+
+
+def calculate_statistical_significance(
+    scores_a: List[float], scores_b: List[float]
+) -> Dict[str, float]:
+    """
+    Performs an independent t-test to compare two sets of performance scores.
+
+    Args:
+        scores_a: A list of performance scores from model A (e.g., from CV folds).
+        scores_b: A list of performance scores from model B.
+
+    Returns:
+        A dictionary containing the t-statistic and the p-value.
+    """
+    t_stat, p_value = ttest_ind(scores_a, scores_b, equal_var=False)
+    return {"t_statistic": t_stat, "p_value": p_value}
 
 
 # Placeholder for other custom metrics

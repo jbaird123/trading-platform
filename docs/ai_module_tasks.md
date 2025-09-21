@@ -46,7 +46,7 @@ This document outlines the detailed tasks required to fully implement the AI Mod
     - [x] Implement logic for model initialization and hyperparameter configuration based on the config file.
     - [x] Implement placeholder for hyperparameter optimization strategies (e.g., `GridSearchCV`).
     - [x] Implement logic for checkpointing and saving trained model artifacts (model object and config snapshot).
-    - [ ] Integrate the pipeline with the actual data loading and preprocessing components from Task 2.
+    - [x] Integrate the pipeline with the actual data loading and preprocessing components from Task 2.
     - [ ] Implement resource management for training jobs (e.g., GPU allocation, distributed training).
 
 - [ ] **4.2. Implement Comprehensive Model Evaluation Metrics and Procedures:**
@@ -54,7 +54,7 @@ This document outlines the detailed tasks required to fully implement the AI Mod
     - [x] Define and implement standard classification metrics and financial metrics (Sharpe, Sortino) in `evaluation/metrics.py`.
     - [x] Create a foundational `AIEvaluationProcedure` class in `evaluation/procedure.py`.
     - [x] Implement a placeholder for time-series cross-validation strategy.
-    - [ ] Implement statistical significance testing for model comparisons.
+    - [x] Implement statistical significance testing for model comparisons.
     - [ ] Implement placeholder for bias detection techniques.
     - [ ] Implement placeholder for model stress testing.
 
