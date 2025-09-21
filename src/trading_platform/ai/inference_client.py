@@ -1,60 +1,56 @@
+import logging
 from typing import Any, Dict, List
 
 import httpx
 import pandas as pd
 
+logger = logging.getLogger(__name__)
+
 
 class AIInferenceClient:
-    """
-    Client for interacting with the AI model serving API.
-    """
+    """Client for interacting with the AI model serving API."""
 
-    def __init__(self, base_url: str = "http://localhost:8000"):
+    def __init__(self, base_url: str = "http://localhost:8000") -> None:
         self.base_url = base_url
-        self.client = httpx.Client()
+        self.client = httpx.Client(timeout=5.0)  # 5-second timeout
 
-    def predict(self, features: List[float]) -> Dict[str, Any]:
-        """
-        Sends a prediction request to the AI model serving API.
+    def predict(self, features: pd.DataFrame) -> List[Dict[str, Any]]:
+        """Sends features to the AI model and returns predictions."""
+        if features.empty:
+            return []
 
-        Args:
-            features: A list of numerical features for prediction.
-
-        Returns:
-            A dictionary containing the prediction and confidence.
-        """
-        if not isinstance(features, list) or not all(isinstance(f, (int, float)) for f in features):
-            raise ValueError("Features must be a list of numbers.")
-
-        url = f"{self.base_url}/predict"
-        payload = {"features": features}
-        response = self.client.post(url, json=payload)
-        response.raise_for_status()  # Raise an exception for HTTP errors
-        return response.json()
-
-    def __del__(self):
-        self.client.close()
-
-
-if __name__ == "__main__":
-    # Example usage (requires the FastAPI app to be running)
-    client = AIInferenceClient()
-    try:
-        # Example features (replace with actual feature data)
-        dummy_features = [0.1, 0.2, 0.3, 0.4, 0.5]
-        prediction_result = client.predict(dummy_features)
-        print(f"Prediction Result: {prediction_result}")
-
-        # Test with invalid features
+        # Convert DataFrame to a list of dictionaries for JSON serialization
+        payload = features.to_dict(orient="records")
         try:
-            client.predict([1, "a", 3])
-        except ValueError as e:
-            print(f"Caught expected error: {e}")
+            response = self.client.post(f"{self.base_url}/predict", json=payload)
+            response.raise_for_status()  # Raise an exception for 4xx or 5xx status codes
+            return response.json()
+        except httpx.RequestError as e:
+            logger.error(f"AI inference request failed: {e}")
+            return []
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                f"AI inference HTTP error: {e.response.status_code} - {e.response.text}"
+            )
+            return []
+        except Exception as e:
+            logger.error(f"An unexpected error occurred during AI inference: {e}")
+            return []
 
-    except httpx.HTTPStatusError as e:
-        print(f"HTTP Error: {e.response.status_code} - {e.response.text}")
-        print("Please ensure the FastAPI server is running (e.g., `uvicorn trading_platform.ai.serving.app:app --reload`).")
-    except httpx.RequestError as e:
-        print(f"Request Error: {e}")
-        print("Could not connect to the FastAPI server. Is it running?")
-
+    def health_check(self) -> bool:
+        """Checks the health of the AI model serving API."""
+        try:
+            response = self.client.get(f"{self.base_url}/health")
+            response.raise_for_status()
+            return response.status_code == 200
+        except httpx.RequestError as e:
+            logger.error(f"AI inference health check failed: {e}")
+            return False
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                f"AI inference health check HTTP error: {e.response.status_code} - {e.response.text}"
+            )
+            return False
+        except Exception as e:
+            logger.error(f"An unexpected error occurred during AI health check: {e}")
+            return False

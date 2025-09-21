@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
@@ -12,7 +13,11 @@ try:
 except ImportError:
     jsonschema = None
 
+from trading_platform.ai.inference_client import AIInferenceClient
+
 from .features import compute_features
+
+logger = logging.getLogger(__name__)
 
 
 def validate_strategy_config(cfg: dict[str, Any]) -> None:
@@ -60,7 +65,7 @@ def _resolve_param_value(val: Any, params: dict[str, Any]) -> Any:
     """
     if isinstance(val, str):
         key = val
-        if val.startswith("${") and val.endswith("}"):
+        if val.startswith("${{") and val.endswith("}}"):
             key = val[2:-1]
         if key in params:
             return params[key]
@@ -126,7 +131,9 @@ class CompiledStrategy:
     slope_filter: bool = False
     slope_feature: str | None = None
     ai_filter_enabled: bool = False
+    ai_inference_client: AIInferenceClient | None = None
     ai_confidence_threshold: float = 0.0
+    ai_input_features: list[str] | None = None
     # Internal state populated during signal generation
     _feature_df: pd.DataFrame | None = None
 
@@ -157,6 +164,51 @@ class CompiledStrategy:
                 s = pd.Series(df2[src], dtype="float64")
                 slope_up = s > s.shift(1)
                 slope_down = s < s.shift(1)
+
+        # Apply AI filter if enabled
+        if self.ai_filter_enabled and self.ai_inference_client:
+            try:
+                # Prepare features for AI model
+                ai_features_df = df2
+                if self.ai_input_features:
+                    missing_features = [
+                        f for f in self.ai_input_features if f not in df2.columns
+                    ]
+                    if missing_features:
+                        logger.warning(
+                            f"Missing AI input features: {missing_features}. "
+                            "Skipping AI filter."
+                        )
+                        ai_predictions = []
+                    else:
+                        ai_features_df = df2[self.ai_input_features]
+                ai_predictions = self.ai_inference_client.predict(ai_features_df)
+                if ai_predictions:
+                    # Assuming ai_predictions is a list of dicts with 'prediction' and 'confidence'
+                    # and aligns with df2's index
+                    ai_confidences = pd.Series(
+                        [p.get("confidence", 0.0) for p in ai_predictions],
+                        index=df2.index,
+                    )
+                    ai_signals = pd.Series(
+                        [p.get("prediction", "flat") for p in ai_predictions],
+                        index=df2.index,
+                    )
+                    # Filter entry signals based on AI confidence and prediction
+                    le = le & (
+                        (ai_signals == "long")
+                        & (ai_confidences >= self.ai_confidence_threshold)
+                    )
+                    se = se & (
+                        (ai_signals == "short")
+                        & (ai_confidences >= self.ai_confidence_threshold)
+                    )
+                else:
+                    logger.warning(
+                        "AI inference returned no predictions. Skipping AI filter."
+                    )
+            except Exception as e:
+                logger.error(f"Error during AI inference: {e}. Skipping AI filter.")
 
         sig: list[str] = []
         state = "flat"
@@ -199,8 +251,12 @@ def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
     slope_filter = bool(param_map.get("slope_filter", False))
     slope_feature = str(param_map.get("slope_feature", "ema_slow"))
     ai_filter_config = cfg.get("ai_filter", {})
-    ai_filter_enabled = bool(ai_filter_config.get("enabled", False))
+    ai_filter_enabled = (
+        bool(ai_filter_config.get("enabled", False)) and jsonschema is not None
+    )
     ai_confidence_threshold = float(ai_filter_config.get("confidence_threshold", 0.0))
+    ai_input_features = [str(x) for x in (ai_filter_config.get("input_features") or [])]
+    ai_inference_client = AIInferenceClient() if ai_filter_enabled else None
     if param_map and features:
         for f in features:
             p = f.get("params") or {}
@@ -223,5 +279,7 @@ def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
         slope_filter=slope_filter,
         slope_feature=slope_feature,
         ai_filter_enabled=ai_filter_enabled,
+        ai_inference_client=ai_inference_client,
         ai_confidence_threshold=ai_confidence_threshold,
+        ai_input_features=ai_input_features,
     )
