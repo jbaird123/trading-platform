@@ -100,6 +100,14 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             index=idx,
         )
 
+    # Persist processed market data for AI Lab analysis
+    processed_data_path: Path | None = None
+    try:
+        processed_data_path = run_path / "processed_data.parquet"
+        df.to_parquet(processed_data_path)
+    except Exception:
+        processed_data_path = None
+
     # Strategy can be embedded or referenced via a separate YAML/JSON file
     strat_cfg = cfg_raw.get("strategy") or {
         "strategy_name": "CLI_Default",
@@ -203,6 +211,7 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     rmm_path = cfg_raw.get("rmm_path")
     if rmm_path:
         rmm_cfg = _load_config(Path(str(rmm_path)))
+    rmm_spans_path: Path | None = None
     if isinstance(rmm_cfg, dict) and rmm_cfg:
         try:
             RMMEngine.validate_config(rmm_cfg)
@@ -266,11 +275,11 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
                         "mode": prev_mode,
                     }
                 )
-            spans_path = run_path / "rmm_spans.json"
-            spans_path.write_text(json.dumps(spans))
-            print(f"- RMM spans: {spans_path}")
+            rmm_spans_path = run_path / "rmm_spans.json"
+            rmm_spans_path.write_text(json.dumps(spans))
+            print(f"- RMM spans: {rmm_spans_path}")
         except Exception:
-            pass
+            rmm_spans_path = None
 
     # Output toggles; default to no exposure unless explicitly requested
     ret_exp = bool(cfg_raw.get("return_exposure", False))
@@ -393,6 +402,8 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         walk_forward=wf_results,
         monte_carlo=mc_results,
         signals_path=signals_path,
+        rmm_spans_path=rmm_spans_path,
+        processed_data_path=processed_data_path,
     )
     print(f"Run created at: {run_path}")
     print(f"- Brief: {run_path / 'brief.json'}")
