@@ -2,6 +2,10 @@
 
 This document outlines the detailed tasks required to fully implement the AI Module within the trading platform. Each task is designed to be unambiguous and can be assigned to a developer for independent execution.
 
+## 0. General Improvements/Technical Debt
+
+- [ ] **0.1. Investigate replacing 'ta' library with 'pandas-ta' globally:** This is a critical task to ensure consistency and leverage the benefits of 'pandas-ta'.
+
 ## 1. Define AI Module Scope and Integration Points
 
 - [x] **1.1. Finalize AI Module Core Functionality:**
@@ -49,14 +53,14 @@ This document outlines the detailed tasks required to fully implement the AI Mod
     - [x] Integrate the pipeline with the actual data loading and preprocessing components from Task 2.
     - [ ] Implement resource management for training jobs (e.g., GPU allocation, distributed training).
 
-- [ ] **4.2. Implement Comprehensive Model Evaluation Metrics and Procedures:**
+- [x] **4.2. Implement Comprehensive Model Evaluation Metrics and Procedures:**
     - [x] Create `src/trading_platform/ai/evaluation` module.
     - [x] Define and implement standard classification metrics and financial metrics (Sharpe, Sortino) in `evaluation/metrics.py`.
     - [x] Create a foundational `AIEvaluationProcedure` class in `evaluation/procedure.py`.
     - [x] Implement a placeholder for time-series cross-validation strategy.
     - [x] Implement statistical significance testing for model comparisons.
-    - [ ] Implement placeholder for bias detection techniques.
-    - [ ] Implement placeholder for model stress testing.
+    - [x] Implement placeholder for bias detection techniques.
+    - [x] Implement placeholder for model stress testing.
 
 - [ ] **4.3. Develop Model Versioning and Experiment Tracking:**
     - [x] Add `mlflow-skinny` dependency to solve installation issues while preserving tracking APIs.

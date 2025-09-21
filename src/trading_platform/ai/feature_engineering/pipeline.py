@@ -1,12 +1,13 @@
-
 """
 This module defines the feature engineering pipeline for the AI Lab.
+It is a placeholder and uses the `ta` library, consistent with the rest of the platform.
 """
 
 from typing import Any, Dict, List
 
 import pandas as pd
-import pandas_ta as ta
+from ta.momentum import RSIIndicator
+from ta.trend import SMAIndicator
 
 
 class FeatureEngineeringPipeline:
@@ -31,14 +32,19 @@ class FeatureEngineeringPipeline:
         if not kind:
             raise ValueError("Feature config must include a 'kind'.")
 
-        # Uses pandas_ta to dynamically generate features
-        # Example: df.ta.sma(length=50, append=True)
-        if hasattr(self.df.ta, kind):
-            params = {k: v for k, v in feature_config.items() if k != "kind"}
-            params["append"] = True  # Append the feature to the DataFrame
-            getattr(self.df.ta, kind)(**params)
+        # This is a simplified mapping. A real implementation would be more robust
+        # and likely driven by the central indicators_registry.py.
+        if kind == "sma":
+            length = feature_config.get("length", 14)
+            indicator = SMAIndicator(close=self.df["close"], window=length)
+            self.df[f"sma_{length}"] = indicator.sma_indicator()
+        elif kind == "rsi":
+            length = feature_config.get("length", 14)
+            indicator = RSIIndicator(close=self.df["close"], window=length)
+            self.df[f"rsi_{length}"] = indicator.rsi()
         else:
-            raise AttributeError(f"Feature '{kind}' not found in pandas_ta.")
+            # For now, we only support sma and rsi in this placeholder
+            raise NotImplementedError(f"Feature '{kind}' is not supported yet.")
 
     def run(self, feature_configs: List[Dict[str, Any]]) -> pd.DataFrame:
         """

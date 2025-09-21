@@ -5,18 +5,39 @@ This module defines the automated model training pipeline for the AI Lab.
 from pathlib import Path
 from typing import Any, Dict, Tuple, cast
 
-import joblib
-import lightgbm as lgb
+import mlflow
 import pandas as pd
 import yaml
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
-
 from trading_platform.ai.data_connectors import AIDataConnector, DataCatalog
 from trading_platform.ai.data_labeling import DataLabeler
+from trading_platform.ai.evaluation.procedure import AIEvaluationProcedure
 from trading_platform.ai.feature_engineering.pipeline import (
     FeatureEngineeringPipeline,
 )
+
+# Conditional import for type checking
+# In a real implementation, you would have a more robust way to handle this
+# or ensure lightgbm is always available in the environment.
+try:
+    import lightgbm as lgb
+except ImportError:
+    lgb = None
+
+
+def _flatten_dict(
+    d: Dict[str, Any], parent_key: str = "", sep: str = "."
+) -> Dict[str, Any]:
+    """Flattens a nested dictionary for MLflow logging."""
+    items = []
+    for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, dict):
+            items.extend(_flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
 
 class AITrainingPipeline:
@@ -35,10 +56,11 @@ class AITrainingPipeline:
         self.config_path = Path(config_path)
         self.config = self._load_config()
         self.run_id = self.config.get("run_id", "default_run")
-        self.artifacts_path = (
-            Path(self.config.get("artifacts_base_path", "artifacts")) / self.run_id
-        )
-        self.artifacts_path.mkdir(parents=True, exist_ok=True)
+
+        # Set up MLflow tracking URI
+        tracking_uri = self.config.get("mlflow_tracking_uri", "./mlruns")
+        mlflow.set_tracking_uri(tracking_uri)
+        mlflow.set_experiment(self.config.get("experiment_name", "Default"))
 
     def _load_config(self) -> Dict[str, Any]:
         """Loads the YAML configuration file."""
@@ -93,6 +115,8 @@ class AITrainingPipeline:
         model_type = model_config["type"]
 
         if model_type == "lightgbm":
+            if lgb is None:
+                raise ImportError("lightgbm is not installed.")
             model = lgb.LGBMClassifier(**model_config.get("params", {}))
         elif model_type == "random_forest":
             model = RandomForestClassifier(**model_config.get("params", {}))
@@ -111,6 +135,7 @@ class AITrainingPipeline:
             grid.fit(X, y)
             best_model = grid.best_estimator_
             print(f"Best parameters found: {grid.best_params_}")
+            mlflow.log_params(grid.best_params_)
         else:
             model.fit(X, y)
             best_model = model
@@ -118,37 +143,41 @@ class AITrainingPipeline:
         print("Model training complete.")
         return best_model
 
-    def _save_artifacts(self, model: Any):
+    def _evaluate_and_log_artifacts(self, model: Any, X: pd.DataFrame, y: pd.Series):
         """
-        Saves the trained model and other run artifacts.
+        Evaluates the model and logs all artifacts to MLflow.
         """
-        print(f"Step 3: Saving artifacts to {self.artifacts_path}...")
+        print("Step 3: Evaluating model and logging artifacts...")
 
-        # Save the trained model
-        model_path = self.artifacts_path / "model.joblib"
-        joblib.dump(model, model_path)
-        print(f"Model saved to {model_path}")
+        # 1. Evaluate model
+        eval_config = self.config.get("evaluation", {})
+        if eval_config:
+            evaluator = AIEvaluationProcedure(config=eval_config)
+            metrics = evaluator.run(model, X, y)
+            # MLflow prefers flat metrics dictionary
+            flat_metrics = _flatten_dict(metrics)
+            mlflow.log_metrics(flat_metrics)
+            print(f"Logged metrics: {flat_metrics}")
 
-        # Save the config used for the run
-        config_snapshot_path = self.artifacts_path / "run_config.yaml"
-        with open(config_snapshot_path, "w") as f:
-            yaml.dump(self.config, f)
-        print(f"Config snapshot saved to {config_snapshot_path}")
-
-        # In a real implementation, we would also save:
-        # - Evaluation metrics
-        # - SHAP values / interpretability reports
-        # - A summary of the run
+        # 2. Log model
+        model_info = mlflow.sklearn.log_model(model, "model")
+        print(f"Model saved to MLflow: {model_info.model_uri}")
 
     def run(self):
         """
-        Executes the full training pipeline.
+        Executes the full training pipeline within an MLflow run context.
         """
-        print(f"--- Starting AI Training Pipeline for Run ID: {self.run_id} ---")
-        X, y = self._load_and_prepare_data()
-        trained_model = self._train_model(X, y)
-        self._save_artifacts(trained_model)
-        print(f"--- Pipeline finished for Run ID: {self.run_id} ---")
+        with mlflow.start_run(run_name=self.run_id) as run:
+            print(
+                f"--- Starting AI Training Pipeline for Run ID: {run.info.run_id} ---"
+            )
+            mlflow.log_params(_flatten_dict(self.config))
+
+            X, y = self._load_and_prepare_data()
+            trained_model = self._train_model(X, y)
+            self._evaluate_and_log_artifacts(trained_model, X, y)
+
+            print(f"--- Pipeline finished for Run ID: {run.info.run_id} ---")
 
 
 if __name__ == "__main__":
@@ -157,26 +186,23 @@ if __name__ == "__main__":
 
     # Create a dummy config for demonstration
     dummy_config = {
-        "run_id": "lgbm_test_run_002",
-        "artifacts_base_path": "artifacts/training_runs",
+        "run_id": "lgbm_test_run_003",
+        "experiment_name": "AI Lab Demo",
         "data": {
             "symbol": "EURUSD",
             "timeframe": "1D",
             "start_date": "2023-01-01",
-            "end_date": "2023-01-31",
+            "end_date": "2023-06-30",
         },
-        "features": [
-            {"kind": "sma", "length": 10},
-            {"kind": "rsi", "length": 14},
-        ],
+        "features": [{"kind": "sma", "length": 10}, {"kind": "rsi", "length": 14}],
         "labeling": {"look_ahead_bars": 5},
         "model": {
             "type": "lightgbm",
             "params": {"n_estimators": 100, "random_state": 42},
-            "tuning": {
-                "param_grid": {"n_estimators": [50, 100], "learning_rate": [0.05, 0.1]},
-                "settings": {"cv": 3, "scoring": "accuracy"},
-            },
+        },
+        "evaluation": {
+            "run_cross_validation": True,
+            "cross_validation": {"n_splits": 5},
         },
     }
     DUMMY_CONFIG_PATH = "sample_training_config.yaml"
