@@ -28,14 +28,43 @@ class DiagnosticSynthesisEngine:
 
     def run(self) -> None:
         """Executes all diagnostic rules and stores the conclusions."""
-        print("--- Running Diagnostic Synthesis Engine ---")
+        import json
+import logging
+from typing import Any, Dict, List
+
+from trading_platform.ai.synthesis.rules import DiagnosticConclusion, get_all_rules
+
+logger = logging.getLogger(__name__)
+
+
+class DiagnosticSynthesisEngine:
+    """
+    Consumes analysis data, runs a set of diagnostic rules, and synthesizes
+    the findings into a human-readable and machine-readable report.
+    """
+
+    def __init__(self, analysis_data: Dict[str, Any]):
+        """
+        Initializes the engine with all the data required for analysis.
+
+        Args:
+            analysis_data: A dictionary containing all data for analysis, e.g.,
+                           backtest metrics, model evaluation results, SHAP values, etc.
+        """
+        self.analysis_data = analysis_data
+        self.rules = get_all_rules()
+        self.conclusions: List[DiagnosticConclusion] = []
+
+    def run(self) -> None:
+        """Executes all diagnostic rules and stores the conclusions."""
+        logger.info("--- Running Diagnostic Synthesis Engine --")
         for rule in self.rules:
-            print(f"Evaluating rule: {rule.__class__.__name__}...")
+            logger.info(f"Evaluating rule: {rule.__class__.__name__}...")
             conclusion = rule.evaluate(self.analysis_data)
             if conclusion:
                 self.conclusions.append(conclusion)
-                print(f"  -> Conclusion found: {conclusion.title}")
-        print("--- Engine run complete. ---")
+                logger.info(f"  -> Conclusion found: {conclusion.title}")
+        logger.info("--- Engine run complete. ---")
 
     def generate_report_markdown(self) -> str:
         """Generates a human-readable Markdown report of the findings."""
