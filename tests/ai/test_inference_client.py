@@ -1,81 +1,258 @@
-from unittest.mock import MagicMock, patch
+import logging
+from unittest import mock
 
 import httpx
+import pandas as pd
 import pytest
 
-from trading_platform.ai.inference_client import AIInferenceClient
+from src.trading_platform.ai.inference_client import AIInferenceClient
+
+
+@pytest.fixture
+def ai_inference_client():
+    return AIInferenceClient(base_url="http://test-url")
 
 
 @pytest.fixture
 def mock_httpx_client():
-    """Fixture to mock httpx.Client and its post method."""
-    with patch("httpx.Client") as mock_client_class:
-        mock_client_instance = mock_client_class.return_value
-        yield mock_client_instance
+    with mock.patch("httpx.Client") as mock_client:
+        yield mock_client
 
 
-def test_ai_inference_client_predict_success(mock_httpx_client):
+@pytest.fixture
+def mock_send_request(ai_inference_client):
+    with mock.patch.object(ai_inference_client, "_send_request") as _mock_send_request:
+        yield _mock_send_request
+
+
+def test_ai_inference_client_init():
     """
-    Tests that the predict method correctly sends a request and returns a prediction.
-    """
-    # Arrange
-    mock_httpx_client.post.return_value = MagicMock(
-        status_code=200,
-        json=lambda: {"prediction": 0.75, "confidence": 0.9},
-        raise_for_status=lambda: None,
-    )
-    client = AIInferenceClient(base_url="http://test-url:8000")
-    features = [1.0, 2.0, 3.0]
-
-    # Act
-    result = client.predict(features)
-
-    # Assert
-    mock_httpx_client.post.assert_called_once_with(
-        "http://test-url:8000/predict", json={"features": features}
-    )
-    assert result == {"prediction": 0.75, "confidence": 0.9}
-
-
-def test_ai_inference_client_predict_http_error(mock_httpx_client):
-    """
-    Tests that the predict method raises an HTTPStatusError on non-2xx responses.
-    """
-    # Arrange
-    mock_response = MagicMock(
-        status_code=404,
-        json=lambda: {"detail": "Not Found"},
-    )
-    mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-        "Not Found", request=httpx.Request("POST", "http://test-url:8000/predict"), response=httpx.Response(404)
-    )
-    mock_httpx_client.post.return_value = mock_response
-
-    client = AIInferenceClient(base_url="http://test-url:8000")
-    features = [1.0, 2.0, 3.0]
-
-    # Act & Assert
-    with pytest.raises(httpx.HTTPStatusError):
-        client.predict(features)
-
-
-def test_ai_inference_client_predict_invalid_features():
-    """
-    Tests that the predict method raises ValueError for invalid features input.
+    Verifies that AIInferenceClient initializes correctly with default and custom
+    parameters.
     """
     client = AIInferenceClient()
-    with pytest.raises(ValueError, match="Features must be a list of numbers."):
-        client.predict([1, "invalid", 3])
-    with pytest.raises(ValueError, match="Features must be a list of numbers."):
-        client.predict("not a list")
+    assert client.base_url == "http://localhost:8000"
+    assert client.timeout == 5.0
+    assert client.retries == 3
+    assert client.backoff_factor == 0.5
+    assert isinstance(client.client, httpx.Client)
+
+    custom_client = AIInferenceClient(
+        base_url="http://custom", timeout=10.0, retries=5, backoff_factor=1.0
+    )
+    assert custom_client.base_url == "http://custom"
+    assert custom_client.timeout == 10.0
+    assert custom_client.retries == 5
+    assert custom_client.backoff_factor == 1.0
 
 
-def test_ai_inference_client_client_close():
+def test_send_request_success(ai_inference_client, mock_httpx_client):
     """
-    Tests that the httpx client is closed when AIInferenceClient is deleted.
+    Tests successful request sending via _send_request.
     """
-    with patch("httpx.Client") as mock_client_class:
-        mock_client_instance = mock_client_class.return_value
-        client = AIInferenceClient()
-        del client
-        mock_client_instance.close.assert_called_once()
+    mock_response = mock.Mock(spec=httpx.Response)
+    mock_response.status_code = 200
+    mock_response.raise_for_status.return_value = None
+    mock_httpx_client.return_value.request.return_value = mock_response
+
+    response = ai_inference_client._send_request("GET", "http://test-url/health")
+    assert response == mock_response
+    mock_httpx_client.return_value.request.assert_called_once_with(
+        "GET", "http://test-url/health"
+    )
+
+
+def test_send_request_retry_mechanism(ai_inference_client, mock_httpx_client):
+    """
+    Verifies that _send_request retries on httpx.RequestError.
+    """
+    mock_httpx_client.return_value.request.side_effect = [
+        httpx.RequestError("Connection error", request=httpx.Request("GET", "url")),
+        httpx.RequestError("Connection error", request=httpx.Request("GET", "url")),
+        mock.Mock(spec=httpx.Response, status_code=200, raise_for_status=mock.Mock()),
+    ]
+
+    with mock.patch("time.sleep") as mock_sleep:
+        response = ai_inference_client._send_request("GET", "http://test-url/health")
+        assert response.status_code == 200
+        assert mock_httpx_client.return_value.request.call_count == 3
+        assert mock_sleep.call_count == 2
+
+
+def test_send_request_max_retries_exceeded(ai_inference_client, mock_httpx_client):
+    """
+    Ensures httpx.RequestError is raised when max retries are exceeded.
+    """
+    mock_httpx_client.return_value.request.side_effect = httpx.RequestError(
+        "Connection error", request=httpx.Request("GET", "url")
+    )
+
+    with mock.patch("time.sleep"):
+        with pytest.raises(httpx.RequestError, match="Max retries exceeded"):
+            ai_inference_client._send_request("GET", "http://test-url/health")
+        assert mock_httpx_client.return_value.request.call_count == ai_inference_client.retries
+
+
+def test_send_request_http_status_error(ai_inference_client, mock_httpx_client):
+    """
+    Confirms httpx.HTTPStatusError is re-raised immediately.
+    """
+    mock_response = mock.Mock(spec=httpx.Response)
+    mock_response.status_code = 404
+    mock_response.text = "Not Found"
+    mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+        "Client error", request=httpx.Request("GET", "url"), response=mock_response
+    )
+    mock_httpx_client.return_value.request.return_value = mock_response
+
+    with pytest.raises(httpx.HTTPStatusError, match="Client error"):
+        ai_inference_client._send_request("GET", "http://test-url/health")
+    mock_httpx_client.return_value.request.assert_called_once()
+
+
+def test_send_request_other_exception(ai_inference_client, mock_httpx_client):
+    """
+    Verifies other unexpected exceptions are re-raised immediately.
+    """
+    mock_httpx_client.return_value.request.side_effect = Exception("Unexpected error")
+
+    with pytest.raises(Exception, match="Unexpected error"):
+        ai_inference_client._send_request("GET", "http://test-url/health")
+    mock_httpx_client.return_value.request.assert_called_once()
+
+
+def test_predict_success(ai_inference_client, mock_send_request):
+    """
+    Tests successful prediction retrieval.
+    """
+    features = pd.DataFrame({"feature1": [1, 2], "feature2": [3, 4]})
+    mock_response = mock.Mock(spec=httpx.Response)
+    mock_response.json.return_value = [{"prediction": 0.5}, {"prediction": 0.7}]
+    mock_send_request.return_value = mock_response
+
+    predictions = ai_inference_client.predict(features)
+    assert predictions == [{"prediction": 0.5}, {"prediction": 0.7}]
+    mock_send_request.assert_called_once_with(
+        "POST", "http://test-url/predict", json=features.to_dict(orient="records")
+    )
+
+
+def test_predict_empty_features(ai_inference_client):
+    """
+    Ensures an empty list is returned for empty features DataFrame.
+    """
+    features = pd.DataFrame()
+    predictions = ai_inference_client.predict(features)
+    assert predictions == []
+
+
+def test_predict_request_error(ai_inference_client, mock_send_request, caplog):
+    """
+    Tests error handling when _send_request raises httpx.RequestError during predict.
+    """
+    mock_send_request.side_effect = httpx.RequestError(
+        "Connection error", request=httpx.Request("POST", "url")
+    )
+    features = pd.DataFrame({"feature1": [1]})
+
+    with caplog.at_level(logging.ERROR):
+        predictions = ai_inference_client.predict(features)
+        assert predictions == []
+        assert "AI inference request failed after retries." in caplog.text
+
+
+def test_predict_http_status_error(ai_inference_client, mock_send_request, caplog):
+    """
+    Tests error handling when _send_request raises httpx.HTTPStatusError during predict.
+    """
+    mock_response = mock.Mock(spec=httpx.Response)
+    mock_response.status_code = 500
+    mock_send_request.side_effect = httpx.HTTPStatusError(
+        "Server error", request=httpx.Request("POST", "url"), response=mock_response
+    )
+    features = pd.DataFrame({"feature1": [1]})
+
+    with caplog.at_level(logging.ERROR):
+        predictions = ai_inference_client.predict(features)
+        assert predictions == []
+        assert "AI inference HTTP error." in caplog.text
+
+
+def test_predict_other_exception(ai_inference_client, mock_send_request, caplog):
+    """
+    Tests error handling when _send_request raises other exceptions during predict.
+    """
+    mock_send_request.side_effect = Exception("Unexpected predict error")
+    features = pd.DataFrame({"feature1": [1]})
+
+    with caplog.at_level(logging.ERROR):
+        predictions = ai_inference_client.predict(features)
+        assert predictions == []
+        assert "An unexpected error occurred during AI inference." in caplog.text
+
+
+def test_health_check_success(ai_inference_client, mock_send_request):
+    """
+    Tests successful health check.
+    """
+    mock_response = mock.Mock(spec=httpx.Response)
+    mock_response.status_code = 200
+    mock_send_request.return_value = mock_response
+
+    is_healthy = ai_inference_client.health_check()
+    assert is_healthy is True
+    mock_send_request.assert_called_once_with("GET", "http://test-url/health")
+
+
+def test_health_check_failure(ai_inference_client, mock_send_request):
+    """
+    Tests failed health check (non-200 status code).
+    """
+    mock_response = mock.Mock(spec=httpx.Response)
+    mock_response.status_code = 503
+    mock_send_request.return_value = mock_response
+
+    is_healthy = ai_inference_client.health_check()
+    assert is_healthy is False
+
+
+def test_health_check_request_error(ai_inference_client, mock_send_request, caplog):
+    """
+    Tests error handling when _send_request raises httpx.RequestError during health check.
+    """
+    mock_send_request.side_effect = httpx.RequestError(
+        "Connection error", request=httpx.Request("GET", "url")
+    )
+
+    with caplog.at_level(logging.ERROR):
+        is_healthy = ai_inference_client.health_check()
+        assert is_healthy is False
+        assert "AI inference health check failed after retries." in caplog.text
+
+
+def test_health_check_http_status_error(ai_inference_client, mock_send_request, caplog):
+    """
+    Tests error handling when _send_request raises httpx.HTTPStatusError during health check.
+    """
+    mock_response = mock.Mock(spec=httpx.Response)
+    mock_response.status_code = 500
+    mock_send_request.side_effect = httpx.HTTPStatusError(
+        "Server error", request=httpx.Request("GET", "url"), response=mock_response
+    )
+
+    with caplog.at_level(logging.ERROR):
+        is_healthy = ai_inference_client.health_check()
+        assert is_healthy is False
+        assert "AI inference health check HTTP error." in caplog.text
+
+
+def test_health_check_other_exception(ai_inference_client, mock_send_request, caplog):
+    """
+    Tests error handling when _send_request raises other exceptions during health check.
+    """
+    mock_send_request.side_effect = Exception("Unexpected health check error")
+
+    with caplog.at_level(logging.ERROR):
+        is_healthy = ai_inference_client.health_check()
+        assert is_healthy is False
+        assert "An unexpected error occurred during AI health check." in caplog.text
