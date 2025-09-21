@@ -102,8 +102,8 @@ This document outlines the detailed tasks required to fully implement the AI Mod
     - [x] **Define and adhere to strict latency budgets** for AI model inference to ensure timely trading decisions.
 
 - [ ] **6.2. Implement Prediction Post-processing and Decision Logic:**
-    - [ ] Develop logic to interpret the raw predictions from the AI model (e.g., converting probability scores into discrete buy/sell/hold signals).
-    - [ ] Integrate these processed predictions into the trading decision-making process, considering existing trading rules and risk management policies.
+    - [x] Develop logic to interpret the raw predictions from the AI model (e.g., converting probability scores into discrete buy/sell/hold signals).
+    - [x] Integrate these processed predictions into the trading decision-making process, considering existing trading rules and risk management policies.
 
 ## 7. Monitoring and Retraining Strategy
 
