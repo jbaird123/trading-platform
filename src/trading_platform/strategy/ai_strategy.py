@@ -56,9 +56,7 @@ class AIStrategy(BaseStrategy):
 
         # If both long and short probabilities are above threshold, default to flat
         # or implement a tie-breaking rule.
-        signals[(long_probs > self.threshold) & (short_probs > self.threshold)] = (
-            "flat"
-        )
+        signals[(long_probs > self.threshold) & (short_probs > self.threshold)] = "flat"
 
         return signals
 

@@ -107,20 +107,20 @@ This document outlines the detailed tasks required to fully implement the AI Mod
 
 ## 7. Monitoring and Retraining Strategy
 
-- [ ] **7.1. Implement Model Performance Monitoring:**
-    - [ ] Set up continuous monitoring of the deployed AI model's performance in production (e.g., drift detection, accuracy over time, PnL contribution).
-    - [ ] Integrate with existing monitoring dashboards and alerting systems.
-    - [ ] Define thresholds for performance degradation that trigger alerts.
-    - [ ] **Implement data drift and concept drift detection mechanisms** to identify when the input data or the relationship between input and output changes, necessitating retraining.
+- [x] **7.1. Implement Model Performance Monitoring:**
+    - [x] Set up continuous monitoring of the deployed AI model's performance in production (e.g., drift detection, accuracy over time, PnL contribution).
+    - [x] Integrate with existing monitoring dashboards and alerting systems.
+    - [x] Define thresholds for performance degradation that trigger alerts.
+    - [x] **Implement data drift and concept drift detection mechanisms** to identify when the input data or the relationship between input and output changes, necessitating retraining.
 
-- [ ] **7.2. Define and Implement Model Retraining Triggers:**
-    - [ ] Establish clear criteria for when an AI model needs to be retrained (e.g., data drift, performance degradation, scheduled intervals).
-    - [ ] Implement automated triggers that initiate the model training pipeline (Task 4.1) when retraining conditions are met.
+- [x] **7.2. Define and Implement Model Retraining Triggers:**
+    - [x] Establish clear criteria for when an AI model needs to be retrained (e.g., data drift, performance degradation, scheduled intervals).
+    - [x] Implement automated triggers that initiate the model training pipeline (Task 4.1) when retraining conditions are met.
 
-- [ ] **7.3. Implement A/B Testing or Canary Deployments for New Models:**
-    - [ ] Develop a mechanism to safely deploy and test new versions of AI models (e.g., A/B testing, canary deployments) to minimize risk.
-    - [ ] Ensure that new models can be rolled back quickly if performance issues arise.
-    - [ ] **Clearly define the metrics and statistical methods** to be used for evaluating A/B tests and making decisions on model promotion.
+- [x] **7.3. Implement A/B Testing or Canary Deployments for New Models:**
+    - [x] Develop a mechanism to safely deploy and test new versions of AI models (e.g., A/B testing, canary deployments) to minimize risk.
+    - [x] Ensure that new models can be rolled back quickly if performance issues arise.
+    - [x] **Clearly define the metrics and statistical methods** to be used for evaluating A/B tests and making decisions on model promotion.
 
 ## 8. API Design for AI Module
 
