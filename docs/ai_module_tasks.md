@@ -42,35 +42,34 @@ This document outlines the detailed tasks required to fully implement the AI Mod
 ## 4. Model Training and Evaluation Pipelines
 
 - [ ] **4.1. Develop Automated Model Training Pipeline:**
-    - Implement a robust pipeline for training AI models, including:
-        - Data loading and preprocessing (using pipelines from Task 2).
-        - Model initialization and hyperparameter configuration.
-        - Training loop with appropriate loss functions and optimizers.
-        - Checkpointing and saving trained model artifacts (e.g., model weights, configuration, training history).
-    - Ensure the pipeline is configurable via parameters (e.g., hyperparameter ranges, training epochs, early stopping criteria).
-    - **Integrate hyperparameter optimization strategies** (e.g., Grid Search, Random Search, Bayesian Optimization) to efficiently find optimal model configurations.
-    - **Implement resource management for training jobs** (e.g., GPU allocation, distributed training) to optimize training time and cost.
+    - [x] Create a foundational, config-driven `AITrainingPipeline` class structure in `src/trading_platform/ai/training/pipeline.py`.
+    - [x] Implement logic for model initialization and hyperparameter configuration based on the config file.
+    - [x] Implement placeholder for hyperparameter optimization strategies (e.g., `GridSearchCV`).
+    - [x] Implement logic for checkpointing and saving trained model artifacts (model object and config snapshot).
+    - [ ] Integrate the pipeline with the actual data loading and preprocessing components from Task 2.
+    - [ ] Implement resource management for training jobs (e.g., GPU allocation, distributed training).
 
 - [ ] **4.2. Implement Comprehensive Model Evaluation Metrics and Procedures:**
-    - Define relevant evaluation metrics for the AI model's performance (e.g., accuracy, precision, recall, F1-score, AUC, Sharpe Ratio, Sortino Ratio, custom trading-specific metrics).
-    - Implement a standardized evaluation procedure, including:
-        - Cross-validation strategies (e.g., time-series cross-validation).
-        - Backtesting methodologies (if applicable, integrating with the existing backtester).
-        - Statistical significance testing for model comparisons.
-    - **Implement bias detection and mitigation techniques** during model evaluation to ensure fairness and prevent unintended biases.
-    - **Include stress testing of the model** under various simulated market conditions (e.g., high volatility, sudden crashes) to assess robustness.
+    - [x] Create `src/trading_platform/ai/evaluation` module.
+    - [x] Define and implement standard classification metrics and financial metrics (Sharpe, Sortino) in `evaluation/metrics.py`.
+    - [x] Create a foundational `AIEvaluationProcedure` class in `evaluation/procedure.py`.
+    - [x] Implement a placeholder for time-series cross-validation strategy.
+    - [ ] Implement statistical significance testing for model comparisons.
+    - [ ] Implement placeholder for bias detection techniques.
+    - [ ] Implement placeholder for model stress testing.
 
 - [ ] **4.3. Develop Model Versioning and Experiment Tracking:**
-    - Integrate a system for versioning trained models and their associated metadata (e.g., Git LFS, MLflow, DVC).
-    - Implement experiment tracking to log all training runs, hyperparameters, metrics, and artifacts.
-    - Ensure reproducibility of training runs.
+    - [x] Add `mlflow-skinny` dependency to solve installation issues while preserving tracking APIs.
+    - [ ] Integrate `mlflow` tracking into the `AITrainingPipeline` to log parameters, metrics, and artifacts.
+    - [ ] Document the process for launching the `mlflow ui` to view experiment results.
 
 - [ ] **4.4. Implement Diagnostic Synthesis Engine:**
-    - **This task is central to satisfying the immediate requirement for Offline Backtest Analysis & Diagnosis.**
-    - Develop a component that consumes the outputs from the trained model (Task 4.1), evaluation metrics (Task 4.2), and interpretability results (e.g., SHAP values).
-    - This engine's core responsibility is to **automatically synthesize** these quantitative inputs into high-level, human-readable diagnostic conclusions.
-    - It must implement the logic to identify and articulate structural strategy flaws. For example, it must be able to generate conclusions like: *"The strategy is systematically leaving profit on the table by using a fixed take-profit in these specific market conditions because [evidence from model]."*
-    - The output of this engine will be a structured report (in JSON and Markdown) that serves as the primary deliverable for the offline analysis use case.
+    - [x] Create `src/trading_platform/ai/synthesis` module for the engine.
+    - [x] Implement a `DiagnosticSynthesisEngine` class to orchestrate the analysis.
+    - [x] Design and implement a modular, rule-based system for detecting flaws in `synthesis/rules.py`.
+    - [x] Add placeholder rules for detecting over-trading and inefficient exits.
+    - [x] Implement logic to generate both Markdown and JSON reports from findings.
+    - [ ] Integrate the engine with the training and evaluation pipelines to consume real analysis data.
 
 ## 5. Model Deployment and Serving
 
