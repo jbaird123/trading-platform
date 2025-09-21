@@ -51,6 +51,7 @@ def test_backtester_with_rem_pips_stop_loss():
         long_exit_blocks=[],
         short_entry_blocks=[],
         short_exit_blocks=[],
+        parameters={},
     )
 
     # 5. Run backtest

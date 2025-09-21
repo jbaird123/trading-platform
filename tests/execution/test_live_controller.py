@@ -27,6 +27,7 @@ def _df():
 def _strat():
     return {
         "strategy_name": "LiveTest",
+        "parameters": {},
         "long_entry_rules": [
             {"any_of": [{"condition": "is_above", "left": "close", "right": 1.5}]}
         ],

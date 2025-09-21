@@ -1,5 +1,6 @@
 from unittest import mock
 
+import numpy as np
 import pandas as pd
 import pytest
 from sklearn.model_selection import TimeSeriesSplit
@@ -16,7 +17,7 @@ class MockModel:
         return pd.Series([0] * len(X))
 
     def predict_proba(self, X):
-        return pd.DataFrame([[0.5, 0.5]] * len(X))
+        return np.array([[0.5, 0.5]] * len(X))
 
 
 @pytest.fixture

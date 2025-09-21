@@ -1,6 +1,6 @@
 from pathlib import Path
-from pathlib import Path
 from unittest import mock
+from unittest.mock import patch, MagicMock
 import pandas as pd
 import pytest
 import yaml
@@ -9,8 +9,7 @@ from typing import Tuple
 import numpy as np
 
 from src.trading_platform.ai.training.pipeline import AITrainingPipeline, _flatten_dict
-from src.trading_platform.ai.data_connectors import AIDataConnector
-from src.trading_platform.data.loader import DataCatalog
+from src.trading_platform.ai.data_connectors import AIDataConnector, DataCatalog
 from src.trading_platform.ai.data_labeling import DataLabeler
 from src.trading_platform.ai.feature_engineering.pipeline import FeatureEngineeringPipeline
 from src.trading_platform.ai.evaluation.procedure import AIEvaluationProcedure
@@ -78,16 +77,16 @@ def test_aitp_load_config_invalid_yaml(tmp_path):
         AITrainingPipeline(str(invalid_config_file))
 
 
-@mock.patch("src.trading_platform.ai.data_connectors.AIDataConnector")
+@mock.patch("src.trading_platform.ai.training.pipeline.AIDataConnector")
 @mock.patch("src.trading_platform.ai.data_labeling.DataLabeler")
 @mock.patch(
     "src.trading_platform.ai.feature_engineering.pipeline.FeatureEngineeringPipeline"
 )
 @mock.patch("src.trading_platform.ai.training.pipeline.DataCatalog")
 def test_aitp_load_and_prepare_data(
-    mock_feature_pipeline_cls,
-    mock_data_labeler_cls,
     mock_data_connector_cls,
+    mock_data_labeler_cls,
+    mock_feature_pipeline_cls,
     mock_data_catalog_cls,
     mock_config_path,
 ):
@@ -159,16 +158,16 @@ def test_aitp_load_and_prepare_data(
     assert X.index.equals(y.index)
 
 
-@mock.patch("src.trading_platform.ai.data_connectors.AIDataConnector")
+@mock.patch("src.trading_platform.ai.training.pipeline.AIDataConnector")
 @mock.patch("src.trading_platform.ai.data_labeling.DataLabeler")
 @mock.patch(
     "src.trading_platform.ai.feature_engineering.pipeline.FeatureEngineeringPipeline"
 )
 @mock.patch("src.trading_platform.ai.training.pipeline.DataCatalog")
 def test_aitp_load_and_prepare_data_with_nans(
-    mock_feature_pipeline_cls,
-    mock_data_labeler_cls,
     mock_data_connector_cls,
+    mock_data_labeler_cls,
+    mock_feature_pipeline_cls,
     mock_data_catalog_cls,
     mock_config_path,
 ):
@@ -531,7 +530,7 @@ def mock_config_path(tmp_path):
         "run_id": "test_run",
         "experiment_name": "Test Experiment",
         "mlflow_tracking_uri": "./mlruns_test",
-        "data": {"symbol": "TEST", "timeframe": "1H"},
+        "data": {"symbol": "TEST", "timeframe": "1H", "start_date": "2023-01-01", "end_date": "2023-01-02"},
         "features": [],
         "labeling": {},
         "model": {"type": "random_forest"},

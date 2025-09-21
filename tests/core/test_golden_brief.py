@@ -100,6 +100,7 @@ def test_brief_matches_golden_master(tmp_path: Path):
     data_quality_report = compute_data_quality(df)
     data_quality_report["loader_flags"] = dq_flags
 
+    strat_cfg["parameters"] = strat_cfg.get("parameters", {})
     strategy = compile_strategy(strat_cfg)
     signals = strategy.generate_signals(df)
     rem = RiskExitManager(config=rem_cfg)

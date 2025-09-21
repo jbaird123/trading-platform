@@ -19,6 +19,7 @@ def _dummy_strategy() -> CompiledStrategy:
         long_exit_blocks=[],
         short_entry_blocks=[],
         short_exit_blocks=[],
+        parameters={},
     )
 
 
@@ -56,6 +57,7 @@ def test_cmd_run_backtest_yaml_requires_pyyaml(tmp_path: Path) -> None:
         import yaml  # type: ignore  # noqa: F401
 
         # If PyYAML is available, command should succeed.
+        cfg["strategy"]["parameters"] = cfg["strategy"].get("parameters", {})
         rc = cmd_run_backtest(ns)
         assert rc == 0
     except Exception:

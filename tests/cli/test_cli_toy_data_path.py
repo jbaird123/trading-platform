@@ -18,6 +18,7 @@ def _dummy_strategy() -> CompiledStrategy:
         long_exit_blocks=[],
         short_entry_blocks=[],
         short_exit_blocks=[],
+        parameters={},
     )
 
 
@@ -39,6 +40,7 @@ def test_cmd_run_backtest_toy_data_path(tmp_path: Path) -> None:
     p = tmp_path / "cfg.json"
     p.write_text(json.dumps(cfg))
     ns = Namespace(demo=False, user="toy_user", config=str(p))
+    cfg["strategy"]["parameters"] = cfg["strategy"].get("parameters", {})
     rc = cmd_run_backtest(ns)
     assert rc == 0
 
