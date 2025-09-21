@@ -125,6 +125,8 @@ class CompiledStrategy:
     short_exit_blocks: list[dict]
     slope_filter: bool = False
     slope_feature: str | None = None
+    ai_filter_enabled: bool = False
+    ai_confidence_threshold: float = 0.0
     # Internal state populated during signal generation
     _feature_df: pd.DataFrame | None = None
 
@@ -196,6 +198,9 @@ def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
     param_map = dict(cfg.get("parameters") or {})
     slope_filter = bool(param_map.get("slope_filter", False))
     slope_feature = str(param_map.get("slope_feature", "ema_slow"))
+    ai_filter_config = cfg.get("ai_filter", {})
+    ai_filter_enabled = bool(ai_filter_config.get("enabled", False))
+    ai_confidence_threshold = float(ai_filter_config.get("confidence_threshold", 0.0))
     if param_map and features:
         for f in features:
             p = f.get("params") or {}
@@ -217,4 +222,6 @@ def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
         short_exit_blocks=sx,
         slope_filter=slope_filter,
         slope_feature=slope_feature,
+        ai_filter_enabled=ai_filter_enabled,
+        ai_confidence_threshold=ai_confidence_threshold,
     )
