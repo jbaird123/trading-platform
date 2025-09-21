@@ -29,10 +29,10 @@ This document outlines the detailed tasks required to fully implement the AI Mod
 
 ## 3. Model Selection and Training Framework
 
-- [ ] **3.1. Select Appropriate AI Model Architectures:**
-    - Based on the defined core functionality (Task 1.1), choose suitable AI model architectures (e.g., RandomForest, Gradient Boosting, LSTM, Transformers, Reinforcement Learning agents).
-    - Justify the selection based on performance, interpretability, training time, and deployment considerations.
-    - **Consider and document model interpretability and explainability requirements** (e.g., SHAP values, LIME) and how they will be achieved.
+- [x] **3.1. Select Appropriate AI Model Architectures:**
+    - The model architecture has been selected and documented in `docs/ai/01_model_architecture_selection.md`.
+    - The primary selection is a **Gradient Boosting** model (e.g., LightGBM), with **RandomForest** as a baseline.
+    - **SHAP** has been selected as the primary method for model interpretability.
 
 - [ ] **3.2. Set Up AI Training Environment and Framework:**
     - Configure the development and production environments for AI model training (e.g., Python virtual environments, Docker containers).
