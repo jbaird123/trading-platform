@@ -1,58 +1,92 @@
+import pytest
 from fastapi.testclient import TestClient
-from src.trading_platform.ai.serving.app import app, API_KEY
+from src.trading_platform.ai.serving.app import app, API_KEY, API_KEY_NAME
 
 client = TestClient(app)
 
-def test_health_check():
-    response = client.get("/v1/health", headers={"X-API-Key": API_KEY})
+def test_get_api_key_valid():
+    response = client.get("/v1/health", headers={API_KEY_NAME: API_KEY})
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "version": "1.0.0"}
 
-def test_health_check_unauthorized():
+def test_get_api_key_invalid():
+    response = client.get("/v1/health", headers={API_KEY_NAME: "wrong-key"})
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Invalid API Key"}
+
+def test_get_api_key_missing():
     response = client.get("/v1/health")
     assert response.status_code == 401
-    assert response.json() == {"detail": "Invalid API Key"}
+    assert response.json() == {"detail": "Not authenticated"}
 
-def test_predict():
-    features = [
-        {"name": "RSI", "value": 65.5},
-        {"name": "MACD_Hist", "value": 0.012},
-        {"name": "ATR", "value": 0.0005},
-    ]
-    response = client.post(
-        "/v1/predict", json={"features": features}, headers={"X-API-Key": API_KEY}
-    )
+def test_health_check_success():
+    response = client.get("/v1/health", headers={API_KEY_NAME: API_KEY})
     assert response.status_code == 200
-    json_response = response.json()
-    assert "signal" in json_response
-    assert "probability" in json_response
-    assert "model_version" in json_response
-    assert json_response["model_version"] == "v1.0"
+    assert response.json()["status"] == "ok"
+    assert "version" in response.json()
+
+def test_health_check_unauthorized():
+    response = client.get("/v1/health", headers={API_KEY_NAME: "invalid"})
+    assert response.status_code == 401
+
+def test_health_check_no_api_key():
+    response = client.get("/v1/health")
+    assert response.status_code == 401
+
+def test_predict_success():
+    request_body = {
+        "features": [
+            {"name": "feature1", "value": 1.0},
+            {"name": "feature2", "value": 2.5}
+        ]
+    }
+    response = client.post("/v1/predict", json=request_body, headers={API_KEY_NAME: API_KEY})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["signal"] in ["long", "short", "flat"]
+    assert isinstance(data["probability"], float)
+    assert 0 <= data["probability"] <= 1
+    assert data["model_version"] == "v1.0"
 
 def test_predict_unauthorized():
-    features = [
-        {"name": "RSI", "value": 65.5},
-        {"name": "MACD_Hist", "value": 0.012},
-        {"name": "ATR", "value": 0.0005},
-    ]
-    response = client.post("/v1/predict", json={"features": features})
+    request_body = {
+        "features": [
+            {"name": "feature1", "value": 1.0}
+        ]
+    }
+    response = client.post("/v1/predict", json=request_body, headers={API_KEY_NAME: "invalid"})
     assert response.status_code == 401
-    assert response.json() == {"detail": "Invalid API Key"}
 
-def test_predict_internal_server_error():
-    # Simulate an internal server error by sending invalid data that would cause
-    # an exception in the prediction logic (e.g., if model loading failed).
-    # For this placeholder, we'll rely on the generic exception handling.
-    # In a real scenario, you'd mock the model inference to raise an exception.
-    invalid_features = [
-        {"name": "bad_feature", "value": "not_a_float"}
-    ]  # This will cause a Pydantic validation error before reaching the try-except block
-    response = client.post(
-        "/v1/predict", json={"features": invalid_features}, headers={"X-API-Key": API_KEY}
-    )
-    # Pydantic validation errors return 422 Unprocessable Entity
-    assert response.status_code == 422
-    assert "detail" in response.json()
+def test_predict_no_api_key():
+    request_body = {
+        "features": [
+            {"name": "feature1", "value": 1.0}
+        ]
+    }
+    response = client.post("/v1/predict", json=request_body)
+    assert response.status_code == 401
 
-    # To truly test the 500, we'd need to mock the internal prediction logic to raise an exception.
-    # For now, the existing try-except in app.py handles unexpected errors.
+def test_predict_invalid_body():
+    request_body = {
+        "features": [
+            {"name": "feature1", "value": "not_a_float"} # Invalid value type
+        ]
+    }
+    response = client.post("/v1/predict", json=request_body, headers={API_KEY_NAME: API_KEY})
+    assert response.status_code == 422 # Unprocessable Entity
+
+def test_metrics_success():
+    response = client.get("/v1/metrics", headers={API_KEY_NAME: API_KEY})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "metrics_endpoint_placeholder"
+    assert "message" in data
+    assert "available_metrics" in data
+    assert "version" in data
+
+def test_metrics_unauthorized():
+    response = client.get("/v1/metrics", headers={API_KEY_NAME: "invalid"})
+    assert response.status_code == 401
+
+def test_metrics_no_api_key():
+    response = client.get("/v1/metrics")
+    assert response.status_code == 401
