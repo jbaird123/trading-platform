@@ -65,7 +65,9 @@ class AIModelPerformanceMonitor(AIBaseMonitor):
 
         # Add more metric extraction and threshold checks here based on self.metrics_to_monitor
 
-    def detect_data_drift(self, new_data: pd.DataFrame, baseline_data: pd.DataFrame) -> bool:
+    def detect_data_drift(
+        self, new_data: pd.DataFrame, baseline_data: pd.DataFrame
+    ) -> bool:
         """Placeholder for detecting data drift between new and baseline data."""
         logger.info(f"[{self.monitor_name}] Detecting data drift...")
         # In a real system, this would use statistical methods (e.g., KS test, ADWIN)
@@ -76,32 +78,48 @@ class AIModelPerformanceMonitor(AIBaseMonitor):
 
         # Example: Simple check for mean difference in a feature
         feature_name = self.config.get("drift_detection", {}).get("feature")
-        if feature_name and feature_name in new_data.columns and feature_name in baseline_data.columns:
+        if (
+            feature_name
+            and feature_name in new_data.columns
+            and feature_name in baseline_data.columns
+        ):
             new_mean = new_data[feature_name].mean()
             baseline_mean = baseline_data[feature_name].mean()
-            if abs(new_mean - baseline_mean) > self.config.get("drift_detection", {}).get("threshold", 0.1):
+            if abs(new_mean - baseline_mean) > self.config.get(
+                "drift_detection", {}
+            ).get("threshold", 0.1):
                 logger.warning(
                     f"[{self.monitor_name}] Data drift detected in feature '{feature_name}': "
                     f"New mean={new_mean:.4f}, Baseline mean={baseline_mean:.4f}."
                 )
-                self._trigger_alert("data_drift", abs(new_mean - baseline_mean), "mean_change")
+                self._trigger_alert(
+                    "data_drift", abs(new_mean - baseline_mean), "mean_change"
+                )
                 return True
         return False
 
-    def detect_concept_drift(self, model_predictions: pd.Series, true_labels: pd.Series) -> bool:
+    def detect_concept_drift(
+        self, model_predictions: pd.Series, true_labels: pd.Series
+    ) -> bool:
         """Placeholder for detecting concept drift (model performance degradation)."""
         logger.info(f"[{self.monitor_name}] Detecting concept drift...")
         # In a real system, this would compare model predictions against true labels
         # over time, looking for a significant drop in accuracy, F1-score, etc.
         # For now, it's a simple placeholder.
-        if model_predictions.empty or true_labels.empty or len(model_predictions) != len(true_labels):
+        if (
+            model_predictions.empty
+            or true_labels.empty
+            or len(model_predictions) != len(true_labels)
+        ):
             return False
 
         # Example: Simple check for accuracy drop
         # This requires true_labels, which might not be immediately available in production.
         # A more realistic approach might involve comparing predicted probabilities to actual outcomes.
         accuracy = (model_predictions == true_labels).mean()
-        expected_accuracy = self.config.get("concept_drift", {}).get("expected_accuracy", 0.8)
+        expected_accuracy = self.config.get("concept_drift", {}).get(
+            "expected_accuracy", 0.8
+        )
         if accuracy < expected_accuracy:
             logger.warning(
                 f"[{self.monitor_name}] Concept drift detected: "
@@ -127,19 +145,25 @@ class AIDriftDetector(AIBaseMonitor):
     ) -> Dict[str, bool]:
         """Checks for both data and concept drift."""
         data_drift_detected = self.detect_data_drift(new_data, baseline_data)
-        concept_drift_detected = self.detect_concept_drift(model_predictions, true_labels)
+        concept_drift_detected = self.detect_concept_drift(
+            model_predictions, true_labels
+        )
 
         return {
             "data_drift_detected": data_drift_detected,
             "concept_drift_detected": concept_drift_detected,
         }
 
-    def detect_data_drift(self, new_data: pd.DataFrame, baseline_data: pd.DataFrame) -> bool:
+    def detect_data_drift(
+        self, new_data: pd.DataFrame, baseline_data: pd.DataFrame
+    ) -> bool:
         """Placeholder for detecting data drift."""
         # Implement actual data drift detection logic here
         return False
 
-    def detect_concept_drift(self, model_predictions: pd.Series, true_labels: pd.Series) -> bool:
+    def detect_concept_drift(
+        self, model_predictions: pd.Series, true_labels: pd.Series
+    ) -> bool:
         """Placeholder for detecting concept drift."""
         # Implement actual concept drift detection logic here
         return False
