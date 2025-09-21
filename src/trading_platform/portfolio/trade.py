@@ -22,7 +22,6 @@ class Trade:
     size: float
     pnl: float
     exit_reason: str | None = None
-    exit_context: dict[str, Any] | None = None
     stop_loss: float | None = None
     take_profit: float | None = None
     cost_currency: float = 0.0

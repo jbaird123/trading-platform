@@ -28,7 +28,11 @@ def test_mfe_mae_and_bars_held_long():
         _bar("2024-01-01 00:00", 100.0, 102.0, 99.5, 101.0), current_signal="long"
     )
     pm.on_bar(_bar("2024-01-01 01:00", 101.0, 101.5, 98.0, 99.0), current_signal="long")
-    pm.close_position(exit_price=100.0, exit_time=datetime(2024, 1, 1, 2))
+    pm.close_position(
+        exit_price=100.0,
+        exit_time=datetime(2024, 1, 1, 2),
+        context_at_exit=None,
+    )
 
     t = pm.trades[0]
     # Long: MFE = max(high - entry) * size = (102-100)*10 = 20
@@ -51,7 +55,9 @@ def test_mfe_mae_and_bars_held_short():
     pm.on_bar(
         _bar("2024-01-01 00:00", 100.0, 103.0, 95.0, 97.0), current_signal="short"
     )
-    pm.close_position(exit_price=99.0, exit_time=datetime(2024, 1, 1, 1))
+    pm.close_position(
+        exit_price=99.0, exit_time=datetime(2024, 1, 1, 1), context_at_exit=None
+    )
 
     t = pm.trades[0]
     # Short: favorable = (entry - low) * size = (100-95)*5 = 25

@@ -33,7 +33,9 @@ def test_portfolio_cost_breakdown_and_aggregate_with_lot_scaling():
 
     # Close position; net pnl_gross = (1.05-1.0)*10_000 = 500
     # We only check costs here, not pnl_gross
-    pm.close_position(exit_price=1.05, exit_time=exit_time, exit_reason="signal")
+    pm.close_position(
+        exit_price=1.05, exit_time=exit_time, exit_reason="signal", context_at_exit=None
+    )
 
     assert len(pm.trades) == 1
     t = pm.trades[0]

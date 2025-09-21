@@ -170,6 +170,7 @@ def finalize_run(
         config_snapshot=(config.model_dump() if config is not None else None),
         parameter_search=param_search_payload,
         skipped_trades=skipped_trades,
+        signals_path=str(signals_path) if signals_path else None,
     )
     # Export parameter search results, if available
     try:

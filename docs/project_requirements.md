@@ -282,6 +282,13 @@ _Last updated: 2025-09-16_
 - **[AI-F.3]** All findings and recommendations must be available in both machine-readable JSON and human-readable summaries ([AI-10.4]).
 - **[AI-F.4]** Support **automated hypothesis generation**, producing candidate entry/exit rules or strategy variants ([AI-10.5]).
 - **[AI-F.5]** Provide **explainability outputs** (e.g., feature attribution, importance scores) to justify AI recommendations ([AI-10.6]).
+- **[AI-10.5]** **Signal-Level Analysis**:
+    - **[AI-10.5.1] Signal Characterization**: The AI Lab must be capable of analyzing the raw signal series (`long`, `short`, `flat`) produced by the Strategy Engine during a backtest.
+    - **[AI-10.5.2] Signal Meta-Features**: It must compute quantitative meta-features to characterize the signal's behavior, including but not limited to:
+        - `signal_persistence_pct`: The percentage of bars with an active `long` or `short` signal.
+        - `avg_signal_duration_bars`: The average number of consecutive bars a signal remains active.
+    - **[AI-10.5.3] Architectural Flaw Detection**: The AI Lab must be able to correlate these signal meta-features against the overall backtest performance to identify architectural flaws, such as a signal being a persistent state rather than a discrete event.
+    - **[AI-10.5.4] Machine-Readable Critique**: The findings from this analysis must be included in the `brief.json` in a new `signal_quality_analysis` section.
 
 ---
 
@@ -300,7 +307,7 @@ _Last updated: 2025-09-16_
 - **[JSON-11.12]** **data_quality**: `{loader_flags, index_monotonic_increasing, duplicate_bars_count, nan_counts, has_nans}`.
 - **[JSON-11.13]** **provenance**: `{run_id, strategy_name, data_start, data_end, symbols, app_version, git_commit, run_seed}`.
 - **[JSON-11.14]** **environment**: `{python_version, platform, timezone, dependency_versions}`.
-- **[JSON-11.15]** **trades**: An array of trade objects, each with full details including `pnl`, `entry_time`, `exit_time`, `mfe_currency`, `mae_currency`, etc.
+- **[JSON-11.15]** **trades**: An array of trade objects, each with full details including `pnl`, `entry_time`, `exit_time`, `mfe_currency`, `mae_currency`, etc. See [JSON-11.30] for the detailed trade object schema.
 - **[JSON-11.16]** **skipped_trades**: An array of counterfactual trade objects that were skipped by a filter.
 - **[JSON-11.17]** **filter_impact**: An object mapping each filter reason to its aggregated impact metrics.
 - **[JSON-11.18]** **monte_carlo**: Placeholder for Monte Carlo simulation results.
@@ -313,6 +320,13 @@ _Last updated: 2025-09-16_
 - **[JSON-11.25]** **blackout_policy**: A snapshot of the blackout policy configuration.
 - **[JSON-11.26]** **checksums**: `{config_snapshot_hash, instrument_defs_hash}`.
 - **[JSON-11.27]** **field_definitions**: Auto-generated descriptions for all fields in the brief.
+- **[JSON-11.28]** **artifacts**: A new top-level object to store paths to supplementary run artifacts, such as `{ "signals_path": "path/to/signals.parquet" }`.
+- **[JSON-11.29]** **signal_quality_analysis**: A new top-level object to store the output from the Signal-Level Analysis, including the calculated meta-features and a summary critique.
+- **[JSON-11.30]** **Trade Object Schema**: The `trades` array ([JSON-11.15]) shall contain objects with a detailed structure. Each trade object must include, in addition to core fields (pnl, times, etc.), the following context objects:
+    - `entry_context`: An object containing indicator values, regime, etc., at the time of entry.
+    - `exit_context`: An object containing indicator values, regime, etc., at the time of exit.
+    - `sequential_context`: An object containing `bars_since_last_exit`, `pnl_of_last_trade`, and `exit_reason_of_last_trade`.
+    - `risk_management_context`: An object containing `initial_stop_loss_price` and `initial_take_profit_price`.
 
 
 ### Future Enhancements

@@ -98,7 +98,7 @@ class OandaStubAdapter(ExecutionAdapter):
                         exit_price=price,
                         exit_time=when,
                         exit_reason="flip",
-                        exit_context=None,
+                        context_at_exit=None,
                     )
                 if not self.pm.current_position:
                     self.pm.create_new_position(
@@ -113,7 +113,7 @@ class OandaStubAdapter(ExecutionAdapter):
                     exit_price=price,
                     exit_time=when,
                     exit_reason="flat",
-                    exit_context=None,
+                    context_at_exit=None,
                 )
 
         return OrderResult(order_id=order_id, status="accepted", message="stub")
