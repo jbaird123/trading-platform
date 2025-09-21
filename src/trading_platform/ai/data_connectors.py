@@ -15,7 +15,8 @@ class DataCatalog:
         and handle various data sources and formats.
         """
         print(
-            f"Retrieving historical data for {symbol} from {start_date} to {end_date} at {timeframe} timeframe."
+            f"Retrieving historical data for {symbol} from {start_date} to {end_date}"
+            f" at {timeframe} timeframe."
         )
         # Simulate data retrieval
         data = {
@@ -55,7 +56,8 @@ class AIDataConnector:
         Loads historical data for AI model training, including basic validation.
         """
         print(
-            f"AI Data Connector: Loading training data for {symbol} from {start_date} to {end_date}"
+            f"AI Data Connector: Loading training data for {symbol} from {start_date} to"
+            f" {end_date}"
         )
         df = self.data_catalog.get_historical_data(
             symbol, timeframe, start_date, end_date
@@ -75,7 +77,8 @@ class AIDataConnector:
             # like imputation or removal, and be logged in data lineage.
 
         # Record data lineage
-        self.data_lineage[f"{symbol}_{timeframe}_{start_date}_{end_date}"] = {
+        lineage_key = f"{symbol}_{timeframe}_{start_date}_{end_date}"
+        self.data_lineage[lineage_key] = {
             "source": "DataCatalog",
             "retrieval_timestamp": pd.Timestamp.now().isoformat(),
             "row_count": len(df),

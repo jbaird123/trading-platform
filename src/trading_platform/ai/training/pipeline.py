@@ -12,12 +12,11 @@ import yaml
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
 
-# Assuming placeholder classes from previous tasks exist
-# from trading_platform.ai.data_connectors import AIDataConnector
-# from trading_platform.ai.feature_engineering.pipeline import (
-#     FeatureEngineeringPipeline,
-# )
-# from trading_platform.ai.data_labeling import DataLabeler
+from trading_platform.ai.data_connectors import AIDataConnector, DataCatalog
+from trading_platform.ai.data_labeling import DataLabeler
+from trading_platform.ai.feature_engineering.pipeline import (
+    FeatureEngineeringPipeline,
+)
 
 
 class AITrainingPipeline:
@@ -49,25 +48,39 @@ class AITrainingPipeline:
 
     def _load_and_prepare_data(self) -> Tuple[pd.DataFrame, pd.Series]:
         """
-        Placeholder for loading data using AIDataConnector, generating features,
-        and creating labels.
+        Loads data using AIDataConnector, generates features, and creates labels.
         """
         print("Step 1: Loading and preparing data...")
-        # 1. Use AIDataConnector to get raw data (placeholder)
-        # raw_data = AIDataConnector.get_data(self.config['data_source'])
 
-        # 2. Use FeatureEngineeringPipeline to create features (placeholder)
-        # features = FeatureEngineeringPipeline.run(raw_data, self.config['features'])
+        # 1. Load raw data
+        data_config = self.config["data"]
+        # In a real scenario, the DataCatalog would be a singleton or injected.
+        connector = AIDataConnector(DataCatalog())
+        raw_df = connector.load_training_data(**data_config)
 
-        # 3. Use DataLabeler to create the target variable (placeholder)
-        # labels = DataLabeler.generate_labels(raw_data, self.config['labeling'])
+        # 2. Generate features
+        feature_config = self.config["features"]
+        feature_pipeline = FeatureEngineeringPipeline(raw_df)
+        featured_df = feature_pipeline.run(feature_config)
 
-        # Placeholder data for demonstration
-        X = pd.DataFrame(
-            {"feature1": range(100), "feature2": [x * 2 for x in range(100)]}
+        # 3. Generate labels
+        labeling_config = self.config["labeling"]
+        labeler = DataLabeler(**labeling_config)
+        labels = labeler.generate_future_price_direction(featured_df)
+
+        # 4. Align features (X) and labels (y)
+        # This ensures that we don't have look-ahead bias and that the data
+        # used for training corresponds to the correct target label.
+        X = featured_df.loc[labels.index]
+        y = labels
+
+        # Ensure no NaN values remain in the features after alignment
+        X.dropna(inplace=True)
+        y = y.loc[X.index]
+
+        print(
+            f"Data preparation complete. Shape of X: {X.shape}, Shape of y: {y.shape}"
         )
-        y = pd.Series([0, 1] * 50)
-        print("Data preparation complete.")
         return X, y
 
     def _train_model(self, X: pd.DataFrame, y: pd.Series) -> Any:
@@ -144,11 +157,19 @@ if __name__ == "__main__":
 
     # Create a dummy config for demonstration
     dummy_config = {
-        "run_id": "lgbm_test_run_001",
+        "run_id": "lgbm_test_run_002",
         "artifacts_base_path": "artifacts/training_runs",
-        "data_source": {"name": "my_data", "version": "1.0"},
-        "features": ["feature1", "feature2"],
-        "labeling": {"method": "future_price_direction", "horizon": 5},
+        "data": {
+            "symbol": "EURUSD",
+            "timeframe": "1D",
+            "start_date": "2023-01-01",
+            "end_date": "2023-01-31",
+        },
+        "features": [
+            {"kind": "sma", "length": 10},
+            {"kind": "rsi", "length": 14},
+        ],
+        "labeling": {"look_ahead_bars": 5},
         "model": {
             "type": "lightgbm",
             "params": {"n_estimators": 100, "random_state": 42},
