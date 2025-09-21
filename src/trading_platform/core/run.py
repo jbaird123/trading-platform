@@ -63,6 +63,7 @@ def finalize_run(
     parameter_search: dict[str, Any] | None = None,
     exposure_curve: list[tuple[datetime, float]] | None = None,
     skipped_trades: list[dict[str, Any]] | None = None,
+    signals_path: Path | None = None,
 ) -> Path:
     """Generate and save a brief for this run under the run_path.
 
