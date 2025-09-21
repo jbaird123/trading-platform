@@ -22,24 +22,20 @@ class AIBaseMonitor:
             max_val = threshold_config.get("max")
 
             if min_val is not None and value < min_val:
-                logger.warning(
-                    f"[{self.monitor_name}] Metric '{metric_name}' ({value}) "
-                    f"below minimum threshold ({min_val}). Triggering alert."
-                )
                 self._trigger_alert(metric_name, value, "below_min")
             if max_val is not None and value > max_val:
-                logger.warning(
-                    f"[{self.monitor_name}] Metric '{metric_name}' ({value}) "
-                    f"above maximum threshold ({max_val}). Triggering alert."
-                )
                 self._trigger_alert(metric_name, value, "above_max")
 
     def _trigger_alert(self, metric_name: str, value: float, reason: str) -> None:
         """Placeholder for triggering an alert (e.g., sending to an alerting system)."""
-        logger.error(
-            f"ALERT! [{self.monitor_name}] Metric '{metric_name}' ({value}) "
-            f"triggered alert due to: {reason}."
-        )
+        alert_message = f"ALERT! [{self.monitor_name}] Metric '{metric_name}' ({value}) triggered alert due to: "
+        if reason == "below_min":
+            alert_message += "below minimum threshold."
+        elif reason == "above_max":
+            alert_message += "above maximum threshold."
+        else:
+            alert_message += f"{reason}."
+        logger.error(alert_message)
         # In a real system, this would integrate with PagerDuty, Slack, etc.
 
 

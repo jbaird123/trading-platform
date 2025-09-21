@@ -26,7 +26,7 @@ def test_aib_check_thresholds_within_range(caplog):
 def test_aib_check_thresholds_below_min(caplog):
     config = {"name": "TestMonitor", "thresholds": {"metric1": {"min": 10, "max": 20}}}
     monitor = AIBaseMonitor(config)
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.ERROR):
         monitor._check_thresholds("metric1", 5)
         assert len(caplog.records) == 1
         assert "below minimum threshold" in caplog.text
@@ -35,7 +35,7 @@ def test_aib_check_thresholds_below_min(caplog):
 def test_aib_check_thresholds_above_max(caplog):
     config = {"name": "TestMonitor", "thresholds": {"metric1": {"min": 10, "max": 20}}}
     monitor = AIBaseMonitor(config)
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.ERROR):
         monitor._check_thresholds("metric1", 25)
         assert len(caplog.records) == 1
         assert "above maximum threshold" in caplog.text
@@ -51,7 +51,7 @@ def test_aib_check_thresholds_no_threshold_config(caplog):
 def test_aib_check_thresholds_partial_threshold_config(caplog):
     config = {"name": "TestMonitor", "thresholds": {"metric1": {"min": 10}}}
     monitor = AIBaseMonitor(config)
-    with caplog.at_level(logging.WARNING):
+    with caplog.at_level(logging.ERROR):
         monitor._check_thresholds("metric1", 5) # Below min
         assert len(caplog.records) == 1
         assert "below minimum threshold" in caplog.text

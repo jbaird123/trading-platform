@@ -131,20 +131,21 @@ class TestAIEvaluationProcedure:
 
         mock_tscv_instance = mock.Mock(spec=TimeSeriesSplit)
         mock_tscv.return_value = mock_tscv_instance
+        # Ensure all folds have non-empty test sets
         mock_tscv_instance.split.return_value = [
-            ([0, 1, 2, 3], [4, 5]),
-            ([0, 1, 2, 3, 4, 5], [6, 7]),
-            ([0, 1, 2, 3, 4, 5, 6, 7], [8, 9]),
-            ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], []),  # Last fold might be empty test set
-            ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], []),  # Last fold might be empty test set
+            ([0, 1], [2]),
+            ([0, 1, 2], [3]),
+            ([0, 1, 2, 3], [4]),
+            ([0, 1, 2, 3, 4], [5]),
+            ([0, 1, 2, 3, 4, 5], [6]),
         ]
 
         mock_get_classification_metrics.side_effect = [
             {"accuracy": 0.8},
             {"accuracy": 0.9},
             {"accuracy": 0.7},
-            {"accuracy": 0.0},  # Placeholder for empty test set
-            {"accuracy": 0.0},  # Placeholder for empty test set
+            {"accuracy": 0.85},
+            {"accuracy": 0.75},
         ]
 
         procedure = AIEvaluationProcedure(config)

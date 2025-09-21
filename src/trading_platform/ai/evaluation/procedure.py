@@ -39,8 +39,12 @@ class AIEvaluationProcedure:
             y_train, y_test = y.iloc[train_index], y.iloc[test_index]
 
             model.fit(X_train, y_train)
-            y_pred = model.predict(X_test)
-            y_prob = model.predict_proba(X_test)[:, 1]
+            y_pred = model.predict(X_test) # type: ignore
+            y_prob_raw = model.predict_proba(X_test) # type: ignore
+            # For binary classification, predict_proba can return (n_samples,) or (n_samples, 2)
+            # If (n_samples, 2), we take the probability of the positive class (index 1)
+            # If (n_samples,), it's already the probability of the positive class
+            y_prob = y_prob_raw[:, 1] if y_prob_raw.ndim == 2 else y_prob_raw
 
             # Placeholder for calculating metrics for the fold
             fold_scores = get_classification_metrics(y_test, y_pred, y_prob)
