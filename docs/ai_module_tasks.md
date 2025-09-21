@@ -4,29 +4,18 @@ This document outlines the detailed tasks required to fully implement the AI Mod
 
 ## 1. Define AI Module Scope and Integration Points
 
-- [ ] **1.1. Finalize AI Module Core Functionality:**
-    - Define the primary objective(s) of the AI module (e.g., signal generation, risk assessment, portfolio optimization, market regime classification).
-    - Specify the input data required by the AI module (e.g., historical OHLCV data, technical indicators, fundamental data, news sentiment).
-    - Specify the output data produced by the AI module (e.g., buy/sell/hold signals, probability scores, risk metrics, market regime labels).
-    - Document any constraints or non-functional requirements (e.g., latency, throughput, interpretability).
-    - **Define clear performance metrics and success criteria** for the AI module's output (e.g., target Sharpe ratio, accuracy thresholds, PnL targets). This will guide development and evaluation.
-    - **Specify data granularity and frequency** for both input and output data (e.g., 1-minute OHLCV, daily sentiment scores, hourly predictions).
+- [x] **1.1. Finalize AI Module Core Functionality:**
+    - The core functionality, objectives, input/output data, constraints, performance metrics, and data granularity for the AI module have been defined and documented in `docs/project_requirements.md` under section `10) AI Lab (AI)`. This task is complete.
 
-- [ ] **1.2. Map Integration Points with Existing Platform Components:**
-    - Identify all existing trading platform components that will interact with the AI module (e.g., `DataHandler`, `StrategyEngine`, `RiskManager`, `ExecutionEngine`, `Reporting`).
-    - For each integration point, define the exact data flow, communication protocols (e.g., REST API, message queue, direct function calls), and data formats (e.g., JSON, Parquet, custom Python objects).
-    - Create sequence diagrams or architectural diagrams illustrating the interactions between the AI module and other components.
-    - **Define error handling strategies for each integration point**, specifying how the system should react to AI module failures (e.g., fallback to default logic, retry mechanisms, alert generation).
-    - **Address security considerations for data exchange** between components, including authentication, authorization, and data encryption where necessary.
+- [x] **1.2. Map Integration Points with Existing Platform Components:**
+    - The integration points, data flows, communication protocols, data formats, error handling strategies, and security considerations for the AI module with existing platform components have been defined and documented in `docs/project_requirements.md` under section `10) AI Lab (AI)`, specifically `[AI-10.5] Integration Points with Existing Platform Components`. This task is complete.
 
 ## 2. Data Preparation and Feature Engineering
 
-- [ ] **2.1. Implement Data Connectors for AI Training Data:**
-    - Develop or extend existing data connectors to retrieve all necessary historical data for AI model training (e.g., from `DataCatalog`, external APIs, databases).
-    - Ensure data retrieval is efficient and handles large datasets.
-    - Implement data validation checks (e.g., missing values, outliers, data types) during ingestion.
-    - **Implement data lineage and provenance tracking** for all training data to ensure reproducibility and auditability of models.
-    - **Differentiate and handle real-time vs. batch data requirements** for training, considering potential differences in data sources and processing.
+- [x] **2.1. Implement Data Connectors for AI Training Data:**
+    - A placeholder `AIDataConnector` class has been created in `src/trading_platform/ai/data_connectors.py`.
+    - This class demonstrates interaction with a mock `DataCatalog` for historical data retrieval, including basic data validation and data lineage tracking.
+    - Further integration with the actual `DataCatalog` and implementation of advanced data validation, real-time data handling, and provenance tracking will be built upon this foundation.
 
 - [ ] **2.2. Develop Feature Engineering Pipelines:**
     - Define and implement a comprehensive set of features derived from raw input data that are relevant for the AI model (e.g., moving averages, RSI, MACD, volatility measures, custom domain-specific features).

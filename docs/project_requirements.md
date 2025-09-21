@@ -266,8 +266,89 @@ _Last updated: 2025-09-16_
 
 ### Core Requirements
 - **[AI-10.1]** **Core Mandate**: The AI Lab must function as the central analysis component, consuming JSON briefs to provide intelligent insights.
-- **[AI-10.2.3]** Recommend specific, machine-readable filters to improve performance.
-- **[AI-10.2.4]** Recommend optimized stop-loss and take-profit configurations based on MFE/MAE analysis from the backtest.
+- **[AI-10.1.1] Primary Objective(s):** The AI module will have a dual primary objective:
+    1. **Strategy Performance Diagnosis and Improvement:** Automatically analyze backtest results (`brief.json`) and live trading performance to identify root causes of underperformance, suggest improvements, and detect "unknown unknowns" in strategy design. This includes identifying issues like over-trading, false signals, lack of robustness, or suboptimal parameterization.
+    2. **Adaptive Signal Generation/Refinement:** (Future phase, but acknowledge here) Potentially generate or refine trading signals based on identified market regimes or predictive analytics, working in conjunction with the `StrategyEngine`.
+- **[AI-10.1.2] Input Data Required:**
+    - **Backtest Briefs (`brief.json`):** Full backtest results, including trade logs, performance metrics (Sharpe, Sortino, PnL, drawdowns), MFE/MAE analysis, skipped trades with counterfactuals, and environment/provenance data.
+    - **Strategy Definitions (YAML):** The raw strategy configuration, including indicator parameters and predicate logic.
+    - **Historical Market Data (OHLCV):** Access to the same historical data used for backtesting, to allow for deeper analysis and visualization of problematic trade sequences.
+    - **Technical Indicators:** Pre-computed or on-demand computation of various technical indicators relevant to the strategy and market analysis.
+    - **Market Regime Classifications:** (If available from RMM) Current and historical market regime labels.
+- **[AI-10.1.3] Output Data Produced:**
+    - **Diagnostic Reports:** Detailed analysis of strategy weaknesses, including identified patterns of false signals, over-trading, or specific market conditions where the strategy fails.
+    - **Actionable Recommendations:** Concrete suggestions for strategy modification (e.g., adding filters, adjusting parameters, changing indicator types, suggesting alternative entry/exit conditions).
+    - **Risk Factor Identification:** Highlighting specific risk exposures or vulnerabilities in the strategy.
+    - **Performance Predictions/Confidence Scores:** (For adaptive signal generation) Probability scores for trade success, confidence in signals, or predicted future performance.
+    - **Visualizations:** Charts and graphs illustrating problematic areas, trade clusters, and proposed changes.
+- **[AI-10.1.4] Constraints & Non-Functional Requirements:**
+    - **Interpretability:** Recommendations and diagnoses must be human-readable and explainable, allowing developers to understand and implement changes.
+    - **Latency (Diagnosis):** Offline processing is acceptable for detailed diagnosis.
+    - **Latency (Adaptive Signals):** Low-latency inference (sub-100ms) required if used for real-time signal refinement.
+    - **Throughput:** Capable of processing multiple backtest briefs concurrently.
+    - **Scalability:** Ability to scale with increasing number of strategies and backtest runs.
+- **[AI-10.1.5] Performance Metrics & Success Criteria:**
+    - **Diagnosis Accuracy:** Ability to correctly identify known strategy flaws in a test suite of problematic strategies (e.g., 90% accuracy in identifying over-trading).
+    - **Recommendation Efficacy:** Improvement in key performance metrics (Sharpe, PnL, drawdown) when recommendations are applied and re-backtested (e.g., average 10% improvement in Sharpe ratio for identified problematic strategies).
+    - **False Positive Rate:** Low rate of incorrect diagnoses or unhelpful recommendations.
+    - **Coverage:** Ability to diagnose a wide range of common strategy issues.
+- **[AI-10.1.6] Data Granularity & Frequency:**
+    - **Input Briefs:** Per backtest run.
+    - **Historical Data:** OHLCV data at the same granularity as the strategy (e.g., 1-minute, 1-hour, daily).
+    - **Output Recommendations:** Per strategy, after analysis.
+- **[AI-10.2]** Recommend specific, machine-readable filters to improve performance.
+- **[AI-10.3]** Recommend optimized stop-loss and take-profit configurations based on MFE/MAE analysis from the backtest.
+- **[AI-10.4]** **Signal-Level Analysis**:
+    - **[AI-10.4.1] Signal Characterization**: The AI Lab must be capable of analyzing the raw signal series (`long`, `short`, `flat`) produced by the Strategy Engine during a backtest.
+    - **[AI-10.4.2] Signal Meta-Features**: It must compute quantitative meta-features to characterize the signal's behavior, including but not limited to:
+        - `signal_persistence_pct`: The percentage of bars with an active `long` or `short` signal.
+        - `avg_signal_duration_bars`: The average number of consecutive bars a signal remains active.
+    - **[AI-10.4.3] Architectural Flaw Detection**: The AI Lab must be able to correlate these signal meta-features against the overall backtest performance to identify architectural flaws, such as a signal being a persistent state rather than a discrete event.
+    - **[AI-10.4.4] Machine-Readable Critique**: The findings from this analysis must be included in the `brief.json` in a new `signal_quality_analysis` section.
+
+- **[AI-10.5] Integration Points with Existing Platform Components:**
+    - **[AI-10.5.1] DataHandler (DH):**
+        - **Interaction:** The AI module will request historical OHLCV data and technical indicators from the `DataHandler` for training, feature engineering, and diagnostic analysis.
+        - **Data Flow:** AI module -> `DataHandler` (request for data); `DataHandler` -> AI module (DataFrame of market data/features).
+        - **Protocol:** Direct function calls or a well-defined API within the Python environment.
+        - **Data Format:** Pandas DataFrames.
+        - **Error Handling:** `DataHandler` exceptions (e.g., `DataNotFound`, `InvalidTimeframe`) should be caught by the AI module, leading to logging and graceful degradation or retry mechanisms.
+        - **Security:** Data access within the platform's internal boundaries is assumed to be secure.
+    - **[AI-10.5.2] StrategyEngine (SE):**
+        - **Interaction:** The AI module will consume strategy YAML definitions from the `StrategyEngine` for analysis. In future phases, the AI module might provide refined signals or modified strategy parameters back to the `StrategyEngine`.
+        - **Data Flow:** AI module -> `StrategyEngine` (request for strategy definition); `StrategyEngine` -> AI module (YAML string or parsed object).
+        - **Protocol:** Direct function calls.
+        - **Data Format:** YAML string or Python dictionary/object.
+        - **Error Handling:** Invalid strategy definitions or parsing errors from `StrategyEngine` should be handled by the AI module, leading to diagnostic reports.
+        - **Security:** Internal data exchange.
+    - **[AI-10.5.3] Backtester (BT):**
+        - **Interaction:** The AI module will primarily consume `brief.json` outputs from the `Backtester` for performance diagnosis. It may also trigger new backtest runs with modified strategy parameters.
+        - **Data Flow:** `Backtester` -> AI module (`brief.json` file path or content); AI module -> `Backtester` (trigger new run with `RunConfig`).
+        - **Protocol:** File system access for `brief.json`; direct function calls for triggering runs.
+        - **Data Format:** JSON for briefs; Python objects for `RunConfig`.
+        - **Error Handling:** Missing or malformed `brief.json` files should be logged. Backtester execution errors triggered by the AI module should be reported back.
+        - **Security:** Internal file system access and function calls.
+    - **[AI-10.5.4] Reporting & Visualization (RV):**
+        - **Interaction:** The AI module will provide diagnostic reports, actionable recommendations, and potentially new visualizations to the `Reporting` module for inclusion in the final output.
+        - **Data Flow:** AI module -> `Reporting` (JSON/Python objects for reports/recommendations/visualizations).
+        - **Protocol:** Direct function calls.
+        - **Data Format:** JSON or Python objects.
+        - **Error Handling:** `Reporting` module errors during report generation should be logged by the AI module.
+        - **Security:** Internal data exchange.
+    - **[AI-10.5.5] Regime Market Manager (RMM) (Optional/Future):**
+        - **Interaction:** The AI module may consume market regime classifications from the `RMM` as an input feature for its diagnostic or signal generation models.
+        - **Data Flow:** `RMM` -> AI module (regime labels and confidence scores).
+        - **Protocol:** Direct function calls.
+        - **Data Format:** Python objects (e.g., `RMMResult`).
+        - **Error Handling:** Handle cases where RMM data is unavailable or malformed.
+        - **Security:** Internal data exchange.
+    - **[AI-10.5.6] Execution Layer (EL) (Future):**
+        - **Interaction:** In future live trading scenarios, the AI module might provide real-time signal refinements or risk adjustments to the `ExecutionLayer`.
+        - **Data Flow:** AI module -> `ExecutionLayer` (real-time signals/adjustments).
+        - **Protocol:** Message queue (e.g., Kafka) or low-latency REST API.
+        - **Data Format:** JSON or custom binary format for performance.
+        - **Error Handling:** Critical: Implement robust retry mechanisms, circuit breakers, and fallback strategies. Alerts for AI module failures.
+        - **Security:** Authentication, authorization, and encryption for real-time data streams.
 
 ### Future Enhancements
 - **[AI-F.1]** **Analysis & Recommendations**:
@@ -282,13 +363,6 @@ _Last updated: 2025-09-16_
 - **[AI-F.3]** All findings and recommendations must be available in both machine-readable JSON and human-readable summaries ([AI-10.4]).
 - **[AI-F.4]** Support **automated hypothesis generation**, producing candidate entry/exit rules or strategy variants ([AI-10.5]).
 - **[AI-F.5]** Provide **explainability outputs** (e.g., feature attribution, importance scores) to justify AI recommendations ([AI-10.6]).
-- **[AI-10.5]** **Signal-Level Analysis**:
-    - **[AI-10.5.1] Signal Characterization**: The AI Lab must be capable of analyzing the raw signal series (`long`, `short`, `flat`) produced by the Strategy Engine during a backtest.
-    - **[AI-10.5.2] Signal Meta-Features**: It must compute quantitative meta-features to characterize the signal's behavior, including but not limited to:
-        - `signal_persistence_pct`: The percentage of bars with an active `long` or `short` signal.
-        - `avg_signal_duration_bars`: The average number of consecutive bars a signal remains active.
-    - **[AI-10.5.3] Architectural Flaw Detection**: The AI Lab must be able to correlate these signal meta-features against the overall backtest performance to identify architectural flaws, such as a signal being a persistent state rather than a discrete event.
-    - **[AI-10.5.4] Machine-Readable Critique**: The findings from this analysis must be included in the `brief.json` in a new `signal_quality_analysis` section.
 
 ---
 
