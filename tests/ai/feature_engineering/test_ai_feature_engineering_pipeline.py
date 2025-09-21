@@ -32,19 +32,89 @@ def sample_dataframe():
             ]
         ),
         "open": [
-            100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114
+            100,
+            101,
+            102,
+            103,
+            104,
+            105,
+            106,
+            107,
+            108,
+            109,
+            110,
+            111,
+            112,
+            113,
+            114,
         ],
         "high": [
-            102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116
+            102,
+            103,
+            104,
+            105,
+            106,
+            107,
+            108,
+            109,
+            110,
+            111,
+            112,
+            113,
+            114,
+            115,
+            116,
         ],
         "low": [
-            99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113
+            99,
+            100,
+            101,
+            102,
+            103,
+            104,
+            105,
+            106,
+            107,
+            108,
+            109,
+            110,
+            111,
+            112,
+            113,
         ],
         "close": [
-            101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115
+            101,
+            102,
+            103,
+            104,
+            105,
+            106,
+            107,
+            108,
+            109,
+            110,
+            111,
+            112,
+            113,
+            114,
+            115,
         ],
         "volume": [
-            100, 110, 105, 120, 115, 130, 125, 110, 100, 110, 105, 120, 115, 130, 125
+            100,
+            110,
+            105,
+            120,
+            115,
+            130,
+            125,
+            110,
+            100,
+            110,
+            105,
+            120,
+            115,
+            130,
+            125,
         ],
     }
     return pd.DataFrame(data).set_index("timestamp")
@@ -114,7 +184,9 @@ def test_add_feature_unsupported_kind(sample_dataframe):
     """
     pipeline = FeatureEngineeringPipeline(sample_dataframe)
     feature_config = {"kind": "unsupported_feature", "length": 10}
-    with pytest.raises(NotImplementedError, match="Feature 'unsupported_feature' is not supported yet."):
+    with pytest.raises(
+        NotImplementedError, match="Feature 'unsupported_feature' is not supported yet."
+    ):
         pipeline.add_feature(feature_config)
 
 
