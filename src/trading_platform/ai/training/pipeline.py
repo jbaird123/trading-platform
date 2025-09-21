@@ -2,6 +2,7 @@
 This module defines the automated model training pipeline for the AI Lab.
 """
 
+import json  # Added this line
 import os
 from pathlib import Path
 from typing import Any, Dict, Tuple, cast
@@ -19,6 +20,7 @@ from trading_platform.ai.evaluation.procedure import AIEvaluationProcedure
 from trading_platform.ai.feature_engineering.pipeline import (
     FeatureEngineeringPipeline,
 )
+from trading_platform.ai.synthesis.engine import DiagnosticSynthesisEngine
 
 # Conditional import for type checking
 # In a real implementation, you would have a more robust way to handle this
@@ -185,10 +187,18 @@ class AITrainingPipeline:
         # 4. Run Diagnostic Synthesis Engine
         print("Running Diagnostic Synthesis Engine...")
         synthesis_engine = DiagnosticSynthesisEngine(
-            config=self.config.get("synthesis", {})
+            analysis_data={
+                "metrics": metrics,
+                "synthesis_config": self.config.get("synthesis", {}),
+                "model": model,
+                "X": X,
+                "y": y,
+            }
         )
-        # Pass model, X, y, and evaluation metrics to the synthesis engine
-        synthesis_results = synthesis_engine.run(model, X, y, metrics)
+        synthesis_engine.run()  # Call run without arguments
+        synthesis_results = json.loads(
+            synthesis_engine.generate_report_json()
+        )  # Get results
         print(f"Diagnostic Synthesis Engine results: {synthesis_results}")
         mlflow.log_dict(synthesis_results, "diagnostic_synthesis_results.json")
 

@@ -36,7 +36,7 @@ async def predict(request: PredictionRequest):
     # prediction = result[0][0]
 
     # Simulate a prediction for now
-    # TODO: Implement A/B testing logic here to route requests to different model versions
+    # TODO: Implement A/B test logic here to route requests to different model versions
     prediction = float(np.random.rand() > 0.5)  # Randomly predict 0 or 1
     confidence = np.random.rand()
 
@@ -49,6 +49,19 @@ async def health_check():
     Health check endpoint.
     """
     return {"status": "ok"}
+
+
+@app.get("/metrics")
+async def get_metrics():
+    """
+    Monitoring endpoint to expose metrics.
+    (Placeholder: Actual metrics collection would be implemented here.)
+    """
+    return {
+        "status": "metrics_endpoint_placeholder",
+        "message": "Metrics collection not yet implemented.",
+        "available_metrics": ["request_count", "error_rate", "prediction_distribution"],
+    }
 
 
 if __name__ == "__main__":

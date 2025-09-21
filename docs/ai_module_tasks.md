@@ -89,9 +89,9 @@ This document outlines the detailed tasks required to fully implement the AI Mod
     - [x] **Implement A/B testing capabilities** within the serving infrastructure to compare performance of different model versions in production: Design considerations for A/B testing have been documented in `src/trading_platform/ai/serving/README.md`.
     - [ ] **Define and implement auto-scaling policies** for the model serving infrastructure based on demand and latency requirements.
 
-- [ ] **5.3. Implement Model Health Checks and Monitoring Endpoints:**
-    - [ ] Add health check endpoints to the model serving service to verify its operational status.
-    - [ ] Implement monitoring endpoints to expose metrics like request latency, error rates, and model prediction distributions.
+- [x] **5.3. Implement Model Health Checks and Monitoring Endpoints:**
+    - [x] Add health check endpoints to the model serving service to verify its operational status.
+    - [x] Implement monitoring endpoints to expose metrics like request latency, error rates, and model prediction distributions.
 
 ## 6. Inference Integration with Trading Platform
 
