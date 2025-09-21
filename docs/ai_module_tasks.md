@@ -98,8 +98,8 @@ This document outlines the detailed tasks required to fully implement the AI Mod
 - [x] **6.1. Integrate AI Model Inference into `StrategyEngine` (or relevant component):**
     - [x] Modify the `StrategyEngine` (or the component responsible for signal generation/decision-making) to call the AI model serving API.
     - [x] Implement logic to transform real-time market data into the feature format expected by the AI model.
-    - [ ] Handle potential latency and errors during inference calls.
-    - [ ] **Define and adhere to strict latency budgets** for AI model inference to ensure timely trading decisions.
+    - [x] Handle potential latency and errors during inference calls.
+    - [x] **Define and adhere to strict latency budgets** for AI model inference to ensure timely trading decisions.
 
 - [ ] **6.2. Implement Prediction Post-processing and Decision Logic:**
     - [ ] Develop logic to interpret the raw predictions from the AI model (e.g., converting probability scores into discrete buy/sell/hold signals).
