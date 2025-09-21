@@ -1,12 +1,15 @@
+import logging
+from typing import List
+
 import numpy as np
-from fastapi import FastAPI, Depends, HTTPException, status, Request
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
-from typing import List
-import logging
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
@@ -37,7 +40,9 @@ API_KEY = "your-super-secret-api-key"
 async def get_api_key(api_key: str = Depends(api_key_header)):
     # In a production system, this would involve looking up the API key in a database
     # and potentially checking its permissions.
-    if api_key == API_KEY:  # Use `secrets.compare_digest(api_key, API_KEY)` in production
+    if (
+        api_key == API_KEY
+    ):  # Use `secrets.compare_digest(api_key, API_KEY)` in production
         return api_key
     logger.warning("Unauthorized access attempt with invalid API key.")
     raise HTTPException(
@@ -98,8 +103,12 @@ async def predict(request: PredictionRequest, api_key: str = Depends(get_api_key
             signal = "flat"
         probability = np.random.rand()
 
-        logger.info(f"Prediction successful: signal={signal}, probability={probability}")
-        return PredictionResponse(signal=signal, probability=probability, model_version="v1.0")
+        logger.info(
+            f"Prediction successful: signal={signal}, probability={probability}"
+        )
+        return PredictionResponse(
+            signal=signal, probability=probability, model_version="v1.0"
+        )
     except Exception as e:
         logger.exception(f"Error during prediction: {e}")
         raise HTTPException(

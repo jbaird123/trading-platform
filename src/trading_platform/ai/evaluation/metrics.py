@@ -47,6 +47,8 @@ def calculate_sortino_ratio(
         The annualized Sortino Ratio. Returns 0 if downside deviation is zero.
     """
     downside_returns = pnl_series[pnl_series < 0]
+    if downside_returns.empty:
+        return 0.0  # No downside returns, so Sortino is 0.0
     downside_std = downside_returns.std()
     if downside_std == 0:
         return 0.0
