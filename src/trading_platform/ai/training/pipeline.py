@@ -219,7 +219,8 @@ class AITrainingPipeline:
             print(f"--- Pipeline finished for Run ID: {run.info.run_id} ---")
 
 
-if __name__ == "__main__":
+def main():
+    """Main function to run the training pipeline from the command line."""
     # This is an example of how the pipeline could be run.
     # A sample config would need to be created at 'sample_training_config.yaml'
 
@@ -250,3 +251,7 @@ if __name__ == "__main__":
 
     pipeline = AITrainingPipeline(config_path=DUMMY_CONFIG_PATH)
     pipeline.run()
+
+
+if __name__ == "__main__":
+    main()

@@ -138,31 +138,34 @@ def test_full_training_pipeline_e2e(minimal_training_config, temp_mlflow_uri):
     artifacts = client.list_artifacts(run_id)
     artifact_paths = [a.path for a in artifacts]
 
-    assert "model" in artifact_paths  # MLflow model directory
-    assert "onnx_model" in artifact_paths  # ONNX model directory
+    assert "onnx_model" in artifact_paths  # Check for ONNX model directory
     assert "diagnostic_synthesis_results.json" in artifact_paths
 
     # Verify model can be loaded and makes a prediction
     loaded_model = mlflow.sklearn.load_model(f"runs:/{run_id}/model")
+    # The model was trained on columns: ['open', 'high', 'low', 'close', 'volume', 'sma_2']
     dummy_input = pd.DataFrame(
-        [[1.0, 2.0]], columns=["feature1", "feature2"]
-    )  # Dummy input for prediction
+        [[100, 102, 99, 101, 1000, 100.5]],
+        columns=["open", "high", "low", "close", "volume", "sma_2"],
+    )
     prediction = loaded_model.predict(dummy_input)
     assert prediction is not None
     assert len(prediction) == 1
 
     # Verify ONNX model can be loaded (basic check, not full inference)
+    experiment_id = runs.iloc[0].experiment_id
     onnx_artifact_path = os.path.join(
-        temp_mlflow_uri, run_id, "artifacts", "onnx_model", "model.onnx"
+        temp_mlflow_uri, experiment_id, run_id, "artifacts", "onnx_model", "model.onnx"
     )
     assert os.path.exists(onnx_artifact_path)
     # Further ONNX validation would require onnxruntime, which might not be in test env
 
     # Verify diagnostic synthesis results content (basic check)
+    experiment_id = runs.iloc[0].experiment_id
     diagnostic_results_path = os.path.join(
-        temp_mlflow_uri, run_id, "artifacts", "diagnostic_synthesis_results.json"
+        temp_mlflow_uri, experiment_id, run_id, "artifacts", "diagnostic_synthesis_results.json"
     )
     assert os.path.exists(diagnostic_results_path)
     with open(diagnostic_results_path) as f:
         results = json.load(f)
-        assert "report" in results  # Check for expected key from mock
+        assert isinstance(results, list)  # Check for expected type from real engine

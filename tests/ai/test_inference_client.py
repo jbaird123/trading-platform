@@ -13,6 +13,7 @@ def mock_httpx_client():
     with mock.patch("httpx.Client") as mock_client:
         yield mock_client
 
+
 @pytest.fixture
 def ai_inference_client(mock_httpx_client):
     return AIInferenceClient(base_url="http://test-url")
@@ -89,7 +90,9 @@ def test_send_request_max_retries_exceeded(ai_inference_client):
     with mock.patch("time.sleep"):
         with pytest.raises(httpx.RequestError, match="Max retries exceeded"):
             ai_inference_client._send_request("GET", "http://test-url/health")
-        assert ai_inference_client.client.request.call_count == ai_inference_client.retries
+        assert (
+            ai_inference_client.client.request.call_count == ai_inference_client.retries
+        )
 
 
 def test_send_request_http_status_error(ai_inference_client):
@@ -152,7 +155,7 @@ def test_predict_request_error(ai_inference_client, mock_send_request, caplog):
     mock_send_request.side_effect = httpx.RequestError(
         "Connection error", request=httpx.Request("POST", "url")
     )
-    features = pd.DataFrame({"feature1": [1]}) 
+    features = pd.DataFrame({"feature1": [1]})
 
     with caplog.at_level(logging.ERROR):
         predictions = ai_inference_client.predict(features)

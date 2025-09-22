@@ -9,6 +9,7 @@ from typing import Tuple
 import numpy as np
 
 from src.trading_platform.ai.training.pipeline import AITrainingPipeline, _flatten_dict
+from src.trading_platform.ai.training import pipeline as training_pipeline
 from sklearn.ensemble import RandomForestClassifier
 import lightgbm as lgb
 
@@ -47,7 +48,7 @@ def mock_config_path(tmp_path):
         "features": [],
         "labeling": {},
         "model": {"type": "random_forest"},
-        "evaluation": {},
+        "evaluation": {"run_cross_validation": False},
     }
     config_file = tmp_path / "config.yaml"
     with open(config_file, "w") as f:
@@ -194,7 +195,7 @@ def test_aitp_load_and_prepare_data_with_nans(
 
 @patch("src.trading_platform.ai.training.pipeline.lgb")
 @patch("src.trading_platform.ai.training.pipeline.RandomForestClassifier")
-@patch("sklearn.model_selection.GridSearchCV")
+@patch("src.trading_platform.ai.training.pipeline.GridSearchCV")
 def test_aitp_train_model_lightgbm_no_tuning(
     mock_grid_search_cv, mock_rf_classifier, mock_lgb, mock_config_path
 ):
@@ -227,7 +228,7 @@ def test_aitp_train_model_lightgbm_no_tuning(
 
 @patch("src.trading_platform.ai.training.pipeline.lgb")
 @patch("src.trading_platform.ai.training.pipeline.RandomForestClassifier")
-@patch("sklearn.model_selection.GridSearchCV")
+@patch("src.trading_platform.ai.training.pipeline.GridSearchCV")
 @patch("mlflow.log_params")
 def test_aitp_train_model_lightgbm_with_tuning(
     mock_log_params, mock_grid_search_cv, mock_rf_classifier, mock_lgb, mock_config_path
@@ -277,7 +278,7 @@ def test_aitp_train_model_lightgbm_with_tuning(
 
 @patch("src.trading_platform.ai.training.pipeline.lgb")
 @patch("src.trading_platform.ai.training.pipeline.RandomForestClassifier")
-@patch("sklearn.model_selection.GridSearchCV")
+@patch("src.trading_platform.ai.training.pipeline.GridSearchCV")
 def test_aitp_train_model_random_forest_no_tuning(
     mock_grid_search_cv, mock_rf_classifier, mock_lgb, mock_config_path
 ):
@@ -310,7 +311,7 @@ def test_aitp_train_model_random_forest_no_tuning(
 
 @patch("src.trading_platform.ai.training.pipeline.lgb")
 @patch("src.trading_platform.ai.training.pipeline.RandomForestClassifier")
-@patch("sklearn.model_selection.GridSearchCV")
+@patch("src.trading_platform.ai.training.pipeline.GridSearchCV")
 @patch("mlflow.log_params")
 def test_aitp_train_model_random_forest_with_tuning(
     mock_log_params, mock_grid_search_cv, mock_rf_classifier, mock_lgb, mock_config_path
@@ -400,14 +401,16 @@ def test_aitp_train_model_lightgbm_import_error(mock_lgb, mock_config_path):
     X = pd.DataFrame(np.random.rand(10, 2), columns=["f1", "f2"])
     y = pd.Series(np.random.randint(0, 2, 10))
 
-    with pytest.raises(ImportError, match="LightGBM is not installed or cannot be imported."):
+    with pytest.raises(
+        ImportError, match="LightGBM is not installed or cannot be imported."
+    ):
         pipeline._train_model(X, y)
 
 
 @patch("src.trading_platform.ai.training.pipeline.AIEvaluationProcedure")
 @patch("mlflow.log_metrics")
 @patch("mlflow.sklearn.log_model")
-@patch("skl2onnx.convert_sklearn")
+@patch("src.trading_platform.ai.training.pipeline.convert_sklearn")
 @patch("mlflow.log_artifact")
 @patch("src.trading_platform.ai.training.pipeline.DiagnosticSynthesisEngine")
 @patch("json.loads")
@@ -449,7 +452,7 @@ def test_aitp_evaluate_and_log_artifacts(
 
     pipeline._evaluate_and_log_artifacts(mock_model, X, y)
 
-    mock_eval_procedure_cls.assert_called_once_with(config={})
+    mock_eval_procedure_cls.assert_called_once_with(config={"run_cross_validation": False})
     mock_eval_procedure_instance.run.assert_called_once_with(mock_model, X, y)
     mock_log_metrics.assert_called_once_with({"accuracy": 0.9, "f1": 0.85})
     mock_log_model.assert_called_once_with(mock_model, "model")
@@ -484,7 +487,10 @@ def test_aitp_run(
     mock_run_context.info.run_id = "mock_run_id"
     mock_start_run.return_value.__enter__.return_value = mock_run_context
 
-    mock_load_and_prepare_data.return_value = (pd.DataFrame(np.random.rand(10, 2)), pd.Series(np.random.randint(0, 2, 10)))
+    mock_load_and_prepare_data.return_value = (
+        pd.DataFrame(np.random.rand(10, 2)),
+        pd.Series(np.random.randint(0, 2, 10)),
+    )
     mock_train_model.return_value = MagicMock()
 
     pipeline.run()
@@ -496,47 +502,24 @@ def test_aitp_run(
     mock_evaluate_and_log_artifacts.assert_called_once()
 
 
-@patch("src.trading_platform.ai.training.pipeline.AITrainingPipeline.run")
-def test_main_script(mock_run, tmp_path):
-    # This tests the __main__ block execution
-    main_script_path = Path("src/trading_platform/ai/training/pipeline.py")
-    with patch("sys.argv", ["pipeline.py", str(tmp_path / "config.yaml")]):
-        # Need to ensure the dummy config is created in the expected path
-        dummy_config = {
-            "run_id": "lgbm_test_run_003",
-            "experiment_name": "AI Lab Demo",
-            "data": {
-                "symbol": "EURUSD",
-                "timeframe": "1D",
-                "start_date": "2023-01-01",
-                "end_date": "2023-06-30",
-            },
-            "features": [
-                {"kind": "sma", "length": 10},
-                {"kind": "rsi", "length": 14},
-            ],
-            "labeling": {"look_ahead_bars": 5},
-            "model": {
-                "type": "lightgbm",
-                "params": {"n_estimators": 100, "random_state": 42},
-            },
-            "evaluation": {
-                "run_cross_validation": True,
-                "cross_validation": {"n_splits": 5},
-            },
-        }
-        with open("sample_training_config.yaml", "w") as f:
-            yaml.dump(dummy_config, f)
+@patch("src.trading_platform.ai.training.pipeline.AITrainingPipeline")
+def test_main_script(mock_AITrainingPipeline, tmp_path):
+    """
+    Tests that the main function correctly instantiates and runs the pipeline.
+    """
+    # We patch the entire class to prevent the real pipeline from running.
+    mock_pipeline_instance = mock_AITrainingPipeline.return_value
 
-        import importlib.util
-        import sys
+    # Call the main function
+    training_pipeline.main()
 
-        spec = importlib.util.spec_from_file_location(
-            "__main__", main_script_path
-        )
-        module = importlib.util.module_from_spec(spec)
-        sys.modules["__main__"] = module
-        spec.loader.exec_module(module)
+    # Verify that the main function behaved as expected
+    mock_AITrainingPipeline.assert_called_once_with(
+        config_path="sample_training_config.yaml"
+    )
+    mock_pipeline_instance.run.assert_called_once()
 
-        mock_run.assert_called_once()
+    # Clean up the dummy config file created by the script
+    import os
+    if os.path.exists("sample_training_config.yaml"):
         os.remove("sample_training_config.yaml")
