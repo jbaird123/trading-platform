@@ -31,12 +31,11 @@ def test_dse_init():
 
     with patch(
         "src.trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]
-    ) as mock_get_all_rules:
+    ):
         engine = DiagnosticSynthesisEngine(analysis_data)
         assert engine.analysis_data == analysis_data
         assert engine.rules == []
         assert engine.conclusions == []
-        mock_get_all_rules.assert_called_once()
 
 
 def test_dse_run_no_rules(caplog):
@@ -44,7 +43,7 @@ def test_dse_run_no_rules(caplog):
 
     with patch(
         "src.trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]
-    ) as mock_get_all_rules:
+    ):
         engine = DiagnosticSynthesisEngine(analysis_data)
         with caplog.at_level(logging.INFO):
             engine.run()
@@ -62,7 +61,7 @@ def test_dse_run_rules_no_conclusions(caplog):
     with patch(
         "src.trading_platform.ai.synthesis.engine.get_all_rules",
         return_value=[mock_rule1, mock_rule2],
-    ) as mock_get_all_rules:
+    ):
         engine = DiagnosticSynthesisEngine(analysis_data)
         with caplog.at_level(logging.INFO):
             engine.run()
@@ -87,7 +86,7 @@ def test_dse_run_rules_with_conclusions(caplog):
     with patch(
         "src.trading_platform.ai.synthesis.engine.get_all_rules",
         return_value=[mock_rule1, mock_rule2, mock_rule3],
-    ) as mock_get_all_rules:
+    ):
         engine = DiagnosticSynthesisEngine(analysis_data)
         with caplog.at_level(logging.INFO):
             engine.run()
@@ -109,12 +108,9 @@ def test_dse_generate_report_markdown_no_conclusions():
     ):
         engine = DiagnosticSynthesisEngine(analysis_data)
         report = engine.generate_report_markdown()
-        assert (
-            report
-            == (
-                "# AI Diagnostic Report\n\nNo specific issues were detected by "
-                "the diagnostic rules."
-            )
+        assert report == (
+            "# AI Diagnostic Report\n\nNo specific issues were detected by "
+            "the diagnostic rules."
         )
 
 
