@@ -56,8 +56,8 @@ class AIDataConnector:
         Loads historical data for AI model training, including basic validation.
         """
         print(
-            f"AI Data Connector: Loading training data for {symbol} from {start_date} to"
-            f" {end_date}"
+            f"AI Data Connector: Loading training data for {symbol}"
+            f" from {start_date} to {end_date}"
         )
         df = self.data_catalog.get_historical_data(
             symbol, timeframe, start_date, end_date

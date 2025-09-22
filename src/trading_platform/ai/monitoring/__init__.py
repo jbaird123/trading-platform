@@ -3,3 +3,9 @@ from trading_platform.ai.monitoring.performance_monitor import (
     AIModelPerformanceMonitor,
 )
 from trading_platform.ai.monitoring.retraining_manager import AIRetrainingManager
+
+__all__ = [
+    "AIDriftDetector",
+    "AIModelPerformanceMonitor",
+    "AIRetrainingManager",
+]

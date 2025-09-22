@@ -2,3 +2,10 @@ from trading_platform.ai import monitoring
 from trading_platform.ai.data_connectors import AIDataConnector
 from trading_platform.ai.data_labeling import DataLabeler
 from trading_platform.ai.inference_client import AIInferenceClient
+
+__all__ = [
+    "monitoring",
+    "AIDataConnector",
+    "DataLabeler",
+    "AIInferenceClient",
+]

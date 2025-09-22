@@ -104,12 +104,12 @@ def test_full_training_pipeline_e2e(tmp_path):
             "cross_validation": {"n_splits": 2},
         },
     }
-    config_path = tmp_path / "config.yaml"
-    with open(config_path, "w") as f:
+    config_file = tmp_path / "config.yaml"
+    with open(config_file, "w") as f:
         yaml.dump(config_content, f)
 
     # Run the pipeline
-    pipeline = AITrainingPipeline(str(config_path))
+    pipeline = AITrainingPipeline(str(config_file))
     pipeline.run()
 
     # Basic assertions to check if MLflow logged something
@@ -152,7 +152,12 @@ def test_full_training_pipeline_e2e_minimal(minimal_training_config, temp_mlflow
     # Verify ONNX model can be loaded (basic check, not full inference)
     experiment_id = runs.iloc[0].experiment_id
     onnx_artifact_path = os.path.join(
-        temp_mlflow_uri, experiment_id, run_id, "artifacts", "onnx_model", "model.onnx"
+        temp_mlflow_uri,
+        experiment_id,
+        run_id,
+        "artifacts",
+        "onnx_model",
+        "model.onnx",
     )
     assert os.path.exists(onnx_artifact_path)
     # Further ONNX validation would require onnxruntime, which might not be in test env
@@ -160,7 +165,11 @@ def test_full_training_pipeline_e2e_minimal(minimal_training_config, temp_mlflow
     # Verify diagnostic synthesis results content (basic check)
     experiment_id = runs.iloc[0].experiment_id
     diagnostic_results_path = os.path.join(
-        temp_mlflow_uri, experiment_id, run_id, "artifacts", "diagnostic_synthesis_results.json"
+        temp_mlflow_uri,
+        experiment_id,
+        run_id,
+        "artifacts",
+        "diagnostic_synthesis_results.json",
     )
     assert os.path.exists(diagnostic_results_path)
     with open(diagnostic_results_path) as f:

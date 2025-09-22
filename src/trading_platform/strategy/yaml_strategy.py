@@ -239,13 +239,13 @@ def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
     slope_filter = bool(param_map.get("slope_filter", False))
     slope_feature = str(param_map.get("slope_feature", "ema_slow"))
     ai_filter_config = cfg.get("ai_filter", {})
-    ai_filter_enabled = (
-        bool(ai_filter_config.get("enabled", False)) and jsonschema is not None
+    ai_filter_enabled = bool(ai_filter_config.get("enabled", False)) and (
+        jsonschema is not None
     )
     ai_confidence_threshold = float(ai_filter_config.get("confidence_threshold", 0.0))
     ai_input_features = [str(x) for x in (ai_filter_config.get("input_features") or [])]
     ai_inference_client = AIInferenceClient() if ai_filter_enabled else None
-    
+
     le = list(cfg.get("long_entry_rules") or [])
     lx = list(cfg.get("long_exit_rules") or [])
     se = list(cfg.get("short_entry_rules") or [])

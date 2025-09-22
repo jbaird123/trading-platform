@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="AI Model Serving API",
-    description="API for serving AI model predictions for the trading platform.",
+    description=("API for serving AI model predictions for the trading platform."),
     version="1.0.0",
     # FastAPI automatically generates OpenAPI (Swagger) documentation at /docs and /redoc.
     # This fulfills the requirement to specify request and response schemas for documentation.

@@ -1,10 +1,11 @@
-import pytest
-import pandas as pd
 from unittest.mock import MagicMock, patch
+
+import pandas as pd
+import pytest
 import yaml
-import os
 
 from src.trading_platform.ai.training.pipeline import AITrainingPipeline
+
 
 @pytest.fixture
 def mock_training_config_path(tmp_path):
@@ -29,6 +30,7 @@ def mock_training_config_path(tmp_path):
         yaml.dump(config_content, f)
     return str(config_file)
 
+
 @patch("src.trading_platform.ai.training.pipeline.mlflow")
 @patch("src.trading_platform.ai.training.pipeline.AIDataConnector")
 @patch("src.trading_platform.ai.training.pipeline.FeatureEngineeringPipeline")
@@ -52,18 +54,27 @@ def test_training_pipeline_integration_flow(
 ):
     # Mock setup for data loading and preparation
     mock_data_connector_instance = mock_data_connector_cls.return_value
-    mock_data_connector_instance.load_training_data.return_value = pd.DataFrame({
-        "open": [100]*5, "high": [102]*5, "low": [99]*5, "close": [101]*5, "volume": [1000]*5
-    }, index=pd.to_datetime([f"2023-01-0{i}" for i in range(1, 6)]))
+    mock_data_connector_instance.load_training_data.return_value = pd.DataFrame(
+        {
+            "open": [100] * 5,
+            "high": [102] * 5,
+            "low": [99] * 5,
+            "close": [101] * 5,
+            "volume": [1000] * 5,
+        },
+        index=pd.to_datetime([f"2023-01-0{i}" for i in range(1, 6)]),
+    )
 
     mock_feature_pipeline_instance = mock_feature_pipeline_cls.return_value
-    mock_feature_pipeline_instance.run.return_value = pd.DataFrame({
-        "feature1": [1,2,3,4,5], "feature2": [5,4,3,2,1]
-    }, index=pd.to_datetime([f"2023-01-0{i}" for i in range(1, 6)]))
+    mock_feature_pipeline_instance.run.return_value = pd.DataFrame(
+        {"feature1": [1, 2, 3, 4, 5], "feature2": [5, 4, 3, 2, 1]},
+        index=pd.to_datetime([f"2023-01-0{i}" for i in range(1, 6)]),
+    )
 
     mock_data_labeler_instance = mock_data_labeler_cls.return_value
     mock_data_labeler_instance.generate_future_price_direction.return_value = pd.Series(
-        [0, 1, 0, 1, 0], index=pd.to_datetime([f"2023-01-0{i}" for i in range(1, 6)]))
+        [0, 1, 0, 1, 0], index=pd.to_datetime([f"2023-01-0{i}" for i in range(1, 6)])
+    )
 
     # Mock setup for model training
     mock_trained_model = mock_rf_classifier_cls.return_value
@@ -74,7 +85,9 @@ def test_training_pipeline_integration_flow(
 
     # Mock setup for synthesis engine
     mock_synthesis_engine_instance = mock_synthesis_engine_cls.return_value
-    mock_synthesis_engine_instance.generate_report_json.return_value = '{"report": "mock_report"}'
+    mock_synthesis_engine_instance.generate_report_json.return_value = (
+        '{"report": "mock_report"}'
+    )
 
     # Mock ONNX conversion
     mock_onnx_model = MagicMock()
@@ -114,4 +127,6 @@ def test_training_pipeline_integration_flow(
     mock_synthesis_engine_cls.assert_called_once()
     mock_synthesis_engine_instance.run.assert_called_once()
     mock_synthesis_engine_instance.generate_report_json.assert_called_once()
-    mock_mlflow.log_dict.assert_called_once_with({"report": "mock_report"}, "diagnostic_synthesis_results.json")
+    mock_mlflow.log_dict.assert_called_once_with(
+        {"report": "mock_report"}, "diagnostic_synthesis_results.json"
+    )

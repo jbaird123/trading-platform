@@ -1,17 +1,17 @@
 from pathlib import Path
 from unittest import mock
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import lightgbm as lgb
+import numpy as np
 import pandas as pd
 import pytest
 import yaml
-import logging
-from typing import Tuple
-import numpy as np
-
-from src.trading_platform.ai.training.pipeline import AITrainingPipeline, _flatten_dict
-from src.trading_platform.ai.training import pipeline as training_pipeline
 from sklearn.ensemble import RandomForestClassifier
-import lightgbm as lgb
+
+from src.trading_platform.ai.training import pipeline as training_pipeline
+from src.trading_platform.ai.training.pipeline import AITrainingPipeline
+
 
 # Fixtures for configuration files
 @pytest.fixture
@@ -27,7 +27,12 @@ def minimal_training_config(tmp_path):
             "end_date": "2023-01-05",
         },
         "features": [
-            {"name": "test_feature", "type": "SMA", "params": {"length": 2}, "source": "close"}
+            {
+                "name": "test_feature",
+                "type": "SMA",
+                "params": {"length": 2},
+                "source": "close",
+            }
         ],
         "labeling": {"look_ahead_bars": 1, "price_change_threshold": 0.001},
         "model": {"type": "random_forest"},
@@ -38,13 +43,19 @@ def minimal_training_config(tmp_path):
         yaml.dump(config_content, f)
     return str(config_path)
 
+
 @pytest.fixture
 def mock_config_path(tmp_path):
     config_content = {
         "run_id": "test_run",
         "experiment_name": "Test Experiment",
         "mlflow_tracking_uri": "./mlruns_test",
-        "data": {"symbol": "TEST", "timeframe": "1H", "start_date": "2023-01-01", "end_date": "2023-01-02"},
+        "data": {
+            "symbol": "TEST",
+            "timeframe": "1H",
+            "start_date": "2023-01-01",
+            "end_date": "2023-01-02",
+        },
         "features": [],
         "labeling": {},
         "model": {"type": "random_forest"},
@@ -62,6 +73,7 @@ def temp_mlflow_uri(tmp_path):
 
 
 # Test cases for AITrainingPipeline
+
 
 @patch("mlflow.set_tracking_uri")
 @patch("mlflow.set_experiment")
@@ -180,9 +192,7 @@ def test_aitp_load_and_prepare_data_with_nans(
     mock_feature_pipeline_instance.run.return_value = featured_df_with_nan
 
     mock_data_labeler_instance = mock_data_labeler_cls.return_value
-    labels = pd.Series(
-        [1, 0], index=pd.to_datetime(["2023-01-01", "2023-01-02"])
-    )
+    labels = pd.Series([1, 0], index=pd.to_datetime(["2023-01-01", "2023-01-02"]))
     mock_data_labeler_instance.generate_future_price_direction.return_value = labels
 
     X, y = pipeline._load_and_prepare_data()
@@ -380,9 +390,13 @@ def test_aitp_train_model_unsupported_type(mock_config_path):
         pipeline._train_model(X, y)
 
 
-@patch("src.trading_platform.ai.training.pipeline.lgb")
-def test_aitp_train_model_lightgbm_import_error(mock_lgb, mock_config_path):
-    mock_lgb.LGBMClassifier = None  # Simulate ImportError
+@patch("src.trading_platform.ai.training.pipeline.lgb.LGBMClassifier")
+def test_aitp_train_model_lightgbm_import_error(mock_lgbm_classifier, mock_config_path):
+    # Simulate ImportError by making the constructor raise ImportError
+    mock_lgbm_classifier.side_effect = ImportError(
+        "LightGBM is not installed or cannot be imported."
+    )
+
     config_content = {
         "run_id": "test_run",
         "experiment_name": "Test Experiment",
@@ -452,7 +466,9 @@ def test_aitp_evaluate_and_log_artifacts(
 
     pipeline._evaluate_and_log_artifacts(mock_model, X, y)
 
-    mock_eval_procedure_cls.assert_called_once_with(config={"run_cross_validation": False})
+    mock_eval_procedure_cls.assert_called_once_with(
+        config={"run_cross_validation": False}
+    )
     mock_eval_procedure_instance.run.assert_called_once_with(mock_model, X, y)
     mock_log_metrics.assert_called_once_with({"accuracy": 0.9, "f1": 0.85})
     mock_log_model.assert_called_once_with(mock_model, "model")
@@ -521,5 +537,6 @@ def test_main_script(mock_AITrainingPipeline, tmp_path):
 
     # Clean up the dummy config file created by the script
     import os
+
     if os.path.exists("sample_training_config.yaml"):
         os.remove("sample_training_config.yaml")

@@ -214,7 +214,9 @@ class TestStatisticalSignificance:
         )
         assert result["p_value"] > 0.05  # Should not be significant
 
-    def test_calculate_statistical_significance_identical_scores(self, scores_a_significant):
+    def test_calculate_statistical_significance_identical_scores(
+        self, scores_a_significant
+    ):
         result = calculate_statistical_significance(
             scores_a_significant, scores_a_significant
         )

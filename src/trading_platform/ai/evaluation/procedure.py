@@ -45,7 +45,10 @@ class AIEvaluationProcedure:
             # For binary classification, predict_proba can return (n_samples,) or (n_samples, 2)
             # If (n_samples, 2), we take the probability of the positive class (index 1)
             # If (n_samples,), it's already the probability of the positive class
-            y_prob = y_prob_raw[:, 1] if y_prob_raw.ndim == 2 else y_prob_raw
+            if y_prob_raw.ndim == 2:
+                y_prob = y_prob_raw[:, 1]
+            else:
+                y_prob = y_prob_raw
 
             # Placeholder for calculating metrics for the fold
             fold_scores = get_classification_metrics(y_test, y_pred, y_prob)

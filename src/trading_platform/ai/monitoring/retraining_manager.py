@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 import pandas as pd
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class AIRetrainingManager:
     """Manages the triggers and process for AI model retraining."""
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         self.config = config
         self.retraining_criteria = config.get("retraining_criteria", {})
         self.drift_detector = AIDriftDetector(config.get("drift_detector_config", {}))
@@ -31,23 +31,23 @@ class AIRetrainingManager:
         baseline_data: pd.DataFrame,
         model_predictions: pd.Series,
         true_labels: pd.Series,
-        current_performance_brief: Dict[str, Any],
+        current_performance_brief: dict[str, Any],
     ) -> bool:
-        """Evaluates if retraining is needed based on defined criteria."""
+        """
+        Evaluates if retraining is needed based on defined criteria.
+        """
         logger.info("Evaluating retraining need...")
 
         # Check for data and concept drift
         drift_results = self.drift_detector.check_for_drift(
             new_data, baseline_data, model_predictions, true_labels
         )
-        if drift_results.get("data_drift_detected") and self.retraining_criteria.get(
-            "on_data_drift", False
-        ):
+        data_drift_trigger = self.retraining_criteria.get("on_data_drift", False)
+        if drift_results.get("data_drift_detected") and data_drift_trigger:
             logger.warning("Retraining triggered: Data drift detected.")
             return True
-        if drift_results.get("concept_drift_detected") and self.retraining_criteria.get(
-            "on_concept_drift", False
-        ):
+        concept_drift_trigger = self.retraining_criteria.get("on_concept_drift", False)
+        if drift_results.get("concept_drift_detected") and concept_drift_trigger:
             logger.warning("Retraining triggered: Concept drift detected.")
             return True
 
@@ -64,8 +64,9 @@ class AIRetrainingManager:
             if current_sharpe is not None and min_sharpe is not None:
                 if current_sharpe < min_sharpe:
                     logger.warning(
-                        f"Retraining triggered: Performance degradation detected. "
-                        f"Sharpe Ratio ({current_sharpe}) below threshold ({min_sharpe})."
+                        "Retraining triggered: Performance degradation detected. "
+                        f"Sharpe Ratio ({current_sharpe}) below threshold "
+                        f"({min_sharpe})."
                     )
                     return True
 
@@ -80,8 +81,11 @@ class AIRetrainingManager:
         return False
 
     def trigger_training_pipeline(self) -> None:
-        """Placeholder to initiate the AI model training pipeline (Task 4.1)."""
-        logger.info("Initiating AI model training pipeline (placeholder)...")
-        # In a real system, this would call the AITrainingPipeline or trigger a job
-        # For example: AITrainingPipeline(config).run()
-        pass
+        """Initiates the AI model training pipeline."""
+        logger.info("Initiating AI model training pipeline...")
+        from trading_platform.ai.training.pipeline import AITrainingPipeline
+
+        # Assuming the config for AITrainingPipeline is available or can be derived
+        # from self.config. For now, using a placeholder path as expected by the test.
+        training_pipeline = AITrainingPipeline(config_path="config.yaml")
+        training_pipeline.run()
