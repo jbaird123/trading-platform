@@ -29,7 +29,7 @@ from trading_platform.ai.synthesis.engine import DiagnosticSynthesisEngine
 try:
     import lightgbm as lgb
 except ImportError:
-    lgb = None
+    lgb = cast(Any, None)
 
 
 def _flatten_dict(

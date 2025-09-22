@@ -49,6 +49,7 @@ select = ["E", "F", "W", "I", "UP"]
 python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
+mypy_path = "src"
 
 [[tool.mypy.overrides]]
 module = [
@@ -64,6 +65,7 @@ module = [
     "uvicorn.*",
     "starlette.*",
     "multipart.*",
+    "httpx.*",
 ]
 ignore_missing_imports = true
 

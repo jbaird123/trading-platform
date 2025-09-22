@@ -19,9 +19,9 @@ repos:
     rev: v1.10.0
     hooks:
       - id: mypy
+        language: system
+        entry: poetry run mypy
         args: [--explicit-package-bases]
-        # The project uses pydantic, so it's needed for type checking
-        additional_dependencies: [pydantic, types-PyYAML]
 
   - repo: local
     hooks:
