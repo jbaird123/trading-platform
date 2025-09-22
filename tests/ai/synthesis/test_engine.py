@@ -111,7 +111,10 @@ def test_dse_generate_report_markdown_no_conclusions():
         report = engine.generate_report_markdown()
         assert (
             report
-            == "# AI Diagnostic Report\n\nNo specific issues were detected by the diagnostic rules."
+            == (
+                "# AI Diagnostic Report\n\nNo specific issues were detected by "
+                "the diagnostic rules."
+            )
         )
 
 

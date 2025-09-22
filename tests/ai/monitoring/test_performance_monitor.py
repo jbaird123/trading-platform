@@ -80,8 +80,8 @@ def test_aib_trigger_alert(caplog):
         monitor._trigger_alert("test_metric", 123.45, "test_reason")
         assert len(caplog.records) == 1
         assert (
-            "ALERT! [TestMonitor] Metric 'test_metric' (123.45) triggered alert due to: test_reason."
-            in caplog.text
+            "ALERT! [TestMonitor] Metric 'test_metric' (123.45) triggered alert "
+            "due to: test_reason." in caplog.text
         )
 
 

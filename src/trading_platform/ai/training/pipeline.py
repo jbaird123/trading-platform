@@ -36,7 +36,7 @@ def _flatten_dict(
     d: Dict[str, Any], parent_key: str = "", sep: str = "."
 ) -> Dict[str, Any]:
     """Flattens a nested dictionary for MLflow logging."""
-    items = []
+    items: list[tuple[str, Any]] = []
     for k, v in d.items():
         new_key = parent_key + sep + k if parent_key else k
         if isinstance(v, dict):

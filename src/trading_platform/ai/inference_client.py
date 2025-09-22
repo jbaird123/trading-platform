@@ -58,7 +58,11 @@ class AIInferenceClient:
             response = self._send_request(
                 "POST", f"{self.base_url}/predict", json=payload
             )
-            return response.json()
+            result = response.json()
+            if isinstance(result, list):
+                return result
+            logger.error("Prediction response is not a list.")
+            return []
         except httpx.RequestError:
             logger.error("AI inference request failed after retries.")
             return []
@@ -73,7 +77,7 @@ class AIInferenceClient:
         """Checks the health of the AI model serving API."""
         try:
             response = self._send_request("GET", f"{self.base_url}/health")
-            return response.status_code == 200
+            return bool(response.status_code == 200)
         except httpx.RequestError:
             logger.error("AI inference health check failed after retries.")
             return False

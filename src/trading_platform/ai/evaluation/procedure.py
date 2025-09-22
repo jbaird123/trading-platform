@@ -42,9 +42,10 @@ class AIEvaluationProcedure:
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)  # type: ignore
             y_prob_raw = model.predict_proba(X_test)  # type: ignore
-            # For binary classification, predict_proba can return (n_samples,) or (n_samples, 2)
-            # If (n_samples, 2), we take the probability of the positive class (index 1)
-            # If (n_samples,), it's already the probability of the positive class
+            # For binary classification, predict_proba can return (n_samples,) or
+            # (n_samples, 2). If (n_samples, 2), we take the probability of the
+            # positive class (index 1). If (n_samples,), it's already the probability
+            # of the positive class.
             if y_prob_raw.ndim == 2:
                 y_prob = y_prob_raw[:, 1]
             else:
