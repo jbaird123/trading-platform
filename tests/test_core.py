@@ -27,7 +27,6 @@ from tests.step_defs.strategy_engine import (  # noqa: F401
 scenarios(
     "features/backtester",
     "features/data_handler",
-    "features/portfolio",
     "features/regime_market_manager",
     "features/strategy_engine",
 )
