@@ -46,11 +46,27 @@ line-length = 88
 select = ["E", "F", "W", "I", "UP"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
-mypy_path = "src"
-packages = ["trading_platform"]
+
+[[tool.mypy.overrides]]
+module = [
+    "scipy.*",
+    "sklearn.*",
+    "ta.*",
+    "yaml",
+    "skl2onnx.*",
+    "lightgbm.*",
+    "shap.*",
+    "mlflow.*",
+    "plotly.*",
+    "uvicorn.*",
+    "starlette.*",
+    "multipart.*",
+]
+ignore_missing_imports = true
+
 
 [tool.pytest.ini_options]
 # Ignore the benign "usefixtures" warning from pytest-bdd's scenario generator
