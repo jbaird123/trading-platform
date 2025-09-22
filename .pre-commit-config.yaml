@@ -29,3 +29,8 @@ repos:
         language: python
         types: [yaml]
         files: ^config/strategy/.*\.yaml$
+      - id: block-ta-import
+        name: Block import of ta library
+        entry: bash -c 'grep -l "import ta" "$@" | xargs -r false' --
+        language: system
+        types: [python]
