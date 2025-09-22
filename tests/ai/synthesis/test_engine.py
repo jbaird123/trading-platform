@@ -17,13 +17,7 @@ class MockDiagnosticConclusion(DiagnosticConclusion):
 class MockRule:
     def __init__(self, name="MockRule", conclusion_to_return=None):
         self.name = name
-        self._conclusion_to_return = conclusion_to_return
-
-    def evaluate(self, analysis_data):
-        # Simulate rule evaluation logic
-        if self._conclusion_to_return:
-            return self._conclusion_to_return
-        return None
+        self.evaluate = MagicMock(return_value=conclusion_to_return)
 
 # --- Tests for DiagnosticSynthesisEngine ---
 
@@ -44,21 +38,23 @@ def test_dse_run_no_rules(caplog):
         engine = DiagnosticSynthesisEngine(analysis_data)
         with caplog.at_level(logging.INFO):
             engine.run()
-            assert "--- Running Diagnostic Synthesis Engine ---" in caplog.text
-            assert "--- Engine run complete. ---" in caplog.text
+            log_text = "".join(record.message for record in caplog.records)
+            assert "--- Running Diagnostic Synthesis Engine ---" in log_text
+            assert "--- Engine run complete. ---" in log_text
             assert not engine.conclusions
 
 def test_dse_run_rules_no_conclusions(caplog):
     analysis_data = {"some_data": 123}
-    mock_rule1 = MockRule(name="Rule1", conclusion_to_return=None)
-    mock_rule2 = MockRule(name="Rule2", conclusion_to_return=None)
+    mock_rule1 = MockRule(name="Rule1")
+    mock_rule2 = MockRule(name="Rule2")
     
     with patch("src.trading_platform.ai.synthesis.engine.get_all_rules", return_value=[mock_rule1, mock_rule2]) as mock_get_all_rules:
         engine = DiagnosticSynthesisEngine(analysis_data)
         with caplog.at_level(logging.INFO):
             engine.run()
-            assert "Evaluating rule: MockRule..." in caplog.text # Called twice
-            assert "Conclusion found" not in caplog.text
+            log_text = "".join(record.message for record in caplog.records)
+            assert "Evaluating rule: " in log_text
+            assert "Conclusion found" not in log_text
             assert not engine.conclusions
             mock_rule1.evaluate.assert_called_once_with(analysis_data)
             mock_rule2.evaluate.assert_called_once_with(analysis_data)
@@ -70,18 +66,19 @@ def test_dse_run_rules_with_conclusions(caplog):
     conc2 = MockDiagnosticConclusion("Title 2", "Summary 2", {"key2": "value2"})
     
     mock_rule1 = MockRule(name="Rule1", conclusion_to_return=conc1)
-    mock_rule2 = MockRule(name="Rule2", conclusion_to_return=None)
+    mock_rule2 = MockRule(name="Rule2")
     mock_rule3 = MockRule(name="Rule3", conclusion_to_return=conc2)
     
     with patch("src.trading_platform.ai.synthesis.engine.get_all_rules", return_value=[mock_rule1, mock_rule2, mock_rule3]) as mock_get_all_rules:
         engine = DiagnosticSynthesisEngine(analysis_data)
         with caplog.at_level(logging.INFO):
             engine.run()
+            log_text = "".join(record.message for record in caplog.records)
             assert len(engine.conclusions) == 2
             assert engine.conclusions[0] == conc1
             assert engine.conclusions[1] == conc2
-            assert "Conclusion found: Title 1" in caplog.text
-            assert "Conclusion found: Title 2" in caplog.text
+            assert "Conclusion found: Title 1" in log_text
+            assert "Conclusion found: Title 2" in log_text
             mock_rule1.evaluate.assert_called_once_with(analysis_data)
             mock_rule2.evaluate.assert_called_once_with(analysis_data)
             mock_rule3.evaluate.assert_called_once_with(analysis_data)

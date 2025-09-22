@@ -228,3 +228,5 @@ __marimo__/
 # Trading Platform specific
 # Run outputs & comparisons
 runs/
+mlruns/
+mlruns_test/

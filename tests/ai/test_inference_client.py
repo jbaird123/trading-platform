@@ -9,14 +9,13 @@ from src.trading_platform.ai.inference_client import AIInferenceClient
 
 
 @pytest.fixture
-def ai_inference_client():
-    return AIInferenceClient(base_url="http://test-url")
-
-
-@pytest.fixture
 def mock_httpx_client():
     with mock.patch("httpx.Client") as mock_client:
         yield mock_client
+
+@pytest.fixture
+def ai_inference_client(mock_httpx_client):
+    return AIInferenceClient(base_url="http://test-url")
 
 
 @pytest.fixture
@@ -46,27 +45,27 @@ def test_ai_inference_client_init():
     assert custom_client.backoff_factor == 1.0
 
 
-def test_send_request_success(ai_inference_client, mock_httpx_client):
+def test_send_request_success(ai_inference_client):
     """
     Tests successful request sending via _send_request.
     """
     mock_response = mock.Mock(spec=httpx.Response)
     mock_response.status_code = 200
     mock_response.raise_for_status.return_value = None
-    mock_httpx_client.return_value.request.return_value = mock_response
+    ai_inference_client.client.request.return_value = mock_response
 
     response = ai_inference_client._send_request("GET", "http://test-url/health")
     assert response == mock_response
-    mock_httpx_client.return_value.request.assert_called_once_with(
+    ai_inference_client.client.request.assert_called_once_with(
         "GET", "http://test-url/health"
     )
 
 
-def test_send_request_retry_mechanism(ai_inference_client, mock_httpx_client):
+def test_send_request_retry_mechanism(ai_inference_client):
     """
     Verifies that _send_request retries on httpx.RequestError.
     """
-    mock_httpx_client.return_value.request.side_effect = [
+    ai_inference_client.client.request.side_effect = [
         httpx.RequestError("Connection error", request=httpx.Request("GET", "url")),
         httpx.RequestError("Connection error", request=httpx.Request("GET", "url")),
         mock.Mock(spec=httpx.Response, status_code=200, raise_for_status=mock.Mock()),
@@ -75,25 +74,25 @@ def test_send_request_retry_mechanism(ai_inference_client, mock_httpx_client):
     with mock.patch("time.sleep") as mock_sleep:
         response = ai_inference_client._send_request("GET", "http://test-url/health")
         assert response.status_code == 200
-        assert mock_httpx_client.return_value.request.call_count == 3
+        assert ai_inference_client.client.request.call_count == 3
         assert mock_sleep.call_count == 2
 
 
-def test_send_request_max_retries_exceeded(ai_inference_client, mock_httpx_client):
+def test_send_request_max_retries_exceeded(ai_inference_client):
     """
     Ensures httpx.RequestError is raised when max retries are exceeded.
     """
-    mock_httpx_client.return_value.request.side_effect = httpx.RequestError(
+    ai_inference_client.client.request.side_effect = httpx.RequestError(
         "Connection error", request=httpx.Request("GET", "url")
     )
 
     with mock.patch("time.sleep"):
         with pytest.raises(httpx.RequestError, match="Max retries exceeded"):
             ai_inference_client._send_request("GET", "http://test-url/health")
-        assert mock_httpx_client.return_value.request.call_count == ai_inference_client.retries
+        assert ai_inference_client.client.request.call_count == ai_inference_client.retries
 
 
-def test_send_request_http_status_error(ai_inference_client, mock_httpx_client):
+def test_send_request_http_status_error(ai_inference_client):
     """
     Confirms httpx.HTTPStatusError is re-raised immediately.
     """
@@ -103,22 +102,22 @@ def test_send_request_http_status_error(ai_inference_client, mock_httpx_client):
     mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
         "Client error", request=httpx.Request("GET", "url"), response=mock_response
     )
-    mock_httpx_client.return_value.request.return_value = mock_response
+    ai_inference_client.client.request.return_value = mock_response
 
     with pytest.raises(httpx.HTTPStatusError, match="Client error"):
         ai_inference_client._send_request("GET", "http://test-url/health")
-    mock_httpx_client.return_value.request.assert_called_once()
+    ai_inference_client.client.request.assert_called_once()
 
 
-def test_send_request_other_exception(ai_inference_client, mock_httpx_client):
+def test_send_request_other_exception(ai_inference_client):
     """
     Verifies other unexpected exceptions are re-raised immediately.
     """
-    mock_httpx_client.return_value.request.side_effect = Exception("Unexpected error")
+    ai_inference_client.client.request.side_effect = Exception("Unexpected error")
 
     with pytest.raises(Exception, match="Unexpected error"):
         ai_inference_client._send_request("GET", "http://test-url/health")
-    mock_httpx_client.return_value.request.assert_called_once()
+    ai_inference_client.client.request.assert_called_once()
 
 
 def test_predict_success(ai_inference_client, mock_send_request):
@@ -153,7 +152,7 @@ def test_predict_request_error(ai_inference_client, mock_send_request, caplog):
     mock_send_request.side_effect = httpx.RequestError(
         "Connection error", request=httpx.Request("POST", "url")
     )
-    features = pd.DataFrame({"feature1": [1]})
+    features = pd.DataFrame({"feature1": [1]}) 
 
     with caplog.at_level(logging.ERROR):
         predictions = ai_inference_client.predict(features)

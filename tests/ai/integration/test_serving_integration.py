@@ -22,7 +22,7 @@ def test_predict_integration_success(mock_np_random_rand):
     assert response.status_code == 200
     data = response.json()
     assert data["signal"] == "long"
-    assert isinstance(data["probability"], float)
+    assert data["probability"] == 0.1
     assert data["model_version"] == "v1.0"
 
     # Verify that the random function was called (simulating internal logic)

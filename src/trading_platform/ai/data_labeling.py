@@ -28,7 +28,7 @@ class DataLabeler:
         price_change = (future_close - df["close"]) / df["close"]
         threshold = 0.001  # 0.1%
 
-        labels = pd.Series(0, index=df.index, dtype=int)
+        labels = pd.Series(0, index=df.index, dtype=int, name="signal")
         labels[price_change > threshold] = 1
         labels[price_change < -threshold] = -1
 
