@@ -35,11 +35,11 @@ class FeatureEngineeringPipeline:
         # This is a simplified mapping. A real implementation would be more robust
         # and likely driven by the central indicators_registry.py.
         if kind == "sma":
-            length = feature_config.get("length", 14)
+            length = feature_config.get("params", {}).get("length", 14)
             indicator = SMAIndicator(close=self.df["close"], window=length)
             self.df[f"sma_{length}"] = indicator.sma_indicator()
         elif kind == "rsi":
-            length = feature_config.get("length", 14)
+            length = feature_config.get("params", {}).get("length", 14)
             indicator = RSIIndicator(close=self.df["close"], window=length)
             self.df[f"rsi_{length}"] = indicator.rsi()
         else:

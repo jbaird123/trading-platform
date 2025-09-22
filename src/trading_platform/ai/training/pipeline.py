@@ -95,6 +95,10 @@ class AITrainingPipeline:
         labeler = DataLabeler(**labeling_config)
         labels = labeler.generate_future_price_direction(featured_df)
 
+        print(f"--- DEBUG: raw_df shape: {raw_df.shape}")
+        print(f"--- DEBUG: featured_df shape: {featured_df.shape}")
+        print(f"--- DEBUG: labels shape: {labels.shape}")
+
         # 4. Align features (X) and labels (y)
         # This ensures that we don't have look-ahead bias and that the data
         # used for training corresponds to the correct target label.

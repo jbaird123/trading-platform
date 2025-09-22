@@ -31,8 +31,8 @@ def mock_raw_data():
 def mock_feature_config():
     # A simplified feature config for testing
     return [
-        {"kind": "sma", "length": 2, "source": "close"},
-        {"kind": "rsi", "length": 2, "source": "close"},
+        {"kind": "sma", "params": {"length": 2}, "source": "close"},
+        {"kind": "rsi", "params": {"length": 2}, "source": "close"},
     ]
 
 
