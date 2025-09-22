@@ -43,8 +43,13 @@ class OverTradingRule(BaseDiagnosticRule):
 
     def evaluate(self, analysis_data: Dict[str, Any]) -> Optional[DiagnosticConclusion]:
         metrics = analysis_data.get("backtest_metrics", {})
-        n_trades = metrics.get("n_trades", 0)
-        win_rate = metrics.get("win_rate", 0.5)
+
+        # Rule cannot be evaluated if the necessary metrics are not present.
+        if "n_trades" not in metrics or "win_rate" not in metrics:
+            return None
+
+        n_trades = metrics["n_trades"]
+        win_rate = metrics["win_rate"]
 
         # Example thresholds (these should be configurable)
         if n_trades > 500 and win_rate < 0.55:

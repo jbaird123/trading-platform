@@ -27,7 +27,7 @@ app = FastAPI(
 # --- Authentication and Authorization Mechanisms ---
 # [Task 8.1] Implement appropriate authentication and authorization mechanisms.
 API_KEY_NAME = "X-API-Key"
-api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=True)
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
 # WARNING: This is a placeholder for demonstration purposes.
 # In a production environment, API keys should be:
@@ -38,6 +38,11 @@ API_KEY = "your-super-secret-api-key"
 
 
 async def get_api_key(api_key: str = Depends(api_key_header)):
+    if not api_key:
+        logger.warning("Unauthorized access attempt: API key missing.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
+        )
     # In a production system, this would involve looking up the API key in a database
     # and potentially checking its permissions.
     if (
@@ -101,7 +106,7 @@ async def predict(request: PredictionRequest, api_key: str = Depends(get_api_key
             signal = "short"
         else:
             signal = "flat"
-        probability = np.random.rand()
+        probability = rand_val
 
         logger.info(
             f"Prediction successful: signal={signal}, probability={probability}"
