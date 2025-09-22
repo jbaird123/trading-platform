@@ -14,6 +14,7 @@ from skl2onnx import convert_sklearn
 from skl2onnx.common.data_types import FloatTensorType
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
+
 from trading_platform.ai.data_connectors import AIDataConnector, DataCatalog
 from trading_platform.ai.data_labeling import DataLabeler
 from trading_platform.ai.evaluation.procedure import AIEvaluationProcedure
@@ -124,7 +125,7 @@ class AITrainingPipeline:
         model_type = model_config["type"]
 
         if model_type == "lightgbm":
-            if lgb is None or not hasattr(lgb, 'LGBMClassifier') or not callable(lgb.LGBMClassifier):
+            if lgb is None:
                 raise ImportError("LightGBM is not installed or cannot be imported.")
             model = lgb.LGBMClassifier(**model_config.get("params", {}))
         elif model_type == "random_forest":

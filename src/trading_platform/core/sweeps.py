@@ -370,7 +370,9 @@ def monte_carlo_resimulation(
             cm["spread_per_unit"] = _j(base_sp, sp)
             cm["slippage_per_unit"] = _j(base_sl, sl)
             cfg_trial = cfg.model_copy(update={"cost_model": cm})
-        strat = compile_strategy({**strategy_cfg, "parameters": strategy_cfg.get("parameters", {})})
+        strat = compile_strategy(
+            {**strategy_cfg, "parameters": strategy_cfg.get("parameters", {})}
+        )
         sig = strat.generate_signals(sim_df)
         _res3 = run_backtest(
             market_data=sim_df,
@@ -495,6 +497,6 @@ def monte_carlo_resimulation(
         },
         "risk": {"var_95": float(var_95), "cvar_95": float(cvar_95)},
         "ruin_prob": float(ruin_prob),
-        "time_under_water_mean": float(mean(tuw_ratios)) if tuw_ratios else 0.0,
+        "time_under_water_mean": (float(mean(tuw_ratios)) if tuw_ratios else 0.0),
         "exemplars": exemplars,
     }

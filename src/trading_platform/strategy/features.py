@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from typing import cast
+from typing import Any, cast
 
 import pandas as pd
 
 try:
-    from ta.momentum import (  # type: ignore[import-untyped]
+    from ta.momentum import (
         ROCIndicator,
         RSIIndicator,
         StochasticOscillator,
     )
-    from ta.trend import (  # type: ignore[import-untyped]
+    from ta.trend import (
         MACD,
         ADXIndicator,
         CCIIndicator,
@@ -19,12 +19,12 @@ try:
         SMAIndicator,
         WMAIndicator,
     )
-    from ta.volatility import (  # type: ignore[import-untyped]
+    from ta.volatility import (
         AverageTrueRange,
         BollingerBands,
         KeltnerChannel,
     )
-    from ta.volume import (  # type: ignore[import-untyped]
+    from ta.volume import (
         ChaikinMoneyFlowIndicator,
         OnBalanceVolumeIndicator,
         VolumeWeightedAveragePrice,

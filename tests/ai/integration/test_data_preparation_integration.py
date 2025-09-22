@@ -65,11 +65,10 @@ def test_data_preparation_integration_flow(
     featured_data = feature_pipeline.run(mock_feature_config)
 
     # Basic assertions for featured_data
+    assert len(featured_data) == len(raw_data_loaded) - 1  # Length might change
+    # due to NaNs from indicator calculation
     assert "sma_2" in featured_data.columns
     assert "rsi_2" in featured_data.columns
-    assert (
-        len(featured_data) == len(raw_data_loaded) - 1
-    )  # Length might change due to NaNs from indicator calculation
     assert (
         not featured_data.isnull().any().any()
     )  # Ensure no NaNs after feature engineering

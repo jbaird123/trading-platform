@@ -1,5 +1,5 @@
 # Validates: [SYS-1.3.3]
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 import pandas as pd
 from trading_platform.portfolio.position import Position

@@ -56,9 +56,7 @@ class FeatureEngineeringPipeline:
         Returns:
             A new DataFrame with the added feature columns.
         """
-        print(
-            f"Running feature engineering pipeline for {len(feature_configs)} features..."
-        )
+        print(f"Running feature engineering for {len(feature_configs)} features...")
         for config in feature_configs:
             self.add_feature(config)
 

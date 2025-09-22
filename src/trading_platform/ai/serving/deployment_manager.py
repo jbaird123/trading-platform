@@ -5,7 +5,10 @@ logger = logging.getLogger(__name__)
 
 
 class AIDeploymentManager:
-    """Manages safe deployment strategies for new AI models, including A/B testing and canary deployments."""
+    """
+    Manages safe deployment strategies for new AI models, including A/B testing
+    and canary deployments.
+    """
 
     def __init__(self, config: Dict[str, Any]) -> None:
         self.config = config
@@ -17,7 +20,10 @@ class AIDeploymentManager:
     def deploy_new_model(
         self, model_version: str, traffic_split: Dict[str, float] = None
     ) -> bool:
-        """Initiates the deployment of a new model version based on the configured strategy."""
+        """
+        Initiates the deployment of a new model version based on the configured
+        strategy.
+        """
         logger.info(f"Attempting to deploy new model version: {model_version}")
 
         if self.deployment_strategy == "direct_deploy":
@@ -29,8 +35,8 @@ class AIDeploymentManager:
                 logger.error("Traffic split required for canary deployment.")
                 return False
             logger.info(
-                f"Initiating canary deployment for model {model_version} with traffic split: "
-                f"{traffic_split}"
+                f"Initiating canary deployment for model {model_version} "
+                f"with traffic split: {traffic_split}"
             )
             # Placeholder for canary deployment logic (e.g., route small % of traffic)
             return True
@@ -39,8 +45,8 @@ class AIDeploymentManager:
                 logger.error("Valid traffic split (sum to 1.0) required for A/B test.")
                 return False
             logger.info(
-                f"Initiating A/B test for model {model_version} with traffic split: "
-                f"{traffic_split}"
+                f"Initiating A/B test for model {model_version} "
+                f"with traffic split: {traffic_split}"
             )
             # Placeholder for A/B testing logic (e.g., route traffic to different versions)
             return True
@@ -51,7 +57,9 @@ class AIDeploymentManager:
     def evaluate_deployment(
         self, model_version: str, metrics_data: Dict[str, Any]
     ) -> bool:
-        """Evaluates the performance of a deployed model version."""
+        """
+        Evaluates the performance of a deployed model version.
+        """
         logger.info(f"Evaluating deployment for model {model_version}...")
         # This is a placeholder. In a real system, this would compare metrics_data
         # against baselines, control groups, or predefined thresholds using statistical methods.
@@ -65,7 +73,8 @@ class AIDeploymentManager:
         if current_pnl_contribution < required_pnl:
             logger.warning(
                 f"Model {model_version} performance ({current_pnl_contribution}) "
-                f"below required PnL ({required_pnl}). Consider rollback."
+                "below required PnL "
+                f"({required_pnl}). Consider rollback."
             )
             return False
 

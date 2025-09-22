@@ -27,8 +27,11 @@ class AIBaseMonitor:
                 self._trigger_alert(metric_name, value, "above_max")
 
     def _trigger_alert(self, metric_name: str, value: float, reason: str) -> None:
-        """Placeholder for triggering an alert (e.g., sending to an alerting system)."""
-        alert_message = f"ALERT! [{self.monitor_name}] Metric '{metric_name}' ({value}) triggered alert due to: "
+        """Placeholder for triggering an alert."""
+        alert_message = (
+            f"ALERT! [{self.monitor_name}] Metric '{metric_name}' ({value}) "
+            "triggered alert due to: "
+        )
         if reason == "below_min":
             alert_message += "below minimum threshold."
         elif reason == "above_max":
@@ -59,20 +62,17 @@ class AIModelPerformanceMonitor(AIBaseMonitor):
             logger.info(f"[{self.monitor_name}] Current Sharpe Ratio: {sharpe_ratio}")
             self._check_thresholds("sharpe_ratio", sharpe_ratio)
 
-        # Add more metric extraction and threshold checks here based on self.metrics_to_monitor
+        # Add more metric extraction and threshold checks here
 
     def detect_data_drift(
         self, new_data: pd.DataFrame, baseline_data: pd.DataFrame
     ) -> bool:
         """Placeholder for detecting data drift between new and baseline data."""
         logger.info(f"[{self.monitor_name}] Detecting data drift...")
-        # In a real system, this would use statistical methods (e.g., KS test, ADWIN)
-        # to compare feature distributions between new_data and baseline_data.
-        # For now, it's a simple placeholder.
+        # In a real system, this would use statistical methods (e.g., KS test)
         if new_data.empty or baseline_data.empty:
             return False
 
-        # Example: Simple check for mean difference in a feature
         feature_name = self.config.get("drift_detection", {}).get("feature")
         if (
             feature_name
@@ -81,12 +81,14 @@ class AIModelPerformanceMonitor(AIBaseMonitor):
         ):
             new_mean = new_data[feature_name].mean()
             baseline_mean = baseline_data[feature_name].mean()
-            if abs(new_mean - baseline_mean) > self.config.get(
-                "drift_detection", {}
-            ).get("threshold", 0.1):
+            drift_threshold = self.config.get("drift_detection", {}).get(
+                "threshold", 0.1
+            )
+            if abs(new_mean - baseline_mean) > drift_threshold:
                 logger.warning(
-                    f"[{self.monitor_name}] Data drift detected in feature '{feature_name}': "
-                    f"New mean={new_mean:.4f}, Baseline mean={baseline_mean:.4f}."
+                    f"[{self.monitor_name}] Data drift detected in "
+                    f"feature '{feature_name}': New mean={new_mean:.4f}, "
+                    f"Baseline mean={baseline_mean:.4f}."
                 )
                 self._trigger_alert(
                     "data_drift", abs(new_mean - baseline_mean), "mean_change"
@@ -97,11 +99,8 @@ class AIModelPerformanceMonitor(AIBaseMonitor):
     def detect_concept_drift(
         self, model_predictions: pd.Series, true_labels: pd.Series
     ) -> bool:
-        """Placeholder for detecting concept drift (model performance degradation)."""
+        """Placeholder for detecting concept drift."""
         logger.info(f"[{self.monitor_name}] Detecting concept drift...")
-        # In a real system, this would compare model predictions against true labels
-        # over time, looking for a significant drop in accuracy, F1-score, etc.
-        # For now, it's a simple placeholder.
         if (
             model_predictions.empty
             or true_labels.empty
@@ -109,9 +108,6 @@ class AIModelPerformanceMonitor(AIBaseMonitor):
         ):
             return False
 
-        # Example: Simple check for accuracy drop
-        # This requires true_labels, which might not be immediately available in production.
-        # A more realistic approach might involve comparing predicted probabilities to actual outcomes.
         accuracy = (model_predictions == true_labels).mean()
         expected_accuracy = self.config.get("concept_drift", {}).get(
             "expected_accuracy", 0.8
@@ -119,7 +115,8 @@ class AIModelPerformanceMonitor(AIBaseMonitor):
         if accuracy < expected_accuracy:
             logger.warning(
                 f"[{self.monitor_name}] Concept drift detected: "
-                f"Current accuracy={accuracy:.4f}, Expected={expected_accuracy:.4f}."
+                f"Current accuracy={accuracy:.4f}, "
+                f"Expected={expected_accuracy:.4f}."
             )
             self._trigger_alert("concept_drift", accuracy, "accuracy_drop")
             return True
