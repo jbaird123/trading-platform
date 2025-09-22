@@ -8,7 +8,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Average of prices over a window.",
         "params": [{"name": "length", "type": "int", "default": 14}],
         "ta": {
-            "module": "trading_platform.strategy.pandas_ta_adapter",
+            "module": "pandas_ta.overlap",
             "function": "sma",
         },
     },
@@ -18,7 +18,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Exponentially weighted average of prices.",
         "params": [{"name": "length", "type": "int", "default": 14}],
         "ta": {
-            "module": "trading_platform.strategy.pandas_ta_adapter",
+            "module": "pandas_ta.overlap",
             "function": "ema",
         },
     },
@@ -28,7 +28,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Linearly weighted average of prices.",
         "params": [{"name": "length", "type": "int", "default": 14}],
         "ta": {
-            "module": "trading_platform.strategy.pandas_ta_adapter",
+            "module": "pandas_ta.overlap",
             "function": "wma",
         },
     },
@@ -43,7 +43,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "signal", "type": "int", "default": 9},
         ],
         "ta": {
-            "module": "trading_platform.strategy.pandas_ta_adapter",
+            "module": "pandas_ta.overlap",
             "function": "macd",
         },
     },
@@ -56,7 +56,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "max_step", "type": "float", "default": 0.2},
         ],
         "ta": {
-            "module": "trading_platform.strategy.pandas_ta_adapter",
+            "module": "pandas_ta.trend",
             "function": "psar",
         },
     },
@@ -66,7 +66,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Strength of a trend.",
         "params": [{"name": "length", "type": "int", "default": 14}],
         "ta": {
-            "module": "trading_platform.strategy.pandas_ta_adapter",
+            "module": "pandas_ta.trend",
             "function": "adx",
         },
     },
@@ -76,7 +76,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Momentum oscillator 0–100.",
         "params": [{"name": "length", "type": "int", "default": 14}],
         "ta": {
-            "module": "trading_platform.strategy.pandas_ta_adapter",
+            "module": "pandas_ta.momentum",
             "function": "rsi",
         },
     },
@@ -89,7 +89,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "d", "type": "int", "default": 3},
         ],
         "ta": {
-            "module": "trading_platform.strategy.pandas_ta_adapter",
+            "module": "pandas_ta.momentum",
             "function": "stoch",
         },
     },
@@ -99,7 +99,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Deviation from typical price.",
         "params": [{"name": "length", "type": "int", "default": 20}],
         "ta": {
-            "module": "trading_platform.strategy.pandas_ta_adapter",
+            "module": "pandas_ta.momentum",
             "function": "cci",
         },
     },
@@ -109,7 +109,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Percentage change over a period.",
         "params": [{"name": "length", "type": "int", "default": 12}],
         "ta": {
-            "module": "trading_platform.strategy.pandas_ta_adapter",
+            "module": "pandas_ta.momentum",
             "function": "roc",
         },
     },
@@ -123,7 +123,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "std", "type": "float", "default": 2.0},
         ],
         "ta": {
-            "module": "trading_platform.strategy.pandas_ta_adapter",
+            "module": "pandas_ta.volatility",
             "function": "bbands",
         },
     },
@@ -136,7 +136,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "std", "type": "float", "default": 2.0},
         ],
         "ta": {
-            "module": "trading_platform.strategy.pandas_ta_adapter",
+            "module": "pandas_ta.volatility",
             "function": "bbands",
         },
     },
@@ -146,7 +146,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Average of true ranges over a window.",
         "params": [{"name": "length", "type": "int", "default": 14}],
         "ta": {
-            "module": "trading_platform.strategy.pandas_ta_adapter",
+            "module": "pandas_ta.volatility",
             "function": "atr",
         },
     },
@@ -159,7 +159,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "mult", "type": "float", "default": 2.0},
         ],
         "ta": {
-            "module": "trading_platform.strategy.pandas_ta_adapter",
+            "module": "pandas_ta.volatility",
             "function": "kc",
         },
     },
@@ -170,7 +170,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Cumulative volume adjusted by price direction.",
         "params": [],
         "ta": {
-            "module": "trading_platform.strategy.pandas_ta_adapter",
+            "module": "pandas_ta.volume",
             "function": "obv",
         },
     },
@@ -180,7 +180,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Money flow over a window.",
         "params": [{"name": "length", "type": "int", "default": 20}],
         "ta": {
-            "module": "trading_platform.strategy.pandas_ta_adapter",
+            "module": "pandas_ta.volume",
             "function": "cmf",
         },
     },
@@ -190,7 +190,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Intraday average price weighted by volume.",
         "params": [],
         "ta": {
-            "module": "trading_platform.strategy.pandas_ta_adapter",
+            "module": "pandas_ta.volume",
             "function": "vwap",
         },
     },

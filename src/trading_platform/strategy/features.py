@@ -142,7 +142,7 @@ def _resolve_parameter(param_value: Any, strategy_parameters: dict) -> Any:
 
 
 def compute_features(
-    df: pd.DataFrame, specs: list[dict], strategy_parameters: dict = None
+    df: pd.DataFrame, specs: list[dict], strategy_parameters: dict = {}
 ) -> pd.DataFrame:
     """Compute features as configured in specs.
 
