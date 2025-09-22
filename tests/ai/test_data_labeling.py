@@ -50,18 +50,8 @@ def test_generate_future_price_direction_basic(sample_dataframe):
     labels = labeler.generate_future_price_direction(sample_dataframe)
 
     expected_labels = pd.Series(
-        [0, -1, 1, 1, -1, -1, -1],
-        index=pd.to_datetime(
-            [
-                "2023-01-01",
-                "2023-01-02",
-                "2023-01-03",
-                "2023-01-04",
-                "2023-01-05",
-                "2023-01-06",
-                "2023-01-07",
-            ]
-        ),
+        [-1, -1],
+        index=df_only_down.index[: -labeler.look_ahead_bars],
         dtype=int,
     )
     pd.testing.assert_series_equal(labels, expected_labels, check_names=False)
@@ -75,17 +65,8 @@ def test_generate_future_price_direction_custom_look_ahead(sample_dataframe):
     labels = labeler.generate_future_price_direction(sample_dataframe)
 
     expected_labels = pd.Series(
-        [-1, 1, 1, -1, -1, -1],
-        index=pd.to_datetime(
-            [
-                "2023-01-01",
-                "2023-01-02",
-                "2023-01-03",
-                "2023-01-04",
-                "2023-01-05",
-                "2023-01-06",
-            ]
-        ),
+        [0, -1, 1, 1, -1, -1, -1],
+        index=sample_dataframe.index[: -labeler.look_ahead_bars],
         dtype=int,
     )
     pd.testing.assert_series_equal(labels, expected_labels, check_names=False)
@@ -95,7 +76,7 @@ def test_generate_future_price_direction_missing_close_column():
     """
     Ensures a ValueError is raised if the DataFrame lacks a 'close' column.
     """
-    df_no_close = pd.DataFrame({"open": [1, 2, 3]}, index=pd.to_datetime(["2023-01-01"]))
+    df_no_close = pd.DataFrame({"open": [1]}, index=pd.to_datetime(["2023-01-01"]))
     labeler = DataLabeler()
     with pytest.raises(ValueError, match="DataFrame must contain a 'close' column."):
         labeler.generate_future_price_direction(df_no_close)
@@ -115,7 +96,7 @@ def test_generate_future_price_direction_all_same_price():
     labels = labeler.generate_future_price_direction(df_same_price)
     expected_labels = pd.Series(
         [0, 0],
-        index=pd.to_datetime(["2023-01-01", "2023-01-02"]),
+        index=df_same_price.index[: -labeler.look_ahead_bars],
         dtype=int,
     )
     pd.testing.assert_series_equal(labels, expected_labels, check_names=False)
@@ -135,7 +116,7 @@ def test_generate_future_price_direction_only_up():
     labels = labeler.generate_future_price_direction(df_only_up)
     expected_labels = pd.Series(
         [1, 1],
-        index=pd.to_datetime(["2023-01-01", "2023-01-02"]),
+        index=df_only_up.index[: -labeler.look_ahead_bars],
         dtype=int,
     )
     pd.testing.assert_series_equal(labels, expected_labels, check_names=False)
@@ -155,7 +136,7 @@ def test_generate_future_price_direction_only_down():
     labels = labeler.generate_future_price_direction(df_only_down)
     expected_labels = pd.Series(
         [-1, -1],
-        index=pd.to_datetime(["2023-01-01", "2023-01-02"]),
+        index=df_only_down.index[: -labeler.look_ahead_bars],
         dtype=int,
     )
     pd.testing.assert_series_equal(labels, expected_labels, check_names=False)

@@ -59,12 +59,13 @@ def test_load_training_data_success(ai_data_connector):
     timeframe = "1D"
     start_date = "2023-01-01"
     end_date = "2023-01-03"
+    expected_key = f"{symbol}_{timeframe}_{start_date}_{end_date}"
 
     df = ai_data_connector.load_training_data(symbol, timeframe, start_date, end_date)
 
     assert not df.empty
     assert isinstance(df, pd.DataFrame)
-    assert symbol in ai_data_connector.get_data_lineage()
+    assert expected_key in ai_data_connector.get_data_lineage()
 
 
 def test_load_training_data_empty_dataframe_raises_error():
@@ -141,6 +142,7 @@ def test_get_data_lineage(ai_data_connector):
     ai_data_connector.load_training_data(symbol, timeframe, start_date, end_date)
 
     lineage = ai_data_connector.get_data_lineage()
-    assert symbol in lineage
-    assert "source" in lineage[symbol]
-    assert "row_count" in lineage[symbol]
+    expected_key = f"{symbol}_{timeframe}_{start_date}_{end_date}"
+    assert expected_key in lineage
+    assert "source" in lineage[expected_key]
+    assert "row_count" in lineage[expected_key]

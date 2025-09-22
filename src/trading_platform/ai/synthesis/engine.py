@@ -28,11 +28,10 @@ class DiagnosticSynthesisEngine:
 
     def run(self) -> None:
         """Executes all diagnostic rules and stores the conclusions."""
-        import json
-import logging
-from typing import Any, Dict, List
 
-from trading_platform.ai.synthesis.rules import DiagnosticConclusion, get_all_rules
+
+import logging
+from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 

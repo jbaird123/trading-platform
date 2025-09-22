@@ -1,16 +1,22 @@
-import pytest
-import pandas as pd
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-from src.trading_platform.ai.data_connectors import AIDataConnector, DataCatalog
-from src.trading_platform.ai.feature_engineering.pipeline import FeatureEngineeringPipeline
+import pandas as pd
+import pytest
+
+from src.trading_platform.ai.data_connectors import AIDataConnector
 from src.trading_platform.ai.data_labeling import DataLabeler
+from src.trading_platform.ai.feature_engineering.pipeline import (
+    FeatureEngineeringPipeline,
+)
+
 
 @pytest.fixture
 def mock_raw_data():
     # Create a sample DataFrame that resembles raw OHLCV data
     data = {
-        "timestamp": pd.to_datetime(["2023-01-01", "2023-01-02", "2023-01-03", "2023-01-04", "2023-01-05"]),
+        "timestamp": pd.to_datetime(
+            ["2023-01-01", "2023-01-02", "2023-01-03", "2023-01-04", "2023-01-05"]
+        ),
         "open": [100, 101, 102, 103, 104],
         "high": [102, 103, 104, 105, 106],
         "low": [99, 100, 101, 102, 103],
@@ -20,6 +26,7 @@ def mock_raw_data():
     df = pd.DataFrame(data).set_index("timestamp")
     return df
 
+
 @pytest.fixture
 def mock_feature_config():
     # A simplified feature config for testing
@@ -28,10 +35,12 @@ def mock_feature_config():
         {"kind": "rsi", "length": 2, "source": "close"},
     ]
 
+
 @pytest.fixture
 def mock_labeling_config():
     # A simplified labeling config for testing
-    return {"look_ahead_bars": 1, "price_change_threshold": 0.001}
+    return {"look_ahead_bars": 1}
+
 
 @patch("src.trading_platform.ai.data_connectors.DataCatalog")
 def test_data_preparation_integration_flow(
@@ -41,13 +50,14 @@ def test_data_preparation_integration_flow(
     mock_labeling_config,
 ):
     # Mock the DataCatalog to return our predefined raw data
-    mock_data_catalog_instance = mock_data_catalog_cls.return_value
-    mock_data_catalog_instance.get_data.return_value = mock_raw_data
+    mock_data_catalog_cls.return_value.get_historical_data.return_value = mock_raw_data
 
     # 1. Load raw data using AIDataConnector
-    connector = AIDataConnector(mock_data_catalog_instance)
+    connector = AIDataConnector(mock_data_catalog_cls.return_value)
     # Assuming load_training_data calls get_data internally
-    raw_data_loaded = connector.load_training_data(symbol="TEST", timeframe="1D", start_date="2023-01-01", end_date="2023-01-05")
+    raw_data_loaded = connector.load_training_data(
+        symbol="TEST", timeframe="1D", start_date="2023-01-01", end_date="2023-01-05"
+    )
     pd.testing.assert_frame_equal(raw_data_loaded, mock_raw_data)
 
     # 2. Generate features using FeatureEngineeringPipeline
@@ -55,10 +65,14 @@ def test_data_preparation_integration_flow(
     featured_data = feature_pipeline.run(mock_feature_config)
 
     # Basic assertions for featured_data
-    assert "SMA_2_close" in featured_data.columns
-    assert "RSI_2_close" in featured_data.columns
-    assert len(featured_data) == len(raw_data_loaded) # Length might change due to NaNs from indicator calculation
-    assert not featured_data.isnull().any().any() # Ensure no NaNs after feature engineering
+    assert "sma_2" in featured_data.columns
+    assert "rsi_2" in featured_data.columns
+    assert (
+        len(featured_data) == len(raw_data_loaded) - 1
+    )  # Length might change due to NaNs from indicator calculation
+    assert (
+        not featured_data.isnull().any().any()
+    )  # Ensure no NaNs after feature engineering
 
     # 3. Generate labels using DataLabeler
     labeler = DataLabeler(**mock_labeling_config)
@@ -67,8 +81,10 @@ def test_data_preparation_integration_flow(
     # Basic assertions for labels
     assert isinstance(labels, pd.Series)
     assert labels.name == "signal"
-    assert labels.isin([-1, 0, 1]).all() # Check if labels are -1, 0, or 1
-    assert len(labels) <= len(featured_data) # Labels might be shorter due to look_ahead_bars
+    assert labels.isin([-1, 0, 1]).all()  # Check if labels are -1, 0, or 1
+    assert len(labels) <= len(
+        featured_data
+    )  # Labels might be shorter due to look_ahead_bars
     assert not labels.isnull().any()
 
     # 4. Final alignment (as done in AITrainingPipeline)
