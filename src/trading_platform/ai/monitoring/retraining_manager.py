@@ -52,9 +52,9 @@ class AIRetrainingManager:
             return True
 
         # Check for performance degradation
-        # This would involve comparing current_performance_brief against baselines
-        # or thresholds defined in self.performance_monitor.config
-        # For now, a placeholder check:
+        # This would involve comparing current_performance_brief against
+        # baselines or thresholds defined in
+        # self.performance_monitor.config. For now, a placeholder check:
         if self.retraining_criteria.get("on_performance_degradation", False):
             # Example: check if Sharpe ratio dropped below a threshold
             current_sharpe = current_performance_brief.get(
@@ -73,7 +73,8 @@ class AIRetrainingManager:
         # Check for scheduled retraining (e.g., weekly, monthly)
         if self.retraining_criteria.get("scheduled_interval", None):
             # This would involve checking the last retraining timestamp and current time
-            # For now, a placeholder that always returns False for scheduled unless explicitly set
+            # For now, a placeholder that always returns False for scheduled
+            # unless explicitly set
             logger.info("Scheduled retraining check (placeholder).")
             pass
 

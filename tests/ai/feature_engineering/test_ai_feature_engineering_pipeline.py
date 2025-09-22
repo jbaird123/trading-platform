@@ -130,7 +130,8 @@ def test_run_empty_feature_list(sample_dataframe):
     pipeline = FeatureEngineeringPipeline(sample_dataframe)
     featured_df = pipeline.run([])
 
-    # No new columns should be added, and original data should be returned (after dropna if any)
+    # No new columns should be added, and original data should be returned
+    # (after dropna if any)
     pd.testing.assert_frame_equal(featured_df, sample_dataframe.dropna())
 
 

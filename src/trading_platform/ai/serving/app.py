@@ -16,8 +16,8 @@ app = FastAPI(
     title="AI Model Serving API",
     description=("API for serving AI model predictions for the trading platform."),
     version="1.0.0",
-    # FastAPI automatically generates OpenAPI (Swagger) documentation at /docs and /redoc.
-    # This fulfills the requirement to specify request and response schemas for documentation.
+    # This fulfills the requirement to specify request and response schemas
+    # for documentation.
 )
 
 # --- API Versioning Strategy ---
@@ -87,18 +87,21 @@ async def predict(request: PredictionRequest, api_key: str = Depends(get_api_key
     Receives a list of features and returns a trading signal prediction.
     """
     # [Task 9.2] Implement Fault Tolerance and Resilience:
-    # Consider strategies like circuit breakers, timeouts, and bulkheads for external dependencies.
+    # Consider strategies like circuit breakers, timeouts, and bulkheads
+    # for external dependencies.
     try:
         # Convert list of Feature objects to a dictionary for easier processing
         features_dict = {f.name: f.value for f in request.features}
         logger.info(f"Received prediction request with features: {features_dict}")
 
-        # In a real scenario, features would be preprocessed and passed to the ONNX model
+        # In a real scenario, features would be preprocessed and passed to the
+        # ONNX model
         # input_data = preprocess_features(features_dict)
         # prediction_raw = sess.run([output_name], {input_name: input_data})
 
         # Simulate a prediction for now
-        # TODO: Implement A/B test logic here to route requests to different model versions
+        # TODO: Implement A/B test logic here to route requests to different
+        # model versions
         rand_val = np.random.rand()
         if rand_val < 0.33:
             signal = "long"

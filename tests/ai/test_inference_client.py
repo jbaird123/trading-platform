@@ -220,7 +220,8 @@ def test_health_check_failure(ai_inference_client, mock_send_request):
 
 def test_health_check_request_error(ai_inference_client, mock_send_request, caplog):
     """
-    Tests error handling when _send_request raises httpx.RequestError during health check.
+    Tests error handling when _send_request raises httpx.RequestError during
+    health check.
     """
     mock_send_request.side_effect = httpx.RequestError(
         "Connection error", request=httpx.Request("GET", "url")
@@ -234,7 +235,8 @@ def test_health_check_request_error(ai_inference_client, mock_send_request, capl
 
 def test_health_check_http_status_error(ai_inference_client, mock_send_request, caplog):
     """
-    Tests error handling when _send_request raises httpx.HTTPStatusError during health check.
+    Tests error handling when _send_request raises httpx.HTTPStatusError during
+    health check.
     """
     mock_response = mock.Mock(spec=httpx.Response)
     mock_response.status_code = 500

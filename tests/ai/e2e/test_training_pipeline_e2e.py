@@ -46,7 +46,8 @@ def minimal_training_config(tmp_path, temp_mlflow_uri):
     return str(config_file)
 
 
-# Mocking external dependencies for E2E test to control data and avoid real external calls
+# Mocking external dependencies for E2E test to control data and avoid
+# real external calls
 @pytest.fixture(autouse=True)
 def mock_external_dependencies_for_e2e():
     with (
@@ -140,7 +141,8 @@ def test_full_training_pipeline_e2e_minimal(minimal_training_config, temp_mlflow
 
     # Verify model can be loaded and makes a prediction
     loaded_model = mlflow.sklearn.load_model(f"runs:/{run_id}/model")
-    # The model was trained on columns: ['open', 'high', 'low', 'close', 'volume', 'sma_2']
+    # The model was trained on columns:
+    # ['open', 'high', 'low', 'close', 'volume', 'sma_2']
     dummy_input = pd.DataFrame(
         [[100, 102, 99, 101, 1000, 100.5]],
         columns=["open", "high", "low", "close", "volume", "sma_2"],

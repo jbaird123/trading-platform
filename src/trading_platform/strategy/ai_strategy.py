@@ -46,8 +46,9 @@ class AIStrategy(BaseStrategy):
         if not predictions:
             return signals
 
-        # Assuming predictions is a list of dicts, each with 'long_prob' and 'short_prob'
-        # and that the order of predictions matches the order of input features.
+        # Assuming predictions is a list of dicts, each with 'long_prob' and
+        # 'short_prob', and that the order of predictions matches the order of
+        # input features.
         long_probs = pd.Series([p.get("long_prob", 0.0) for p in predictions])
         short_probs = pd.Series([p.get("short_prob", 0.0) for p in predictions])
 

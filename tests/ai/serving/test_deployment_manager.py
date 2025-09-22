@@ -108,8 +108,8 @@ def test_adm_evaluate_deployment_failure_pnl_low(caplog):
         result = manager.evaluate_deployment("model_v1", metrics_data)
         assert result is False
         assert (
-            "Model model_v1 performance (50.0) below required PnL (100.0). Consider rollback."
-            in caplog.text
+            "Model model_v1 performance (50.0) below required PnL (100.0). "
+            "Consider rollback." in caplog.text
         )
 
 
@@ -121,8 +121,8 @@ def test_adm_evaluate_deployment_missing_pnl(caplog):
         result = manager.evaluate_deployment("model_v1", metrics_data)
         assert result is False  # Defaults to 0.0, which is < 100.0
         assert (
-            "Model model_v1 performance (0.0) below required PnL (100.0). Consider rollback."
-            in caplog.text
+            "Model model_v1 performance (0.0) below required PnL (100.0). "
+            "Consider rollback." in caplog.text
         )
 
 

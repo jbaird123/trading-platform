@@ -65,8 +65,8 @@ def test_data_preparation_integration_flow(
     featured_data = feature_pipeline.run(mock_feature_config)
 
     # Basic assertions for featured_data
-    assert len(featured_data) == len(raw_data_loaded) - 1  # Length might change
-    # due to NaNs from indicator calculation
+    # Length might change due to NaNs from indicator calculation
+    assert len(featured_data) == len(raw_data_loaded) - 1
     assert "sma_2" in featured_data.columns
     assert "rsi_2" in featured_data.columns
     assert (
@@ -87,7 +87,8 @@ def test_data_preparation_integration_flow(
     assert not labels.isnull().any()
 
     # 4. Final alignment (as done in AITrainingPipeline)
-    # This part is crucial for integration, simulating how the pipeline would align X and y
+    # This part is crucial for integration, simulating how the pipeline
+    # would align X and y
     X_aligned = featured_data.loc[labels.index]
     y_aligned = labels
 

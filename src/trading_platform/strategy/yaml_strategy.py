@@ -25,8 +25,8 @@ def validate_strategy_config(cfg: dict[str, Any]) -> None:
 
     We prefer jsonschema when available, but also enforce minimal rules:
     - required: strategy_name (str)
-    - at least one pair present: (long_entry_rules & long_exit_rules) or
-      (short_entry_rules & short_exit_rules)
+        - at least one pair present: (long_entry_rules & long_exit_rules) or
+            (short_entry_rules & short_exit_rules)
     - rule blocks: each has all_of or any_of with a non-empty predicate list
     - predicate: {condition, left, right} with supported conditions
     """
@@ -170,7 +170,8 @@ class CompiledStrategy:
                         ai_features_df = df2[self.ai_input_features]
                 ai_predictions = self.ai_inference_client.predict(ai_features_df)
                 if ai_predictions:
-                    # Assuming ai_predictions is a list of dicts with 'prediction' and 'confidence'
+                    # Assuming ai_predictions is a list of dicts with 'prediction'
+                    # and 'confidence'
                     # and aligns with df2's index
                     ai_confidences = pd.Series(
                         [p.get("confidence", 0.0) for p in ai_predictions],
@@ -243,7 +244,9 @@ def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
         jsonschema is not None
     )
     ai_confidence_threshold = float(ai_filter_config.get("confidence_threshold", 0.0))
-    ai_input_features = [str(x) for x in (ai_filter_config.get("input_features") or [])]
+    ai_input_features = [
+        str(x) for x in (ai_filter_config.get("input_features") or [])
+    ]
     ai_inference_client = AIInferenceClient() if ai_filter_enabled else None
 
     le = list(cfg.get("long_entry_rules") or [])
