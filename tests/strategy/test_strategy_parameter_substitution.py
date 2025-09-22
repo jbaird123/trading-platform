@@ -19,7 +19,7 @@ def test_feature_params_resolve_from_named_parameters():
             {
                 "name": "ema_slow",
                 "type": "EMA",
-                "params": {"length": "ema_slow_len"},
+                "params": {"length": "${ema_slow_len}"},
                 "source": "close",
             },
         ],
