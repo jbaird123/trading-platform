@@ -1,5 +1,5 @@
 # Validates: [SYS-1.3.3]
-from datetime import datetime
+from datetime import datetime, UTC
 
 import pandas as pd
 from trading_platform.portfolio.position import Position
@@ -21,7 +21,7 @@ def test_rem_translates_pips_rule_for_long_position():
         side="long",
         entry_price=1.20000,
         size=10000,
-        entry_time=datetime.utcnow(),
+        entry_time=datetime.now(UTC),
     )
 
     # Pip size for EUR_USD is 0.0001. 50 pips = 0.0050
@@ -34,7 +34,7 @@ def test_rem_translates_pips_rule_for_long_position():
         "low": expected_stop_price,
         "close": 1.1960,
     }
-    current_bar = pd.Series(bar_data, name=datetime.utcnow())
+    current_bar = pd.Series(bar_data, name=datetime.now(UTC))
 
     # 3. Action
     exit_details = rem.check_exits(position, current_bar)
@@ -60,7 +60,7 @@ def test_rem_translates_pips_rule_for_short_position():
         side="short",
         entry_price=110.00,
         size=10000,
-        entry_time=datetime.utcnow(),
+        entry_time=datetime.now(UTC),
     )
 
     # Pip size for USD_JPY is 0.01. 50 pips = 0.50
@@ -73,7 +73,7 @@ def test_rem_translates_pips_rule_for_short_position():
         "low": 110.10,
         "close": 110.40,
     }
-    current_bar = pd.Series(bar_data, name=datetime.utcnow())
+    current_bar = pd.Series(bar_data, name=datetime.now(UTC))
 
     # 3. Action
     exit_details = rem.check_exits(position, current_bar)

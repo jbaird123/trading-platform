@@ -142,7 +142,7 @@ def test_add_sma_feature(sample_dataframe):
     Tests adding an SMA feature to the DataFrame.
     """
     pipeline = FeatureEngineeringPipeline(sample_dataframe)
-    feature_config = {"kind": "sma", "length": 3}
+    feature_config = {"kind": "sma", "params": {"length": 3}}
     pipeline.add_feature(feature_config)
 
     assert "sma_3" in pipeline.df.columns
@@ -159,7 +159,7 @@ def test_add_rsi_feature(sample_dataframe):
     Tests adding an RSI feature to the DataFrame.
     """
     pipeline = FeatureEngineeringPipeline(sample_dataframe)
-    feature_config = {"kind": "rsi", "length": 3}
+    feature_config = {"kind": "rsi", "params": {"length": 3}}
     pipeline.add_feature(feature_config)
 
     assert "rsi_3" in pipeline.df.columns
@@ -173,7 +173,7 @@ def test_add_feature_missing_kind(sample_dataframe):
     Ensures ValueError is raised if feature config is missing 'kind'.
     """
     pipeline = FeatureEngineeringPipeline(sample_dataframe)
-    feature_config = {"length": 10}
+    feature_config = {"params": {"length": 10}}
     with pytest.raises(ValueError, match="Feature config must include a 'kind'."):
         pipeline.add_feature(feature_config)
 
@@ -183,7 +183,7 @@ def test_add_feature_unsupported_kind(sample_dataframe):
     Verifies NotImplementedError for unsupported feature kinds.
     """
     pipeline = FeatureEngineeringPipeline(sample_dataframe)
-    feature_config = {"kind": "unsupported_feature", "length": 10}
+    feature_config = {"kind": "unsupported_feature", "params": {"length": 10}}
     with pytest.raises(
         NotImplementedError, match="Feature 'unsupported_feature' is not supported yet."
     ):
@@ -196,8 +196,8 @@ def test_run_multiple_features(sample_dataframe):
     """
     pipeline = FeatureEngineeringPipeline(sample_dataframe)
     feature_configs = [
-        {"kind": "sma", "length": 3},
-        {"kind": "rsi", "length": 3},
+        {"kind": "sma", "params": {"length": 3}},
+        {"kind": "rsi", "params": {"length": 3}},
     ]
     featured_df = pipeline.run(feature_configs)
 
@@ -227,7 +227,7 @@ def test_run_dropna_behavior(sample_dataframe):
     short_df = sample_dataframe.head(5)  # Not enough data for RSI(14) or SMA(14)
     pipeline = FeatureEngineeringPipeline(short_df)
     feature_configs = [
-        {"kind": "sma", "length": 3},
+        {"kind": "sma", "params": {"length": 3}},
     ]
     featured_df = pipeline.run(feature_configs)
 

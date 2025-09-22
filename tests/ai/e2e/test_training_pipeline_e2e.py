@@ -34,7 +34,7 @@ def minimal_training_config(tmp_path, temp_mlflow_uri):
             "start_date": "2023-01-01",
             "end_date": "2023-01-05",
         },
-        "features": [{"kind": "sma", "length": 2, "source": "close"}],
+        "features": [{"kind": "sma", "params": {"length": 2}, "source": "close"}],
         "labeling": {"look_ahead_bars": 1},
         "model": {"type": "random_forest", "params": {"n_estimators": 5}},
         "evaluation": {"run_cross_validation": False},
@@ -51,7 +51,7 @@ def minimal_training_config(tmp_path, temp_mlflow_uri):
 def mock_external_dependencies_for_e2e():
     with (
         patch(
-            "src.trading_platform.ai.data_connectors.DataCatalog"
+            "src.trading_platform.ai.training.pipeline.DataCatalog"
         ) as mock_data_catalog_cls,
         patch(
             "src.trading_platform.ai.training.pipeline.lgb", new=None
@@ -61,13 +61,13 @@ def mock_external_dependencies_for_e2e():
         mock_data_catalog_instance = mock_data_catalog_cls.return_value
         mock_data_catalog_instance.get_historical_data.return_value = pd.DataFrame(
             {
-                "open": [100, 101, 102, 103, 104, 105, 106, 107, 108, 109],
-                "high": [102, 103, 104, 105, 106, 107, 108, 109, 110, 111],
-                "low": [99, 100, 101, 102, 103, 104, 105, 106, 107, 108],
-                "close": [101, 102, 103, 104, 105, 106, 107, 108, 109, 110],
-                "volume": [1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900],
+                "open": [100 + i for i in range(20)],
+                "high": [102 + i for i in range(20)],
+                "low": [99 + i for i in range(20)],
+                "close": [101 + i for i in range(20)],
+                "volume": [1000 + i * 100 for i in range(20)],
             },
-            index=pd.to_datetime([f"2023-01-{i+1:02d}" for i in range(10)]),
+            index=pd.to_datetime([f"2023-01-{i+1:02d}" for i in range(20)]),
         )
 
         yield
@@ -83,22 +83,21 @@ def test_full_training_pipeline_e2e(tmp_path):
             "symbol": "TEST",
             "timeframe": "1D",
             "start_date": "2023-01-01",
-            "end_date": "2023-01-10",
+            "end_date": "2023-01-20",
         },
         "features": [
             {
                 "name": "sma_5",
-                "type": "SMA",
+                "kind": "sma",
                 "params": {"length": 5},
                 "source": "close",
             },
         ],
         "labeling": {
             "look_ahead_bars": 1,
-            "price_change_threshold": 0.001,
         },
         "model": {
-            "type": "lightgbm",
+            "type": "random_forest",
             "params": {"n_estimators": 10},
         },
         "evaluation": {
@@ -118,10 +117,8 @@ def test_full_training_pipeline_e2e(tmp_path):
     assert (tmp_path / "mlruns").exists()
     # Further checks could involve parsing MLflow artifacts or checking specific metrics
 
-    yield
 
-
-def test_full_training_pipeline_e2e(minimal_training_config, temp_mlflow_uri):
+def test_full_training_pipeline_e2e_minimal(minimal_training_config, temp_mlflow_uri):
     # Ensure MLflow is clean before the test
     mlflow.end_run()
 
