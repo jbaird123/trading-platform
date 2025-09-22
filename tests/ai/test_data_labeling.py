@@ -50,8 +50,8 @@ def test_generate_future_price_direction_basic(sample_dataframe):
     labels = labeler.generate_future_price_direction(sample_dataframe)
 
     expected_labels = pd.Series(
-        [-1, -1],
-        index=df_only_down.index[: -labeler.look_ahead_bars],
+        [1, -1, 1, 1, -1, -1, -1],
+        index=sample_dataframe.index[: -labeler.look_ahead_bars],
         dtype=int,
     )
     pd.testing.assert_series_equal(labels, expected_labels, check_names=False)
@@ -65,7 +65,7 @@ def test_generate_future_price_direction_custom_look_ahead(sample_dataframe):
     labels = labeler.generate_future_price_direction(sample_dataframe)
 
     expected_labels = pd.Series(
-        [0, -1, 1, 1, -1, -1, -1],
+        [1, 1, 1, 1, -1, -1],
         index=sample_dataframe.index[: -labeler.look_ahead_bars],
         dtype=int,
     )

@@ -33,7 +33,7 @@ class DataLabeler:
         labels[price_change < -threshold] = -1
 
         # Drop NaN values that result from shifting
-        labels = labels.dropna()
+        labels = labels.loc[price_change.dropna().index]
 
         print(
             "Generated future price direction labels using methodology "
