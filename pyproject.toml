@@ -11,10 +11,9 @@ readme = "README.md"
 packages = [{include = "trading_platform", from = "src"}]
 
 [tool.poetry.dependencies]
-python = ">=3.11"
+python = ">=3.12"
 pydantic = "^2.7.1"
 pandas = "^2.2.2"
-ta = "^0.11.0"
 jsonschema = "^4.23.0"
 pyyaml = "^6.0.1"
 dash = "^3.2.0"
@@ -28,6 +27,7 @@ scipy = "^1.16.2"
 skl2onnx = "^1.16.0"
 fastapi = "^0.111.0"
 uvicorn = {extras = ["standard"], version = "^0.30.1"}
+pandas-ta = "^0.4.71b0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"
