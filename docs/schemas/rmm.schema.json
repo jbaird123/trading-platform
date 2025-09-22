@@ -140,7 +140,6 @@
     },
     "rule_block": {
       "type": "object",
-      "additionalProperties": false,
       "properties": {
         "all_of": { "$ref": "#/$defs/predicate_array" },
         "any_of": { "$ref": "#/$defs/predicate_array" }
@@ -158,7 +157,6 @@
     },
     "predicate": {
       "type": "object",
-      "additionalProperties": false,
       "properties": {
         "condition": {
           "type": "string",

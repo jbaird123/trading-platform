@@ -128,12 +128,16 @@ def donchian_channels(df: pd.DataFrame, length: int) -> tuple[pd.Series, pd.Seri
 
 def _resolve_parameter(param_value: Any, strategy_parameters: dict) -> Any:
     """Resolves a parameter value, substituting placeholders like ${param_name}."""
-    if isinstance(param_value, str) and param_value.startswith("${") and param_value.endswith("}"):
+    if not isinstance(param_value, str):
+        return param_value
+    if param_value.startswith("${") and param_value.endswith("}"):
         param_name = param_value[2:-1]
         if param_name in strategy_parameters:
             return strategy_parameters[param_name]
         else:
-            raise ValueError(f"Parameter '{param_name}' not found in strategy parameters.")
+            raise ValueError(
+                f"Parameter '{param_name}' not found in strategy parameters."
+            )
     return param_value
 
 

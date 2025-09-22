@@ -133,7 +133,6 @@
           "description": "At least one predicate must be true."
         }
       },
-      "additionalProperties": false,
       "oneOf": [{ "required": ["all_of"] }, { "required": ["any_of"] }]
     },
     "predicate_array": {
@@ -158,8 +157,7 @@
           "description": "Right-hand side (indicator/price/number)."
         }
       },
-      "required": ["condition", "left", "right"],
-      "additionalProperties": false
+      "required": ["condition", "left", "right"]
     },
     "operand": {
       "oneOf": [

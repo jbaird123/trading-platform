@@ -2,7 +2,7 @@ You are an expert debugging assistant. I have a large number of failing tests, a
 
 Based on the following list of failing test names and errors, please analyze the potential dependencies.
 
-Do not show me any output on the screen as you go. 
+Do not show me any output on the screen as you go.
 
 Instructions:
 
@@ -15,8 +15,3 @@ Provide a brief explanation for your reasoning.
 please run poetry run pytest -q  to get a list of failing tests.  Then give me the top 3 tests I should focus on first.
 
 Do not proceed further.
-
-
-Here is the list of failing tests:
-
-[Paste the summary of your failing tests here]
