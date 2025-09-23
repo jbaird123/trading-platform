@@ -4,12 +4,12 @@
 
 ---
 
-### **Task 1: Add and Isolate the LLM Client**
+## 1. Task: Add and Isolate the LLM Client
 
--   **Action:** Add the `google-generativeai` library to the project's dependencies.
+- [ ] **1.1** **Action:** Add the `google-generativeai` library to the project's dependencies.
     -   Run the command: `poetry add google-generativeai`.
--   **File to Create:** `src/trading_platform/ai/llm_analysis/client.py`
--   **Action:** Create an API client to encapsulate all interaction with the external LLM service.
+- [ ] **1.2** **File to Create:** `src/trading_platform/ai/llm_analysis/client.py`
+- [ ] **1.3** **Action:** Create an API client to encapsulate all interaction with the external LLM service.
     ```python
     import os
     import google.generativeai as genai
@@ -34,13 +34,13 @@
                 return f"Error generating LLM feedback: {e}"
 
     ```
--   **File to Create:** `tests/ai/llm_analysis/test_client.py`
--   **Action:** Add a test to verify that the client correctly raises a `ValueError` if the `GEMINI_API_KEY` is not set.
+- [ ] **1.4** **File to Create:** `tests/ai/llm_analysis/test_client.py`
+- [ ] **1.5** **Action:** Add a test to verify that the client correctly raises a `ValueError` if the `GEMINI_API_KEY` is not set.
 
-### **Task 2: Create the Master System Prompt**
+## 2. Task: Create the Master System Prompt
 
--   **File to Create:** `src/trading_platform/ai/llm_analysis/system_prompt.md`
--   **Action:** Add the following content to the file. This will be the master prompt that defines the LLM's persona and goal.
+- [ ] **2.1** **File to Create:** `src/trading_platform/ai/llm_analysis/system_prompt.md`
+- [ ] **2.2** **Action:** Add the following content to the file. This will be the master prompt that defines the LLM's persona and goal.
     ```markdown
     You are an expert trading strategist and quantitative analyst. You are reviewing a backtest report for a trading strategy. The report is provided in a comprehensive JSON format.
 
@@ -56,10 +56,10 @@
     Provide your feedback in a clear, concise Markdown format.
     ```
 
-### **Task 3: Implement the `LLMAnalysisEngine`**
+## 3. Task: Implement the `LLMAnalysisEngine`
 
--   **File to Create:** `src/trading_platform/ai/llm_analysis/engine.py`
--   **Action:** Create the engine that orchestrates the analysis.
+- [ ] **3.1** **File to Create:** `src/trading_platform/ai/llm_analysis/engine.py`
+- [ ] **3.2** **Action:** Create the engine that orchestrates the analysis.
     ```python
     import json
     from pathlib import Path
@@ -89,17 +89,17 @@
             formatted_brief = self._format_brief_for_prompt()
             final_prompt = (
                 self._prompt_template
-                + "\n\n---" + " BACKTEST BRIEF JSON ---" + "\n\n"
+                + "\n\n--- BACKTEST BRIEF JSON ---\n\n"
                 + formatted_brief
             )
             return self._client.get_feedback(final_prompt)
 
     ```
 
-### **Task 4: Integrate into the CLI**
+## 4. Task: Integrate into the CLI
 
--   **File to Modify:** `src/trading_platform/cli.py`
--   **Action:**
+- [ ] **4.1** **File to Modify:** `src/trading_platform/cli.py`
+- [ ] **4.2** **Action:**
     1.  In the `main` function, find the `ai-diagnose` sub-parser (`pad`).
     2.  Add the following argument to it:
         ```python
@@ -128,10 +128,10 @@
                 print(f"Could not generate qualitative report: {e}", file=sys.stderr)
         ```
 
-### **Task 5: Add Tests for the New Components**
+## 5. Task: Add Tests for the New Components
 
--   **File to Create:** `tests/ai/llm_analysis/test_llm_engine.py`
--   **Action:** Add tests to verify the engine's logic without making real API calls.
+- [ ] **5.1** **File to Create:** `tests/ai/llm_analysis/test_llm_engine.py`
+- [ ] **5.2** **Action:** Add tests to verify the engine's logic without making real API calls.
     ```python
     import json
     from unittest.mock import MagicMock
@@ -157,16 +157,13 @@
         assert "You are an expert trading strategist" in prompt
         assert json.dumps(dummy_brief, indent=2) in prompt
     ```
--   **File to Modify:** `tests/cli/test_cli_ai_diagnose.py`
--   **Action:** Add a test to verify the CLI flag integration.
+- [ ] **5.3** **File to Modify:** `tests/cli/test_cli_ai_diagnose.py`
+- [ ] **5.4** **Action:** Add a test to verify the CLI flag integration.
     ```python
     from unittest.mock import patch
     from argparse import Namespace
     from pathlib import Path
     import json
-    # Assuming cmd_ai_diagnose is importable from trading_platform.cli
-    # If not, you might need to adjust the import path or mock the module itself.
-    # For this example, let's assume it's directly importable.
     from trading_platform.cli import cmd_ai_diagnose
 
     def test_cmd_ai_diagnose_qualitative_report_flag(tmp_path: Path):
@@ -185,11 +182,6 @@
             mock_instance.get_feedback.return_value = "Mocked LLM response"
 
             # 4. Call the command
-            # We need to mock the output directory as well, or ensure it's handled.
-            # For simplicity, let's assume cmd_ai_diagnose creates it or uses a default.
-            # If cmd_ai_diagnose expects an output_dir argument, it needs to be passed.
-            # Assuming it uses a default or creates it based on brief_path.
-            # Let's mock the print statements to check output if needed.
             with patch("builtins.print") as mock_print:
                 return_code = cmd_ai_diagnose(ns)
 
@@ -198,7 +190,6 @@
                 qualitative_report_path = tmp_path / "ai_qualitative_report.md"
                 assert qualitative_report_path.exists()
                 assert qualitative_report_path.read_text() == "Mocked LLM response"
-                # Check if the print statements were called as expected
                 mock_print.assert_any_call("Generating qualitative report via LLM...")
                 mock_print.assert_any_call(f"Qualitative report saved to {qualitative_report_path}")
     ```
