@@ -3,33 +3,10 @@ from trading_platform.ai.synthesis.rules import (
     DiagnosticConclusion,
     InefficientExitsRule,
     LowWinRateHighTradesRule,
-    OverTradingRule,
-    RecommendationRule,
     SignalPersistenceRule,
     StrategyParameterOptimizationOpportunityRule,
     get_all_rules,
 )
-
-# --- Tests for RecommendationRule ---
-
-
-def test_recommendation_rule_triggered():
-    rule = RecommendationRule()
-    analysis_data = {"backtest_metrics": {"n_trades": 200, "win_rate": 0.4}}
-    conclusion = rule.evaluate(analysis_data)
-    assert conclusion is not None
-    assert conclusion.title == "Consider ADX Filter for Entries"
-    assert "Consider adding an ADX filter" in conclusion.summary
-    assert conclusion.evidence["n_trades"] == 200
-    assert conclusion.evidence["win_rate"] == 0.4
-    assert conclusion.evidence["suggested_action"] == "Add ADX filter to entry rules."
-
-
-def test_recommendation_rule_not_triggered():
-    rule = RecommendationRule()
-    analysis_data = {"backtest_metrics": {"n_trades": 50, "win_rate": 0.6}}
-    conclusion = rule.evaluate(analysis_data)
-    assert conclusion is None
 
 
 # --- Tests for SignalPersistenceRule ---
@@ -52,35 +29,29 @@ def test_signal_persistence_rule_not_triggered():
 
 # --- Tests for StrategyParameterOptimizationOpportunityRule ---
 def test_strategy_param_optimization_rule_triggered():
-    rule = StrategyParameterOptimizationOpportunityRule(
-        param_defaults={"fast": 12, "slow": 26}
-    )
-    analysis_data = {"strategy_params": {"fast": 12, "slow": 26}}
+    rule = StrategyParameterOptimizationOpportunityRule()
+    analysis_data = {"strategy_params": {"fast": None, "slow": 26}}
     conclusion = rule.evaluate(analysis_data)
     assert conclusion is not None
     assert conclusion.title == "Strategy Parameter Optimization Opportunity"
-    assert "unoptimized or default" in conclusion.summary
-    assert conclusion.evidence["unoptimized_params"] == {"fast": 12, "slow": 26}
+    assert "unset (None)" in conclusion.summary
+    assert conclusion.evidence["none_params"] == {"fast": None}
 
 
 def test_strategy_param_optimization_rule_not_triggered():
-    rule = StrategyParameterOptimizationOpportunityRule(
-        param_defaults={"fast": 12, "slow": 26}
-    )
+    rule = StrategyParameterOptimizationOpportunityRule()
     analysis_data = {"strategy_params": {"fast": 10, "slow": 30}}
     conclusion = rule.evaluate(analysis_data)
     assert conclusion is None
 
 
 def test_strategy_param_optimization_rule_partial():
-    rule = StrategyParameterOptimizationOpportunityRule(
-        param_defaults={"fast": 12, "slow": 26}
-    )
-    analysis_data = {"strategy_params": {"fast": 12, "slow": 30}}
+    rule = StrategyParameterOptimizationOpportunityRule()
+    analysis_data = {"strategy_params": {"fast": None, "slow": 30}}
     conclusion = rule.evaluate(analysis_data)
     assert conclusion is not None
-    assert "unoptimized or default" in conclusion.summary
-    assert conclusion.evidence["unoptimized_params"] == {"fast": 12}
+    assert "unset (None)" in conclusion.summary
+    assert conclusion.evidence["none_params"] == {"fast": None}
 
 
 def test_inefficient_exits_rule_triggered_by_trades():
@@ -158,59 +129,6 @@ def test_diagnostic_conclusion_to_dict():
     assert conclusion.to_dict() == expected_dict
 
 
-# --- Tests for OverTradingRule ---
-
-
-def test_over_trading_rule_triggered():
-    rule = OverTradingRule()
-    analysis_data = {"backtest_metrics": {"n_trades": 600, "win_rate": 0.50}}
-    conclusion = rule.evaluate(analysis_data)
-    assert conclusion is not None
-    assert conclusion.title == "Potential Over-Trading Detected"
-    assert "unusually high number of trades (600)" in conclusion.summary
-    assert "low win rate (50.00%)" in conclusion.summary
-    assert conclusion.evidence == {
-        "n_trades": 600,
-        "win_rate": 0.50,
-        "thresholds": {"n_trades": 500, "win_rate": 0.55},
-    }
-
-
-def test_over_trading_rule_not_triggered_low_trades():
-    rule = OverTradingRule()
-    analysis_data = {"backtest_metrics": {"n_trades": 400, "win_rate": 0.50}}
-    conclusion = rule.evaluate(analysis_data)
-    assert conclusion is None
-
-
-def test_over_trading_rule_not_triggered_high_win_rate():
-    rule = OverTradingRule()
-    analysis_data = {"backtest_metrics": {"n_trades": 600, "win_rate": 0.60}}
-    conclusion = rule.evaluate(analysis_data)
-    assert conclusion is None
-
-
-def test_over_trading_rule_missing_backtest_metrics():
-    rule = OverTradingRule()
-    analysis_data = {}
-    conclusion = rule.evaluate(analysis_data)
-    assert conclusion is None
-
-
-def test_over_trading_rule_missing_n_trades():
-    rule = OverTradingRule()
-    analysis_data = {"backtest_metrics": {"win_rate": 0.50}}
-    conclusion = rule.evaluate(analysis_data)
-    assert conclusion is None
-
-
-def test_over_trading_rule_missing_win_rate():
-    rule = OverTradingRule()
-    analysis_data = {"backtest_metrics": {"n_trades": 600}}
-    conclusion = rule.evaluate(analysis_data)
-    assert conclusion is None
-
-
 # --- Tests for InefficientExitsRule ---
 
 
@@ -254,6 +172,6 @@ def test_inefficient_exits_rule_missing_pnl_metric():
 def test_get_all_rules():
     rules = get_all_rules()
     assert isinstance(rules, list)
-    assert len(rules) == 8
-    assert any(isinstance(rule, OverTradingRule) for rule in rules)
+    # Updated rule count after removals
+    assert len(rules) == 6
     assert any(isinstance(rule, InefficientExitsRule) for rule in rules)

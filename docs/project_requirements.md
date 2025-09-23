@@ -423,9 +423,6 @@ _Last updated: 2025-09-16_
 
 
 ### Future Enhancements
-- **[JSON-F.1]** Add **monte_carlo** resampling stats.
-- **[JSON-F.2]** Add **walk_forward** rolling OOS stats.
-- **[JSON-F.3]** Add **parameter_search** results.
 - **[JSON-F.4]** Add **stationarity** test results (ADF, KPSS, etc.).
 - **[JSON-F.5]** Add **feature_analysis** (correlation matrix, importance scores).
 - **[JSON-F.6]** Add **explainability fields** (feature attribution, etc.).
