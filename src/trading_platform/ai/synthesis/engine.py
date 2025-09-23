@@ -2,12 +2,38 @@ import json
 import logging
 from typing import Any, Dict, List
 
-from trading_platform.ai.synthesis.rules import DiagnosticConclusion, get_all_rules
+from trading_platform.ai.synthesis.rules import (
+    DiagnosticConclusion,
+    get_all_rules,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class DiagnosticSynthesisEngine:
+    def generate_recommendations(self) -> list[dict]:
+        """
+        Generates recommendations in the format required by `brief.json`.
+        Each recommendation is derived from a diagnostic conclusion and mapped to
+        the schema fields.
+        """
+        recommendations = []
+        for conc in self.conclusions:
+            # Map DiagnosticConclusion to recommendation schema
+            recommendations.append(
+                {
+                    "id": conc.title.lower().replace(" ", "_"),
+                    "title": conc.title,
+                    "description": conc.summary,
+                    # Placeholder: could be rule class name
+                    "rule": conc.title,
+                    # Default; can be set by rules in future
+                    "severity": "info",
+                    "suggested_action": None,
+                }
+            )
+        return recommendations
+
     """
     Consumes analysis data, runs a set of diagnostic rules, and synthesizes
     the findings into a human-readable and machine-readable report.
@@ -61,12 +87,19 @@ class DiagnosticSynthesisEngine:
 
 if __name__ == "__main__":
     # Example Usage
-    # This demonstrates how the engine would be used after a training/evaluation run.
+    # This demonstrates how the engine would be used after a training/
+    # evaluation run.
 
     # 1. Create dummy analysis data
     dummy_data = {
-        "backtest_metrics": {"n_trades": 650, "win_rate": 0.51, "sharpe_ratio": -0.2},
-        "model_analysis": {"avg_pnl_left_on_table_at_tp": 15.50},
+        "backtest_metrics": {
+            "n_trades": 650,
+            "win_rate": 0.51,
+            "sharpe_ratio": -0.2,
+        },
+        "model_analysis": {
+            "avg_pnl_left_on_table_at_tp": 15.50,
+        },
     }
 
     # 2. Initialize and run the engine

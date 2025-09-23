@@ -1,12 +1,35 @@
+# --- Imports ---
 from trading_platform.ai.synthesis.rules import (
     DiagnosticConclusion,
     InefficientExitsRule,
     LowWinRateHighTradesRule,
     OverTradingRule,
+    RecommendationRule,
     SignalPersistenceRule,
     StrategyParameterOptimizationOpportunityRule,
     get_all_rules,
 )
+
+# --- Tests for RecommendationRule ---
+
+
+def test_recommendation_rule_triggered():
+    rule = RecommendationRule()
+    analysis_data = {"backtest_metrics": {"n_trades": 200, "win_rate": 0.4}}
+    conclusion = rule.evaluate(analysis_data)
+    assert conclusion is not None
+    assert conclusion.title == "Consider ADX Filter for Entries"
+    assert "Consider adding an ADX filter" in conclusion.summary
+    assert conclusion.evidence["n_trades"] == 200
+    assert conclusion.evidence["win_rate"] == 0.4
+    assert conclusion.evidence["suggested_action"] == "Add ADX filter to entry rules."
+
+
+def test_recommendation_rule_not_triggered():
+    rule = RecommendationRule()
+    analysis_data = {"backtest_metrics": {"n_trades": 50, "win_rate": 0.6}}
+    conclusion = rule.evaluate(analysis_data)
+    assert conclusion is None
 
 
 # --- Tests for SignalPersistenceRule ---
@@ -231,6 +254,6 @@ def test_inefficient_exits_rule_missing_pnl_metric():
 def test_get_all_rules():
     rules = get_all_rules()
     assert isinstance(rules, list)
-    assert len(rules) == 7
+    assert len(rules) == 8
     assert any(isinstance(rule, OverTradingRule) for rule in rules)
     assert any(isinstance(rule, InefficientExitsRule) for rule in rules)
