@@ -200,6 +200,36 @@
       },
       "required": ["loader_flags", "index_monotonic_increasing", "duplicate_bars_count", "nan_counts", "has_nans"]
     },
+    "signal_quality_analysis": {
+      "type": "object",
+      "description": "Analysis of signal quality, persistence, and duration statistics.",
+      "properties": {
+        "signal_persistence_pct": {
+          "type": "number",
+          "description": "Percentage of bars where the signal is non-flat (i.e., persistent state)."
+        },
+        "avg_signal_duration_bars": {
+          "type": "number",
+          "description": "Average number of consecutive bars a non-flat signal persists."
+        }
+      },
+      "required": ["signal_persistence_pct", "avg_signal_duration_bars"]
+    },
+    "model_analysis": {
+      "type": "object",
+      "description": "Analysis of model performance, including opportunity cost and stop-loss effectiveness.",
+      "properties": {
+        "avg_pnl_left_on_table_at_tp": {
+          "type": "number",
+          "description": "Average profit left on the table at take-profit exits (difference between MFE and actual PnL for TP trades)."
+        },
+        "avg_loss_avoided_by_stop": {
+          "type": "number",
+          "description": "Average loss avoided by stop-loss exits (difference between MAE and actual loss for SL trades)."
+        }
+      },
+      "required": ["avg_pnl_left_on_table_at_tp", "avg_loss_avoided_by_stop"]
+    },
     "provenance": {
       "type": "object",
       "description": "Information about the origin and context of the run and data.",

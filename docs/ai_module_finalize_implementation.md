@@ -40,20 +40,20 @@ This document outlines the detailed tasks required to fully implement and finali
 
 ## 3. Data Integration & Generation for AI Analysis
 
-- [ ] **3.1. Generate `MFE/MAE` for all trades in `brief.json`:**
-    - [ ] **3.1.1.** Modify `src/trading_platform/portfolio/portfolio.py` and/or `src/trading_platform/backtester/core.py` to calculate `mfe_currency` and `mae_currency` for *all* trades (not just closed ones, if applicable) and ensure they are correctly populated in `brief.json.trades`.
-    - [ ] **3.1.2.** Add a test case in `tests/portfolio/test_mfe_mae_bars.py` (or similar) to verify correct calculation and serialization.
-- [ ] **3.2. Generate `model_analysis` data for `brief.json`:**
-    - [ ] **3.2.1.** Define the schema for `brief.json.model_analysis` (e.g., `avg_pnl_left_on_table_at_tp`, `avg_loss_avoided_by_stop`).
-    - [ ] **3.2.2.** Modify `src/trading_platform/core/run.py` (`finalize_run`) to compute and include this data. This will likely involve new logic in `backtester/core.py` or a new utility.
-    - [ ] **3.2.3.** Add a test case to verify the presence and correctness of this section in `brief.json`.
-- [ ] **3.3. Generate `signal_quality_analysis` data for `brief.json`:**
-    - [ ] **3.3.1.** Define the schema for `brief.json.signal_quality_analysis` (e.g., `signal_persistence_pct`, `avg_signal_duration_bars`).
-    - [ ] **3.3.2.** Modify `src/trading_platform/core/run.py` (`finalize_run`) to compute and include this data, potentially using `signals.parquet` as input.
-    - [ ] **3.3.3.** Add a test case to verify the presence and correctness of this section in `brief.json`.
-- [ ] **3.4. Ensure `regimes` data is fully populated in `brief.json`:**
-    - [ ] **3.4.1.** Verify that `brief.json.regimes` accurately reflects performance per market regime.
-    - [ ] **3.4.2.** Add tests to ensure this section is always present and correct when RMM is used.
+- [x] **3.1. Generate `MFE/MAE` for all trades in `brief.json`:**
+    - [x] **3.1.1.** Modify `src/trading_platform/portfolio/portfolio.py` and/or `src/trading_platform/backtester/core.py` to calculate `mfe_currency` and `mae_currency` for *all* trades (not just closed ones, if applicable) and ensure they are correctly populated in `brief.json.trades`. *(Already implemented: PortfolioManager and Trade dataclass handle this for all trades; brief.json serialization is present.)*
+    - [x] **3.1.2.** Add a test case in `tests/portfolio/test_mfe_mae_bars.py` (or similar) to verify correct calculation and serialization. *(Test exists and covers both long and short trades.)*
+- [x] **3.2. Generate `model_analysis` data for `brief.json`:**
+    - [x] **3.2.1.** Define the schema for `brief.json.model_analysis` (e.g., `avg_pnl_left_on_table_at_tp`, `avg_loss_avoided_by_stop`). *(Schema added to brief.schema.json)*
+    - [x] **3.2.2.** Modify `src/trading_platform/core/run.py` (`finalize_run`) to compute and include this data. This will likely involve new logic in `backtester/core.py` or a new utility. *(Implemented in reporting/brief.py, included in brief.json)*
+    - [x] **3.2.3.** Add a test case to verify the presence and correctness of this section in `brief.json`. *(Test added in tests/core/test_finalize_run.py)*
+- [x] **3.3. Generate `signal_quality_analysis` data for `brief.json`:**
+    - [x] **3.3.1.** Define the schema for `brief.json.signal_quality_analysis` (e.g., `signal_persistence_pct`, `avg_signal_duration_bars`). *(Schema added to brief.schema.json)*
+    - [x] **3.3.2.** Modify `src/trading_platform/core/run.py` (`finalize_run`) to compute and include this data, potentially using `signals.parquet` as input. *(Implemented in reporting/brief.py, included in brief.json)*
+    - [x] **3.3.3.** Add a test case to verify the presence and correctness of this section in `brief.json`. *(Test added in tests/core/test_finalize_run.py)*
+- [x] **3.4. Ensure `regimes` data is fully populated in `brief.json`:**
+    - [x] **3.4.1.** Verify that `brief.json.regimes` accurately reflects performance per market regime.
+    - [x] **3.4.2.** Add tests to ensure this section is always present and correct when RMM is used.
 
 ## 4. Advanced AI Module Features
 

@@ -94,6 +94,14 @@
   "monte_carlo": {},
   "walk_forward": {},
   "regimes": {},
+  "signal_quality_analysis": {
+    "signal_persistence_pct": 0.0,
+    "avg_signal_duration_bars": 0.0
+  },
+  "model_analysis": {
+    "avg_pnl_left_on_table_at_tp": 0.0,
+    "avg_loss_avoided_by_stop": 0.0
+  },
   "data_quality": {
     "index_monotonic_increasing": true,
     "duplicate_bars_count": 0,
@@ -208,7 +216,11 @@
   "streaks.current_streak": "Current consecutive winning or losing trades.",
   "streaks.longest_loss_streak": "Longest consecutive losing trades.",
   "streaks.longest_win_streak": "Longest consecutive winning trades.",
-  "trades": "A list of all executed trades, including entry, exit, and performance details."
+  "trades": "A list of all executed trades, including entry, exit, and performance details.",
+  "signal_quality_analysis.signal_persistence_pct": "Percentage of bars where the signal is non-flat (i.e., persistent state).",
+  "signal_quality_analysis.avg_signal_duration_bars": "Average number of consecutive bars a non-flat signal persists.",
+  "model_analysis.avg_pnl_left_on_table_at_tp": "Average profit left on the table at take-profit exits (difference between MFE and actual PnL for TP trades).",
+  "model_analysis.avg_loss_avoided_by_stop": "Average loss avoided by stop-loss exits (difference between MAE and actual loss for SL trades)."
   },
   "trades": [],
   "skipped_trades": [
