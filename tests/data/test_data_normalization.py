@@ -1,9 +1,34 @@
-# Validates: [DH-2.4], [DH-2.7]
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 from trading_platform.data.schema import load_and_normalize_data
+from trading_platform.reporting.brief import compute_data_quality
+
+
+# Add test for data quality score (Task 2.5–2.8)
+def test_compute_data_quality_score():
+    # Create DataFrame with NaNs and duplicate index
+    idx = pd.date_range("2023-01-01", periods=5, freq="D")
+    idx = idx.append(pd.DatetimeIndex([idx[2]]))  # Add duplicate
+    df = pd.DataFrame(
+        {
+            "open": [1, 2, 3, 4, 5, 6],
+            "high": [2, 3, 4, 5, 6, 7],
+            "low": [0, 1, 2, 3, 4, np.nan],
+            "close": [1, 2, 3, 4, 5, 6],
+            "volume": [100, 200, 300, 400, 500, 600],
+        },
+        index=idx,
+    )
+    # 1 NaN, 1 duplicate
+    result = compute_data_quality(df)
+    # Expected score: start at 1.0, -0.5 for NaN, -0.001 for duplicate
+    expected_score = 1.0 - 0.5 - min(0.5, 1 / 1000.0)
+    expected_score = max(0.0, expected_score)
+    assert "quality_score" in result
+    assert abs(result["quality_score"] - expected_score) < 1e-6
 
 
 @pytest.fixture

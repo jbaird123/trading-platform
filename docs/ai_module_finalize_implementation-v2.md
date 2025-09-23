@@ -6,43 +6,43 @@
 
 ## **Part 1: Corrective Actions for Existing Implementation (Tasks 1-6)**
 
-### [ ] **Task 1: Fix Critical Data Gap in CLI**
+### [x] **Task 1: Fix Critical Data Gap in CLI**
 
 -   **File to Modify:** `src/trading_platform/cli.py`
 -   **Function to Modify:** `cmd_ai_diagnose`
 -   **Action:**
-    -   [ ] 1.1  Locate the `analysis_data` dictionary within the `cmd_ai_diagnose` function.
-    -   [ ] 1.2  Delete the existing dictionary assignment.
-    -   [ ] 1.3  Replace it with the following line to pass the *entire* loaded brief to the engine:
+    -   [x] 1.1  Locate the `analysis_data` dictionary within the `cmd_ai_diagnose` function.
+    -   [x] 1.2  Delete the existing dictionary assignment.
+    -   [x] 1.3  Replace it with the following line to pass the *entire* loaded brief to the engine:
         ```python
         analysis_data = brief_data
         ```
 -   **File to Modify:** `src/trading_platform/ai/synthesis/engine.py`
 -   **Class to Modify:** `DiagnosticSynthesisEngine`
 -   **Action:**
-    -   [ ] 1.4  The `__init__` method currently accepts `analysis_data`. This will now be the full brief.
-    -   [ ] 1.5  The `run` method iterates through rules and calls `rule.evaluate(self.analysis_data)`. This is correct and does not need to be changed. The rules themselves will now be responsible for accessing the sections they need from the full brief.
+    -   [x] 1.4  The `__init__` method currently accepts `analysis_data`. This will now be the full brief.
+    -   [x] 1.5  The `run` method iterates through rules and calls `rule.evaluate(self.analysis_data)`. This is correct and does not need to be changed. The rules themselves will now be responsible for accessing the sections they need from the full brief.
 
-### [ ] **Task 2: Implement `DataQualityImpactRule` Logic**
+### [x] **Task 2: Implement `DataQualityImpactRule` Logic**
 
 -   **File to Modify:** `src/trading_platform/reporting/brief.py`
 -   **Function to Modify:** `compute_data_quality`
 -   **Action:**
-    -   [ ] 2.1  You will add a `quality_score` to the `result` dictionary returned by this function.
-    -   [ ] 2.2  This score must be a float between `0.0` and `1.0`.
-    -   [ ] 2.3  Calculate the score using the following logic:
+    -   [x] 2.1  You will add a `quality_score` to the `result` dictionary returned by this function.
+    -   [x] 2.2  This score must be a float between `0.0` and `1.0`.
+    -   [x] 2.3  Calculate the score using the following logic:
         -   Start with a `score` of `1.0`.
         -   If `result["has_nans"]` is `True`, subtract `0.5` from the `score`.
         -   Calculate a penalty for duplicate bars: `duplicate_penalty = min(0.5, result["duplicate_bars_count"] / 1000.0)`.
         -   Subtract `duplicate_penalty` from the `score`.
         -   Ensure the final score is not less than `0.0`.
-    -   [ ] 2.4  Add the final calculated score to the dictionary: `result["quality_score"] = score`.
+    -   [x] 2.4  Add the final calculated score to the dictionary: `result["quality_score"] = score`.
 -   **File to Modify:** `tests/data/test_data_normalization.py` (or a more appropriate test file if one exists for `brief.py`)
 -   **Action:**
-    -   [ ] 2.5  Add a new test function `test_compute_data_quality_score`.
-    -   [ ] 2.6  In this test, create a sample DataFrame with a known number of `NaN` values and duplicate index entries.
-    -   [ ] 2.7  Call `compute_data_quality` with this DataFrame.
-    -   [ ] 2.8  Assert that the returned dictionary contains a `quality_score` key with the correctly calculated value based on the logic defined above.
+    -   [x] 2.5  Add a new test function `test_compute_data_quality_score`.
+    -   [x] 2.6  In this test, create a sample DataFrame with a known number of `NaN` values and duplicate index entries.
+    -   [x] 2.7  Call `compute_data_quality` with this DataFrame.
+    -   [x] 2.8  Assert that the returned dictionary contains a `quality_score` key with the correctly calculated value based on the logic defined above.
 
 ### [ ] **Task 3: Generalize `StrategyParameterOptimizationOpportunityRule`**
 
