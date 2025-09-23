@@ -44,43 +44,43 @@
     -   [x] 2.7  Call `compute_data_quality` with this DataFrame.
     -   [x] 2.8  Assert that the returned dictionary contains a `quality_score` key with the correctly calculated value based on the logic defined above.
 
-### [ ] **Task 3: Generalize `StrategyParameterOptimizationOpportunityRule`**
+### [x] **Task 3: Generalize `StrategyParameterOptimizationOpportunityRule`**
 
 -   **File to Modify:** `src/trading_platform/ai/synthesis/rules.py`
 -   **Class to Modify:** `StrategyParameterOptimizationOpportunityRule`
 -   **Action:**
-    -   [ ] 3.1  Modify the `__init__` method to remove the hardcoded `param_defaults`.
-    -   [ ] 3.2  Modify the `evaluate` method. The rule must now trigger if any value within the `analysis_data.get("strategy_params", {})` dictionary is `None`.
-    -   [ ] 3.3  The `summary` and `evidence` should report the specific parameters that were found to be `None`.
+    -   [x] 3.1  Modify the `__init__` method to remove the hardcoded `param_defaults`.
+    -   [x] 3.2  Modify the `evaluate` method. The rule must now trigger if any value within the `analysis_data.get("strategy_params", {})` dictionary is `None`.
+    -   [x] 3.3  The `summary` and `evidence` should report the specific parameters that were found to be `None`.
 -   **File to Modify:** `tests/ai/synthesis/test_rules.py`
 -   **Action:**
-    -   [ ] 3.4  Rewrite the tests for this rule (`test_strategy_param_optimization_rule_*`).
-    -   [ ] 3.5  The "triggered" test must now pass a `strategy_params` dictionary where one of the values is `None`.
-    -   [ ] 3.6  The "not triggered" test must pass a `strategy_params` dictionary where all values are non-`None` (e.g., numbers or strings).
+    -   [x] 3.4  Rewrite the tests for this rule (`test_strategy_param_optimization_rule_*`).
+    -   [x] 3.5  The "triggered" test must now pass a `strategy_params` dictionary where one of the values is `None`.
+    -   [x] 3.6  The "not triggered" test must pass a `strategy_params` dictionary where all values are non-`None` (e.g., numbers or strings).
 
-### [ ] **Task 4: Refactor `InefficientExitsRule` Logic**
+### [x] **Task 4: Refactor `InefficientExitsRule` Logic**
 
 -   **File to Modify:** `src/trading_platform/ai/synthesis/rules.py`
 -   **Class to Modify:** `InefficientExitsRule`
 -   **Action:**
-    -   [ ] 4.1  The `evaluate` method currently uses an `if/elif` structure that prevents multiple findings. You will refactor this.
-    -   [ ] 4.2  Create an empty list called `conclusions`.
-    -   [ ] 4.3  Evaluate the `model_analysis` branch. If it triggers, create a `DiagnosticConclusion` and append it to the `conclusions` list.
-    -   [ ] 4.4  Separately, evaluate the `trades` analysis branch. If it triggers, create a `DiagnosticConclusion` and append it to the `conclusions` list.
-    -   [ ] 4.5  At the end of the method, if the `conclusions` list is empty, return `None`.
-    -   [ ] 4.6  If the `conclusions` list contains one or more items, combine their titles and summaries into a single, comprehensive `DiagnosticConclusion` object and return that. The `evidence` should merge the evidence from all triggered conclusions.
+    -   [x] 4.1  The `evaluate` method currently uses an `if/elif` structure that prevents multiple findings. You will refactor this.
+    -   [x] 4.2  Create an empty list called `conclusions`.
+    -   [x] 4.3  Evaluate the `model_analysis` branch. If it triggers, create a `DiagnosticConclusion` and append it to the `conclusions` list.
+    -   [x] 4.4  Separately, evaluate the `trades` analysis branch. If it triggers, create a `DiagnosticConclusion` and append it to the `conclusions` list.
+    -   [x] 4.5  At the end of the method, if the `conclusions` list is empty, return `None`.
+    -   [x] 4.6  If the `conclusions` list contains one or more items, combine their titles and summaries into a single, comprehensive `DiagnosticConclusion` object and return that. The `evidence` should merge the evidence from all triggered conclusions.
 
-### [ ] **Task 5: Clean Up Redundant and Out-of-Scope Rules**
+### [x] **Task 5: Clean Up Redundant and Out-of-Scope Rules**
 
 -   **File to Modify:** `src/trading_platform/ai/synthesis/rules.py`
 -   **Action:**
-    -   [ ] 5.1  Delete the entire `OverTradingRule` class definition.
-    -   [ ] 5.2  Delete the entire `RecommendationRule` class definition.
-    -   [ ] 5.3  In the `get_all_rules` function, remove `OverTradingRule()` and `RecommendationRule()` from the returned list.
+    -   [x] 5.1  Delete the entire `OverTradingRule` class definition.
+    -   [x] 5.2  Delete the entire `RecommendationRule` class definition.
+    -   [x] 5.3  In the `get_all_rules` function, remove `OverTradingRule()` and `RecommendationRule()` from the returned list.
 -   **File to Modify:** `tests/ai/synthesis/test_rules.py`
 -   **Action:**
-    -   [ ] 5.4  Delete the test functions `test_recommendation_rule_triggered` and `test_recommendation_rule_not_triggered`.
-    -   [ ] 5.5  Delete all test functions related to `OverTradingRule`.
+    -   [x] 5.4  Delete the test functions `test_recommendation_rule_triggered` and `test_recommendation_rule_not_triggered`.
+    -   [x] 5.5  Delete all test functions related to `OverTradingRule`.
 
 ### [ ] **Task 6: Verify End-to-End Integration**
 

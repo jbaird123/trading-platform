@@ -179,7 +179,7 @@ def test_dse_generate_report_json_no_conclusions():
     ):
         engine = DiagnosticSynthesisEngine(analysis_data)
         report_json_str = engine.generate_report_json()
-        assert json.loads(report_json_str) == []
+        assert json.loads(report_json_str) == {"conclusions": [], "recommendations": []}
 
 
 def test_dse_generate_report_json_with_one_conclusion():
@@ -194,13 +194,16 @@ def test_dse_generate_report_json_with_one_conclusion():
         engine.run()
         report_json_str = engine.generate_report_json()
 
-        expected_json = [
-            {
-                "title": "Issue Title",
-                "summary": "Issue Summary",
-                "evidence": {"metric": 0.1},
-            }
-        ]
+        expected_json = {
+            "conclusions": [
+                {
+                    "title": "Issue Title",
+                    "summary": "Issue Summary",
+                    "evidence": {"metric": 0.1},
+                }
+            ],
+            "recommendations": [],
+        }
         assert json.loads(report_json_str) == expected_json
 
 
@@ -220,16 +223,19 @@ def test_dse_generate_report_json_with_multiple_conclusions():
         engine.run()
         report_json_str = engine.generate_report_json()
 
-        expected_json = [
-            {
-                "title": "Title 1",
-                "summary": "Summary 1",
-                "evidence": {"key1": "value1"},
-            },
-            {
-                "title": "Title 2",
-                "summary": "Summary 2",
-                "evidence": {"key2": "value2"},
-            },
-        ]
+        expected_json = {
+            "conclusions": [
+                {
+                    "title": "Title 1",
+                    "summary": "Summary 1",
+                    "evidence": {"key1": "value1"},
+                },
+                {
+                    "title": "Title 2",
+                    "summary": "Summary 2",
+                    "evidence": {"key2": "value2"},
+                },
+            ],
+            "recommendations": [],
+        }
         assert json.loads(report_json_str) == expected_json

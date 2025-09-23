@@ -21,7 +21,10 @@ repos:
       - id: mypy
         language: system
         entry: poetry run mypy
-        args: [--explicit-package-bases]
+        pass_filenames: false
+        args:
+          - --explicit-package-bases
+          - src
 
   - repo: local
     hooks:

@@ -45,7 +45,10 @@ def test_cmd_ai_diagnose_success(tmp_path: Path) -> None:
     json_content = json_report_path.read_text()
 
     assert "No specific issues were detected by the diagnostic rules." in md_content
-    assert json.loads(json_content) == []  # No conclusions means empty list
+    assert json.loads(json_content) == {
+        "conclusions": [],
+        "recommendations": [],
+    }  # No conclusions means empty list
 
 
 def test_cmd_ai_diagnose_missing_brief(tmp_path):
