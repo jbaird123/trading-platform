@@ -38,39 +38,6 @@ class BaseDiagnosticRule(ABC):
         pass
 
 
-class OverTradingRule(BaseDiagnosticRule):
-    """Checks for signs of over-trading (high trade count with low profitability)."""
-
-    def evaluate(self, analysis_data: Dict[str, Any]) -> Optional[DiagnosticConclusion]:
-        metrics = analysis_data.get("backtest_metrics", {})
-
-        # Rule cannot be evaluated if the necessary metrics are not present.
-        if "n_trades" not in metrics or "win_rate" not in metrics:
-            return None
-
-        n_trades = metrics["n_trades"]
-        win_rate = metrics["win_rate"]
-
-        # Example thresholds (these should be configurable)
-        if n_trades > 500 and win_rate < 0.55:
-            summary = (
-                "The strategy executed an unusually high number of trades "
-                f"({n_trades}) "
-                f"with a low win rate ({win_rate:.2%}), suggesting that the entry "
-                "signals may be too frequent and not selective enough."
-            )
-            return DiagnosticConclusion(
-                title="Potential Over-Trading Detected",
-                summary=summary,
-                evidence={
-                    "n_trades": n_trades,
-                    "win_rate": win_rate,
-                    "thresholds": {"n_trades": 500, "win_rate": 0.55},
-                },
-            )
-        return None
-
-
 class InefficientExitsRule(BaseDiagnosticRule):
     """
     Placeholder rule to check if exits are systematically inefficient.
@@ -80,23 +47,29 @@ class InefficientExitsRule(BaseDiagnosticRule):
     def evaluate(self, analysis_data: Dict[str, Any]) -> Optional[DiagnosticConclusion]:
         model_analysis = analysis_data.get("model_analysis", {})
         trades = analysis_data.get("trades", [])
-        # Check model_analysis for avg_pnl_left_on_table_at_tp
-        avg_pnl_left = model_analysis.get("avg_pnl_left_on_table_at_tp")
         threshold = 10.0
+        conclusions = []
+
+        # Model analysis branch
+        avg_pnl_left = model_analysis.get("avg_pnl_left_on_table_at_tp")
         if avg_pnl_left is not None and avg_pnl_left > threshold:
             summary = (
                 f"${avg_pnl_left:.2f} of potential profit was left on the table "
-                "by take-profit exits, suggesting inefficient exit logic."
+                "by take-profit exits, "
+                "suggesting inefficient exit logic."
             )
-            return DiagnosticConclusion(
-                title="Inefficient Take-Profit Exits Detected",
-                summary=summary,
-                evidence={
-                    "avg_pnl_left_on_table_at_tp": avg_pnl_left,
-                    "threshold": threshold,
-                },
+            conclusions.append(
+                DiagnosticConclusion(
+                    title="Inefficient Take-Profit Exits Detected",
+                    summary=summary,
+                    evidence={
+                        "avg_pnl_left_on_table_at_tp": avg_pnl_left,
+                        "threshold": threshold,
+                    },
+                )
             )
-        # Analyze trades for high mfe_currency or mae_currency
+
+        # Trades analysis branch
         if trades:
             high_mfe_trades = [
                 t
@@ -116,16 +89,31 @@ class InefficientExitsRule(BaseDiagnosticRule):
                     f"{len(high_mae_trades)} trades had MAE > ${threshold}. "
                     "This suggests exits may be inefficient."
                 )
-                return DiagnosticConclusion(
-                    title="Inefficient Exits Detected (Trade Analysis)",
-                    summary=summary,
-                    evidence={
-                        "high_mfe_trades": len(high_mfe_trades),
-                        "high_mae_trades": len(high_mae_trades),
-                        "threshold": threshold,
-                    },
+                conclusions.append(
+                    DiagnosticConclusion(
+                        title="Inefficient Exits Detected (Trade Analysis)",
+                        summary=summary,
+                        evidence={
+                            "high_mfe_trades": len(high_mfe_trades),
+                            "high_mae_trades": len(high_mae_trades),
+                            "threshold": threshold,
+                        },
+                    )
                 )
-        return None
+
+        if not conclusions:
+            return None
+        # Merge all conclusions into one
+        merged_title = "; ".join(c.title for c in conclusions)
+        merged_summary = "\n".join(c.summary for c in conclusions)
+        merged_evidence = {}
+        for c in conclusions:
+            merged_evidence.update(c.evidence)
+        return DiagnosticConclusion(
+            title=merged_title,
+            summary=merged_summary,
+            evidence=merged_evidence,
+        )
 
 
 # --- LowWinRateHighTradesRule ---
@@ -148,8 +136,8 @@ class LowWinRateHighTradesRule(BaseDiagnosticRule):
         if n_trades > self.n_trades_threshold and win_rate < self.win_rate_threshold:
             summary = (
                 f"The strategy executed {n_trades} trades with a low win rate "
-                f"({win_rate:.2%}). This may indicate excessive trading or poor "
-                "signal quality."
+                f"({win_rate:.2%}). "
+                "This may indicate excessive trading or poor signal quality."
             )
             return DiagnosticConclusion(
                 title="Low Win Rate with High Trade Count",
@@ -174,28 +162,23 @@ class StrategyParameterOptimizationOpportunityRule(BaseDiagnosticRule):
     optimized.
     """
 
-    def __init__(self, param_defaults: Optional[dict] = None):
-        # Example: {'fast': 12, 'slow': 26}
-        self.param_defaults = param_defaults or {"fast": 12, "slow": 26}
+    def __init__(self):
+        pass
 
     def evaluate(self, analysis_data: Dict[str, Any]) -> Optional[DiagnosticConclusion]:
         params = analysis_data.get("strategy_params", {})
         if not params:
             return None
-        unoptimized = {}
-        for k, default in self.param_defaults.items():
-            v = params.get(k)
-            if v is None or v == default:
-                unoptimized[k] = v
-        if unoptimized:
+        none_params = {k: v for k, v in params.items() if v is None}
+        if none_params:
             summary = (
-                "The following strategy parameters are unoptimized or default: "
-                f"{unoptimized}. Consider running parameter search."
+                "The following strategy parameters are unset (None): "
+                f"{none_params}. Consider running parameter search."
             )
             return DiagnosticConclusion(
                 title="Strategy Parameter Optimization Opportunity",
                 summary=summary,
-                evidence={"unoptimized_params": unoptimized},
+                evidence={"none_params": none_params},
             )
         return None
 
@@ -315,49 +298,14 @@ class DataQualityImpactRule(BaseDiagnosticRule):
         return None
 
 
-# --- RecommendationRule ---
-class RecommendationRule(BaseDiagnosticRule):
-    """
-    Suggests actionable recommendations based on detected flaws or improvement
-    opportunities. This is a template; real logic should be added for specific
-    recommendations.
-    """
-
-    def evaluate(self, analysis_data: Dict[str, Any]) -> Optional[DiagnosticConclusion]:
-        # Example: recommend adding an ADX filter when win rate is low and
-        # trade count is high.
-        metrics = analysis_data.get("backtest_metrics", {})
-        n_trades = metrics.get("n_trades")
-        win_rate = metrics.get("win_rate")
-        if n_trades is not None and win_rate is not None:
-            if n_trades > 100 and win_rate < 0.5:
-                summary = (
-                    "The strategy has a high trade count and low win rate. "
-                    "Consider adding an ADX filter to entry rules to improve "
-                    "signal quality."
-                )
-                return DiagnosticConclusion(
-                    title="Consider ADX Filter for Entries",
-                    summary=summary,
-                    evidence={
-                        "n_trades": n_trades,
-                        "win_rate": win_rate,
-                        "suggested_action": ("Add ADX filter to entry rules."),
-                    },
-                )
-        return None
-
-
 # --- get_all_rules ---
 def get_all_rules() -> list[BaseDiagnosticRule]:
     return [
-        OverTradingRule(),
         InefficientExitsRule(),
         LowWinRateHighTradesRule(),
         StrategyParameterOptimizationOpportunityRule(),
         SignalPersistenceRule(),
         MarketRegimeMismatchRule(),
         DataQualityImpactRule(),
-        RecommendationRule(),
         # Add other rules here
     ]
