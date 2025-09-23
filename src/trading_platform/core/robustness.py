@@ -15,6 +15,7 @@ def monte_carlo_summary(
     trials: int = 1000,
     seed: int | None = None,
     mode: str = "bootstrap_trades",
+    block_len: int | None = None,
 ) -> dict[str, Any]:
     """Compute simple MC stats by resampling trade PnLs.
 
@@ -27,14 +28,49 @@ def monte_carlo_summary(
     n = max(1, len(pnls))
     finals: list[float] = []
     finals_pnl: list[float] = []
+    dd_values: list[float] = []
+    win_rates: list[float] = []
+
+    def _block_bootstrap(values: list[float], m: int, b: int) -> list[float]:
+        if b <= 0:
+            b = 1
+        out: list[float] = []
+        max_start = max(0, m - b)
+        while len(out) < m:
+            start = random.randrange(max_start + 1) if max_start >= 0 else 0
+            blk = values[start : start + b]
+            if not blk:
+                blk = values[:b]
+            out.extend(blk)
+        return out[:m]
+
     for _ in range(trials):
         if mode == "bootstrap_trades":
             sample = [pnls[random.randrange(n)] for _ in range(n)]
+        elif mode == "block_bootstrap_trades":
+            bl = int(block_len or max(1, int(n**0.5)))
+            sample = _block_bootstrap(pnls, n, bl)
         else:  # fallback to identity
             sample = pnls
         total_pnl = float(sum(sample))
         finals_pnl.append(total_pnl)
         finals.append(initial_cash + total_pnl)
+        # Compute max drawdown on equity path implied by sampled pnls
+        eq = initial_cash
+        peak = eq
+        max_dd = 0.0
+        wins = 0
+        for p in sample:
+            eq = eq + float(p)
+            if eq > peak:
+                peak = eq
+            dd = max(0.0, peak - eq)
+            if dd > max_dd:
+                max_dd = dd
+            if float(p) > 0.0:
+                wins += 1
+        dd_values.append(max_dd)
+        win_rates.append(float(wins) / float(n) if n else 0.0)
 
     def _pct(vals: list[float], p: float) -> float:
         if not vals:
@@ -61,6 +97,16 @@ def monte_carlo_summary(
             "mean": float(mean(finals_pnl)) if finals_pnl else 0.0,
             "p05": _pct(finals_pnl, 0.05),
             "p95": _pct(finals_pnl, 0.95),
+        },
+        "max_drawdown": {
+            "mean": float(mean(dd_values)) if dd_values else 0.0,
+            "p05": _pct(dd_values, 0.05),
+            "p95": _pct(dd_values, 0.95),
+        },
+        "win_rate": {
+            "mean": float(mean(win_rates)) if win_rates else 0.0,
+            "p05": _pct(win_rates, 0.05),
+            "p95": _pct(win_rates, 0.95),
         },
     }
 

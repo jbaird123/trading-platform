@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/run_config.schema.json",
+  "title": "Run Configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "Unique identifier for this run."
+    },
+    "strategy": {
+      "type": "string",
+      "description": "Path to the strategy YAML file."
+    },
+    "rem": {
+      "type": "string",
+      "description": "Path to the Risk & Exit Manager (REM) YAML file."
+    },
+    "rmm": {
+      "type": "string",
+      "description": "Path to the Regime Market Manager (RMM) YAML file."
+    },
+    "instrument": {
+      "type": "object",
+      "properties": {
+        "symbol": { "type": "string" },
+        "timeframe": { "type": "string" }
+      },
+      "required": ["symbol", "timeframe"]
+    },
+    "data": {
+      "type": "object",
+      "properties": {
+        "source": { "type": "string" },
+        "start_date": { "type": "string", "format": "date" },
+        "end_date": { "type": "string", "format": "date" }
+      },
+      "required": ["source", "start_date", "end_date"]
+    }
+  },
+  "required": ["strategy", "instrument", "data"]
+}

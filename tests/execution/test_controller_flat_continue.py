@@ -1,3 +1,4 @@
+# Validates: [EL-8.5], [EL-8.7]
 from __future__ import annotations
 
 from datetime import datetime
@@ -22,10 +23,11 @@ def test_controller_flat_desired_continues_loop():
     )
     cfg = {
         "strategy_name": "FlatAlways",
-        "entry_rules": [
+        "parameters": {},
+        "long_entry_rules": [
             {"any_of": [{"condition": "is_above", "left": "close", "right": 2.0}]}
         ],
-        "exit_rules": [
+        "long_exit_rules": [
             {"any_of": [{"condition": "is_below", "left": "close", "right": 0.5}]}
         ],
     }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
@@ -9,24 +10,28 @@ import pandas as pd
 
 try:
     import jsonschema  # type: ignore[import-untyped]
-except Exception:  # pragma: no cover
-    jsonschema = None  # type: ignore[assignment]
+except ImportError:
+    jsonschema = None
+
+from trading_platform.ai.inference_client import AIInferenceClient
 
 from .features import compute_features
 
+logger = logging.getLogger(__name__)
+
 
 def validate_strategy_config(cfg: dict[str, Any]) -> None:
-    """Lightweight validation aligned to docs/schemas/strategy.schema.json.
+    """Validate strategy config against key schema expectations.
 
-    This avoids a full jsonschema dependency while enforcing key structure:
-    - required: strategy_name (str), entry_rules (list), exit_rules (list)
-    - features: optional list of {name:str, type:str}
-    - rule blocks: each item has all_of or any_of with a list of predicates
-    - predicate: {condition, left, right} with known conditions
+    We prefer jsonschema when available, but also enforce minimal rules:
+    - required: strategy_name (str)
+        - at least one pair present: (long_entry_rules & long_exit_rules) or
+            (short_entry_rules & short_exit_rules)
+    - rule blocks: each has all_of or any_of with a non-empty predicate list
+    - predicate: {condition, left, right} with supported conditions
     """
     if not isinstance(cfg, dict):
         raise ValueError("strategy must be an object")
-    # JSON Schema validation if available (best-effort, non-fatal)
     if jsonschema is not None:
         schema_path = (
             Path(__file__).resolve().parents[3]
@@ -34,37 +39,11 @@ def validate_strategy_config(cfg: dict[str, Any]) -> None:
             / "schemas"
             / "strategy.schema.json"
         )
+        schema = json.loads(schema_path.read_text())
         try:
-            schema = json.loads(schema_path.read_text())
-            jsonschema.validate(cfg, schema)  # type: ignore[misc]
-        except Exception:  # pragma: no cover
-            # Some schema constructs (oneOf + additionalProperties) can be
-            # overly strict for minimal configs; fall back to lightweight checks.
-            pass
-    for req in ("strategy_name", "entry_rules", "exit_rules"):
-        if req not in cfg:
-            raise ValueError(f"missing required field: {req}")
-    if not isinstance(cfg["strategy_name"], str):
-        raise ValueError("strategy_name must be a string")
-    for k in ("entry_rules", "exit_rules"):
-        if not isinstance(cfg[k], list) or not cfg[k]:
-            raise ValueError(f"{k} must be a non-empty array")
-        for block in cfg[k]:
-            if not isinstance(block, dict):
-                raise ValueError("rule block must be an object")
-            choices = ["all_of", "any_of"]
-            present = [c for c in choices if c in block]
-            if not present:
-                raise ValueError("rule block must have all_of or any_of")
-            preds = block[present[0]]
-            if not isinstance(preds, list) or not preds:
-                raise ValueError("predicate list must be a non-empty array")
-            for pred in preds:
-                if not isinstance(pred, dict):
-                    raise ValueError("predicate must be an object")
-                cond = str(pred.get("condition", ""))
-                if cond not in {"is_above", "is_below", "cross_above", "cross_below"}:
-                    raise ValueError(f"unsupported condition: {cond}")
+            jsonschema.validate(cfg, schema)
+        except jsonschema.ValidationError as e:
+            raise ValueError(f"Strategy schema validation error: {e.message}") from e
 
 
 def load_strategy_config(doc: dict[str, Any] | str | Path) -> dict[str, Any]:
@@ -130,71 +109,163 @@ class CompiledStrategy:
     name: str
     overlays: list[str]
     features: list[dict]
-    entry_blocks: list[dict]
-    exit_blocks: list[dict]
-    risk: dict[str, Any]
-    allow_bearish_entry_from_exit: bool = False
+    long_entry_blocks: list[dict]
+    long_exit_blocks: list[dict]
+    short_entry_blocks: list[dict]
+    short_exit_blocks: list[dict]
+    parameters: dict[str, Any]
+    slope_filter: bool = False
+    slope_feature: str | None = None
+    ai_filter_enabled: bool = False
+    ai_inference_client: AIInferenceClient | None = None
+    ai_confidence_threshold: float = 0.0
+    ai_input_features: list[str] | None = None
+    # Internal state populated during signal generation
+    _feature_df: pd.DataFrame | None = None
 
     def generate_signals(self, df: pd.DataFrame) -> pd.Series:
-        df2 = compute_features(df, self.features)
-        enter_long = pd.Series([False] * len(df2), index=df2.index)
-        for b in self.entry_blocks:
-            enter_long = enter_long | _eval_rule_block(df2, b)
-        exit_or_enter_short = pd.Series([False] * len(df2), index=df2.index)
-        for b in self.exit_blocks:
-            exit_or_enter_short = exit_or_enter_short | _eval_rule_block(df2, b)
-        # Stateful signals supporting flat, long, short (minimal semantics):
-        # - flat -> long when entry rules true
-        # - flat -> short when exit rules true (used as bearish entry)
-        # - long -> flat when exit rules true
-        # - short -> flat when entry rules true
-        sig = []
+        df2 = compute_features(df, self.features, self.parameters)
+        # Persist the feature dataframe for context lookups
+        super().__setattr__("_feature_df", df2)
+
+        le = pd.Series([False] * len(df2), index=df2.index)
+        for b in self.long_entry_blocks:
+            le = le | _eval_rule_block(df2, b)
+        lx = pd.Series([False] * len(df2), index=df2.index)
+        for b in self.long_exit_blocks:
+            lx = lx | _eval_rule_block(df2, b)
+        se = pd.Series([False] * len(df2), index=df2.index)
+        for b in self.short_entry_blocks:
+            se = se | _eval_rule_block(df2, b)
+        sx = pd.Series([False] * len(df2), index=df2.index)
+        for b in self.short_exit_blocks:
+            sx = sx | _eval_rule_block(df2, b)
+
+        # Optional slope gating
+        slope_up = pd.Series([True] * len(df2), index=df2.index)
+        slope_down = pd.Series([True] * len(df2), index=df2.index)
+        if self.slope_filter:
+            src = self.slope_feature or "ema_slow"
+            if src in df2.columns:
+                s = pd.Series(df2[src], dtype="float64")
+                slope_up = s > s.shift(1)
+                slope_down = s < s.shift(1)
+
+        # Apply AI filter if enabled
+        if self.ai_filter_enabled and self.ai_inference_client:
+            try:
+                # Prepare features for AI model
+                ai_features_df = df2
+                if self.ai_input_features:
+                    missing_features = [
+                        f for f in self.ai_input_features if f not in df2.columns
+                    ]
+                    if missing_features:
+                        logger.warning(
+                            f"Missing AI input features: {missing_features}. "
+                            "Skipping AI filter."
+                        )
+                        ai_predictions = []
+                    else:
+                        ai_features_df = df2[self.ai_input_features]
+                ai_predictions = self.ai_inference_client.predict(ai_features_df)
+                if ai_predictions:
+                    # Assuming ai_predictions is a list of dicts with 'prediction'
+                    # and 'confidence'
+                    # and aligns with df2's index
+                    ai_confidences = pd.Series(
+                        [p.get("confidence", 0.0) for p in ai_predictions],
+                        index=df2.index,
+                    )
+                    ai_signals = pd.Series(
+                        [p.get("prediction", "flat") for p in ai_predictions],
+                        index=df2.index,
+                    )
+                    # Filter entry signals based on AI confidence and prediction
+                    le = le & (
+                        (ai_signals == "long")
+                        & (ai_confidences >= self.ai_confidence_threshold)
+                    )
+                    se = se & (
+                        (ai_signals == "short")
+                        & (ai_confidences >= self.ai_confidence_threshold)
+                    )
+                else:
+                    logger.warning(
+                        "AI inference returned no predictions. Skipping AI filter."
+                    )
+            except Exception as e:
+                logger.error(f"Error during AI inference: {e}. Skipping AI filter.")
+
+        sig: list[str] = []
         state = "flat"
         for i in range(len(df2)):
             if state == "flat":
-                if bool(enter_long.iloc[i]):
+                if bool(le.iloc[i]) and (
+                    not self.slope_filter or bool(slope_up.iloc[i])
+                ):
                     state = "long"
-                elif self.allow_bearish_entry_from_exit and bool(
-                    exit_or_enter_short.iloc[i]
+                elif bool(se.iloc[i]) and (
+                    not self.slope_filter or bool(slope_down.iloc[i])
                 ):
                     state = "short"
             elif state == "long":
-                if bool(exit_or_enter_short.iloc[i]):
+                if bool(lx.iloc[i]):
                     state = "flat"
             elif state == "short":
-                if bool(enter_long.iloc[i]):
+                if bool(sx.iloc[i]):
                     state = "flat"
             sig.append(state)
         return pd.Series(sig, index=df2.index)
 
+    def get_context(self, index: int) -> dict[str, Any]:
+        """Return a dict of feature values at a specific integer index."""
+        if self._feature_df is None or index >= len(self._feature_df):
+            return {}
+        # Get the row for the given index
+        row = self._feature_df.iloc[index]
+        # Return a dictionary of feature names and their values
+        return {f["name"]: row[f["name"]] for f in self.features if f["name"] in row}
+
 
 def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
+    cfg.setdefault("parameters", {})
     validate_strategy_config(cfg)
     name = str(cfg.get("strategy_name", "Strategy"))
     overlays = [str(x) for x in (cfg.get("overlays") or [])]
     features = list(cfg.get("features") or [])
-    entry_blocks = list(cfg.get("entry_rules") or [])
-    exit_blocks = list(cfg.get("exit_rules") or [])
-    risk = dict(cfg.get("risk") or {})
+    param_map = cfg.get("parameters", {})
+    if not isinstance(param_map, dict):
+        param_map = {}
+    slope_filter = bool(param_map.get("slope_filter", False))
+    slope_feature = str(param_map.get("slope_feature", "ema_slow"))
+    ai_filter_config = cfg.get("ai_filter", {})
+    ai_filter_enabled = bool(ai_filter_config.get("enabled", False)) and (
+        jsonschema is not None
+    )
+    ai_confidence_threshold = float(ai_filter_config.get("confidence_threshold", 0.0))
+    ai_input_features = [
+        str(x) for x in (ai_filter_config.get("input_features") or [])
+    ]
+    ai_inference_client = AIInferenceClient() if ai_filter_enabled else None
 
-    # Allow bearish entry from exit rules only if exit blocks use crossing
-    def _has_cross(b: dict[str, Any]) -> bool:
-        arr = b.get("all_of") or b.get("any_of") or []
-        for p in arr:
-            if isinstance(p, dict) and p.get("condition") in {
-                "cross_above",
-                "cross_below",
-            }:
-                return True
-        return False
-
-    allow_short = any(_has_cross(b) for b in exit_blocks)
+    le = list(cfg.get("long_entry_rules") or [])
+    lx = list(cfg.get("long_exit_rules") or [])
+    se = list(cfg.get("short_entry_rules") or [])
+    sx = list(cfg.get("short_exit_rules") or [])
     return CompiledStrategy(
         name=name,
         overlays=overlays,
         features=features,
-        entry_blocks=entry_blocks,
-        exit_blocks=exit_blocks,
-        risk=risk,
-        allow_bearish_entry_from_exit=allow_short,
+        long_entry_blocks=le,
+        long_exit_blocks=lx,
+        short_entry_blocks=se,
+        short_exit_blocks=sx,
+        parameters=param_map,
+        slope_filter=slope_filter,
+        slope_feature=slope_feature,
+        ai_filter_enabled=ai_filter_enabled,
+        ai_inference_client=ai_inference_client,
+        ai_confidence_threshold=ai_confidence_threshold,
+        ai_input_features=ai_input_features,
     )

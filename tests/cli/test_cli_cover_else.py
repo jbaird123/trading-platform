@@ -1,3 +1,4 @@
+# Validates: [SYS-1.7.2]
 from __future__ import annotations
 
 import json
@@ -5,6 +6,20 @@ from argparse import Namespace
 from pathlib import Path
 
 import trading_platform.cli as cli
+from trading_platform.strategy.yaml_strategy import CompiledStrategy
+
+
+def _dummy_strategy() -> CompiledStrategy:
+    return CompiledStrategy(
+        name="dummy",
+        features=[],
+        overlays=[],
+        long_entry_blocks=[],
+        long_exit_blocks=[],
+        short_entry_blocks=[],
+        short_exit_blocks=[],
+        parameters={},
+    )
 
 
 def test_cmd_run_backtest_else_branch(tmp_path: Path, monkeypatch) -> None:
@@ -24,10 +39,10 @@ def test_cmd_run_backtest_else_branch(tmp_path: Path, monkeypatch) -> None:
         "initial_cash": 1000,
         "strategy": {
             "strategy_name": "S",
-            "entry_rules": [
+            "long_entry_rules": [
                 {"any_of": [{"condition": "is_above", "left": 2, "right": 3}]}
             ],
-            "exit_rules": [
+            "long_exit_rules": [
                 {"any_of": [{"condition": "is_below", "left": 2, "right": 1}]}
             ],
         },
@@ -35,5 +50,6 @@ def test_cmd_run_backtest_else_branch(tmp_path: Path, monkeypatch) -> None:
     p = tmp_path / "cfg.json"
     p.write_text(json.dumps(cfg))
     ns = Namespace(demo=False, user="else_user", config=str(p))
+    cfg["strategy"]["parameters"] = cfg["strategy"].get("parameters", {})
     rc = cli.cmd_run_backtest(ns)
     assert rc == 0 and called["finalize"]

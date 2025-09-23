@@ -1,0 +1,563 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/brief.schema.json",
+  "title": "Backtest Brief",
+  "description": "A comprehensive summary of a backtest or live trading run.",
+  "type": "object",
+  "properties": {
+    "meta": {
+      "type": "object",
+      "description": "High-level metadata about the run.",
+      "properties": {
+        "run_id": { "type": "string", "description": "Unique identifier for the run." },
+        "strategy_name": { "type": "string", "description": "Name of the strategy used." },
+        "git_commit": { "type": ["string", "null"], "description": "The git commit hash at the time of the run." },
+        "run_seed": { "type": "integer", "description": "Seed used for all random number generators." }
+      },
+      "required": ["run_id", "strategy_name"]
+    },
+    "strategy_params": {
+      "type": "object",
+      "description": "A snapshot of the parameters and configuration used to define the strategy for this run. This includes any user-defined parameters, feature configurations, and rule sets.",
+      "additionalProperties": {
+        "description": "Scalar value (number, string, boolean, or null).",
+        "type": ["integer", "number", "string", "boolean", "null"]
+      }
+    },
+    "overall_performance": {
+      "type": "object",
+      "description": "Run-level performance metrics in the portfolio's base currency.",
+      "properties": {
+        "n_trades": { "type": "integer", "description": "Total number of trades executed." },
+        "total_pnl": { "type": "number", "description": "Sum of all trade profits and losses." },
+        "mean_pnl": { "type": "number", "description": "Average PnL per trade." },
+        "median_pnl": { "type": "number", "description": "Median PnL per trade." },
+        "by_side_total_pnl": {
+          "type": "object",
+          "description": "Total PnL broken down by trade side.",
+          "properties": {
+            "long": { "type": "number", "description": "Total PnL for long trades." },
+            "short": { "type": "number", "description": "Total PnL for short trades." }
+          },
+          "required": ["long", "short"]
+        },
+        "win_rate": { "type": "number", "description": "Percentage of trades with PnL > 0." },
+        "initial_equity": { "type": "number", "description": "Starting equity of the portfolio." },
+        "final_equity": { "type": "number", "description": "Ending equity of the portfolio after all trades." }
+      },
+      "required": ["n_trades", "total_pnl", "mean_pnl", "median_pnl", "by_side_total_pnl", "win_rate", "initial_equity", "final_equity"]
+    },
+    "risk_snapshot": {
+      "type": "object",
+      "description": "Key risk metrics based on trade outcomes.",
+      "properties": {
+        "win_rate": { "type": "number", "description": "Percentage of trades with PnL > 0." },
+        "avg_win": { "type": "number", "description": "Average PnL of winning trades." },
+        "avg_loss": { "type": "number", "description": "Average PnL of losing trades." },
+        "max_win": { "type": "number", "description": "Largest single winning trade." },
+        "max_loss": { "type": "number", "description": "Largest single losing trade (most negative PnL)." }
+      },
+      "required": ["win_rate", "avg_win", "avg_loss", "max_win", "max_loss"]
+    },
+    "equity_stats": {
+      "type": "object",
+      "description": "Statistics related to the portfolio equity curve.",
+      "properties": {
+        "equity_curve": {
+          "type": "array",
+          "description": "Time series of portfolio equity (timestamp, value) pairs.",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              { "type": "string", "format": "date-time", "description": "Timestamp of the data point." },
+              { "type": "number", "description": "Equity value at the given timestamp." }
+            ],
+            "minItems": 2,
+            "maxItems": 2,
+            "items": false
+          }
+        },
+        "drawdown_curve": {
+          "type": "array",
+          "description": "Time series of portfolio drawdown (timestamp, value) pairs.",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              { "type": "string", "format": "date-time", "description": "Timestamp of the data point." },
+              { "type": "number", "description": "Drawdown value at the given timestamp." }
+            ],
+            "minItems": 2,
+            "maxItems": 2,
+            "items": false
+          }
+        },
+        "max_drawdown": { "type": "number", "description": "The largest peak-to-trough drop in equity." },
+        "dd_duration_bars": { "type": "integer", "description": "The duration in bars of the longest drawdown period." }
+      },
+      "required": ["equity_curve", "drawdown_curve", "max_drawdown", "dd_duration_bars"]
+    },
+    "distribution": {
+      "type": "object",
+      "description": "Statistical distribution of trade PnL.",
+      "properties": {
+        "pnl_mean": { "type": "number", "description": "Mean of trade PnL." },
+        "pnl_median": { "type": "number", "description": "Median of trade PnL." },
+        "pnl_std": { "type": "number", "description": "Standard deviation of trade PnL." },
+        "p05": { "type": "number", "description": "5th percentile of PnL." },
+        "p95": { "type": "number", "description": "95th percentile of PnL." }
+      },
+      "required": ["pnl_mean", "pnl_median", "pnl_std", "p05", "p95"]
+    },
+    "streaks": {
+      "type": "object",
+      "description": "Analysis of consecutive winning and losing trades.",
+      "properties": {
+        "longest_win_streak": { "type": "integer", "description": "Longest consecutive winning trades." },
+        "longest_loss_streak": { "type": "integer", "description": "Longest consecutive losing trades." },
+        "current_streak": { "type": "integer", "description": "Current consecutive winning or losing trades." }
+      },
+      "required": ["longest_win_streak", "longest_loss_streak", "current_streak"]
+    },
+    "holding_time": {
+      "type": "object",
+      "description": "Metrics related to trade holding times.",
+      "properties": {
+        "median_secs": { "type": "number", "description": "Median trade holding time in seconds." }
+      },
+      "required": ["median_secs"]
+    },
+    "costs": {
+      "type": "object",
+      "description": "Aggregated trading cost metrics.",
+      "properties": {
+        "total_costs": { "type": "number", "description": "Total sum of all trading costs (spread, commission, slippage)." },
+        "avg_cost_per_trade": { "type": "number", "description": "Average cost incurred per trade." },
+        "breakdown": {
+          "type": "object",
+          "description": "Detailed breakdown of trading costs.",
+          "properties": {
+            "spread": { "type": "number", "description": "Total cost due to bid-ask spread." },
+            "commission": { "type": "number", "description": "Total cost due to commission." },
+            "slippage": { "type": "number", "description": "Total cost due to slippage." }
+          },
+          "required": ["spread", "commission", "slippage"]
+        }
+      },
+      "required": ["total_costs", "avg_cost_per_trade", "breakdown"]
+    },
+    "exposure": {
+      "type": "object",
+      "description": "Portfolio exposure metrics.",
+      "properties": {
+        "average_gross_exposure": { "type": "number", "description": "Average absolute value of open position size during the run." },
+        "peak_gross_exposure": { "type": "number", "description": "Maximum absolute value of open position size during the run." }
+      }
+    },
+    "regimes": {
+      "type": "object",
+      "description": "Performance breakdown by market regime.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "n_trades": { "type": "integer", "description": "Number of trades in this regime." },
+          "total_pnl": { "type": "number", "description": "Total PnL for this regime." },
+          "mean_pnl": { "type": "number", "description": "Mean PnL for this regime." },
+          "median_pnl": { "type": "number", "description": "Median PnL for this regime." },
+          "win_rate": { "type": "number", "description": "Win rate for this regime." }
+        },
+        "required": ["n_trades", "total_pnl", "mean_pnl", "median_pnl", "win_rate"]
+      }
+    },
+    "data_quality": {
+      "type": "object",
+      "description": "Summary of data quality checks performed on the input data.",
+      "properties": {
+        "loader_flags": {
+          "type": "array",
+          "description": "Flags or warnings generated during data loading (e.g., missing files, format issues).",
+          "items": { "type": "string" }
+        },
+        "index_monotonic_increasing": {
+          "type": "boolean",
+          "description": "True if the data index (timestamps) is strictly increasing."
+        },
+        "duplicate_bars_count": {
+          "type": "integer",
+          "description": "Number of duplicate timestamp entries found in the data."
+        },
+        "nan_counts": {
+          "type": "object",
+          "description": "Count of NaN (Not a Number) values per data column.",
+          "additionalProperties": {
+            "type": "integer",
+            "description": "NaN count for the column."
+          }
+        },
+        "has_nans": {
+          "type": "boolean",
+          "description": "True if any NaN values were found in the data."
+        }
+      },
+      "required": ["loader_flags", "index_monotonic_increasing", "duplicate_bars_count", "nan_counts", "has_nans"]
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Information about the origin and context of the run and data.",
+      "properties": {
+        "run_id": { "type": ["string", "null"], "description": "Unique identifier for this specific run." },
+        "strategy_name": { "type": ["string", "null"], "description": "Name of the strategy that was executed." },
+        "data_start": { "type": ["string", "null"], "format": "date-time", "description": "Start timestamp of the historical data used for the run." },
+        "data_end": { "type": ["string", "null"], "format": "date-time", "description": "End timestamp of the historical data used for the run." },
+        "symbols": { "type": "array", "items": { "type": "string" }, "description": "List of trading symbols (instruments) included in the run." },
+        "app_version": { "type": ["string", "null"], "description": "Version of the trading platform application that performed the run." },
+        "git_commit": { "type": ["string", "null"], "description": "Git commit hash of the codebase at the time of the run." },
+        "run_seed": { "type": ["integer", "null"], "description": "Seed value used for any random number generation to ensure reproducibility." }
+      },
+      "required": ["run_id", "strategy_name", "data_start", "data_end", "symbols", "app_version", "git_commit", "run_seed"]
+    },
+    "environment": {
+      "type": "object",
+      "description": "Details of the execution environment where the run was performed.",
+      "properties": {
+        "python_version": { "type": "string", "description": "Version of Python used (e.g., '3.10.12')." },
+        "platform": { "type": "string", "description": "Operating system and architecture (e.g., 'Linux-5.15.0-76-generic-x86_64-with-glibc2.35')." },
+        "timezone": { "type": ["string", "null"], "description": "Timezone of the execution environment." },
+        "dependency_versions": {
+          "type": "object",
+          "description": "Key dependency names and their installed versions.",
+          "additionalProperties": {
+            "type": "string",
+            "description": "Dependency version string."
+          }
+        }
+      },
+      "required": ["python_version", "platform", "timezone", "dependency_versions"]
+    },
+    "trades": {
+      "type": "array",
+      "description": "A list of all executed trades, including entry, exit, and performance details.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "symbol": { "type": "string", "description": "The trading instrument's symbol (e.g., 'EURUSD')." },
+          "side": { "type": "string", "enum": ["long", "short"], "description": "The direction of the trade (long or short)." },
+          "size": { "type": "number", "description": "The size of the position in base currency units." },
+          "entry_time": { "type": "string", "format": "date-time", "description": "Timestamp when the trade was entered." },
+          "exit_time": { "type": "string", "format": "date-time", "description": "Timestamp when the trade was exited." },
+          "entry_price": { "type": "number", "description": "Price at which the trade was entered." },
+          "exit_price": { "type": "number", "description": "Price at which the trade was exited." },
+          "pnl": { "type": "number", "description": "Profit or Loss of the trade in the portfolio's base currency." },
+          "exit_reason": { "type": ["string", "null"], "description": "Reason for exiting the trade (e.g., 'stop_loss', 'take_profit', 'strategy_flat')." },
+          "r_multiple": { "type": ["number", "null"], "description": "Risk multiple (PnL / initial risk) for the trade." },
+          "mfe_currency": { "type": ["number", "null"], "description": "Maximum Favorable Excursion in currency units." },
+          "mae_currency": { "type": ["number", "null"], "description": "Maximum Adverse Excursion in currency units." },
+          "bars_held": { "type": ["integer", "null"], "description": "Number of bars the trade was held open." },
+          "context_at_entry": { "type": ["object", "null"], "description": "Snapshot of relevant market context (e.g., indicators, regime) at trade entry." },
+          "context_at_exit": { "type": ["object", "null"], "description": "Snapshot of relevant market context (e.g., indicators, regime) at trade exit." },
+          "cost_breakdown": {
+            "type": "object",
+            "description": "Detailed breakdown of costs for this specific trade.",
+            "properties": {
+              "spread": { "type": "number", "description": "Cost incurred due to bid-ask spread for this trade." },
+              "commission": { "type": "number", "description": "Commission paid for this trade." },
+              "slippage": { "type": "number", "description": "Cost incurred due to slippage for this trade." }
+            },
+            "required": ["spread", "commission", "slippage"]
+          }
+        },
+        "required": ["symbol", "side", "size", "entry_time", "exit_time", "entry_price", "exit_price", "pnl"]
+      }
+    },
+    "skipped_trades": {
+      "type": "array",
+      "description": "A list of potential trades that were not executed due to various filters or policies, along with their simulated counterfactual outcomes.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "symbol": { "type": "string", "description": "The trading instrument's symbol (e.g., 'EURUSD')." },
+          "side": { "type": "string", "enum": ["long", "short"], "description": "The intended direction of the skipped trade." },
+          "size": { "type": "number", "description": "The intended size of the position." },
+          "entry_time": { "type": "string", "format": "date-time", "description": "Timestamp when the trade would have been entered." },
+          "skip_reason": { "type": "string", "description": "The reason the trade was skipped (e.g., 'blackout_period', 'rmm_filter', 'risk_cap')." },
+          "counterfactual_pnl": { "type": "number", "description": "Simulated PnL if the trade had been executed." },
+          "counterfactual_mfe_currency": { "type": ["number", "null"], "description": "Simulated Maximum Favorable Excursion in currency units." },
+          "counterfactual_mae_currency": { "type": ["number", "null"], "description": "Simulated Maximum Adverse Excursion in currency units." }
+        },
+        "required": ["symbol", "side", "size", "entry_time", "skip_reason", "counterfactual_pnl"]
+      }
+    },
+    "filter_impact": {
+      "type": "object",
+      "description": "Aggregated performance impact of skipped trades, categorized by the reason for skipping.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "n_skipped": { "type": "integer", "description": "Number of trades skipped for this specific reason." },
+          "total_cf_pnl": { "type": "number", "description": "Total counterfactual PnL if all trades skipped for this reason had been executed." },
+          "mean_cf_pnl": { "type": "number", "description": "Mean counterfactual PnL for trades skipped for this reason." },
+          "median_cf_pnl": { "type": "number", "description": "Median counterfactual PnL for trades skipped for this reason." }
+        },
+        "required": ["n_skipped", "total_cf_pnl", "mean_cf_pnl", "median_cf_pnl"]
+      }
+    },
+    "monte_carlo": {
+      "type": "object",
+      "description": "Results and statistics from Monte Carlo simulations, if enabled.",
+      "properties": {
+        "mode": { "type": "string", "description": "MC engine mode (e.g., bootstrap_trades, block_bootstrap_trades, bar_bootstrap, bar_resimulation)." },
+        "trials": { "type": "integer", "description": "Number of Monte Carlo trials executed." },
+        "config": {
+          "type": "object",
+          "description": "Echo of the configuration used to run Monte Carlo (e.g., jitter and perturbation).",
+          "additionalProperties": {
+            "type": ["object", "array", "number", "string", "boolean", "null"],
+            "description": "Monte Carlo configuration field.",
+            "additionalProperties": {
+              "type": ["object", "array", "number", "string", "boolean", "null"],
+              "description": "Nested Monte Carlo configuration field."
+            }
+          }
+        },
+        "final_equity": {
+          "type": "object",
+          "description": "Distribution summary for final equity across trials.",
+          "properties": {
+            "mean": { "type": "number", "description": "Mean final equity." },
+            "p05": { "type": "number", "description": "5th percentile of final equity." },
+            "p95": { "type": "number", "description": "95th percentile of final equity." }
+          }
+        },
+        "total_pnl": {
+          "type": "object",
+          "description": "Distribution summary for total PnL across trials.",
+          "properties": {
+            "mean": { "type": "number", "description": "Mean total PnL." },
+            "p05": { "type": "number", "description": "5th percentile of total PnL." },
+            "p95": { "type": "number", "description": "95th percentile of total PnL." }
+          }
+        },
+        "max_drawdown": {
+          "type": "object",
+          "description": "Distribution summary for max drawdown across trials.",
+          "properties": {
+            "mean": { "type": "number", "description": "Mean max drawdown." },
+            "p05": { "type": "number", "description": "5th percentile of max drawdown." },
+            "p95": { "type": "number", "description": "95th percentile of max drawdown." }
+          }
+        },
+        "win_rate": {
+          "type": "object",
+          "description": "Distribution summary for win rate across trials.",
+          "properties": {
+            "mean": { "type": "number", "description": "Mean win rate (0–1)." },
+            "p05": { "type": "number", "description": "5th percentile of win rate." },
+            "p95": { "type": "number", "description": "95th percentile of win rate." }
+          }
+        },
+        "risk": {
+          "type": "object",
+          "description": "Risk metrics computed from tail distributions.",
+          "properties": {
+            "var_95": { "type": "number", "description": "Value-at-Risk at 95% confidence for total PnL." },
+            "cvar_95": { "type": "number", "description": "Conditional VaR (expected shortfall) at 95%." }
+          }
+        },
+        "ruin_prob": { "type": "number", "description": "Probability of final equity falling to or below zero (0–1)." },
+        "time_under_water_mean": { "type": "number", "description": "Mean fraction of bars under previous equity peak across trials (0–1)." },
+        "exemplars": {
+          "type": "object",
+          "description": "Representative equity paths from worst/median/best trials.",
+          "properties": {
+            "worst": { "type": "object", "description": "Worst-path exemplar." },
+            "median": { "type": "object", "description": "Median-path exemplar." },
+            "best": { "type": "object", "description": "Best-path exemplar." }
+          }
+        }
+      },
+      "additionalProperties": {
+        "type": ["object", "array", "number", "string", "boolean", "null"],
+        "description": "Monte Carlo configuration/result field.",
+        "additionalProperties": {
+          "type": ["object", "array", "number", "string", "boolean", "null"],
+          "description": "Monte Carlo configuration/result field."
+        }
+      }
+    },
+    "walk_forward": {
+      "type": "object",
+      "description": "Results and performance metrics from walk-forward optimization, if enabled.",
+      "properties": {
+        "splits": {
+          "type": "array",
+          "description": "List of train/test split results and chosen parameters.",
+          "items": {
+            "type": "object",
+            "description": "A single walk-forward split result.",
+            "additionalProperties": true
+          }
+        },
+        "oos_total_pnl": {
+          "type": "object",
+          "description": "Aggregate out-of-sample performance across splits.",
+          "properties": {
+            "mean": { "type": "number", "description": "Mean OOS total PnL." },
+            "median": { "type": "number", "description": "Median OOS total PnL." },
+            "n_splits": { "type": "integer", "description": "Number of OOS splits." }
+          }
+        }
+      },
+      "additionalProperties": {
+        "type": ["object", "array", "number", "string", "boolean", "null"],
+        "description": "Walk-forward configuration/result field.",
+        "additionalProperties": {
+          "type": ["object", "array", "number", "string", "boolean", "null"],
+          "description": "Walk-forward configuration/result field."
+        }
+      }
+    },
+    "parameter_search": {
+      "type": "object",
+      "description": "Results from parameter optimization or search, if enabled.",
+      "properties": {
+        "top": {
+          "type": "object",
+          "description": "Best-performing parameter set and score.",
+          "additionalProperties": {
+            "type": ["object", "array", "number", "string", "boolean", "null"],
+            "description": "Top-level field of the best candidate.",
+            "additionalProperties": {
+              "type": ["object", "array", "number", "string", "boolean", "null"],
+              "description": "Nested field of the best candidate."
+            }
+          }
+        },
+        "results": {
+          "type": "array",
+          "description": "All candidate parameter sets with scores.",
+          "items": {
+            "type": "object",
+            "description": "A candidate parameter set and its score.",
+            "additionalProperties": {
+              "type": ["object", "array", "number", "string", "boolean", "null"],
+              "description": "Candidate field.",
+              "additionalProperties": {
+                "type": ["object", "array", "number", "string", "boolean", "null"],
+                "description": "Nested candidate field."
+              }
+            }
+          }
+        }
+      },
+      "additionalProperties": {
+        "type": ["object", "array", "number", "string", "boolean", "null"],
+        "description": "Parameter search configuration/result field.",
+        "additionalProperties": {
+          "type": ["object", "array", "number", "string", "boolean", "null"],
+          "description": "Parameter search configuration/result field."
+        }
+      }
+    },
+    "instrument_definitions": {
+      "type": "object",
+      "description": "A snapshot of the instrument metadata used during the run, including details like point value, tick size, and commission model.",
+      "additionalProperties": {
+        "type": "object",
+        "description": "Instrument metadata object.",
+        "additionalProperties": {
+          "type": ["string", "number", "boolean", "object", "array", "null"],
+          "description": "Instrument metadata field."
+        }
+      }
+    },
+    "cost_model": {
+      "type": "object",
+      "description": "The configuration of the cost model applied during the run (e.g., spread, commission, slippage settings).",
+      "additionalProperties": {
+        "type": "object",
+        "description": "Cost model component configuration.",
+        "additionalProperties": {
+          "type": ["number", "string", "boolean", "null"],
+          "description": "Cost model parameter."
+        }
+      }
+    },
+    "fill_policy": {
+      "type": "object",
+      "description": "The configuration of the order fill policy used during the run.",
+      "additionalProperties": {
+        "type": ["number", "string", "boolean", "null"],
+        "description": "Fill policy parameter."
+      }
+    },
+    "tie_break_policy": {
+      "type": "object",
+      "description": "The configuration of the policy used to resolve simultaneous exit conditions (e.g., stop-loss vs. take-profit).",
+      "additionalProperties": {
+        "type": ["number", "string", "boolean", "null"],
+        "description": "Tie-break policy parameter."
+      }
+    },
+    "blackout_policy": {
+      "type": "object",
+      "description": "The configuration of the trading blackout policy applied during the run.",
+      "properties": {
+        "blackout_utc": {
+          "type": "array",
+          "description": "List of UTC blackout intervals or timestamps.",
+          "items": { "type": "string" }
+        },
+        "blackout_events": {
+          "type": "array",
+          "description": "List of event identifiers that trigger blackout windows.",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "checksums": {
+      "type": "object",
+      "description": "Checksums of critical configuration files to ensure reproducibility and detect tampering.",
+      "properties": {
+        "config_snapshot_hash": { "type": "string", "description": "SHA256 hash of the run configuration snapshot." },
+        "instrument_defs_hash": { "type": "string", "description": "SHA256 hash of the instrument definitions used." }
+      },
+      "required": ["config_snapshot_hash", "instrument_defs_hash"]
+    },
+    "artifacts": {
+      "type": "object",
+      "description": "Paths to run artifacts saved alongside the brief.",
+      "properties": {
+        "signals_path": {
+          "type": "string",
+          "description": "Path to the saved signals file (e.g., signals.parquet)."
+        },
+        "rmm_spans_path": {
+          "type": "string",
+          "description": "Path to the saved RMM spans file (e.g., rmm_spans.json)."
+        }
+      }
+    },
+    "stop_tp_candidates": {
+      "type": "array",
+      "description": "List of stop-loss/take-profit candidate levels considered during analysis.",
+      "items": {}
+    },
+    "field_definitions": {
+      "type": "object",
+      "description": "Auto-generated descriptions for all fields within this brief, useful for programmatic interpretation and UI generation.",
+      "additionalProperties": { "type": "string" }
+    }
+  },
+  "required": [
+    "meta",
+    "strategy_params",
+    "overall_performance",
+    "risk_snapshot",
+    "equity_stats",
+    "distribution",
+    "streaks",
+    "holding_time",
+    "costs",
+    "trades"
+  ]
+}

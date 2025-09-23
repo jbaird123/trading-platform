@@ -1,3 +1,4 @@
+# Validates: [RV-9.2]
 from __future__ import annotations
 
 from trading_platform.reporting.compare import compare_briefs

@@ -25,9 +25,9 @@
       "type": "object",
       "description": "Tunable parameters referenced by rules or features.",
       "additionalProperties": {
-        "oneOf": [
-          { "type": "number" },
+        "anyOf": [
           { "type": "integer" },
+          { "type": "number" },
           { "type": "string" },
           { "type": "boolean" }
         ]
@@ -43,17 +43,24 @@
       "description": "Series names to render on the price chart as overlays.",
       "items": { "type": "string" }
     },
-    "risk": {
-      "$ref": "#/$defs/risk"
-    },
-    "entry_rules": {
+    "long_entry_rules": {
       "$ref": "#/$defs/rule_block_array"
     },
-    "exit_rules": {
+    "long_exit_rules": {
+      "$ref": "#/$defs/rule_block_array"
+    },
+    "short_entry_rules": {
+      "$ref": "#/$defs/rule_block_array"
+    },
+    "short_exit_rules": {
       "$ref": "#/$defs/rule_block_array"
     }
   },
-  "required": ["strategy_name", "entry_rules", "exit_rules"],
+  "required": ["strategy_name"],
+  "anyOf": [
+    { "required": ["long_entry_rules", "long_exit_rules"] },
+    { "required": ["short_entry_rules", "short_exit_rules"] }
+  ],
   "$defs": {
     "feature": {
       "type": "object",
@@ -108,49 +115,6 @@
       },
       "required": ["name", "type"]
     },
-    "risk": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "stop": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "type": {
-              "type": "string",
-              "enum": ["fixed", "atr"],
-              "description": "Stop style: fixed amount or ATR-based."
-            },
-            "value": {
-              "type": "number",
-              "description": "Stop distance (price units or ATR multiples)."
-            }
-          },
-          "required": ["type", "value"]
-        },
-        "take_profit": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "type": {
-              "type": "string",
-              "enum": ["fixed", "atr"],
-              "description": "Take-profit style: fixed or ATR-based."
-            },
-            "value": {
-              "type": "number",
-              "description": "TP distance (price units or ATR multiples)."
-            }
-          },
-          "required": ["type", "value"]
-        },
-        "warmup_bars": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "Bars to ignore while indicators stabilize."
-        }
-      }
-    },
     "rule_block_array": {
       "type": "array",
       "description": "Ordered list of rule blocks; each must evaluate true.",
@@ -159,27 +123,17 @@
     },
     "rule_block": {
       "type": "object",
-      "additionalProperties": false,
-      "oneOf": [
-        {
-          "properties": {
-            "all_of": {
-              "$ref": "#/$defs/predicate_array",
-              "description": "All predicates must be true."
-            }
-          },
-          "required": ["all_of"]
+      "properties": {
+        "all_of": {
+          "$ref": "#/$defs/predicate_array",
+          "description": "All predicates must be true."
         },
-        {
-          "properties": {
-            "any_of": {
-              "$ref": "#/$defs/predicate_array",
-              "description": "At least one predicate must be true."
-            }
-          },
-          "required": ["any_of"]
+        "any_of": {
+          "$ref": "#/$defs/predicate_array",
+          "description": "At least one predicate must be true."
         }
-      ]
+      },
+      "oneOf": [{ "required": ["all_of"] }, { "required": ["any_of"] }]
     },
     "predicate_array": {
       "type": "array",
@@ -189,63 +143,21 @@
     },
     "predicate": {
       "type": "object",
-      "additionalProperties": false,
-      "oneOf": [
-        {
-          "title": "cross_above",
-          "properties": {
-            "condition": {
-              "const": "cross_above",
-              "description": "Trigger when left crosses above right."
-            },
-            "left": {
-              "$ref": "#/$defs/operand",
-              "description": "Left-hand side (indicator/price/number)."
-            },
-            "right": {
-              "$ref": "#/$defs/operand",
-              "description": "Right-hand side (indicator/price/number)."
-            }
-          },
-          "required": ["condition", "left", "right"]
+      "properties": {
+        "condition": {
+          "type": "string",
+          "enum": ["cross_above", "cross_below", "is_above", "is_below"]
         },
-        {
-          "title": "cross_below",
-          "properties": {
-            "condition": {
-              "const": "cross_below",
-              "description": "Trigger when left crosses below right."
-            },
-            "left": { "$ref": "#/$defs/operand" },
-            "right": { "$ref": "#/$defs/operand" }
-          },
-          "required": ["condition", "left", "right"]
+        "left": {
+          "$ref": "#/$defs/operand",
+          "description": "Left-hand side (indicator/price/number)."
         },
-        {
-          "title": "is_above",
-          "properties": {
-            "condition": {
-              "const": "is_above",
-              "description": "True if left value is strictly greater than right."
-            },
-            "left": { "$ref": "#/$defs/operand" },
-            "right": { "$ref": "#/$defs/operand" }
-          },
-          "required": ["condition", "left", "right"]
-        },
-        {
-          "title": "is_below",
-          "properties": {
-            "condition": {
-              "const": "is_below",
-              "description": "True if left value is strictly less than right."
-            },
-            "left": { "$ref": "#/$defs/operand" },
-            "right": { "$ref": "#/$defs/operand" }
-          },
-          "required": ["condition", "left", "right"]
+        "right": {
+          "$ref": "#/$defs/operand",
+          "description": "Right-hand side (indicator/price/number)."
         }
-      ]
+      },
+      "required": ["condition", "left", "right"]
     },
     "operand": {
       "oneOf": [

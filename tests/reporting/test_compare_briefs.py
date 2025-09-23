@@ -1,3 +1,4 @@
+# Validates: [RV-9.2]
 from __future__ import annotations
 
 from pytest import approx, raises

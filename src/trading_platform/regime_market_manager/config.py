@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 try:
     import jsonschema  # type: ignore[import-untyped]
+    from jsonschema import ValidationError  # type: ignore[import-untyped]
 except Exception:  # pragma: no cover
     jsonschema = None  # type: ignore[assignment]
 
@@ -46,17 +47,19 @@ def validate_rmm_config(cfg: dict) -> None:
     """
     if not isinstance(cfg, dict):
         raise ValueError("rmm config must be an object")
-    # JSON Schema validation if available (best-effort, non-fatal)
-    if jsonschema is not None:
-        schema_path = (
-            Path(__file__).resolve().parents[3] / "docs" / "schemas" / "rmm.schema.json"
+    # Mandatory JSON Schema validation
+    if jsonschema is None:
+        raise ValueError(
+            "jsonschema is required for RMM validation but is not installed."
         )
-        try:
-            schema = json.loads(schema_path.read_text())
-            jsonschema.validate(cfg, schema)  # type: ignore[misc]
-        except Exception:  # pragma: no cover
-            # Accept minimal configs; rely on lightweight checks below.
-            pass
+    schema_path = (
+        Path(__file__).resolve().parents[3] / "docs" / "schemas" / "rmm.schema.json"
+    )
+    try:
+        schema = json.loads(schema_path.read_text())
+        jsonschema.validate(cfg, schema)  # type: ignore[misc]
+    except ValidationError as e:  # pragma: no cover
+        raise ValueError(f"rmm schema validation error: {e.message}") from e
     regimes = cfg.get("regimes")
     if not isinstance(regimes, list) or not regimes:
         raise ValueError("regimes must be a non-empty array")

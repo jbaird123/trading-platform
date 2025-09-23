@@ -1,3 +1,4 @@
+# Validates: [BT-7.7]
 from __future__ import annotations
 
 from trading_platform.core.config import RunConfig

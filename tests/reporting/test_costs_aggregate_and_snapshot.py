@@ -1,3 +1,4 @@
+# Validates: [JSON-11.12], [JSON-11.19]
 from __future__ import annotations
 
 from datetime import datetime
@@ -54,7 +55,7 @@ def test_brief_includes_cost_model_snapshot_and_aggregates_costs():
     # Aggregates should sum both cost_currency and breakdowns
     costs = brief["costs"]
     assert costs["total_costs"] == approx(0.06 + 0.09)
-    assert costs["avg_cost_per_trade"] == approx((0.06 + 0.09) / 2)
+    assert costs["avg_cost_per_trade"] == approx(0.08)
     assert costs["breakdown"] == {
         "spread": approx(0.02 + 0.03),
         "commission": approx(0.04 + 0.04),

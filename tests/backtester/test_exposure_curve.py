@@ -1,3 +1,4 @@
+# Validates: [JSON-11.13]
 from __future__ import annotations
 
 from datetime import datetime
@@ -5,6 +6,10 @@ from datetime import datetime
 import pandas as pd
 from pytest import approx
 from trading_platform.backtester.core import run_backtest
+from trading_platform.core.config import RunConfig
+from trading_platform.risk_manager.core import RiskExitManager
+
+from tests.backtester.dummy_objects import _dummy_strategy_cfg
 
 
 def _mk_df() -> pd.DataFrame:
@@ -31,14 +36,19 @@ def test_exposure_curve_tracks_gross_notional_per_bar():
     df = _mk_df()
     # long from bar 1 to bar 2; flat at bar 3
     sig = pd.Series(["flat", "long", "long", "flat"], index=df.index)
+    config = RunConfig(
+        initial_cash=1000.0,
+        allow_flip_on_bar=False,
+        warmup_bars=0,
+        position_size=10000.0,
+    )
+    rem = RiskExitManager(config={})
     trades, curve = run_backtest(
         market_data=df,
         signals=sig,
-        initial_cash=1000.0,
-        stop_loss=None,
-        take_profit=None,
-        allow_flip_on_bar=False,
-        warmup_bars=0,
+        strategy=_dummy_strategy_cfg(),
+        config=config,
+        rem=rem,
         return_exposure=True,
     )
     assert len(curve) == len(df)

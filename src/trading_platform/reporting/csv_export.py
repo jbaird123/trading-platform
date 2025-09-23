@@ -4,6 +4,7 @@ import csv
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
 from trading_platform.portfolio.trade import Trade
 
 
@@ -11,8 +12,8 @@ def save_trades_csv(path: Path, trades: list[Trade]) -> Path:
     """Save trades to CSV with enhanced fields.
 
     Columns: symbol, side, size, entry_time, exit_time, entry_price, exit_price,
-    pnl, r_multiple, mfe_currency, mae_currency, bars_held, cost_currency,
-    spread, commission, slippage
+    exit_reason, pnl, r_multiple, mfe_currency, mae_currency, bars_held,
+    cost_currency, spread, commission, slippage
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     cols = [
@@ -23,6 +24,7 @@ def save_trades_csv(path: Path, trades: list[Trade]) -> Path:
         "exit_time",
         "entry_price",
         "exit_price",
+        "exit_reason",
         "pnl",
         "r_multiple",
         "mfe_currency",
@@ -46,6 +48,7 @@ def save_trades_csv(path: Path, trades: list[Trade]) -> Path:
                 "exit_time": t.exit_time.isoformat(),
                 "entry_price": t.entry_price,
                 "exit_price": t.exit_price,
+                "exit_reason": getattr(t, "exit_reason", None),
                 "pnl": t.pnl,
                 "r_multiple": getattr(t, "r_multiple", None),
                 "mfe_currency": getattr(t, "mfe_currency", None),
@@ -58,3 +61,17 @@ def save_trades_csv(path: Path, trades: list[Trade]) -> Path:
             }
             w.writerow(row)
     return path
+
+
+def save_prices_csv(path: Path, df: pd.DataFrame) -> Path:
+    """Persist OHLC to CSV for charts (time,open,high,low,close).
+
+    Expects index to be datetime-like and columns: open, high, low, close.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    cols = ["open", "high", "low", "close"]
+    out = path
+    df_to_write = df.copy()
+    df_to_write = df_to_write[cols]
+    df_to_write.to_csv(out, index_label="time")
+    return out

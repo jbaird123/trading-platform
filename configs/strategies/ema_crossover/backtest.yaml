@@ -1,0 +1,33 @@
+user_id: "researcher"
+runs_dir: "runs"
+initial_cash: 100000
+warmup_bars: 50
+tie_break_policy:
+  rule: "stop_then_tp"
+position_size: 25000
+
+# Data source is owned by the Data Handler. This run config
+# declares only the intent of what to request.
+data_request:
+  symbol: "EUR_USD"
+  timeframe: "1H"
+  start: "2021-01-01"
+  end: "2023-03-01"
+
+counterfactual_mode: exact   # fast | exact; default is fast
+fast_mode:
+  limit_bars: 10000
+
+rem_path: "config/rem/basic_price_exits.yaml"
+strategy_path: "config/strategy/ema_crossover.yaml"
+
+# Optional: per-run overrides to strategy tunables
+strategy_overrides:
+  features:
+    ema_fast:
+      length: 16
+    ema_slow:
+      length: 50
+
+# Regime Market Manager (mandatory)
+rmm_path: "config/rmm/daily_trend.yaml"

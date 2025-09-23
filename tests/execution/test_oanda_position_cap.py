@@ -1,9 +1,23 @@
+# Validates: [EL-8.9]
 from __future__ import annotations
 
 from datetime import datetime
 
 from trading_platform.execution import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
+from trading_platform.strategy.yaml_strategy import CompiledStrategy
+
+
+def _dummy_strategy() -> CompiledStrategy:
+    return CompiledStrategy(
+        name="dummy",
+        features=[],
+        overlays=[],
+        long_entry_blocks=[],
+        long_exit_blocks=[],
+        short_entry_blocks=[],
+        short_exit_blocks=[],
+    )
 
 
 def test_oanda_stub_rejects_same_direction_over_cap():
