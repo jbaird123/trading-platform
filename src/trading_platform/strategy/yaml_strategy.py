@@ -13,7 +13,7 @@ try:
 except ImportError:
     jsonschema = None
 
-from trading_platform.ai.inference_client import AIInferenceClient
+from trading_platform.ai import AIInferenceClient
 
 from .features import compute_features
 

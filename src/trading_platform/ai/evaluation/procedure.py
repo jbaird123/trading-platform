@@ -35,7 +35,7 @@ class AIEvaluationProcedure:
 
         all_scores: list[dict[str, float]] = []
         for fold, (train_index, test_index) in enumerate(tscv.split(X)):
-            print(f"  - Fold {fold+1}/{n_splits}")
+            print(f"  - Fold {fold + 1}/{n_splits}")
             X_train, X_test = X.iloc[train_index], X.iloc[test_index]
             y_train, y_test = y.iloc[train_index], y.iloc[test_index]
 

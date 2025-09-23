@@ -3,7 +3,7 @@ from typing import Any
 
 import pandas as pd
 
-from trading_platform.ai.inference_client import AIInferenceClient
+from trading_platform.ai import AIInferenceClient
 from trading_platform.strategy.base import BaseStrategy
 
 logger = logging.getLogger(__name__)

@@ -47,9 +47,8 @@ def _spark_svg(
 
     price_xy = [(sx(t), sy(v)) for t, v in zip(xs, ys)]
     svg_parts = [
-        "<svg xmlns='http://www.w3.org/2000/svg' " f"viewBox='0 0 {w} {h}'>",
-        "<style>.pr{stroke:#333}.ov{stroke:#0a7}.mk{fill:#c33}"
-        ".mk2{fill:#3a3}</style>",
+        f"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 {w} {h}'>",
+        "<style>.pr{stroke:#333}.ov{stroke:#0a7}.mk{fill:#c33}.mk2{fill:#3a3}</style>",
         poly(price_xy, "pr"),
     ]
     if overlays:

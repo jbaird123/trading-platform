@@ -59,22 +59,22 @@ def assert_briefs_equal(actual: dict[str, Any], golden: dict[str, Any], path: st
             assert_briefs_equal(actual_val, golden_val, new_path)
         elif isinstance(golden_val, list):
             assert isinstance(actual_val, list)
-            assert len(actual_val) == len(
-                golden_val
-            ), f"List length differs at '{new_path}'"
+            assert len(actual_val) == len(golden_val), (
+                f"List length differs at '{new_path}'"
+            )
             for i, item in enumerate(golden_val):
                 if isinstance(item, dict):
                     assert_briefs_equal(actual_val[i], item, f"{new_path}[{i}]")
                 elif isinstance(item, float):
-                    assert actual_val[i] == pytest.approx(
-                        item
-                    ), f"Float differs at '{new_path}[{i}]'"
+                    assert actual_val[i] == pytest.approx(item), (
+                        f"Float differs at '{new_path}[{i}]'"
+                    )
                 else:
                     assert actual_val[i] == item, f"Value differs at '{new_path}[{i}]'"
         elif isinstance(golden_val, float):
-            assert actual_val == pytest.approx(
-                golden_val
-            ), f"Float differs at '{new_path}'"
+            assert actual_val == pytest.approx(golden_val), (
+                f"Float differs at '{new_path}'"
+            )
         else:
             assert actual_val == golden_val, f"Value differs at '{new_path}'"
 

@@ -101,8 +101,7 @@ class RunConfig(BaseModel):
     allow_flip_on_bar: bool = Field(
         False,
         description=(
-            "If True, allows closing a position and opening a new one on the "
-            "same bar."
+            "If True, allows closing a position and opening a new one on the same bar."
         ),
     )
     daily_loss_cap: float | None = Field(

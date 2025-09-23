@@ -14,8 +14,7 @@ class AIDeploymentManager:
         self.config = config
         self.deployment_strategy = config.get("strategy", "direct_deploy")
         logger.info(
-            "AIDeploymentManager initialized with strategy: "
-            f"{self.deployment_strategy}"
+            f"AIDeploymentManager initialized with strategy: {self.deployment_strategy}"
         )
 
     def deploy_new_model(

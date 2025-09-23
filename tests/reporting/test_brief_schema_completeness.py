@@ -13,15 +13,15 @@ def _check_descriptions_recursive(obj: Any, path: str):
         if obj.get("type") == "object" and "properties" in obj:
             for prop, prop_schema in obj["properties"].items():
                 new_path = f"{path}.{prop}" if path else prop
-                assert (
-                    "description" in prop_schema
-                ), f"Missing description for: {new_path}"
-                assert isinstance(
-                    prop_schema["description"], str
-                ), f"Description must be a string for: {new_path}"
-                assert (
-                    len(prop_schema["description"]) > 0
-                ), f"Description cannot be empty for: {new_path}"
+                assert "description" in prop_schema, (
+                    f"Missing description for: {new_path}"
+                )
+                assert isinstance(prop_schema["description"], str), (
+                    f"Description must be a string for: {new_path}"
+                )
+                assert len(prop_schema["description"]) > 0, (
+                    f"Description cannot be empty for: {new_path}"
+                )
                 # Recurse into the property's schema
                 _check_descriptions_recursive(prop_schema, new_path)
 

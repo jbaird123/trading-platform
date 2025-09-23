@@ -68,7 +68,7 @@ def mock_external_dependencies_for_e2e():
                 "close": [101 + i for i in range(20)],
                 "volume": [1000 + i * 100 for i in range(20)],
             },
-            index=pd.to_datetime([f"2023-01-{i+1:02d}" for i in range(20)]),
+            index=pd.to_datetime([f"2023-01-{i + 1:02d}" for i in range(20)]),
         )
 
         yield

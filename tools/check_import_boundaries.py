@@ -15,6 +15,9 @@ ALLOWLIST_PATHS = {
     SRC_ROOT / "cli.py",
     SRC_ROOT / "core" / "run.py",
     SRC_ROOT / "core" / "demo.py",
+    SRC_ROOT / "core" / "sweeps.py",  # Parameter sweeps coordinate across modules
+    SRC_ROOT / "backtester" / "core.py",  # Backtester integrates components
+    SRC_ROOT / "regime_market_manager" / "engine.py",  # RMM coordinates modules
 }
 
 IMPORT_RE = re.compile(

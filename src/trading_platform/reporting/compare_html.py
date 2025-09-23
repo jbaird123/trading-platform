@@ -43,7 +43,7 @@ def render_comparison_html(comp: dict[str, Any]) -> str:
 
     html = (
         "<!doctype html>\n"
-        "<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
+        '<html lang="en">\n<head>\n<meta charset="utf-8">\n'
         "<title>Comparison Report</title>\n<style>\n"
         "body { font-family: system-ui, -apple-system, Segoe UI, Roboto, "
         "sans-serif; padding: 16px; }\n"
