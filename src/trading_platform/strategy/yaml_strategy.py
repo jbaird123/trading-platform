@@ -244,9 +244,7 @@ def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
         jsonschema is not None
     )
     ai_confidence_threshold = float(ai_filter_config.get("confidence_threshold", 0.0))
-    ai_input_features = [
-        str(x) for x in (ai_filter_config.get("input_features") or [])
-    ]
+    ai_input_features = [str(x) for x in (ai_filter_config.get("input_features") or [])]
     ai_inference_client = AIInferenceClient() if ai_filter_enabled else None
 
     le = list(cfg.get("long_entry_rules") or [])
