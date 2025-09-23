@@ -13,30 +13,30 @@ This document outlines the detailed tasks required to fully implement and finali
 
 ## 2. Diagnostic Rules Enhancement (src/trading_platform/ai/synthesis/rules.py)
 
-- [ ] **2.1. Implement `LowWinRateHighTradesRule`:**
-    - [ ] **2.1.1.** Create a new rule class in `rules.py` that triggers if `overall_performance.win_rate` is below a configurable threshold AND `overall_performance.n_trades` is above a configurable threshold (even if `n_trades` is not "unusually high" like 500).
-    - [ ] **2.1.2.** Add this rule to `get_all_rules()`.
-    - [ ] **2.1.3.** Add a corresponding test case in `tests/ai/synthesis/test_rules.py` to verify its behavior.
-- [ ] **2.2. Enhance `InefficientExitsRule` (requires data from 3.x):**
-    - [ ] **2.2.1.** Refine the rule to analyze `mfe_currency` and `mae_currency` from individual trades in `brief.json` to identify trades where potential profit was left on the table or losses were excessive post-entry.
-    - [ ] **2.2.2.** Integrate with `model_analysis` data once available (Task 3.x).
-    - [ ] **2.2.3.** Add a corresponding test case in `tests/ai/synthesis/test_rules.py`.
-- [ ] **2.3. Implement `StrategyParameterOptimizationOpportunityRule`:**
-    - [ ] **2.3.1.** Create a rule that checks if key strategy parameters (e.g., `fast`, `slow` for EMA crossover) are `null` or default values in `brief.json.strategy_params`, suggesting they haven't been optimized.
-    - [ ] **2.3.2.** Add this rule to `get_all_rules()`.
-    - [ ] **2.3.3.** Add a corresponding test case in `tests/ai/synthesis/test_rules.py`.
-- [ ] **2.4. Implement `SignalPersistenceRule` (requires data from 3.x):**
-    - [ ] **2.4.1.** Create a rule to analyze `signal_quality_analysis` data (once available from Task 3.x) to detect if signals are persistent states rather than discrete events.
-    - [ ] **2.4.2.** Add this rule to `get_all_rules()`.
-    - [ ] **2.4.3.** Add a corresponding test case in `tests/ai/synthesis/test_rules.py`.
-- [ ] **2.5. Implement `MarketRegimeMismatchRule` (requires data from 3.x):**
-    - [ ] **2.5.1.** Create a rule that identifies if the strategy performed poorly in specific market regimes (using `brief.json.regimes` data).
-    - [ ] **2.5.2.** Add this rule to `get_all_rules()`.
-    - [ ] **2.5.3.** Add a corresponding test case in `tests/ai/synthesis/test_rules.py`.
-- [ ] **2.6. Implement `DataQualityImpactRule`:**
-    - [ ] **2.6.1.** Create a rule that flags significant data quality issues (`brief.json.data_quality`) and correlates them with poor performance.
-    - [ ] **2.6.2.** Add this rule to `get_all_rules()`.
-    - [ ] **2.6.3.** Add a corresponding test case in `tests/ai/synthesis/test_rules.py`.
+- [x] **2.1. Implement `LowWinRateHighTradesRule`:**
+    - [x] **2.1.1.** Create a new rule class in `rules.py` that triggers if `overall_performance.win_rate` is below a configurable threshold AND `overall_performance.n_trades` is above a configurable threshold (even if `n_trades` is not "unusually high" like 500).
+    - [x] **2.1.2.** Add this rule to `get_all_rules()`.
+    - [x] **2.1.3.** Add a corresponding test case in `tests/ai/synthesis/test_rules.py` to verify its behavior.
+- [x] **2.2. Enhance `InefficientExitsRule` (requires data from 3.x):**
+    - [x] **2.2.1.** Refine the rule to analyze `mfe_currency` and `mae_currency` from individual trades in `brief.json` to identify trades where potential profit was left on the table or losses were excessive post-entry.
+    - [x] **2.2.2.** Integrate with `model_analysis` data once available (Task 3.x).
+    - [x] **2.2.3.** Add a corresponding test case in `tests/ai/synthesis/test_rules.py`.
+- [x] **2.3. Implement `StrategyParameterOptimizationOpportunityRule`:**
+    - [x] **2.3.1.** Create a rule that checks if key strategy parameters (e.g., `fast`, `slow` for EMA crossover) are `null` or default values in `brief.json.strategy_params`, suggesting they haven't been optimized.
+    - [x] **2.3.2.** Add this rule to `get_all_rules()`.
+    - [x] **2.3.3.** Add a corresponding test case in `tests/ai/synthesis/test_rules.py`.
+- [x] **2.4. Implement `SignalPersistenceRule` (requires data from 3.x):**
+    - [x] **2.4.1.** Create a rule to analyze `signal_quality_analysis` data (once available from Task 3.x) to detect if signals are persistent states rather than discrete events.
+    - [x] **2.4.2.** Add this rule to `get_all_rules()`.
+    - [x] **2.4.3.** Add a corresponding test case in `tests/ai/synthesis/test_rules.py`.
+- [x] **2.5. Implement `MarketRegimeMismatchRule` (requires data from 3.x):**
+    - [x] **2.5.1.** Create a rule that identifies if the strategy performed poorly in specific market regimes (using `brief.json.regimes` data).
+    - [x] **2.5.2.** Add this rule to `get_all_rules()`.
+    - [x] **2.5.3.** Add a corresponding test case in `tests/ai/synthesis/test_rules.py`.
+- [x] **2.6. Implement `DataQualityImpactRule`:**
+    - [x] **2.6.1.** Create a rule that flags significant data quality issues (`brief.json.data_quality`) and correlates them with poor performance.
+    - [x] **2.6.2.** Add this rule to `get_all_rules()`.
+    - [x] **2.6.3.** Add a corresponding test case in `tests/ai/synthesis/test_rules.py`.
 
 ## 3. Data Integration & Generation for AI Analysis
 

@@ -416,20 +416,17 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
 
 def cmd_ai_diagnose(args: argparse.Namespace) -> int:
     if not args.brief:
-        print("--brief is required", file=sys.stderr)
-        return 2
+        raise ValueError("--brief is required")
 
     brief_path = Path(args.brief)
     if not brief_path.exists():
-        print(f"Error: Brief file not found at {brief_path}", file=sys.stderr)
-        return 2
+        raise ValueError(f"No such file: {brief_path}")
 
     try:
         with open(brief_path) as f:
             brief_data = json.load(f)
     except json.JSONDecodeError as e:
-        print(f"Error decoding brief.json: {e}", file=sys.stderr)
-        return 2
+        raise ValueError(f"Error decoding brief.json: {e}")
 
     # Map brief.json structure to what DiagnosticSynthesisEngine expects
     analysis_data = {
