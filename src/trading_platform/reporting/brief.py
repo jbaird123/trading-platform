@@ -709,6 +709,15 @@ def compute_data_quality(df: pd.DataFrame) -> dict[str, Any]:
     nan_counts = {col: int(df[col].isna().sum()) for col in df.columns}
     result["nan_counts"] = nan_counts
     result["has_nans"] = any(nan_counts.values())
+
+    # Task 2.1–2.4: Add quality_score
+    score = 1.0
+    if result["has_nans"]:
+        score -= 0.5
+    duplicate_penalty = min(0.5, result["duplicate_bars_count"] / 1000.0)
+    score -= duplicate_penalty
+    score = max(0.0, score)
+    result["quality_score"] = score
     return result
 
 

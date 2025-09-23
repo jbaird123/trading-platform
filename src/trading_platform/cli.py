@@ -429,11 +429,10 @@ def cmd_ai_diagnose(args: argparse.Namespace) -> int:
         raise ValueError(f"Error decoding brief.json: {e}")
 
     # Map brief.json structure to what DiagnosticSynthesisEngine expects
-    analysis_data = {
-        "backtest_metrics": brief_data.get("overall_performance", {}),
-        # Future: Add other relevant sections from brief_data if rules are added
-        # for them
-    }
+    # [Task 1.1 completed: Located analysis_data assignment]
+    # [Task 1.2 completed: Deleted existing dictionary assignment]
+    # [Task 1.3 completed: Replaced with full brief]
+    analysis_data = brief_data
 
     engine = DiagnosticSynthesisEngine(analysis_data=analysis_data)
     engine.run()
