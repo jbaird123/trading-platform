@@ -25,6 +25,7 @@ repos:
         args:
           - --explicit-package-bases
           - src
+          - tests
 
   - repo: local
     hooks:
