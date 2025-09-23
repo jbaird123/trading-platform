@@ -176,4 +176,6 @@ def test_full_training_pipeline_e2e_minimal(minimal_training_config, temp_mlflow
     assert os.path.exists(diagnostic_results_path)
     with open(diagnostic_results_path) as f:
         results = json.load(f)
-        assert isinstance(results, list)  # Check for expected type from real engine
+        assert isinstance(results, dict)
+        assert "conclusions" in results
+        assert "recommendations" in results

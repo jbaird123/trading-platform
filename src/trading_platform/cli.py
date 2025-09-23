@@ -112,7 +112,8 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     # Strategy can be embedded or referenced via a separate YAML/JSON file
     strat_cfg = cfg_raw.get("strategy") or {
         "strategy_name": "CLI_Default",
-        "entry_rules": [
+        # Minimal long-only example matching strategy.schema.json
+        "long_entry_rules": [
             {
                 "any_of": [
                     {
@@ -123,7 +124,7 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
                 ]
             }
         ],
-        "exit_rules": [
+        "long_exit_rules": [
             {
                 "any_of": [
                     {
@@ -134,6 +135,9 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
                 ]
             }
         ],
+        # Keep shorts empty for the default; schema accepts long-only
+        "short_entry_rules": [],
+        "short_exit_rules": [],
     }
     # Optional fast-mode: limit dataset for quicker iterations
     fast_mode = cfg_raw.get("fast_mode") or {}
