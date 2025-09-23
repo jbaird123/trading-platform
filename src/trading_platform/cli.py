@@ -11,6 +11,7 @@ from typing import Any, cast
 
 import pandas as pd
 
+from trading_platform.ai.synthesis.engine import DiagnosticSynthesisEngine
 from trading_platform.backtester.core import run_backtest
 from trading_platform.core.config import RunConfig
 from trading_platform.core.demo import generate_demo_run
@@ -413,6 +414,43 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_ai_diagnose(args: argparse.Namespace) -> int:
+    if not args.brief:
+        print("--brief is required", file=sys.stderr)
+        return 2
+
+    brief_path = Path(args.brief)
+    if not brief_path.exists():
+        print(f"Error: Brief file not found at {brief_path}", file=sys.stderr)
+        return 2
+
+    try:
+        with open(brief_path) as f:
+            brief_data = json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"Error decoding brief.json: {e}", file=sys.stderr)
+        return 2
+
+    # Map brief.json structure to what DiagnosticSynthesisEngine expects
+    analysis_data = {
+        "backtest_metrics": brief_data.get("overall_performance", {}),
+        # Future: Add other relevant sections from brief_data if rules are added
+        # for them
+    }
+
+    engine = DiagnosticSynthesisEngine(analysis_data=analysis_data)
+    engine.run()
+
+    output_dir = brief_path.parent
+    (output_dir / "ai_diagnostic_report.md").write_text(
+        engine.generate_report_markdown()
+    )
+    (output_dir / "ai_diagnostic_report.json").write_text(engine.generate_report_json())
+
+    print(f"AI diagnostic reports saved to {output_dir}")
+    return 0
+
+
 def cmd_run_live(args: argparse.Namespace) -> int:
     if args.dry_run:
         print("Live controller (dry-run): OK")
@@ -550,6 +588,10 @@ def main() -> int:
     po.add_argument("--last", type=int, default=1, help="Pick Nth latest run")
     po.add_argument("--open", action="store_true", help="Open in browser")
     po.set_defaults(func=cmd_open_chart)
+
+    pad = sub.add_parser("ai-diagnose", help="Run AI diagnostic analysis on a brief")
+    pad.add_argument("--brief", help="Path to brief.json file")
+    pad.set_defaults(func=cmd_ai_diagnose)
 
     args = p.parse_args()
     return int(args.func(args))
