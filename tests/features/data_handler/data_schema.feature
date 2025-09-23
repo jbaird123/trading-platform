@@ -4,11 +4,12 @@ Feature: Data Schema Contract
   I want to load raw market data and enforce a strict, normalized schema,
   so that all downstream components can rely on a consistent and valid data structure.
 
-  @req_DH_2_2
+  @req_DH_2_1
   @req_DH_2_3
+  @req_DH_2_4
   @req_DH_2_6
   Scenario: Loading and normalizing valid market data
-    Given a raw data file "valid_market_data.csv" with columns "UTCTime", "Open", "High", "Low", "Close", "Volume"
+    Given a raw data file "valid_market_data.csv" with columns "UTCTime, Open, High, Low, Close, Volume"
     When the data is loaded and normalized
     Then the resulting DataFrame should have columns "timestamp", "open", "high", "low", "close", "volume"
     And the "timestamp" column should be a UTC datetime index

@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from typing import cast
+from typing import Any, cast
 
 import pandas as pd
 
 try:
-    from ta.momentum import (  # type: ignore[import-untyped]
+    from ta.momentum import (
         ROCIndicator,
         RSIIndicator,
         StochasticOscillator,
     )
-    from ta.trend import (  # type: ignore[import-untyped]
+    from ta.trend import (
         MACD,
         ADXIndicator,
         CCIIndicator,
@@ -19,12 +19,12 @@ try:
         SMAIndicator,
         WMAIndicator,
     )
-    from ta.volatility import (  # type: ignore[import-untyped]
+    from ta.volatility import (
         AverageTrueRange,
         BollingerBands,
         KeltnerChannel,
     )
-    from ta.volume import (  # type: ignore[import-untyped]
+    from ta.volume import (
         ChaikinMoneyFlowIndicator,
         OnBalanceVolumeIndicator,
         VolumeWeightedAveragePrice,
@@ -52,7 +52,8 @@ def _price_series(df: pd.DataFrame, source: str) -> pd.Series:
 
 
 def ema(series: pd.Series, length: int) -> pd.Series:
-    length = max(1, int(length))
+    n = len(series)
+    length = max(1, min(int(length), n))
     return cast(
         pd.Series,
         EMAIndicator(close=series, window=length, fillna=True).ema_indicator(),
@@ -65,7 +66,8 @@ def rsi(series: pd.Series, length: int) -> pd.Series:
 
 
 def atr(df: pd.DataFrame, length: int) -> pd.Series:
-    length = max(1, int(length))
+    n = len(df)
+    length = max(1, min(int(length), n))
     return cast(
         pd.Series,
         AverageTrueRange(
@@ -79,7 +81,12 @@ def atr(df: pd.DataFrame, length: int) -> pd.Series:
 
 
 def adx(df: pd.DataFrame, length: int) -> pd.Series:
-    length = max(1, int(length))
+    n = len(df)
+    # ADX needs at least 3 bars; for very short windows, return zeros safely
+    if n < 3:
+        return pd.Series([0.0] * n, index=df.index, dtype="float64")
+    # Clamp window to available length to avoid internal indexing errors
+    length = max(3, min(int(length), n))
     return cast(
         pd.Series,
         ADXIndicator(
@@ -119,12 +126,32 @@ def donchian_channels(df: pd.DataFrame, length: int) -> tuple[pd.Series, pd.Seri
     return upper, lower
 
 
-def compute_features(df: pd.DataFrame, specs: list[dict]) -> pd.DataFrame:
+def _resolve_parameter(param_value: Any, strategy_parameters: dict) -> Any:
+    """Resolves a parameter value, substituting placeholders like ${param_name}."""
+    if not isinstance(param_value, str):
+        return param_value
+    if param_value.startswith("${") and param_value.endswith("}"):
+        param_name = param_value[2:-1]
+        if param_name in strategy_parameters:
+            return strategy_parameters[param_name]
+        else:
+            raise ValueError(
+                f"Parameter '{param_name}' not found in strategy parameters."
+            )
+    return param_value
+
+
+def compute_features(
+    df: pd.DataFrame, specs: list[dict], strategy_parameters: dict = {}
+) -> pd.DataFrame:
     """Compute features as configured in specs.
 
     Each spec: {name, type, params, source}
     Returns a DataFrame including original df plus new feature columns by name.
     """
+    if strategy_parameters is None:
+        strategy_parameters = {}
+
     out = df.copy()
     for spec in specs or []:
         name = str(spec.get("name"))
@@ -138,11 +165,17 @@ def compute_features(df: pd.DataFrame, specs: list[dict]) -> pd.DataFrame:
             source_ref = str(ref_val) if ref_val is not None else None
         if not name:
             continue
+
+        # Resolve parameters for the current feature
+        resolved_params = {
+            k: _resolve_parameter(v, strategy_parameters) for k, v in params.items()
+        }
+
         if typ == "EMA":
-            length = int(params.get("length", 14))
+            length = int(resolved_params.get("length", 14))
             out[name] = ema(_price_series(df, source), length)
         elif typ == "SMA":
-            length = int(params.get("length", 14))
+            length = int(resolved_params.get("length", 14))
             out[name] = cast(
                 pd.Series,
                 SMAIndicator(
@@ -150,7 +183,7 @@ def compute_features(df: pd.DataFrame, specs: list[dict]) -> pd.DataFrame:
                 ).sma_indicator(),
             )
         elif typ == "WMA":
-            length = int(params.get("length", 14))
+            length = int(resolved_params.get("length", 14))
             out[name] = cast(
                 pd.Series,
                 WMAIndicator(
@@ -158,18 +191,18 @@ def compute_features(df: pd.DataFrame, specs: list[dict]) -> pd.DataFrame:
                 ).wma(),
             )
         elif typ == "RSI":
-            length = int(params.get("length", 14))
+            length = int(resolved_params.get("length", 14))
             out[name] = rsi(_price_series(df, source), length)
         elif typ == "ATR":
-            length = int(params.get("length", 14))
+            length = int(resolved_params.get("length", 14))
             out[name] = atr(df, length)
         elif typ == "ADX":
-            out[name] = adx(df, int(params.get("length", 14)))
+            out[name] = adx(df, int(resolved_params.get("length", 14)))
         elif typ == "BB":
             bb = BollingerBands(
                 close=_price_series(df, source),
-                window=int(params.get("length", 20)),
-                window_dev=float(params.get("ndev", 2.0)),
+                window=int(resolved_params.get("length", 20)),
+                window_dev=float(resolved_params.get("ndev", 2.0)),
                 fillna=True,
             )
             out[f"{name}_upper"] = cast(pd.Series, bb.bollinger_hband())
@@ -178,15 +211,15 @@ def compute_features(df: pd.DataFrame, specs: list[dict]) -> pd.DataFrame:
         elif typ == "BBWidth":
             out[name] = bb_width(
                 _price_series(df, source),
-                int(params.get("length", 20)),
-                float(params.get("ndev", 2.0)),
+                int(resolved_params.get("length", 20)),
+                float(resolved_params.get("ndev", 2.0)),
             )
         elif typ == "MACD":
             macd = MACD(
                 close=_price_series(df, source),
-                window_slow=int(params.get("slow", 26)),
-                window_fast=int(params.get("fast", 12)),
-                window_sign=int(params.get("signal", 9)),
+                window_slow=int(resolved_params.get("slow", 26)),
+                window_fast=int(resolved_params.get("fast", 12)),
+                window_sign=int(resolved_params.get("signal", 9)),
                 fillna=True,
             )
             out[f"{name}_macd"] = cast(pd.Series, macd.macd())
@@ -197,8 +230,8 @@ def compute_features(df: pd.DataFrame, specs: list[dict]) -> pd.DataFrame:
                 high=df["high"],
                 low=df["low"],
                 close=df["close"],
-                step=float(params.get("step", 0.02)),
-                max_step=float(params.get("max", 0.2)),
+                step=float(resolved_params.get("step", 0.02)),
+                max_step=float(resolved_params.get("max", 0.2)),
                 fillna=True,
             )
             out[f"{name}"] = cast(pd.Series, psar.psar())
@@ -209,7 +242,7 @@ def compute_features(df: pd.DataFrame, specs: list[dict]) -> pd.DataFrame:
                 high=df["high"],
                 low=df["low"],
                 close=df["close"],
-                window=int(params.get("length", 14)),
+                window=int(resolved_params.get("length", 14)),
                 fillna=True,
             )
             out[f"{name}"] = cast(pd.Series, st.stoch())
@@ -221,7 +254,7 @@ def compute_features(df: pd.DataFrame, specs: list[dict]) -> pd.DataFrame:
                     high=df["high"],
                     low=df["low"],
                     close=df["close"],
-                    window=int(params.get("length", 20)),
+                    window=int(resolved_params.get("length", 20)),
                     fillna=True,
                 ).cci(),
             )
@@ -230,7 +263,7 @@ def compute_features(df: pd.DataFrame, specs: list[dict]) -> pd.DataFrame:
                 pd.Series,
                 ROCIndicator(
                     close=_price_series(df, source),
-                    window=int(params.get("length", 12)),
+                    window=int(resolved_params.get("length", 12)),
                     fillna=True,
                 ).roc(),
             )
@@ -240,16 +273,16 @@ def compute_features(df: pd.DataFrame, specs: list[dict]) -> pd.DataFrame:
                 if source_ref
                 else _price_series(df, source or "high")
             )
-            out[name] = hhv(series_in, int(params.get("length", 20)))
+            out[name] = hhv(series_in, int(resolved_params.get("length", 20)))
         elif typ == "LLV":
             series_in = (
                 pd.Series(df[source_ref], dtype="float64")
                 if source_ref
                 else _price_series(df, source or "low")
             )
-            out[name] = llv(series_in, int(params.get("length", 20)))
+            out[name] = llv(series_in, int(resolved_params.get("length", 20)))
         elif typ == "DC":
-            up, lo = donchian_channels(df, int(params.get("length", 20)))
+            up, lo = donchian_channels(df, int(resolved_params.get("length", 20)))
             out[f"{name}_upper"] = up
             out[f"{name}_lower"] = lo
         elif typ == "KC":
@@ -257,8 +290,8 @@ def compute_features(df: pd.DataFrame, specs: list[dict]) -> pd.DataFrame:
                 high=df["high"],
                 low=df["low"],
                 close=df["close"],
-                window=int(params.get("length", 20)),
-                window_atr=int(params.get("length", 20)),
+                window=int(resolved_params.get("length", 20)),
+                window_atr=int(resolved_params.get("length", 20)),
                 original_version=False,
                 fillna=True,
             )
@@ -280,7 +313,7 @@ def compute_features(df: pd.DataFrame, specs: list[dict]) -> pd.DataFrame:
                     low=df["low"],
                     close=df["close"],
                     volume=df["volume"],
-                    window=int(params.get("length", 20)),
+                    window=int(resolved_params.get("length", 20)),
                     fillna=True,
                 ).chaikin_money_flow(),
             )

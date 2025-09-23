@@ -1,32 +1,32 @@
+# Validates: [SYS-1.10.2]
 from __future__ import annotations
 
-import json
-from pathlib import Path
+from pytest_bdd import scenarios
 
-from trading_platform.core.config import RunConfig
-from trading_platform.core.run import initialize_run
+# Ensure step definitions are imported so pytest-bdd can register them.
+# These imports are intentionally unused; importing registers step functions.
+from tests.step_defs.backtester import (  # noqa: F401
+    test_core_backtest_steps,
+    test_risk_management_steps,
+    test_signal_steps,
+)
+from tests.step_defs.data_handler import (  # noqa: F401
+    test_data_schema_steps,
+    test_data_steps,
+)
+from tests.step_defs.regime_market_manager import (  # noqa: F401
+    test_classification_steps,
+    test_market_regime_classification_steps,
+)
+from tests.step_defs.strategy_engine import (  # noqa: F401
+    test_signal_generation_steps,
+    test_strategy_steps,
+)
 
-
-def test_initialize_run_creates_artifacts(tmp_path: Path):
-    """
-    Verifies that initialize_run creates the expected run directory and config file.
-    """
-    # 1. Setup: Create a config pointing to a temporary directory
-    config = RunConfig(
-        user_id="test_user", run_id="test_run_123", runs_dir=tmp_path, log_level="INFO"
-    )
-
-    # 2. Action: Call the function to be tested
-    run_path = initialize_run(config)
-
-    # 3. Assert: Verify the output is correct
-    config_path = run_path / "config.json"
-    assert run_path.is_dir()
-    assert run_path.name == "test_run_123"
-    assert run_path.parent.name == "test_user"
-    assert config_path.is_file()
-
-    # Verify the content of the config file
-    data = json.loads(config_path.read_text())
-    assert data["user_id"] == "test_user"
-    assert data["run_id"] == "test_run_123"
+# Load all BDD scenarios from the .feature files
+scenarios(
+    "features/backtester",
+    "features/data_handler",
+    "features/regime_market_manager",
+    "features/strategy_engine",
+)

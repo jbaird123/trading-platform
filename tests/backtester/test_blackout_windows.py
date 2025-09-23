@@ -1,9 +1,14 @@
+# Validates: [SYS-1.5.1]
 from __future__ import annotations
 
 from datetime import datetime
 
 import pandas as pd
 from trading_platform.backtester.core import run_backtest
+from trading_platform.core.config import RunConfig
+from trading_platform.risk_manager.core import RiskExitManager
+
+from tests.backtester.dummy_objects import _dummy_strategy_cfg
 
 
 def _mk_df_with_times(times: list[str]) -> pd.DataFrame:
@@ -31,11 +36,14 @@ def test_static_blackout_blocks_new_entries_but_allows_other_ops():
     # Signal attempts long at each bar
     signals = pd.Series(["long", "long", "long", "long"], index=df.index)
     # Blackout 23:00–01:00 UTC should block bars at 23:30 and 00:30
+    config = RunConfig(initial_cash=1000.0, blackout_utc=[("23:00", "01:00")])
+    rem = RiskExitManager(config={})
     trades = run_backtest(
         market_data=df,
         signals=signals,
-        initial_cash=1000.0,
-        blackout_utc=[("23:00", "01:00")],
+        strategy=_dummy_strategy_cfg(),
+        config=config,
+        rem=rem,
     )
     # We simply assert the function runs and returns a list; detailed behavior
     # is verified in later tests when close-only vs no-entry is added.

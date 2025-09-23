@@ -7,16 +7,100 @@ import platform
 import sys
 from dataclasses import asdict, is_dataclass
 from datetime import datetime
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 from statistics import median
 from typing import Any
 
+import jsonschema  # type: ignore
 import pandas as pd
 from trading_platform.portfolio.metrics import (
     calculate_equity_curve,
     calculate_win_rate,
 )
 from trading_platform.portfolio.trade import Trade
+
+# Path to the JSON Schema for brief field documentation
+SCHEMA_PATH = Path("docs/schemas/brief.schema.json")
+
+
+def _schema_node_type(node: dict[str, Any]) -> str:
+    t = node.get("type")
+    if isinstance(t, list):
+        parts = sorted(map(str, t))
+        return "/".join(parts)
+    return str(t) if t else "object"
+
+
+def _lookup_schema(schema: dict[str, Any], path: list[str]) -> dict[str, Any] | None:
+    node: dict[str, Any] | None = schema
+    for i, seg in enumerate(path):
+        if not isinstance(node, dict):
+            return None
+        props = node.get("properties")
+        if isinstance(props, dict) and seg in props:
+            node = props[seg]
+            continue
+        # Support object schemas that use additionalProperties to describe children
+        ntype = node.get("type")
+        is_object = (isinstance(ntype, str) and ntype == "object") or (
+            isinstance(ntype, list) and "object" in ntype
+        )
+        if is_object and "additionalProperties" in node:
+            ap = node.get("additionalProperties")
+            if isinstance(ap, dict):
+                node = ap
+                continue
+            return None
+        # If no explicit schema for this child and we're at the last segment,
+        # return the current node (generic object schema) so long as it has a
+        # description. This still enforces schema-provided descriptions.
+        if is_object and i == len(path) - 1 and node.get("description"):
+            return node
+        return None
+    return node
+
+
+def _leaf_paths(obj: Any, prefix: str = "") -> list[str]:
+    paths: list[str] = []
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if k == "field_definitions":
+                continue
+            p = f"{prefix}.{k}" if prefix else k
+            paths.extend(_leaf_paths(v, p))
+    elif isinstance(obj, list):
+        paths.append(prefix)
+    else:
+        paths.append(prefix)
+    return paths
+
+
+def _round_currency(value: float | None) -> float | None:
+    if value is None:
+        return None
+    # Use Decimal for correct rounding of currency values
+    return float(Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
+
+def _round_percentage(value: float | None) -> float | None:
+    if value is None:
+        return None
+    # Round percentages to 3 decimal places
+    return float(Decimal(str(value)).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP))
+
+
+def _round_price(value: float | None) -> float | None:
+    """Round price values to 4 decimal places.
+
+    Keeps currency (PnL, costs) at 2 decimals while allowing FX-like prices
+    to retain finer precision in briefs.
+    """
+    if value is None:
+        return None
+    return float(
+        Decimal(str(value)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+    )
 
 
 def _to_jsonable(obj: Any) -> Any:
@@ -68,13 +152,13 @@ def _serialize_trade(t: Trade) -> dict[str, Any]:
         "size": t.size,
         "entry_time": t.entry_time.isoformat(),
         "exit_time": t.exit_time.isoformat(),
-        "entry_price": t.entry_price,
-        "exit_price": t.exit_price,
-        "pnl": t.pnl,
+        "entry_price": _round_price(t.entry_price),
+        "exit_price": _round_price(t.exit_price),
+        "pnl": _round_currency(t.pnl),
         "exit_reason": t.exit_reason,
         "r_multiple": getattr(t, "r_multiple", None),
-        "mfe_currency": getattr(t, "mfe_currency", None),
-        "mae_currency": getattr(t, "mae_currency", None),
+        "mfe_currency": _round_currency(getattr(t, "mfe_currency", None)),
+        "mae_currency": _round_currency(getattr(t, "mae_currency", None)),
         "bars_held": getattr(t, "bars_held", None),
         "context_at_entry": getattr(t, "context_at_entry", None),
         "context_at_exit": getattr(t, "context_at_exit", None),
@@ -102,13 +186,16 @@ def compute_overall_performance(
     }
     return {
         "n_trades": len(trades),
-        "total_pnl": total_pnl,
-        "mean_pnl": mean_pnl,
-        "median_pnl": median_pnl,
-        "by_side_total_pnl": by_side_total_pnl,
-        "win_rate": calculate_win_rate(trades),
-        "initial_equity": initial_cash,
-        "final_equity": final_equity,
+        "total_pnl": _round_currency(total_pnl),
+        "mean_pnl": _round_currency(mean_pnl),
+        "median_pnl": _round_currency(median_pnl),
+        "by_side_total_pnl": {
+            "long": _round_currency(by_side_total_pnl["long"]),
+            "short": _round_currency(by_side_total_pnl["short"]),
+        },
+        "win_rate": _round_percentage(calculate_win_rate(trades)),
+        "initial_equity": _round_currency(initial_cash),
+        "final_equity": _round_currency(final_equity),
     }
 
 
@@ -116,11 +203,11 @@ def compute_risk_snapshot(trades: list[Trade]) -> dict[str, Any]:
     wins = [t.pnl for t in trades if t.pnl > 0]
     losses = [t.pnl for t in trades if t.pnl < 0]
     return {
-        "win_rate": calculate_win_rate(trades),
-        "avg_win": (sum(wins) / len(wins)) if wins else 0.0,
-        "avg_loss": (sum(losses) / len(losses)) if losses else 0.0,
-        "max_win": max(wins) if wins else 0.0,
-        "max_loss": min(losses) if losses else 0.0,
+        "win_rate": _round_percentage(calculate_win_rate(trades)),
+        "avg_win": _round_currency((sum(wins) / len(wins)) if wins else 0.0),
+        "avg_loss": _round_currency((sum(losses) / len(losses)) if losses else 0.0),
+        "max_win": _round_currency(max(wins) if wins else 0.0),
+        "max_loss": _round_currency(min(losses) if losses else 0.0),
     }
 
 
@@ -148,11 +235,11 @@ def compute_distribution(trades: list[Trade]) -> dict[str, Any]:
     var = sum((x - mean_val) ** 2 for x in pnls) / n
     std = var**0.5
     return {
-        "pnl_mean": mean_val,
-        "pnl_median": median_val,
-        "pnl_std": std,
-        "p05": _percentile(pnls, 0.05),
-        "p95": _percentile(pnls, 0.95),
+        "pnl_mean": _round_currency(mean_val),
+        "pnl_median": _round_currency(median_val),
+        "pnl_std": _round_currency(std),
+        "p05": _round_currency(_percentile(pnls, 0.05)),
+        "p95": _round_currency(_percentile(pnls, 0.95)),
     }
 
 
@@ -205,12 +292,14 @@ def compute_equity_stats(trades: list[Trade], initial_cash: float) -> dict[str, 
             if drawdown > max_dd:
                 max_dd = drawdown
                 dd_duration = temp_duration
-    equity_curve = [[ts.isoformat(), float(eq)] for ts, eq in ec]
-    drawdown_curve = [[ts.isoformat(), float(dd)] for ts, dd in dd_curve]
+    equity_curve = [[ts.isoformat(), _round_currency(float(eq))] for ts, eq in ec]
+    drawdown_curve = [
+        [ts.isoformat(), _round_currency(float(dd))] for ts, dd in dd_curve
+    ]
     return {
         "equity_curve": equity_curve,
         "drawdown_curve": drawdown_curve,
-        "max_drawdown": max_dd,
+        "max_drawdown": _round_currency(max_dd),
         "dd_duration_bars": dd_duration,
     }
 
@@ -237,9 +326,13 @@ def compute_costs_aggregate(trades: list[Trade]) -> dict[str, Any]:
         b_comm += float(bd.get("commission", 0.0) or 0.0)
         b_slip += float(bd.get("slippage", 0.0) or 0.0)
     return {
-        "total_costs": total,
-        "avg_cost_per_trade": total / len(trades),
-        "breakdown": {"spread": b_spread, "commission": b_comm, "slippage": b_slip},
+        "total_costs": _round_currency(total),
+        "avg_cost_per_trade": _round_currency(total / len(trades) if trades else 0.0),
+        "breakdown": {
+            "spread": _round_currency(b_spread),
+            "commission": _round_currency(b_comm),
+            "slippage": _round_currency(b_slip),
+        },
     }
 
 
@@ -264,10 +357,10 @@ def _compute_regimes(
         wins = sum(1 for p in pnls if p > 0)
         result[label] = {
             "n_trades": n,
-            "total_pnl": float(sum(pnls)),
-            "mean_pnl": float(sum(pnls) / n) if n else 0.0,
-            "median_pnl": float(median(pnls)) if pnls else 0.0,
-            "win_rate": (wins / n) if n else 0.0,
+            "total_pnl": _round_currency(float(sum(pnls))),
+            "mean_pnl": _round_currency(float(sum(pnls) / n) if n else 0.0),
+            "median_pnl": _round_currency(float(median(pnls)) if pnls else 0.0),
+            "win_rate": _round_percentage((wins / n) if n else 0.0),
         }
     return result
 
@@ -282,7 +375,10 @@ def _compute_exposure_metrics(
         return {}  # pragma: no cover
     avg = sum(values) / len(values)
     peak = max(values)
-    return {"average_gross_exposure": avg, "peak_gross_exposure": peak}
+    return {
+        "average_gross_exposure": _round_currency(avg),
+        "peak_gross_exposure": _round_currency(peak),
+    }
 
 
 def generate_brief(
@@ -304,6 +400,10 @@ def generate_brief(
     config_snapshot: dict[str, Any] | None = None,
     skipped_trades: list[dict[str, Any]] | None = None,
     parameter_search: dict[str, Any] | None = None,
+    field_definitions: dict[str, Any] | None = None,
+    signals_path: str | None = None,
+    rmm_spans_path: str | None = None,
+    processed_data_path: str | None = None,
 ) -> dict[str, Any]:
     """Assemble a JSON brief from trades and metrics (incremental MVP)."""
     meta = meta or {}
@@ -330,7 +430,11 @@ def generate_brief(
         item = _serialize_trade(t)
         # Attach cost breakdown if available
         if getattr(t, "cost_breakdown", None) is not None:
-            item["cost_breakdown"] = t.cost_breakdown
+            assert t.cost_breakdown is not None  # Mypy type narrowing
+            cost_breakdown_data = t.cost_breakdown
+            item["cost_breakdown"] = {
+                k: _round_currency(v) for k, v in cost_breakdown_data.items()
+            }
         trades_json.append(item)
     # Compute provenance/environment
     prov = _compute_provenance(trades, meta)
@@ -343,105 +447,17 @@ def generate_brief(
     if config_snapshot is not None:
         checksums["config_snapshot_hash"] = _stable_hash(config_snapshot)
 
-    field_definitions = {
-        "overall_performance.total_pnl": {
-            "description": "Sum of per-trade pnl in base currency.",
-            "why_useful": "Measures total outcome over the run.",
-            "how_to_use": (
-                "Compare across runs; normalize by starting equity if needed."
-            ),
-        },
-        "equity_stats.max_drawdown": {
-            "description": "Peak-to-trough equity loss in base currency.",
-            "why_useful": "Captures worst loss magnitude.",
-            "how_to_use": "Lower is better; monitor alongside pnl.",
-        },
-        "costs.total_costs": {
-            "description": (
-                "Sum of spread, commission, and slippage across all trades."
-            ),
-            "why_useful": "Quantifies drag from costs.",
-            "how_to_use": "Assess robustness under realistic costs.",
-        },
-    }
-
-    def _def_entry(desc: str) -> dict[str, str]:
-        return {
-            "description": desc,
-            "why_useful": "Provides context for analysis and reporting.",
-            "how_to_use": "Use in dashboards, filters, and comparisons.",
-        }
-
-    def _add_leaf_defs(prefix: str, obj: Any) -> None:
-        if isinstance(obj, dict):
-            for k, v in obj.items():
-                if k == "field_definitions":
-                    continue
-                path = f"{prefix}.{k}" if prefix else k
-                _add_leaf_defs(path, v)
-        elif isinstance(obj, list):
-            # Known list shapes
-            if prefix in (
-                "equity_stats.equity_curve",
-                "equity_stats.drawdown_curve",
-            ):
-                field_definitions.setdefault(
-                    prefix,
-                    _def_entry("List of [timestamp, value] pairs ordered by time."),
-                )
-                return
-            if prefix == "trades":
-                field_definitions.setdefault(
-                    "trades", _def_entry("List of trade records (objects).")
-                )
-                if obj and isinstance(obj[0], dict):
-                    for tk in obj[0].keys():
-                        tpath = f"trades[].{tk}"
-                        field_definitions.setdefault(
-                            tpath,
-                            _def_entry(f"Trade field '{tk}' at per-trade level."),
-                        )
-                return
-            # Generic list container
-            field_definitions.setdefault(
-                prefix, _def_entry("List of values (container field).")
-            )
-        else:
-            # Primitive leaf
-            field_definitions.setdefault(
-                prefix,
-                _def_entry("Scalar value (number, string, boolean, or null)."),
-            )
-
-    # Build definitions for any missing fields by walking the brief so far
-    preview = {
-        "meta": _to_jsonable(meta),
-        "params": _to_jsonable(params),
-        "overall_performance": performance,
-        "risk_snapshot": risk_snapshot,
-        "equity_stats": equity_stats,
-        "distribution": distribution,
-        "streaks": compute_streaks(trades),
-        "holding_time": {"median_secs": _median_holding_secs(trades)},
-        "costs": compute_costs_aggregate(trades),
-        "exposure": _to_jsonable(exposure),
-        "regimes": _compute_regimes(trades, regimes_at_entry),
-        "instrument_definitions": _to_jsonable(instrument_definitions or {}),
-        "cost_model": _to_jsonable(cost_model or {}),
-        "fill_policy": _to_jsonable(fill_policy or {}),
-        "tie_break_policy": _to_jsonable(tie_break_policy or {}),
-        "blackout_policy": _to_jsonable(blackout_policy or {}),
-        "environment": _to_jsonable(env),
-        "provenance": _to_jsonable(prov),
-        "checksums": _to_jsonable(checksums),
-        "trades": trades_json,
-        "stop_tp_candidates": [],
-    }
-    _add_leaf_defs("", preview)
+    artifacts: dict[str, Any] = {}
+    if signals_path:
+        artifacts["signals_path"] = signals_path
+    if rmm_spans_path:
+        artifacts["rmm_spans_path"] = rmm_spans_path
+    if processed_data_path:
+        artifacts["processed_data_path"] = processed_data_path
 
     base = {
         "meta": _to_jsonable(meta),
-        "params": _to_jsonable(params),
+        "strategy_params": _to_jsonable(params),
         # Canonical, instrument-agnostic sections
         "overall_performance": performance,
         "risk_snapshot": risk_snapshot,
@@ -465,14 +481,39 @@ def generate_brief(
         "environment": _to_jsonable(env),
         "provenance": _to_jsonable(prov),
         "checksums": _to_jsonable(checksums),
-        "field_definitions": _to_jsonable(field_definitions),
+        "artifacts": _to_jsonable(artifacts),
+        "field_definitions": _to_jsonable(field_definitions or {}),
         # Trades serialized with ISO datetimes
         "trades": trades_json,
     }
     placeholders = _empty_sections()
     placeholders.update(base)
+    # Populate field_definitions strictly from the JSON Schema if not provided
+    if not field_definitions:
+        try:
+            schema = json.loads(SCHEMA_PATH.read_text())
+        except Exception:  # pragma: no cover
+            schema = {}
+        fdefs: dict[str, Any] = {}
+        for p in _leaf_paths(placeholders):
+            parts = p.split(".") if p else []
+            node = _lookup_schema(schema, parts)
+            if not node or not node.get("description"):
+                # Strict mode: require schema coverage for every leaf
+                raise ValueError(f"Missing schema description for brief path: {p}")
+            fdefs[p] = node["description"]
+        placeholders["field_definitions"] = fdefs
+    # Omit optional sections when empty to satisfy schema
+    if not data_quality:
+        placeholders.pop("data_quality", None)
+    checks = placeholders.get("checksums")
+    if isinstance(checks, dict) and not checks:
+        placeholders.pop("checksums", None)
     # Attach skipped trades and filter impact if provided
     if skipped_trades:
+        for trade in skipped_trades:
+            if "cf_pnl_currency" in trade:
+                trade["cf_pnl_currency"] = _round_currency(trade["cf_pnl_currency"])
         placeholders["skipped_trades"] = _to_jsonable(skipped_trades)
         # Aggregate impact metrics by reason_code
         agg: dict[str, Any] = {}
@@ -497,9 +538,11 @@ def generate_brief(
                 for s in skipped_trades
                 if (s.get("reason_code") or "unknown") == rc
             ]
-            st["total_cf_pnl"] = float(sum(vals))
-            st["mean_cf_pnl"] = float(sum(vals) / len(vals)) if vals else 0.0
-            st["median_cf_pnl"] = float(_med(vals)) if vals else 0.0
+            st["total_cf_pnl"] = _round_currency(float(sum(vals)))
+            st["mean_cf_pnl"] = _round_currency(
+                float(sum(vals) / len(vals)) if vals else 0.0
+            )
+            st["median_cf_pnl"] = _round_currency(float(_med(vals)) if vals else 0.0)
         placeholders["filter_impact"] = agg
     return placeholders
 
@@ -528,6 +571,11 @@ def save_run_brief(
     exposure_curve: list[tuple[datetime, float]] | None = None,
     config_snapshot: dict[str, Any] | None = None,
     parameter_search: dict[str, Any] | None = None,
+    skipped_trades: list[dict[str, Any]] | None = None,
+    signals_path: str | None = None,
+    rmm_spans_path: str | None = None,
+    processed_data_path: str | None = None,
+    validate_schema: bool = False,
 ) -> Path:
     """Generate and save a brief to `run_path/brief.json`.
 
@@ -550,7 +598,17 @@ def save_run_brief(
         exposure_curve=exposure_curve,
         config_snapshot=config_snapshot,
         parameter_search=parameter_search,
+        skipped_trades=skipped_trades,
+        signals_path=signals_path,
+        rmm_spans_path=rmm_spans_path,
+        processed_data_path=processed_data_path,
     )
+    if validate_schema:
+        try:
+            schema = json.loads(SCHEMA_PATH.read_text())
+            jsonschema.validate(instance=brief, schema=schema)
+        except Exception as exc:  # pragma: no cover (error path)
+            raise ValueError(f"Brief failed schema validation: {exc}") from exc
     out_path = run_path / "brief.json"
     save_brief(brief, out_path)
     return out_path

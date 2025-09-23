@@ -140,26 +140,13 @@
     },
     "rule_block": {
       "type": "object",
-      "additionalProperties": false,
+      "properties": {
+        "all_of": { "$ref": "#/$defs/predicate_array" },
+        "any_of": { "$ref": "#/$defs/predicate_array" }
+      },
       "oneOf": [
-        {
-          "properties": {
-            "all_of": {
-              "$ref": "#/$defs/predicate_array",
-              "description": "All predicates must be true."
-            }
-          },
-          "required": ["all_of"]
-        },
-        {
-          "properties": {
-            "any_of": {
-              "$ref": "#/$defs/predicate_array",
-              "description": "At least one predicate must be true."
-            }
-          },
-          "required": ["any_of"]
-        }
+        { "required": ["all_of"] },
+        { "required": ["any_of"] }
       ]
     },
     "predicate_array": {
@@ -170,33 +157,15 @@
     },
     "predicate": {
       "type": "object",
-      "additionalProperties": false,
-      "oneOf": [
-        {
-          "title": "is_above",
-          "properties": {
-            "condition": {
-              "const": "is_above",
-              "description": "True if left value is strictly greater than right."
-            },
-            "left": { "$ref": "#/$defs/operand" },
-            "right": { "$ref": "#/$defs/operand" }
-          },
-          "required": ["condition", "left", "right"]
+      "properties": {
+        "condition": {
+          "type": "string",
+          "enum": ["is_above", "is_below"]
         },
-        {
-          "title": "is_below",
-          "properties": {
-            "condition": {
-              "const": "is_below",
-              "description": "True if left value is strictly less than right."
-            },
-            "left": { "$ref": "#/$defs/operand" },
-            "right": { "$ref": "#/$defs/operand" }
-          },
-          "required": ["condition", "left", "right"]
-        }
-      ]
+        "left": { "$ref": "#/$defs/operand" },
+        "right": { "$ref": "#/$defs/operand" }
+      },
+      "required": ["condition", "left", "right"]
     },
     "operand": {
       "oneOf": [

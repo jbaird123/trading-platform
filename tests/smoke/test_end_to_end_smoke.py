@@ -1,3 +1,4 @@
+# Validates: [SYS-1.10.2], [12) MVP Subset]
 from __future__ import annotations
 
 from trading_platform.core.demo import generate_demo_run

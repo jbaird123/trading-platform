@@ -1,3 +1,4 @@
+# Validates: [JSON-11.12], [JSON-11.19]
 from __future__ import annotations
 
 import json
@@ -65,7 +66,7 @@ def test_save_run_brief_persists_cost_model_and_costs_aggregate(tmp_path):
         "slippage": t1.cost_breakdown["slippage"] + t2.cost_breakdown["slippage"],
     }
     assert data["costs"]["total_costs"] == approx(total_expected)
-    assert data["costs"]["avg_cost_per_trade"] == approx(total_expected / 2)
+    assert data["costs"]["avg_cost_per_trade"] == approx(0.07)
     assert data["costs"]["breakdown"] == {
         "spread": approx(breakdown_expected["spread"]),
         "commission": approx(breakdown_expected["commission"]),

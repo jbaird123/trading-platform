@@ -1,3 +1,4 @@
+# Validates: [SYS-1.4.1], [SYS-1.7.2]
 from __future__ import annotations
 
 import json
@@ -6,6 +7,20 @@ from pathlib import Path
 
 import pandas as pd
 from trading_platform.cli import cmd_compare, cmd_run_backtest, cmd_run_live
+from trading_platform.strategy.yaml_strategy import CompiledStrategy
+
+
+def _dummy_strategy() -> CompiledStrategy:
+    return CompiledStrategy(
+        name="dummy",
+        features=[],
+        overlays=[],
+        long_entry_blocks=[],
+        long_exit_blocks=[],
+        short_entry_blocks=[],
+        short_exit_blocks=[],
+        parameters={},
+    )
 
 
 def _write_brief(path: Path, run_id: str, strat: str, total_pnl: float) -> None:
@@ -61,10 +76,10 @@ def test_cmd_run_backtest_reads_csv_path(tmp_path: Path) -> None:
         "data": {"csv_path": str(csv)},
         "strategy": {
             "strategy_name": "TestStrat",
-            "entry_rules": [
+            "long_entry_rules": [
                 {"any_of": [{"condition": "is_above", "left": "close", "right": 1}]}
             ],
-            "exit_rules": [
+            "long_exit_rules": [
                 {"any_of": [{"condition": "is_below", "left": "close", "right": 2}]}
             ],
         },
@@ -72,8 +87,17 @@ def test_cmd_run_backtest_reads_csv_path(tmp_path: Path) -> None:
     cfg_path = tmp_path / "cfg.json"
     cfg_path.write_text(json.dumps(cfg))
     ns = Namespace(demo=False, user="cli_csv", config=str(cfg_path))
+    cfg["strategy"]["parameters"] = cfg["strategy"].get("parameters", {})
     rc = cmd_run_backtest(ns)
     assert rc == 0
+    # Ensure prices.csv and charts.html exist under the run directory
+    runs_root = tmp_path / "cli_csv"
+    # Find the single run directory
+    run_dirs = [p for p in runs_root.iterdir() if p.is_dir()]
+    assert run_dirs, "No run directory created"
+    rp = run_dirs[0]
+    assert (rp / "prices.csv").exists()
+    assert (rp / "chart.html").exists()
 
 
 def test_cmd_run_live_missing_config() -> None:

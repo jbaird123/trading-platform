@@ -5,9 +5,12 @@ from typing import Any, cast
 
 import pandas as pd
 
+from trading_platform.core.config import RunConfig
 from trading_platform.core.policy import TradingWindowPolicy
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
+from trading_platform.risk_manager.core import RiskExitManager
+from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
 """Backtester core loop with optional exposure capture.
 
@@ -19,19 +22,12 @@ returns just `trades`.
 def run_backtest(
     market_data: pd.DataFrame,
     signals: pd.Series,
-    initial_cash: float = 100000.0,
-    stop_loss: float | None = None,
-    take_profit: float | None = None,
-    allow_flip_on_bar: bool = False,
-    instrument: dict | None = None,
-    blackout_utc: list[tuple[str, str]] | None = None,
-    blackout_events: list[dict[str, Any]] | None = None,
-    warmup_bars: int = 0,
-    cost_model: dict | None = None,
+    strategy: CompiledStrategy,
+    config: RunConfig,
+    rem: RiskExitManager,
+    rmm_context: dict[datetime, dict[str, Any]] | None = None,
     return_exposure: bool = False,
     return_skips: bool = False,
-    pm_limits: dict[str, int] | None = None,
-    daily_loss_cap: float | None = None,
 ) -> (
     list[Trade]
     | tuple[list[Trade], list[tuple[datetime, float]]]
@@ -43,14 +39,13 @@ def run_backtest(
     Args:
         market_data: DataFrame with OHLCV data.
         signals: Series with 'long', 'short', and 'flat' signals.
-        initial_cash: The starting cash for the portfolio.
-        stop_loss: Optional stop-loss price for new positions.
-        take_profit: Optional take-profit price for new positions.
-        allow_flip_on_bar: If True, allows closing a position and opening a new
-                           one on the same bar. Defaults to False.
+        config: The unified run configuration object.
+        rem: The Risk & Exit Manager instance.
+        return_exposure: If True, returns the exposure curve.
+        return_skips: If True, returns a list of skipped trades.
 
     Returns:
-        A list of completed Trade objects.
+        A list of completed Trade objects, and optionally other artifacts.
     """
     # --- Input validation (fail fast) ---
     required_cols = {"open", "high", "low", "close", "volume"}
@@ -74,19 +69,20 @@ def run_backtest(
         first_bad = market_data[market_data["close"].isna()].index[0]
         raise ValueError(f"market_data.close has NaNs; first at index: {first_bad}")
 
-    # Accept optional instrument snapshot; do not change PnL behavior yet.
     portfolio = PortfolioManager(
-        initial_cash=initial_cash, instrument=instrument, cost_model=cost_model
+        initial_cash=config.initial_cash,
+        instrument=config.instrument,
+        cost_model=config.cost_model,
     )
 
     policy = TradingWindowPolicy.from_config(
-        blackout_utc=blackout_utc, blackout_events=blackout_events
+        blackout_utc=config.blackout_utc, blackout_events=config.blackout_events
     )
 
-    # Track gross exposure per bar (absolute notional = |size * close|)
     exposure_curve: list[tuple[datetime, float]] = []
     skipped: list[dict[str, Any]] = []
-    limits = pm_limits or {"max_open_long": 1, "max_open_short": 1}
+    limits = config.pm_limits or {"max_open_long": 1, "max_open_short": 1}
+    # Use the provided RiskExitManager instance; do not override it here.
 
     def _fmt_ts(val: Any) -> str:
         return val.isoformat() if isinstance(val, datetime) else str(val)
@@ -94,14 +90,31 @@ def run_backtest(
     for i in range(len(market_data)):
         current_signal = signals.iloc[i]
         current_bar = market_data.iloc[i]
+        context = strategy.get_context(i)
 
-        # The backtester's job is to orchestrate, not to decide.
-        # It passes the current state to the PortfolioManager, which
-        # contains the actual position management logic.
+        # Evaluate risk-based exits using the Risk & Exit Manager (REM)
+        # This is evaluated before strategic exits, per the Exit Precedence Policy.
+        if portfolio.current_position:
+            exit_details = rem.check_exits(portfolio.current_position, current_bar)
+
+            if exit_details:
+                portfolio.close_position(
+                    exit_price=exit_details["exit_price"],
+                    exit_time=cast(datetime, current_bar.name),
+                    exit_reason=exit_details["reason"],
+                    context_at_exit=context,
+                )
+                # Update exposure only if requested
+                if return_exposure:
+                    exposure_curve.append((cast(datetime, current_bar.name), 0.0))
+                continue
+
+        # Process signal-based exits and update position metrics
         portfolio.on_bar(
             current_bar=current_bar,
             current_signal=current_signal,
-            allow_flip_on_bar=allow_flip_on_bar,
+            allow_flip_on_bar=config.allow_flip_on_bar,
+            context=context,
         )
 
         # If trying to add in same direction while already open, enforce cap
@@ -111,7 +124,7 @@ def run_backtest(
                 if current_signal == "long"
                 else limits.get("max_open_short", 1)
             )
-            open_ct = 1  # PM supports one open position in MVP
+            open_ct = 1
             if open_ct >= cap_now:
                 skipped.append(
                     {
@@ -128,19 +141,46 @@ def run_backtest(
             not portfolio.current_position
             and current_signal in ["long", "short"]
             and policy.can_open(cast(datetime, current_bar.name))
-            and i >= max(0, warmup_bars)
+            and i >= max(0, config.warmup_bars)
         ):
-            # Enforce daily loss cap using PortfolioManager state
-            if daily_loss_cap is not None and daily_loss_cap > 0:
+            # Enforce RMM side gating if provided
+            if rmm_context is not None:
+                ctx = rmm_context.get(cast(datetime, current_bar.name))
+                if ctx is not None:
+                    allowed_sides = list(ctx.get("allowed_sides") or [])
+                    if current_signal not in allowed_sides:
+                        skipped.append(
+                            {
+                                "timestamp": _fmt_ts(current_bar.name),
+                                "symbol": "EUR_USD",
+                                "reason_code": "rmm_block",
+                                "regime": {
+                                    "label": ctx.get("label"),
+                                    "confidence": ctx.get("confidence"),
+                                },
+                                "policy_snapshot": {
+                                    "allowed_sides": allowed_sides,
+                                    "min_confidence": (
+                                        (ctx.get("policy") or {}).get("min_confidence")
+                                    ),
+                                },
+                                "notes": None,
+                                "side": current_signal,
+                                "entry_index": i,
+                                "entry_price": float(current_bar["close"]),
+                            }
+                        )
+                        continue
+            if config.daily_loss_cap is not None and config.daily_loss_cap > 0:
                 now = cast(datetime, current_bar.name)
-                if portfolio.hit_daily_loss_cap(now, float(daily_loss_cap)):
+                if portfolio.hit_daily_loss_cap(now, float(config.daily_loss_cap)):
                     skipped.append(
                         {
                             "timestamp": _fmt_ts(now),
                             "symbol": "EUR_USD",
                             "reason_code": "risk_cap",
                             "policy_snapshot": {
-                                "daily_loss_cap": float(daily_loss_cap)
+                                "daily_loss_cap": float(config.daily_loss_cap)
                             },
                             "notes": None,
                             "side": current_signal,
@@ -149,7 +189,6 @@ def run_backtest(
                         }
                     )
                     continue
-            # Enforce simple directional cap (PM holds at most one position)
             cap = (
                 limits.get("max_open_long", 1)
                 if current_signal == "long"
@@ -170,26 +209,28 @@ def run_backtest(
                     }
                 )
             else:
+                entry_price = current_bar["close"]
+                size = float(config.position_size)
+
                 portfolio.create_new_position(
                     symbol="EUR_USD",
                     side=current_signal,
-                    entry_price=current_bar["close"],
-                    size=10000,
+                    entry_price=entry_price,
+                    size=size,
                     entry_time=cast(datetime, current_bar.name),
-                    stop_loss=stop_loss,
-                    take_profit=take_profit,
-                    instrument=instrument,
+                    instrument=config.instrument,
+                    context_at_entry=context,
+                    initial_risk_ccy=None,  # This is now handled by REM
                 )
         elif (
             not portfolio.current_position
             and current_signal in ["long", "short"]
             and not policy.can_open(cast(datetime, current_bar.name))
         ):
-            # Log blackout skip
             reason = policy.reason(cast(datetime, current_bar.name)) or "blackout"
             snap = {
-                "blackout_utc": blackout_utc or [],
-                "blackout_events": blackout_events or [],
+                "blackout_utc": config.blackout_utc or [],
+                "blackout_events": config.blackout_events or [],
             }
             skipped.append(
                 {
@@ -204,15 +245,18 @@ def run_backtest(
                 }
             )
 
-        # Capture gross exposure for this bar AFTER applying entries/exits
-        pos = portfolio.current_position
-        exposure_val = 0.0
-        if pos is not None:
-            exposure_val = float(abs(pos.size) * float(current_bar["close"]))
-        exposure_curve.append((cast(datetime, current_bar.name), exposure_val))
+        if return_exposure:
+            pos = portfolio.current_position
+            exposure_val = 0.0
+            if pos is not None:
+                exposure_val = float(abs(pos.size) * float(current_bar["close"]))
+            exposure_curve.append((cast(datetime, current_bar.name), exposure_val))
 
-    # Counterfactual simulation for each skipped entry (backtest-only)
     if skipped:
+        # Choose counterfactual mode
+        mode = getattr(config, "counterfactual_mode", "fast") or "fast"
+        use_fast = True if mode == "fast" else False
+
         for s in skipped:
             val = s.get("entry_index")
             if isinstance(val, int):
@@ -224,17 +268,29 @@ def run_backtest(
                     continue
             side = str(s.get("side", "long"))
             entry_px = float(s.get("entry_price", market_data.iloc[si]["close"]))
-            cf = _simulate_counterfactual(
-                market_data,
-                start_index=si,
-                side=side,
-                entry_price=entry_px,
-                size=10000.0,
-                stop_loss=stop_loss,
-                take_profit=take_profit,
-                instrument=instrument,
-                cost_model=cost_model,
-            )
+            if use_fast:
+                cf = _simulate_counterfactual_fast(
+                    market_data,
+                    strategy,
+                    start_index=si,
+                    side=side,
+                    entry_price=entry_px,
+                    size=float(config.position_size),
+                    instrument=config.instrument,
+                    cost_model=config.cost_model,
+                )
+            else:
+                cf = _simulate_counterfactual_exact(
+                    market_data,
+                    strategy,
+                    start_index=si,
+                    side=side,
+                    entry_price=entry_px,
+                    size=float(config.position_size),
+                    instrument=config.instrument,
+                    cost_model=config.cost_model,
+                    rem=rem,
+                )
             s.update(cf)
 
     if return_exposure and return_skips:
@@ -246,18 +302,87 @@ def run_backtest(
     return portfolio.trades
 
 
-def _simulate_counterfactual(
+def _simulate_counterfactual_fast(
     market_data: pd.DataFrame,
+    strategy: CompiledStrategy,  # kept for signature compatibility
     *,
     start_index: int,
     side: str,
     entry_price: float,
     size: float,
-    stop_loss: float | None,
-    take_profit: float | None,
     instrument: dict | None,
     cost_model: dict | None,
 ) -> dict[str, Any]:
+    """Fast counterfactual: hold to end, compute extremes vectorially.
+
+    Matches the previous behavior where the counterfactual did not apply REM
+    exits and simply updated MFE/MAE each bar, then exited on the last close.
+    """
+    if start_index < 0 or start_index >= len(market_data):
+        return {}
+
+    idx = market_data.index
+    last_idx = len(market_data) - 1
+
+    # Exit at the final bar's close
+    exit_time = cast(datetime, idx[last_idx])
+    exit_price = float(market_data.iloc[last_idx]["close"])
+
+    # Compute MFE/MAE via extremes across the holding window
+    window = market_data.iloc[start_index:]
+    high_max = float(window["high"].max()) if "high" in window else entry_price
+    low_min = float(window["low"].min()) if "low" in window else entry_price
+
+    if side == "long":
+        favorable = max(0.0, (high_max - entry_price) * size)
+        adverse = max(0.0, (entry_price - low_min) * size)
+        pnl_gross = (exit_price - entry_price) * size
+    else:  # short
+        favorable = max(0.0, (entry_price - low_min) * size)
+        adverse = max(0.0, (high_max - entry_price) * size)
+        pnl_gross = (entry_price - exit_price) * size
+
+    # Apply costs using the same CostModel as PortfolioManager
+    from trading_platform.core.costs import CostModel
+
+    cm = CostModel.from_dict(cost_model)
+    cost_entry, _ = cm.compute_entry_cost(
+        size, price=entry_price, instrument=instrument
+    )
+    cost_exit, _ = cm.compute_exit_cost(size, price=exit_price, instrument=instrument)
+    total_cost = float(cost_entry + cost_exit)
+
+    pnl_net = float(pnl_gross) - total_cost
+
+    bars_held = int(len(market_data) - start_index)
+
+    return {
+        "cf_exit_time": exit_time.isoformat(),
+        "cf_exit_price": exit_price,
+        "cf_pnl_currency": pnl_net,
+        "cf_mfe_currency": float(favorable),
+        "cf_mae_currency": float(adverse),
+        "cf_bars_held": bars_held,
+        "cf_mode": "fast",
+    }
+
+
+def _simulate_counterfactual_exact(
+    market_data: pd.DataFrame,
+    strategy: CompiledStrategy,  # kept for signature compatibility
+    *,
+    start_index: int,
+    side: str,
+    entry_price: float,
+    size: float,
+    instrument: dict | None,
+    cost_model: dict | None,
+    rem: RiskExitManager,
+) -> dict[str, Any]:
+    """Exact counterfactual: bar-by-bar re-simulation with REM."""
+    if start_index < 0 or start_index >= len(market_data):
+        return {}
+
     pm = PortfolioManager(
         initial_cash=0.0, instrument=instrument, cost_model=cost_model
     )
@@ -268,25 +393,50 @@ def _simulate_counterfactual(
         entry_price=entry_price,
         size=size,
         entry_time=entry_time,
-        stop_loss=stop_loss,
-        take_profit=take_profit,
         instrument=instrument,
+        initial_risk_ccy=None,
     )
-    # Step forward including the entry bar to allow immediate TP/SL hits
+
+    bars_touched = 0
+    rem_exit = False
     for i in range(start_index, len(market_data)):
-        pm.on_bar(current_bar=market_data.iloc[i], current_signal=side)
+        cb = market_data.iloc[i]
+        bars_touched += 1
+        # Apply REM exits first for fidelity
+        if pm.current_position:
+            exit_details = rem.check_exits(pm.current_position, cb)
+            if exit_details:
+                pm.close_position(
+                    exit_price=exit_details["exit_price"],
+                    exit_time=cast(datetime, cb.name),
+                    exit_reason=exit_details["reason"],
+                )
+                rem_exit = True
+                break
+
         if not pm.current_position:
             break
-    # If still open at end, close at last bar close
+
+        # Update metrics; force the same side so no flips occur
+        pm.on_bar(current_bar=cb, current_signal=side)
+
     if pm.current_position:
         last_idx = len(market_data) - 1
         pm.close_position(
             exit_price=float(market_data.iloc[last_idx]["close"]),
             exit_time=cast(datetime, market_data.index[last_idx]),
         )
-    if not pm.trades:  # pragma: no cover - defensive fallback
+    if not pm.trades:
         return {}
     t = pm.trades[0]
+    # Derive a consistent bars_touched from observed holding in case
+    # loop early-break logic changes.
+    derived_bars_touched = int(max(1, t.bars_held or 0))
+    # Prefer the measured loop count when it's larger
+    # (e.g., when on_bar increments differ).
+    bars_touched = int(max(bars_touched, derived_bars_touched))
+    last_index = len(market_data) - 1
+    exit_kind = "rem" if rem_exit else "end"
     return {
         "cf_exit_time": t.exit_time.isoformat(),
         "cf_exit_price": float(t.exit_price),
@@ -294,4 +444,9 @@ def _simulate_counterfactual(
         "cf_mfe_currency": float(t.mfe_currency or 0.0),
         "cf_mae_currency": float(t.mae_currency or 0.0),
         "cf_bars_held": int(t.bars_held or 0),
+        "cf_bars_touched": bars_touched,
+        "cf_start_index": int(start_index),
+        "cf_last_index": int(last_index),
+        "cf_exit_kind": exit_kind,
+        "cf_mode": "exact",
     }

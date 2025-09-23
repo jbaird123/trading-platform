@@ -1,3 +1,4 @@
+# Validates: [PM-5.1], [PM-5.3], [PM-5.4], [PM-5.5], [PM-5.6]
 from __future__ import annotations
 
 from datetime import datetime
@@ -40,7 +41,10 @@ def test_open_and_close_long_position():
 
     # Close the position with a profit
     portfolio.close_position(
-        exit_price=1.1050, exit_time=exit_time, exit_reason="signal"
+        exit_price=1.1050,
+        exit_time=exit_time,
+        exit_reason="signal",
+        context_at_exit=None,
     )
 
     # Verify state after closing
@@ -81,7 +85,9 @@ def test_open_and_close_short_position_with_loss():
     assert portfolio._open_position.side == "short"
 
     # Close the position with a loss (price went up)
-    portfolio.close_position(exit_price=152.5, exit_time=exit_time)
+    portfolio.close_position(
+        exit_price=152.5, exit_time=exit_time, context_at_exit=None
+    )
 
     assert portfolio._open_position is None
     assert len(portfolio.trades) == 1
@@ -129,7 +135,9 @@ def test_close_position_does_nothing_if_no_position_is_open():
     assert portfolio._open_position is None
 
     # Attempt to close a non-existent position
-    portfolio.close_position(exit_price=1.0, exit_time=datetime.now())
+    portfolio.close_position(
+        exit_price=1.0, exit_time=datetime.now(), context_at_exit=None
+    )
 
     # Verify that no trades were created and cash is unchanged
     assert len(portfolio.trades) == 0

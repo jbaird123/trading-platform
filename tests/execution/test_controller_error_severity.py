@@ -1,3 +1,4 @@
+# Validates: [EL-8.8]
 from __future__ import annotations
 
 from trading_platform.execution import OandaStubAdapter

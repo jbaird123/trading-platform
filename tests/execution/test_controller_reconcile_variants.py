@@ -1,3 +1,4 @@
+# Validates: [EL-8.8]
 from __future__ import annotations
 
 from datetime import datetime
@@ -6,6 +7,20 @@ import pandas as pd
 from trading_platform.execution import OandaStubAdapter
 from trading_platform.execution.controller import reconcile_report, run_live_controller
 from trading_platform.portfolio.portfolio import PortfolioManager
+from trading_platform.strategy.yaml_strategy import CompiledStrategy
+
+
+def _dummy_strategy() -> CompiledStrategy:
+    return CompiledStrategy(
+        name="dummy",
+        features=[],
+        overlays=[],
+        long_entry_blocks=[],
+        long_exit_blocks=[],
+        short_entry_blocks=[],
+        short_exit_blocks=[],
+        parameters={},
+    )
 
 
 def test_reconcile_warn_on_cash_delta():
@@ -41,10 +56,11 @@ def test_controller_mark_price_equity_path():
     # Strategy: enter long at second bar
     cfg = {
         "strategy_name": "S",
-        "entry_rules": [
+        "parameters": {},
+        "long_entry_rules": [
             {"any_of": [{"condition": "is_above", "left": "close", "right": 1.5}]}
         ],
-        "exit_rules": [
+        "long_exit_rules": [
             {"any_of": [{"condition": "is_below", "left": "close", "right": 0.5}]}
         ],
     }

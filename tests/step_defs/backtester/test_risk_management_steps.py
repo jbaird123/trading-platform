@@ -1,55 +1,56 @@
+# Validates: [BT-7.16]
 from __future__ import annotations
 
-from pytest_bdd import given, parsers, scenarios, then, when
+from pytest_bdd import given, parsers, then, when
 from trading_platform.backtester.core import run_backtest
+from trading_platform.core.config import RunConfig
+from trading_platform.risk_manager.core import RiskExitManager
 
-# Link scenarios from the feature file
-scenarios("../../features/backtester/risk_management.feature")
+from tests.backtester.dummy_objects import _dummy_strategy_with_sl_tp
 
 
 @given(
     parsers.parse(
-        "the backtester is configured with a stop-loss of {sl:f} "
-        "and a take-profit of {tp:f}"
+        "the backtester is configured with a stop-loss of {sl} and a "
+        "take-profit of {tp}"
     )
 )
-def given_backtester_risk_config(shared_context: dict, sl: float, tp: float):
-    """Stores the stop-loss and take-profit configuration."""
-    shared_context["stop_loss"] = sl
-    shared_context["take_profit"] = tp
-
-
-@given(parsers.parse("the low price at bar {bar_index:d} is {price:f}"))
-def given_low_price_at_bar(shared_context: dict, bar_index: int, price: float):
-    """Sets the low price for a specific bar."""
-    df = shared_context["market_data"]
-    idx = df.index[bar_index - 1]
-    df.loc[idx, "low"] = price
-
-
-@given(parsers.parse("the high price at bar {bar_index:d} is {price:f}"))
-def given_high_price_at_bar(shared_context: dict, bar_index: int, price: float):
-    """Sets the high price for a specific bar."""
-    df = shared_context["market_data"]
-    idx = df.index[bar_index - 1]
-    df.loc[idx, "high"] = price
-
-
-@then(parsers.parse('the trade should have an exit reason of "{reason}"'))
-def then_trade_exit_reason_is(shared_context: dict, reason: str):
-    """Asserts the exit reason of the first generated trade."""
-    trades = shared_context["trades"]
-    assert len(trades) > 0, "No trades were generated."
-    assert trades[0].exit_reason == reason
+def backtester_is_configured_with_risk(sl: str, tp: str, shared_context: dict) -> None:
+    shared_context["stop_loss"] = float(sl)
+    shared_context["take_profit"] = float(tp)
 
 
 @when("the backtest is run")
 def when_backtest_is_run(shared_context: dict) -> None:
     """Calls the backtester logic and stores the resulting trades."""
+    sl = shared_context.get("stop_loss")
+    tp = shared_context.get("take_profit")
+    strategy = _dummy_strategy_with_sl_tp(float(sl or 0.0), float(tp or 0.0))
+    config = RunConfig(
+        user_id="test_user",
+        run_seed=123,
+        log_level="INFO",
+        initial_cash=10000.0,
+        position_size=1.0,
+        allow_flip_on_bar=True,
+        rem_config={
+            "stop_loss": {"price_offset": sl},
+            "take_profit": {"price_offset": tp},
+        },
+    )
+    rem = RiskExitManager(config=config.rem_config or {})
     trades = run_backtest(
         market_data=shared_context["market_data"],
         signals=shared_context["signals"],
-        stop_loss=shared_context.get("stop_loss"),
-        take_profit=shared_context.get("take_profit"),
+        strategy=strategy,
+        config=config,
+        rem=rem,
     )
     shared_context["trades"] = trades
+
+
+@then(parsers.parse("the trade should be closed by a {reason}"))
+def trade_is_closed_by_reason(reason: str, shared_context: dict) -> None:
+    trades = shared_context["trades"]
+    assert len(trades) == 1
+    assert trades[0].exit_reason == reason

@@ -1,0 +1,323 @@
+{
+  "activity": {},
+  "artifacts": {},
+  "timing_buckets": {},
+  "costs": {
+    "total_costs": 0.0,
+    "avg_cost_per_trade": 0.0,
+    "breakdown": {
+      "spread": 0.0,
+      "commission": 0.0,
+      "slippage": 0.0
+    }
+  },
+  "exposure": {
+    "average_gross_exposure": 97.85,
+    "peak_gross_exposure": 110.0
+  },
+  "contrasts": {},
+  "stop_tp_candidates": [],
+  "parameter_search": {},
+  "stationarity": {},
+  "feature_analysis": {},
+  "checksums": {
+    "instrument_defs_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "config_snapshot_hash": "67abddd1e49806d98bef076cc39baf45dc45a8856d24bcd6c794f612fc9d059f"
+  },
+  "meta": {
+    "strategy_name": "Golden_EMA_Crossover",
+    "run_id": "golden_run"
+  },
+  "strategy_params": {
+    "fast": null,
+    "slow": null,
+    "stop_type": null,
+    "stop_value": null,
+    "tp_type": null,
+    "tp_value": null,
+    "trail_type": null,
+    "trail_value": null,
+    "atr_length": null,
+    "tie_break": null
+  },
+  "overall_performance": {
+    "n_trades": 0,
+    "total_pnl": 0.0,
+    "mean_pnl": 0.0,
+    "median_pnl": 0.0,
+    "by_side_total_pnl": {
+      "long": 0.0,
+      "short": 0.0
+    },
+    "win_rate": 0.0,
+    "initial_equity": 100000.0,
+    "final_equity": 100000.0
+  },
+  "risk_snapshot": {
+    "win_rate": 0.0,
+    "avg_win": 0.0,
+    "avg_loss": 0.0,
+    "max_win": 0.0,
+    "max_loss": 0.0
+  },
+  "equity_stats": {
+    "equity_curve": [
+      [
+        "0001-01-01T00:00:00",
+        100000.0
+      ]
+    ],
+    "drawdown_curve": [
+      [
+        "0001-01-01T00:00:00",
+        0.0
+      ]
+    ],
+    "max_drawdown": 0.0,
+    "dd_duration_bars": 0
+  },
+  "distribution": {
+    "pnl_mean": 0.0,
+    "pnl_median": 0.0,
+    "pnl_std": 0.0,
+    "p05": 0.0,
+    "p95": 0.0
+  },
+  "streaks": {
+    "longest_win_streak": 0,
+    "longest_loss_streak": 0,
+    "current_streak": 0
+  },
+  "holding_time": {
+    "median_secs": 0.0
+  },
+  "monte_carlo": {},
+  "walk_forward": {},
+  "regimes": {},
+  "data_quality": {
+    "index_monotonic_increasing": true,
+    "duplicate_bars_count": 0,
+    "nan_counts": {
+      "open": 0,
+      "high": 0,
+      "low": 0,
+      "close": 0,
+      "volume": 0
+    },
+    "has_nans": false,
+    "loader_flags": []
+  },
+  "instrument_definitions": {},
+  "cost_model": {},
+  "fill_policy": {},
+  "tie_break_policy": {},
+  "blackout_policy": {
+    "blackout_utc": [],
+    "blackout_events": []
+  },
+  "environment": {
+    "python_version": "3.11.4",
+    "platform": "macOS-15.7-arm64-arm-64bit",
+    "timezone": "EDT",
+    "dependency_versions": {
+      "pandas": "2.3.2",
+      "pydantic": "2.11.9"
+    }
+  },
+  "provenance": {
+    "run_id": "golden_run",
+    "strategy_name": "Golden_EMA_Crossover",
+    "data_start": null,
+    "data_end": null,
+    "symbols": [],
+    "app_version": "0.0.1",
+    "git_commit": null,
+    "run_seed": null
+  },
+  "field_definitions": {
+  "blackout_policy.blackout_events": "List of event identifiers that trigger blackout windows.",
+  "blackout_policy.blackout_utc": "List of UTC blackout intervals or timestamps.",
+  "checksums.config_snapshot_hash": "SHA256 hash of the run configuration snapshot.",
+  "checksums.instrument_defs_hash": "SHA256 hash of the instrument definitions used.",
+  "costs.avg_cost_per_trade": "Average cost incurred per trade.",
+  "costs.breakdown.commission": "Total cost due to commission.",
+  "costs.breakdown.slippage": "Total cost due to slippage.",
+  "costs.breakdown.spread": "Total cost due to bid-ask spread.",
+  "costs.total_costs": "Total sum of all trading costs (spread, commission, slippage).",
+  "data_quality.duplicate_bars_count": "Number of duplicate timestamp entries found in the data.",
+  "data_quality.has_nans": "True if any NaN values were found in the data.",
+  "data_quality.index_monotonic_increasing": "True if the data index (timestamps) is strictly increasing.",
+  "data_quality.loader_flags": "Flags or warnings generated during data loading (e.g., missing files, format issues).",
+  "data_quality.nan_counts.close": "NaN count for the column.",
+  "data_quality.nan_counts.high": "NaN count for the column.",
+  "data_quality.nan_counts.low": "NaN count for the column.",
+  "data_quality.nan_counts.open": "NaN count for the column.",
+  "data_quality.nan_counts.volume": "NaN count for the column.",
+  "distribution.p05": "5th percentile of PnL.",
+  "distribution.p95": "95th percentile of PnL.",
+  "distribution.pnl_mean": "Mean of trade PnL.",
+  "distribution.pnl_median": "Median of trade PnL.",
+  "distribution.pnl_std": "Standard deviation of trade PnL.",
+  "environment.dependency_versions.pandas": "Dependency version string.",
+  "environment.dependency_versions.pydantic": "Dependency version string.",
+  "environment.platform": "Operating system and architecture (e.g., 'Linux-5.15.0-76-generic-x86_64-with-glibc2.35').",
+  "environment.python_version": "Version of Python used (e.g., '3.10.12').",
+  "environment.timezone": "Timezone of the execution environment.",
+  "equity_stats.dd_duration_bars": "The duration in bars of the longest drawdown period.",
+  "equity_stats.drawdown_curve": "Time series of portfolio drawdown (timestamp, value) pairs.",
+  "equity_stats.equity_curve": "Time series of portfolio equity (timestamp, value) pairs.",
+  "equity_stats.max_drawdown": "The largest peak-to-trough drop in equity.",
+  "exposure.average_gross_exposure": "Average absolute value of open position size during the run.",
+  "exposure.peak_gross_exposure": "Maximum absolute value of open position size during the run.",
+  "holding_time.median_secs": "Median trade holding time in seconds.",
+  "meta.run_id": "Unique identifier for the run.",
+  "meta.strategy_name": "Name of the strategy used.",
+  "overall_performance.by_side_total_pnl.long": "Total PnL for long trades.",
+  "overall_performance.by_side_total_pnl.short": "Total PnL for short trades.",
+  "overall_performance.final_equity": "Ending equity of the portfolio after all trades.",
+  "overall_performance.initial_equity": "Starting equity of the portfolio.",
+  "overall_performance.mean_pnl": "Average PnL per trade.",
+  "overall_performance.median_pnl": "Median PnL per trade.",
+  "overall_performance.n_trades": "Total number of trades executed.",
+  "overall_performance.total_pnl": "Sum of all trade profits and losses.",
+  "overall_performance.win_rate": "Percentage of trades with PnL > 0.",
+  "provenance.app_version": "Version of the trading platform application that performed the run.",
+  "provenance.data_end": "End timestamp of the historical data used for the run.",
+  "provenance.data_start": "Start timestamp of the historical data used for the run.",
+  "provenance.git_commit": "Git commit hash of the codebase at the time of the run.",
+  "provenance.run_id": "Unique identifier for this specific run.",
+  "provenance.run_seed": "Seed value used for any random number generation to ensure reproducibility.",
+  "provenance.strategy_name": "Name of the strategy that was executed.",
+  "provenance.symbols": "List of trading symbols (instruments) included in the run.",
+  "risk_snapshot.avg_loss": "Average PnL of losing trades.",
+  "risk_snapshot.avg_win": "Average PnL of winning trades.",
+  "risk_snapshot.max_loss": "Largest single losing trade (most negative PnL).",
+  "risk_snapshot.max_win": "Largest single winning trade.",
+  "risk_snapshot.win_rate": "Percentage of trades with PnL > 0.",
+  "stop_tp_candidates": "List of stop-loss/take-profit candidate levels considered during analysis.",
+  "strategy_params.atr_length": "Scalar value (number, string, boolean, or null).",
+  "strategy_params.fast": "Scalar value (number, string, boolean, or null).",
+  "strategy_params.slow": "Scalar value (number, string, boolean, or null).",
+  "strategy_params.stop_type": "Scalar value (number, string, boolean, or null).",
+  "strategy_params.stop_value": "Scalar value (number, string, boolean, or null).",
+  "strategy_params.tie_break": "Scalar value (number, string, boolean, or null).",
+  "strategy_params.tp_type": "Scalar value (number, string, boolean, or null).",
+  "strategy_params.tp_value": "Scalar value (number, string, boolean, or null).",
+  "strategy_params.trail_type": "Scalar value (number, string, boolean, or null).",
+  "strategy_params.trail_value": "Scalar value (number, string, boolean, or null).",
+  "streaks.current_streak": "Current consecutive winning or losing trades.",
+  "streaks.longest_loss_streak": "Longest consecutive losing trades.",
+  "streaks.longest_win_streak": "Longest consecutive winning trades.",
+  "trades": "A list of all executed trades, including entry, exit, and performance details."
+  },
+  "trades": [],
+  "skipped_trades": [
+    {
+      "timestamp": "2023-01-01T02:00:00+00:00",
+      "symbol": "EUR_USD",
+      "reason_code": "position_cap",
+      "policy_snapshot": {
+        "cap": 1
+      },
+      "notes": null
+    },
+    {
+      "timestamp": "2023-01-01T03:00:00+00:00",
+      "symbol": "EUR_USD",
+      "reason_code": "position_cap",
+      "policy_snapshot": {
+        "cap": 1
+      },
+      "notes": null
+    },
+    {
+      "timestamp": "2023-01-01T04:00:00+00:00",
+      "symbol": "EUR_USD",
+      "reason_code": "position_cap",
+      "policy_snapshot": {
+        "cap": 1
+      },
+      "notes": null
+    },
+    {
+      "timestamp": "2023-01-01T05:00:00+00:00",
+      "symbol": "EUR_USD",
+      "reason_code": "position_cap",
+      "policy_snapshot": {
+        "cap": 1
+      },
+      "notes": null
+    },
+    {
+      "timestamp": "2023-01-01T06:00:00+00:00",
+      "symbol": "EUR_USD",
+      "reason_code": "position_cap",
+      "policy_snapshot": {
+        "cap": 1
+      },
+      "notes": null
+    },
+    {
+      "timestamp": "2023-01-01T07:00:00+00:00",
+      "symbol": "EUR_USD",
+      "reason_code": "position_cap",
+      "policy_snapshot": {
+        "cap": 1
+      },
+      "notes": null
+    },
+    {
+      "timestamp": "2023-01-01T08:00:00+00:00",
+      "symbol": "EUR_USD",
+      "reason_code": "position_cap",
+      "policy_snapshot": {
+        "cap": 1
+      },
+      "notes": null
+    },
+    {
+      "timestamp": "2023-01-01T09:00:00+00:00",
+      "symbol": "EUR_USD",
+      "reason_code": "position_cap",
+      "policy_snapshot": {
+        "cap": 1
+      },
+      "notes": null
+    },
+    {
+      "timestamp": "2023-01-01T10:00:00+00:00",
+      "symbol": "EUR_USD",
+      "reason_code": "position_cap",
+      "policy_snapshot": {
+        "cap": 1
+      },
+      "notes": null
+    },
+    {
+      "timestamp": "2023-01-01T11:00:00+00:00",
+      "symbol": "EUR_USD",
+      "reason_code": "position_cap",
+      "policy_snapshot": {
+        "cap": 1
+      },
+      "notes": null
+    },
+    {
+      "timestamp": "2023-01-01T12:00:00+00:00",
+      "symbol": "EUR_USD",
+      "reason_code": "position_cap",
+      "policy_snapshot": {
+        "cap": 1
+      },
+      "notes": null
+    }
+  ],
+  "filter_impact": {
+    "position_cap": {
+      "n_skipped": 11,
+      "total_cf_pnl": 0.0,
+      "mean_cf_pnl": 0.0,
+      "median_cf_pnl": 0.0
+    }
+  }
+}

@@ -11,16 +11,29 @@ readme = "README.md"
 packages = [{include = "trading_platform", from = "src"}]
 
 [tool.poetry.dependencies]
-python = ">=3.10"
+python = ">=3.12"
 pydantic = "^2.7.1"
 pandas = "^2.2.2"
-ta = "^0.11.0"
 jsonschema = "^4.23.0"
+pyyaml = "^6.0.1"
+dash = "^3.2.0"
+plotly = "^6.3.0"
+pyarrow = "^16.1.0"
+lightgbm = "^4.6.0"
+scikit-learn = "^1.7.2"
+shap = "^0.48.0"
+mlflow-skinny = "^3.4.0"
+scipy = "^1.16.2"
+skl2onnx = "^1.16.0"
+fastapi = "^0.111.0"
+uvicorn = {extras = ["standard"], version = "^0.30.1"}
+pandas-ta = "^0.4.71b0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"
 pytest-cov = "^5.0.0"
 pytest-bdd = "^7.0.0"
+pytest-mock = "^3.12.0"
 ruff = "^0.4.4"
 mypy = "^1.10.0"
 pre-commit = "^3.7.1"
@@ -33,11 +46,29 @@ line-length = 88
 select = ["E", "F", "W", "I", "UP"]
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 mypy_path = "src"
-packages = ["trading_platform"]
+
+[[tool.mypy.overrides]]
+module = [
+    "scipy.*",
+    "sklearn.*",
+    "ta.*",
+    "yaml",
+    "skl2onnx.*",
+    "lightgbm.*",
+    "shap.*",
+    "mlflow.*",
+    "plotly.*",
+    "uvicorn.*",
+    "starlette.*",
+    "multipart.*",
+    "httpx.*",
+]
+ignore_missing_imports = true
+
 
 [tool.pytest.ini_options]
 # Ignore the benign "usefixtures" warning from pytest-bdd's scenario generator
@@ -45,23 +76,33 @@ filterwarnings = [
     "ignore:usefixtures.*has no effect:pytest.PytestWarning",
     # Third-party ta library emits a FutureWarning inside PSAR when assigning
     # float into an int-typed Series; harmless for our tests, ignore it.
-    "ignore:Setting an item of incompatible dtype is deprecated.*:FutureWarning:ta.trend",
+    "ignore:Setting an item of incompatible dtype is deprecated:FutureWarning:ta.trend",
+    # Third-party onnx library emits a DeprecationWarning from skl2onnx; harmless for our tests, ignore it.
+    "ignore:Field onnx.AttributeProto.ints:DeprecationWarning:onnx.helper",
+    # Third-party starlette library emits a PendingDeprecationWarning; harmless for our tests, ignore it.
+    "ignore:Please use `import python_multipart` instead.:PendingDeprecationWarning:starlette.formparsers",
 ]
 markers = [
+    "req_DH_2_1: Marks a test as covering a specific requirement.",
     "req_DH_2_2: Marks a test as covering a specific requirement.",
     "req_DH_2_3: Marks a test as covering a specific requirement.",
+    "req_DH_2_4: Marks a test as covering a specific requirement.",
     "req_DH_2_5: Marks a test as covering a specific requirement.",
     "req_DH_2_6: Marks a test as covering a specific requirement.",
     "req_RMM_4_1: Marks a test as covering a specific requirement.",
     "req_RMM_4_2: Marks a test as covering a specific requirement.",
     "req_RMM_4_3: Marks a test as covering a specific requirement.",
-    "req_SE_3_1_2: Marks a test as covering a specific requirement.",
-    "req_SE_3_2_1: Marks a test as covering a specific requirement.",
-    "req_BT_6_1: Marks a test as covering a specific requirement.",
-    "req_BT_6_2: Marks a test as covering a specific requirement.",
-    "req_BT_6_3: Marks a test as covering a specific requirement.",
-    "req_BT_6_4: Marks a test as covering a specific requirement.",
-    "req_BT_6_8: Marks a test as covering a specific requirement.",
+    "req_SE_3_1: Marks a test as covering a specific requirement.",
+    "req_SE_3_2: Marks a test as covering a specific requirement.",
+    "req_BT_7_1: Marks a test as covering a specific requirement.",
+    # Additional BDD tags used in feature files
+    "req_BT_7_3: Marks a test as covering a specific requirement.",
+    "req_BT_7_6: Marks a test as covering a specific requirement.",
+    "req_BT_7_7: Marks a test as covering a specific requirement.",
+    "req_BT_7_9: Marks a test as covering a specific requirement.",
+    "req_BT_7_10: Marks a test as covering a specific requirement.",
+    "req_BT_7_11: Marks a test as covering a specific requirement.",
+    "req_BT_7_16: Marks a test as covering a specific requirement.",
 ]
 
 [tool.poetry.scripts]

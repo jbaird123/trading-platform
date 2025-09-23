@@ -1,9 +1,15 @@
+# Validates: [BT-7.7]
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 
 import pandas as pd
+import pytest
 from trading_platform.backtester.core import run_backtest
+from trading_platform.core.config import RunConfig
+from trading_platform.risk_manager.core import RiskExitManager
+
+from tests.backtester.dummy_objects import _dummy_strategy_cfg
 
 
 def _mk_df(n: int) -> pd.DataFrame:
@@ -13,30 +19,38 @@ def _mk_df(n: int) -> pd.DataFrame:
     return pd.DataFrame([data] * n, index=idx)
 
 
+@pytest.mark.req_BT_7_7
 def test_warmup_delays_first_entry_until_threshold():
     # 5 bars hourly, warmup of 3 bars → first entry allowed at index 3 (4th bar)
     df = _mk_df(5)
     # Signals: long on first 4 bars, flat on last bar to force close
     sig = pd.Series(["long", "long", "long", "long", "flat"], index=df.index)
+    config = RunConfig(initial_cash=1000.0, warmup_bars=3)
+    rem = RiskExitManager(config={})
     trades = run_backtest(
         market_data=df,
         signals=sig,
-        initial_cash=1000.0,
-        warmup_bars=3,
+        strategy=_dummy_strategy_cfg(),
+        config=config,
+        rem=rem,
     )
     # One completed trade: entry at 4th bar, exit on 5th due to flat
     assert len(trades) == 1
     assert trades[0].entry_time == df.index[3]
 
 
+@pytest.mark.req_BT_7_7
 def test_no_warmup_allows_immediate_entry():
     df = _mk_df(3)
     sig = pd.Series(["long", "flat", "flat"], index=df.index)
+    config = RunConfig(initial_cash=1000.0, warmup_bars=0)
+    rem = RiskExitManager(config={})
     trades = run_backtest(
         market_data=df,
         signals=sig,
-        initial_cash=1000.0,
-        warmup_bars=0,
+        strategy=_dummy_strategy_cfg(),
+        config=config,
+        rem=rem,
     )
     # First trade should enter at the first bar
     assert len(trades) == 1
