@@ -1,5 +1,3 @@
-# --- DataQualityImpactRule ---
-
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
@@ -317,6 +315,39 @@ class DataQualityImpactRule(BaseDiagnosticRule):
         return None
 
 
+# --- RecommendationRule ---
+class RecommendationRule(BaseDiagnosticRule):
+    """
+    Suggests actionable recommendations based on detected flaws or improvement
+    opportunities. This is a template; real logic should be added for specific
+    recommendations.
+    """
+
+    def evaluate(self, analysis_data: Dict[str, Any]) -> Optional[DiagnosticConclusion]:
+        # Example: recommend adding an ADX filter when win rate is low and
+        # trade count is high.
+        metrics = analysis_data.get("backtest_metrics", {})
+        n_trades = metrics.get("n_trades")
+        win_rate = metrics.get("win_rate")
+        if n_trades is not None and win_rate is not None:
+            if n_trades > 100 and win_rate < 0.5:
+                summary = (
+                    "The strategy has a high trade count and low win rate. "
+                    "Consider adding an ADX filter to entry rules to improve "
+                    "signal quality."
+                )
+                return DiagnosticConclusion(
+                    title="Consider ADX Filter for Entries",
+                    summary=summary,
+                    evidence={
+                        "n_trades": n_trades,
+                        "win_rate": win_rate,
+                        "suggested_action": ("Add ADX filter to entry rules."),
+                    },
+                )
+        return None
+
+
 # --- get_all_rules ---
 def get_all_rules() -> list[BaseDiagnosticRule]:
     return [
@@ -327,5 +358,6 @@ def get_all_rules() -> list[BaseDiagnosticRule]:
         SignalPersistenceRule(),
         MarketRegimeMismatchRule(),
         DataQualityImpactRule(),
+        RecommendationRule(),
         # Add other rules here
     ]

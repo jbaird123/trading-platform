@@ -404,6 +404,7 @@ def generate_brief(
     signals_path: str | None = None,
     rmm_spans_path: str | None = None,
     processed_data_path: str | None = None,
+    recommendations: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Assemble a JSON brief from trades and metrics (incremental MVP)."""
     meta = meta or {}
@@ -563,6 +564,7 @@ def generate_brief(
         "field_definitions": _to_jsonable(field_definitions or {}),
         # Trades serialized with ISO datetimes
         "trades": trades_json,
+        "recommendations": _to_jsonable(recommendations or []),
     }
     placeholders = _empty_sections()
     placeholders.update(base)
@@ -654,6 +656,7 @@ def save_run_brief(
     rmm_spans_path: str | None = None,
     processed_data_path: str | None = None,
     validate_schema: bool = False,
+    recommendations: list[dict[str, Any]] | None = None,
 ) -> Path:
     """Generate and save a brief to `run_path/brief.json`.
 
@@ -680,6 +683,7 @@ def save_run_brief(
         signals_path=signals_path,
         rmm_spans_path=rmm_spans_path,
         processed_data_path=processed_data_path,
+        recommendations=recommendations,
     )
     if validate_schema:
         try:

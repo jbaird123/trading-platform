@@ -66,6 +66,7 @@ def finalize_run(
     signals_path: Path | None = None,
     rmm_spans_path: Path | None = None,
     processed_data_path: Path | None = None,
+    recommendations: list[dict[str, Any]] | None = None,
 ) -> Path:
     """Generate and save a brief for this run under the run_path.
 
@@ -175,6 +176,7 @@ def finalize_run(
         signals_path=str(signals_path) if signals_path else None,
         rmm_spans_path=str(rmm_spans_path) if rmm_spans_path else None,
         processed_data_path=str(processed_data_path) if processed_data_path else None,
+        recommendations=recommendations,
     )
     # Export parameter search results, if available
     try:
