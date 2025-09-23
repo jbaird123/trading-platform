@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pytest import approx, raises
+
 from trading_platform.reporting.compare import compare_briefs
 
 

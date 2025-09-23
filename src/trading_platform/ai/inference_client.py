@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Any, Dict, List
+from typing import Any
 
 import httpx
 import pandas as pd
@@ -48,7 +48,7 @@ class AIInferenceClient:
                 raise  # Re-raise other unexpected errors immediately
         raise httpx.RequestError(f"Max retries exceeded for {url}", request=None)
 
-    def predict(self, features: pd.DataFrame) -> List[Dict[str, Any]]:
+    def predict(self, features: pd.DataFrame) -> list[dict[str, Any]]:
         """Sends features to the AI model and returns predictions."""
         if features.empty:
             return []

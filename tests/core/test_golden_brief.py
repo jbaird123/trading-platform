@@ -6,6 +6,7 @@ from typing import Any, cast
 
 import pytest
 import yaml  # type: ignore[import-untyped]
+
 from trading_platform.backtester.core import run_backtest
 from trading_platform.core.config import RunConfig
 from trading_platform.core.run import finalize_run

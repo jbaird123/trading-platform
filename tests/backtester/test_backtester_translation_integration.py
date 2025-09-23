@@ -1,6 +1,7 @@
 # Validates: [BT-7.2]
 
 import pandas as pd
+
 from trading_platform.backtester.core import run_backtest
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager

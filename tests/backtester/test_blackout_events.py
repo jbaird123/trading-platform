@@ -4,11 +4,11 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 import pandas as pd
+
+from tests.backtester.dummy_objects import _dummy_strategy_cfg
 from trading_platform.backtester.core import run_backtest
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
-
-from tests.backtester.dummy_objects import _dummy_strategy_cfg
 
 
 def _mk_df(start: datetime, n: int, step_minutes: int = 60) -> pd.DataFrame:

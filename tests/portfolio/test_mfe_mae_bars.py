@@ -5,6 +5,7 @@ from datetime import datetime
 
 import pandas as pd
 from pytest import approx
+
 from trading_platform.portfolio.portfolio import PortfolioManager
 
 

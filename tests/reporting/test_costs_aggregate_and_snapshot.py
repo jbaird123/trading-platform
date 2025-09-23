@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from pytest import approx
+
 from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.brief import generate_brief
 

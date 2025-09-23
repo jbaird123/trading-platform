@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 from trading_platform.ai.synthesis.rules import DiagnosticConclusion, get_all_rules
 
@@ -13,7 +13,7 @@ class DiagnosticSynthesisEngine:
     the findings into a human-readable and machine-readable report.
     """
 
-    def __init__(self, analysis_data: Dict[str, Any]):
+    def __init__(self, analysis_data: dict[str, Any]):
         """
         Initializes the engine with all the data required for analysis.
 
@@ -23,7 +23,7 @@ class DiagnosticSynthesisEngine:
         """
         self.analysis_data = analysis_data
         self.rules = get_all_rules()
-        self.conclusions: List[DiagnosticConclusion] = []
+        self.conclusions: list[DiagnosticConclusion] = []
 
     def run(self) -> None:
         """Executes all diagnostic rules and stores the conclusions."""

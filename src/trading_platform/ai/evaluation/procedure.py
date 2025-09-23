@@ -2,7 +2,7 @@
 This module defines the standardized evaluation procedure for AI models.
 """
 
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
 from sklearn.model_selection import TimeSeriesSplit
@@ -15,7 +15,7 @@ class AIEvaluationProcedure:
     Orchestrates a standardized evaluation process for a trained model.
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Initializes the evaluation procedure with a given configuration.
         """
@@ -23,7 +23,7 @@ class AIEvaluationProcedure:
 
     def run_cross_validation(
         self, model: Any, X: pd.DataFrame, y: pd.Series
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Performs time-series cross-validation and returns aggregated metrics.
         """
@@ -33,7 +33,7 @@ class AIEvaluationProcedure:
 
         tscv = TimeSeriesSplit(n_splits=n_splits)
 
-        all_scores: List[Dict[str, float]] = []
+        all_scores: list[dict[str, float]] = []
         for fold, (train_index, test_index) in enumerate(tscv.split(X)):
             print(f"  - Fold {fold+1}/{n_splits}")
             X_train, X_test = X.iloc[train_index], X.iloc[test_index]
@@ -69,7 +69,7 @@ class AIEvaluationProcedure:
         print("Cross-validation complete.")
         return aggregated_scores
 
-    def run_stress_testing(self, model: Any, data: pd.DataFrame) -> Dict[str, Any]:
+    def run_stress_testing(self, model: Any, data: pd.DataFrame) -> dict[str, Any]:
         """
         Placeholder for performing stress tests on the model.
         This would involve evaluating the model on curated slices of data
@@ -83,7 +83,7 @@ class AIEvaluationProcedure:
         print("Stress testing complete.")
         return stress_test_results
 
-    def run_bias_detection(self, model: Any, data: pd.DataFrame) -> Dict[str, Any]:
+    def run_bias_detection(self, model: Any, data: pd.DataFrame) -> dict[str, Any]:
         """
         Placeholder for bias detection procedures.
         This could involve checking for performance disparities across
@@ -94,7 +94,7 @@ class AIEvaluationProcedure:
         print("Bias detection complete.")
         return bias_detection_results
 
-    def run(self, model: Any, X: pd.DataFrame, y: pd.Series) -> Dict[str, Any]:
+    def run(self, model: Any, X: pd.DataFrame, y: pd.Series) -> dict[str, Any]:
         """
         Executes the full evaluation procedure.
         """

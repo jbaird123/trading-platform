@@ -3,7 +3,7 @@ This module defines the feature engineering pipeline for the AI Lab.
 It is a placeholder and uses the `ta` library, consistent with the rest of the platform.
 """
 
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
 from ta.momentum import RSIIndicator
@@ -20,7 +20,7 @@ class FeatureEngineeringPipeline:
             raise TypeError("Input 'df' must be a pandas DataFrame.")
         self.df = df.copy()
 
-    def add_feature(self, feature_config: Dict[str, Any]):
+    def add_feature(self, feature_config: dict[str, Any]):
         """
         Adds a single feature to the DataFrame based on a configuration.
 
@@ -46,7 +46,7 @@ class FeatureEngineeringPipeline:
             # For now, we only support sma and rsi in this placeholder
             raise NotImplementedError(f"Feature '{kind}' is not supported yet.")
 
-    def run(self, feature_configs: List[Dict[str, Any]]) -> pd.DataFrame:
+    def run(self, feature_configs: list[dict[str, Any]]) -> pd.DataFrame:
         """
         Runs the feature engineering pipeline.
 

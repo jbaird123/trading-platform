@@ -5,6 +5,7 @@ from datetime import datetime
 
 import pandas as pd
 import pytest
+
 from trading_platform.backtester.core import run_backtest
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager

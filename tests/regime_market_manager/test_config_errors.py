@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import pytest
+
 from trading_platform.regime_market_manager.config import validate_rmm_config
 
 

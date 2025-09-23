@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -10,7 +10,7 @@ class AIDeploymentManager:
     and canary deployments.
     """
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         self.config = config
         self.deployment_strategy = config.get("strategy", "direct_deploy")
         logger.info(
@@ -19,7 +19,7 @@ class AIDeploymentManager:
         )
 
     def deploy_new_model(
-        self, model_version: str, traffic_split: Optional[Dict[str, float]] = None
+        self, model_version: str, traffic_split: Optional[dict[str, float]] = None
     ) -> bool:
         """
         Initiates the deployment of a new model version based on the configured
@@ -61,7 +61,7 @@ class AIDeploymentManager:
             return False
 
     def evaluate_deployment(
-        self, model_version: str, metrics_data: Dict[str, Any]
+        self, model_version: str, metrics_data: dict[str, Any]
     ) -> bool:
         """
         Evaluates the performance of a deployed model version.

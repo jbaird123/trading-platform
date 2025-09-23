@@ -1,5 +1,4 @@
 import logging
-from typing import List
 
 import numpy as np
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -68,7 +67,7 @@ class Feature(BaseModel):
 
 
 class PredictionRequest(BaseModel):
-    features: List[Feature] = Field(..., description="List of features for prediction")
+    features: list[Feature] = Field(..., description="List of features for prediction")
 
 
 class PredictionResponse(BaseModel):

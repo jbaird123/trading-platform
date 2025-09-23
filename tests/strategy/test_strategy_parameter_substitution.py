@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import pandas as pd
+
 from trading_platform.strategy.yaml_strategy import compile_strategy
 
 

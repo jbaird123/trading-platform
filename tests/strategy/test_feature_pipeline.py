@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import pandas as pd
 from pytest import approx
+
 from trading_platform.strategy.features import compute_features
 
 

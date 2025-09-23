@@ -256,6 +256,7 @@ def when_data_loaded_and_normalized(shared_context: dict, tmp_path) -> None:
     from pathlib import Path
 
     import pandas as pd
+
     from trading_platform.data.schema import load_and_normalize_data
 
     filename = shared_context.get("filename", "input.csv")

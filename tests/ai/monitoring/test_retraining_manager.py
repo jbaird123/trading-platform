@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import pandas as pd
 import pytest
+
 from trading_platform.ai.monitoring.retraining_manager import AIRetrainingManager
 
 

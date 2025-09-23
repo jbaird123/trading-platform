@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 import yaml  # type: ignore
+
 from trading_platform.risk_manager.rem import RiskExitManager
 
 # Validates: [REM-6.1], [REM-6.2], [REM-6.3], [REM-6.4]

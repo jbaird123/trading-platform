@@ -4,18 +4,18 @@ Each rule checks for a specific, potential strategy flaw.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 class DiagnosticConclusion:
     """A data class to hold the findings of a diagnostic rule."""
 
-    def __init__(self, title: str, summary: str, evidence: Dict[str, Any]):
+    def __init__(self, title: str, summary: str, evidence: dict[str, Any]):
         self.title = title
         self.summary = summary
         self.evidence = evidence
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {"title": self.title, "summary": self.summary, "evidence": self.evidence}
 
 
@@ -23,7 +23,7 @@ class BaseDiagnosticRule(ABC):
     """Abstract base class for a diagnostic rule."""
 
     @abstractmethod
-    def evaluate(self, analysis_data: Dict[str, Any]) -> Optional[DiagnosticConclusion]:
+    def evaluate(self, analysis_data: dict[str, Any]) -> Optional[DiagnosticConclusion]:
         """
         Evaluate the analysis data and return a conclusion if the rule is triggered.
 
@@ -41,7 +41,7 @@ class BaseDiagnosticRule(ABC):
 class OverTradingRule(BaseDiagnosticRule):
     """Checks for signs of over-trading (high trade count with low profitability)."""
 
-    def evaluate(self, analysis_data: Dict[str, Any]) -> Optional[DiagnosticConclusion]:
+    def evaluate(self, analysis_data: dict[str, Any]) -> Optional[DiagnosticConclusion]:
         metrics = analysis_data.get("backtest_metrics", {})
 
         # Rule cannot be evaluated if the necessary metrics are not present.
@@ -77,7 +77,7 @@ class InefficientExitsRule(BaseDiagnosticRule):
     This would consume model predictions about post-exit price movement.
     """
 
-    def evaluate(self, analysis_data: Dict[str, Any]) -> Optional[DiagnosticConclusion]:
+    def evaluate(self, analysis_data: dict[str, Any]) -> Optional[DiagnosticConclusion]:
         model_analysis = analysis_data.get("model_analysis", {})
         # Example: Data from a model trained to predict profit left on the table
         avg_pnl_left_on_table = model_analysis.get("avg_pnl_left_on_table_at_tp", 0)
@@ -99,6 +99,6 @@ class InefficientExitsRule(BaseDiagnosticRule):
         return None
 
 
-def get_all_rules() -> List[BaseDiagnosticRule]:
+def get_all_rules() -> list[BaseDiagnosticRule]:
     """Returns a list of all diagnostic rules to be executed."""
     return [OverTradingRule(), InefficientExitsRule()]

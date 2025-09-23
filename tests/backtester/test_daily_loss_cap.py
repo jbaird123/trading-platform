@@ -4,11 +4,11 @@ from __future__ import annotations
 from datetime import datetime
 
 import pandas as pd
+
+from tests.backtester.dummy_objects import _dummy_strategy_with_sl
 from trading_platform.backtester.core import run_backtest
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
-
-from tests.backtester.dummy_objects import _dummy_strategy_with_sl
 
 
 def test_daily_loss_cap_blocks_new_entries_after_loss():

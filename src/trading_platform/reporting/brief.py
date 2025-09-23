@@ -14,6 +14,7 @@ from typing import Any
 
 import jsonschema  # type: ignore
 import pandas as pd
+
 from trading_platform.portfolio.metrics import (
     calculate_equity_curve,
     calculate_win_rate,

@@ -3,7 +3,6 @@ This module defines evaluation metrics for the AI Lab's models.
 It includes standard ML metrics as well as custom trading-specific metrics.
 """
 
-from typing import Dict, List
 
 import numpy as np
 import pandas as pd
@@ -72,8 +71,8 @@ def get_classification_metrics(
 
 
 def calculate_statistical_significance(
-    scores_a: List[float], scores_b: List[float]
-) -> Dict[str, float]:
+    scores_a: list[float], scores_b: list[float]
+) -> dict[str, float]:
     """
     Performs an independent t-test to compare two sets of performance scores.
 

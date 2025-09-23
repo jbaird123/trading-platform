@@ -5,6 +5,7 @@ import json
 from datetime import datetime, timedelta
 
 from pytest import approx
+
 from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.brief import save_run_brief
 

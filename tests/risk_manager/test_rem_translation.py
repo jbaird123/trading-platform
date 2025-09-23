@@ -2,6 +2,7 @@
 from datetime import UTC, datetime
 
 import pandas as pd
+
 from trading_platform.portfolio.position import Position
 from trading_platform.risk_manager.core import RiskExitManager
 

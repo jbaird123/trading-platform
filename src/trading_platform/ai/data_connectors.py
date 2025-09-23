@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 
 import pandas as pd
 
@@ -47,7 +47,7 @@ class AIDataConnector:
 
     def __init__(self, data_catalog: DataCatalog):
         self.data_catalog = data_catalog
-        self.data_lineage: Dict[str, Any] = {}  # To track data provenance
+        self.data_lineage: dict[str, Any] = {}  # To track data provenance
 
     def load_training_data(
         self, symbol: str, timeframe: str, start_date: str, end_date: str
@@ -89,7 +89,7 @@ class AIDataConnector:
 
         return df
 
-    def get_data_lineage(self) -> Dict[str, Any]:
+    def get_data_lineage(self) -> dict[str, Any]:
         """Returns the recorded data lineage."""
         return self.data_lineage
 

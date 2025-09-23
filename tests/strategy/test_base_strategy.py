@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import pandas as pd
 import pytest
+
 from trading_platform.strategy.base import BaseStrategy
 
 

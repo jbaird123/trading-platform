@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import pytest
+
 from trading_platform.strategy.yaml_strategy import validate_strategy_config
 
 MINIMAL_LONG_RULES = {

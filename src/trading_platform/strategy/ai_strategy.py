@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
 
@@ -39,7 +39,7 @@ class AIStrategy(BaseStrategy):
         # For now, let's assume the model expects OHLCV as features directly.
         return data.copy()
 
-    def _interpret_predictions(self, predictions: List[Dict[str, Any]]) -> pd.Series:
+    def _interpret_predictions(self, predictions: list[dict[str, Any]]) -> pd.Series:
         """Interprets raw AI model predictions into trading signals."""
         signals = pd.Series("flat", index=range(len(predictions)))
 

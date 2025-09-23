@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict
+from typing import Any
 
 import pandas as pd
 
@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 class AIBaseMonitor:
     """Base class for AI model monitoring components."""
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         self.config = config
         self.monitor_name = config.get("name", "unnamed_monitor")
         logger.info(f"Initializing monitor: {self.monitor_name}")
@@ -45,11 +45,11 @@ class AIBaseMonitor:
 class AIModelPerformanceMonitor(AIBaseMonitor):
     """Monitors the performance of a deployed AI model in production."""
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self.metrics_to_monitor = config.get("metrics", [])
 
-    def monitor_performance(self, brief_data: Dict[str, Any]) -> None:
+    def monitor_performance(self, brief_data: dict[str, Any]) -> None:
         """Analyzes brief data to monitor model performance metrics."""
         logger.info(f"[{self.monitor_name}] Monitoring model performance...")
         # This is a placeholder. In a real system, this would extract relevant
@@ -126,7 +126,7 @@ class AIModelPerformanceMonitor(AIBaseMonitor):
 class AIDriftDetector(AIBaseMonitor):
     """Dedicated component for detecting data and concept drift."""
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
 
     def check_for_drift(
@@ -135,7 +135,7 @@ class AIDriftDetector(AIBaseMonitor):
         baseline_data: pd.DataFrame,
         model_predictions: pd.Series,
         true_labels: pd.Series,
-    ) -> Dict[str, bool]:
+    ) -> dict[str, bool]:
         """Checks for both data and concept drift."""
         data_drift_detected = self.detect_data_drift(new_data, baseline_data)
         concept_drift_detected = self.detect_concept_drift(

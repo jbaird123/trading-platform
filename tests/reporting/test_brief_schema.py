@@ -6,6 +6,7 @@ from pathlib import Path
 
 import jsonschema  # type: ignore
 import pytest
+
 from trading_platform.reporting.brief import generate_brief
 
 SCHEMA_PATH = Path(__file__).parent.parent.parent / "docs/schemas/brief.schema.json"

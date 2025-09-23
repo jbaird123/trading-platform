@@ -5,7 +5,7 @@ This module defines the automated model training pipeline for the AI Lab.
 import json  # Added this line
 import os
 from pathlib import Path
-from typing import Any, Dict, Tuple, cast
+from typing import Any, cast
 
 import mlflow
 import pandas as pd
@@ -33,8 +33,8 @@ except ImportError:
 
 
 def _flatten_dict(
-    d: Dict[str, Any], parent_key: str = "", sep: str = "."
-) -> Dict[str, Any]:
+    d: dict[str, Any], parent_key: str = "", sep: str = "."
+) -> dict[str, Any]:
     """Flattens a nested dictionary for MLflow logging."""
     items: list[tuple[str, Any]] = []
     for k, v in d.items():
@@ -68,13 +68,13 @@ class AITrainingPipeline:
         mlflow.set_tracking_uri(tracking_uri)
         mlflow.set_experiment(self.config.get("experiment_name", "Default"))
 
-    def _load_config(self) -> Dict[str, Any]:
+    def _load_config(self) -> dict[str, Any]:
         """Loads the YAML configuration file."""
         print(f"Loading configuration from: {self.config_path}")
         with open(self.config_path) as f:
-            return cast(Dict[str, Any], yaml.safe_load(f))
+            return cast(dict[str, Any], yaml.safe_load(f))
 
-    def _load_and_prepare_data(self) -> Tuple[pd.DataFrame, pd.Series]:
+    def _load_and_prepare_data(self) -> tuple[pd.DataFrame, pd.Series]:
         """
         Loads data using AIDataConnector, generates features, and creates labels.
         """
@@ -159,7 +159,7 @@ class AITrainingPipeline:
         """
         print("Step 3: Evaluating model and logging artifacts...")
 
-        metrics: Dict[str, Any] = {}
+        metrics: dict[str, Any] = {}
         eval_config = self.config.get("evaluation", {})
         if eval_config:
             evaluator = AIEvaluationProcedure(config=eval_config)

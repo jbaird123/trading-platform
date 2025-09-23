@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from pytest import approx
+
 from trading_platform.core.robustness import (
     monte_carlo_summary,
     parameter_search,

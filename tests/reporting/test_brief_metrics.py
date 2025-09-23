@@ -2,6 +2,7 @@
 from datetime import datetime
 
 import pytest
+
 from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.brief import compute_equity_stats
 

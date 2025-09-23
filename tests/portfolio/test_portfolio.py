@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 
 import pytest
+
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.utils.testing import requires
 

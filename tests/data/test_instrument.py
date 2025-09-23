@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import pytest
+
 from trading_platform.data.instrument import get_instrument_definition
 
 

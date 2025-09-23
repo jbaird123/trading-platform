@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import pandas as pd
+
 from trading_platform.backtester.core import run_backtest
 from trading_platform.core.config import RunConfig
 from trading_platform.core.robustness import walk_forward_splits

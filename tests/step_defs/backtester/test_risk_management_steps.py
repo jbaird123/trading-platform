@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 from pytest_bdd import given, parsers, then, when
+
+from tests.backtester.dummy_objects import _dummy_strategy_with_sl_tp
 from trading_platform.backtester.core import run_backtest
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
-
-from tests.backtester.dummy_objects import _dummy_strategy_with_sl_tp
 
 
 @given(

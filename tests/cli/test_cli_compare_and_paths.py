@@ -6,6 +6,7 @@ from argparse import Namespace
 from pathlib import Path
 
 import pandas as pd
+
 from trading_platform.cli import cmd_compare, cmd_run_backtest, cmd_run_live
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 

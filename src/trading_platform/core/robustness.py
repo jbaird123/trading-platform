@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import random
+from collections.abc import Iterable
 from dataclasses import dataclass
 from statistics import mean, median
-from typing import Any, Callable, Iterable, cast
+from typing import Any, Callable, cast
 
 from trading_platform.portfolio.trade import Trade
 

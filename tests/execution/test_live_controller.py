@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 
 import pandas as pd
+
 from trading_platform.execution import OandaStubAdapter
 from trading_platform.execution.controller import run_live_controller
 from trading_platform.portfolio.portfolio import PortfolioManager
