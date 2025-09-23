@@ -93,7 +93,7 @@
 
 ---
 
-## **Part 2: Implementation of New Features (Tasks 7-12)**
+## **Part 2: Implementation of New Features (Tasks 7-14)**
 
 ### [ ] **Task 7: Implement Automated Recommendations**
 
@@ -158,3 +158,36 @@
     -   [ ] 12.1  Run `poetry run ruff check .` and fix any reported issues in the files you have modified.
     -   [ ] 12.2  Run `poetry run mypy .` and fix any type-related errors in the files you have modified.
     -   [ ] 12.3  Run `poetry run pytest --cov=src/trading_platform` and ensure that test coverage for the files you modified is at or near 100%. Add any missing test cases required to meet this standard.
+
+### [ ] **Task 13: Integrate ML Model for Deeper Analysis**
+
+-   **Action:**
+    -   [ ] 13.1 **Add Dependencies:** Run `poetry add scikit-learn shap joblib` to add the required libraries.
+-   **File to Create:** `src/trading_platform/ai/lab/trainer.py`
+-   **Action:**
+    -   [ ] 13.2 **Create Model Training Script:** Implement a function `train_profitability_model(brief: dict) -> (object, list)` that takes a loaded `brief.json` dictionary, extracts features from `entry_context` for each trade, creates a binary target (`pnl > 0`), trains a `RandomForestClassifier`, and returns the model object and feature list.
+-   **File to Create:** `src/trading_platform/ai/lab/predictor.py`
+-   **Action:**
+    -   [ ] 13.3 **Create Insight Generator:** Implement a function `get_trade_insights(model, trade: dict, features: list) -> dict` that takes a trained model and a single trade, predicts profitability, and uses `shap` to generate a dictionary of feature importances for that prediction.
+-   **File to Modify:** `src/trading_platform/cli.py`
+-   **Action:**
+    -   [ ] 13.4 **Integrate into CLI:** Add a new flag `--train-model` to the `ai-diagnose` command. If present, it should call `train_profitability_model` and save the returned model to the run directory (e.g., `profitability_model.joblib`).
+-   **File to Modify:** `src/trading_platform/ai/synthesis/engine.py`
+-   **Action:**
+    -   [ ] 13.5 **Update Diagnostic Report:** The `DiagnosticSynthesisEngine` should check for a `profitability_model.joblib` file in the run directory. If it exists, it should load the model and use the `get_trade_insights` function to add a new `model_insights` section to the data passed to the report generator.
+-   **Files to Create:** `tests/ai/lab/test_trainer.py`, `tests/ai/lab/test_predictor.py`
+-   **Action:**
+    -   [ ] 13.6 **Add Tests:** Create unit tests for the trainer and predictor. Use mock `brief.json` data and assert that the trainer saves a model file and the predictor returns a dictionary with SHAP values.
+
+### [ ] **Task 14: Implement AI-Driven Parameter Suggestion**
+
+-   **File to Create:** `src/trading_platform/ai/lab/param_suggester.py`
+-   **Action:**
+    -   [ ] 14.1 **Create Suggestion Engine:** Implement a function `suggest_parameters(brief: dict) -> dict` that takes a loaded `brief.json` dictionary.
+    -   [ ] 14.2 **Implement Logic:** The function must check for the `parameter_search` section in the brief. If the section exists, it must find and return the parameter set corresponding to the best `objective_score` in the `results` list. If the section does not exist, it should return an empty dictionary.
+-   **File to Modify:** `src/trading_platform/ai/synthesis/engine.py`
+-   **Action:**
+    -   [ ] 14.3 **Integrate into Engine:** In the `DiagnosticSynthesisEngine`, call the `suggest_parameters` function. If it returns a non-empty dictionary, add a new `suggested_parameters` section to the data passed to the report generator.
+-   **File to Create:** `tests/ai/lab/test_param_suggester.py`
+-   **Action:**
+    -   [ ] 14.4 **Add Tests:** Create a unit test for the suggester. The test must use a mock `brief.json` containing a `parameter_search` section and assert that the function correctly identifies and returns the best parameter set from the mock results.
