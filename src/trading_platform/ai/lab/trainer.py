@@ -17,21 +17,21 @@ def train_profitability_model(brief: dict) -> Tuple[Any, List[str]]:
         raise ValueError("No trades found in brief.")
 
     # Extract features and target
-    feature_names = set()
+    feature_names_set = set()
     for trade in trades:
-        feature_names.update(trade.get("entry_context", {}).keys())
-    feature_names = sorted(feature_names)
+        feature_names_set.update(trade.get("entry_context", {}).keys())
+    feature_names: List[str] = sorted(feature_names_set)
 
-    X = []
-    y = []
+    X_list: List[List[Any]] = []
+    y_list: List[int] = []
     for trade in trades:
         context = trade.get("entry_context", {})
         features = [context.get(f, np.nan) for f in feature_names]
-        X.append(features)
-        y.append(1 if trade.get("pnl", 0) > 0 else 0)
+        X_list.append(features)
+        y_list.append(1 if trade.get("pnl", 0) > 0 else 0)
 
-    X = np.array(X)
-    y = np.array(y)
+    X: np.ndarray = np.array(X_list)
+    y: np.ndarray = np.array(y_list)
 
     # Handle missing values (simple imputation)
     from sklearn.impute import SimpleImputer
