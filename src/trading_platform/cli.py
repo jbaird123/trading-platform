@@ -53,13 +53,13 @@ def _load_config(path: Path) -> dict[str, Any]:
     txt = path.read_text()
     if path.suffix.lower() in {".yaml", ".yml"}:
         try:
-            import yaml  # type: ignore[import-untyped]
+            import yaml
         except Exception as exc:  # pragma: no cover
             raise SystemExit(
                 "YAML config provided but PyYAML is not installed. "
                 "Install pyyaml or use JSON."
             ) from exc
-        return dict(yaml.safe_load(txt))  # type: ignore[no-any-return]
+        return dict(yaml.safe_load(txt))
     return dict(json.loads(txt))
 
 

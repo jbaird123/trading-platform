@@ -38,7 +38,7 @@ version = "25.3.0"
 description = "Classes Without Boilerplate"
 optional = false
 python-versions = ">=3.8"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "attrs-25.3.0-py3-none-any.whl", hash = "sha256:427318ce031701fea540783410126f03899a97ffc6f61596ad581ac2e40e3bc3"},
     {file = "attrs-25.3.0.tar.gz", hash = "sha256:75d7cefc7fb576747b2c81b4442d4d4a1ce0900973527c011d1030fd3bf4af1b"},
@@ -2169,7 +2169,7 @@ version = "0.36.2"
 description = "JSON Referencing + Python"
 optional = false
 python-versions = ">=3.9"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "referencing-0.36.2-py3-none-any.whl", hash = "sha256:e8699adbbf8b5c7de96d8ffa0eb5c158b3beafce084968e2ea8bb08c6794dcd0"},
     {file = "referencing-0.36.2.tar.gz", hash = "sha256:df2e89862cd09deabbdba16944cc3f10feb6b3e6f18e902f7cc25609a34775aa"},
@@ -2256,7 +2256,7 @@ version = "0.27.1"
 description = "Python bindings to Rust's persistent data structures (rpds)"
 optional = false
 python-versions = ">=3.9"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "rpds_py-0.27.1-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:68afeec26d42ab3b47e541b272166a0b4400313946871cba3ed3a4fc0cab1cef"},
     {file = "rpds_py-0.27.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:74e5b2f7bb6fa38b1b10546d27acbacf2a022a8b5543efb06cfebc72a59c85be"},
@@ -2853,6 +2853,21 @@ shellingham = ">=1.3.0"
 typing-extensions = ">=3.7.4.3"
 
 [[package]]
+name = "types-jsonschema"
+version = "4.25.1.20250822"
+description = "Typing stubs for jsonschema"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "types_jsonschema-4.25.1.20250822-py3-none-any.whl", hash = "sha256:f82c2d7fa1ce1c0b84ba1de4ed6798469768188884db04e66421913a4e181294"},
+    {file = "types_jsonschema-4.25.1.20250822.tar.gz", hash = "sha256:aac69ed4b23f49aaceb7fcb834141d61b9e4e6a7f6008cb2f0d3b831dfa8464a"},
+]
+
+[package.dependencies]
+referencing = "*"
+
+[[package]]
 name = "types-pytz"
 version = "2025.2.0.20250809"
 description = "Typing stubs for pytz"
@@ -3260,4 +3275,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "fa0ad92e678e120f9b11a28b03fa475245b3e5eca4e329d88d913c30bd55158b"
+content-hash = "b0adac7b55c62949f0318838c4c09ef78028fec4fbf7dc5cc3323138af199a4b"

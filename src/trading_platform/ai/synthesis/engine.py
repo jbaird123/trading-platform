@@ -52,8 +52,8 @@ class DiagnosticSynthesisEngine:
         """
         self.analysis_data = analysis_data
         self.rules = get_all_rules()
-        self.conclusions = []  # type: list[Any]
-        self.recommendations = []  # type: list[Any]
+        self.conclusions: list[Any] = []
+        self.recommendations: list[Any] = []
 
     def run(self) -> None:
         """Executes all diagnostic rules and stores the conclusions."""
@@ -84,6 +84,12 @@ class DiagnosticSynthesisEngine:
                 report_parts.append(f"- Category: {rec.category}")
                 report_parts.append(f"- Confidence: {rec.confidence}")
                 report_parts.append("")
+
+        # Remove extra newline between recommendations and conclusions
+        if self.conclusions and self.recommendations:
+            if report_parts[-1] == "":
+                report_parts.pop()
+            report_parts.append("")
 
         # Conclusions with structured evidence
         if not self.conclusions:

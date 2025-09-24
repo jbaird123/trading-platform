@@ -11,7 +11,7 @@ def render_comparison_html(comp: dict[str, Any]) -> str:
     runs = comp.get("runs", [])
     a = runs[0] if len(runs) > 0 else {}
     b = runs[1] if len(runs) > 1 else {}
-    metrics: dict[str, dict[str, float]] = comp.get("metrics", {})  # type: ignore[assignment]
+    metrics: dict[str, dict[str, float]] = comp.get("metrics", {})
 
     def esc(x: Any) -> str:
         return (

@@ -31,7 +31,7 @@ def load_from_catalog(
     if not cpath.exists():
         raise FileNotFoundError(f"data catalog not found: {cpath}")
 
-    import yaml  # type: ignore[import-untyped]
+    import yaml
 
     catalog = yaml.safe_load(cpath.read_text()) or {}
     entry = (catalog.get(symbol) or {}) if isinstance(catalog, dict) else {}

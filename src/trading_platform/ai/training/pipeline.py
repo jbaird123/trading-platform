@@ -176,7 +176,7 @@ class AITrainingPipeline:
         # 3. Convert and Log ONNX model
         print("Converting model to ONNX and logging...")
         # Infer input types from the training data X
-        initial_type = [("float_input", FloatTensorType([None, X.shape[1]]))]  # type: ignore
+        initial_type = [("float_input", FloatTensorType([None, X.shape[1]]))]
         onnx_model = convert_sklearn(model, initial_types=initial_type)
 
         # Save ONNX model to a temporary file

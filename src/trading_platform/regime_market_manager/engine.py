@@ -11,8 +11,8 @@ from trading_platform.data.schema import resample_ohlc
 from trading_platform.strategy.features import compute_features
 
 try:
-    import jsonschema  # type: ignore[import-untyped]
-    from jsonschema import ValidationError  # type: ignore[import-untyped]
+    import jsonschema
+    from jsonschema import ValidationError
 except Exception:  # pragma: no cover
     jsonschema = None  # type: ignore[assignment]
 
@@ -72,7 +72,7 @@ class RMMEngine:
         )
         schema = json.loads(schema_path.read_text())
         try:
-            jsonschema.validate(cfg, schema)  # type: ignore[misc]
+            jsonschema.validate(cfg, schema)
         except ValidationError as e:  # pragma: no cover
             path = ".".join(str(p) for p in getattr(e, "path", []))
             where = f" at '{path}'" if path else ""

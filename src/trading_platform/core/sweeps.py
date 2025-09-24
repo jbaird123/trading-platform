@@ -21,7 +21,7 @@ def _rmm_context(df: pd.DataFrame, cfg_raw: dict[str, Any]) -> dict | None:
     if rmm_path:
         import json
 
-        import yaml  # type: ignore
+        import yaml
 
         txt = open(str(rmm_path)).read()
         rmm_cfg = (
@@ -92,7 +92,7 @@ def run_parameter_sweep(
     if rem_path:
         import json
 
-        import yaml  # type: ignore
+        import yaml
 
         txt = open(str(rem_path)).read()
         rem_cfg = (
@@ -167,7 +167,7 @@ def run_parameter_sweep(
         # Debug logging per candidate
         try:
             if log_file is not None:
-                vc = sig.value_counts()  # type: ignore[attr-defined]
+                vc = sig.value_counts()
                 long_ct = int(vc.get("long", 0)) if hasattr(vc, "get") else 0
                 short_ct = int(vc.get("short", 0)) if hasattr(vc, "get") else 0
                 with log_file.open("a") as f:
