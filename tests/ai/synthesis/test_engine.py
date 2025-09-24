@@ -184,7 +184,7 @@ def test_dse_generate_report_json_no_conclusions():
     ):
         engine = DiagnosticSynthesisEngine(analysis_data)
         report_json_str = engine.generate_report_json()
-        assert json.loads(report_json_str) == {"conclusions": [], "recommendations": []}
+    assert json.loads(report_json_str) == {"conclusions": [], "recommendations": [], "model_insights": []}
 
 
 def test_dse_generate_report_json_with_one_conclusion():
@@ -208,6 +208,7 @@ def test_dse_generate_report_json_with_one_conclusion():
                 }
             ],
             "recommendations": [],
+            "model_insights": [],
         }
         assert json.loads(report_json_str) == expected_json
 
@@ -242,6 +243,7 @@ def test_dse_generate_report_json_with_multiple_conclusions():
                 },
             ],
             "recommendations": [],
+            "model_insights": [],
         }
         assert json.loads(report_json_str) == expected_json
 

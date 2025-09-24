@@ -433,10 +433,15 @@ def cmd_ai_diagnose(args: argparse.Namespace) -> int:
         raise ValueError(f"Error decoding brief.json: {e}")
 
     # Map brief.json structure to what DiagnosticSynthesisEngine expects
-    # [Task 1.1 completed: Located analysis_data assignment]
-    # [Task 1.2 completed: Deleted existing dictionary assignment]
-    # [Task 1.3 completed: Replaced with full brief]
     analysis_data = brief_data
+
+    # Task 13.4: Train model if requested
+    if getattr(args, "train_model", False):
+        from trading_platform.ai.lab.trainer import train_profitability_model, save_model
+        model, features = train_profitability_model(brief_data)
+        model_path = brief_path.parent / "profitability_model.joblib"
+        save_model(model, str(model_path))
+        print(f"Profitability model saved to {model_path}")
 
     engine = DiagnosticSynthesisEngine(analysis_data=analysis_data)
     engine.run()
@@ -591,6 +596,7 @@ def main() -> int:
 
     pad = sub.add_parser("ai-diagnose", help="Run AI diagnostic analysis on a brief")
     pad.add_argument("--brief", help="Path to brief.json file")
+    pad.add_argument("--train-model", action="store_true", help="Train ML profitability model and save to run directory")
     pad.set_defaults(func=cmd_ai_diagnose)
 
     args = p.parse_args()

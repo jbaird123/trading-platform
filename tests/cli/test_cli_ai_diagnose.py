@@ -48,6 +48,7 @@ def test_cmd_ai_diagnose_success(tmp_path: Path) -> None:
     assert json.loads(json_content) == {
         "conclusions": [],
         "recommendations": [],
+        "model_insights": [],
     }  # No conclusions means empty list
 
 
