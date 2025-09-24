@@ -23,8 +23,8 @@ repos:
         entry: poetry run mypy
         pass_filenames: false
         args:
-          - --explicit-package-bases
           - src
+          - tests
 
   - repo: local
     hooks:
