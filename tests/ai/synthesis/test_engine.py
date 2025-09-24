@@ -244,6 +244,7 @@ def test_dse_generate_report_json_with_multiple_conclusions():
             "model_insights": [],
             "suggested_parameters": {},
         }
+        assert json.loads(report_json_str) == expected_json
 
 
 def test_dse_generate_recommendations():
