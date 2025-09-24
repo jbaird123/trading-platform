@@ -437,7 +437,11 @@ def cmd_ai_diagnose(args: argparse.Namespace) -> int:
 
     # Task 13.4: Train model if requested
     if getattr(args, "train_model", False):
-        from trading_platform.ai.lab.trainer import train_profitability_model, save_model
+        from trading_platform.ai.lab.trainer import (
+            save_model,
+            train_profitability_model,
+        )
+
         model, features = train_profitability_model(brief_data)
         model_path = brief_path.parent / "profitability_model.joblib"
         save_model(model, str(model_path))
@@ -451,6 +455,22 @@ def cmd_ai_diagnose(args: argparse.Namespace) -> int:
         engine.generate_report_markdown()
     )
     (output_dir / "ai_diagnostic_report.json").write_text(engine.generate_report_json())
+
+    # Task 4: Qualitative LLM report generation
+    if getattr(args, "qualitative_report", False):
+        print("Generating qualitative report via LLM...")
+        try:
+            from trading_platform.ai.llm_analysis.client import LlmApiClient
+            from trading_platform.ai.llm_analysis.engine import LLMAnalysisEngine
+
+            client = LlmApiClient()
+            llm_engine = LLMAnalysisEngine(brief_data=brief_data, client=client)
+            feedback = llm_engine.run()
+            report_path = output_dir / "ai_qualitative_report.md"
+            report_path.write_text(feedback)
+            print(f"Qualitative report saved to {report_path}")
+        except Exception as e:
+            print(f"Could not generate qualitative report: {e}", file=sys.stderr)
 
     print(f"AI diagnostic reports saved to {output_dir}")
     return 0
@@ -596,7 +616,17 @@ def main() -> int:
 
     pad = sub.add_parser("ai-diagnose", help="Run AI diagnostic analysis on a brief")
     pad.add_argument("--brief", help="Path to brief.json file")
-    pad.add_argument("--train-model", action="store_true", help="Train ML profitability model and save to run directory")
+    pad.add_argument(
+        "--train-model",
+        action="store_true",
+        help="Train ML profitability model and save to run directory",
+    )
+    pad.add_argument(
+        "--qualitative-report",
+        action="store_true",
+        help="Generate a qualitative report using an external LLM. "
+        "WARNING: This sends run data to a third-party API and may incur costs.",
+    )
     pad.set_defaults(func=cmd_ai_diagnose)
 
     args = p.parse_args()

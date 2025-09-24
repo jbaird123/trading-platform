@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from argparse import Namespace
 from pathlib import Path
+from unittest.mock import patch
 
 from trading_platform.cli import cmd_ai_diagnose
 
@@ -89,3 +90,35 @@ def test_cmd_ai_diagnose_malformed_json(tmp_path):
         assert "json" in str(e).lower() or isinstance(e, SystemExit)
     else:
         assert False, "Expected error for malformed JSON"
+
+
+def test_cmd_ai_diagnose_qualitative_report_flag(tmp_path: Path):
+    # 1. Create a dummy brief.json
+    brief_content = {"meta": {"run_id": "test_run_123"}}
+    brief_path = tmp_path / "brief.json"
+    brief_path.write_text(json.dumps(brief_content))
+
+    # 2. Simulate command-line arguments with the new flag
+    ns = Namespace(brief=str(brief_path), qualitative_report=True)
+
+    # 3. Mock the LLM client to avoid real API calls
+    with patch(
+        "trading_platform.ai.llm_analysis.client.LlmApiClient"
+    ) as mock_api_client:
+        # Configure the mock instance
+        mock_instance = mock_api_client.return_value
+        mock_instance.get_feedback.return_value = "Mocked LLM response"
+
+        # 4. Call the command
+        with patch("builtins.print") as mock_print:
+            return_code = cmd_ai_diagnose(ns)
+
+            # 5. Assertions
+            assert return_code == 0
+            qualitative_report_path = tmp_path / "ai_qualitative_report.md"
+            assert qualitative_report_path.exists()
+            assert qualitative_report_path.read_text() == "Mocked LLM response"
+            mock_print.assert_any_call("Generating qualitative report via LLM...")
+            mock_print.assert_any_call(
+                f"Qualitative report saved to {qualitative_report_path}"
+            )
