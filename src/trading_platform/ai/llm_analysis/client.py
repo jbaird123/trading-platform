@@ -17,7 +17,10 @@ class LlmApiClient:
         """Sends a prompt to the LLM and returns the text response."""
         try:
             response = self._model.generate_content(prompt)
-            return response.text
+            text = getattr(response, "text", None)
+            if isinstance(text, str):
+                return text
+            return "Error: LLM response did not contain text."
         except Exception as e:
             # Basic error handling, can be enhanced later
             return f"Error generating LLM feedback: {e}"

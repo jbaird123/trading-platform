@@ -72,6 +72,8 @@ module = [
     "starlette.*",
     "multipart.*",
     "httpx.*",
+    "joblib",
+    "google.*",
 ]
 ignore_missing_imports = true
 

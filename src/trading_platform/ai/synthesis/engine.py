@@ -13,7 +13,9 @@ logger = logging.getLogger(__name__)
 
 
 class DiagnosticSynthesisEngine:
-    # conclusions and recommendations are instance variables, not class variables
+    conclusions: list[Any]
+    recommendations: list[Any]
+    model_insights: list[Any]
     def generate_recommendations(self) -> list[dict]:
         """
         Generates recommendations in the format required by `brief.json`.
@@ -89,21 +91,22 @@ class DiagnosticSynthesisEngine:
 
                 model = joblib.load(str(model_path))
                 # Try to get features from model if possible
-                features = getattr(model, "feature_names_in_", None)
-                if features is None and "trades" in analysis_data:
-                    # Fallback: infer from first trade
+                features_any = getattr(model, "feature_names_in_", None)
+                features: list[str] = []
+                if features_any is None and "trades" in analysis_data:
                     trades = analysis_data["trades"]
                     if trades:
                         features = sorted(trades[0].get("entry_context", {}).keys())
+                elif isinstance(features_any, list):
+                    features = [str(f) for f in features_any]
                 # Generate insights for each trade
                 self.model_insights = []
-                for trade in analysis_data.get("trades", [])[
-                    :10
-                ]:  # Limit to 10 for brevity
+                for trade in analysis_data.get("trades", [])[:10]:  # Limit for brevity
                     insight = get_trade_insights(model, trade, features)
-                    self.model_insights.append(
-                        {"trade_id": trade.get("id"), "insight": insight}
-                    )
+                    self.model_insights.append({
+                        "trade_id": trade.get("id"),
+                        "insight": insight,
+                    })
             except Exception as exc:
                 logger.warning(f"Failed to generate model insights: {exc}")
 
