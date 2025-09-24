@@ -1,13 +1,12 @@
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
-
-from src.trading_platform.ai.serving.app import API_KEY, API_KEY_NAME, app
+from trading_platform.ai.serving.app import API_KEY, API_KEY_NAME, app
 
 client = TestClient(app)
 
 
-@patch("src.trading_platform.ai.serving.app.np.random.rand")
+@patch("trading_platform.ai.serving.app.np.random.rand")
 def test_predict_integration_success(mock_np_random_rand):
     # Mock the random prediction to be deterministic for testing
     mock_np_random_rand.return_value = 0.1  # Will result in 'long'
@@ -32,7 +31,7 @@ def test_predict_integration_success(mock_np_random_rand):
     mock_np_random_rand.assert_called_once()
 
 
-@patch("src.trading_platform.ai.serving.app.np.random.rand")
+@patch("trading_platform.ai.serving.app.np.random.rand")
 def test_predict_integration_internal_error(mock_np_random_rand):
     # Simulate an internal error during prediction
     mock_np_random_rand.side_effect = Exception("Simulated internal error")
@@ -46,7 +45,7 @@ def test_predict_integration_internal_error(mock_np_random_rand):
     assert response.json() == {"detail": "Internal server error during prediction."}
 
 
-@patch("src.trading_platform.ai.serving.app.API_KEY", "wrong-key")
+@patch("trading_platform.ai.serving.app.API_KEY", "wrong-key")
 def test_predict_integration_unauthorized_api_key():
     request_body = {"features": [{"name": "feature1", "value": 1.0}]}
     response = client.post(

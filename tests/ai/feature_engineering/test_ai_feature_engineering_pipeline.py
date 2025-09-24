@@ -1,7 +1,6 @@
 import pandas as pd
 import pytest
-
-from src.trading_platform.ai.feature_engineering.pipeline import (
+from trading_platform.ai.feature_engineering.pipeline import (
     FeatureEngineeringPipeline,
 )
 

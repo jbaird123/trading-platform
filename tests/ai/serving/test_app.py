@@ -1,6 +1,5 @@
 from fastapi.testclient import TestClient
-
-from src.trading_platform.ai.serving.app import API_KEY, API_KEY_NAME, app
+from trading_platform.ai.serving.app import API_KEY, API_KEY_NAME, app
 
 client = TestClient(app)
 

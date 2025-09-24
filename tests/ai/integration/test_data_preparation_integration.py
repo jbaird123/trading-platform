@@ -2,10 +2,9 @@ from unittest.mock import patch
 
 import pandas as pd
 import pytest
-
-from src.trading_platform.ai.data_connectors import AIDataConnector
-from src.trading_platform.ai.data_labeling import DataLabeler
-from src.trading_platform.ai.feature_engineering.pipeline import (
+from trading_platform.ai.data_connectors import AIDataConnector
+from trading_platform.ai.data_labeling import DataLabeler
+from trading_platform.ai.feature_engineering.pipeline import (
     FeatureEngineeringPipeline,
 )
 
@@ -42,7 +41,7 @@ def mock_labeling_config():
     return {"look_ahead_bars": 1}
 
 
-@patch("src.trading_platform.ai.data_connectors.DataCatalog")
+@patch("trading_platform.ai.data_connectors.DataCatalog")
 def test_data_preparation_integration_flow(
     mock_data_catalog_cls,
     mock_raw_data,

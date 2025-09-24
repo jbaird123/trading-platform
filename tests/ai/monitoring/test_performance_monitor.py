@@ -1,8 +1,7 @@
 import logging
 
 import pandas as pd
-
-from src.trading_platform.ai.monitoring.performance_monitor import (
+from trading_platform.ai.monitoring.performance_monitor import (
     AIBaseMonitor,
     AIDriftDetector,
     AIModelPerformanceMonitor,

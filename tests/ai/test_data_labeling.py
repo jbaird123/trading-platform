@@ -1,7 +1,6 @@
 import pandas as pd
 import pytest
-
-from src.trading_platform.ai.data_labeling import DataLabeler
+from trading_platform.ai.data_labeling import DataLabeler
 
 
 @pytest.fixture

@@ -1,7 +1,6 @@
 import pandas as pd
 import pytest
-
-from src.trading_platform.ai.data_connectors import AIDataConnector, DataCatalog
+from trading_platform.ai.data_connectors import AIDataConnector, DataCatalog
 
 
 class MockDataCatalog(DataCatalog):

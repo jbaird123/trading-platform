@@ -8,8 +8,7 @@ from sklearn.metrics import (
     recall_score,
     roc_auc_score,
 )
-
-from src.trading_platform.ai.evaluation.metrics import (
+from trading_platform.ai.evaluation.metrics import (
     calculate_sharpe_ratio,
     calculate_sortino_ratio,
     calculate_statistical_significance,

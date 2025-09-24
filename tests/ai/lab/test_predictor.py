@@ -1,5 +1,5 @@
-import pytest
-from trading_platform.ai.lab import trainer, predictor
+from trading_platform.ai.lab import predictor, trainer
+
 
 def mock_brief():
     return {
@@ -9,6 +9,7 @@ def mock_brief():
             {"id": 3, "entry_context": {"feature1": 2.0, "feature2": 0.0}, "pnl": 3.0},
         ]
     }
+
 
 def test_get_trade_insights():
     brief = mock_brief()

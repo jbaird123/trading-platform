@@ -1,0 +1,14 @@
+artifact_uri: /Users/jbaird/Documents/personal/trading-platform/mlruns_integration_test/192008085621667728/99158cc802054baabc7b5940ea4adf8b/artifacts
+end_time: 1758679720599
+entry_point_name: ''
+experiment_id: '192008085621667728'
+lifecycle_stage: active
+run_id: 99158cc802054baabc7b5940ea4adf8b
+run_name: integration_test_run
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1758679720553
+status: 4
+tags: []
+user_id: jbaird

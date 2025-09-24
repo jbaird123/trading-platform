@@ -1,6 +1,8 @@
 from typing import Any, Dict, List
-import shap
+
 import numpy as np
+import shap
+
 
 def get_trade_insights(model: Any, trade: dict, features: List[str]) -> Dict:
     """
@@ -11,7 +13,9 @@ def get_trade_insights(model: Any, trade: dict, features: List[str]) -> Dict:
 
     # Predict profitability
     pred = model.predict(X)[0]
-    pred_proba = model.predict_proba(X)[0][1] if hasattr(model, "predict_proba") else None
+    pred_proba = (
+        model.predict_proba(X)[0][1] if hasattr(model, "predict_proba") else None
+    )
 
     # SHAP values
     explainer = shap.TreeExplainer(model)
@@ -27,5 +31,5 @@ def get_trade_insights(model: Any, trade: dict, features: List[str]) -> Dict:
     return {
         "predicted_profitable": bool(pred),
         "predicted_probability": float(pred_proba) if pred_proba is not None else None,
-        "feature_importances": feature_importances
+        "feature_importances": feature_importances,
     }
