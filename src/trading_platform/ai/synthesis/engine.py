@@ -52,13 +52,22 @@ class DiagnosticSynthesisEngine:
         """
         self.analysis_data = analysis_data
         self.rules = get_all_rules()
-        self.conclusions: list[Any] = []
-        self.recommendations: list[Any] = []
-        self.model_insights: list[dict] = []
+        self.conclusions = []
+        self.recommendations = []
+        self.model_insights = []
+        self.suggested_parameters = {}
+
+        # Task 14.3: Integrate parameter suggestion
+        try:
+            from trading_platform.ai.lab.param_suggester import suggest_parameters
+
+            self.suggested_parameters = suggest_parameters(analysis_data)
+        except Exception as exc:
+            logger.warning(f"Failed to suggest parameters: {exc}")
 
         # Task 13.5: Check for profitability_model.joblib and add model insights
-        import os
         from pathlib import Path
+
         run_dir = None
         # Try to infer run directory from brief.json location if present
         if "meta" in analysis_data and "run_id" in analysis_data["meta"]:
@@ -75,7 +84,9 @@ class DiagnosticSynthesisEngine:
         if model_path.exists():
             try:
                 import joblib
+
                 from trading_platform.ai.lab.predictor import get_trade_insights
+
                 model = joblib.load(str(model_path))
                 # Try to get features from model if possible
                 features = getattr(model, "feature_names_in_", None)
@@ -86,12 +97,13 @@ class DiagnosticSynthesisEngine:
                         features = sorted(trades[0].get("entry_context", {}).keys())
                 # Generate insights for each trade
                 self.model_insights = []
-                for trade in analysis_data.get("trades", [])[:10]:  # Limit to 10 for brevity
+                for trade in analysis_data.get("trades", [])[
+                    :10
+                ]:  # Limit to 10 for brevity
                     insight = get_trade_insights(model, trade, features)
-                    self.model_insights.append({
-                        "trade_id": trade.get("id"),
-                        "insight": insight
-                    })
+                    self.model_insights.append(
+                        {"trade_id": trade.get("id"), "insight": insight}
+                    )
             except Exception as exc:
                 logger.warning(f"Failed to generate model insights: {exc}")
 
@@ -113,6 +125,13 @@ class DiagnosticSynthesisEngine:
         Generates a human-readable Markdown report of the findings.
         """
         report_parts = ["# AI Diagnostic Report\n"]
+
+        # Suggested Parameters section
+        if self.suggested_parameters:
+            report_parts.append("## Suggested Parameters\n")
+            for k, v in self.suggested_parameters.items():
+                report_parts.append(f"- {k}: {v}")
+            report_parts.append("")
 
         # Recommendations at the top (actionable first)
         if self.recommendations:
@@ -183,6 +202,7 @@ class DiagnosticSynthesisEngine:
                 "conclusions": [conc.to_dict() for conc in self.conclusions],
                 "recommendations": [rec.__dict__ for rec in self.recommendations],
                 "model_insights": self.model_insights,
+                "suggested_parameters": self.suggested_parameters,
             },
             indent=2,
         )

@@ -179,15 +179,15 @@
 -   **Action:**
     -   [x] 13.6 **Add Tests:** Create unit tests for the trainer and predictor. Use mock `brief.json` data and assert that the trainer saves a model file and the predictor returns a dictionary with SHAP values.
 
-### [ ] **Task 14: Implement AI-Driven Parameter Suggestion**
+### [x] **Task 14: Implement AI-Driven Parameter Suggestion**
 
 -   **File to Create:** `src/trading_platform/ai/lab/param_suggester.py`
 -   **Action:**
-    -   [ ] 14.1 **Create Suggestion Engine:** Implement a function `suggest_parameters(brief: dict) -> dict` that takes a loaded `brief.json` dictionary.
-    -   [ ] 14.2 **Implement Logic:** The function must check for the `parameter_search` section in the brief. If the section exists, it must find and return the parameter set corresponding to the best `objective_score` in the `results` list. If the section does not exist, it should return an empty dictionary.
+    -   [x] 14.1 **Create Suggestion Engine:** Implement a function `suggest_parameters(brief: dict) -> dict` that takes a loaded `brief.json` dictionary.
+    -   [x] 14.2 **Implement Logic:** The function must check for the `parameter_search` section in the brief. If the section exists, it must find and return the parameter set corresponding to the best `objective_score` in the `results` list. If the section does not exist, it should return an empty dictionary.
 -   **File to Modify:** `src/trading_platform/ai/synthesis/engine.py`
 -   **Action:**
-    -   [ ] 14.3 **Integrate into Engine:** In the `DiagnosticSynthesisEngine`, call the `suggest_parameters` function. If it returns a non-empty dictionary, add a new `suggested_parameters` section to the data passed to the report generator.
+    -   [x] 14.3 **Integrate into Engine:** In the `DiagnosticSynthesisEngine`, call the `suggest_parameters` function. If it returns a non-empty dictionary, add a new `suggested_parameters` section to the data passed to the report generator.
 -   **File to Create:** `tests/ai/lab/test_param_suggester.py`
 -   **Action:**
-    -   [ ] 14.4 **Add Tests:** Create a unit test for the suggester. The test must use a mock `brief.json` containing a `parameter_search` section and assert that the function correctly identifies and returns the best parameter set from the mock results.
+    -   [x] 14.4 **Add Tests:** Create a unit test for the suggester. The test must use a mock `brief.json` containing a `parameter_search` section and assert that the function correctly identifies and returns the best parameter set from the mock results.

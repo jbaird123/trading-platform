@@ -49,6 +49,7 @@ def test_cmd_ai_diagnose_success(tmp_path: Path) -> None:
         "conclusions": [],
         "recommendations": [],
         "model_insights": [],
+        "suggested_parameters": {},
     }  # No conclusions means empty list
 
 
