@@ -10,8 +10,16 @@ from trading_platform.reporting.brief import compute_data_quality
 # Add test for data quality score (Task 2.5–2.8)
 def test_compute_data_quality_score():
     # Create DataFrame with NaNs and duplicate index
-    idx = pd.date_range("2023-01-01", periods=5, freq="D")
-    idx = idx.append(pd.DatetimeIndex([idx[2]]))  # Add duplicate
+    idx = pd.to_datetime(
+        [
+            "2023-01-01",
+            "2023-01-02",
+            "2023-01-03",
+            "2023-01-04",
+            "2023-01-05",
+            "2023-01-03",
+        ]
+    )  # Add duplicate
     df = pd.DataFrame(
         {
             "open": [1, 2, 3, 4, 5, 6],

@@ -55,6 +55,7 @@ def test_cmd_run_backtest_yaml_requires_pyyaml(tmp_path: Path) -> None:
     ns = Namespace(demo=False, user="yml_user", config=str(p))
     try:
         import yaml  # noqa: F401
+
         # If PyYAML is available, command should succeed.
         rc = cmd_run_backtest(ns)
         assert rc == 0

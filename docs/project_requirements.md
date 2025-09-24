@@ -398,11 +398,11 @@ _Last updated: 2025-09-16_
 - **[JSON-11.10]** **exposure**: `{average_gross_exposure, peak_gross_exposure}`.
 - **[JSON-11.11]** **regimes**: A dictionary mapping each regime label to its performance breakdown.
 - **[JSON-11.12]** **data_quality**: `{loader_flags, index_monotonic_increasing, duplicate_bars_count, nan_counts, has_nans, quality_score}`.
-# - **[JSON-11.31]** **recommendations**: An array of recommendation objects, each with:
-#   - `title`: The actionable recommendation title.
-#   - `summary`: Description of the recommendation.
-#   - `category`: Category (e.g., "Entry Logic", "Exit Logic", "Risk Management").
-#   - `confidence`: Float between 0.0 and 1.0 indicating confidence in the recommendation.
+- **[JSON-11.31]** **recommendations**: An array of recommendation objects, each with:
+  - `title`: The actionable recommendation title.
+  - `summary`: Description of the recommendation.
+  - `category`: Category (e.g., "Entry Logic", "Exit Logic", "Risk Management").
+  - `confidence`: Float between 0.0 and 1.0 indicating confidence in the recommendation.
 - **[JSON-11.13]** **provenance**: `{run_id, strategy_name, data_start, data_end, symbols, app_version, git_commit, run_seed}`.
 - **[JSON-11.14]** **environment**: `{python_version, platform, timezone, dependency_versions}`.
 - **[JSON-11.15]** **trades**: An array of trade objects, each with full details including `pnl`, `entry_time`, `exit_time`, `mfe_currency`, `mae_currency`, etc. See [JSON-11.30] for the detailed trade object schema.

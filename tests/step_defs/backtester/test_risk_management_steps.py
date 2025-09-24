@@ -45,6 +45,8 @@ def when_backtest_is_run(shared_context: dict) -> None:
         strategy=strategy,
         config=config,
         rem=rem,
+        return_exposure=False,
+        return_skips=False,
     )
     shared_context["trades"] = trades
 

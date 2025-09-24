@@ -9,19 +9,30 @@ from trading_platform.strategy.base import BaseStrategy
 def test_base_strategy_requires_implementation():
     """Tests that a concrete strategy must implement generate_signals."""
 
-    class IncompleteStrategy(BaseStrategy):
-        pass
+    class TrulyAbstractStrategy(BaseStrategy):
+        pass  # No implementation of generate_signals
 
+    # This should fail at instantiation because no implementation is provided
     with pytest.raises(TypeError, match="Can't instantiate abstract class"):
-        IncompleteStrategy()
+        TrulyAbstractStrategy()  # type: ignore[abstract]
+
+    class IncompleteStrategy(BaseStrategy):
+        def generate_signals(self, data: pd.DataFrame) -> pd.Series:
+            return super().generate_signals(data)
+
+    # This can be instantiated but will fail when generate_signals is called
+    strategy = IncompleteStrategy()
+    test_data = pd.DataFrame({"close": [1, 2, 3]})
+    with pytest.raises(NotImplementedError):
+        strategy.generate_signals(test_data)
 
     class CompleteStrategy(BaseStrategy):
         def generate_signals(self, data: pd.DataFrame) -> pd.Series:
             return pd.Series("flat", index=data.index)
 
     # This should not raise an error
-    strategy = CompleteStrategy()
-    assert strategy is not None
+    complete_strategy = CompleteStrategy()
+    assert complete_strategy is not None
 
 
 def test_strategy_must_return_valid_signals():

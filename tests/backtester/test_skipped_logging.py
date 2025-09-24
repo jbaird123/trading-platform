@@ -34,9 +34,17 @@ def _df() -> pd.DataFrame:
 def test_skip_logged_for_blackout():
     df = _df()
     sig = pd.Series(["long", "flat", "flat"], index=df.index)
-    config = RunConfig(initial_cash=1000.0, blackout_utc=[("00:00", "00:30")])
+    config = RunConfig(
+        user_id="test",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=1000.0,
+        position_size=1.0,
+        allow_flip_on_bar=False,
+        blackout_utc=[("00:00", "00:30")],
+    )
     rem = RiskExitManager(config={})
-    trades, _exp, skips = run_backtest(
+    result = run_backtest(
         market_data=df,
         signals=sig,
         strategy=_dummy_strategy_cfg(),
@@ -45,8 +53,10 @@ def test_skip_logged_for_blackout():
         return_exposure=True,
         return_skips=True,
     )
-    assert len(skips) >= 1
-    s0 = skips[0]
+    trades, _exp, skips = result  # type: ignore[misc]
+    assert skips is not None
+    assert len(skips) >= 1  # type: ignore[arg-type]
+    s0 = skips[0]  # type: ignore[index]
     assert s0["reason_code"] in ("blackout_static", "blackout")
     assert "policy_snapshot" in s0
 
@@ -56,10 +66,16 @@ def test_skip_logged_for_position_cap():
     df = _df()
     sig = pd.Series(["long", "long", "flat"], index=df.index)
     config = RunConfig(
-        initial_cash=1000.0, pm_limits={"max_open_long": 1, "max_open_short": 1}
+        user_id="test",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=1000.0,
+        position_size=1.0,
+        allow_flip_on_bar=False,
+        pm_limits={"max_open_long": 1, "max_open_short": 1},
     )
     rem = RiskExitManager(config={})
-    trades, _exp, skips = run_backtest(
+    result = run_backtest(
         market_data=df,
         signals=sig,
         strategy=_dummy_strategy_cfg(),
@@ -68,5 +84,7 @@ def test_skip_logged_for_position_cap():
         return_exposure=True,
         return_skips=True,
     )
+    trades, _exp, skips = result  # type: ignore[misc]
     # One entry, second long should be skipped due to cap
-    assert any(s.get("reason_code") == "position_cap" for s in skips)
+    assert skips is not None
+    assert any(s.get("reason_code") == "position_cap" for s in skips)  # type: ignore[union-attr]

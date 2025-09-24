@@ -27,19 +27,28 @@ def test_tie_break_stop_then_tp_for_long():
     )
     sig = pd.Series(["long", "flat"], index=df.index)
     config = RunConfig(
+        user_id="test",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=1000.0,
+        position_size=1.0,
+        allow_flip_on_bar=False,
         rem_config={
             "stop_loss": {"absolute_price": 95.0},
             "take_profit": {"absolute_price": 105.0},
-        }
+        },
     )
-    rem = RiskExitManager(config=config.rem_config)
-    trades = run_backtest(
-        df,
-        sig,
+    rem = RiskExitManager(config=config.rem_config or {})
+    result = run_backtest(
+        market_data=df,
+        signals=sig,
         strategy=_dummy_strategy_with_sl_tp(95.0, 105.0),
         config=config,
         rem=rem,
+        return_exposure=True,
+        return_skips=True,
     )
-    assert len(trades) == 1
-    t = trades[0]
+    trades, _, _ = result  # type: ignore[misc]
+    assert len(trades) == 1  # type: ignore[arg-type]
+    t = trades[0]  # type: ignore[index]
     assert t.exit_price == 95.0 and t.exit_reason == "stop-loss"

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.brief import generate_brief
@@ -18,7 +19,7 @@ def test_skipped_trades_and_filter_impact_in_brief():
         size=1.0,
         pnl=0.05,
     )
-    skips = [
+    skips: list[dict[str, Any]] = [
         {
             "timestamp": datetime(2024, 1, 1, 0, 0).isoformat(),
             "symbol": "X",
@@ -41,7 +42,10 @@ def test_skipped_trades_and_filter_impact_in_brief():
         initial_cash=1000.0,
         skipped_trades=skips,
     )
-    assert "skipped_trades" in b and len(b["skipped_trades"]) == 2
+    assert "skipped_trades" in b
+    assert b["skipped_trades"] is not None
+    assert len(b["skipped_trades"]) == 2
     fi = b.get("filter_impact", {})
+    assert fi is not None
     assert fi.get("blackout_static", {}).get("n_skipped") == 1
     assert fi.get("position_cap", {}).get("n_skipped") == 1

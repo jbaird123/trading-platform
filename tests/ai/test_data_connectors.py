@@ -1,3 +1,5 @@
+from typing import Optional
+
 import pandas as pd
 import pytest
 from trading_platform.ai.data_connectors import AIDataConnector, DataCatalog
@@ -6,7 +8,9 @@ from trading_platform.ai.data_connectors import AIDataConnector, DataCatalog
 class MockDataCatalog(DataCatalog):
     """A mock DataCatalog for testing purposes."""
 
-    def __init__(self, data_to_return: pd.DataFrame = None, empty_data: bool = False):
+    def __init__(
+        self, data_to_return: Optional[pd.DataFrame] = None, empty_data: bool = False
+    ):
         self._data_to_return = data_to_return
         self._empty_data = empty_data
 

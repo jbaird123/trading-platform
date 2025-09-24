@@ -122,3 +122,32 @@ def test_cmd_ai_diagnose_qualitative_report_flag(tmp_path: Path):
             mock_print.assert_any_call(
                 f"Qualitative report saved to {qualitative_report_path}"
             )
+
+
+def test_cmd_ai_diagnose_triggers_specific_rule(tmp_path: Path) -> None:
+    # 1. Create a brief.json designed to trigger the SignalPersistenceRule
+    brief_content = {
+        "signal_quality_analysis": {"signal_persistence_pct": 0.95},
+        "meta": {
+            "strategy_name": "PersistentSignalStrategy",
+            "run_id": "test_run_456",
+        },
+    }
+    brief_path = tmp_path / "brief.json"
+    brief_path.write_text(json.dumps(brief_content))
+
+    # 2. Simulate command-line arguments
+    ns = Namespace(brief=str(brief_path))
+
+    # 3. Call the command function
+    return_code = cmd_ai_diagnose(ns)
+
+    # 4. Assertions
+    assert return_code == 0
+    md_report_path = tmp_path / "ai_diagnostic_report.md"
+    assert md_report_path.exists()
+    md_content = md_report_path.read_text()
+
+    # Check that the specific rule's title and summary are in the report
+    assert "Signal Persistence Detected" in md_content
+    assert "Signals are persistent 95% of the time" in md_content

@@ -23,7 +23,15 @@ def _t(ts: datetime, pnl: float) -> Trade:
 def test_finalize_run_prefers_explicit_mc_over_config(tmp_path):
     run_path = tmp_path / "u" / "r"
     cfg = RunConfig(
-        user_id="u", run_id="r", runs_dir=tmp_path, monte_carlo={"trials": 1}
+        user_id="u",
+        run_id="r",
+        runs_dir=tmp_path,
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=10000.0,
+        position_size=1.0,
+        allow_flip_on_bar=False,
+        monte_carlo={"trials": 1},
     )
     brief_path = finalize_run(
         run_path,
