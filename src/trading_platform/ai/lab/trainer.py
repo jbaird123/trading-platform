@@ -1,7 +1,9 @@
-from typing import Tuple, List, Any
-from sklearn.ensemble import RandomForestClassifier
-import numpy as np
+from typing import Any, List, Tuple
+
 import joblib
+import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+
 
 def train_profitability_model(brief: dict) -> Tuple[Any, List[str]]:
     """
@@ -33,6 +35,7 @@ def train_profitability_model(brief: dict) -> Tuple[Any, List[str]]:
 
     # Handle missing values (simple imputation)
     from sklearn.impute import SimpleImputer
+
     imputer = SimpleImputer(strategy="mean")
     X = imputer.fit_transform(X)
 

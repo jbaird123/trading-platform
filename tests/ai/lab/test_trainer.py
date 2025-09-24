@@ -1,7 +1,8 @@
-import pytest
-import tempfile
 import os
+import tempfile
+
 from trading_platform.ai.lab import trainer
+
 
 def mock_brief():
     return {
@@ -11,6 +12,7 @@ def mock_brief():
             {"id": 3, "entry_context": {"feature1": 2.0, "feature2": 0.0}, "pnl": 3.0},
         ]
     }
+
 
 def test_train_profitability_model_and_save():
     brief = mock_brief()

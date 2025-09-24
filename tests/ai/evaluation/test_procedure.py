@@ -4,8 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from sklearn.model_selection import TimeSeriesSplit
-
-from src.trading_platform.ai.evaluation.procedure import AIEvaluationProcedure
+from trading_platform.ai.evaluation.procedure import AIEvaluationProcedure
 
 
 # Mock a simple model for testing purposes
@@ -42,10 +41,8 @@ class TestAIEvaluationProcedure:
         procedure = AIEvaluationProcedure(default_config)
         assert procedure.config == default_config
 
-    @mock.patch(
-        "src.trading_platform.ai.evaluation.procedure.get_classification_metrics"
-    )
-    @mock.patch("src.trading_platform.ai.evaluation.procedure.TimeSeriesSplit")
+    @mock.patch("trading_platform.ai.evaluation.procedure.get_classification_metrics")
+    @mock.patch("trading_platform.ai.evaluation.procedure.TimeSeriesSplit")
     def test_run_cross_validation_basic(
         self,
         mock_tscv,
@@ -83,10 +80,8 @@ class TestAIEvaluationProcedure:
         assert mock_tscv.call_count == 1
         assert mock_get_classification_metrics.call_count == 3
 
-    @mock.patch(
-        "src.trading_platform.ai.evaluation.procedure.get_classification_metrics"
-    )
-    @mock.patch("src.trading_platform.ai.evaluation.procedure.TimeSeriesSplit")
+    @mock.patch("trading_platform.ai.evaluation.procedure.get_classification_metrics")
+    @mock.patch("trading_platform.ai.evaluation.procedure.TimeSeriesSplit")
     def test_run_cross_validation_n_splits_from_config(
         self,
         mock_tscv,
@@ -115,10 +110,8 @@ class TestAIEvaluationProcedure:
         mock_tscv.assert_called_once_with(n_splits=2)
         assert mock_get_classification_metrics.call_count == 2
 
-    @mock.patch(
-        "src.trading_platform.ai.evaluation.procedure.get_classification_metrics"
-    )
-    @mock.patch("src.trading_platform.ai.evaluation.procedure.TimeSeriesSplit")
+    @mock.patch("trading_platform.ai.evaluation.procedure.get_classification_metrics")
+    @mock.patch("trading_platform.ai.evaluation.procedure.TimeSeriesSplit")
     def test_run_cross_validation_no_cv_config(
         self,
         mock_tscv,

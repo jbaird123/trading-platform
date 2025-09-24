@@ -1,6 +1,6 @@
 import logging
 
-from src.trading_platform.ai.serving.deployment_manager import AIDeploymentManager
+from trading_platform.ai.serving.deployment_manager import AIDeploymentManager
 
 # --- Tests for AIDeploymentManager ---
 

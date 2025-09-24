@@ -7,8 +7,7 @@ import mlflow
 import pandas as pd
 import pytest
 import yaml
-
-from src.trading_platform.ai.training.pipeline import AITrainingPipeline
+from trading_platform.ai.training.pipeline import AITrainingPipeline
 
 
 # Fixture for a temporary MLflow tracking URI
@@ -52,10 +51,10 @@ def minimal_training_config(tmp_path, temp_mlflow_uri):
 def mock_external_dependencies_for_e2e():
     with (
         patch(
-            "src.trading_platform.ai.training.pipeline.DataCatalog"
+            "trading_platform.ai.training.pipeline.DataCatalog"
         ) as mock_data_catalog_cls,
         patch(
-            "src.trading_platform.ai.training.pipeline.lgb", new=None
+            "trading_platform.ai.training.pipeline.lgb", new=None
         ),  # Ensure lightgbm is not imported
     ):
         # Mock DataCatalog behavior

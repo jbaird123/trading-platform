@@ -8,9 +8,8 @@ import pandas as pd
 import pytest
 import yaml
 from sklearn.ensemble import RandomForestClassifier
-
-from src.trading_platform.ai.training import pipeline as training_pipeline
-from src.trading_platform.ai.training.pipeline import AITrainingPipeline
+from trading_platform.ai.training import pipeline as training_pipeline
+from trading_platform.ai.training.pipeline import AITrainingPipeline
 
 
 # Fixtures for configuration files
@@ -97,10 +96,10 @@ def test_aitp_load_config_invalid_yaml(tmp_path):
         AITrainingPipeline(str(invalid_config_file))
 
 
-@patch("src.trading_platform.ai.training.pipeline.DataCatalog")
-@patch("src.trading_platform.ai.training.pipeline.AIDataConnector")
-@patch("src.trading_platform.ai.training.pipeline.FeatureEngineeringPipeline")
-@patch("src.trading_platform.ai.training.pipeline.DataLabeler")
+@patch("trading_platform.ai.training.pipeline.DataCatalog")
+@patch("trading_platform.ai.training.pipeline.AIDataConnector")
+@patch("trading_platform.ai.training.pipeline.FeatureEngineeringPipeline")
+@patch("trading_platform.ai.training.pipeline.DataLabeler")
 def test_aitp_load_and_prepare_data(
     mock_data_labeler_cls,
     mock_feature_pipeline_cls,
@@ -166,10 +165,10 @@ def test_aitp_load_and_prepare_data(
     assert X.index.equals(y.index)
 
 
-@patch("src.trading_platform.ai.training.pipeline.DataCatalog")
-@patch("src.trading_platform.ai.training.pipeline.AIDataConnector")
-@patch("src.trading_platform.ai.training.pipeline.FeatureEngineeringPipeline")
-@patch("src.trading_platform.ai.training.pipeline.DataLabeler")
+@patch("trading_platform.ai.training.pipeline.DataCatalog")
+@patch("trading_platform.ai.training.pipeline.AIDataConnector")
+@patch("trading_platform.ai.training.pipeline.FeatureEngineeringPipeline")
+@patch("trading_platform.ai.training.pipeline.DataLabeler")
 def test_aitp_load_and_prepare_data_with_nans(
     mock_data_labeler_cls,
     mock_feature_pipeline_cls,
@@ -203,9 +202,9 @@ def test_aitp_load_and_prepare_data_with_nans(
     assert X.index[0] == pd.to_datetime("2023-01-01")
 
 
-@patch("src.trading_platform.ai.training.pipeline.lgb")
-@patch("src.trading_platform.ai.training.pipeline.RandomForestClassifier")
-@patch("src.trading_platform.ai.training.pipeline.GridSearchCV")
+@patch("trading_platform.ai.training.pipeline.lgb")
+@patch("trading_platform.ai.training.pipeline.RandomForestClassifier")
+@patch("trading_platform.ai.training.pipeline.GridSearchCV")
 def test_aitp_train_model_lightgbm_no_tuning(
     mock_grid_search_cv, mock_rf_classifier, mock_lgb, mock_config_path
 ):
@@ -236,9 +235,9 @@ def test_aitp_train_model_lightgbm_no_tuning(
     assert trained_model == mock_lgb_classifier_instance
 
 
-@patch("src.trading_platform.ai.training.pipeline.lgb")
-@patch("src.trading_platform.ai.training.pipeline.RandomForestClassifier")
-@patch("src.trading_platform.ai.training.pipeline.GridSearchCV")
+@patch("trading_platform.ai.training.pipeline.lgb")
+@patch("trading_platform.ai.training.pipeline.RandomForestClassifier")
+@patch("trading_platform.ai.training.pipeline.GridSearchCV")
 @patch("mlflow.log_params")
 def test_aitp_train_model_lightgbm_with_tuning(
     mock_log_params, mock_grid_search_cv, mock_rf_classifier, mock_lgb, mock_config_path
@@ -286,9 +285,9 @@ def test_aitp_train_model_lightgbm_with_tuning(
     assert trained_model == mock_grid_search_instance.best_estimator_
 
 
-@patch("src.trading_platform.ai.training.pipeline.lgb")
-@patch("src.trading_platform.ai.training.pipeline.RandomForestClassifier")
-@patch("src.trading_platform.ai.training.pipeline.GridSearchCV")
+@patch("trading_platform.ai.training.pipeline.lgb")
+@patch("trading_platform.ai.training.pipeline.RandomForestClassifier")
+@patch("trading_platform.ai.training.pipeline.GridSearchCV")
 def test_aitp_train_model_random_forest_no_tuning(
     mock_grid_search_cv, mock_rf_classifier, mock_lgb, mock_config_path
 ):
@@ -319,9 +318,9 @@ def test_aitp_train_model_random_forest_no_tuning(
     assert trained_model == mock_rf_classifier_instance
 
 
-@patch("src.trading_platform.ai.training.pipeline.lgb")
-@patch("src.trading_platform.ai.training.pipeline.RandomForestClassifier")
-@patch("src.trading_platform.ai.training.pipeline.GridSearchCV")
+@patch("trading_platform.ai.training.pipeline.lgb")
+@patch("trading_platform.ai.training.pipeline.RandomForestClassifier")
+@patch("trading_platform.ai.training.pipeline.GridSearchCV")
 @patch("mlflow.log_params")
 def test_aitp_train_model_random_forest_with_tuning(
     mock_log_params, mock_grid_search_cv, mock_rf_classifier, mock_lgb, mock_config_path
@@ -390,7 +389,7 @@ def test_aitp_train_model_unsupported_type(mock_config_path):
         pipeline._train_model(X, y)
 
 
-@patch("src.trading_platform.ai.training.pipeline.lgb.LGBMClassifier")
+@patch("trading_platform.ai.training.pipeline.lgb.LGBMClassifier")
 def test_aitp_train_model_lightgbm_import_error(mock_lgbm_classifier, mock_config_path):
     # Simulate ImportError by making the constructor raise ImportError
     mock_lgbm_classifier.side_effect = ImportError(
@@ -421,12 +420,12 @@ def test_aitp_train_model_lightgbm_import_error(mock_lgbm_classifier, mock_confi
         pipeline._train_model(X, y)
 
 
-@patch("src.trading_platform.ai.training.pipeline.AIEvaluationProcedure")
+@patch("trading_platform.ai.training.pipeline.AIEvaluationProcedure")
 @patch("mlflow.log_metrics")
 @patch("mlflow.sklearn.log_model")
-@patch("src.trading_platform.ai.training.pipeline.convert_sklearn")
+@patch("trading_platform.ai.training.pipeline.convert_sklearn")
 @patch("mlflow.log_artifact")
-@patch("src.trading_platform.ai.training.pipeline.DiagnosticSynthesisEngine")
+@patch("trading_platform.ai.training.pipeline.DiagnosticSynthesisEngine")
 @patch("json.loads")
 @patch("mlflow.log_dict")
 @patch("os.remove")
@@ -518,7 +517,7 @@ def test_aitp_run(
     mock_evaluate_and_log_artifacts.assert_called_once()
 
 
-@patch("src.trading_platform.ai.training.pipeline.AITrainingPipeline")
+@patch("trading_platform.ai.training.pipeline.AITrainingPipeline")
 def test_main_script(mock_AITrainingPipeline, tmp_path):
     """
     Tests that the main function correctly instantiates and runs the pipeline.

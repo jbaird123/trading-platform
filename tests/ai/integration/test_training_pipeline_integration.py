@@ -3,8 +3,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 import yaml
-
-from src.trading_platform.ai.training.pipeline import AITrainingPipeline
+from trading_platform.ai.training.pipeline import AITrainingPipeline
 
 
 @pytest.fixture
@@ -31,14 +30,14 @@ def mock_training_config_path(tmp_path):
     return str(config_file)
 
 
-@patch("src.trading_platform.ai.training.pipeline.mlflow")
-@patch("src.trading_platform.ai.training.pipeline.AIDataConnector")
-@patch("src.trading_platform.ai.training.pipeline.FeatureEngineeringPipeline")
-@patch("src.trading_platform.ai.training.pipeline.DataLabeler")
-@patch("src.trading_platform.ai.training.pipeline.RandomForestClassifier")
-@patch("src.trading_platform.ai.training.pipeline.AIEvaluationProcedure")
-@patch("src.trading_platform.ai.training.pipeline.DiagnosticSynthesisEngine")
-@patch("src.trading_platform.ai.training.pipeline.convert_sklearn")
+@patch("trading_platform.ai.training.pipeline.mlflow")
+@patch("trading_platform.ai.training.pipeline.AIDataConnector")
+@patch("trading_platform.ai.training.pipeline.FeatureEngineeringPipeline")
+@patch("trading_platform.ai.training.pipeline.DataLabeler")
+@patch("trading_platform.ai.training.pipeline.RandomForestClassifier")
+@patch("trading_platform.ai.training.pipeline.AIEvaluationProcedure")
+@patch("trading_platform.ai.training.pipeline.DiagnosticSynthesisEngine")
+@patch("trading_platform.ai.training.pipeline.convert_sklearn")
 @patch("os.remove")
 def test_training_pipeline_integration_flow(
     mock_os_remove,
