@@ -37,22 +37,27 @@ def test_exposure_curve_tracks_gross_notional_per_bar():
     # long from bar 1 to bar 2; flat at bar 3
     sig = pd.Series(["flat", "long", "long", "flat"], index=df.index)
     config = RunConfig(
+        user_id="test",
+        run_seed=42,
+        log_level="INFO",
         initial_cash=1000.0,
         allow_flip_on_bar=False,
         warmup_bars=0,
         position_size=10000.0,
     )
     rem = RiskExitManager(config={})
-    trades, curve = run_backtest(
+    result = run_backtest(
         market_data=df,
         signals=sig,
         strategy=_dummy_strategy_cfg(),
         config=config,
         rem=rem,
         return_exposure=True,
+        return_skips=True,
     )
-    assert len(curve) == len(df)
+    trades, curve, _ = result  # type: ignore[misc]
+    assert len(curve) == len(df)  # type: ignore[arg-type]
     # Expected exposures: 0, |10000*110|, |10000*120|, 0
     expected = [0.0, 1_100_000.0, 1_200_000.0, 0.0]
-    got = [v for _, v in curve]
+    got = [v for _, v in curve]  # type: ignore[union-attr]
     assert got == approx(expected)

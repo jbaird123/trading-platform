@@ -25,33 +25,55 @@ def test_warmup_delays_first_entry_until_threshold():
     df = _mk_df(5)
     # Signals: long on first 4 bars, flat on last bar to force close
     sig = pd.Series(["long", "long", "long", "long", "flat"], index=df.index)
-    config = RunConfig(initial_cash=1000.0, warmup_bars=3)
+    config = RunConfig(
+        user_id="test",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=1000.0,
+        position_size=1.0,
+        allow_flip_on_bar=False,
+        warmup_bars=3,
+    )
     rem = RiskExitManager(config={})
-    trades = run_backtest(
+    result = run_backtest(
         market_data=df,
         signals=sig,
         strategy=_dummy_strategy_cfg(),
         config=config,
         rem=rem,
+        return_exposure=True,
+        return_skips=True,
     )
+    trades, _, _ = result  # type: ignore[misc]
     # One completed trade: entry at 4th bar, exit on 5th due to flat
-    assert len(trades) == 1
-    assert trades[0].entry_time == df.index[3]
+    assert len(trades) == 1  # type: ignore[arg-type]
+    assert trades[0].entry_time == df.index[3]  # type: ignore[index]
 
 
 @pytest.mark.req_BT_7_7
 def test_no_warmup_allows_immediate_entry():
     df = _mk_df(3)
     sig = pd.Series(["long", "flat", "flat"], index=df.index)
-    config = RunConfig(initial_cash=1000.0, warmup_bars=0)
+    config = RunConfig(
+        user_id="test",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=1000.0,
+        position_size=1.0,
+        allow_flip_on_bar=False,
+        warmup_bars=0,
+    )
     rem = RiskExitManager(config={})
-    trades = run_backtest(
+    result = run_backtest(
         market_data=df,
         signals=sig,
         strategy=_dummy_strategy_cfg(),
         config=config,
         rem=rem,
+        return_exposure=True,
+        return_skips=True,
     )
+    trades, _, _ = result  # type: ignore[misc]
     # First trade should enter at the first bar
-    assert len(trades) == 1
-    assert trades[0].entry_time == df.index[0]
+    assert len(trades) == 1  # type: ignore[arg-type]
+    assert trades[0].entry_time == df.index[0]  # type: ignore[index]

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
-import yaml  # type: ignore[import-untyped]
+import yaml
 from trading_platform.backtester.core import run_backtest
 from trading_platform.core.config import RunConfig
 from trading_platform.core.run import finalize_run
@@ -141,6 +141,16 @@ def test_brief_matches_golden_master(tmp_path: Path):
     meta = {"strategy_name": strategy.name, "run_id": run_config.run_id}
     params_snapshot = strat_cfg.get("parameters", {})
 
+    recommendations = [
+        {
+            "id": "consider_adx_filter_for_entries",
+            "title": "Consider ADX Filter for Entries",
+            "description": "The strategy has a high trade count and low win rate. Consider adding an ADX filter to entry rules to improve signal quality.",
+            "rule": "Consider ADX Filter for Entries",
+            "severity": "info",
+            "suggested_action": "Add ADX filter to entry rules.",
+        }
+    ]
     finalize_run(
         run_path=run_output_path,
         meta=meta,
@@ -151,6 +161,7 @@ def test_brief_matches_golden_master(tmp_path: Path):
         exposure_curve=exposure,
         data_quality=data_quality_report,
         skipped_trades=skips,
+        recommendations=recommendations,
     )
 
     # 6. Load both briefs and compare them

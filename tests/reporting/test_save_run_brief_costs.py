@@ -60,6 +60,8 @@ def test_save_run_brief_persists_cost_model_and_costs_aggregate(tmp_path):
 
     # Aggregated costs must match trade inputs
     total_expected = t1.cost_currency + t2.cost_currency
+    assert t1.cost_breakdown is not None
+    assert t2.cost_breakdown is not None
     breakdown_expected = {
         "spread": t1.cost_breakdown["spread"] + t2.cost_breakdown["spread"],
         "commission": t1.cost_breakdown["commission"] + t2.cost_breakdown["commission"],

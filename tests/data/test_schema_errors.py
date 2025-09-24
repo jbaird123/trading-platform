@@ -37,7 +37,7 @@ def test_load_and_normalize_handles_read_error(
     f = tmp_path / "bad.csv"
     f.write_text("garbage")
 
-    def _boom(path):  # type: ignore[no-redef]
+    def _boom(path):
         raise RuntimeError("boom")
 
     monkeypatch.setattr(pd, "read_csv", _boom)

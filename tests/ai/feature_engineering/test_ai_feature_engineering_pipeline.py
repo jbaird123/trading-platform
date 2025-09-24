@@ -1,7 +1,6 @@
 import pandas as pd
 import pytest
-
-from src.trading_platform.ai.feature_engineering.pipeline import (
+from trading_platform.ai.feature_engineering.pipeline import (
     FeatureEngineeringPipeline,
 )
 
@@ -49,7 +48,7 @@ def test_feature_engineering_pipeline_init_invalid_input():
     Ensures TypeError is raised for invalid input to the pipeline constructor.
     """
     with pytest.raises(TypeError, match="Input 'df' must be a pandas DataFrame."):
-        FeatureEngineeringPipeline([1, 2, 3])
+        FeatureEngineeringPipeline([1, 2, 3])  # type: ignore[arg-type]
 
 
 def test_add_sma_feature(sample_dataframe):

@@ -4,8 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from sklearn.model_selection import TimeSeriesSplit
-
-from src.trading_platform.ai.evaluation.procedure import AIEvaluationProcedure
+from trading_platform.ai.evaluation.procedure import AIEvaluationProcedure
 
 
 # Mock a simple model for testing purposes
@@ -34,7 +33,8 @@ def mock_model():
 
 @pytest.fixture
 def default_config():
-    return {"cross_validation": {"n_splits": 3}}
+    config: dict[str, object] = {"cross_validation": {"n_splits": 3}}
+    return config
 
 
 class TestAIEvaluationProcedure:
@@ -42,10 +42,8 @@ class TestAIEvaluationProcedure:
         procedure = AIEvaluationProcedure(default_config)
         assert procedure.config == default_config
 
-    @mock.patch(
-        "src.trading_platform.ai.evaluation.procedure.get_classification_metrics"
-    )
-    @mock.patch("src.trading_platform.ai.evaluation.procedure.TimeSeriesSplit")
+    @mock.patch("trading_platform.ai.evaluation.procedure.get_classification_metrics")
+    @mock.patch("trading_platform.ai.evaluation.procedure.TimeSeriesSplit")
     def test_run_cross_validation_basic(
         self,
         mock_tscv,
@@ -83,10 +81,8 @@ class TestAIEvaluationProcedure:
         assert mock_tscv.call_count == 1
         assert mock_get_classification_metrics.call_count == 3
 
-    @mock.patch(
-        "src.trading_platform.ai.evaluation.procedure.get_classification_metrics"
-    )
-    @mock.patch("src.trading_platform.ai.evaluation.procedure.TimeSeriesSplit")
+    @mock.patch("trading_platform.ai.evaluation.procedure.get_classification_metrics")
+    @mock.patch("trading_platform.ai.evaluation.procedure.TimeSeriesSplit")
     def test_run_cross_validation_n_splits_from_config(
         self,
         mock_tscv,
@@ -95,7 +91,7 @@ class TestAIEvaluationProcedure:
         sample_data,
     ):
         X, y = sample_data
-        config = {"cross_validation": {"n_splits": 2}}
+        config: dict[str, object] = {"cross_validation": {"n_splits": 2}}
 
         mock_tscv_instance = mock.Mock(spec=TimeSeriesSplit)
         mock_tscv.return_value = mock_tscv_instance
@@ -115,10 +111,8 @@ class TestAIEvaluationProcedure:
         mock_tscv.assert_called_once_with(n_splits=2)
         assert mock_get_classification_metrics.call_count == 2
 
-    @mock.patch(
-        "src.trading_platform.ai.evaluation.procedure.get_classification_metrics"
-    )
-    @mock.patch("src.trading_platform.ai.evaluation.procedure.TimeSeriesSplit")
+    @mock.patch("trading_platform.ai.evaluation.procedure.get_classification_metrics")
+    @mock.patch("trading_platform.ai.evaluation.procedure.TimeSeriesSplit")
     def test_run_cross_validation_no_cv_config(
         self,
         mock_tscv,
@@ -127,7 +121,7 @@ class TestAIEvaluationProcedure:
         sample_data,
     ):
         X, y = sample_data
-        config = {}  # No cross_validation key
+        config: dict[str, object] = {}  # No cross_validation key
 
         mock_tscv_instance = mock.Mock(spec=TimeSeriesSplit)
         mock_tscv.return_value = mock_tscv_instance
@@ -155,7 +149,7 @@ class TestAIEvaluationProcedure:
 
     def test_run_stress_testing_placeholder(self, mock_model, sample_data, capsys):
         X, _ = sample_data
-        config = {"run_stress_testing": True}
+        config: dict[str, bool] = {"run_stress_testing": True}
         procedure = AIEvaluationProcedure(config)
         results = procedure.run_stress_testing(mock_model, X)
 
@@ -165,7 +159,7 @@ class TestAIEvaluationProcedure:
 
     def test_run_bias_detection_placeholder(self, mock_model, sample_data, capsys):
         X, _ = sample_data
-        config = {"run_bias_detection": True}
+        config: dict[str, bool] = {"run_bias_detection": True}
         procedure = AIEvaluationProcedure(config)
         results = procedure.run_bias_detection(mock_model, X)
 
@@ -185,7 +179,7 @@ class TestAIEvaluationProcedure:
         sample_data,
     ):
         X, y = sample_data
-        config = {
+        config: dict[str, bool] = {
             "run_cross_validation": True,
             "run_stress_testing": True,
             "run_bias_detection": True,
@@ -218,7 +212,7 @@ class TestAIEvaluationProcedure:
         sample_data,
     ):
         X, y = sample_data
-        config = {"run_cross_validation": True}
+        config: dict[str, bool] = {"run_cross_validation": True}
         mock_run_cv.return_value = {"cv_results": "mocked"}
 
         procedure = AIEvaluationProcedure(config)
@@ -241,7 +235,7 @@ class TestAIEvaluationProcedure:
         sample_data,
     ):
         X, y = sample_data
-        config = {}
+        config: dict[str, bool] = {}
 
         procedure = AIEvaluationProcedure(config)
         results = procedure.run(mock_model, X, y)

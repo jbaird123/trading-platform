@@ -1,26 +1,26 @@
 import logging
 
-from src.trading_platform.ai.serving.deployment_manager import AIDeploymentManager
+from trading_platform.ai.serving.deployment_manager import AIDeploymentManager
 
 # --- Tests for AIDeploymentManager ---
 
 
 def test_adm_init_default_strategy():
-    config = {}
+    config: dict = {}
     manager = AIDeploymentManager(config)
     assert manager.config == config
     assert manager.deployment_strategy == "direct_deploy"
 
 
 def test_adm_init_specified_strategy():
-    config = {"strategy": "canary"}
+    config: dict = {"strategy": "canary"}
     manager = AIDeploymentManager(config)
     assert manager.config == config
     assert manager.deployment_strategy == "canary"
 
 
 def test_adm_deploy_new_model_direct_deploy(caplog):
-    config = {"strategy": "direct_deploy"}
+    config: dict = {"strategy": "direct_deploy"}
     manager = AIDeploymentManager(config)
     with caplog.at_level(logging.INFO):
         result = manager.deploy_new_model("model_v1")
@@ -29,7 +29,7 @@ def test_adm_deploy_new_model_direct_deploy(caplog):
 
 
 def test_adm_deploy_new_model_canary_success(caplog):
-    config = {"strategy": "canary"}
+    config: dict = {"strategy": "canary"}
     manager = AIDeploymentManager(config)
     traffic_split = {"model_v1": 0.1, "model_v0": 0.9}
     with caplog.at_level(logging.INFO):
@@ -89,7 +89,7 @@ def test_adm_deploy_new_model_unknown_strategy(caplog):
 
 
 def test_adm_evaluate_deployment_success(caplog):
-    config = {"evaluation_criteria": {"min_pnl_contribution": 100.0}}
+    config: dict = {"evaluation_criteria": {"min_pnl_contribution": 100.0}}
     manager = AIDeploymentManager(config)
     metrics_data = {"pnl_contribution": 150.0}
     with caplog.at_level(logging.INFO):
@@ -127,7 +127,7 @@ def test_adm_evaluate_deployment_missing_pnl(caplog):
 
 
 def test_adm_evaluate_deployment_no_criteria_in_config(caplog):
-    config = {}
+    config: dict = {}
     manager = AIDeploymentManager(config)
     metrics_data = {"pnl_contribution": 150.0}
     with caplog.at_level(logging.INFO):
@@ -137,7 +137,7 @@ def test_adm_evaluate_deployment_no_criteria_in_config(caplog):
 
 
 def test_adm_rollback_model(caplog):
-    config = {}
+    config: dict = {}
     manager = AIDeploymentManager(config)
     with caplog.at_level(logging.WARNING):
         result = manager.rollback_model("model_v1")

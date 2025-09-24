@@ -50,6 +50,9 @@ def test_cmd_run_backtest_else_branch(tmp_path: Path, monkeypatch) -> None:
     p = tmp_path / "cfg.json"
     p.write_text(json.dumps(cfg))
     ns = Namespace(demo=False, user="else_user", config=str(p))
-    cfg["strategy"]["parameters"] = cfg["strategy"].get("parameters", {})
+    # Ensure parameters field exists
+    strategy_dict = cfg["strategy"]
+    if isinstance(strategy_dict, dict):
+        strategy_dict["parameters"] = strategy_dict.get("parameters", {})
     rc = cli.cmd_run_backtest(ns)
     assert rc == 0 and called["finalize"]

@@ -26,17 +26,27 @@ def test_daily_loss_cap_blocks_new_entries_after_loss():
     )
     # Signals: enter long at bar 0 and bar 2
     sig = pd.Series(["long", "flat", "long"], index=df.index)
-    config = RunConfig(daily_loss_cap=5.0)
+    config = RunConfig(
+        user_id="test",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=1000.0,
+        position_size=1.0,
+        allow_flip_on_bar=False,
+        daily_loss_cap=5.0,
+    )
     rem = RiskExitManager(config={})
-    trades, _, skipped = run_backtest(
-        df,
-        sig,
+    result = run_backtest(
+        market_data=df,
+        signals=sig,
         strategy=_dummy_strategy_with_sl(10.0),
         config=config,
         rem=rem,
         return_exposure=True,
         return_skips=True,
     )
+    trades, _, skipped = result  # type: ignore[misc]
     # First trade loses 10 (stop at 90), then bar 2 attempt is skipped by cap
-    assert len(trades) == 1
-    assert any(s.get("reason_code") == "risk_cap" for s in skipped)
+    assert len(trades) == 1  # type: ignore[arg-type]
+    assert skipped is not None
+    assert any(s.get("reason_code") == "risk_cap" for s in skipped)  # type: ignore[union-attr]

@@ -28,6 +28,8 @@ skl2onnx = "^1.16.0"
 fastapi = "^0.111.0"
 uvicorn = {extras = ["standard"], version = "^0.30.1"}
 pandas-ta = "^0.4.71b0"
+joblib = "^1.5.2"
+google-generativeai = "^0.8.5"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"
@@ -38,6 +40,7 @@ ruff = "^0.4.4"
 mypy = "^1.10.0"
 pre-commit = "^3.7.1"
 pandas-stubs = "^2.2.2.240416"
+types-jsonschema = "^4.25.1.20250822"
 
 [tool.ruff]
 line-length = 88
@@ -50,6 +53,9 @@ python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 mypy_path = "src"
+check_untyped_defs = true
+warn_unused_ignores = true
+show_error_codes = true
 
 [[tool.mypy.overrides]]
 module = [
@@ -66,6 +72,8 @@ module = [
     "starlette.*",
     "multipart.*",
     "httpx.*",
+    "joblib",
+    "google.*",
 ]
 ignore_missing_imports = true
 

@@ -21,7 +21,10 @@ repos:
       - id: mypy
         language: system
         entry: poetry run mypy
-        args: [--explicit-package-bases]
+        pass_filenames: false
+        args:
+          - src
+          - tests
 
   - repo: local
     hooks:
@@ -34,5 +37,11 @@ repos:
       - id: block-ta-import
         name: Block import of ta library
         entry: bash -c 'grep -l "import ta" "$@" | xargs -r false' --
+        language: system
+        types: [python]
+
+      - id: block-src-import
+        name: Block import from src. in Python files
+        entry: bash -c 'grep -l "import src\." "$@" | xargs -r false' --
         language: system
         types: [python]

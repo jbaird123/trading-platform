@@ -25,7 +25,16 @@ def _t(ts: datetime, pnl: float) -> Trade:
 
 def test_finalize_run_writes_trades_csv(tmp_path):
     run_path = tmp_path / "u" / "r"
-    cfg = RunConfig(user_id="u", run_id="r", runs_dir=tmp_path)
+    cfg = RunConfig(
+        user_id="u",
+        run_id="r",
+        runs_dir=tmp_path,
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=10000.0,
+        position_size=1.0,
+        allow_flip_on_bar=False,
+    )
     out = finalize_run(
         run_path,
         meta={"strategy_name": "S", "run_id": "r"},

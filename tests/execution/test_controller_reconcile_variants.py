@@ -26,14 +26,18 @@ def _dummy_strategy() -> CompiledStrategy:
 def test_reconcile_warn_on_cash_delta():
     pm = PortfolioManager(initial_cash=1000.0)
     adapter = OandaStubAdapter(pm=pm)
-    # Monkeypatch snapshot to show different cash
-    adapter.account_snapshot = lambda: {
-        "open_side": None,
-        "size": 0.0,
-        "cash_balance": 1005.0,
-        "equity": 1005.0,
-        "realized_pnl_today": 0.0,
-    }
+
+    # Mock snapshot to show different cash
+    def mock_account_snapshot() -> dict[str, float | str | None]:
+        return {
+            "open_side": None,
+            "size": 0.0,
+            "cash_balance": 1005.0,
+            "equity": 1005.0,
+            "realized_pnl_today": 0.0,
+        }
+
+    adapter.account_snapshot = mock_account_snapshot  # type: ignore[method-assign]
     rep = reconcile_report(pm, adapter, cash_tolerance=1.0)
     assert rep.severity == "warn"
 

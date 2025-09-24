@@ -12,7 +12,7 @@ from pathlib import Path
 from statistics import median
 from typing import Any
 
-import jsonschema  # type: ignore
+import jsonschema
 import pandas as pd
 from trading_platform.portfolio.metrics import (
     calculate_equity_curve,
@@ -76,16 +76,16 @@ def _leaf_paths(obj: Any, prefix: str = "") -> list[str]:
     return paths
 
 
-def _round_currency(value: float | None) -> float | None:
+def _round_currency(value: float | None) -> float:
     if value is None:
-        return None
+        return 0.0
     # Use Decimal for correct rounding of currency values
     return float(Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
 
 def _round_percentage(value: float | None) -> float | None:
     if value is None:
-        return None
+        return 0.0
     # Round percentages to 3 decimal places
     return float(Decimal(str(value)).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP))
 
@@ -404,6 +404,7 @@ def generate_brief(
     signals_path: str | None = None,
     rmm_spans_path: str | None = None,
     processed_data_path: str | None = None,
+    recommendations: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Assemble a JSON brief from trades and metrics (incremental MVP)."""
     meta = meta or {}
@@ -455,6 +456,82 @@ def generate_brief(
     if processed_data_path:
         artifacts["processed_data_path"] = processed_data_path
 
+    # --- Model analysis section (placeholder logic) ---
+    tp_trades = [t for t in trades if getattr(t, "exit_reason", None) == "take_profit"]
+    sl_trades = [t for t in trades if getattr(t, "exit_reason", None) == "stop_loss"]
+    avg_pnl_left_on_table_at_tp = (
+        sum((getattr(t, "mfe_currency", 0.0) or 0.0) - t.pnl for t in tp_trades)
+        / len(tp_trades)
+        if tp_trades
+        else 0.0
+    )
+    avg_loss_avoided_by_stop = (
+        sum((getattr(t, "mae_currency", 0.0) or 0.0) - abs(t.pnl) for t in sl_trades)
+        / len(sl_trades)
+        if sl_trades
+        else 0.0
+    )
+    model_analysis = {
+        "avg_pnl_left_on_table_at_tp": _round_currency(avg_pnl_left_on_table_at_tp),
+        "avg_loss_avoided_by_stop": _round_currency(avg_loss_avoided_by_stop),
+    }
+    # --- Signal quality analysis section (placeholder logic) ---
+    # If signals_path is provided and file exists, try to load signals; else use empty
+    import os
+
+    import numpy as np
+
+    signal_quality_analysis = {
+        "signal_persistence_pct": 0.0,
+        "avg_signal_duration_bars": 0.0,
+    }
+    try:
+        signals = None
+        if signals_path and os.path.exists(signals_path):
+            import pandas as pd
+
+            signals = pd.read_parquet(signals_path)
+        # Accept Series or DataFrame with 'signal' column
+        if signals is not None:
+            if isinstance(signals, pd.DataFrame) and "signal" in signals.columns:
+                sig = signals["signal"]
+            elif isinstance(signals, pd.Series):
+                sig = signals
+            else:
+                sig = None
+            if sig is not None:
+                nonflat = sig[sig != "flat"]
+                signal_persistence_pct = (
+                    100.0 * len(nonflat) / len(sig) if len(sig) else 0.0
+                )
+                # Compute average run length of non-flat signals
+                arr = np.array(sig)
+                mask = arr != "flat"
+                if mask.any():
+                    # Find run lengths
+                    run_lengths = []
+                    current = 0
+                    for m in mask:
+                        if m:
+                            current += 1
+                        elif current > 0:
+                            run_lengths.append(current)
+                            current = 0
+                    if current > 0:
+                        run_lengths.append(current)
+                    avg_signal_duration_bars = (
+                        float(np.mean(run_lengths)) if run_lengths else 0.0
+                    )
+                else:
+                    avg_signal_duration_bars = 0.0
+                signal_quality_analysis = {
+                    "signal_persistence_pct": _round_currency(signal_persistence_pct),
+                    "avg_signal_duration_bars": _round_currency(
+                        avg_signal_duration_bars
+                    ),
+                }
+    except Exception:
+        pass
     base = {
         "meta": _to_jsonable(meta),
         "strategy_params": _to_jsonable(params),
@@ -472,6 +549,8 @@ def generate_brief(
         "parameter_search": _to_jsonable(parameter_search or {}),
         "regimes": _compute_regimes(trades, regimes_at_entry),
         "data_quality": _to_jsonable(data_quality or {}),
+        "model_analysis": model_analysis,
+        "signal_quality_analysis": signal_quality_analysis,
         # Snapshots and placeholders (configurable)
         "instrument_definitions": _to_jsonable(instrument_definitions or {}),
         "cost_model": _to_jsonable(cost_model or {}),
@@ -485,6 +564,7 @@ def generate_brief(
         "field_definitions": _to_jsonable(field_definitions or {}),
         # Trades serialized with ISO datetimes
         "trades": trades_json,
+        "recommendations": _to_jsonable(recommendations or []),
     }
     placeholders = _empty_sections()
     placeholders.update(base)
@@ -576,6 +656,7 @@ def save_run_brief(
     rmm_spans_path: str | None = None,
     processed_data_path: str | None = None,
     validate_schema: bool = False,
+    recommendations: list[dict[str, Any]] | None = None,
 ) -> Path:
     """Generate and save a brief to `run_path/brief.json`.
 
@@ -602,6 +683,7 @@ def save_run_brief(
         signals_path=signals_path,
         rmm_spans_path=rmm_spans_path,
         processed_data_path=processed_data_path,
+        recommendations=recommendations,
     )
     if validate_schema:
         try:
@@ -627,6 +709,15 @@ def compute_data_quality(df: pd.DataFrame) -> dict[str, Any]:
     nan_counts = {col: int(df[col].isna().sum()) for col in df.columns}
     result["nan_counts"] = nan_counts
     result["has_nans"] = any(nan_counts.values())
+
+    # Task 2.1–2.4: Add quality_score
+    score = 1.0
+    if result["has_nans"]:
+        score -= 0.5
+    duplicate_penalty = min(0.5, result["duplicate_bars_count"] / 1000.0)
+    score -= duplicate_penalty
+    score = max(0.0, score)
+    result["quality_score"] = score
     return result
 
 

@@ -18,7 +18,7 @@ def test_dc_vwap_and_unknown_type():
         },
         index=[datetime(2024, 1, 1, i) for i in range(4)],
     )
-    specs = [
+    specs: list[dict[str, object]] = [
         {"name": "dc", "type": "DC", "params": {"length": 2}},
         {"name": "vwap", "type": "VWAP"},
         {"name": "unknown", "type": "UNKNOWN"},

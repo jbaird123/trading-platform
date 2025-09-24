@@ -29,6 +29,8 @@ You are my coding partner for building a **Trading Platform** project. The proje
 - Don't execute any system commands without my approval.  However, repository code changes are fine as long as I can see the diffs. Another exception is it's fine to execute read-only commands (rg, ls, cat).
 - 100% test coverage is mandatory.  Write test cases for all new code.
 - Whenever you ask me what to do next, suggest either the next task in our task list, or if you have a better suggestion point out that it's not on the task list and that your suggestion is a de deviation or an improvement to the task list.
+- Never generate any line over 88 characters, including comments and docstrings.
+- Always check and wrap all lines to 88 characters before showing code or diffs.
 
 ## Your Role
 When I start a new conversation:

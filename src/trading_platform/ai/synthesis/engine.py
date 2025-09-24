@@ -1,13 +1,45 @@
 import json
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict
 
-from trading_platform.ai.synthesis.rules import DiagnosticConclusion, get_all_rules
+from trading_platform.ai.synthesis.recommendations import (
+    generate_recommendations,
+)
+from trading_platform.ai.synthesis.rules import (
+    get_all_rules,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class DiagnosticSynthesisEngine:
+    conclusions: list[Any]
+    recommendations: list[Any]
+    model_insights: list[Any]
+
+    def generate_recommendations(self) -> list[dict]:
+        """
+        Generates recommendations in the format required by `brief.json`.
+        Each recommendation is derived from a diagnostic conclusion and
+        mapped to the schema fields.
+        """
+        recommendations = []
+        for conc in self.conclusions:
+            # Map DiagnosticConclusion to recommendation schema
+            recommendations.append(
+                {
+                    "id": conc.title.lower().replace(" ", "_"),
+                    "title": conc.title,
+                    "description": conc.summary,
+                    # Placeholder: could be rule class name
+                    "rule": conc.title,
+                    # Default; can be set by rules in future
+                    "severity": "info",
+                    "suggested_action": None,
+                }
+            )
+        return recommendations
+
     """
     Consumes analysis data, runs a set of diagnostic rules, and synthesizes
     the findings into a human-readable and machine-readable report.
@@ -18,12 +50,68 @@ class DiagnosticSynthesisEngine:
         Initializes the engine with all the data required for analysis.
 
         Args:
-            analysis_data: A dictionary containing all data for analysis, e.g.,
-                           backtest metrics, model evaluation results, SHAP values, etc.
+            analysis_data: A dictionary containing all data for analysis,
+                e.g., backtest metrics, model evaluation results, SHAP values, etc.
         """
         self.analysis_data = analysis_data
         self.rules = get_all_rules()
-        self.conclusions: List[DiagnosticConclusion] = []
+        self.conclusions = []
+        self.recommendations = []
+        self.model_insights = []
+        self.suggested_parameters = {}
+
+        # Task 14.3: Integrate parameter suggestion
+        try:
+            from trading_platform.ai.lab.param_suggester import suggest_parameters
+
+            self.suggested_parameters = suggest_parameters(analysis_data)
+        except Exception as exc:
+            logger.warning(f"Failed to suggest parameters: {exc}")
+
+        # Task 13.5: Check for profitability_model.joblib and add model insights
+        from pathlib import Path
+
+        run_dir = None
+        # Try to infer run directory from brief.json location if present
+        if "meta" in analysis_data and "run_id" in analysis_data["meta"]:
+            # This assumes brief.json is in the run directory
+            run_dir = Path(analysis_data.get("_brief_path", ""))
+            if not run_dir or not run_dir.exists():
+                run_dir = None
+        # Fallback: look for model in current directory
+        model_path = Path("profitability_model.joblib")
+        if run_dir:
+            candidate = run_dir / "profitability_model.joblib"
+            if candidate.exists():
+                model_path = candidate
+        if model_path.exists():
+            try:
+                import joblib
+
+                from trading_platform.ai.lab.predictor import get_trade_insights
+
+                model = joblib.load(str(model_path))
+                # Try to get features from model if possible
+                features_any = getattr(model, "feature_names_in_", None)
+                features: list[str] = []
+                if features_any is None and "trades" in analysis_data:
+                    trades = analysis_data["trades"]
+                    if trades:
+                        features = sorted(trades[0].get("entry_context", {}).keys())
+                elif isinstance(features_any, list):
+                    features = [str(f) for f in features_any]
+                # Generate insights for each trade
+                self.model_insights = []
+                for trade in analysis_data.get("trades", [])[:10]:  # Limit for brevity
+                    insight = get_trade_insights(model, trade, features)
+                    self.model_insights.append(
+                        {
+                            "trade_id": trade.get("id"),
+                            "insight": insight,
+                        }
+                    )
+            except Exception as exc:
+                logger.warning(f"Failed to generate model insights: {exc}")
 
     def run(self) -> None:
         """Executes all diagnostic rules and stores the conclusions."""
@@ -33,40 +121,114 @@ class DiagnosticSynthesisEngine:
             conclusion = rule.evaluate(self.analysis_data)
             if conclusion:
                 self.conclusions.append(conclusion)
-                logger.info(f"  -> Conclusion found: {conclusion.title}")
+                logger.info("  -> Conclusion found: %s", conclusion.title)
+        # Generate recommendations from conclusions
+        self.recommendations = generate_recommendations(self.conclusions)
         logger.info("--- Engine run complete. ---")
 
     def generate_report_markdown(self) -> str:
-        """Generates a human-readable Markdown report of the findings."""
-        if not self.conclusions:
-            return (
-                "# AI Diagnostic Report\n\nNo specific issues were "
-                "detected by the diagnostic rules."
-            )
-
+        """
+        Generates a human-readable Markdown report of the findings.
+        """
         report_parts = ["# AI Diagnostic Report\n"]
-        for conc in self.conclusions:
-            report_parts.append(f"## {conc.title}")
-            report_parts.append(f"{conc.summary}\n")
-            report_parts.append("**Evidence:**")
-            evidence_json = json.dumps(conc.evidence, indent=2)
-            report_parts.append(f"```json\n{evidence_json}\n```")
 
+        # Suggested Parameters section
+        if self.suggested_parameters:
+            report_parts.append("## Suggested Parameters\n")
+            for k, v in self.suggested_parameters.items():
+                report_parts.append(f"- {k}: {v}")
+            report_parts.append("")
+
+        # Recommendations at the top (actionable first)
+        if self.recommendations:
+            report_parts.append("## Recommendations\n")
+            for rec in self.recommendations:
+                report_parts.append(f"### {rec.title}")
+                report_parts.append(f"{rec.summary}")
+                report_parts.append("")
+                report_parts.append(f"- Category: {rec.category}")
+                report_parts.append(f"- Confidence: {rec.confidence}")
+                report_parts.append("")
+
+        # Model Insights section
+        if self.model_insights:
+            report_parts.append("## Model Insights\n")
+            for insight in self.model_insights:
+                report_parts.append(f"### Trade ID: {insight['trade_id']}")
+                pred = insight["insight"].get("predicted_profitable")
+                prob = insight["insight"].get("predicted_probability")
+                report_parts.append(f"- Predicted Profitable: {pred}")
+                report_parts.append(f"- Predicted Probability: {prob}")
+                report_parts.append("- Feature Importances:")
+                fi = insight["insight"].get("feature_importances", {})
+                for k, v in fi.items():
+                    report_parts.append(f"    - {k}: {v}")
+                report_parts.append("")
+
+        # Remove extra newline between recommendations and conclusions
+        if (self.conclusions and self.recommendations) or self.model_insights:
+            report_parts.pop()
+            report_parts.append("")
+
+        # Conclusions with structured evidence
+        if not self.conclusions:
+            report_parts.append(
+                "No specific issues were detected by the diagnostic rules."
+            )
+        else:
+            for conc in self.conclusions:
+                report_parts.append(f"## {conc.title}")
+                report_parts.append(f"{conc.summary}\n")
+                report_parts.append("**Evidence:**")
+                # Render evidence as a bulleted list for readability.
+                if isinstance(conc.evidence, dict) and conc.evidence:
+                    for key, value in conc.evidence.items():
+                        # Simple scalar types inline, complex types as JSON block
+                        if isinstance(value, (str, int, float, bool)) or value is None:
+                            report_parts.append(f"- {key}: {value}")
+                        else:
+                            report_parts.append(f"- {key}:")
+                            report_parts.append("")
+                            report_parts.append(
+                                f"```json\n{json.dumps(value, indent=2)}\n```"
+                            )
+                else:
+                    # Fallback to JSON if evidence is not a dict
+                    evidence_json = json.dumps(conc.evidence, indent=2)
+                    report_parts.append(f"```json\n{evidence_json}\n```")
         return "\n".join(report_parts)
 
     def generate_report_json(self) -> str:
-        """Generates a machine-readable JSON report of the findings."""
-        return json.dumps([conc.to_dict() for conc in self.conclusions], indent=2)
+        """
+        Generates a machine-readable JSON report of the findings,
+        including recommendations and model insights.
+        """
+        return json.dumps(
+            {
+                "conclusions": [conc.to_dict() for conc in self.conclusions],
+                "recommendations": [rec.__dict__ for rec in self.recommendations],
+                "model_insights": self.model_insights,
+                "suggested_parameters": self.suggested_parameters,
+            },
+            indent=2,
+        )
 
 
 if __name__ == "__main__":
     # Example Usage
-    # This demonstrates how the engine would be used after a training/evaluation run.
+    # This demonstrates how the engine would be used after a training/
+    # evaluation run.
 
     # 1. Create dummy analysis data
     dummy_data = {
-        "backtest_metrics": {"n_trades": 650, "win_rate": 0.51, "sharpe_ratio": -0.2},
-        "model_analysis": {"avg_pnl_left_on_table_at_tp": 15.50},
+        "backtest_metrics": {
+            "n_trades": 650,
+            "win_rate": 0.51,
+            "sharpe_ratio": -0.2,
+        },
+        "model_analysis": {
+            "avg_pnl_left_on_table_at_tp": 15.50,
+        },
     }
 
     # 2. Initialize and run the engine

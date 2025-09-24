@@ -40,35 +40,53 @@ def _df():
 def test_cap_not_reached_no_skip_when_already_open():
     df = _df()
     sig = pd.Series(["long", "long"], index=df.index)
-    config = RunConfig(pm_limits={"max_open_long": 2})
+    config = RunConfig(
+        user_id="test",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=1000.0,
+        position_size=1.0,
+        allow_flip_on_bar=False,
+        pm_limits={"max_open_long": 2},
+    )
     rem = RiskExitManager(config={})
-    trades, _, skipped = run_backtest(
-        df,
-        sig,
+    result = run_backtest(
+        market_data=df,
+        signals=sig,
         strategy=_dummy_strategy(),
         config=config,
         rem=rem,
         return_exposure=True,
         return_skips=True,
     )
+    trades, _, skipped = result  # type: ignore[misc]
     # No skip due to cap; still no closed trades with flat prices
-    assert len(trades) == 0
-    assert not any(s.get("reason_code") == "position_cap" for s in skipped)
+    assert len(trades) == 0  # type: ignore[arg-type]
+    assert not any(s.get("reason_code") == "position_cap" for s in skipped)  # type: ignore[union-attr]
 
 
 def test_cap_zero_blocks_new_entry():
     df = _df()
     sig = pd.Series(["long", "long"], index=df.index)
-    config = RunConfig(pm_limits={"max_open_long": 0})
+    config = RunConfig(
+        user_id="test",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=1000.0,
+        position_size=1.0,
+        allow_flip_on_bar=False,
+        pm_limits={"max_open_long": 0},
+    )
     rem = RiskExitManager(config={})
-    trades, _, skipped = run_backtest(
-        df,
-        sig,
+    result = run_backtest(
+        market_data=df,
+        signals=sig,
         strategy=_dummy_strategy(),
         config=config,
         rem=rem,
         return_exposure=True,
         return_skips=True,
     )
+    trades, _, skipped = result  # type: ignore[misc]
     # First attempt skipped due to cap 0
-    assert any(s.get("reason_code") == "position_cap" for s in skipped)
+    assert any(s.get("reason_code") == "position_cap" for s in skipped)  # type: ignore[union-attr]

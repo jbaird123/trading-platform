@@ -54,9 +54,8 @@ long_exit_rules:
         left:
           ref: rsi
         right: 30
-  - stop_loss:
-      value: 0.0150
-      type: price
+# Risk exits (stop-loss / take-profit) must be configured in the REM
+# (Risk & Exit Manager) via RunConfig.rem_config, not in the strategy.
 short_entry_rules:
   - all_of:
       - condition: is_below
@@ -83,6 +82,3 @@ short_exit_rules:
         left:
           ref: rsi
         right: 70
-  - stop_loss:
-      value: 0.0150
-      type: price

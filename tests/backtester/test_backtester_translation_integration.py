@@ -14,6 +14,12 @@ def test_backtester_with_rem_pips_stop_loss():
     """
     # 1. Configuration with a native REM rule
     config = RunConfig(
+        user_id="test_user",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=10000.0,
+        position_size=1.0,
+        allow_flip_on_bar=False,
         rem_config={"stop_loss": {"pips": 50}},
         instrument={"pip_location": 0.0001},  # For EUR_USD style
     )

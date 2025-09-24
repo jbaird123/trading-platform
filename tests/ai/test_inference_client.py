@@ -4,8 +4,7 @@ from unittest import mock
 import httpx
 import pandas as pd
 import pytest
-
-from src.trading_platform.ai.inference_client import AIInferenceClient
+from trading_platform.ai.inference_client import AIInferenceClient
 
 
 @pytest.fixture

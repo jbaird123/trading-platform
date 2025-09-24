@@ -7,8 +7,7 @@ import mlflow
 import pandas as pd
 import pytest
 import yaml
-
-from src.trading_platform.ai.training.pipeline import AITrainingPipeline
+from trading_platform.ai.training.pipeline import AITrainingPipeline
 
 
 # Fixture for a temporary MLflow tracking URI
@@ -52,10 +51,10 @@ def minimal_training_config(tmp_path, temp_mlflow_uri):
 def mock_external_dependencies_for_e2e():
     with (
         patch(
-            "src.trading_platform.ai.training.pipeline.DataCatalog"
+            "trading_platform.ai.training.pipeline.DataCatalog"
         ) as mock_data_catalog_cls,
         patch(
-            "src.trading_platform.ai.training.pipeline.lgb", new=None
+            "trading_platform.ai.training.pipeline.lgb", new=None
         ),  # Ensure lightgbm is not imported
     ):
         # Mock DataCatalog behavior
@@ -129,7 +128,8 @@ def test_full_training_pipeline_e2e_minimal(minimal_training_config, temp_mlflow
     # Assertions for MLflow run completion and artifacts
     runs = mlflow.search_runs(experiment_names=["E2E Training Test"])
     assert len(runs) == 1
-    run_id = runs.iloc[0].run_id
+    runs_df = pd.DataFrame(runs) if not isinstance(runs, pd.DataFrame) else runs
+    run_id = runs_df.iloc[0].run_id
 
     # Verify artifacts
     client = mlflow.tracking.MlflowClient(tracking_uri=temp_mlflow_uri)
@@ -152,7 +152,7 @@ def test_full_training_pipeline_e2e_minimal(minimal_training_config, temp_mlflow
     assert len(prediction) == 1
 
     # Verify ONNX model can be loaded (basic check, not full inference)
-    experiment_id = runs.iloc[0].experiment_id
+    experiment_id = runs_df.iloc[0].experiment_id
     onnx_artifact_path = os.path.join(
         temp_mlflow_uri,
         experiment_id,
@@ -165,7 +165,7 @@ def test_full_training_pipeline_e2e_minimal(minimal_training_config, temp_mlflow
     # Further ONNX validation would require onnxruntime, which might not be in test env
 
     # Verify diagnostic synthesis results content (basic check)
-    experiment_id = runs.iloc[0].experiment_id
+    experiment_id = runs_df.iloc[0].experiment_id
     diagnostic_results_path = os.path.join(
         temp_mlflow_uri,
         experiment_id,
@@ -176,4 +176,6 @@ def test_full_training_pipeline_e2e_minimal(minimal_training_config, temp_mlflow
     assert os.path.exists(diagnostic_results_path)
     with open(diagnostic_results_path) as f:
         results = json.load(f)
-        assert isinstance(results, list)  # Check for expected type from real engine
+        assert isinstance(results, dict)
+        assert "conclusions" in results
+        assert "recommendations" in results

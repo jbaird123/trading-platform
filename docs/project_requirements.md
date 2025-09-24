@@ -358,6 +358,17 @@ _Last updated: 2025-09-16_
         - **Error Handling:** Critical: Implement robust retry mechanisms, circuit breakers, and fallback strategies. Alerts for AI module failures.
         - **Security:** Authentication, authorization, and encryption for real-time data streams.
 
+- **[AI-10.6] Dual-Engine Analysis Architecture**: The AI Lab will employ a hybrid analysis model consisting of two distinct engines:
+    - **[AI-10.6.1] Quantitative Engine (`DiagnosticSynthesisEngine`)**: This engine is deterministic and rule-based. It is responsible for executing a series of pre-defined checks to identify specific, known anti-patterns and quantitative flaws in a backtest. Its output must be structured, machine-readable (JSON), and 100% reproducible.
+    - **[AI-10.6.2] Qualitative Engine (`LLMAnalysisEngine`)**: This engine is responsible for providing high-level, narrative feedback on strategy structure and performance. It will use an external Large Language Model (LLM) to analyze the backtest brief and generate human-readable, qualitative insights that are not easily captured by deterministic rules.
+    - **[AI-10.6.3] Separation of Concerns**: The outputs of the two engines must be strictly separated. The quantitative engine produces a deterministic `ai_diagnostic_report.json`, while the qualitative engine produces a non-deterministic `ai_qualitative_report.md`.
+
+- **[AI-10.7] Optional, User-Initiated Qualitative Analysis**:
+    - **[AI-10.7.1]** The qualitative analysis performed by the `LLMAnalysisEngine` must be an optional, user-initiated feature. It shall be triggered via a dedicated command-line flag (e.g., `--qualitative-report`) in the `ai-diagnose` command.
+    - **[AI-10.7.2]** This feature may incur external API costs and introduce network latency. This directly relates to `[SYS-12.1]` and `[SYS-12.2]`, and the user must opt-in to use it.
+    - **[AI-10.7.3]** The CLI help text for this feature must include a clear warning that it sends backtest data to a third-party API and may incur costs.
+    - **[AI-10.7.4]** API credentials for the LLM service must be managed securely via environment variables, in accordance with `[SYS-13.1]`.
+
 ### Future Enhancements
 - **[AI-F.1]** **Analysis & Recommendations**:
   - **[AI-F.1.1]** Identify performance clusters (winning and losing) based on features, regimes, etc. ([AI-10.2.1]).
@@ -386,7 +397,12 @@ _Last updated: 2025-09-16_
 - **[JSON-11.9]** **costs**: `{total_costs, avg_cost_per_trade, breakdown: {spread, commission, slippage}}`.
 - **[JSON-11.10]** **exposure**: `{average_gross_exposure, peak_gross_exposure}`.
 - **[JSON-11.11]** **regimes**: A dictionary mapping each regime label to its performance breakdown.
-- **[JSON-11.12]** **data_quality**: `{loader_flags, index_monotonic_increasing, duplicate_bars_count, nan_counts, has_nans}`.
+- **[JSON-11.12]** **data_quality**: `{loader_flags, index_monotonic_increasing, duplicate_bars_count, nan_counts, has_nans, quality_score}`.
+- **[JSON-11.31]** **recommendations**: An array of recommendation objects, each with:
+  - `title`: The actionable recommendation title.
+  - `summary`: Description of the recommendation.
+  - `category`: Category (e.g., "Entry Logic", "Exit Logic", "Risk Management").
+  - `confidence`: Float between 0.0 and 1.0 indicating confidence in the recommendation.
 - **[JSON-11.13]** **provenance**: `{run_id, strategy_name, data_start, data_end, symbols, app_version, git_commit, run_seed}`.
 - **[JSON-11.14]** **environment**: `{python_version, platform, timezone, dependency_versions}`.
 - **[JSON-11.15]** **trades**: An array of trade objects, each with full details including `pnl`, `entry_time`, `exit_time`, `mfe_currency`, `mae_currency`, etc. See [JSON-11.30] for the detailed trade object schema.
@@ -412,9 +428,6 @@ _Last updated: 2025-09-16_
 
 
 ### Future Enhancements
-- **[JSON-F.1]** Add **monte_carlo** resampling stats.
-- **[JSON-F.2]** Add **walk_forward** rolling OOS stats.
-- **[JSON-F.3]** Add **parameter_search** results.
 - **[JSON-F.4]** Add **stationarity** test results (ADF, KPSS, etc.).
 - **[JSON-F.5]** Add **feature_analysis** (correlation matrix, importance scores).
 - **[JSON-F.6]** Add **explainability fields** (feature attribution, etc.).
@@ -452,7 +465,7 @@ _Last updated: 2025-09-16_
 - **[NOTE-14.5]** Backtester tie-break rule for REM exits: `stop_then_tp` default.
 - **[NOTE-14.6]** Repo may need splitting to satisfy SonarQube LOC cap.
 - **[NOTE-14.7]** JSON serialization: `Timestamp` → ISO8601; `Timedelta` → seconds.
-- **[NOTE-14.8]** AI briefs must include recommendations in machine-readable JSON.
+- **[NOTE-14.8]** AI briefs must include recommendations in machine-readable JSON. See [JSON-11.31] for schema.
 - **[NOTE-14.9]** **Cost Model Canonical Shape** (applies to BT & EL):
   - The platform uses a single, canonical cost model shape.
   - See definition for `spread_per_unit`, `slippage_per_unit`, and `commission`.

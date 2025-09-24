@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any, cast
 
 import pandas as pd
 from trading_platform.backtester.core import run_backtest
 from trading_platform.core.config import RunConfig
+from trading_platform.portfolio.trade import Trade
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
@@ -40,7 +42,14 @@ def _strat() -> CompiledStrategy:
 def test_rmm_blocks_disallowed_side_and_logs_skip():
     df = _df()
     sig = pd.Series(["long", "flat"], index=df.index)
-    cfg = RunConfig(initial_cash=1000.0)
+    cfg = RunConfig(
+        user_id="test",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=1000.0,
+        position_size=1.0,
+        allow_flip_on_bar=False,
+    )
     rem = RiskExitManager(config={})
 
     # RMM context disallows 'long' at first bar
@@ -52,7 +61,7 @@ def test_rmm_blocks_disallowed_side_and_logs_skip():
             "policy": {"min_confidence": 0.5},
         }
     }
-    trades, _exp, skips = run_backtest(
+    result = run_backtest(
         market_data=df,
         signals=sig,
         strategy=_strat(),
@@ -60,8 +69,13 @@ def test_rmm_blocks_disallowed_side_and_logs_skip():
         rem=rem,
         rmm_context=rmm_ctx,
         return_skips=True,
+        return_exposure=True,
     )
+    trades, _, skips = result  # type: ignore[misc]
+    trades = cast(list[Trade], trades)
+    skips = cast(list[dict[str, Any]], skips)
     assert len(trades) == 0
+    assert skips is not None
     assert any(s.get("reason_code") == "rmm_block" for s in skips)
     s0 = next(s for s in skips if s.get("reason_code") == "rmm_block")
     assert s0.get("regime", {}).get("label") == "trend_down"

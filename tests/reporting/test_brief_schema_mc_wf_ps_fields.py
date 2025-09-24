@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import jsonschema  # type: ignore
+import jsonschema
 
 
 def test_brief_schema_accepts_mc_wf_ps_enumerated_fields():

@@ -11,6 +11,7 @@ from typing import Any, cast
 
 import pandas as pd
 
+from trading_platform.ai.synthesis.engine import DiagnosticSynthesisEngine
 from trading_platform.backtester.core import run_backtest
 from trading_platform.core.config import RunConfig
 from trading_platform.core.demo import generate_demo_run
@@ -52,13 +53,13 @@ def _load_config(path: Path) -> dict[str, Any]:
     txt = path.read_text()
     if path.suffix.lower() in {".yaml", ".yml"}:
         try:
-            import yaml  # type: ignore[import-untyped]
+            import yaml
         except Exception as exc:  # pragma: no cover
             raise SystemExit(
                 "YAML config provided but PyYAML is not installed. "
                 "Install pyyaml or use JSON."
             ) from exc
-        return dict(yaml.safe_load(txt))  # type: ignore[no-any-return]
+        return dict(yaml.safe_load(txt))
     return dict(json.loads(txt))
 
 
@@ -111,7 +112,8 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     # Strategy can be embedded or referenced via a separate YAML/JSON file
     strat_cfg = cfg_raw.get("strategy") or {
         "strategy_name": "CLI_Default",
-        "entry_rules": [
+        # Minimal long-only example matching strategy.schema.json
+        "long_entry_rules": [
             {
                 "any_of": [
                     {
@@ -122,7 +124,7 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
                 ]
             }
         ],
-        "exit_rules": [
+        "long_exit_rules": [
             {
                 "any_of": [
                     {
@@ -133,6 +135,9 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
                 ]
             }
         ],
+        # Keep shorts empty for the default; schema accepts long-only
+        "short_entry_rules": [],
+        "short_exit_rules": [],
     }
     # Optional fast-mode: limit dataset for quicker iterations
     fast_mode = cfg_raw.get("fast_mode") or {}
@@ -413,6 +418,64 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_ai_diagnose(args: argparse.Namespace) -> int:
+    if not args.brief:
+        raise ValueError("--brief is required")
+
+    brief_path = Path(args.brief)
+    if not brief_path.exists():
+        raise ValueError(f"No such file: {brief_path}")
+
+    try:
+        with open(brief_path) as f:
+            brief_data = json.load(f)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Error decoding brief.json: {e}")
+
+    # Map brief.json structure to what DiagnosticSynthesisEngine expects
+    analysis_data = brief_data
+
+    # Task 13.4: Train model if requested
+    if getattr(args, "train_model", False):
+        from trading_platform.ai.lab.trainer import (
+            save_model,
+            train_profitability_model,
+        )
+
+        model, features = train_profitability_model(brief_data)
+        model_path = brief_path.parent / "profitability_model.joblib"
+        save_model(model, str(model_path))
+        print(f"Profitability model saved to {model_path}")
+
+    engine = DiagnosticSynthesisEngine(analysis_data=analysis_data)
+    engine.run()
+
+    output_dir = brief_path.parent
+    (output_dir / "ai_diagnostic_report.md").write_text(
+        engine.generate_report_markdown()
+    )
+    (output_dir / "ai_diagnostic_report.json").write_text(engine.generate_report_json())
+
+    # Task 4: Qualitative LLM report generation
+    if getattr(args, "qualitative_report", False):
+        print("Generating qualitative report via LLM...")
+        try:
+            from trading_platform.ai.llm_analysis.client import LlmApiClient
+            from trading_platform.ai.llm_analysis.engine import LLMAnalysisEngine
+
+            client = LlmApiClient()
+            llm_engine = LLMAnalysisEngine(brief_data=brief_data, client=client)
+            feedback = llm_engine.run()
+            report_path = output_dir / "ai_qualitative_report.md"
+            report_path.write_text(feedback)
+            print(f"Qualitative report saved to {report_path}")
+        except Exception as e:
+            print(f"Could not generate qualitative report: {e}", file=sys.stderr)
+
+    print(f"AI diagnostic reports saved to {output_dir}")
+    return 0
+
+
 def cmd_run_live(args: argparse.Namespace) -> int:
     if args.dry_run:
         print("Live controller (dry-run): OK")
@@ -550,6 +613,21 @@ def main() -> int:
     po.add_argument("--last", type=int, default=1, help="Pick Nth latest run")
     po.add_argument("--open", action="store_true", help="Open in browser")
     po.set_defaults(func=cmd_open_chart)
+
+    pad = sub.add_parser("ai-diagnose", help="Run AI diagnostic analysis on a brief")
+    pad.add_argument("--brief", help="Path to brief.json file")
+    pad.add_argument(
+        "--train-model",
+        action="store_true",
+        help="Train ML profitability model and save to run directory",
+    )
+    pad.add_argument(
+        "--qualitative-report",
+        action="store_true",
+        help="Generate a qualitative report using an external LLM. "
+        "WARNING: This sends run data to a third-party API and may incur costs.",
+    )
+    pad.set_defaults(func=cmd_ai_diagnose)
 
     args = p.parse_args()
     return int(args.func(args))

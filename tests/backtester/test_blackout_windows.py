@@ -36,7 +36,15 @@ def test_static_blackout_blocks_new_entries_but_allows_other_ops():
     # Signal attempts long at each bar
     signals = pd.Series(["long", "long", "long", "long"], index=df.index)
     # Blackout 23:00–01:00 UTC should block bars at 23:30 and 00:30
-    config = RunConfig(initial_cash=1000.0, blackout_utc=[("23:00", "01:00")])
+    config = RunConfig(
+        user_id="test_user",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=1000.0,
+        position_size=1.0,
+        allow_flip_on_bar=False,
+        blackout_utc=[("23:00", "01:00")],
+    )
     rem = RiskExitManager(config={})
     trades = run_backtest(
         market_data=df,

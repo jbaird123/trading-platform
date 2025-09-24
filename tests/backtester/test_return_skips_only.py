@@ -31,15 +31,23 @@ def test_return_skips_without_exposure():
         {"open": [1], "high": [1], "low": [1], "close": [1], "volume": [1]}, index=idx
     )
     sig = pd.Series(["long"], index=df.index)
-    config = RunConfig()
+    config = RunConfig(
+        user_id="test",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=1000.0,
+        position_size=1.0,
+        allow_flip_on_bar=False,
+    )
     rem = RiskExitManager(config={})
-    trades, exposure, skipped = run_backtest(
-        df,
-        sig,
+    result = run_backtest(
+        market_data=df,
+        signals=sig,
         strategy=_dummy_strategy(),
         config=config,
         rem=rem,
         return_exposure=False,
         return_skips=True,
     )
+    trades, exposure, skipped = result  # type: ignore[misc]
     assert exposure == [] and isinstance(skipped, list)
