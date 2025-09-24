@@ -1,5 +1,6 @@
 import json
 import logging
+from typing import Any, Dict
 from unittest.mock import MagicMock, patch
 
 from trading_platform.ai.synthesis.engine import DiagnosticSynthesisEngine
@@ -285,3 +286,33 @@ def test_dse_generate_report_markdown_with_recommendations():
         assert "Rec Summary" in report
         assert "- Category: Test Category" in report
         assert "- Confidence: 0.99" in report
+
+
+def test_engine_with_empty_brief():
+    """Test DiagnosticSynthesisEngine with empty analysis_data."""
+    analysis_data: Dict[str, Any] = {}
+
+    with patch("trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]):
+        engine = DiagnosticSynthesisEngine(analysis_data)
+        engine.run()
+        assert engine.conclusions == []
+        assert engine.recommendations == []
+
+
+def test_engine_with_brief_missing_trades():
+    """Test engine with a brief that has no trades key."""
+    # Initialize engine with analysis data missing trades key
+    analysis_data = {"backtest_metrics": {"n_trades": 0, "win_rate": 0.0}}
+
+    with patch("trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]):
+        engine = DiagnosticSynthesisEngine(analysis_data)
+        engine.run()
+
+        # Generate JSON report to check model_insights
+        report_json_str = engine.generate_report_json()
+        report_data = json.loads(report_json_str)
+
+        # Assert that engine runs successfully and model_insights is empty list
+        assert report_data["model_insights"] == []
+        assert engine.conclusions == []
+        assert engine.recommendations == []

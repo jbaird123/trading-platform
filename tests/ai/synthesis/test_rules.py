@@ -1,8 +1,12 @@
 # --- Imports ---
+from typing import Any, Dict
+
 from trading_platform.ai.synthesis.rules import (
+    DataQualityImpactRule,
     DiagnosticConclusion,
     InefficientExitsRule,
     LowWinRateHighTradesRule,
+    MarketRegimeMismatchRule,
     SignalPersistenceRule,
     StrategyParameterOptimizationOpportunityRule,
     get_all_rules,
@@ -100,11 +104,28 @@ def test_low_win_rate_high_trades_rule_not_triggered_high_win_rate():
     assert conclusion is None
 
 
-def test_low_win_rate_high_trades_rule_missing_metrics():
+def test_low_win_rate_high_trades_rule_missing_key():
+    """Rule should return None when analysis_data missing required keys."""
+    analysis_data: Dict[str, Any] = {}
     rule = LowWinRateHighTradesRule()
-    analysis_data: dict = {}
-    conclusion = rule.evaluate(analysis_data)
-    assert conclusion is None
+    result = rule.evaluate(analysis_data)
+    assert result is None
+
+
+def test_market_regime_mismatch_rule_missing_key():
+    """Rule should return None when analysis_data missing required keys."""
+    analysis_data: Dict[str, Any] = {}
+    rule = MarketRegimeMismatchRule()
+    result = rule.evaluate(analysis_data)
+    assert result is None
+
+
+def test_data_quality_impact_rule_missing_key():
+    """Rule should return None when analysis_data missing required keys."""
+    analysis_data: Dict[str, Any] = {}
+    rule = DataQualityImpactRule()
+    result = rule.evaluate(analysis_data)
+    assert result is None
 
 
 # --- Tests for DiagnosticConclusion ---
