@@ -2,7 +2,7 @@ from trading_platform.ai.lab.param_suggester import suggest_parameters
 
 
 def test_suggest_parameters_best_result():
-    brief = {
+    brief: dict = {
         "parameter_search": {
             "results": [
                 {"parameters": {"a": 1, "b": 2}, "objective_score": 0.5},
@@ -16,12 +16,12 @@ def test_suggest_parameters_best_result():
 
 
 def test_suggest_parameters_no_results():
-    brief = {"parameter_search": {"results": []}}
+    brief: dict = {"parameter_search": {"results": []}}
     result = suggest_parameters(brief)
     assert result == {}
 
 
 def test_suggest_parameters_missing_section():
-    brief = {}
+    brief: dict = {}
     result = suggest_parameters(brief)
     assert result == {}

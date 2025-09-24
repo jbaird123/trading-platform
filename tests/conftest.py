@@ -22,11 +22,11 @@ def market_data(columns: str) -> dict:
     end = datetime(2023, 1, 2)
     freq = pd.to_timedelta("1h")
     idx = pd.date_range(start, end, freq=freq)
-    df = pd.DataFrame(index=idx)
+    df: pd.DataFrame = pd.DataFrame(index=idx)
     for raw in columns.split(", "):
         col = raw.strip().strip('"')
         df[col] = 100.0
-    signals = pd.Series("flat", index=idx)
+    signals: pd.Series = pd.Series("flat", index=idx)
     return {"market_data": df, "signals": signals}
 
 
@@ -49,7 +49,7 @@ def when_backtest_is_run(shared_context: dict) -> None:
         }
     else:
         strategy = _dummy_strategy_cfg()
-        rem_config = {}
+    rem_config: dict = {}
 
     config = RunConfig(
         user_id="test_user",
@@ -80,7 +80,7 @@ def a_signal_series(signal_list: str, shared_context: dict) -> None:
 
     idx = shared_context["market_data"].index
     # Default to all 'flat' unless overridden by later steps.
-    signals = pd.Series("flat", index=idx)
+    signals: pd.Series = pd.Series("flat", index=idx)
     shared_context["signals"] = signals
 
 
@@ -110,8 +110,8 @@ def a_market_data_series_with_indicators() -> dict:
     end = datetime(2023, 1, 2)
     freq = pd.to_timedelta("1h")
     idx = pd.date_range(start, end, freq=freq)
-    md = pd.DataFrame(index=idx)
-    sig = pd.Series("flat", index=idx)
+    md: pd.DataFrame = pd.DataFrame(index=idx)
+    sig: pd.Series = pd.Series("flat", index=idx)
     return {"market_data": md, "signals": sig}
 
 
@@ -230,10 +230,10 @@ def when_strategy_generates_signals(shared_context: dict) -> None:
         return
     idx = shared_context["market_data"].index
     prev, curr = idx[-2], idx[-1]
-    ef_prev = float(features.loc[prev, "ema_fast"])  # type: ignore[index]
-    es_prev = float(features.loc[prev, "ema_slow"])  # type: ignore[index]
-    ef_curr = float(features.loc[curr, "ema_fast"])  # type: ignore[index]
-    es_curr = float(features.loc[curr, "ema_slow"])  # type: ignore[index]
+    ef_prev = float(features.loc[prev, "ema_fast"])
+    es_prev = float(features.loc[prev, "ema_slow"])
+    ef_curr = float(features.loc[curr, "ema_fast"])
+    es_curr = float(features.loc[curr, "ema_slow"])
     if ef_prev <= es_prev and ef_curr > es_curr:
         signal = "long"
     elif ef_prev >= es_prev and ef_curr < es_curr:
@@ -301,7 +301,7 @@ def when_data_loaded_and_normalized(shared_context: dict, tmp_path) -> None:
             }
         ]
 
-    df = pd.DataFrame(data, columns=columns or None)
+    df: pd.DataFrame = pd.DataFrame(data, columns=columns or None)
     path = Path(tmp_path) / "bdd_input.csv"
     df.to_csv(path, index=False)
     out_df, flags = load_and_normalize_data(path)
@@ -355,7 +355,7 @@ def then_df_empty(shared_context: dict) -> None:
 def given_indicator_value(name: str, value: float, shared_context: dict) -> None:
     feats = shared_context.get("rmm_features")
     if feats is None:
-        feats = {}
+        feats = {}  # type: dict
         shared_context["rmm_features"] = feats
     feats[name] = value
 

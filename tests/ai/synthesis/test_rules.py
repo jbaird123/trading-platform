@@ -88,21 +88,21 @@ def test_low_win_rate_high_trades_rule_triggered():
 
 def test_low_win_rate_high_trades_rule_not_triggered_low_trades():
     rule = LowWinRateHighTradesRule(win_rate_threshold=0.55, n_trades_threshold=100)
-    analysis_data = {"backtest_metrics": {"n_trades": 80, "win_rate": 0.50}}
+    analysis_data: dict = {"backtest_metrics": {"n_trades": 80, "win_rate": 0.50}}
     conclusion = rule.evaluate(analysis_data)
     assert conclusion is None
 
 
 def test_low_win_rate_high_trades_rule_not_triggered_high_win_rate():
     rule = LowWinRateHighTradesRule(win_rate_threshold=0.55, n_trades_threshold=100)
-    analysis_data = {"backtest_metrics": {"n_trades": 150, "win_rate": 0.60}}
+    analysis_data: dict = {"backtest_metrics": {"n_trades": 150, "win_rate": 0.60}}
     conclusion = rule.evaluate(analysis_data)
     assert conclusion is None
 
 
 def test_low_win_rate_high_trades_rule_missing_metrics():
     rule = LowWinRateHighTradesRule()
-    analysis_data = {}
+    analysis_data: dict = {}
     conclusion = rule.evaluate(analysis_data)
     assert conclusion is None
 
@@ -134,7 +134,7 @@ def test_diagnostic_conclusion_to_dict():
 
 def test_inefficient_exits_rule_triggered():
     rule = InefficientExitsRule()
-    analysis_data = {"model_analysis": {"avg_pnl_left_on_table_at_tp": 15.50}}
+    analysis_data: dict = {"model_analysis": {"avg_pnl_left_on_table_at_tp": 15.50}}
     conclusion = rule.evaluate(analysis_data)
     assert conclusion is not None
     assert conclusion.title == "Inefficient Take-Profit Exits Detected"
@@ -147,21 +147,21 @@ def test_inefficient_exits_rule_triggered():
 
 def test_inefficient_exits_rule_not_triggered():
     rule = InefficientExitsRule()
-    analysis_data = {"model_analysis": {"avg_pnl_left_on_table_at_tp": 5.0}}
+    analysis_data: dict = {"model_analysis": {"avg_pnl_left_on_table_at_tp": 5.0}}
     conclusion = rule.evaluate(analysis_data)
     assert conclusion is None
 
 
 def test_inefficient_exits_rule_missing_model_analysis():
     rule = InefficientExitsRule()
-    analysis_data = {}
+    analysis_data: dict = {}
     conclusion = rule.evaluate(analysis_data)
     assert conclusion is None
 
 
 def test_inefficient_exits_rule_missing_pnl_metric():
     rule = InefficientExitsRule()
-    analysis_data = {"model_analysis": {"some_other_metric": 100}}
+    analysis_data: dict = {"model_analysis": {"some_other_metric": 100}}
     conclusion = rule.evaluate(analysis_data)
     assert conclusion is None
 
