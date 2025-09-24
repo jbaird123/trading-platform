@@ -19,3 +19,34 @@ def test_get_trade_insights():
     assert "predicted_profitable" in insights
     assert "feature_importances" in insights
     assert isinstance(insights["feature_importances"], dict)
+
+
+def test_get_trade_insights_missing_context():
+    """Test handling of trade missing entry_context key."""
+    brief = mock_brief()
+    model, features = trainer.train_profitability_model(brief)
+    trade = {"id": 1, "pnl": 10.0}  # missing entry_context
+    insights = predictor.get_trade_insights(model, trade, features)
+    # Should return valid dictionary structure with default/None values
+    assert isinstance(insights, dict)
+    assert "predicted_profitable" in insights
+    assert "feature_importances" in insights
+
+
+def test_get_trade_insights_feature_mismatch():
+    """Test handling of features not present in trade's entry_context."""
+    brief = mock_brief()
+    model, features = trainer.train_profitability_model(brief)
+    trade = {
+        "id": 1,
+        "entry_context": {"feature1": 1.0},
+        "pnl": 10.0,
+    }  # missing feature2
+    # Use the same features the model was trained on, but trade is missing some features
+    insights = predictor.get_trade_insights(model, trade, features)
+    # Should handle missing values gracefully (NaN) and return valid insight dictionary
+    assert isinstance(insights, dict)
+    assert "predicted_profitable" in insights
+    assert "feature_importances" in insights
+    # feature2 should be NaN in feature importances since it's missing from context
+    assert "feature2" in insights["feature_importances"]
