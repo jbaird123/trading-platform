@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-import jsonschema  # type: ignore
+import jsonschema
 import pytest
 
 # Validates: [REM-6.2]

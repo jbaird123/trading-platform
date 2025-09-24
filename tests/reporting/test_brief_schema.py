@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import jsonschema  # type: ignore
+import jsonschema
 import pytest
 from trading_platform.reporting.brief import generate_brief
 

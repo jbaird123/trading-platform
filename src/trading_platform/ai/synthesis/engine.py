@@ -16,6 +16,7 @@ class DiagnosticSynthesisEngine:
     conclusions: list[Any]
     recommendations: list[Any]
     model_insights: list[Any]
+
     def generate_recommendations(self) -> list[dict]:
         """
         Generates recommendations in the format required by `brief.json`.
@@ -103,10 +104,12 @@ class DiagnosticSynthesisEngine:
                 self.model_insights = []
                 for trade in analysis_data.get("trades", [])[:10]:  # Limit for brevity
                     insight = get_trade_insights(model, trade, features)
-                    self.model_insights.append({
-                        "trade_id": trade.get("id"),
-                        "insight": insight,
-                    })
+                    self.model_insights.append(
+                        {
+                            "trade_id": trade.get("id"),
+                            "insight": insight,
+                        }
+                    )
             except Exception as exc:
                 logger.warning(f"Failed to generate model insights: {exc}")
 
