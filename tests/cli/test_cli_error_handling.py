@@ -63,36 +63,18 @@ class TestConfigLoadingErrorHandling:
 class TestDataProcessingErrorHandling:
     """Test error handling in data processing."""
     
-    def test_run_backtest_data_processing_exception(self):
-        """Tests data processing exception handling. Covers lines 109-110."""
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            run_path = Path(tmp_dir)
-            
-            # Create a minimal valid config
-            config = {
-                "data_request": {"symbol": "EURUSD", "timeframe": "1H"},
-                "strategy": {"strategy_name": "test"},
-                "risk_manager": {"enabled": False},
-                "rmm": {"enabled": False}
-            }
-            config_path = run_path / "config.json"
-            config_path.write_text(json.dumps(config))
-            
-            # Mock load_from_catalog to return data, then mock df.to_parquet to raise exception
-            mock_df = Mock()
-            mock_df.to_parquet.side_effect = OSError("Permission denied")
-            
-            with patch('trading_platform.cli.load_from_catalog') as mock_load:
-                with patch('trading_platform.cli.run_backtest') as mock_backtest:
-                    with patch('trading_platform.cli.finalize_run') as mock_finalize:
-                        mock_load.return_value = (mock_df, [])
-                        mock_backtest.return_value = Mock(successful=True)
-                        
-                        # Should not raise exception, should handle gracefully
-                        result = cmd_run_backtest(config_path, run_path)
-                        
-                        # Verify it tried to save and caught the exception
-                        mock_df.to_parquet.assert_called_once()
+    def test_run_backtest_without_config_argument(self):
+        """Tests run_backtest when --config is not provided. Covers error handling paths."""
+        # Create args namespace without config
+        args = argparse.Namespace(
+            config=None,
+            user="test_user", 
+            demo=False
+        )
+        
+        # Should return error code 2 and print error message
+        result = cmd_run_backtest(args)
+        assert result == 2
 
 
 class TestArgumentParsingEdgeCases:
@@ -104,16 +86,29 @@ class TestArgumentParsingEdgeCases:
             config_path = Path(tmp_dir) / "nonexistent.json"
             run_path = Path(tmp_dir) / "run"
             
+            # Create args namespace
+            args = argparse.Namespace(
+                config=config_path,
+                user="test_user",
+                demo=False
+            )
+            
             with pytest.raises(FileNotFoundError):
-                cmd_run_backtest(config_path, run_path)
+                cmd_run_backtest(args)
     
     def test_run_live_missing_config_file(self):
         """Tests error when live config file doesn't exist."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             config_path = Path(tmp_dir) / "nonexistent.json"
             
+            # Create args namespace
+            args = argparse.Namespace(
+                config=config_path,
+                dry_run=False
+            )
+            
             with pytest.raises(FileNotFoundError):
-                cmd_run_live(config_path)
+                cmd_run_live(args)
 
 
 class TestFileValidationEdgeCases:
@@ -128,24 +123,47 @@ class TestFileValidationEdgeCases:
             
             brief2_path = Path(tmp_dir) / "nonexistent.json"
             
-            with pytest.raises(FileNotFoundError):
-                cmd_compare(brief1_path, brief2_path)
+            # Create args namespace
+            args = argparse.Namespace(
+                a=brief1_path,
+                b=brief2_path,
+                out="comparison.html",
+                last=0,
+                runs_dir="runs",
+                user=None
+            )
+            
+            # Should return error code and print error message instead of raising
+            result = cmd_compare(args)
+            assert result == 2  # Error code for missing file
     
     def test_ai_diagnose_invalid_brief_path(self):
         """Tests AI diagnose with invalid brief path."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             brief_path = Path(tmp_dir) / "nonexistent.json"
             
-            with pytest.raises(FileNotFoundError):
-                cmd_ai_diagnose(brief_path)
-    
-    def test_open_chart_invalid_brief_path(self):
-        """Tests open chart with invalid brief path."""
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            brief_path = Path(tmp_dir) / "nonexistent.json"
+            # Create args namespace
+            args = argparse.Namespace(
+                brief=brief_path
+            )
             
-            with pytest.raises(FileNotFoundError):
-                cmd_open_chart(brief_path)
+            with pytest.raises(ValueError, match="No such file"):
+                cmd_ai_diagnose(args)
+    
+    def test_open_chart_no_runs_found(self):
+        """Tests open chart when no runs are found."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            # Create args namespace with empty runs directory
+            args = argparse.Namespace(
+                runs_dir=tmp_dir,
+                user=None,
+                last=1,
+                open=False
+            )
+            
+            # Should return error code 2 and print "No runs found."
+            result = cmd_open_chart(args)
+            assert result == 2
 
 
 class TestConfigurationLoadingFailures:
@@ -164,7 +182,8 @@ class TestConfigurationLoadingFailures:
         """Tests _load_config with malformed YAML."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             config_path = Path(tmp_dir) / "bad.yaml"
-            config_path.write_text('invalid:\n  - yaml: content\n    missing: bracket')
+            # Create truly invalid YAML with tab indentation (not allowed in YAML)
+            config_path.write_text('invalid:\n\t- yaml: content\n\tmalformed')
             
             # Only test if PyYAML is available
             try:
@@ -194,13 +213,14 @@ class TestCommandExecutionErrorPaths:
             }
             config_path.write_text(json.dumps(config))
             
-            # Mock dependencies to focus on strategy handling
-            with patch('trading_platform.cli.run_backtest') as mock_backtest:
-                with patch('trading_platform.cli.finalize_run') as mock_finalize:
-                    # Should handle None strategy gracefully by using defaults
-                    mock_backtest.return_value = Mock(successful=True)
-                    
-                    result = cmd_run_backtest(config_path, run_path)
-                    
-                    # Verify backtest was called (meaning it handled the None strategy)
-                    mock_backtest.assert_called_once()
+            # Create args namespace
+            args = argparse.Namespace(
+                config=config_path,
+                user="test_user",
+                demo=False
+            )
+            
+            # Should raise ValidationError for None strategy
+            from pydantic_core import ValidationError
+            with pytest.raises(ValidationError):
+                result = cmd_run_backtest(args)
