@@ -39,3 +39,9 @@ repos:
         entry: bash -c 'grep -l "import ta" "$@" | xargs -r false' --
         language: system
         types: [python]
+
+      - id: block-src-import
+        name: Block import from src. in Python files
+        entry: bash -c 'grep -l "import src\." "$@" | xargs -r false' --
+        language: system
+        types: [python]
