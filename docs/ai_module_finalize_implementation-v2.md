@@ -152,13 +152,6 @@
     -   [x] 11.1  Review the `pytest` step in the workflow.
     -   [x] 11.2  Ensure that the tests for the AI module (under `tests/ai/` and `tests/cli/`) are not being excluded and are running as part of the main test suite. No action is needed if they are already included, but you must verify this.
 
-### [ ] **Task 12: Final Code Quality & Coverage Check**
-
--   **Action:**
-    -   [x] 12.1  Run `poetry run ruff check .` and fix any reported issues in the files you have modified.
-    -   [x] 12.2  Run `poetry run mypy .` and fix any type-related errors in the files you have modified.
-    -   [ ] 12.3  Run `poetry run pytest --cov=src/trading_platform` and ensure that test coverage for the files you modified is at or near 100%. Add any missing test cases required to meet this standard.
-
 ### [x] **Task 13: Integrate ML Model for Deeper Analysis**
 
 -   **Action:**
