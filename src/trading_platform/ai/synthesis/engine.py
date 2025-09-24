@@ -73,14 +73,19 @@ class DiagnosticSynthesisEngine:
         Generates a human-readable Markdown report of the findings.
         """
         report_parts = ["# AI Diagnostic Report\n"]
+
+        # Recommendations at the top (actionable first)
         if self.recommendations:
             report_parts.append("## Recommendations\n")
             for rec in self.recommendations:
                 report_parts.append(f"### {rec.title}")
                 report_parts.append(f"{rec.summary}")
-                report_parts.append(f"**Category:** {rec.category}")
-                report_parts.append(f"**Confidence:** {rec.confidence}")
                 report_parts.append("")
+                report_parts.append(f"- Category: {rec.category}")
+                report_parts.append(f"- Confidence: {rec.confidence}")
+                report_parts.append("")
+
+        # Conclusions with structured evidence
         if not self.conclusions:
             report_parts.append(
                 "No specific issues were detected by the diagnostic rules."
@@ -90,8 +95,22 @@ class DiagnosticSynthesisEngine:
                 report_parts.append(f"## {conc.title}")
                 report_parts.append(f"{conc.summary}\n")
                 report_parts.append("**Evidence:**")
-                evidence_json = json.dumps(conc.evidence, indent=2)
-                report_parts.append(f"```json\n{evidence_json}\n```")
+                # Render evidence as a bulleted list for readability.
+                if isinstance(conc.evidence, dict) and conc.evidence:
+                    for key, value in conc.evidence.items():
+                        # Simple scalar types inline, complex types as JSON block
+                        if isinstance(value, (str, int, float, bool)) or value is None:
+                            report_parts.append(f"- {key}: {value}")
+                        else:
+                            report_parts.append(f"- {key}:")
+                            report_parts.append("")
+                            report_parts.append(
+                                f"```json\n{json.dumps(value, indent=2)}\n```"
+                            )
+                else:
+                    # Fallback to JSON if evidence is not a dict
+                    evidence_json = json.dumps(conc.evidence, indent=2)
+                    report_parts.append(f"```json\n{evidence_json}\n```")
         return "\n".join(report_parts)
 
     def generate_report_json(self) -> str:
