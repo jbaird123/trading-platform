@@ -20,14 +20,14 @@ class DataCatalog:
         )
         # Simulate data retrieval
         data = {
-            "timestamp": pd.to_datetime(["2023-01-01", "2023-01-02", "2023-01-03"]),
             "open": [1.0, 1.1, 1.2],
             "high": [1.1, 1.2, 1.3],
             "low": [0.9, 1.0, 1.1],
             "close": [1.05, 1.15, 1.25],
             "volume": [100, 110, 120],
         }
-        df = pd.DataFrame(data).set_index("timestamp")
+        df = pd.DataFrame(data)
+        df.index = pd.to_datetime(["2023-01-01", "2023-01-02", "2023-01-03"])
         return df
 
     def get_available_symbols(self) -> list[str]:

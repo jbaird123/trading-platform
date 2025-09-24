@@ -70,7 +70,8 @@ if __name__ == "__main__":
         "close": [1.05, 1.1, 1.08, 1.12, 1.15, 1.13, 1.10, 1.09],
         "volume": [100, 110, 105, 120, 115, 130, 125, 110],
     }
-    sample_df = pd.DataFrame(data).set_index("timestamp")
+    sample_df = pd.DataFrame(data)
+    sample_df.index = sample_df.pop("timestamp")
 
     labeler = DataLabeler(look_ahead_bars=1)
     labels = labeler.generate_future_price_direction(sample_df)
