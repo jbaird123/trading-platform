@@ -6,10 +6,10 @@
 
 ## 1. Task: Add and Isolate the LLM Client
 
-- [ ] **1.1** **Action:** Add the `google-generativeai` library to the project's dependencies.
+- [x] **1.1** **Action:** Add the `google-generativeai` library to the project's dependencies.
     -   Run the command: `poetry add google-generativeai`.
-- [ ] **1.2** **File to Create:** `src/trading_platform/ai/llm_analysis/client.py`
-- [ ] **1.3** **Action:** Create an API client to encapsulate all interaction with the external LLM service.
+- [x] **1.2** **File to Create:** `src/trading_platform/ai/llm_analysis/client.py`
+- [x] **1.3** **Action:** Create an API client to encapsulate all interaction with the external LLM service.
     ```python
     import os
     import google.generativeai as genai
@@ -34,13 +34,13 @@
                 return f"Error generating LLM feedback: {e}"
 
     ```
-- [ ] **1.4** **File to Create:** `tests/ai/llm_analysis/test_client.py`
-- [ ] **1.5** **Action:** Add a test to verify that the client correctly raises a `ValueError` if the `GEMINI_API_KEY` is not set.
+- [x] **1.4** **File to Create:** `tests/ai/llm_analysis/test_client.py`
+- [x] **1.5** **Action:** Add a test to verify that the client correctly raises a `ValueError` if the `GEMINI_API_KEY` is not set.
 
 ## 2. Task: Create the Master System Prompt
 
-- [ ] **2.1** **File to Create:** `src/trading_platform/ai/llm_analysis/system_prompt.md`
-- [ ] **2.2** **Action:** Add the following content to the file. This will be the master prompt that defines the LLM's persona and goal.
+- [x] **2.1** **File to Create:** `src/trading_platform/ai/llm_analysis/system_prompt.md`
+- [x] **2.2** **Action:** Add the following content to the file. This will be the master prompt that defines the LLM's persona and goal.
     ```markdown
     You are an expert trading strategist and quantitative analyst. You are reviewing a backtest report for a trading strategy. The report is provided in a comprehensive JSON format.
 
@@ -58,8 +58,8 @@
 
 ## 3. Task: Implement the `LLMAnalysisEngine`
 
-- [ ] **3.1** **File to Create:** `src/trading_platform/ai/llm_analysis/engine.py`
-- [ ] **3.2** **Action:** Create the engine that orchestrates the analysis.
+- [x] **3.1** **File to Create:** `src/trading_platform/ai/llm_analysis/engine.py`
+- [x] **3.2** **Action:** Create the engine that orchestrates the analysis.
     ```python
     import json
     from pathlib import Path
@@ -98,8 +98,8 @@
 
 ## 4. Task: Integrate into the CLI
 
-- [ ] **4.1** **File to Modify:** `src/trading_platform/cli.py`
-- [ ] **4.2** **Action:**
+- [x] **4.1** **File to Modify:** `src/trading_platform/cli.py`
+- [x] **4.2** **Action:**
     1.  In the `main` function, find the `ai-diagnose` sub-parser (`pad`).
     2.  Add the following argument to it:
         ```python
