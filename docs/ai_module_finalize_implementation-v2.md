@@ -82,75 +82,75 @@
     -   [x] 5.4  Delete the test functions `test_recommendation_rule_triggered` and `test_recommendation_rule_not_triggered`.
     -   [x] 5.5  Delete all test functions related to `OverTradingRule`.
 
-### [ ] **Task 6: Verify End-to-End Integration**
+### [x] **Task 6: Verify End-to-End Integration**
 
 -   **File to Modify:** `tests/cli/test_cli_ai_diagnose.py`
 -   **Action:**
-    -   [ ] 6.1  Create a new test function `test_cmd_ai_diagnose_triggers_specific_rule`.
-    -   [ ] 6.2  In this test, create a `brief.json` file that contains data specifically designed to trigger one of the newly fixed rules (e.g., `SignalPersistenceRule`). This means the brief must include a `signal_quality_analysis` section with a high `signal_persistence_pct`.
-    -   [ ] 6.3  Run `cmd_ai_diagnose` on this brief.
-    -   [ ] 6.4  Assert that the generated `ai_diagnostic_report.md` contains the title and summary from the triggered `SignalPersistenceRule`. This will prove that the data is now flowing correctly from the CLI all the way to the rules engine.
+    -   [x] 6.1  Create a new test function `test_cmd_ai_diagnose_triggers_specific_rule`.
+    -   [x] 6.2  In this test, create a `brief.json` file that contains data specifically designed to trigger one of the newly fixed rules (e.g., `SignalPersistenceRule`). This means the brief must include a `signal_quality_analysis` section with a high `signal_persistence_pct`.
+    -   [x] 6.3  Run `cmd_ai_diagnose` on this brief.
+    -   [x] 6.4  Assert that the generated `ai_diagnostic_report.md` contains the title and summary from the triggered `SignalPersistenceRule`. This will prove that the data is now flowing correctly from the CLI all the way to the rules engine.
 
 ---
 
 ## **Part 2: Implementation of New Features (Tasks 7-14)**
 
-### [ ] **Task 7: Implement Automated Recommendations**
+### [x] **Task 7: Implement Automated Recommendations**
 
 -   **File to Create:** `src/trading_platform/ai/synthesis/recommendations.py`
 -   **Action:**
-    -   [ ] 7.1  Create a `BaseRecommendation` class.
-    -   [ ] 7.2  Create a `Recommendation` data class with fields: `title`, `summary`, `category` (e.g., "Entry Logic", "Exit Logic", "Risk Management"), and `confidence` (float `0.0` to `1.0`).
-    -   [ ] 7.3  Create a function `generate_recommendations(conclusions: list[DiagnosticConclusion]) -> list[Recommendation]`.
-    -   [ ] 7.4  Inside this function, map specific `DiagnosticConclusion` titles to concrete `Recommendation` objects. For example:
+    -   [x] 7.1  Create a `BaseRecommendation` class.
+    -   [x] 7.2  Create a `Recommendation` data class with fields: `title`, `summary`, `category` (e.g., "Entry Logic", "Exit Logic", "Risk Management"), and `confidence` (float `0.0` to `1.0`).
+    -   [x] 7.3  Create a function `generate_recommendations(conclusions: list[DiagnosticConclusion]) -> list[Recommendation]`.
+    -   [x] 7.4  Inside this function, map specific `DiagnosticConclusion` titles to concrete `Recommendation` objects. For example:
         -   If a conclusion title is "Market Regime Mismatch Detected", return a `Recommendation` with the title "Add Regime Filter" and summary "Consider filtering entry signals based on the market regimes where the strategy performs poorly."
         -   If a conclusion title is "Signal Persistence Detected", return a `Recommendation` with the title "Refine Entry/Exit Conditions" and summary "The signals are states, not events. Refine the logic to produce discrete entry/exit triggers instead of persistent `long`/`short` states."
 -   **File to Modify:** `src/trading_platform/ai/synthesis/engine.py`
 -   **Action:**
-    -   [ ] 7.5  Import `generate_recommendations`.
-    -   [ ] 7.6  After `self.conclusions = ...` in the `run` method, add a new line: `self.recommendations = generate_recommendations(self.conclusions)`.
-    -   [ ] 7.7  Update `generate_report_markdown` and `generate_report_json` to include a new "Recommendations" section based on `self.recommendations`.
+    -   [x] 7.5  Import `generate_recommendations`.
+    -   [x] 7.6  After `self.conclusions = ...` in the `run` method, add a new line: `self.recommendations = generate_recommendations(self.conclusions)`.
+    -   [x] 7.7  Update `generate_report_markdown` and `generate_report_json` to include a new "Recommendations" section based on `self.recommendations`.
 -   **File to Create:** `tests/ai/synthesis/test_recommendations.py`
--   [ ] 7.8  **Action:** Write unit tests to verify that `generate_recommendations` produces the correct `Recommendation` objects for given `DiagnosticConclusion` inputs.
+-   [x] 7.8  **Action:** Write unit tests to verify that `generate_recommendations` produces the correct `Recommendation` objects for given `DiagnosticConclusion` inputs.
 
-### [ ] **Task 8: Update Project Requirements Documentation**
+### [x] **Task 8: Update Project Requirements Documentation**
 
 -   **File to Modify:** `docs/project_requirements.md`
 -   **Action:**
-    -   [ ] 8.1  Review the `AI Lab (AI)` section ([AI-10]) and the `JSON Brief Schema` section ([JSON-11]).
-    -   [ ] 8.2  Ensure all newly implemented features and data points from the tasks above are documented.
-    -   [ ] 8.3  Specifically, add a schema definition for the `recommendations` object in the JSON brief.
-    -   [ ] 8.4  Add a requirement for the `quality_score` in the `data_quality` section.
+    -   [x] 8.1  Review the `AI Lab (AI)` section ([AI-10]) and the `JSON Brief Schema` section ([JSON-11]).
+    -   [x] 8.2  Ensure all newly implemented features and data points from the tasks above are documented.
+    -   [x] 8.3  Specifically, add a schema definition for the `recommendations` object in the JSON brief.
+    -   [x] 8.4  Add a requirement for the `quality_score` in the `data_quality` section.
 
-### [ ] **Task 9: Enhance Diagnostic Report Output**
+### [x] **Task 9: Enhance Diagnostic Report Output**
 
 -   **File to Modify:** `src/trading_platform/ai/synthesis/engine.py`
 -   **Function to Modify:** `generate_report_markdown`
 -   **Action:**
-    -   [ ] 9.1  The report currently lists conclusions. Modify the formatting to be more structured.
-    -   [ ] 9.2  For each conclusion, list its `title`, `summary`, and then format the `evidence` dictionary as a bulleted list for readability.
-    -   [ ] 9.3  Add the new "Recommendations" section generated in Task 7 to the top of the report, as it is the most actionable information.
+    -   [x] 9.1  The report currently lists conclusions. Modify the formatting to be more structured.
+    -   [x] 9.2  For each conclusion, list its `title`, `summary`, and then format the `evidence` dictionary as a bulleted list for readability.
+    -   [x] 9.3  Add the new "Recommendations" section generated in Task 7 to the top of the report, as it is the most actionable information.
 
-### [ ] **Task 10: Create AI Module Documentation**
+### [x] **Task 10: Create AI Module Documentation**
 
 -   **File to Create:** `docs/ai/01_architecture.md`
 -   **Action:** Write a document that explains the high-level architecture of the AI module. It must include:
-    -   [ ] 10.1  A description of the `ai-diagnose` CLI command.
-    -   [ ] 10.2  An explanation of the `DiagnosticSynthesisEngine`.
-    -   [ ] 10.3  A description of the rule-based system (`BaseDiagnosticRule`).
-    -   [ ] 10.4  A diagram showing the data flow: `brief.json` -> `DiagnosticSynthesisEngine` -> `Conclusions` -> `Recommendations` -> `Reports`.
+    -   [x] 10.1  A description of the `ai-diagnose` CLI command.
+    -   [x] 10.2  An explanation of the `DiagnosticSynthesisEngine`.
+    -   [x] 10.3  A description of the rule-based system (`BaseDiagnosticRule`).
+    -   [x] 10.4  A diagram showing the data flow: `brief.json` -> `DiagnosticSynthesisEngine` -> `Conclusions` -> `Recommendations` -> `Reports`.
 -   **File to Create:** `docs/ai/02_diagnostic_rules.md`
 -   **Action:** Create a document that lists every single `BaseDiagnosticRule` implemented in the system. For each rule, you must document:
-    -   [ ] 10.5  Its purpose (e.g., "Detects potential over-trading").
-    -   [ ] 10.6  The specific `brief.json` fields it uses.
-    -   [ ] 10.7  The exact logic it uses to trigger.
+    -   [x] 10.5  Its purpose (e.g., "Detects potential over-trading").
+    -   [x] 10.6  The specific `brief.json` fields it uses.
+    -   [x] 10.7  The exact logic it uses to trigger.
 
-### [ ] **Task 11: Integrate AI Module Tests into CI**
+### [x] **Task 11: Integrate AI Module Tests into CI**
 
 -   **File to Modify:** `.github/workflows/ci.yml`
 -   **Action:**
-    -   [ ] 11.1  Review the `pytest` step in the workflow.
-    -   [ ] 11.2  Ensure that the tests for the AI module (under `tests/ai/` and `tests/cli/`) are not being excluded and are running as part of the main test suite. No action is needed if they are already included, but you must verify this.
+    -   [x] 11.1  Review the `pytest` step in the workflow.
+    -   [x] 11.2  Ensure that the tests for the AI module (under `tests/ai/` and `tests/cli/`) are not being excluded and are running as part of the main test suite. No action is needed if they are already included, but you must verify this.
 
 ### [ ] **Task 12: Final Code Quality & Coverage Check**
 
