@@ -155,29 +155,29 @@
 ### [ ] **Task 12: Final Code Quality & Coverage Check**
 
 -   **Action:**
-    -   [ ] 12.1  Run `poetry run ruff check .` and fix any reported issues in the files you have modified.
-    -   [ ] 12.2  Run `poetry run mypy .` and fix any type-related errors in the files you have modified.
+    -   [x] 12.1  Run `poetry run ruff check .` and fix any reported issues in the files you have modified.
+    -   [x] 12.2  Run `poetry run mypy .` and fix any type-related errors in the files you have modified.
     -   [ ] 12.3  Run `poetry run pytest --cov=src/trading_platform` and ensure that test coverage for the files you modified is at or near 100%. Add any missing test cases required to meet this standard.
 
-### [ ] **Task 13: Integrate ML Model for Deeper Analysis**
+### [x] **Task 13: Integrate ML Model for Deeper Analysis**
 
 -   **Action:**
-    -   [ ] 13.1 **Add Dependencies:** Run `poetry add scikit-learn shap joblib` to add the required libraries.
+    -   [x] 13.1 **Add Dependencies:** Run `poetry add scikit-learn shap joblib` to add the required libraries.
 -   **File to Create:** `src/trading_platform/ai/lab/trainer.py`
 -   **Action:**
-    -   [ ] 13.2 **Create Model Training Script:** Implement a function `train_profitability_model(brief: dict) -> (object, list)` that takes a loaded `brief.json` dictionary, extracts features from `entry_context` for each trade, creates a binary target (`pnl > 0`), trains a `RandomForestClassifier`, and returns the model object and feature list.
+    -   [x] 13.2 **Create Model Training Script:** Implement a function `train_profitability_model(brief: dict) -> (object, list)` that takes a loaded `brief.json` dictionary, extracts features from `entry_context` for each trade, creates a binary target (`pnl > 0`), trains a `RandomForestClassifier`, and returns the model object and feature list.
 -   **File to Create:** `src/trading_platform/ai/lab/predictor.py`
 -   **Action:**
-    -   [ ] 13.3 **Create Insight Generator:** Implement a function `get_trade_insights(model, trade: dict, features: list) -> dict` that takes a trained model and a single trade, predicts profitability, and uses `shap` to generate a dictionary of feature importances for that prediction.
+    -   [x] 13.3 **Create Insight Generator:** Implement a function `get_trade_insights(model, trade: dict, features: list) -> dict` that takes a trained model and a single trade, predicts profitability, and uses `shap` to generate a dictionary of feature importances for that prediction.
 -   **File to Modify:** `src/trading_platform/cli.py`
 -   **Action:**
-    -   [ ] 13.4 **Integrate into CLI:** Add a new flag `--train-model` to the `ai-diagnose` command. If present, it should call `train_profitability_model` and save the returned model to the run directory (e.g., `profitability_model.joblib`).
+    -   [x] 13.4 **Integrate into CLI:** Add a new flag `--train-model` to the `ai-diagnose` command. If present, it should call `train_profitability_model` and save the returned model to the run directory (e.g., `profitability_model.joblib`).
 -   **File to Modify:** `src/trading_platform/ai/synthesis/engine.py`
 -   **Action:**
-    -   [ ] 13.5 **Update Diagnostic Report:** The `DiagnosticSynthesisEngine` should check for a `profitability_model.joblib` file in the run directory. If it exists, it should load the model and use the `get_trade_insights` function to add a new `model_insights` section to the data passed to the report generator.
+    -   [x] 13.5 **Update Diagnostic Report:** The `DiagnosticSynthesisEngine` should check for a `profitability_model.joblib` file in the run directory. If it exists, it should load the model and use the `get_trade_insights` function to add a new `model_insights` section to the data passed to the report generator.
 -   **Files to Create:** `tests/ai/lab/test_trainer.py`, `tests/ai/lab/test_predictor.py`
 -   **Action:**
-    -   [ ] 13.6 **Add Tests:** Create unit tests for the trainer and predictor. Use mock `brief.json` data and assert that the trainer saves a model file and the predictor returns a dictionary with SHAP values.
+    -   [x] 13.6 **Add Tests:** Create unit tests for the trainer and predictor. Use mock `brief.json` data and assert that the trainer saves a model file and the predictor returns a dictionary with SHAP values.
 
 ### [ ] **Task 14: Implement AI-Driven Parameter Suggestion**
 

@@ -54,6 +54,46 @@ class DiagnosticSynthesisEngine:
         self.rules = get_all_rules()
         self.conclusions: list[Any] = []
         self.recommendations: list[Any] = []
+        self.model_insights: list[dict] = []
+
+        # Task 13.5: Check for profitability_model.joblib and add model insights
+        import os
+        from pathlib import Path
+        run_dir = None
+        # Try to infer run directory from brief.json location if present
+        if "meta" in analysis_data and "run_id" in analysis_data["meta"]:
+            # This assumes brief.json is in the run directory
+            run_dir = Path(analysis_data.get("_brief_path", ""))
+            if not run_dir or not run_dir.exists():
+                run_dir = None
+        # Fallback: look for model in current directory
+        model_path = Path("profitability_model.joblib")
+        if run_dir:
+            candidate = run_dir / "profitability_model.joblib"
+            if candidate.exists():
+                model_path = candidate
+        if model_path.exists():
+            try:
+                import joblib
+                from trading_platform.ai.lab.predictor import get_trade_insights
+                model = joblib.load(str(model_path))
+                # Try to get features from model if possible
+                features = getattr(model, "feature_names_in_", None)
+                if features is None and "trades" in analysis_data:
+                    # Fallback: infer from first trade
+                    trades = analysis_data["trades"]
+                    if trades:
+                        features = sorted(trades[0].get("entry_context", {}).keys())
+                # Generate insights for each trade
+                self.model_insights = []
+                for trade in analysis_data.get("trades", [])[:10]:  # Limit to 10 for brevity
+                    insight = get_trade_insights(model, trade, features)
+                    self.model_insights.append({
+                        "trade_id": trade.get("id"),
+                        "insight": insight
+                    })
+            except Exception as exc:
+                logger.warning(f"Failed to generate model insights: {exc}")
 
     def run(self) -> None:
         """Executes all diagnostic rules and stores the conclusions."""
@@ -85,8 +125,23 @@ class DiagnosticSynthesisEngine:
                 report_parts.append(f"- Confidence: {rec.confidence}")
                 report_parts.append("")
 
+        # Model Insights section
+        if self.model_insights:
+            report_parts.append("## Model Insights\n")
+            for insight in self.model_insights:
+                report_parts.append(f"### Trade ID: {insight['trade_id']}")
+                pred = insight["insight"].get("predicted_profitable")
+                prob = insight["insight"].get("predicted_probability")
+                report_parts.append(f"- Predicted Profitable: {pred}")
+                report_parts.append(f"- Predicted Probability: {prob}")
+                report_parts.append("- Feature Importances:")
+                fi = insight["insight"].get("feature_importances", {})
+                for k, v in fi.items():
+                    report_parts.append(f"    - {k}: {v}")
+                report_parts.append("")
+
         # Remove extra newline between recommendations and conclusions
-        if self.conclusions and self.recommendations:
+        if (self.conclusions and self.recommendations) or self.model_insights:
             report_parts.pop()
             report_parts.append("")
 
@@ -121,12 +176,13 @@ class DiagnosticSynthesisEngine:
     def generate_report_json(self) -> str:
         """
         Generates a machine-readable JSON report of the findings,
-        including recommendations.
+        including recommendations and model insights.
         """
         return json.dumps(
             {
                 "conclusions": [conc.to_dict() for conc in self.conclusions],
                 "recommendations": [rec.__dict__ for rec in self.recommendations],
+                "model_insights": self.model_insights,
             },
             indent=2,
         )
