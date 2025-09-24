@@ -12,6 +12,7 @@ from trading_platform.strategy.yaml_strategy import CompiledStrategy
 def _dummy_strategy() -> CompiledStrategy:
     return CompiledStrategy(
         name="dummy",
+        parameters={},
         features=[],
         overlays=[],
         long_entry_blocks=[],
@@ -40,6 +41,11 @@ def test_finalize_run_populates_mc_wfe_paramsearch(tmp_path):
         user_id="u",
         run_id="r",
         runs_dir=tmp_path,
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=10000.0,
+        position_size=1.0,
+        allow_flip_on_bar=False,
         monte_carlo={"trials": 50, "seed": 123},
         walk_forward={"window": 2, "step": 1},
         parameter_search={"grid": {"a": [1, 2]}, "objective": "total_pnl"},

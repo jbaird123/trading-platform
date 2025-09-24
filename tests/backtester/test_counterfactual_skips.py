@@ -36,10 +36,16 @@ def test_counterfactual_for_blackout_skip_with_tp():
     df = _mk_df()
     sig = pd.Series(["long", "flat", "flat"], index=df.index)
     config = RunConfig(
-        initial_cash=1000.0, blackout_utc=[("00:00", "00:30")], position_size=10000.0
+        user_id="test_user",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=1000.0,
+        position_size=10000.0,
+        allow_flip_on_bar=False,
+        blackout_utc=[("00:00", "00:30")],
     )
     rem = RiskExitManager(config={})
-    trades, _exp, skips = run_backtest(
+    result = run_backtest(
         market_data=df,
         signals=sig,
         strategy=_dummy_strategy_with_tp(2.0),
@@ -48,6 +54,7 @@ def test_counterfactual_for_blackout_skip_with_tp():
         return_exposure=True,
         return_skips=True,
     )
-    assert skips and "cf_exit_time" in skips[0]
+    trades, _exp, skips = result  # type: ignore[misc]
+    assert skips and "cf_exit_time" in skips[0]  # type: ignore[index]
     # Entry at 100, TP 2 => pnl ~ 2 * size (size=10000)
-    assert skips[0]["cf_pnl_currency"] == approx(2.0 * 10000)
+    assert skips[0]["cf_pnl_currency"] == approx(2.0 * 10000)  # type: ignore[index]

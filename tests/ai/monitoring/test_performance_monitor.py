@@ -11,20 +11,23 @@ from trading_platform.ai.monitoring.performance_monitor import (
 
 
 def test_aib_init():
-    config = {"name": "TestMonitor"}
+    config: dict[str, str] = {"name": "TestMonitor"}
     monitor = AIBaseMonitor(config)
     assert monitor.config == config
     assert monitor.monitor_name == "TestMonitor"
 
 
 def test_aib_init_no_name():
-    config = {}
+    config: dict[str, str] = {}
     monitor = AIBaseMonitor(config)
     assert monitor.monitor_name == "unnamed_monitor"
 
 
 def test_aib_check_thresholds_within_range(caplog):
-    config = {"name": "TestMonitor", "thresholds": {"metric1": {"min": 10, "max": 20}}}
+    config: dict[str, object] = {
+        "name": "TestMonitor",
+        "thresholds": {"metric1": {"min": 10, "max": 20}},
+    }
     monitor = AIBaseMonitor(config)
     with caplog.at_level(logging.WARNING):
         monitor._check_thresholds("metric1", 15)
@@ -32,7 +35,10 @@ def test_aib_check_thresholds_within_range(caplog):
 
 
 def test_aib_check_thresholds_below_min(caplog):
-    config = {"name": "TestMonitor", "thresholds": {"metric1": {"min": 10, "max": 20}}}
+    config: dict[str, object] = {
+        "name": "TestMonitor",
+        "thresholds": {"metric1": {"min": 10, "max": 20}},
+    }
     monitor = AIBaseMonitor(config)
     with caplog.at_level(logging.ERROR):
         monitor._check_thresholds("metric1", 5)
@@ -42,7 +48,10 @@ def test_aib_check_thresholds_below_min(caplog):
 
 
 def test_aib_check_thresholds_above_max(caplog):
-    config = {"name": "TestMonitor", "thresholds": {"metric1": {"min": 10, "max": 20}}}
+    config: dict[str, object] = {
+        "name": "TestMonitor",
+        "thresholds": {"metric1": {"min": 10, "max": 20}},
+    }
     monitor = AIBaseMonitor(config)
     with caplog.at_level(logging.ERROR):
         monitor._check_thresholds("metric1", 25)
@@ -52,7 +61,7 @@ def test_aib_check_thresholds_above_max(caplog):
 
 
 def test_aib_check_thresholds_no_threshold_config(caplog):
-    config = {"name": "TestMonitor"}
+    config: dict[str, str] = {"name": "TestMonitor"}
     monitor = AIBaseMonitor(config)
     with caplog.at_level(logging.WARNING):
         monitor._check_thresholds("metric1", 15)
@@ -60,7 +69,10 @@ def test_aib_check_thresholds_no_threshold_config(caplog):
 
 
 def test_aib_check_thresholds_partial_threshold_config(caplog):
-    config = {"name": "TestMonitor", "thresholds": {"metric1": {"min": 10}}}
+    config: dict[str, object] = {
+        "name": "TestMonitor",
+        "thresholds": {"metric1": {"min": 10}},
+    }
     monitor = AIBaseMonitor(config)
     with caplog.at_level(logging.ERROR):
         monitor._check_thresholds("metric1", 5)  # Below min
@@ -73,7 +85,7 @@ def test_aib_check_thresholds_partial_threshold_config(caplog):
 
 
 def test_aib_trigger_alert(caplog):
-    config = {"name": "TestMonitor"}
+    config: dict[str, str] = {"name": "TestMonitor"}
     monitor = AIBaseMonitor(config)
     with caplog.at_level(logging.ERROR):
         monitor._trigger_alert("test_metric", 123.45, "test_reason")
@@ -88,7 +100,7 @@ def test_aib_trigger_alert(caplog):
 
 
 def test_aimpm_init():
-    config = {"name": "PerfMonitor", "metrics": ["sharpe_ratio"]}
+    config: dict[str, object] = {"name": "PerfMonitor", "metrics": ["sharpe_ratio"]}
     monitor = AIModelPerformanceMonitor(config)
     assert monitor.config == config
     assert monitor.monitor_name == "PerfMonitor"
@@ -96,14 +108,14 @@ def test_aimpm_init():
 
 
 def test_aimpm_monitor_performance_sharpe_within_threshold(mocker, caplog):
-    config = {
+    config: dict[str, object] = {
         "name": "PerfMonitor",
         "metrics": ["sharpe_ratio"],
         "thresholds": {"sharpe_ratio": {"min": 0.5, "max": 2.0}},
     }
     monitor = AIModelPerformanceMonitor(config)
     mock_check_thresholds = mocker.patch.object(monitor, "_check_thresholds")
-    brief_data = {"overall_performance": {"sharpe_ratio": 1.0}}
+    brief_data: dict[str, object] = {"overall_performance": {"sharpe_ratio": 1.0}}
 
     with caplog.at_level(logging.INFO):
         monitor.monitor_performance(brief_data)
@@ -113,14 +125,14 @@ def test_aimpm_monitor_performance_sharpe_within_threshold(mocker, caplog):
 
 
 def test_aimpm_monitor_performance_sharpe_below_threshold(mocker, caplog):
-    config = {
+    config: dict[str, object] = {
         "name": "PerfMonitor",
         "metrics": ["sharpe_ratio"],
         "thresholds": {"sharpe_ratio": {"min": 0.5, "max": 2.0}},
     }
     monitor = AIModelPerformanceMonitor(config)
     mock_check_thresholds = mocker.patch.object(monitor, "_check_thresholds")
-    brief_data = {"overall_performance": {"sharpe_ratio": 0.3}}
+    brief_data: dict[str, object] = {"overall_performance": {"sharpe_ratio": 0.3}}
 
     with caplog.at_level(logging.INFO):
         monitor.monitor_performance(brief_data)
@@ -128,14 +140,14 @@ def test_aimpm_monitor_performance_sharpe_below_threshold(mocker, caplog):
 
 
 def test_aimpm_monitor_performance_no_sharpe_in_brief(mocker, caplog):
-    config = {
+    config: dict[str, object] = {
         "name": "PerfMonitor",
         "metrics": ["sharpe_ratio"],
         "thresholds": {"sharpe_ratio": {"min": 0.5, "max": 2.0}},
     }
     monitor = AIModelPerformanceMonitor(config)
     mock_check_thresholds = mocker.patch.object(monitor, "_check_thresholds")
-    brief_data = {"overall_performance": {}}
+    brief_data: dict[str, object] = {"overall_performance": {}}
 
     with caplog.at_level(logging.INFO):
         monitor.monitor_performance(brief_data)
@@ -146,7 +158,7 @@ def test_aimpm_monitor_performance_no_sharpe_in_brief(mocker, caplog):
 
 
 def test_aimpm_detect_data_drift_no_drift(caplog):
-    config = {
+    config: dict[str, object] = {
         "name": "PerfMonitor",
         "drift_detection": {"feature": "price", "threshold": 0.1},
     }
@@ -162,7 +174,7 @@ def test_aimpm_detect_data_drift_no_drift(caplog):
 
 
 def test_aimpm_detect_data_drift_with_drift(caplog):
-    config = {
+    config: dict[str, object] = {
         "name": "PerfMonitor",
         "drift_detection": {"feature": "price", "threshold": 0.01},
     }
@@ -178,7 +190,7 @@ def test_aimpm_detect_data_drift_with_drift(caplog):
 
 
 def test_aimpm_detect_data_drift_empty_dataframes(caplog):
-    config = {
+    config: dict[str, object] = {
         "name": "PerfMonitor",
         "drift_detection": {"feature": "price", "threshold": 0.1},
     }
@@ -194,7 +206,7 @@ def test_aimpm_detect_data_drift_empty_dataframes(caplog):
 
 
 def test_aimpm_detect_data_drift_feature_not_in_dataframes(caplog):
-    config = {
+    config: dict[str, object] = {
         "name": "PerfMonitor",
         "drift_detection": {"feature": "non_existent_feature", "threshold": 0.1},
     }
@@ -209,7 +221,10 @@ def test_aimpm_detect_data_drift_feature_not_in_dataframes(caplog):
 
 
 def test_aimpm_detect_concept_drift_no_drift(caplog):
-    config = {"name": "PerfMonitor", "concept_drift": {"expected_accuracy": 0.8}}
+    config: dict[str, object] = {
+        "name": "PerfMonitor",
+        "concept_drift": {"expected_accuracy": 0.8},
+    }
     monitor = AIModelPerformanceMonitor(config)
     model_predictions = pd.Series([1, 1, 0, 0])
     true_labels = pd.Series([1, 1, 0, 0])
@@ -222,7 +237,10 @@ def test_aimpm_detect_concept_drift_no_drift(caplog):
 
 
 def test_aimpm_detect_concept_drift_with_drift(caplog):
-    config = {"name": "PerfMonitor", "concept_drift": {"expected_accuracy": 0.8}}
+    config: dict[str, object] = {
+        "name": "PerfMonitor",
+        "concept_drift": {"expected_accuracy": 0.8},
+    }
     monitor = AIModelPerformanceMonitor(config)
     model_predictions = pd.Series([1, 1, 0, 0])
     true_labels = pd.Series([1, 0, 0, 1])  # Accuracy 0.5
@@ -235,9 +253,12 @@ def test_aimpm_detect_concept_drift_with_drift(caplog):
 
 
 def test_aimpm_detect_concept_drift_empty_series(caplog):
-    config = {"name": "PerfMonitor", "concept_drift": {"expected_accuracy": 0.8}}
+    config: dict[str, object] = {
+        "name": "PerfMonitor",
+        "concept_drift": {"expected_accuracy": 0.8},
+    }
     monitor = AIModelPerformanceMonitor(config)
-    model_predictions = pd.Series()
+    model_predictions = pd.Series([], dtype=int)
     true_labels = pd.Series([1, 0, 0, 1])
 
     with caplog.at_level(logging.INFO):
@@ -248,7 +269,10 @@ def test_aimpm_detect_concept_drift_empty_series(caplog):
 
 
 def test_aimpm_detect_concept_drift_mismatched_lengths(caplog):
-    config = {"name": "PerfMonitor", "concept_drift": {"expected_accuracy": 0.8}}
+    config: dict[str, object] = {
+        "name": "PerfMonitor",
+        "concept_drift": {"expected_accuracy": 0.8},
+    }
     monitor = AIModelPerformanceMonitor(config)
     model_predictions = pd.Series([1, 1])
     true_labels = pd.Series([1, 0, 0, 1])
@@ -264,14 +288,14 @@ def test_aimpm_detect_concept_drift_mismatched_lengths(caplog):
 
 
 def test_aidd_init():
-    config = {"name": "DriftDetector"}
+    config: dict[str, str] = {"name": "DriftDetector"}
     detector = AIDriftDetector(config)
     assert detector.config == config
     assert detector.monitor_name == "DriftDetector"
 
 
 def test_aidd_detect_data_drift_placeholder():
-    config = {}
+    config: dict[str, str] = {}
     detector = AIDriftDetector(config)
     new_data = pd.DataFrame({"a": [1]})
     baseline_data = pd.DataFrame({"a": [2]})
@@ -279,7 +303,7 @@ def test_aidd_detect_data_drift_placeholder():
 
 
 def test_aidd_detect_concept_drift_placeholder():
-    config = {}
+    config: dict[str, str] = {}
     detector = AIDriftDetector(config)
     model_predictions = pd.Series([1])
     true_labels = pd.Series([0])
@@ -287,7 +311,7 @@ def test_aidd_detect_concept_drift_placeholder():
 
 
 def test_aidd_check_for_drift(mocker):
-    config = {"name": "DriftDetector"}
+    config: dict[str, str] = {"name": "DriftDetector"}
     detector = AIDriftDetector(config)
 
     mock_detect_data_drift = mocker.patch.object(
@@ -297,10 +321,10 @@ def test_aidd_check_for_drift(mocker):
         detector, "detect_concept_drift", return_value=False
     )
 
-    new_data = pd.DataFrame()
-    baseline_data = pd.DataFrame()
-    model_predictions = pd.Series()
-    true_labels = pd.Series()
+    new_data = pd.DataFrame([], dtype=int)
+    baseline_data = pd.DataFrame([], dtype=int)
+    model_predictions = pd.Series([], dtype=int)
+    true_labels = pd.Series([], dtype=int)
 
     result = detector.check_for_drift(
         new_data, baseline_data, model_predictions, true_labels

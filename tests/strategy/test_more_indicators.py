@@ -22,7 +22,7 @@ def _df():
 
 def test_various_indicators_presence():
     df = _df()
-    specs = [
+    specs: list[dict[str, object]] = [
         {"name": "sma3", "type": "SMA", "params": {"length": 3}},
         {"name": "wma3", "type": "WMA", "params": {"length": 3}},
         {"name": "macd", "type": "MACD", "params": {"fast": 3, "slow": 6, "signal": 2}},

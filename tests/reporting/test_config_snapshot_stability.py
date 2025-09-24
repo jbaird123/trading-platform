@@ -9,7 +9,15 @@ from trading_platform.reporting.brief import generate_brief
 
 
 def test_config_snapshot_hash_stable_for_same_runconfig():
-    cfg = RunConfig(user_id="u", run_id="fixed", log_level="INFO")
+    cfg = RunConfig(
+        user_id="u",
+        run_id="fixed",
+        log_level="INFO",
+        run_seed=42,
+        initial_cash=10000.0,
+        position_size=1.0,
+        allow_flip_on_bar=False,
+    )
     t = Trade(
         symbol="X",
         entry_time=datetime(2024, 1, 1),

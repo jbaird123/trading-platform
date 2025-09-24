@@ -45,7 +45,14 @@ def _signals(n: int = 3, value: str = "flat") -> pd.Series:
 def test_validation_missing_columns():
     df = _mdf().drop(columns=["volume"])  # missing required column
     sig = _signals()
-    config = RunConfig()
+    config = RunConfig(
+        user_id="test",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=1000.0,
+        position_size=1.0,
+        allow_flip_on_bar=False,
+    )
     rem = RiskExitManager(config={})
     with pytest.raises(ValueError, match="missing required columns"):
         run_backtest(df, sig, strategy=_dummy_strategy(), config=config, rem=rem)
@@ -55,7 +62,14 @@ def test_validation_close_has_nans():
     df = _mdf()
     df.loc[df.index[1], "close"] = pd.NA
     sig = _signals()
-    config = RunConfig()
+    config = RunConfig(
+        user_id="test",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=1000.0,
+        position_size=1.0,
+        allow_flip_on_bar=False,
+    )
     rem = RiskExitManager(config={})
     with pytest.raises(ValueError, match="close has NaNs"):
         run_backtest(df, sig, strategy=_dummy_strategy(), config=config, rem=rem)
@@ -64,7 +78,14 @@ def test_validation_close_has_nans():
 def test_validation_length_mismatch():
     df = _mdf(3)
     sig = _signals(2)
-    config = RunConfig()
+    config = RunConfig(
+        user_id="test",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=1000.0,
+        position_size=1.0,
+        allow_flip_on_bar=False,
+    )
     rem = RiskExitManager(config={})
     with pytest.raises(ValueError, match="signals length "):
         run_backtest(df, sig, strategy=_dummy_strategy(), config=config, rem=rem)
@@ -74,7 +95,14 @@ def test_validation_invalid_signal_value():
     df = _mdf(2)
     sig = _signals(2)
     sig.iloc[1] = "hold"  # invalid
-    config = RunConfig()
+    config = RunConfig(
+        user_id="test",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=1000.0,
+        position_size=1.0,
+        allow_flip_on_bar=False,
+    )
     rem = RiskExitManager(config={})
     with pytest.raises(ValueError, match="invalid values"):
         run_backtest(df, sig, strategy=_dummy_strategy(), config=config, rem=rem)

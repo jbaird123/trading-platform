@@ -13,6 +13,7 @@ from trading_platform.strategy.yaml_strategy import CompiledStrategy
 def _dummy_strategy() -> CompiledStrategy:
     return CompiledStrategy(
         name="dummy",
+        parameters={},
         features=[],
         overlays=[],
         long_entry_blocks=[],
@@ -24,15 +25,14 @@ def _dummy_strategy() -> CompiledStrategy:
 
 def _t(ts: datetime, pnl: float) -> Trade:
     return Trade(
-        symbol="EURUSD",
+        symbol="EUR_USD",
         entry_time=ts,
         exit_time=ts + timedelta(hours=1),
         entry_price=1.0,
-        exit_price=1.001,
-        side="long" if pnl >= 0 else "short",
+        exit_price=1.1,
+        side="long",
         size=1.0,
         pnl=pnl,
-        exit_reason="signal",
     )
 
 
@@ -42,6 +42,11 @@ def test_finalize_run_uses_config_snapshots(tmp_path):
         user_id="user",
         run_id="run123",
         runs_dir=tmp_path,
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=10000.0,
+        position_size=1.0,
+        allow_flip_on_bar=False,
         instrument_definitions={
             "EURUSD": {"symbol": "EURUSD", "tick_size": 0.0001, "base_ccy": "EUR"}
         },

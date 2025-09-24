@@ -33,7 +33,8 @@ def test_brief_includes_instrument_snapshot_when_provided():
         commission_model={},
         sessions=[],
     )
-    instruments = {instr.symbol: instr.to_dict()}
+    # Cast symbol to string to satisfy typing
+    instruments = {str(instr.symbol): instr.to_dict()}
 
     brief = generate_brief(
         meta={"run_id": "rX", "strategy_name": "S"},

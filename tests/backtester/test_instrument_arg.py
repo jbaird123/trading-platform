@@ -28,7 +28,15 @@ def test_run_backtest_accepts_instrument_snapshot():
     df = _mk_df()
     signals = pd.Series(["flat", "long", "flat"], index=df.index)
     instr = {"symbol": "EUR_USD", "tick_size": 0.0001}
-    config = RunConfig(initial_cash=1000.0, allow_flip_on_bar=False, instrument=instr)
+    config = RunConfig(
+        user_id="test_user",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=1000.0,
+        position_size=1.0,
+        allow_flip_on_bar=False,
+        instrument=instr,
+    )
     rem = RiskExitManager(config={})
     trades = run_backtest(
         market_data=df,

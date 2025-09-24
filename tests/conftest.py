@@ -40,6 +40,7 @@ def when_backtest_is_run(shared_context: dict) -> None:
     sl = shared_context.get("stop_loss")
     tp = shared_context.get("take_profit")
 
+    rem_config: dict = {}
     # If sl or tp are present, use the specific strategy helper
     if sl is not None or tp is not None:
         strategy = _dummy_strategy_with_sl_tp(float(sl or 0.0), float(tp or 0.0))
@@ -49,7 +50,6 @@ def when_backtest_is_run(shared_context: dict) -> None:
         }
     else:
         strategy = _dummy_strategy_cfg()
-    rem_config: dict = {}
 
     config = RunConfig(
         user_id="test_user",
@@ -67,6 +67,8 @@ def when_backtest_is_run(shared_context: dict) -> None:
         strategy=strategy,
         config=config,
         rem=rem,
+        return_exposure=False,
+        return_skips=False,
     )
     shared_context["trades"] = trades
 
@@ -353,11 +355,12 @@ def then_df_empty(shared_context: dict) -> None:
 
 @given(parsers.parse('the indicator "{name}" has a value of {value:f}'))
 def given_indicator_value(name: str, value: float, shared_context: dict) -> None:
-    feats = shared_context.get("rmm_features")
-    if feats is None:
-        feats = {}  # type: dict
-        shared_context["rmm_features"] = feats
-    feats[name] = value
+    rmm_feats = shared_context.get("rmm_features")
+    if rmm_feats is None:
+        new_feats: dict[str, float] = {}
+        shared_context["rmm_features"] = new_feats
+        rmm_feats = new_feats
+    rmm_feats[name] = value
 
 
 @when("the market regime is classified")

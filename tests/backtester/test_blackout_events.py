@@ -23,7 +23,15 @@ def test_event_blackout_blocks_new_entries():
     signals = pd.Series(["long", "long", "long", "long"], index=df.index)
 
     ev = {"start": datetime(2023, 1, 1, 11, 0), "end": datetime(2023, 1, 1, 12, 30)}
-    config = RunConfig(initial_cash=1000.0, blackout_events=[ev])
+    config = RunConfig(
+        user_id="test_user",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=1000.0,
+        position_size=1.0,
+        allow_flip_on_bar=False,
+        blackout_events=[ev],
+    )
     rem = RiskExitManager(config={})
     trades = run_backtest(
         market_data=df,

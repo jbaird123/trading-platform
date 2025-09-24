@@ -128,7 +128,8 @@ def test_full_training_pipeline_e2e_minimal(minimal_training_config, temp_mlflow
     # Assertions for MLflow run completion and artifacts
     runs = mlflow.search_runs(experiment_names=["E2E Training Test"])
     assert len(runs) == 1
-    run_id = runs.iloc[0].run_id
+    runs_df = pd.DataFrame(runs) if not isinstance(runs, pd.DataFrame) else runs
+    run_id = runs_df.iloc[0].run_id
 
     # Verify artifacts
     client = mlflow.tracking.MlflowClient(tracking_uri=temp_mlflow_uri)
@@ -151,7 +152,7 @@ def test_full_training_pipeline_e2e_minimal(minimal_training_config, temp_mlflow
     assert len(prediction) == 1
 
     # Verify ONNX model can be loaded (basic check, not full inference)
-    experiment_id = runs.iloc[0].experiment_id
+    experiment_id = runs_df.iloc[0].experiment_id
     onnx_artifact_path = os.path.join(
         temp_mlflow_uri,
         experiment_id,
@@ -164,7 +165,7 @@ def test_full_training_pipeline_e2e_minimal(minimal_training_config, temp_mlflow
     # Further ONNX validation would require onnxruntime, which might not be in test env
 
     # Verify diagnostic synthesis results content (basic check)
-    experiment_id = runs.iloc[0].experiment_id
+    experiment_id = runs_df.iloc[0].experiment_id
     diagnostic_results_path = os.path.join(
         temp_mlflow_uri,
         experiment_id,

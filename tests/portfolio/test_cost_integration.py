@@ -42,12 +42,14 @@ def test_portfolio_cost_breakdown_and_aggregate_with_lot_scaling():
     # Per side costs: spread=0.05, slippage=0.02, commission=0.2; round-trip doubles
     from pytest import approx
 
+    assert t.cost_breakdown is not None
     assert t.cost_breakdown["spread"] == approx(0.1)
     assert t.cost_breakdown["slippage"] == approx(0.04)
     assert t.cost_breakdown["commission"] == approx(0.4)
     assert t.cost_currency == approx(0.54)  # 0.27 per side * 2
 
     agg = compute_costs_aggregate(pm.trades)
+    assert agg is not None
     assert agg["total_costs"] == approx(0.54)
     assert agg["avg_cost_per_trade"] == approx(0.54)
     assert agg["breakdown"] == {
