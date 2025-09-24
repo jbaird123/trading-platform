@@ -3,6 +3,7 @@ import logging
 from unittest.mock import MagicMock, patch
 
 from src.trading_platform.ai.synthesis.engine import DiagnosticSynthesisEngine
+from src.trading_platform.ai.synthesis.recommendations import Recommendation
 from src.trading_platform.ai.synthesis.rules import (
     DiagnosticConclusion,  # Import actual class for type hinting
 )
@@ -119,10 +120,14 @@ def test_dse_generate_report_markdown_with_one_conclusion():
     conc = MockDiagnosticConclusion(
         "Issue Title", "Issue Summary", {"metric": 0.1, "threshold": 0.5}
     )
+    rec = Recommendation("Issue Title", "Issue Summary", "default_category", 1.0)
 
     with patch(
         "src.trading_platform.ai.synthesis.engine.get_all_rules",
         return_value=[MockRule(conclusion_to_return=conc)],
+    ), patch(
+        "src.trading_platform.ai.synthesis.engine.generate_recommendations",
+        return_value=[rec],
     ):
         engine = DiagnosticSynthesisEngine(analysis_data)
         engine.run()
@@ -130,10 +135,17 @@ def test_dse_generate_report_markdown_with_one_conclusion():
 
         expected_report = (
             "# AI Diagnostic Report\n\n"
+            "## Recommendations\n\n"
+            "### Issue Title\n"
+            "Issue Summary\n\n"
+            "- Category: default_category\n"
+            "- Confidence: 1.0\n"
+            "\n"
             "## Issue Title\n"
             "Issue Summary\n\n"
             "**Evidence:**\n"
-            '```json\n{\n  "metric": 0.1,\n  "threshold": 0.5\n}\n```'
+            "- metric: 0.1\n"
+            "- threshold: 0.5"
         )
         assert report == expected_report
 
@@ -155,17 +167,10 @@ def test_dse_generate_report_markdown_with_multiple_conclusions():
         report = engine.generate_report_markdown()
 
         expected_report_part1 = (
-            "# AI Diagnostic Report\n\n"
-            "## Title 1\n"
-            "Summary 1\n\n"
-            "**Evidence:**\n"
-            '```json\n{\n  "key1": "value1"\n}\n```'
+            "## Title 1\n" "Summary 1\n\n" "**Evidence:**\n" "- key1: value1"
         )
         expected_report_part2 = (
-            "## Title 2\n"
-            "Summary 2\n\n"
-            "**Evidence:**\n"
-            '```json\n{\n  "key2": "value2"\n}\n```'
+            "## Title 2\n" "Summary 2\n\n" "**Evidence:**\n" "- key2: value2"
         )
         assert expected_report_part1 in report
         assert expected_report_part2 in report
@@ -239,3 +244,43 @@ def test_dse_generate_report_json_with_multiple_conclusions():
             "recommendations": [],
         }
         assert json.loads(report_json_str) == expected_json
+
+
+def test_dse_generate_recommendations():
+    """Test the generation of recommendations from conclusions."""
+    conc1 = MockDiagnosticConclusion("Title 1", "Summary 1", {})
+    conc2 = MockDiagnosticConclusion("Title 2", "Summary 2", {})
+
+    engine = DiagnosticSynthesisEngine({})
+    engine.conclusions = [conc1, conc2]
+    recommendations = engine.generate_recommendations()
+
+    assert len(recommendations) == 2
+    assert recommendations[0]["title"] == "Title 1"
+    assert recommendations[0]["description"] == "Summary 1"
+    assert recommendations[1]["title"] == "Title 2"
+
+
+def test_dse_generate_report_markdown_with_recommendations():
+    """Test that the markdown report includes recommendations."""
+    analysis_data = {"some_data": 123}
+    conc = MockDiagnosticConclusion("Rec Title", "Rec Summary", {})
+    rec = Recommendation("Rec Title", "Rec Summary", "Test Category", 0.99)
+
+    with patch(
+        "src.trading_platform.ai.synthesis.engine.get_all_rules",
+        return_value=[MockRule(conclusion_to_return=conc)],
+    ), patch(
+        "src.trading_platform.ai.synthesis.engine.generate_recommendations",
+        return_value=[rec],
+    ):
+        engine = DiagnosticSynthesisEngine(analysis_data)
+        engine.run()  # This will generate recommendations
+
+        report = engine.generate_report_markdown()
+
+        assert "## Recommendations" in report
+        assert "### Rec Title" in report
+        assert "Rec Summary" in report
+        assert "- Category: Test Category" in report
+        assert "- Confidence: 0.99" in report

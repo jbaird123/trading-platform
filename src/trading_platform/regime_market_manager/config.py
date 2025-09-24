@@ -6,8 +6,8 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 
 try:
-    import jsonschema  # type: ignore[import-untyped]
-    from jsonschema import ValidationError  # type: ignore[import-untyped]
+    import jsonschema
+    from jsonschema import ValidationError
 except Exception:  # pragma: no cover
     jsonschema = None  # type: ignore[assignment]
 
@@ -57,7 +57,7 @@ def validate_rmm_config(cfg: dict) -> None:
     )
     try:
         schema = json.loads(schema_path.read_text())
-        jsonschema.validate(cfg, schema)  # type: ignore[misc]
+        jsonschema.validate(cfg, schema)
     except ValidationError as e:  # pragma: no cover
         raise ValueError(f"rmm schema validation error: {e.message}") from e
     regimes = cfg.get("regimes")

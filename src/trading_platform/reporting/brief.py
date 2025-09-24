@@ -12,7 +12,7 @@ from pathlib import Path
 from statistics import median
 from typing import Any
 
-import jsonschema  # type: ignore
+import jsonschema
 import pandas as pd
 from trading_platform.portfolio.metrics import (
     calculate_equity_curve,
