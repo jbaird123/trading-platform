@@ -87,8 +87,7 @@ class DiagnosticSynthesisEngine:
 
         # Remove extra newline between recommendations and conclusions
         if self.conclusions and self.recommendations:
-            if report_parts[-1] == "":
-                report_parts.pop()
+            report_parts.pop()
             report_parts.append("")
 
         # Conclusions with structured evidence
