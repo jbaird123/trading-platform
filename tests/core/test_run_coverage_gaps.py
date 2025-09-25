@@ -21,6 +21,8 @@ def test_initialize_run_creates_directory_and_config():
             user_id="test_user",
             run_id="test_run_123",
             runs_dir=Path(temp_dir) / "runs",
+            run_seed=42,
+            allow_flip_on_bar=False,
             log_level="INFO",
             initial_cash=10000.0,
             position_size=100.0,
@@ -67,6 +69,9 @@ def test_finalize_run_monte_carlo_enabled():
             user_id="test_user",
             initial_cash=10000.0,
             position_size=100.0,
+            run_seed=42,
+            log_level="INFO",
+            allow_flip_on_bar=False,
             monte_carlo={
                 "enabled": True,
                 "trials": 50,
@@ -127,6 +132,9 @@ def test_finalize_run_walk_forward_enabled():
             user_id="test_user",
             initial_cash=10000.0,
             position_size=100.0,
+            run_seed=42,
+            log_level="INFO",
+            allow_flip_on_bar=False,
             walk_forward={"window": 30, "step": 5},
         )
 
@@ -188,6 +196,9 @@ def test_finalize_run_parameter_search_enabled():
             user_id="test_user",
             initial_cash=10000.0,
             position_size=100.0,
+            run_seed=42,
+            log_level="INFO",
+            allow_flip_on_bar=False,
             parameter_search={
                 "grid": {"param1": [1, 2, 3]},
                 "objective": "total_pnl",
@@ -251,6 +262,9 @@ def test_finalize_run_parameter_search_random_space():
             user_id="test_user",
             initial_cash=10000.0,
             position_size=100.0,
+            run_seed=42,
+            log_level="INFO",
+            allow_flip_on_bar=False,
             parameter_search={
                 "random_space": {"param1": [1.0, 2.0, 3.0]},
                 "n_samples": 10,
@@ -308,6 +322,9 @@ def test_finalize_run_parameter_search_export_csv():
             user_id="test_user",
             initial_cash=10000.0,
             position_size=100.0,
+            run_seed=42,
+            log_level="INFO",
+            allow_flip_on_bar=False,
         )
 
         # Mock parameter search results with detailed structure
@@ -371,6 +388,9 @@ def test_finalize_run_exception_handling():
             user_id="test_user",
             initial_cash=10000.0,
             position_size=100.0,
+            run_seed=42,
+            log_level="INFO",
+            allow_flip_on_bar=False,
         )
 
         # Test Monte Carlo exception handling
@@ -420,6 +440,9 @@ def test_finalize_run_parameter_search_csv_export_exception():
             user_id="test_user",
             initial_cash=10000.0,
             position_size=100.0,
+            run_seed=42,
+            log_level="INFO",
+            allow_flip_on_bar=False,
         )
 
         # Create malformed parameter search payload to trigger exception

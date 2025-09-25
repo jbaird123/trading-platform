@@ -20,7 +20,7 @@ def test_loader_invalid_data_request():
     
     # Test with non-dict data_request
     with pytest.raises(ValueError, match="data_request must be a dict"):
-        load_from_catalog("not a dict")
+        load_from_catalog("not a dict")  # type: ignore[arg-type]
 
 
 def test_loader_missing_symbol():

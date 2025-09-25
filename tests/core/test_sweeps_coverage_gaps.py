@@ -149,7 +149,7 @@ def test_rmm_context_empty_config():
     )
 
     # Test with empty dict
-    cfg_raw = {"rmm_config": {}}
+    cfg_raw: dict[str, dict[str, str] | str] = {"rmm_config": {}}
     result = _rmm_context(df, cfg_raw)
     assert result is None
 

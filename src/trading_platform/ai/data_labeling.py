@@ -71,7 +71,7 @@ if __name__ == "__main__":
         "volume": [100, 110, 105, 120, 115, 130, 125, 110],
     }
     sample_df = pd.DataFrame(data)
-    sample_df.index = sample_df.pop("timestamp")
+    sample_df = sample_df.set_index("timestamp")
 
     labeler = DataLabeler(look_ahead_bars=1)
     labels = labeler.generate_future_price_direction(sample_df)

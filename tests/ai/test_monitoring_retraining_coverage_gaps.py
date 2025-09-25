@@ -115,7 +115,7 @@ def test_scheduled_retraining_check():
     manager = AIRetrainingManager(config)
     
     # Mock performance brief with no sharpe data to avoid performance trigger
-    current_performance_brief = {
+    current_performance_brief: dict[str, dict[str, float]] = {
         "overall_performance": {}  # No sharpe_ratio data
     }
     
@@ -156,7 +156,7 @@ def test_missing_performance_data():
     manager = AIRetrainingManager(config)
     
     # Mock performance brief with missing overall_performance data
-    current_performance_brief = {}  # Missing overall_performance key
+    current_performance_brief: dict[str, dict[str, float]] = {}  # Missing overall_performance key
     
     # Create dummy data
     new_data = pd.DataFrame({"feature1": [1, 2, 3]})
@@ -240,7 +240,7 @@ def test_data_drift_trigger():
     baseline_data = pd.DataFrame({"feature1": [1, 2, 3]})
     model_predictions = pd.Series([1, 0, 1])
     true_labels = pd.Series([1, 0, 1])
-    current_performance_brief = {}
+    current_performance_brief: dict[str, dict[str, float]] = {}
     
     # Mock the drift detector to return data drift detected
     with patch.object(manager.drift_detector, 'check_for_drift', return_value={
@@ -275,7 +275,7 @@ def test_concept_drift_trigger():
     baseline_data = pd.DataFrame({"feature1": [1, 2, 3]})
     model_predictions = pd.Series([1, 0, 1])
     true_labels = pd.Series([1, 0, 1])
-    current_performance_brief = {}
+    current_performance_brief: dict[str, dict[str, float]] = {}
     
     # Mock the drift detector to return concept drift detected
     with patch.object(manager.drift_detector, 'check_for_drift', return_value={
@@ -299,7 +299,7 @@ def test_trigger_training_pipeline():
     from trading_platform.ai.monitoring.retraining_manager import AIRetrainingManager
     from unittest.mock import Mock
     
-    config = {"retraining_criteria": {}}
+    config: dict[str, dict[str, int]] = {"retraining_criteria": {}}
     manager = AIRetrainingManager(config)
     
     # Store original module state to restore after the test

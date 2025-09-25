@@ -44,7 +44,7 @@ def test_schema_node_type_with_list():
     assert result == "string"
 
     # Test with no type
-    node_no_type = {}
+    node_no_type: dict[str, str] = {}
     result = _schema_node_type(node_no_type)
     assert result == "object"
 

@@ -366,7 +366,7 @@ def test_dse_model_insights_no_run_dir():
 
 def test_dse_model_insights_no_model_file():
     """Test when model file doesn't exist - covers line 87."""
-    analysis_data = {"trades": []}
+    analysis_data: dict[str, list[dict[str, float]]] = {"trades": []}
 
     with patch("trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]), \
          patch("pathlib.Path") as mock_path_class:
@@ -416,7 +416,7 @@ def test_dse_model_insights_run_dir_exists():
 
 def test_dse_model_insights_successful_load_no_trades():
     """Test model loading success path but no trades to process - covers lines 93-107."""
-    analysis_data = {"trades": []}  # Empty trades list
+    analysis_data: dict[str, list[dict[str, float]]] = {"trades": []}  # Empty trades list
 
     # Mock the model loading to succeed but avoid the complex dependencies
     mock_model = MagicMock()
@@ -440,7 +440,7 @@ def test_dse_model_insights_successful_load_no_trades():
 
 def test_dse_model_insights_features_fallback():
     """Test feature extraction fallback when model has no features and no trades - covers lines 97-102."""
-    analysis_data = {}  # No trades key at all
+    analysis_data: dict[str, list[dict[str, float]]] = {}  # No trades key at all
 
     mock_model = MagicMock()
     # Model has no feature_names_in_ attribute

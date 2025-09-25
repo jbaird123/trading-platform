@@ -22,7 +22,7 @@ def test_rem_distance_invalid_rule_type():
     assert result is None
     
     # Test with string rule - should return None (line 56) 
-    result = rem._distance("invalid", 1.0)
+    result = rem._distance("invalid", 1.0)  # type: ignore[arg-type]
     assert result is None
 
 
@@ -68,7 +68,7 @@ def test_rem_level_price_invalid_rule_type():
     assert result is None
     
     # Test with invalid rule type - should return None (line 74)
-    result = rem._level_price("long", 1.1000, "invalid", None)
+    result = rem._level_price("long", 1.1000, "invalid", None)  # type: ignore[arg-type]
     assert result is None
 
 
