@@ -1,13 +1,3 @@
-# ruff: noqa: E402
-
-import warnings
-
-warnings.filterwarnings(  # noqa: E402
-    "ignore",
-    message="The NumPy module was reloaded (imported a second time).*",
-    category=UserWarning,
-)
-
 import pandas as pd
 import pytest
 import trading_platform.ai.data_labeling as data_labeling
@@ -92,11 +82,13 @@ def test_generate_future_price_direction_custom_threshold():
     """Tests that a higher threshold suppresses small price changes."""
     df = pd.DataFrame(
         {"close": [100.0, 100.5, 101.0]},
-        index=pd.to_datetime([
-            "2023-01-01",
-            "2023-01-02",
-            "2023-01-03",
-        ]),
+        index=pd.to_datetime(
+            [
+                "2023-01-01",
+                "2023-01-02",
+                "2023-01-03",
+            ]
+        ),
     )
     labeler = DataLabeler(
         look_ahead_bars=1,
@@ -115,11 +107,13 @@ def test_generate_future_price_direction_handles_dropna_error(monkeypatch):
     """Ensures fallback path handles dropna compatibility errors."""
     df = pd.DataFrame(
         {"close": [100.0, 101.0, 102.0]},
-        index=pd.to_datetime([
-            "2023-01-01",
-            "2023-01-02",
-            "2023-01-03",
-        ]),
+        index=pd.to_datetime(
+            [
+                "2023-01-01",
+                "2023-01-02",
+                "2023-01-03",
+            ]
+        ),
     )
     labeler = DataLabeler(look_ahead_bars=1)
 
@@ -618,9 +612,7 @@ def test_exception_path_simulation(capsys):
                     )
                 except Exception as e:
                     # Handle pandas/numpy compatibility issues gracefully
-                    print(
-                        f"\nExample execution encountered a compatibility issue: {e}"
-                    )
+                    print(f"\nExample execution encountered a compatibility issue: {e}")
                     labeler = DataLabeler(look_ahead_bars=1)
                     print("DataLabeler created successfully for demonstration.")
 
