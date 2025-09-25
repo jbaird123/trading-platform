@@ -87,16 +87,21 @@ def adx(df: pd.DataFrame, length: int) -> pd.Series:
         return pd.Series([0.0] * n, index=df.index, dtype="float64")
     # Clamp window to available length to avoid internal indexing errors
     length = max(3, min(int(length), n))
-    return cast(
-        pd.Series,
-        ADXIndicator(
-            high=df["high"],
-            low=df["low"],
-            close=df["close"],
-            window=length,
-            fillna=True,
-        ).adx(),
-    )
+
+    try:
+        return cast(
+            pd.Series,
+            ADXIndicator(
+                high=df["high"],
+                low=df["low"],
+                close=df["close"],
+                window=length,
+                fillna=True,
+            ).adx(),
+        )
+    except (IndexError, ValueError):
+        # If ADX calculation fails with the given data, return zeros
+        return pd.Series([0.0] * n, index=df.index, dtype="float64")
 
 
 def bb_width(series: pd.Series, length: int, ndev: float) -> pd.Series:
@@ -110,12 +115,18 @@ def bb_width(series: pd.Series, length: int, ndev: float) -> pd.Series:
 
 
 def hhv(series: pd.Series, length: int) -> pd.Series:
-    length = max(1, int(length))
+    """Highest High Value over length periods."""
+    if length <= 0:
+        raise ValueError(f"Length must be positive, got {length}")
+    length = int(length)
     return series.rolling(window=length, min_periods=1).max()
 
 
 def llv(series: pd.Series, length: int) -> pd.Series:
-    length = max(1, int(length))
+    """Lowest Low Value over length periods."""
+    if length <= 0:
+        raise ValueError(f"Length must be positive, got {length}")
+    length = int(length)
     return series.rolling(window=length, min_periods=1).min()
 
 

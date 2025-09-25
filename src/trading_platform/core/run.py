@@ -72,6 +72,11 @@ def finalize_run(
 
     Returns the path to `brief.json`.
     """
+    # Initialize analysis control parameters
+    monte_carlo_param = monte_carlo
+    walk_forward_param = walk_forward
+    parameter_search_param = parameter_search
+
     # If a config is provided, use its snapshots as defaults
     blackout_policy: dict[str, Any] | None = None
     if config is not None:
@@ -83,6 +88,8 @@ def finalize_run(
         cost_model = cost_model or config.cost_model
         fill_policy = fill_policy or config.fill_policy
         tie_break_policy = tie_break_policy or config.tie_break_policy
+
+        # Use config values as defaults for brief generation
         monte_carlo = monte_carlo or config.monte_carlo
         walk_forward = walk_forward or config.walk_forward
         blackout_policy = {
@@ -96,7 +103,7 @@ def finalize_run(
     ps_cfg = config.parameter_search if config is not None else {}
 
     mc_summary = None
-    if monte_carlo is None:
+    if monte_carlo_param is None:
         try:
             trials = int(mc_cfg.get("trials", 0)) if isinstance(mc_cfg, dict) else 0
             if trials > 0 or (isinstance(mc_cfg, dict) and mc_cfg.get("enabled")):
@@ -111,7 +118,7 @@ def finalize_run(
             mc_summary = None  # pragma: no cover
 
     wf_summary = None
-    if walk_forward is None:
+    if walk_forward_param is None:
         try:
             window = int(wf_cfg.get("window", 0)) if isinstance(wf_cfg, dict) else 0
             step = int(wf_cfg.get("step", 0)) if isinstance(wf_cfg, dict) else 0
@@ -121,7 +128,7 @@ def finalize_run(
             wf_summary = None  # pragma: no cover
 
     ps_summary = None
-    if parameter_search is None:
+    if parameter_search_param is None:
         try:
             if isinstance(ps_cfg, dict) and (
                 ps_cfg.get("grid") or ps_cfg.get("random_space")
