@@ -37,7 +37,10 @@ def test_schema_missing_unknown_columns():
         temp_path_missing.unlink()
 
     # Test case with unknown columns
-    csv_content_unknown = "UTCTime,Open,High,Low,Close,Volume,UnknownCol\n2023-01-01 00:00:00,1.0,1.1,0.9,1.05,1000,test\n"
+    csv_content_unknown = (
+        "UTCTime,Open,High,Low,Close,Volume,UnknownCol\n"
+        "2023-01-01 00:00:00,1.0,1.1,0.9,1.05,1000,test\n"
+    )
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
         f.write(csv_content_unknown)
@@ -85,7 +88,10 @@ def test_schema_successful_normalization():
     from trading_platform.data.schema import load_and_normalize_data
 
     # Test case with correct columns
-    csv_content_correct = "UTCTime,Open,High,Low,Close,Volume\n2023-01-01 00:00:00,1.0,1.1,0.9,1.05,1000\n"
+    csv_content_correct = (
+        "UTCTime,Open,High,Low,Close,Volume\n"
+        "2023-01-01 00:00:00,1.0,1.1,0.9,1.05,1000\n"
+    )
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
         f.write(csv_content_correct)
@@ -105,7 +111,7 @@ def test_schema_successful_normalization():
 
 
 def test_schema_normalized_columns_missing_unknown():
-    """Test schema validation with already normalized columns having missing or unknown (covers lines 56-62)."""
+    """Test schema normalized columns missing/unknown (covers lines 56-62)."""
     import os
     import sys
     import tempfile
@@ -134,7 +140,10 @@ def test_schema_normalized_columns_missing_unknown():
         temp_path.unlink()
 
     # Test case with normalized column names but unknown columns
-    csv_content_unknown = "timestamp,open,high,low,close,volume,unknown_col\n2023-01-01 00:00:00,1.0,1.1,0.9,1.05,1000,test\n"
+    csv_content_unknown = (
+        "timestamp,open,high,low,close,volume,unknown_col\n"
+        "2023-01-01 00:00:00,1.0,1.1,0.9,1.05,1000,test\n"
+    )
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
         f.write(csv_content_unknown)
@@ -153,7 +162,7 @@ def test_schema_normalized_columns_missing_unknown():
 
 
 def test_schema_missing_timestamp():
-    """Test schema validation when timestamp column is completely missing (covers lines 75-77)."""
+    """Test schema when timestamp column completely missing (covers lines 75-77)."""
     import os
     import sys
     import tempfile
@@ -248,7 +257,7 @@ def test_schema_resample_ohlc():
 
 
 def test_schema_normalized_columns_success():
-    """Test successful processing with already normalized columns (covers branch 58->80)."""
+    """Test successful processing with normalized columns (covers branch 58->80)."""
     import os
     import sys
     import tempfile
@@ -259,7 +268,10 @@ def test_schema_normalized_columns_success():
     from trading_platform.data.schema import load_and_normalize_data
 
     # Test case with correct normalized column names
-    csv_content_normalized = "timestamp,open,high,low,close,volume\n2023-01-01 00:00:00,1.0,1.1,0.9,1.05,1000\n"
+    csv_content_normalized = (
+        "timestamp,open,high,low,close,volume\n"
+        "2023-01-01 00:00:00,1.0,1.1,0.9,1.05,1000\n"
+    )
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
         f.write(csv_content_normalized)

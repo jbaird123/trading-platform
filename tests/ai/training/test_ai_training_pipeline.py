@@ -1,7 +1,7 @@
 import importlib
 from pathlib import Path
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import lightgbm as lgb
 import numpy as np
@@ -80,7 +80,9 @@ def test_aitp_init(monkeypatch, mock_config_path):
     mock_set_experiment = MagicMock()
     mock_set_tracking_uri = MagicMock()
     monkeypatch.setattr(training_pipeline.mlflow, "set_experiment", mock_set_experiment)
-    monkeypatch.setattr(training_pipeline.mlflow, "set_tracking_uri", mock_set_tracking_uri)
+    monkeypatch.setattr(
+        training_pipeline.mlflow, "set_tracking_uri", mock_set_tracking_uri
+    )
 
     pipeline = AITrainingPipeline(mock_config_path)
     assert pipeline.config["run_id"] == "test_run"
@@ -115,7 +117,9 @@ def test_aitp_load_and_prepare_data(monkeypatch, mock_config_path):
 
     monkeypatch.setattr(training_pipeline, "DataCatalog", mock_data_catalog_cls)
     monkeypatch.setattr(training_pipeline, "AIDataConnector", mock_data_connector_cls)
-    monkeypatch.setattr(training_pipeline, "FeatureEngineeringPipeline", mock_feature_pipeline_cls)
+    monkeypatch.setattr(
+        training_pipeline, "FeatureEngineeringPipeline", mock_feature_pipeline_cls
+    )
     monkeypatch.setattr(training_pipeline, "DataLabeler", mock_data_labeler_cls)
 
     pipeline = AITrainingPipeline(mock_config_path)
@@ -182,7 +186,9 @@ def test_aitp_load_and_prepare_data_with_nans(monkeypatch, mock_config_path):
 
     monkeypatch.setattr(training_pipeline, "DataCatalog", mock_data_catalog_cls)
     monkeypatch.setattr(training_pipeline, "AIDataConnector", mock_data_connector_cls)
-    monkeypatch.setattr(training_pipeline, "FeatureEngineeringPipeline", mock_feature_pipeline_cls)
+    monkeypatch.setattr(
+        training_pipeline, "FeatureEngineeringPipeline", mock_feature_pipeline_cls
+    )
     monkeypatch.setattr(training_pipeline, "DataLabeler", mock_data_labeler_cls)
 
     pipeline = AITrainingPipeline(mock_config_path)
@@ -461,12 +467,16 @@ def test_aitp_evaluate_and_log_artifacts(monkeypatch, mock_config_path):
     mock_log_dict = MagicMock()
     mock_os_remove = MagicMock()
 
-    monkeypatch.setattr(training_pipeline, "AIEvaluationProcedure", mock_eval_procedure_cls)
+    monkeypatch.setattr(
+        training_pipeline, "AIEvaluationProcedure", mock_eval_procedure_cls
+    )
     monkeypatch.setattr(training_pipeline.mlflow, "log_metrics", mock_log_metrics)
     monkeypatch.setattr(training_pipeline.mlflow.sklearn, "log_model", mock_log_model)
     monkeypatch.setattr(training_pipeline, "convert_sklearn", mock_convert_sklearn)
     monkeypatch.setattr(training_pipeline.mlflow, "log_artifact", mock_log_artifact)
-    monkeypatch.setattr(training_pipeline, "DiagnosticSynthesisEngine", mock_synthesis_engine_cls)
+    monkeypatch.setattr(
+        training_pipeline, "DiagnosticSynthesisEngine", mock_synthesis_engine_cls
+    )
     monkeypatch.setattr(training_pipeline.json, "loads", mock_json_loads)
     monkeypatch.setattr(training_pipeline.mlflow, "log_dict", mock_log_dict)
     monkeypatch.setattr(training_pipeline.os, "remove", mock_os_remove)
@@ -522,9 +532,15 @@ def test_aitp_run(monkeypatch, mock_config_path):
     mock_log_params = MagicMock()
 
     monkeypatch.setattr(training_pipeline.mlflow, "start_run", mock_start_run)
-    monkeypatch.setattr(AITrainingPipeline, "_load_and_prepare_data", mock_load_and_prepare_data)
+    monkeypatch.setattr(
+        AITrainingPipeline, "_load_and_prepare_data", mock_load_and_prepare_data
+    )
     monkeypatch.setattr(AITrainingPipeline, "_train_model", mock_train_model)
-    monkeypatch.setattr(AITrainingPipeline, "_evaluate_and_log_artifacts", mock_evaluate_and_log_artifacts)
+    monkeypatch.setattr(
+        AITrainingPipeline,
+        "_evaluate_and_log_artifacts",
+        mock_evaluate_and_log_artifacts,
+    )
     monkeypatch.setattr(training_pipeline.mlflow, "log_params", mock_log_params)
 
     pipeline = AITrainingPipeline(mock_config_path)
@@ -554,7 +570,9 @@ def test_main_script(monkeypatch, tmp_path):
     Tests that the main function correctly instantiates and runs the pipeline.
     """
     mock_AITrainingPipeline = MagicMock()
-    monkeypatch.setattr(training_pipeline, "AITrainingPipeline", mock_AITrainingPipeline)
+    monkeypatch.setattr(
+        training_pipeline, "AITrainingPipeline", mock_AITrainingPipeline
+    )
 
     # We patch the entire class to prevent the real pipeline from running.
     mock_pipeline_instance = mock_AITrainingPipeline.return_value

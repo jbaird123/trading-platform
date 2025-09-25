@@ -496,7 +496,8 @@ def generate_brief(
             if isinstance(signals, pd.DataFrame):
                 if "signal" not in signals.columns:
                     raise ValueError(
-                        f"Signal DataFrame must contain 'signal' column. Found columns: {list(signals.columns)}"
+                        "Signal DataFrame must contain 'signal' column. Found columns: "
+                        f"{list(signals.columns)}"
                     )
                 sig = signals["signal"]
             elif isinstance(signals, pd.Series):

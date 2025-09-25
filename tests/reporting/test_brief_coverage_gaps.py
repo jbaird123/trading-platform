@@ -248,25 +248,19 @@ def test_create_brief_signals_no_nonflat():
 
 
 def test_create_brief_strict_schema_mode():
-    """Test create_brief strict schema mode error (line 583)."""
-    trades = [create_test_trade()]
+    """create_brief should error when strict schema enforcement is enabled."""
+    [create_test_trade()]
 
     # Schema that will miss some brief paths
-    incomplete_schema = {
-        "type": "object",
-        "properties": {
-            "meta": {"type": "object", "description": "Metadata"}
-            # Missing other required properties
-        },
-    }
 
-    # This test would require mocking the schema loading logic since schema is not a parameter
+    # This test would require mocking the schema loading logic because schema
+    # configuration is internal to the function signature
     # For now, skip this specific coverage test as it's internal to the function
     pass
 
 
 def test_create_brief_empty_checksums_removal():
-    """Test create_brief empty checksums removal (line 596)."""
+    """create_brief should drop empty checksum entries from the brief."""
     trades = [create_test_trade()]
 
     brief = generate_brief(meta={}, params={}, trades=trades, initial_cash=10000.0)

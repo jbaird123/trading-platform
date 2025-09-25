@@ -277,7 +277,7 @@ def test_save_features_for_chart_empty_data(tmp_path):
 
 
 def test_save_features_for_chart_various_types(tmp_path):
-    """Test save_features_for_chart with various feature types - covers different _cols() branches."""
+    """Test save_features_for_chart with various types - covers _cols() branches."""
     import json
 
     import pandas as pd
@@ -327,7 +327,7 @@ def test_save_features_for_chart_various_types(tmp_path):
         },  # Default case
     ]
 
-    result_path = save_features_for_chart(run_path, df, feature_specs)
+    save_features_for_chart(run_path, df, feature_specs)
 
     # Verify features.json was created and has expected structure
     features_file = run_path / "features.json"
@@ -337,20 +337,20 @@ def test_save_features_for_chart_various_types(tmp_path):
     assert "meta" in saved_features
     assert "series" in saved_features
 
-    # Verify feature types were processed (some may be filtered out if columns missing from df)
+    # Verify feature types processed (some filtered if columns missing from df)
     assert (
         len(saved_features["meta"]) >= 7
     )  # At least most features should be processed
 
     # Check that series data exists for features that were included
-    meta_names = [item["name"] for item in saved_features["meta"]]
+    [item["name"] for item in saved_features["meta"]]
     for meta_item in saved_features["meta"]:
         for column in meta_item["columns"]:
             assert column in saved_features["series"]
 
 
 def test_save_features_for_chart_additional_types(tmp_path):
-    """Test save_features_for_chart with KC, PSAR, DC types and edge cases - covers missing lines."""
+    """Test save_features_for_chart with KC, PSAR, DC types - covers missing lines."""
     import json
 
     import pandas as pd
@@ -400,7 +400,7 @@ def test_save_features_for_chart_additional_types(tmp_path):
         },  # Lines 510-511 float conversion
     ]
 
-    result_path = save_features_for_chart(run_path, df, feature_specs)
+    save_features_for_chart(run_path, df, feature_specs)
 
     # Verify features.json was created
     features_file = run_path / "features.json"
@@ -409,7 +409,7 @@ def test_save_features_for_chart_additional_types(tmp_path):
     saved_features = json.loads(features_file.read_text())
 
     # Should have KC, PSAR, and DC features (empty name/type should be skipped)
-    # invalid_data with text should still have meta but empty series due to float conversion failures
+    # invalid_data with text still has meta but empty series due to conversion failures
     assert len(saved_features["meta"]) >= 3  # At least kc, psar, dc
 
     # Verify KC type was processed
@@ -457,7 +457,7 @@ def test_save_features_for_chart_missing_columns(tmp_path):
         {"name": "existing_feature", "type": "SMA", "columns": ["existing_col"]},
     ]
 
-    result_path = save_features_for_chart(run_path, df, feature_specs)
+    save_features_for_chart(run_path, df, feature_specs)
 
     features_file = run_path / "features.json"
     assert features_file.exists()
@@ -470,7 +470,7 @@ def test_save_features_for_chart_missing_columns(tmp_path):
 
 
 def test_save_features_for_chart_float_conversion_error(tmp_path):
-    """Test save_features_for_chart with values that can't be converted to float - lines 510-511."""
+    """Test save_features_for_chart with unconvertible float values - lines 510-511."""
     import json
 
     import pandas as pd
@@ -479,7 +479,7 @@ def test_save_features_for_chart_float_conversion_error(tmp_path):
     run_path = tmp_path / "test_run"
     run_path.mkdir(parents=True)
 
-    # Create dataframe with datetime index and mixed data types that will cause float conversion errors
+    # Create dataframe with mixed data types causing float conversion errors
     timestamps = pd.date_range("2023-01-01 09:00:00", periods=3, freq="1min")
     df = pd.DataFrame(
         {
@@ -494,7 +494,7 @@ def test_save_features_for_chart_float_conversion_error(tmp_path):
         index=timestamps,
     )
 
-    # The function uses _cols() to determine expected column names, not the provided columns
+    # Function uses _cols() to determine expected column names, not provided columns
     # For EMA type, _cols("mixed", "EMA") returns ["mixed"], not ["mixed_col"]
     feature_specs = [
         {
@@ -506,7 +506,7 @@ def test_save_features_for_chart_float_conversion_error(tmp_path):
         {"name": "good_col", "type": "RSI", "columns": ["good_col"]},
     ]
 
-    result_path = save_features_for_chart(run_path, df, feature_specs)
+    save_features_for_chart(run_path, df, feature_specs)
 
     features_file = run_path / "features.json"
     assert features_file.exists()

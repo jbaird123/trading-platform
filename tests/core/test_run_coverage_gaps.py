@@ -82,11 +82,9 @@ def test_finalize_run_monte_carlo_enabled():
 
         with patch("trading_platform.core.run.monte_carlo_summary") as mock_mc, patch(
             "trading_platform.core.run.save_run_brief"
-        ) as mock_brief, patch(
-            "trading_platform.core.run.save_chart_from_brief"
-        ) as mock_chart, patch(
+        ), patch("trading_platform.core.run.save_chart_from_brief"), patch(
             "trading_platform.core.run.save_trades_csv"
-        ) as mock_csv, patch("trading_platform.core.run.save_html_report") as mock_html:
+        ), patch("trading_platform.core.run.save_html_report"):
             mock_mc.return_value = {"summary": "mock_mc_results"}
 
             # Call finalize_run with Monte Carlo enabled (via config)
@@ -99,7 +97,9 @@ def test_finalize_run_monte_carlo_enabled():
                 initial_cash=10000.0,
                 config=config,
                 monte_carlo=None,
-            )  # Verify Monte Carlo summary was called with correct parameters
+            )
+
+            # Verify Monte Carlo summary was called with correct parameters
             mock_mc.assert_called_once_with(
                 trades,
                 initial_cash=10000.0,
@@ -140,11 +140,9 @@ def test_finalize_run_walk_forward_enabled():
 
         with patch("trading_platform.core.run.walk_forward_summary") as mock_wf, patch(
             "trading_platform.core.run.save_run_brief"
-        ) as mock_brief, patch(
-            "trading_platform.core.run.save_chart_from_brief"
-        ) as mock_chart, patch(
+        ), patch("trading_platform.core.run.save_chart_from_brief"), patch(
             "trading_platform.core.run.save_trades_csv"
-        ) as mock_csv, patch("trading_platform.core.run.save_html_report") as mock_html:
+        ), patch("trading_platform.core.run.save_html_report"):
             mock_wf.return_value = {"summary": "mock_wf_results"}
 
             # Call finalize_run with Walk Forward enabled (via config)
@@ -208,13 +206,11 @@ def test_finalize_run_parameter_search_enabled():
 
         with patch(
             "trading_platform.core.run.robustness_parameter_search"
-        ) as mock_ps, patch(
-            "trading_platform.core.run.save_run_brief"
-        ) as mock_brief, patch(
+        ) as mock_ps, patch("trading_platform.core.run.save_run_brief"), patch(
             "trading_platform.core.run.save_chart_from_brief"
-        ) as mock_chart, patch(
-            "trading_platform.core.run.save_trades_csv"
-        ) as mock_csv, patch("trading_platform.core.run.save_html_report") as mock_html:
+        ), patch("trading_platform.core.run.save_trades_csv"), patch(
+            "trading_platform.core.run.save_html_report"
+        ):
             mock_ps.return_value = {"summary": "mock_ps_results"}
 
             # Call finalize_run with Parameter Search enabled (via config)
@@ -241,7 +237,7 @@ def test_finalize_run_parameter_search_enabled():
 
 
 def test_finalize_run_parameter_search_random_space():
-    """Test finalize_run with Parameter Search using random_space. Covers lines 124->147."""
+    """Random-space parameter search should respect config seed and space."""
     trades = [
         Trade(
             symbol="EUR_USD",
@@ -419,7 +415,7 @@ def test_finalize_run_exception_handling():
 
 
 def test_finalize_run_parameter_search_csv_export_exception():
-    """Test parameter search CSV export handles exceptions. Covers exception in lines 185-206."""
+    """CSV export errors should be swallowed and logged."""
     trades = [
         Trade(
             symbol="EUR_USD",
