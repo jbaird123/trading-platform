@@ -19,7 +19,7 @@ def test_csv_export_save_prices_csv(tmp_path: Path):
     })
     
     # Set datetime index
-    df.index = pd.date_range('2024-01-01', periods=3, freq='1H')
+    df.index = pd.date_range('2024-01-01', periods=3, freq='1h')
     
     # Save to CSV
     output_path = tmp_path / "test_prices.csv"

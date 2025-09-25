@@ -162,7 +162,7 @@ def test_parameter_sweep_with_rem_path():
         "low": [0.95, 1.05],
         "close": [1.02, 1.12],
         "volume": [100, 200],
-    }, index=pd.date_range("2024-01-01", periods=2, freq="H"))
+    }, index=pd.date_range("2024-01-01", periods=2, freq="h"))
     
     # Create temporary YAML file with REM config
     rem_config = {
@@ -221,12 +221,12 @@ def test_parameter_sweep_with_debug_dir():
     """Test run_parameter_sweep with debug_dir for logging. Covers lines 108-115."""
     # Simple market data
     df = pd.DataFrame({
-        "open": [1.0, 1.1], 
+        "open": [1.0, 1.1],
         "high": [1.05, 1.15],
         "low": [0.95, 1.05],
         "close": [1.02, 1.12],
         "volume": [100, 200],
-    }, index=pd.date_range("2024-01-01", periods=2, freq="H"))
+    }, index=pd.date_range("2024-01-01", periods=2, freq="h"))
     
     with tempfile.TemporaryDirectory() as temp_dir:
         base_cfg = {
@@ -271,12 +271,12 @@ def test_parameter_sweep_random_space():
     """Test run_parameter_sweep with random_space sampling. Covers lines 84-86."""
     # Simple market data
     df = pd.DataFrame({
-        "open": [1.0, 1.1], 
+        "open": [1.0, 1.1],
         "high": [1.05, 1.15],
         "low": [0.95, 1.05],
         "close": [1.02, 1.12],
         "volume": [100, 200],
-    }, index=pd.date_range("2024-01-01", periods=2, freq="H"))
+    }, index=pd.date_range("2024-01-01", periods=2, freq="h"))
     
     base_cfg = {
         "user_id": "test_user",

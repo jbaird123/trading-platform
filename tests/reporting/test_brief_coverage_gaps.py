@@ -124,7 +124,7 @@ def test_create_brief_signals_processing():
         signals_path = f.name
 
         # Create test signals DataFrame
-        dates = pd.date_range("2024-01-01", periods=10, freq="1H")
+        dates = pd.date_range("2024-01-01", periods=10, freq="1h")
         signals_df = pd.DataFrame(
             {
                 "signal": [

@@ -140,7 +140,7 @@ def test_compute_features_error_conditions():
     # Minimal DataFrame for testing
     df = pd.DataFrame({
         'close': [1.1000, 1.1050, 1.1025]
-    }, index=pd.date_range('2024-01-01', periods=3, freq='1H'))
+    }, index=pd.date_range('2024-01-01', periods=3, freq='1h'))
     
     # Test with empty feature config
     result = compute_features(df, {}, {})

@@ -216,7 +216,7 @@ def test_schema_resample_ohlc():
     from trading_platform.data.schema import resample_ohlc
     
     # Create a sample DataFrame with timestamp index
-    dates = pd.date_range('2023-01-01', periods=4, freq='1T')
+    dates = pd.date_range('2023-01-01', periods=4, freq='1min')
     df = pd.DataFrame({
         'open': [1.0, 1.1, 1.2, 1.3],
         'high': [1.05, 1.15, 1.25, 1.35],
@@ -226,7 +226,7 @@ def test_schema_resample_ohlc():
     }, index=dates)
     
     # Test resampling to 2-minute intervals
-    resampled = resample_ohlc(df, '2T')
+    resampled = resample_ohlc(df, '2min')
     
     # Should have 2 rows (4 minutes resampled to 2-minute intervals)
     assert len(resampled) == 2
