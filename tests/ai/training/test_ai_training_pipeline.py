@@ -57,7 +57,10 @@ def mock_config_path(tmp_path):
             "end_date": "2023-01-02",
         },
         "features": [],
-        "labeling": {},
+        "labeling": {
+            "look_ahead_bars": 1,
+            "price_change_threshold": 0.001,
+        },
         "model": {"type": "random_forest"},
         "evaluation": {"run_cross_validation": False},
     }

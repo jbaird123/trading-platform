@@ -2,13 +2,15 @@ import pandas as pd
 
 
 class DataLabeler:
-    """
-    Generates target variables for AI models based on defined methodologies.
-    Handles labeling logic and ensures reproducibility.
-    """
+    """Generates labels for AI models while avoiding look-ahead bias."""
 
-    def __init__(self, look_ahead_bars: int = 1):
+    def __init__(
+        self,
+        look_ahead_bars: int = 1,
+        price_change_threshold: float = 0.001,
+    ):
         self.look_ahead_bars = look_ahead_bars
+        self.price_change_threshold = price_change_threshold
         self.labeling_methodology_version = "v1.0_future_price_direction"
 
     def generate_future_price_direction(self, df: pd.DataFrame) -> pd.Series:
@@ -26,7 +28,7 @@ class DataLabeler:
         # Define a simple threshold for significant change (e.g., 0.1%)
         # This threshold would typically be configurable or learned.
         price_change = (future_close - df["close"]) / df["close"]
-        threshold = 0.001  # 0.1%
+        threshold = self.price_change_threshold
 
         labels = pd.Series(0, index=df.index, dtype=int, name="signal")
         labels[price_change > threshold] = 1
@@ -53,9 +55,9 @@ class DataLabeler:
         return self.labeling_methodology_version
 
 
-# Example usage
-if __name__ == "__main__":
-    # Sample DataFrame (e.g., from AIDataConnector)
+def main() -> None:
+    """Drive the example usage shown when the module is executed directly."""
+
     data = {
         "timestamp": pd.to_datetime(
             [
@@ -76,19 +78,22 @@ if __name__ == "__main__":
         "volume": [100, 110, 105, 120, 115, 130, 125, 110],
     }
     sample_df = pd.DataFrame(data)
+
     try:
         sample_df = sample_df.set_index("timestamp")
-
         labeler = DataLabeler(look_ahead_bars=1)
         labels = labeler.generate_future_price_direction(sample_df)
-
         print("\nSample DataFrame with generated labels:")
         print(pd.concat([sample_df, labels.rename("target")], axis=1).dropna())
-    except Exception as e:
-        # Handle pandas/numpy compatibility issues gracefully
-        print(f"\nExample execution encountered a compatibility issue: {e}")
+    except Exception as exc:
+        print("\nExample execution encountered a compatibility issue:"
+              f" {exc}")
         labeler = DataLabeler(look_ahead_bars=1)
         print("DataLabeler created successfully for demonstration.")
-    print(
-        f"\nLabeling Methodology Version: {labeler.get_labeling_methodology_version()}"
-    )
+
+    version = labeler.get_labeling_methodology_version()
+    print(f"\nLabeling Methodology Version: {version}")
+
+
+if __name__ == "__main__":
+    main()
