@@ -8,8 +8,6 @@ like TradingView.
 
 # Validates data integrity aspects of [DH-2.1], [DH-2.3], [DH-2.6]
 
-import pandas as pd
-import pytest
 
 # This is a placeholder.
 # The actual test will be implemented once the golden dataset is provided.

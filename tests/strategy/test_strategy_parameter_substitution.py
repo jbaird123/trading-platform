@@ -31,13 +31,16 @@ def test_feature_params_resolve_from_named_parameters():
         ],
     }
     s = compile_strategy(cfg)
-    df = pd.DataFrame({
-        "open": [100, 101, 102],
-        "high": [100, 101, 102],
-        "low": [100, 101, 102],
-        "close": [100, 101, 102],
-        "volume": [1, 1, 1],
-    }, index=pd.to_datetime(["2023-01-01", "2023-01-02", "2023-01-03"]))
+    df = pd.DataFrame(
+        {
+            "open": [100, 101, 102],
+            "high": [100, 101, 102],
+            "low": [100, 101, 102],
+            "close": [100, 101, 102],
+            "volume": [1, 1, 1],
+        },
+        index=pd.to_datetime(["2023-01-01", "2023-01-02", "2023-01-03"]),
+    )
     s.generate_signals(df)
     # Access the internal _feature_df to check resolved parameters
     assert s._feature_df is not None

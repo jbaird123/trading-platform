@@ -286,15 +286,14 @@ def test_main_execution_simulation_with_error(capsys):
     )
 
 
-
 def test_main_block_execution_with_exec_lines_110_111(capsys):
     """Test the specific lines 110-111 by executing them directly."""
     from trading_platform.ai.data_connectors import AIDataConnector, DataCatalog
-    
+
     # Setup the environment as in the __main__ block
     mock_data_catalog = DataCatalog()
     ai_connector = AIDataConnector(mock_data_catalog)
-    
+
     # Execute the same logic that is in the __main__ block to mimic it exactly
     try:
         training_df = ai_connector.load_training_data(
@@ -307,7 +306,7 @@ def test_main_block_execution_with_exec_lines_110_111(capsys):
         print(ai_connector.get_data_lineage())
     except ValueError as e:
         print(f"Error loading data: {e}")
-    
+
     captured = capsys.readouterr()
     assert "Successfully loaded training data:" in captured.out
     assert "Data Lineage:" in captured.out
@@ -315,23 +314,29 @@ def test_main_block_execution_with_exec_lines_110_111(capsys):
 
 def test_main_block_with_coverage_trick():
     """Execute main block code with coverage by importing and checking __name__."""
-    import sys
     import importlib.util
+    import sys
     from pathlib import Path
     from unittest.mock import patch
-    
-    # Get module path  
-    module_path = Path(__file__).parent.parent.parent / "src" / "trading_platform" / "ai" / "data_connectors.py"
-    
+
+    # Get module path
+    module_path = (
+        Path(__file__).parent.parent.parent
+        / "src"
+        / "trading_platform"
+        / "ai"
+        / "data_connectors.py"
+    )
+
     # Create a spec and module from the file
     spec = importlib.util.spec_from_file_location("__main__", module_path)
     if spec is None or spec.loader is None:
         pytest.fail("Could not create module spec")
-        
+
     module = importlib.util.module_from_spec(spec)
-    
+
     # Execute the module with __name__ set to "__main__" to trigger the main block
-    with patch.object(sys, 'argv', ['data_connectors.py']):
+    with patch.object(sys, "argv", ["data_connectors.py"]):
         spec.loader.exec_module(module)
 
 
@@ -339,35 +344,36 @@ def test_main_block_error_execution_direct_patch():
     """Test error path in __main__ block by directly executing code with patch."""
     import io
     import sys
-    from contextlib import redirect_stdout, redirect_stderr  
+    from contextlib import redirect_stderr, redirect_stdout
     from unittest.mock import patch
-    
+
     # This approach directly executes the __main__ block logic with patch
     stdout_capture = io.StringIO()
     stderr_capture = io.StringIO()
-    
+
     # Create empty DataFrame mock to trigger ValueError
-    empty_df = __import__('pandas').DataFrame()
-    
+    empty_df = __import__("pandas").DataFrame()
+
     with redirect_stdout(stdout_capture), redirect_stderr(stderr_capture):
-        with patch('trading_platform.ai.data_connectors.DataCatalog') as MockDataCatalog:
+        with patch(
+            "trading_platform.ai.data_connectors.DataCatalog"
+        ) as MockDataCatalog:
             # Mock to return empty data that triggers ValueError
             mock_instance = MockDataCatalog.return_value
             mock_instance.get_historical_data.return_value = empty_df
-            
+
             # Now execute the actual __main__ block code, importing fresh
             try:
                 # Re-import to ensure we get the patched version
-                import importlib
-                if 'trading_platform.ai.data_connectors' in sys.modules:
-                    del sys.modules['trading_platform.ai.data_connectors']
-                
-                # Import will trigger __main__ if we set __name__ correctly during import
-                module_path = "/Users/jbaird/Documents/personal/trading-platform/src/trading_platform/ai/data_connectors.py"
-                
+                if "trading_platform.ai.data_connectors" in sys.modules:
+                    del sys.modules["trading_platform.ai.data_connectors"]
+
+                # Import will trigger __main__ if we set __name__ correctly during
+                # import
+
                 # Execute just the __main__ block manually
                 from trading_platform.ai.data_connectors import AIDataConnector
-                
+
                 mock_data_catalog = MockDataCatalog()
                 ai_connector = AIDataConnector(mock_data_catalog)
 
@@ -381,9 +387,11 @@ def test_main_block_error_execution_direct_patch():
                     print(ai_connector.get_data_lineage())
                 except ValueError as e:
                     print(f"Error loading data: {e}")
-                
+
             except Exception as ex:
                 print(f"Exception during execution: {ex}")
-    
+
     output = stdout_capture.getvalue()
-    assert "Error loading data:" in output, f"Expected error message not found in: {output}"
+    assert (
+        "Error loading data:" in output
+    ), f"Expected error message not found in: {output}"
