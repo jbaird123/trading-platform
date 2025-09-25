@@ -185,7 +185,12 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     # Persist raw signals for AI Lab analysis
     try:
         signals_path = run_path / "signals.parquet"
-        pd.DataFrame(signals).to_parquet(signals_path)
+        # Ensure signals are saved with proper column name
+        if isinstance(signals, pd.Series):
+            signals_df = pd.DataFrame({"signal": signals})
+        else:
+            signals_df = pd.DataFrame(signals)
+        signals_df.to_parquet(signals_path)
     except Exception:
         signals_path = None
 
