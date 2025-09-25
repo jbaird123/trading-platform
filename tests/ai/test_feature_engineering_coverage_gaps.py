@@ -4,6 +4,7 @@ Test coverage gaps in AI Feature Engineering modules.
 Targets specific missing lines in ai/feature_engineering/
 modules to improve coverage.
 """
+
 import importlib
 import os
 import runpy
@@ -12,7 +13,6 @@ from io import StringIO
 from unittest.mock import patch
 
 import pandas as pd
-import pytest
 
 
 def test_feature_engineering_pipeline_main_block():
@@ -68,21 +68,21 @@ def test_feature_engineering_pipeline_main_block():
 
 def test_feature_engineering_pipeline_example_data():
     """Test FeatureEngineeringPipeline with larger dataset to avoid NaN dropouts."""
-    
+
     # Import here to avoid module import order issues
     from trading_platform.ai.feature_engineering.pipeline import (
         FeatureEngineeringPipeline,
     )
-    
+
     # Create larger dataset to avoid all rows being dropped by indicators with window=14
-    dates = pd.date_range("2023-01-01", periods=20, freq='D')
+    dates = pd.date_range("2023-01-01", periods=20, freq="D")
     data = {
         "timestamp": dates,
-        "open": [1.0 + i*0.01 for i in range(20)],
-        "high": [1.1 + i*0.01 for i in range(20)],
-        "low": [0.95 + i*0.01 for i in range(20)],
-        "close": [1.05 + i*0.01 for i in range(20)],
-        "volume": [100 + i*5 for i in range(20)],
+        "open": [1.0 + i * 0.01 for i in range(20)],
+        "high": [1.1 + i * 0.01 for i in range(20)],
+        "low": [0.95 + i * 0.01 for i in range(20)],
+        "close": [1.05 + i * 0.01 for i in range(20)],
+        "volume": [100 + i * 5 for i in range(20)],
     }
     sample_df = pd.DataFrame(data).set_index("timestamp")
 
@@ -116,4 +116,3 @@ def test_feature_engineering_pipeline_example_data():
     assert "close" in featured_df_correct.columns  # Original column preserved
     assert "sma_2" in featured_df_correct.columns  # Correct length used
     assert "rsi_2" in featured_df_correct.columns  # Correct length used
-
