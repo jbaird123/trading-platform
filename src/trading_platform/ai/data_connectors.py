@@ -104,7 +104,7 @@ if __name__ == "__main__":
             "EURUSD", "1D", "2023-01-01", "2023-01-03"
         )
         print("\nSuccessfully loaded training data:")
-        print(training_df.head())
+        print(f"DataFrame shape: {training_df.shape}")
         print("\nData Lineage:")
         print(ai_connector.get_data_lineage())
     except ValueError as e:

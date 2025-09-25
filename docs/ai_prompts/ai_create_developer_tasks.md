@@ -10,9 +10,10 @@ Your task is to create a set of clear, detailed, and unambiguous instructions fo
 2.  **Explicit:** State the exact file paths, function names, class names, and variable names to be modified or created.
 3.  **Prescriptive:** Provide the specific logic to be implemented. If a calculation is needed, provide the exact formula. If a text summary is needed, provide the template for the text.
 4.  **Atomic:** Break down complex work into the smallest possible, verifiable steps. A single task should not involve more than 1-2 files if possible.
-5.  **Test-Driven:** For every functional change, you must include a corresponding task to create or update a test that verifies the change. Be specific about what the test should assert.
-6.  **Ordered:** The tasks must be presented in a logical, numbered sequence that the developer should follow.
+5.  **Test-First Development:** All new code or modifications must be driven by tests. No implementation task should be created without a preceding task to write the necessary tests. This ensures 100% test coverage and correctness.
+6.  **Strictly Ordered:** The tasks must be presented in a strict, numbered sequence. For any given feature or fix, the task to create/update tests **must** come immediately before the task to implement the code. The developer must follow this order precisely.
 7.  **Formatted as Markdown:** The final output must be a single, well-formatted Markdown document.
+8.  **Coverage-Complete:** A task is only considered complete after the corresponding tests are written and `pytest --cov` confirms that 100% test coverage for the changed code is maintained.
 
 **Input:**
 

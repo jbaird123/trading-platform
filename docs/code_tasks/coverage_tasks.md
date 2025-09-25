@@ -1,9 +1,9 @@
 # Coverage Tasks
 
-1. [ ] Address missing coverage in `src/trading_platform/ai/data_connectors.py` (lines 99-111).
-2. [ ] Address missing coverage in `src/trading_platform/ai/data_labeling.py` (lines 54-81).
-3. [ ] Address missing coverage in `src/trading_platform/ai/synthesis/engine.py` (lines 98-100, 106-107, 223-252).
-4. [ ] Address missing coverage in `src/trading_platform/ai/synthesis/rules.py` (lines 38, 86-104).
+1. [x] Address missing coverage in `src/trading_platform/ai/data_connectors.py` (lines 99-111).
+2. [x] Address missing coverage in `src/trading_platform/ai/data_labeling.py` (lines 54-81).
+3. [x] Address missing coverage in `src/trading_platform/ai/synthesis/engine.py` (lines 98-100, 106-107, 223-252).
+4. [x] Address missing coverage in `src/trading_platform/ai/synthesis/rules.py` (lines 38, 86-104).
 5. [ ] Address missing coverage in `src/trading_platform/ai/training/pipeline.py` (lines 31-32, 129, 164-173, 262).
 6. [ ] Address missing coverage in `src/trading_platform/backtester/core.py` (lines 149-174, 283, 299, 386-440).
 7. [ ] Address missing coverage in `src/trading_platform/cli.py` (lines 89, 109-110, 144-182, 192, 194-207, 213, 223, 251, 253, 255, 269-288, 291-292, 315-316, 331-336, 342, 366-368, 388-390, 445-453, 477-478, 508-571).

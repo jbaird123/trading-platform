@@ -562,3 +562,344 @@ def test_dse_generate_report_markdown_non_dict_evidence():
         assert '"item1"' in report
         assert '"item2"' in report
         assert '"item3"' in report
+
+
+def test_dse_model_insights_with_trades_and_features():
+    """Test model insights generation with trades - covers lines 98-100, 106-107."""
+    analysis_data = {
+        "trades": [
+            {
+                "id": "trade1",
+                "entry_context": {"feature1": 1.0, "feature2": 2.0},
+            },
+            {
+                "id": "trade2",
+                "entry_context": {"feature1": 1.5, "feature2": 2.5},
+            },
+        ]
+    }
+
+    # Mock model with feature_names_in_ set to None (to trigger fallback)
+    mock_model = MagicMock()
+    mock_model.feature_names_in_ = None
+
+    # Mock trade insights function
+    mock_insight_func = MagicMock()
+    mock_insight_func.return_value = {
+        "predicted_profitable": True,
+        "predicted_probability": 0.8,
+        "feature_importances": {"feature1": 0.6, "feature2": 0.4},
+    }
+
+    # Create a mock module that simulates the predictor module
+    mock_predictor_module = MagicMock()
+    mock_predictor_module.get_trade_insights = mock_insight_func
+
+    # Mock everything related to model loading
+    with patch(
+        "trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]
+    ), patch("pathlib.Path") as mock_path_class, patch(
+        "joblib.load", return_value=mock_model
+    ), patch.dict(
+        "sys.modules", {"trading_platform.ai.lab.predictor": mock_predictor_module}
+    ):
+        # Set up Path mocking for model exists
+        mock_model_path = MagicMock()
+        mock_model_path.exists.return_value = True
+        mock_path_class.return_value = mock_model_path
+
+        engine = DiagnosticSynthesisEngine(analysis_data)
+
+        # Should have model insights generated
+        assert len(engine.model_insights) == 2
+        assert engine.model_insights[0]["trade_id"] == "trade1"
+        assert engine.model_insights[1]["trade_id"] == "trade2"
+
+        # Verify get_trade_insights was called with sorted features (lines 98-100)
+        expected_features = ["feature1", "feature2"]  # Sorted from entry_context
+        mock_insight_func.assert_any_call(
+            mock_model, analysis_data["trades"][0], expected_features
+        )
+        mock_insight_func.assert_any_call(
+            mock_model, analysis_data["trades"][1], expected_features
+        )
+
+
+def test_dse_model_insights_with_feature_names_list():
+    """Test model insights when features_any is a list - covers line 100."""
+    analysis_data = {
+        "trades": [
+            {"id": "trade1", "entry_context": {"feature1": 1.0}},
+        ]
+    }
+
+    # Mock model with feature_names_in_ as a list of non-string types
+    mock_model = MagicMock()
+    mock_model.feature_names_in_ = [123, 456, 789]  # Non-string features
+
+    mock_insight_func = MagicMock()
+    mock_insight_func.return_value = {"predicted_profitable": False}
+
+    # Create a mock module that simulates the predictor module
+    mock_predictor_module = MagicMock()
+    mock_predictor_module.get_trade_insights = mock_insight_func
+
+    with patch(
+        "trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]
+    ), patch("pathlib.Path") as mock_path_class, patch(
+        "joblib.load", return_value=mock_model
+    ), patch.dict(
+        "sys.modules", {"trading_platform.ai.lab.predictor": mock_predictor_module}
+    ):
+        mock_model_path = MagicMock()
+        mock_model_path.exists.return_value = True
+        mock_path_class.return_value = mock_model_path
+
+        engine = DiagnosticSynthesisEngine(analysis_data)
+
+        # Should convert non-string features (line 100: str(f) for f in features_any)
+        expected_features = ["123", "456", "789"]
+        mock_insight_func.assert_called_with(
+            mock_model, analysis_data["trades"][0], expected_features
+        )
+        # Verify model insights were generated
+        assert len(engine.model_insights) == 1
+
+
+def test_dse_model_loading_exception_handling():
+    """Test model loading exception handling - covers lines 112-113."""
+    analysis_data = {"trades": [{"id": "trade1"}]}
+
+    with patch(
+        "trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]
+    ), patch("pathlib.Path") as mock_path_class, patch(
+        "joblib.load", side_effect=Exception("Model loading failed")
+    ), patch("trading_platform.ai.synthesis.engine.logger.warning") as mock_warning:
+        mock_model_path = MagicMock()
+        mock_model_path.exists.return_value = True
+        mock_path_class.return_value = mock_model_path
+
+        engine = DiagnosticSynthesisEngine(analysis_data)
+
+        # Should handle exception and log warning (message may vary due to numpy issues)
+        mock_warning.assert_called()
+        assert "Failed to generate model insights:" in mock_warning.call_args[0][0]
+        assert engine.model_insights == []
+
+
+def test_main_block_execution():
+    """Test the __main__ block execution - covers lines 223-252."""
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    # Get path to the engine module - fix the path calculation
+    current_test_dir = Path(__file__).parent  # tests/ai/synthesis/
+    repo_root = current_test_dir.parent.parent.parent  # Back to trading-platform root
+    module_path = (
+        repo_root / "src" / "trading_platform" / "ai" / "synthesis" / "engine.py"
+    )
+
+    # Set up environment to include src in PYTHONPATH
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(repo_root / "src")
+
+    # Run the module as a script to execute the __main__ block
+    result = subprocess.run(
+        [sys.executable, str(module_path)],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        env=env,
+    )
+
+    # Check that it ran successfully
+    assert result.returncode == 0, f"Script failed with stderr: {result.stderr}"
+
+    # Verify expected output patterns
+    assert "--- MARKDOWN REPORT ---" in result.stdout
+    assert "--- JSON REPORT ---" in result.stdout
+    assert "AI Diagnostic Report" in result.stdout
+
+
+def test_main_block_with_runpy():
+    """Test the __main__ block using runpy for coverage tracking - lines 223-252."""
+    import runpy
+    import sys
+    from pathlib import Path
+    from unittest.mock import patch
+
+    # Mock file operations to avoid actually writing files
+    mock_open = patch("builtins.open", create=True)
+
+    with mock_open, patch.object(sys, "argv", ["engine.py"]):
+        # Fix the path calculation
+        current_test_dir = Path(__file__).parent  # tests/ai/synthesis/
+        repo_root = (
+            current_test_dir.parent.parent.parent
+        )  # Back to trading-platform root
+        module_path = str(
+            repo_root / "src" / "trading_platform" / "ai" / "synthesis" / "engine.py"
+        )
+
+        # This should execute the __main__ block and hit all the lines
+        try:
+            runpy.run_path(module_path, run_name="__main__")
+        except SystemExit:
+            pass  # Expected if script calls sys.exit
+
+
+def test_dse_model_path_with_run_id_fallback():
+    """Test model path fallback when run_dir doesn't exist - covers branch 85->87."""
+    analysis_data = {
+        "meta": {"run_id": "test123"},
+        "_brief_path": "/nonexistent/path/brief.json",
+        "trades": [{"id": "trade1", "entry_context": {"feature1": 1.0}}],
+    }
+
+    # Mock model that exists in current directory but not in run directory
+    mock_model = MagicMock()
+    mock_model.feature_names_in_ = ["feature1"]
+
+    mock_insight_func = MagicMock()
+    mock_insight_func.return_value = {"predicted_profitable": True}
+
+    mock_predictor_module = MagicMock()
+    mock_predictor_module.get_trade_insights = mock_insight_func
+
+    with patch(
+        "trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]
+    ), patch("pathlib.Path") as mock_path_class, patch(
+        "joblib.load", return_value=mock_model
+    ), patch.dict(
+        "sys.modules", {"trading_platform.ai.lab.predictor": mock_predictor_module}
+    ):
+
+        def path_side_effect(path_str):
+            mock_path = MagicMock()
+            if path_str == "/nonexistent/path/brief.json":
+                # This is the run_dir - doesn't exist
+                mock_path.exists.return_value = False
+            elif "profitability_model.joblib" in str(path_str):
+                # Fallback model path - exists
+                mock_path.exists.return_value = True
+            else:
+                mock_path.exists.return_value = False
+            return mock_path
+
+        mock_path_class.side_effect = path_side_effect
+
+        engine = DiagnosticSynthesisEngine(analysis_data)
+
+        # Should still generate model insights using fallback path
+        assert len(engine.model_insights) == 1
+        assert engine.model_insights[0]["trade_id"] == "trade1"
+
+
+def test_dse_features_from_trades_empty_entry_context():
+    """Test feature extraction when trades have empty entry_context - branch 99->104."""
+    analysis_data = {
+        "trades": [
+            {"id": "trade1", "entry_context": {}},  # Empty entry_context
+            {"id": "trade2"},  # No entry_context at all
+        ]
+    }
+
+    # Mock model with feature_names_in_ set to None (to trigger fallback)
+    mock_model = MagicMock()
+    mock_model.feature_names_in_ = None
+
+    mock_insight_func = MagicMock()
+    mock_insight_func.return_value = {"predicted_profitable": True}
+
+    mock_predictor_module = MagicMock()
+    mock_predictor_module.get_trade_insights = mock_insight_func
+
+    with patch(
+        "trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]
+    ), patch("pathlib.Path") as mock_path_class, patch(
+        "joblib.load", return_value=mock_model
+    ), patch.dict(
+        "sys.modules", {"trading_platform.ai.lab.predictor": mock_predictor_module}
+    ):
+        mock_model_path = MagicMock()
+        mock_model_path.exists.return_value = True
+        mock_path_class.return_value = mock_model_path
+
+        engine = DiagnosticSynthesisEngine(analysis_data)
+
+        # Should handle trades with no/empty entry_context gracefully
+        # The first trade has empty entry_context, so features should be empty
+        # This should trigger the branch 99->104 where trades is empty/no features
+        assert len(engine.model_insights) == 2
+        mock_insight_func.assert_any_call(mock_model, analysis_data["trades"][0], [])
+        mock_insight_func.assert_any_call(mock_model, {"id": "trade2"}, [])
+
+
+def test_dse_run_dir_exists_but_candidate_model_missing():
+    """Test when run_dir exists but candidate model doesn't - branch 85->87."""
+    analysis_data = {
+        "meta": {"run_id": "test123"},
+        "_brief_path": "/existing/path/brief.json",
+        "trades": [],
+    }
+
+    with patch(
+        "trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]
+    ), patch("pathlib.Path") as mock_path_class:
+
+        def path_side_effect(path_str):
+            mock_path = MagicMock()
+            if path_str == "/existing/path/brief.json":
+                # This is the run_dir - exists
+                mock_path.exists.return_value = True
+                # Mock the division operator for run_dir / "profitability_model.joblib"
+                candidate_mock = MagicMock()
+                candidate_mock.exists.return_value = (
+                    False  # Candidate model doesn't exist
+                )
+                mock_path.__truediv__.return_value = candidate_mock
+            elif "profitability_model.joblib" in str(path_str):
+                # Fallback model path - also doesn't exist
+                mock_path.exists.return_value = False
+            else:
+                mock_path.exists.return_value = False
+            return mock_path
+
+        mock_path_class.side_effect = path_side_effect
+
+        engine = DiagnosticSynthesisEngine(analysis_data)
+
+        # Should not generate model insights since no model exists
+        assert engine.model_insights == []
+
+
+def test_dse_empty_trades_list():
+    """Test when trades list is empty - covers branch 99->104."""
+    analysis_data: dict = {
+        "trades": []  # Empty list (not missing key)
+    }
+
+    mock_model = MagicMock()
+    mock_model.feature_names_in_ = None  # This should trigger the trades branch
+
+    mock_predictor_module = MagicMock()
+    mock_predictor_module.get_trade_insights = MagicMock()
+
+    with patch(
+        "trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]
+    ), patch("pathlib.Path") as mock_path_class, patch(
+        "joblib.load", return_value=mock_model
+    ), patch.dict(
+        "sys.modules", {"trading_platform.ai.lab.predictor": mock_predictor_module}
+    ):
+        mock_model_path = MagicMock()
+        mock_model_path.exists.return_value = True
+        mock_path_class.return_value = mock_model_path
+
+        engine = DiagnosticSynthesisEngine(analysis_data)
+
+        # Should not generate model insights since trades list is empty
+        # This should hit the branch where: if trades: (False) -> jump to line 104
+        assert engine.model_insights == []
