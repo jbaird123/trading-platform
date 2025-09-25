@@ -3,11 +3,14 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+from typing import Any, cast
 
 try:
-    import yaml  # type: ignore
-except Exception:  # pragma: no cover
-    yaml = None  # type: ignore[assignment]
+    import yaml as _yaml
+except ImportError:  # pragma: no cover
+    _yaml = None
+
+yaml = cast(Any | None, _yaml)
 
 from trading_platform.core.research_profiles import make_research_config
 

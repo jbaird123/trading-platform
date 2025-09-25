@@ -3,7 +3,7 @@
 from datetime import datetime
 
 import pandas as pd
-from trading_platform.strategy.compiler import compile_strategy
+from trading_platform.strategy import compile_strategy
 
 # Create same market data as test
 idx = [datetime(2024, 1, 1, h) for h in range(5)]
@@ -44,7 +44,8 @@ for i in range(len(market_data)):
     desired = str(signals.iloc[i])
     close_price = market_data.iloc[i]["close"]
     print(
-        f"Row {i}: close={close_price}, desired='{desired}', current_state='{current_state}'"
+        f"Row {i}: close={close_price}, desired='{desired}', "
+        f"current_state='{current_state}'"
     )
 
     if desired != current_state:
