@@ -299,17 +299,20 @@ def test_inefficient_exits_rule_no_inefficient_trades():
 def test_base_diagnostic_rule_pass_statement():
     """Test the pass statement in BaseDiagnosticRule.evaluate - covers line 38."""
     from trading_platform.ai.synthesis.rules import BaseDiagnosticRule
-    
+
     # Create a minimal concrete implementation that explicitly calls the abstract method
     class TestRule(BaseDiagnosticRule):
         def evaluate(self, analysis_data):
-            # Directly invoke the abstract method implementation to hit the pass statement
+            # Directly invoke the abstract method implementation to hit the pass
+            # statement
             return BaseDiagnosticRule.evaluate(self, analysis_data)
-    
+
     rule = TestRule()
     # The base class evaluate method just has 'pass', so returns None
     result = rule.evaluate({})
     assert result is None
+
+
 def test_data_quality_impact_rule_triggered():
     """
     Tests DataQualityImpactRule when both quality score and win rate are low.
