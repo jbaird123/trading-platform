@@ -100,7 +100,7 @@ def resample_ohlc(df: pd.DataFrame, rule: str) -> pd.DataFrame:
     """
     # Normalize rule to lowercase (avoid pandas deprecation warnings)
     rule = str(rule).lower()
-    out = df.resample(rule).agg(
+    out = df.resample(rule, label="left").agg(
         open=("open", "first"),
         high=("high", "max"),
         low=("low", "min"),

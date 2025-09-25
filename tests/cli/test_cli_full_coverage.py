@@ -6,7 +6,7 @@ from argparse import Namespace
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 import pytest
@@ -40,8 +40,11 @@ def cli_stubs(monkeypatch, tmp_path):
             {"close": [1.0, 2.0, 3.0]},
             index=pd.date_range("2024-01-01", periods=3, freq="h"),
         )
-        df.to_parquet = lambda *_a, **_k: (_ for _ in ()).throw(Exception("boom"))
-        return df, ["dq_flag"]
+        df_any = cast(Any, df)
+        df_any.to_parquet = lambda *_a, **_k: (_ for _ in ()).throw(
+            Exception("boom")
+        )
+        return df_any, ["dq_flag"]
 
     monkeypatch.setattr(cli, "load_from_catalog", fake_load_from_catalog)
 
@@ -402,7 +405,7 @@ def test_cmd_run_backtest_override_branch_variants(cli_stubs, tmp_path, monkeypa
     }
 
     def clone(obj: dict[str, Any]) -> dict[str, Any]:
-        return json.loads(json.dumps(obj))
+        return cast(dict[str, Any], json.loads(json.dumps(obj)))
 
     configs = [
         {
