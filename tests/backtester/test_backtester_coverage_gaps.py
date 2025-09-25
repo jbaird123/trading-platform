@@ -10,15 +10,28 @@ This module tests specific missing lines in backtester/core.py:
 - Lines 383-440: Counterfactual exact with REM exits
 """
 
-import pandas as pd
-import pytest
 from datetime import datetime
 from unittest.mock import Mock, patch
 
-from trading_platform.backtester.core import run_backtest, _simulate_counterfactual_fast, _simulate_counterfactual_exact
+from typing import Any, cast
+
+import pandas as pd
+import pytest
+
+from trading_platform.backtester.core import (
+    _simulate_counterfactual_exact,
+    _simulate_counterfactual_fast,
+    run_backtest,
+)
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 from tests.backtester.dummy_objects import _dummy_strategy_cfg
+
+BacktestTriple = tuple[
+    list[Any],
+    list[tuple[datetime, float]],
+    list[dict[str, Any]],
+]
 
 
 def test_rmm_blocks_signal_not_in_allowed_sides():
@@ -68,17 +81,18 @@ def test_rmm_blocks_signal_not_in_allowed_sides():
         return_exposure=False,
         return_skips=True
     )
-    trades, skipped = result
+    trades_list, exposure_curve, skipped_list = cast(BacktestTriple, result)
     
     # Should have no trades and 5 skipped entries due to RMM blocking
-    assert len(trades) == 0  # type: ignore[arg-type]
-    assert len(skipped) == 5  # type: ignore[arg-type]
+    assert not trades_list
+    assert not exposure_curve
+    assert len(skipped_list) == 5
     
     # Verify skip details
-    for skip in skipped:  # type: ignore[union-attr]
-        assert skip["reason_code"] == "rmm_block"  # type: ignore[call-overload]
-        assert skip["side"] == "long"  # type: ignore[call-overload]
-        assert skip["regime"]["label"] == "bearish_regime"  # type: ignore[call-overload,index]
+    for skip in skipped_list:
+        assert skip["reason_code"] == "rmm_block"
+        assert skip["side"] == "long"
+        assert skip["regime"]["label"] == "bearish_regime"
         assert skip["regime"]["confidence"] == 0.8
         assert skip["policy_snapshot"]["allowed_sides"] == ["short"]
         assert skip["policy_snapshot"]["min_confidence"] == 0.5
@@ -124,10 +138,10 @@ def test_return_skips_only():
     # Should return tuple of (trades, empty_list, skipped)
     assert isinstance(result, tuple)
     assert len(result) == 3
-    trades, exposure, skipped = result
-    assert isinstance(trades, list)
-    assert exposure == []  # Empty exposure list (line 299)
-    assert isinstance(skipped, list)
+    trades_list, exposure_curve, skipped_list = cast(BacktestTriple, result)
+    assert isinstance(trades_list, list)
+    assert exposure_curve == []  # Empty exposure list (line 299)
+    assert isinstance(skipped_list, list)
 
 
 def test_counterfactual_fast_invalid_start_index():
