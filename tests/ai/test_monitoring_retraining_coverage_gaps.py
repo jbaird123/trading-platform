@@ -2,10 +2,11 @@
 Test coverage gaps for AI monitoring retraining_manager module.
 Targets specific lines that need coverage to reach 100%.
 """
-import pytest
-from unittest.mock import Mock, patch
 import os
 import sys
+from unittest.mock import Mock, patch
+
+import pytest
 
 
 def test_performance_degradation_retraining():
@@ -301,6 +302,13 @@ def test_trigger_training_pipeline():
     config = {"retraining_criteria": {}}
     manager = AIRetrainingManager(config)
     
+    # Store original module state to restore after the test
+    original_module = sys.modules.get('trading_platform.ai.training.pipeline')
+    training_pkg = sys.modules.get('trading_platform.ai.training')
+    original_attr = None
+    if training_pkg is not None and hasattr(training_pkg, 'pipeline'):
+        original_attr = training_pkg.pipeline
+
     # Create a mock module for the AITrainingPipeline
     mock_pipeline_module = Mock()
     mock_pipeline_class = Mock()
@@ -322,5 +330,14 @@ def test_trigger_training_pipeline():
         
     finally:
         # Clean up the mock module
-        if 'trading_platform.ai.training.pipeline' in sys.modules:
-            del sys.modules['trading_platform.ai.training.pipeline']
+        if original_module is not None:
+            sys.modules['trading_platform.ai.training.pipeline'] = original_module
+        else:
+            sys.modules.pop('trading_platform.ai.training.pipeline', None)
+
+        training_pkg = sys.modules.get('trading_platform.ai.training')
+        if training_pkg is not None:
+            if original_attr is not None:
+                setattr(training_pkg, 'pipeline', original_attr)
+            elif hasattr(training_pkg, 'pipeline'):
+                delattr(training_pkg, 'pipeline')
