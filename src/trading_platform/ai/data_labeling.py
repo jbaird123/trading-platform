@@ -1,3 +1,13 @@
+# ruff: noqa: E402
+
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    message="The NumPy module was reloaded (imported a second time).*",
+    category=UserWarning,
+)
+
 import pandas as pd
 
 
