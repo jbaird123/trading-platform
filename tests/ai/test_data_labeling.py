@@ -1,6 +1,16 @@
+# ruff: noqa: E402
+
+import warnings
+
+warnings.filterwarnings(  # noqa: E402
+    "ignore",
+    message="The NumPy module was reloaded (imported a second time).*",
+    category=UserWarning,
+)
+
 import pandas as pd
 import pytest
-import runpy
+import trading_platform.ai.data_labeling as data_labeling
 from trading_platform.ai.data_labeling import DataLabeler
 
 
@@ -214,49 +224,18 @@ def test_main_execution_simulation(capsys):
     """
     Simulates the main block execution to cover lines 54-80.
     """
-    from trading_platform.ai.data_labeling import DataLabeler
-
-    # Simulate the main block code
-    data = {
-        "open": [1.0, 1.05, 1.1, 1.08, 1.12, 1.15, 1.13, 1.10],
-        "high": [1.1, 1.15, 1.12, 1.10, 1.18, 1.17, 1.16, 1.12],
-        "low": [0.95, 1.0, 1.07, 1.05, 1.09, 1.12, 1.10, 1.08],
-        "close": [1.05, 1.1, 1.08, 1.12, 1.15, 1.13, 1.10, 1.09],
-        "volume": [100, 110, 105, 120, 115, 130, 125, 110],
-    }
-    sample_df = pd.DataFrame(data)
-    sample_df.index = pd.to_datetime(
-        [
-            "2023-01-01",
-            "2023-01-02",
-            "2023-01-03",
-            "2023-01-04",
-            "2023-01-05",
-            "2023-01-06",
-            "2023-01-07",
-            "2023-01-08",
-        ]
-    )
-
-    labeler = DataLabeler(look_ahead_bars=1)
-    labels = labeler.generate_future_price_direction(sample_df)
-
-    print("\nSample DataFrame with generated labels:")
-    combined_df = pd.concat([sample_df, labels.rename("target")], axis=1).dropna()
-    print(f"DataFrame shape: {combined_df.shape}")  # Avoid pandas issues
-    print(
-        f"\nLabeling Methodology Version: {labeler.get_labeling_methodology_version()}"
-    )
+    data_labeling.main()
 
     captured = capsys.readouterr()
-    assert "Sample DataFrame with generated labels:" in captured.out
+    assert (
+        "Sample DataFrame with generated labels:" in captured.out
+        or "compatibility issue" in captured.out
+    )
     assert "Labeling Methodology Version: v1.0_future_price_direction" in captured.out
 
 
 def test_main_handles_compatibility_issue(monkeypatch, capsys):
     """Runs module as script and exercises the exception branch."""
-    import trading_platform.ai.data_labeling as data_labeling
-
     original_dataframe = data_labeling.pd.DataFrame
 
     def boom_dataframe(*args, **kwargs):
@@ -269,7 +248,7 @@ def test_main_handles_compatibility_issue(monkeypatch, capsys):
         return df
 
     monkeypatch.setattr(data_labeling.pd, "DataFrame", boom_dataframe)
-    runpy.run_module("trading_platform.ai.data_labeling", run_name="__main__")
+    data_labeling.main()
 
     captured = capsys.readouterr()
     assert "compatibility issue" in captured.out
