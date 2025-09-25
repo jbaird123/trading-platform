@@ -150,7 +150,7 @@ def test_compute_features_error_conditions():
     )
 
     # Test with empty feature config
-    result = compute_features(df, {}, {})
+    result = compute_features(df, [], {})
     assert isinstance(result, pd.DataFrame)
     assert len(result) == len(df)
 

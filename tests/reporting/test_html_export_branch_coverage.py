@@ -13,7 +13,7 @@ def test_spark_svg_no_overlays():
     dates = pd.date_range('2024-01-01', periods=3, freq='1D')
     prices = [(dates[0], 1.1000), (dates[1], 1.1050), (dates[2], 1.1025)]
     
-    entry_exit_ts = [(dates[0], dates[2])]
+    entry_exit_ts = [(dates[0].to_pydatetime(), dates[2].to_pydatetime())]
     
     # Test with empty overlays dict (should skip overlay processing)
     result = _spark_svg(prices, {}, entry_exit_ts)
@@ -29,7 +29,7 @@ def test_spark_svg_missing_entry_timestamp():
     
     # Use a timestamp that won't be in xs_map (different date)
     missing_entry_date = datetime(2023, 12, 31)  # Not in price series
-    entry_exit_ts = [(missing_entry_date, dates[1])]
+    entry_exit_ts = [(missing_entry_date, dates[1].to_pydatetime())]
     
     result = _spark_svg(prices, {}, entry_exit_ts)
     assert "<svg" in result
@@ -43,7 +43,7 @@ def test_spark_svg_missing_exit_timestamp():
     
     # Use a timestamp that won't be in xs_map for exit
     missing_exit_date = datetime(2023, 12, 31)  # Not in price series
-    entry_exit_ts = [(dates[0], missing_exit_date)]
+    entry_exit_ts = [(dates[0].to_pydatetime(), missing_exit_date)]
     
     result = _spark_svg(prices, {}, entry_exit_ts)
     assert "<svg" in result

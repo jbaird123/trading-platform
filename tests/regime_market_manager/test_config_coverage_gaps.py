@@ -12,18 +12,18 @@ from trading_platform.regime_market_manager.config import validate_rmm_config, R
 def test_validate_rmm_config_non_dict():
     """Test validate_rmm_config with non-dict input. Covers line 49."""
     with pytest.raises(ValueError, match="rmm config must be an object"):
-        validate_rmm_config("invalid_string")
+        validate_rmm_config("invalid_string")  # type: ignore[arg-type]
     
     with pytest.raises(ValueError, match="rmm config must be an object"):
-        validate_rmm_config([1, 2, 3])
+        validate_rmm_config([1, 2, 3])  # type: ignore[arg-type]
     
     with pytest.raises(ValueError, match="rmm config must be an object"):
-        validate_rmm_config(None)
+        validate_rmm_config(None)  # type: ignore[arg-type]
 
 
 def test_validate_rmm_config_missing_jsonschema():
     """Test validate_rmm_config when jsonschema is not available. Covers line 52."""
-    valid_config = {"regimes": []}
+    valid_config: dict[str, list[str]] = {"regimes": []}
     
     with patch('trading_platform.regime_market_manager.config.jsonschema', None):
         with pytest.raises(ValueError, match="jsonschema is required for RMM validation"):
@@ -44,7 +44,7 @@ def test_validate_rmm_config_regimes_not_list():
 
 def test_validate_rmm_config_regimes_empty():
     """Test validate_rmm_config with empty regimes array. Covers line 65."""
-    config = {"regimes": []}
+    config: dict[str, list[str]] = {"regimes": []}
     
     with patch('trading_platform.regime_market_manager.config.jsonschema') as mock_jsonschema:
         mock_jsonschema.validate.return_value = None

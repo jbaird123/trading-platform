@@ -21,7 +21,7 @@ from trading_platform.strategy.yaml_strategy import (
 
 def test_validate_strategy_config_missing_jsonschema():
     """Test validate_strategy_config when jsonschema is not available. Covers lines 13-14."""
-    valid_config = {
+    valid_config: dict[str, list[str]] = {
         "entry_signals": [],
         "exit_signals": []
     }
@@ -36,15 +36,15 @@ def test_validate_strategy_config_invalid_type():
     """Test validate_strategy_config with non-dict input. Covers line 34."""
     # Test with string input (invalid)
     with pytest.raises(ValueError, match="strategy must be an object"):
-        validate_strategy_config("invalid_string_config")
+        validate_strategy_config("invalid_string_config")  # type: ignore[arg-type]
     
     # Test with list input (invalid)
     with pytest.raises(ValueError, match="strategy must be an object"):
-        validate_strategy_config([1, 2, 3])
+        validate_strategy_config([1, 2, 3])  # type: ignore[arg-type]
     
     # Test with None input (invalid)
     with pytest.raises(ValueError, match="strategy must be an object"):
-        validate_strategy_config(None)
+        validate_strategy_config(None)  # type: ignore[arg-type]
 
 
 def test_validate_strategy_config_with_jsonschema():
@@ -122,7 +122,7 @@ def test_validate_strategy_config_missing_schema_file():
 
 def test_load_strategy_config_from_dict():
     """Test load_strategy_config with dict input. Covers basic path."""
-    config_dict = {"entry_signals": [], "exit_signals": []}
+    config_dict: dict[str, list[str]] = {"entry_signals": [], "exit_signals": []}
     
     result = load_strategy_config(config_dict)
     
@@ -284,7 +284,7 @@ def test_compile_strategy_with_ai_inference():
 def test_compile_strategy_parameter_defaults():
     """Test compile_strategy with parameter defaults and edge cases."""
     # Test with minimal config - should use defaults
-    strategy_config = {}
+    strategy_config: dict[str, list[str]] = {}
     
     with patch('trading_platform.strategy.yaml_strategy.validate_strategy_config') as mock_validate:
         mock_validate.return_value = None

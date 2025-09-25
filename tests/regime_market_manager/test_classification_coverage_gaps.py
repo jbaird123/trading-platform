@@ -62,7 +62,7 @@ def test_classify_regime_missing_indicators():
     )
     
     # Empty indicators dictionary - should use default values (0.0)
-    indicators = {}
+    indicators: dict[str, float] = {}
     
     result = classify_regime(indicators, config)
     

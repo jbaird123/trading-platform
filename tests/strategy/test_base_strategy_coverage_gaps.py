@@ -12,6 +12,10 @@ from trading_platform.strategy.base import BaseStrategy
 class TestStrategy(BaseStrategy):
     """Concrete implementation for testing BaseStrategy."""
     
+    def __init__(self):
+        super().__init__()
+        self.allowed_param: float = 0.0  # Add test attribute
+    
     def generate_signals(self, data: pd.DataFrame) -> pd.Series:
         """Simple test implementation."""
         # Just return signals - the validation happens in parent's abstract method

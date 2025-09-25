@@ -124,9 +124,11 @@ def test_main_block_execution():
         # Load the module and execute it as __main__
         spec = importlib.util.spec_from_file_location("__main__", 
             "/Users/jbaird/Documents/personal/trading-platform/src/trading_platform/ai/serving/app.py")
+        assert spec is not None, "Failed to create module spec"
         module = importlib.util.module_from_spec(spec)
         
         # Execute the module which will trigger the main block
+        assert spec.loader is not None, "Loader is None"
         spec.loader.exec_module(module)
         
         # Verify uvicorn.run was called

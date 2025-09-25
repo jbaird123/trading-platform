@@ -107,7 +107,7 @@ def test_eval_block_empty_conditions():
     }, index=pd.date_range("2024-01-01", periods=2))
     
     # Block with no all_of or any_of
-    block = {"other_field": []}
+    block: dict[str, list[str]] = {"other_field": []}
     
     result = _eval_block(df, block)
     expected = pd.Series([False, False], index=df.index)
@@ -116,7 +116,7 @@ def test_eval_block_empty_conditions():
 
 def test_rmm_engine_validate_config_missing_jsonschema():
     """Test RMMEngine.validate_config when jsonschema is missing. Covers line 67."""
-    config = {"regimes": []}
+    config: dict[str, list[str]] = {"regimes": []}
     
     with patch('trading_platform.regime_market_manager.engine.jsonschema', None):
         with pytest.raises(ValueError, match="jsonschema is required for RMM validation"):

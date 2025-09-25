@@ -213,7 +213,7 @@ def test_base_diagnostic_rule_abstract_method():
     
     # Should not be able to instantiate due to abstract method
     try:
-        rule = TestRule()
+        rule = TestRule()  # type: ignore[abstract]
         # If we somehow get here, calling evaluate should raise NotImplementedError
         rule.evaluate({})
         assert False, "Should have raised NotImplementedError"
@@ -351,7 +351,7 @@ def test_market_regime_mismatch_rule_no_regimes():
     Tests MarketRegimeMismatchRule with no regime data.
     """
     rule = MarketRegimeMismatchRule()
-    analysis_data = {"regimes": {}}
+    analysis_data: dict[str, dict[str, float]] = {"regimes": {}}
     
     conclusion = rule.evaluate(analysis_data)
     assert conclusion is None

@@ -49,6 +49,7 @@ def test_rmm_blocks_signal_not_in_allowed_sides():
     config = RunConfig(
         user_id="test",
         run_seed=42,
+        log_level="INFO",
         initial_cash=10000.0,
         position_size=100.0,
         allow_flip_on_bar=False,
@@ -57,7 +58,7 @@ def test_rmm_blocks_signal_not_in_allowed_sides():
     rem = RiskExitManager(config={})
     
     # Run backtest with RMM context - should skip all long signals
-    trades, _, skipped = run_backtest(
+    result = run_backtest(
         market_data=df,
         signals=signals,
         strategy=_dummy_strategy_cfg(),
@@ -67,16 +68,17 @@ def test_rmm_blocks_signal_not_in_allowed_sides():
         return_exposure=False,
         return_skips=True
     )
+    trades, skipped = result
     
     # Should have no trades and 5 skipped entries due to RMM blocking
-    assert len(trades) == 0
-    assert len(skipped) == 5
+    assert len(trades) == 0  # type: ignore[arg-type]
+    assert len(skipped) == 5  # type: ignore[arg-type]
     
     # Verify skip details
-    for skip in skipped:
-        assert skip["reason_code"] == "rmm_block"
-        assert skip["side"] == "long"
-        assert skip["regime"]["label"] == "bearish_regime"
+    for skip in skipped:  # type: ignore[union-attr]
+        assert skip["reason_code"] == "rmm_block"  # type: ignore[call-overload]
+        assert skip["side"] == "long"  # type: ignore[call-overload]
+        assert skip["regime"]["label"] == "bearish_regime"  # type: ignore[call-overload,index]
         assert skip["regime"]["confidence"] == 0.8
         assert skip["policy_snapshot"]["allowed_sides"] == ["short"]
         assert skip["policy_snapshot"]["min_confidence"] == 0.5
@@ -99,6 +101,7 @@ def test_return_skips_only():
     config = RunConfig(
         user_id="test",
         run_seed=42,
+        log_level="INFO",
         initial_cash=10000.0,
         position_size=100.0,
         allow_flip_on_bar=False,
