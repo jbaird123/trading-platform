@@ -11,7 +11,7 @@ import tempfile
 import unittest.mock as mock
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
-from typing import Any, Dict
+from typing import Any, Dict, cast
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -131,6 +131,37 @@ def mock_pipeline_modules(monkeypatch):
     setattr(skl2onnx_common, "data_types", skl2onnx_common_data_types)
     setattr(skl2onnx_module, "common", skl2onnx_common)
 
+    scipy_module = ModuleType("scipy")
+    scipy_stats = ModuleType("scipy.stats")
+
+    def _ttest_ind(*_, **__):
+        class _Result:
+            statistic = 0.0
+            pvalue = 1.0
+
+        return _Result()
+
+    setattr(scipy_stats, "ttest_ind", _ttest_ind)
+    setattr(scipy_module, "stats", scipy_stats)
+
+    eval_metrics = ModuleType("trading_platform.ai.evaluation.metrics")
+
+    def _get_classification_metrics(*_, **__):
+        return {"accuracy": 1.0}
+
+    setattr(eval_metrics, "get_classification_metrics", _get_classification_metrics)
+
+    eval_procedure = ModuleType("trading_platform.ai.evaluation.procedure")
+
+    class _StubProcedure:
+        def __init__(self, config=None):
+            self.config = config or {}
+
+        def run(self, *_args, **_kwargs):
+            return {"accuracy": 0.5}
+
+    setattr(eval_procedure, "AIEvaluationProcedure", _StubProcedure)
+
     modules = {
         "mlflow": mlflow_module,
         "mlflow.sklearn": mlflow_sklearn,
@@ -141,6 +172,10 @@ def mock_pipeline_modules(monkeypatch):
         "skl2onnx": skl2onnx_module,
         "skl2onnx.common": skl2onnx_common,
         "skl2onnx.common.data_types": skl2onnx_common_data_types,
+        "scipy": scipy_module,
+        "scipy.stats": scipy_stats,
+        "trading_platform.ai.evaluation.metrics": eval_metrics,
+        "trading_platform.ai.evaluation.procedure": eval_procedure,
     }
 
     for name, module in modules.items():
@@ -311,16 +346,23 @@ class TestAITrainingPipeline:
         """Test data loading and preparation - covers lines 129."""
         from trading_platform.ai.training.pipeline import AITrainingPipeline
 
-        # Setup mock return values
         raw_df = pd.DataFrame({"price": [1, 2, 3], "volume": [100, 200, 300]})
-        featured_df = pd.DataFrame(
-            {"price": [1, 2, 3], "sma_10": [1.5, 2.5, 3.5], "volume": [100, 200, 300]}
-        )
         labels = pd.Series([0, 1, 0], index=[0, 1, 2], name="label")
 
         mock_connector = MagicMock()
         mock_connector.load_training_data.return_value = raw_df
         mock_connector_cls.return_value = mock_connector
+
+        subset_df = MagicMock()
+        subset_df.index = labels.index
+        subset_df.dropna.return_value = None
+        subset_df.shape = (3, 3)
+
+        featured_df = MagicMock()
+        featured_df.shape = (3, 3)
+        locator = MagicMock()
+        locator.__getitem__.return_value = subset_df
+        featured_df.loc = locator
 
         mock_fe_pipeline = MagicMock()
         mock_fe_pipeline.run.return_value = featured_df
@@ -334,16 +376,13 @@ class TestAITrainingPipeline:
             pipeline = AITrainingPipeline(mock_config)
             X, y = pipeline._load_and_prepare_data()
 
-        # Verify calls and results
         mock_connector.load_training_data.assert_called_once()
         mock_fe_pipeline.run.assert_called_once()
         mock_labeler.generate_future_price_direction.assert_called_once_with(
             featured_df
         )
-
-        assert isinstance(X, pd.DataFrame)
-        assert isinstance(y, pd.Series)
-        assert len(X) == len(y)
+        assert X is subset_df
+        assert y.equals(labels)
 
     def test_train_model_random_forest(self, mock_config):
         """Test model training with random forest - covers model creation logic."""
@@ -566,6 +605,69 @@ class TestAITrainingPipeline:
                 {"insights": ["test"]}, "diagnostic_synthesis_results.json"
             )
 
+    def test_evaluate_and_log_artifacts_with_default_stubs(self, mock_config):
+        """Exercise evaluation branch using the fixture stubs."""
+        from trading_platform.ai.training.pipeline import AITrainingPipeline
+
+        pipeline = AITrainingPipeline(mock_config)
+        model = MagicMock()
+
+        subset_df = MagicMock()
+        subset_df.index = pd.RangeIndex(3)
+        subset_df.shape = (3, 2)
+        subset_df.dropna.return_value = None
+
+        y = pd.Series([0, 1, 0])
+
+        with patch("mlflow.log_metrics") as mock_log_metrics, patch(
+            "mlflow.sklearn.log_model",
+            return_value=SimpleNamespace(model_uri="mlflow://model"),
+        ) as mock_log_model, patch(
+            "trading_platform.ai.training.pipeline.convert_sklearn"
+        ) as mock_convert, patch("mlflow.log_artifact") as mock_log_artifact, patch(
+            "mlflow.log_dict"
+        ) as mock_log_dict, patch("builtins.open", mock.mock_open()), patch(
+            "os.remove"
+        ):
+            mock_convert.return_value.SerializeToString.return_value = b"onnx"
+            pipeline._evaluate_and_log_artifacts(model, subset_df, y)
+
+        mock_log_metrics.assert_called_once()
+        mock_log_model.assert_called_once()
+        mock_log_artifact.assert_called_once_with("model.onnx", "onnx_model")
+        mock_log_dict.assert_called_once()
+
+    def test_evaluate_artifacts_without_eval_config(self, mock_config):
+        """Ensure metrics logging is skipped when evaluation config is empty."""
+        from trading_platform.ai.training.pipeline import AITrainingPipeline
+
+        pipeline = AITrainingPipeline(mock_config)
+        pipeline.config["evaluation"] = {}
+        dummy_model = MagicMock()
+        X = pd.DataFrame({"feature1": [1.0], "feature2": [2.0]})
+        y = pd.Series([0])
+
+        with patch("mlflow.sklearn.log_model") as mock_log_model, patch(
+            "trading_platform.ai.training.pipeline.convert_sklearn"
+        ) as mock_convert, patch("mlflow.log_artifact") as mock_log_artifact, patch(
+            "mlflow.log_dict"
+        ) as mock_log_dict, patch(
+            "trading_platform.ai.training.pipeline.DiagnosticSynthesisEngine"
+        ) as mock_synth, patch("mlflow.log_metrics") as mock_log_metrics, patch(
+            "builtins.open", mock.mock_open()
+        ), patch("os.remove"):
+            mock_convert.return_value = SimpleNamespace(SerializeToString=lambda: b"")
+            synth_instance = MagicMock()
+            synth_instance.generate_report_json.return_value = "{}"
+            mock_synth.return_value = synth_instance
+
+            pipeline._evaluate_and_log_artifacts(dummy_model, X, y)
+
+        mock_log_metrics.assert_not_called()
+        mock_log_model.assert_called_once_with(dummy_model, "model")
+        mock_log_artifact.assert_called_once_with("model.onnx", "onnx_model")
+        mock_log_dict.assert_called_once_with({}, "diagnostic_synthesis_results.json")
+
     @patch("trading_platform.ai.training.pipeline.AIDataConnector")
     @patch("trading_platform.ai.training.pipeline.DataCatalog")
     @patch("trading_platform.ai.training.pipeline.FeatureEngineeringPipeline")
@@ -587,12 +689,22 @@ class TestAITrainingPipeline:
 
         # Setup all mocks for a complete run
         raw_df = pd.DataFrame({"price": [1, 2, 3]})
-        featured_df = pd.DataFrame({"price": [1, 2, 3], "sma": [1, 2, 3]})
         labels = pd.Series([0, 1, 0], index=[0, 1, 2])
 
         mock_connector = MagicMock()
         mock_connector.load_training_data.return_value = raw_df
         mock_connector_cls.return_value = mock_connector
+
+        subset_df = MagicMock()
+        subset_df.index = labels.index
+        subset_df.dropna.return_value = None
+        subset_df.shape = (3, 2)
+
+        featured_df = MagicMock()
+        featured_df.shape = (3, 2)
+        locator = MagicMock()
+        locator.__getitem__.return_value = subset_df
+        featured_df.loc = locator
 
         mock_fe_pipeline = MagicMock()
         mock_fe_pipeline.run.return_value = featured_df
@@ -638,8 +750,34 @@ class TestAITrainingPipeline:
             pipeline = AITrainingPipeline(mock_config)
             pipeline.run()
 
-            # Verify MLflow run was started
-            mock_start_run.assert_called_once_with(run_name="test_run")
+        # Verify MLflow run was started
+        mock_start_run.assert_called_once_with(run_name="test_run")
+
+    def test_run_invokes_components(self, mock_config, monkeypatch):
+        """Ensure run orchestrates component helpers."""
+        from trading_platform.ai.training.pipeline import AITrainingPipeline
+
+        pipeline = AITrainingPipeline(mock_config)
+
+        dummy_X = MagicMock()
+        dummy_y = MagicMock()
+
+        pipeline_any = cast(Any, pipeline)
+        load_mock = MagicMock(return_value=(dummy_X, dummy_y))
+        train_mock = MagicMock(return_value="trained_model")
+        eval_mock = MagicMock()
+        pipeline_any._load_and_prepare_data = load_mock
+        pipeline_any._train_model = train_mock
+        pipeline_any._evaluate_and_log_artifacts = eval_mock
+
+        with patch("mlflow.start_run") as mock_start_run, patch("mlflow.log_params"):
+            context = SimpleNamespace(info=SimpleNamespace(run_id="stub"))
+            mock_start_run.return_value.__enter__.return_value = context
+            pipeline.run()
+
+        load_mock.assert_called_once_with()
+        train_mock.assert_called_once_with(dummy_X, dummy_y)
+        eval_mock.assert_called_once_with("trained_model", dummy_X, dummy_y)
 
     def test_main_function(self, tmp_path):
         """Test main function execution - covers main() function."""
@@ -670,3 +808,73 @@ class TestAITrainingPipeline:
             mock_yaml_dump.assert_called_once()
             mock_pipeline_cls.assert_called_once()
             mock_pipeline.run.assert_called_once()
+
+    def test_module_entry_point_guard(self, monkeypatch):
+        """Execute module as script while stubbing heavy collaborators."""
+        import runpy
+        import sys
+        import yaml
+
+        module_name = "trading_platform.ai.training.pipeline"
+        monkeypatch.delitem(sys.modules, module_name, raising=False)
+
+        config = {
+            "run_id": "guard_run",
+            "experiment_name": "Guard",
+            "mlflow_tracking_uri": "./mlruns",
+            "data": {"symbol": "EURUSD"},
+            "features": [],
+            "labeling": {},
+            "model": {"type": "random_forest", "params": {}},
+            "evaluation": {},
+        }
+        config_text = yaml.safe_dump(config)
+
+        with patch(
+            "builtins.open", mock.mock_open(read_data=config_text)
+        ) as mock_file, patch("yaml.dump") as mock_yaml_dump, patch(
+            "trading_platform.ai.data_connectors.AIDataConnector"
+        ) as mock_connector_cls, patch(
+            "trading_platform.ai.data_connectors.DataCatalog"
+        ) as mock_catalog_cls, patch(
+            "trading_platform.ai.feature_engineering.pipeline."
+            "FeatureEngineeringPipeline"
+        ) as mock_fe_cls, patch(
+            "trading_platform.ai.data_labeling.DataLabeler"
+        ) as mock_labeler_cls, patch(
+            "trading_platform.ai.synthesis.engine.DiagnosticSynthesisEngine"
+        ) as mock_synth_cls, patch("os.remove"):
+            mock_catalog_cls.return_value = MagicMock()
+
+            raw_df = pd.DataFrame({"feature1": [1.0], "feature2": [2.0]})
+            labels = pd.Series([0], index=[0], name="label")
+
+            mock_connector = MagicMock()
+            mock_connector.load_training_data.return_value = raw_df
+            mock_connector_cls.return_value = mock_connector
+
+            subset_df = raw_df.copy()
+            locator = MagicMock()
+            locator.__getitem__.return_value = subset_df
+
+            featured_df = MagicMock()
+            featured_df.shape = subset_df.shape
+            featured_df.loc = locator
+
+            mock_fe_pipeline = MagicMock()
+            mock_fe_pipeline.run.return_value = featured_df
+            mock_fe_cls.return_value = mock_fe_pipeline
+
+            mock_labeler = MagicMock()
+            mock_labeler.generate_future_price_direction.return_value = labels
+            mock_labeler_cls.return_value = mock_labeler
+
+            mock_synth = MagicMock()
+            mock_synth.run.return_value = None
+            mock_synth.generate_report_json.return_value = "{}"
+            mock_synth_cls.return_value = mock_synth
+
+            runpy.run_module(module_name, run_name="__main__", alter_sys=True)
+
+        mock_file.assert_called()
+        mock_yaml_dump.assert_called_once()
