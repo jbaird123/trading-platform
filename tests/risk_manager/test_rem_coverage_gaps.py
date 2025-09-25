@@ -1,8 +1,7 @@
-# Coverage gaps for risk_manager/rem.py  
+# Coverage gaps for risk_manager/rem.py
 # Missing lines: 56, 61-63, 74, 76, 79
 from __future__ import annotations
 
-import tempfile
 from io import StringIO
 
 from trading_platform.risk_manager.rem import RiskExitManager
@@ -16,12 +15,12 @@ def test_rem_distance_invalid_rule_type():
     take_profit: {}
     """)
     rem = RiskExitManager(config)
-    
+
     # Test with None rule - should return None (line 56)
     result = rem._distance(None, 1.0)
     assert result is None
-    
-    # Test with string rule - should return None (line 56) 
+
+    # Test with string rule - should return None (line 56)
     result = rem._distance("invalid", 1.0)  # type: ignore[arg-type]
     assert result is None
 
@@ -33,7 +32,7 @@ def test_rem_distance_atr_multiple_no_atr():
     take_profit: {}
     """)
     rem = RiskExitManager(config)
-    
+
     # Test atr_multiple with None atr - should return None (line 63)
     rule = {"atr_multiple": 2.0}
     result = rem._distance(rule, None)
@@ -47,7 +46,7 @@ def test_rem_distance_atr_multiple_with_atr():
     take_profit: {}
     """)
     rem = RiskExitManager(config)
-    
+
     # Test atr_multiple with valid atr - should calculate properly (line 62)
     rule = {"atr_multiple": 2.0}
     result = rem._distance(rule, 0.001)
@@ -62,11 +61,11 @@ def test_rem_level_price_invalid_rule_type():
     take_profit: {}
     """)
     rem = RiskExitManager(config)
-    
+
     # Test with None rule - should return None (line 74)
     result = rem._level_price("long", 1.1000, None, None)
     assert result is None
-    
+
     # Test with invalid rule type - should return None (line 74)
     result = rem._level_price("long", 1.1000, "invalid", None)  # type: ignore[arg-type]
     assert result is None
@@ -79,7 +78,7 @@ def test_rem_level_price_distance_none():
     take_profit: {}
     """)
     rem = RiskExitManager(config)
-    
+
     # Test with rule that has no valid distance fields - should return None (line 79)
     rule = {"invalid_field": "value"}
     result = rem._level_price("long", 1.1000, rule, None)
@@ -93,7 +92,7 @@ def test_rem_level_price_absolute_price():
     take_profit: {}
     """)
     rem = RiskExitManager(config)
-    
+
     # Test absolute_price rule - should return the absolute price (line 76)
     rule = {"absolute_price": 1.0950}
     result = rem._level_price("long", 1.1000, rule, None)

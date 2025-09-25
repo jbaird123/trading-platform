@@ -41,7 +41,7 @@ class TestAIStrategy:
         assert strategy.inference_client.backoff_factor == 1.0
 
     def test_init_with_kwargs(self):
-        """Test AIStrategy.__init__() with additional kwargs (BaseStrategy doesn't accept kwargs)."""
+        """Ensure AIStrategy rejects extra kwargs not supported by BaseStrategy."""
         # BaseStrategy doesn't have __init__ method, so kwargs should be rejected
         with pytest.raises(TypeError, match="takes exactly one argument"):
             AIStrategy(name="TestAI", some_param="test_value")
@@ -115,7 +115,7 @@ class TestAIStrategy:
         assert result.iloc[2] == "flat"  # 0.3 < 0.6
 
     def test_interpret_predictions_both_above_threshold(self):
-        """Test _interpret_predictions() when both long and short probs are above threshold."""
+        """Both long and short above threshold should yield flat signals."""
         strategy = AIStrategy(threshold=0.5)
 
         predictions = [
@@ -238,10 +238,8 @@ class TestAIStrategy:
         pd.testing.assert_index_equal(result.index, data.index)
 
     @patch("trading_platform.strategy.ai_strategy.AIInferenceClient")
-    def test_generate_signals_predictions_match_data_after_reindex(
-        self, mock_client_class
-    ):
-        """Test generate_signals() when predictions match data length after reindexing."""
+    def test_generate_signals_predictions_match_after_reindex(self, mock_client_class):
+        """Predictions should align with data index after a retry."""
         # Setup mock
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client

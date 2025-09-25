@@ -1,4 +1,3 @@
-# Coverage gaps for reporting/csv_export.py - missing lines 71-77 (save_prices_csv function)
 from __future__ import annotations
 
 from pathlib import Path

@@ -200,17 +200,18 @@ def test_get_all_rules():
 
 # --- Additional tests to cover missing lines ---
 
+
 def test_base_diagnostic_rule_abstract_method():
     """
     Tests that the BaseDiagnosticRule abstract method raises NotImplementedError.
     This covers line 38.
     """
     from trading_platform.ai.synthesis.rules import BaseDiagnosticRule
-    
+
     # Create a concrete class that doesn't implement evaluate
     class TestRule(BaseDiagnosticRule):
         pass
-    
+
     # Should not be able to instantiate due to abstract method
     try:
         rule = TestRule()  # type: ignore[abstract]
@@ -230,13 +231,13 @@ def test_inefficient_exits_rule_with_trades_above_threshold():
     rule = InefficientExitsRule()
     analysis_data = {
         "trades": [
-            {"mfe_currency": 15.0, "mae_currency": 5.0},   # High MFE
-            {"mfe_currency": 8.0, "mae_currency": 12.0},   # High MAE  
-            {"mfe_currency": 5.0, "mae_currency": 6.0},    # Normal
+            {"mfe_currency": 15.0, "mae_currency": 5.0},  # High MFE
+            {"mfe_currency": 8.0, "mae_currency": 12.0},  # High MAE
+            {"mfe_currency": 5.0, "mae_currency": 6.0},  # Normal
             {"mfe_currency": 20.0, "mae_currency": 15.0},  # Both high
         ]
     }
-    
+
     conclusion = rule.evaluate(analysis_data)
     assert conclusion is not None
     assert "Inefficient Exits Detected (Trade Analysis)" in conclusion.title
@@ -261,7 +262,7 @@ def test_strategy_parameter_optimization_rule_with_none_params():
             "param4": None,
         }
     }
-    
+
     conclusion = rule.evaluate(analysis_data)
     assert conclusion is not None
     assert "Strategy Parameter Optimization Opportunity" in conclusion.title
@@ -279,9 +280,9 @@ def test_data_quality_impact_rule_triggered():
     rule = DataQualityImpactRule(quality_threshold=0.7, perf_threshold=0.0)
     analysis_data = {
         "data_quality": {"quality_score": 0.6},
-        "backtest_metrics": {"win_rate": -0.1}  # Below perf_threshold of 0.0
+        "backtest_metrics": {"win_rate": -0.1},  # Below perf_threshold of 0.0
     }
-    
+
     conclusion = rule.evaluate(analysis_data)
     assert conclusion is not None
     assert "Data Quality Impact Detected" in conclusion.title
@@ -298,9 +299,9 @@ def test_data_quality_impact_rule_high_quality_score():
     rule = DataQualityImpactRule(quality_threshold=0.7, perf_threshold=0.0)
     analysis_data = {
         "data_quality": {"quality_score": 0.8},  # Above quality_threshold
-        "backtest_metrics": {"win_rate": -0.1}
+        "backtest_metrics": {"win_rate": -0.1},
     }
-    
+
     conclusion = rule.evaluate(analysis_data)
     assert conclusion is None
 
@@ -312,9 +313,9 @@ def test_data_quality_impact_rule_high_win_rate():
     rule = DataQualityImpactRule(quality_threshold=0.7, perf_threshold=0.0)
     analysis_data = {
         "data_quality": {"quality_score": 0.6},  # Below quality_threshold
-        "backtest_metrics": {"win_rate": 0.1}    # Above perf_threshold
+        "backtest_metrics": {"win_rate": 0.1},  # Above perf_threshold
     }
-    
+
     conclusion = rule.evaluate(analysis_data)
     assert conclusion is None
 
@@ -329,17 +330,17 @@ def test_market_regime_mismatch_rule_triggered():
         "regimes": {
             "trending_up": {"n_trades": 10, "win_rate": 0.3},  # Low win rate
             "trending_down": {"n_trades": 8, "win_rate": 0.5},  # Good win rate
-            "sideways": {"n_trades": 3, "win_rate": 0.2},      # Too few trades
+            "sideways": {"n_trades": 3, "win_rate": 0.2},  # Too few trades
         }
     }
-    
+
     conclusion = rule.evaluate(analysis_data)
     assert conclusion is not None
     assert "Market Regime Mismatch Detected" in conclusion.title
     assert "trending_up" in conclusion.summary
     assert "trending_down" not in conclusion.summary  # Should not be in mismatches
-    assert "sideways" not in conclusion.summary       # Too few trades
-    
+    assert "sideways" not in conclusion.summary  # Too few trades
+
     mismatches = conclusion.evidence["regime_mismatches"]
     assert "trending_up" in mismatches
     assert mismatches["trending_up"]["n_trades"] == 10
@@ -352,7 +353,7 @@ def test_market_regime_mismatch_rule_no_regimes():
     """
     rule = MarketRegimeMismatchRule()
     analysis_data: dict[str, dict[str, float]] = {"regimes": {}}
-    
+
     conclusion = rule.evaluate(analysis_data)
     assert conclusion is None
 
@@ -369,6 +370,6 @@ def test_market_regime_mismatch_rule_all_regimes_performing_well():
             "sideways": {"n_trades": 7, "win_rate": 0.45},
         }
     }
-    
+
     conclusion = rule.evaluate(analysis_data)
     assert conclusion is None

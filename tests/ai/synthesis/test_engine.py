@@ -322,15 +322,18 @@ def test_dse_parameter_suggestion_exception():
     """Test parameter suggestion exception handling - covers lines 68-69."""
     analysis_data = {"some_data": 123}
 
-    with patch("trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]), \
-         patch("trading_platform.ai.lab.param_suggester.suggest_parameters", 
-               side_effect=ImportError("Module not found")), \
-         patch("trading_platform.ai.synthesis.engine.logger.warning") as mock_warning:
-        
+    with patch(
+        "trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]
+    ), patch(
+        "trading_platform.ai.lab.param_suggester.suggest_parameters",
+        side_effect=ImportError("Module not found"),
+    ), patch("trading_platform.ai.synthesis.engine.logger.warning") as mock_warning:
         engine = DiagnosticSynthesisEngine(analysis_data)
-        
+
         # Should handle the exception and log a warning
-        mock_warning.assert_called_with("Failed to suggest parameters: Module not found")
+        mock_warning.assert_called_with(
+            "Failed to suggest parameters: Module not found"
+        )
         assert engine.suggested_parameters == {}
 
 
@@ -339,27 +342,27 @@ def test_dse_model_insights_no_run_dir():
     analysis_data = {
         "meta": {"run_id": "test123"},
         "_brief_path": "/nonexistent/path",
-        "trades": []
+        "trades": [],
     }
 
-    with patch("trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]), \
-         patch("pathlib.Path") as mock_path_class:
-        
+    with patch(
+        "trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]
+    ), patch("pathlib.Path") as mock_path_class:
         # Set up Path mocking for non-existent run dir
         mock_run_dir = MagicMock()
         mock_run_dir.exists.return_value = False  # Run dir doesn't exist
         mock_model_path = MagicMock()
         mock_model_path.exists.return_value = False  # Model doesn't exist either
-        
+
         def path_side_effect(x):
             if x == "/nonexistent/path":
                 return mock_run_dir
             return mock_model_path
-        
+
         mock_path_class.side_effect = path_side_effect
-        
+
         engine = DiagnosticSynthesisEngine(analysis_data)
-        
+
         # Should not generate any model insights
         assert engine.model_insights == []
 
@@ -368,137 +371,139 @@ def test_dse_model_insights_no_model_file():
     """Test when model file doesn't exist - covers line 87."""
     analysis_data: dict[str, list[dict[str, float]]] = {"trades": []}
 
-    with patch("trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]), \
-         patch("pathlib.Path") as mock_path_class:
-        
+    with patch(
+        "trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]
+    ), patch("pathlib.Path") as mock_path_class:
         # Set up Path mocking for non-existent model
         mock_model_path = MagicMock()
         mock_model_path.exists.return_value = False  # Model file doesn't exist
         mock_path_class.return_value = mock_model_path
-        
+
         engine = DiagnosticSynthesisEngine(analysis_data)
-        
+
         # Should not generate any model insights
         assert engine.model_insights == []
 
 
 def test_dse_model_insights_run_dir_exists():
-    """Test model insights when run directory exists and has model - covers lines 84-86."""
-    analysis_data = {
-        "meta": {"run_id": "test123"},
-        "_brief_path": "/tmp/test_run"
-    }
+    """Test model insights when run directory exists - covers lines 84-86."""
+    analysis_data = {"meta": {"run_id": "test123"}, "_brief_path": "/tmp/test_run"}
 
-    with patch("trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]), \
-         patch("pathlib.Path") as mock_path_class, \
-         patch("joblib.load", side_effect=Exception("Skip actual loading")):
-        
+    with patch(
+        "trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]
+    ), patch("pathlib.Path") as mock_path_class, patch(
+        "joblib.load", side_effect=Exception("Skip actual loading")
+    ):
         # Set up Path mocking
         mock_run_dir = MagicMock()
         mock_run_dir.exists.return_value = True
         mock_model_path = MagicMock()
         mock_model_path.exists.return_value = True
         mock_run_dir.__truediv__ = MagicMock(return_value=mock_model_path)
-        
+
         def path_side_effect(x):
             if x == "/tmp/test_run":
                 return mock_run_dir
             return mock_model_path
-            
+
         mock_path_class.side_effect = path_side_effect
-        
+
         engine = DiagnosticSynthesisEngine(analysis_data)
-        
-        # The constructor should attempt to load the model (will fail due to mocked exception)
+
+        # Constructor attempts to load model (fails due to mocked exception)
         # This covers lines 84-86 where candidate path is set and checked
         assert engine.model_insights == []
 
 
 def test_dse_model_insights_successful_load_no_trades():
-    """Test model loading success path but no trades to process - covers lines 93-107."""
-    analysis_data: dict[str, list[dict[str, float]]] = {"trades": []}  # Empty trades list
+    """Test model loading success but no trades to process - covers lines 93-107."""
+    analysis_data: dict[str, list[dict[str, float]]] = {"trades": []}  # Empty
 
     # Mock the model loading to succeed but avoid the complex dependencies
     mock_model = MagicMock()
     mock_model.feature_names_in_ = ["feature1", "feature2"]
 
-    with patch("trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]), \
-         patch("pathlib.Path") as mock_path_class, \
-         patch("joblib.load", return_value=mock_model), \
-         patch("sys.modules", {"trading_platform.ai.lab.predictor": MagicMock()}):
-        
+    with patch(
+        "trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]
+    ), patch("pathlib.Path") as mock_path_class, patch(
+        "joblib.load", return_value=mock_model
+    ), patch("sys.modules", {"trading_platform.ai.lab.predictor": MagicMock()}):
         # Set up Path mocking for model exists
         mock_model_path = MagicMock()
         mock_model_path.exists.return_value = True
         mock_path_class.return_value = mock_model_path
-        
+
         engine = DiagnosticSynthesisEngine(analysis_data)
-        
+
         # Should load successfully but generate no insights due to no trades
         assert engine.model_insights == []
 
 
 def test_dse_model_insights_features_fallback():
-    """Test feature extraction fallback when model has no features and no trades - covers lines 97-102."""
+    """Test feature extraction fallback with no features/trades - covers 97-102."""
     analysis_data: dict[str, list[dict[str, float]]] = {}  # No trades key at all
 
     mock_model = MagicMock()
     # Model has no feature_names_in_ attribute
     del mock_model.feature_names_in_
 
-    with patch("trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]), \
-         patch("pathlib.Path") as mock_path_class, \
-         patch("joblib.load", return_value=mock_model), \
-         patch("sys.modules", {"trading_platform.ai.lab.predictor": MagicMock()}):
-        
+    with patch(
+        "trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]
+    ), patch("pathlib.Path") as mock_path_class, patch(
+        "joblib.load", return_value=mock_model
+    ), patch("sys.modules", {"trading_platform.ai.lab.predictor": MagicMock()}):
         # Set up Path mocking
         mock_model_path = MagicMock()
         mock_model_path.exists.return_value = True
         mock_path_class.return_value = mock_model_path
-        
+
         engine = DiagnosticSynthesisEngine(analysis_data)
-        
+
         # Should handle the case where no trades exist
         assert engine.model_insights == []
 
 
 def test_dse_generate_report_markdown_with_suggested_parameters():
-    """Test markdown report generation with suggested parameters - covers lines 137-140."""
+    """Test markdown report with suggested parameters - covers lines 137-140."""
     analysis_data = {"some_data": 123}
-    
-    with patch("trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]), \
-         patch("trading_platform.ai.lab.param_suggester.suggest_parameters", 
-               return_value={"param1": "value1", "param2": "value2"}):
-        
+
+    with patch(
+        "trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]
+    ), patch(
+        "trading_platform.ai.lab.param_suggester.suggest_parameters",
+        return_value={"param1": "value1", "param2": "value2"},
+    ):
         engine = DiagnosticSynthesisEngine(analysis_data)
         report = engine.generate_report_markdown()
-        
+
         # Should include suggested parameters section
         assert "## Suggested Parameters" in report
-        assert "- param1: value1" in report  
+        assert "- param1: value1" in report
         assert "- param2: value2" in report
 
 
 def test_dse_generate_report_markdown_with_model_insights():
     """Test markdown report generation with model insights - covers lines 155-166."""
     analysis_data = {"some_data": 123}
-    
+
     # Create mock model insights
-    mock_insights = [{
-        "trade_id": "trade123",
-        "insight": {
-            "predicted_profitable": True,
-            "predicted_probability": 0.85,
-            "feature_importances": {"feature1": 0.6, "feature2": 0.4}
+    mock_insights = [
+        {
+            "trade_id": "trade123",
+            "insight": {
+                "predicted_profitable": True,
+                "predicted_probability": 0.85,
+                "feature_importances": {"feature1": 0.6, "feature2": 0.4},
+            },
         }
-    }]
-    
+    ]
+
     with patch("trading_platform.ai.synthesis.engine.get_all_rules", return_value=[]):
         engine = DiagnosticSynthesisEngine(analysis_data)
         engine.model_insights = mock_insights
-        
+
         report = engine.generate_report_markdown()
-        
+
         # Should include model insights section
         assert "## Model Insights" in report
         assert "### Trade ID: trade123" in report
@@ -512,22 +517,23 @@ def test_dse_generate_report_markdown_with_model_insights():
 def test_dse_generate_report_markdown_complex_evidence():
     """Test markdown report with complex evidence types - covers lines 190-192."""
     analysis_data = {"some_data": 123}
-    
+
     # Create conclusion with complex evidence (non-scalar types)
     complex_evidence = {
         "simple_metric": 0.5,
         "complex_data": {"nested": {"values": [1, 2, 3]}, "list": ["a", "b"]},
-        "another_list": [{"item1": "value1"}, {"item2": "value2"}]
+        "another_list": [{"item1": "value1"}, {"item2": "value2"}],
     }
     conc = MockDiagnosticConclusion("Complex Issue", "Summary", complex_evidence)
-    
-    with patch("trading_platform.ai.synthesis.engine.get_all_rules", 
-               return_value=[MockRule(conclusion_to_return=conc)]):
-        
+
+    with patch(
+        "trading_platform.ai.synthesis.engine.get_all_rules",
+        return_value=[MockRule(conclusion_to_return=conc)],
+    ):
         engine = DiagnosticSynthesisEngine(analysis_data)
         engine.run()
         report = engine.generate_report_markdown()
-        
+
         # Should include both scalar and complex evidence
         assert "- simple_metric: 0.5" in report
         assert "- complex_data:" in report
@@ -539,17 +545,18 @@ def test_dse_generate_report_markdown_complex_evidence():
 def test_dse_generate_report_markdown_non_dict_evidence():
     """Test markdown report with non-dict evidence - covers lines 223-224."""
     analysis_data = {"some_data": 123}
-    
+
     # Create conclusion with non-dict evidence
     conc = MockDiagnosticConclusion("Issue", "Summary", ["item1", "item2", "item3"])
-    
-    with patch("trading_platform.ai.synthesis.engine.get_all_rules",
-               return_value=[MockRule(conclusion_to_return=conc)]):
-        
+
+    with patch(
+        "trading_platform.ai.synthesis.engine.get_all_rules",
+        return_value=[MockRule(conclusion_to_return=conc)],
+    ):
         engine = DiagnosticSynthesisEngine(analysis_data)
         engine.run()
         report = engine.generate_report_markdown()
-        
+
         # Should format non-dict evidence as JSON
         assert "```json" in report
         assert '"item1"' in report

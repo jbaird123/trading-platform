@@ -165,7 +165,7 @@ def test_rmm_context_empty_config():
 
 
 def test_parameter_sweep_with_rem_path():
-    """Test run_parameter_sweep with rem_path for REM config loading. Covers lines 93-98."""
+    """run_parameter_sweep should load REM config when rem_path provided."""
     # Simple market data
     df = pd.DataFrame(
         {

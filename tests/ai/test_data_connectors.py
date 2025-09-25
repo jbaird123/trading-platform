@@ -158,7 +158,7 @@ def test_data_catalog_get_historical_data():
     """
     catalog = DataCatalog()
     df = catalog.get_historical_data("EURUSD", "1D", "2023-01-01", "2023-01-03")
-    
+
     assert not df.empty
     assert isinstance(df, pd.DataFrame)
     assert len(df) == 3
@@ -173,7 +173,7 @@ def test_data_catalog_get_available_symbols():
     """
     catalog = DataCatalog()
     symbols = catalog.get_available_symbols()
-    
+
     assert isinstance(symbols, list)
     assert "EURUSD" in symbols
     assert "GBPUSD" in symbols
@@ -185,7 +185,7 @@ def test_data_catalog_get_available_timeframes():
     """
     catalog = DataCatalog()
     timeframes = catalog.get_available_timeframes()
-    
+
     assert isinstance(timeframes, list)
     assert "1Min" in timeframes
     assert "1H" in timeframes
@@ -206,7 +206,7 @@ def test_load_training_data_with_missing_values_lineage_recorded(capsys):
         }
     )
     data_with_nan.index = pd.to_datetime(["2023-01-01", "2023-01-02", "2023-01-03"])
-    
+
     mock_catalog = MockDataCatalog(data_to_return=data_with_nan)
     connector = AIDataConnector(mock_catalog)
 
@@ -214,19 +214,19 @@ def test_load_training_data_with_missing_values_lineage_recorded(capsys):
     timeframe = "1D"
     start_date = "2023-01-01"
     end_date = "2023-01-03"
-    
-    df = connector.load_training_data(symbol, timeframe, start_date, end_date)
-    
+
+    connector.load_training_data(symbol, timeframe, start_date, end_date)
+
     # Verify missing values warning was printed
     captured = capsys.readouterr()
     assert "Warning: Missing values detected" in captured.out
     assert f"Data lineage recorded for {symbol} data." in captured.out
-    
+
     # Verify lineage was recorded with correct structure
     lineage = connector.get_data_lineage()
     expected_key = f"{symbol}_{timeframe}_{start_date}_{end_date}"
     assert expected_key in lineage
-    
+
     lineage_entry = lineage[expected_key]
     assert lineage_entry["source"] == "DataCatalog"
     assert "retrieval_timestamp" in lineage_entry
@@ -238,11 +238,9 @@ def test_load_training_data_with_missing_values_lineage_recorded(capsys):
 
 
 def test_main_execution_simulation_success(capsys):
-    """
-    Simulates the main block execution by directly calling the code to cover lines 99-111.
-    """
-    from trading_platform.ai.data_connectors import DataCatalog, AIDataConnector
-    
+    """Simulate running the module main block to cover lines 99-111."""
+    from trading_platform.ai.data_connectors import AIDataConnector, DataCatalog
+
     mock_data_catalog = DataCatalog()
     ai_connector = AIDataConnector(mock_data_catalog)
 
@@ -256,18 +254,16 @@ def test_main_execution_simulation_success(capsys):
         print(f"Lineage keys: {list(ai_connector.get_data_lineage().keys())}")
     except ValueError as e:
         print(f"Error loading data: {e}")
-    
+
     captured = capsys.readouterr()
     assert "Successfully loaded training data:" in captured.out
     assert "Data Lineage:" in captured.out
 
 
 def test_main_execution_simulation_with_error(capsys):
-    """
-    Simulates the main block execution with error case to cover the ValueError handling.
-    """
+    """Simulate the main block path that raises a ValueError."""
     from trading_platform.ai.data_connectors import AIDataConnector
-    
+
     # Create a connector with empty data catalog
     mock_catalog = MockDataCatalog(empty_data=True)
     ai_connector = AIDataConnector(mock_catalog)
@@ -282,6 +278,9 @@ def test_main_execution_simulation_with_error(capsys):
         print(ai_connector.get_data_lineage())
     except ValueError as e:
         print(f"Error loading data: {e}")
-    
+
     captured = capsys.readouterr()
-    assert "Error loading data: No data found for EURUSD in the specified range." in captured.out
+    assert (
+        "Error loading data: No data found for EURUSD in the specified range."
+        in captured.out
+    )

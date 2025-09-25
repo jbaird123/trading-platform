@@ -5,14 +5,14 @@ import json
 from pathlib import Path
 from typing import Any, cast
 
+from trading_platform.core.research_profiles import make_research_config
+
 try:
     import yaml as _yaml
 except ImportError:  # pragma: no cover
     _yaml = None
 
 yaml = cast(Any | None, _yaml)
-
-from trading_platform.core.research_profiles import make_research_config
 
 
 def main() -> int:

@@ -8,6 +8,6 @@ def test_metrics_calculate_win_rate_empty_trades():
     """Test calculate_win_rate with empty trades list (line 27)."""
     # Empty trades list should return 0.0
     result = calculate_win_rate([])
-    
+
     # Should return 0.0 when no trades - tests line 27
     assert result == 0.0

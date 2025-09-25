@@ -11,7 +11,7 @@ from trading_platform.portfolio.portfolio import PortfolioManager
 
 
 def test_controller_reconcile_report_side_mismatch():
-    """Test reconcile_report when adapter and portfolio have different sides (line 95)."""
+    """Adapter/portfolio side mismatch triggers reconcile error (line 95)."""
     # Create portfolio manager with a long position
     pm = PortfolioManager(initial_cash=1000.0)
     pm.create_new_position("EURUSD", "long", 1.1000, 1.0, datetime(2024, 1, 1))
@@ -33,7 +33,7 @@ def test_controller_reconcile_report_side_mismatch():
 
 
 def test_controller_reconcile_report_size_mismatch():
-    """Test reconcile_report when adapter and portfolio have different sizes (line 99)."""
+    """Adapter/portfolio size mismatch triggers reconcile error (line 99)."""
     # Create portfolio manager with a position of size 1.0
     pm = PortfolioManager(initial_cash=1000.0)
     pm.create_new_position("EURUSD", "long", 1.1000, 1.0, datetime(2024, 1, 1))
@@ -76,7 +76,7 @@ def test_controller_reconcile_report_size_none_handling():
 
 
 def test_live_controller_flat_with_no_position():
-    """Test run_live_controller when desired is flat but no position exists (line 134)."""
+    """Flat desired with no position should skip orders (line 134)."""
     # Create market data
     idx = [datetime(2024, 1, 1, h) for h in range(3)]
     vals = [1.0, 1.1, 1.2]
@@ -118,7 +118,7 @@ def test_live_controller_flat_with_no_position():
         market_data=market_data, strategy_cfg=strategy_cfg, pm=pm, adapter=adapter
     )
 
-    # Should continue without placing order when desired is flat and no position - line 134
+    # Should skip placing order when desired is flat and no position (line 134)
     adapter.place_order.assert_not_called()
 
     # Should still have reconcile report at end
@@ -126,7 +126,7 @@ def test_live_controller_flat_with_no_position():
 
 
 def test_live_controller_max_orders_kill_switch():
-    """Test run_live_controller kill switch when max_orders reached (branch 147->125)."""
+    """Kill switch triggers once max_orders reached (branch 147->125)."""
     # Create market data with alternating values to trigger entry/exit/entry
     idx = [datetime(2024, 1, 1, h) for h in range(5)]
     vals = [1.0, 0.05, 1.2, 0.05, 1.4]  # high -> low -> high -> low -> high

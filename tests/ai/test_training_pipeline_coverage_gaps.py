@@ -1,31 +1,5 @@
 """
-Test coverage gaps for AI training pipeline module.
-Targets specifi            # Test with model_type that hits different branches (lines 31-32)
-            try:
-                result = pipeline._train_model(
-                    X_train=X_train,  # type: ignore[call-arg]
-                    y_train=y_train,
-                    X_val=X_val,
-                    y_val=y_val,
-                    model_type="xgboost",
-                    model_params={"n_estimators": 10},
-                )            # Test model evaluation (line 129)
-            try:
-                pipeline.evaluate_model(X_val, y_val)  # type: ignore[attr-defined]
-            except Exception:
-                pass
-
-            # Test ONNX export (lines 164->173)
-            try:
-                pipeline.export_onnx_model("/tmp/test_model.onnx")  # type: ignore[attr-defined]
-            except Exception:
-                pass
-
-            # Test model save (lines 194->196)
-            try:
-                pipeline.save_model("/tmp/test_model.pkl")  # type: ignore[attr-defined]
-            except Exception:
-                passto reach 100%.
+Cover AI training pipeline gaps required for full coverage.
 """
 
 import os
@@ -80,7 +54,7 @@ def test_training_pipeline_coverage():
 
             # Test with model_type that hits different branches (lines 31-32)
             try:
-                result = pipeline._train_model(
+                pipeline._train_model(
                     X_train=X_train,  # type: ignore[call-arg]
                     y_train=y_train,
                     X_val=X_val,
@@ -89,11 +63,12 @@ def test_training_pipeline_coverage():
                     model_params={"n_estimators": 10},
                 )
             except Exception:
-                pass  # Some dependencies might not be available, but coverage is still recorded
+                # Some dependencies might not be available, but coverage recorded
+                pass
 
             # Test with different model_type
             try:
-                result = pipeline._train_model(
+                pipeline._train_model(
                     X_train=X_train,  # type: ignore[call-arg]
                     y_train=y_train,
                     X_val=X_val,
@@ -112,7 +87,9 @@ def test_training_pipeline_coverage():
 
             # Test ONNX export (lines 164->173)
             try:
-                pipeline.export_onnx_model("/tmp/test_model.onnx")  # type: ignore[attr-defined]
+                pipeline.export_onnx_model(  # type: ignore[attr-defined]
+                    "/tmp/test_model.onnx"
+                )
             except Exception:
                 pass
 
@@ -180,7 +157,7 @@ def test_training_pipeline_model_types():
             X = np.array([[1, 2], [3, 4], [5, 6]])
             y = np.array([0, 1, 0])
 
-            # Mock the sklearn models to avoid dependency issues - patch in the correct module where they're imported
+            # Mock sklearn models to avoid dependency issues - patch correct module
             with patch(
                 "trading_platform.ai.training.pipeline.RandomForestClassifier"
             ) as mock_rf, patch(
@@ -210,14 +187,14 @@ def test_training_pipeline_model_types():
                 # Test random_forest model type
                 config_path_rf = create_test_config("random_forest")
                 pipeline_rf = AITrainingPipeline(config_path=config_path_rf)
-                result = pipeline_rf._train_model(X_df, y_series)
+                pipeline_rf._train_model(X_df, y_series)
                 mock_rf.assert_called_once()
 
-                # Test lightgbm model type (this is the original pipeline since default is lightgbm)
-                result = pipeline._train_model(X_df, y_series)
+                # Test lightgbm (default pipeline since default is lightgbm)
+                pipeline._train_model(X_df, y_series)
                 mock_lgb.assert_called_once()
 
-                # logistic_regression is not supported in the actual code, only lightgbm and random_forest
+                # logistic_regression unsupported, only lightgbm and random_forest
         finally:
             # Clean up config files
             if os.path.exists(config_path):
