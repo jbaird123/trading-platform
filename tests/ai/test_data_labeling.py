@@ -1,5 +1,6 @@
 import pandas as pd
 import pytest
+import runpy
 from trading_platform.ai.data_labeling import DataLabeler
 
 
@@ -36,10 +37,15 @@ def test_datalabeler_init():
     """
     labeler_default = DataLabeler()
     assert labeler_default.look_ahead_bars == 1
+    assert labeler_default.price_change_threshold == pytest.approx(0.001)
     assert labeler_default.labeling_methodology_version == "v1.0_future_price_direction"
 
-    labeler_custom = DataLabeler(look_ahead_bars=5)
+    labeler_custom = DataLabeler(
+        look_ahead_bars=5,
+        price_change_threshold=0.005,
+    )
     assert labeler_custom.look_ahead_bars == 5
+    assert labeler_custom.price_change_threshold == pytest.approx(0.005)
 
 
 def test_generate_future_price_direction_basic(sample_dataframe):
@@ -70,6 +76,57 @@ def test_generate_future_price_direction_custom_look_ahead(sample_dataframe):
         dtype=int,
     )
     pd.testing.assert_series_equal(labels, expected_labels, check_names=False)
+
+
+def test_generate_future_price_direction_custom_threshold():
+    """Tests that a higher threshold suppresses small price changes."""
+    df = pd.DataFrame(
+        {"close": [100.0, 100.5, 101.0]},
+        index=pd.to_datetime([
+            "2023-01-01",
+            "2023-01-02",
+            "2023-01-03",
+        ]),
+    )
+    labeler = DataLabeler(
+        look_ahead_bars=1,
+        price_change_threshold=0.01,
+    )
+    labels = labeler.generate_future_price_direction(df)
+    expected = pd.Series(
+        [0, 0],
+        index=df.index[: -labeler.look_ahead_bars],
+        dtype=int,
+    )
+    pd.testing.assert_series_equal(labels, expected, check_names=False)
+
+
+def test_generate_future_price_direction_handles_dropna_error(monkeypatch):
+    """Ensures fallback path handles dropna compatibility errors."""
+    df = pd.DataFrame(
+        {"close": [100.0, 101.0, 102.0]},
+        index=pd.to_datetime([
+            "2023-01-01",
+            "2023-01-02",
+            "2023-01-03",
+        ]),
+    )
+    labeler = DataLabeler(look_ahead_bars=1)
+
+    original_dropna = pd.Series.dropna
+    call_state = {"count": 0}
+
+    def flaky_dropna(self, *args, **kwargs):
+        call_state["count"] += 1
+        if call_state["count"] == 1:
+            raise ValueError("simulated dropna failure")
+        return original_dropna(self, *args, **kwargs)
+
+    monkeypatch.setattr(pd.Series, "dropna", flaky_dropna)
+    labels = labeler.generate_future_price_direction(df)
+
+    assert call_state["count"] >= 2
+    assert labels.index.equals(df.index[:-1])
 
 
 def test_generate_future_price_direction_missing_close_column():
@@ -194,6 +251,29 @@ def test_main_execution_simulation(capsys):
     captured = capsys.readouterr()
     assert "Sample DataFrame with generated labels:" in captured.out
     assert "Labeling Methodology Version: v1.0_future_price_direction" in captured.out
+
+
+def test_main_handles_compatibility_issue(monkeypatch, capsys):
+    """Runs module as script and exercises the exception branch."""
+    import trading_platform.ai.data_labeling as data_labeling
+
+    original_dataframe = data_labeling.pd.DataFrame
+
+    def boom_dataframe(*args, **kwargs):
+        df = original_dataframe(*args, **kwargs)
+
+        def _boom(*_args, **_kwargs):
+            raise TypeError("compatibility boom")
+
+        df.set_index = _boom  # type: ignore[method-assign]
+        return df
+
+    monkeypatch.setattr(data_labeling.pd, "DataFrame", boom_dataframe)
+    runpy.run_module("trading_platform.ai.data_labeling", run_name="__main__")
+
+    captured = capsys.readouterr()
+    assert "compatibility issue" in captured.out
+    assert "DataLabeler created successfully" in captured.out
 
 
 def test_generate_future_price_direction_with_significant_threshold_change():

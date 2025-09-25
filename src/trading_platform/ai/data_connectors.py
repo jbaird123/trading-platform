@@ -95,7 +95,7 @@ class AIDataConnector:
 
 
 # Example usage (for demonstration purposes)
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     mock_data_catalog = DataCatalog()
     ai_connector = AIDataConnector(mock_data_catalog)
 

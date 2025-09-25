@@ -8,6 +8,7 @@ import json
 import tempfile
 import unittest.mock as mock
 from pathlib import Path
+from types import ModuleType, SimpleNamespace
 from typing import Any, Dict
 from unittest.mock import MagicMock, patch
 
@@ -15,19 +16,170 @@ import pandas as pd
 import pytest
 
 
+@pytest.fixture
+def mock_pipeline_modules(monkeypatch):
+    """Install lightweight module stubs for heavy training dependencies."""
+
+    import sys
+
+    mlflow_module = ModuleType("mlflow")
+
+    def _noop(*_, **__):
+        return None
+
+    mlflow_module.set_tracking_uri = _noop
+    mlflow_module.set_experiment = _noop
+    mlflow_module.log_params = _noop
+    mlflow_module.log_metrics = _noop
+    mlflow_module.log_artifact = _noop
+    mlflow_module.log_dict = _noop
+
+    def _start_run(*_, **__):
+        class _RunContext:
+            def __enter__(self):
+                return SimpleNamespace(info=SimpleNamespace(run_id="mock"))
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+        return _RunContext()
+
+    mlflow_module.start_run = _start_run
+
+    mlflow_sklearn = ModuleType("mlflow.sklearn")
+
+    def _log_model(*_, **__):
+        return SimpleNamespace(model_uri="mock")
+
+    mlflow_sklearn.log_model = _log_model
+    mlflow_module.sklearn = mlflow_sklearn
+
+    sklearn_module = ModuleType("sklearn")
+
+    sklearn_metrics = ModuleType("sklearn.metrics")
+
+    def _fake_metric(*_, **__):
+        return 0.5
+
+    sklearn_metrics.accuracy_score = MagicMock(side_effect=_fake_metric)
+    sklearn_metrics.f1_score = MagicMock(side_effect=_fake_metric)
+    sklearn_metrics.precision_score = MagicMock(side_effect=_fake_metric)
+    sklearn_metrics.recall_score = MagicMock(side_effect=_fake_metric)
+    sklearn_metrics.roc_auc_score = MagicMock(side_effect=_fake_metric)
+
+    sklearn_ensemble = ModuleType("sklearn.ensemble")
+
+    class _RFClassifier:
+        def __init__(self, *_, **__):
+            self.fit_called = False
+
+        def fit(self, *_, **__):
+            self.fit_called = True
+            return self
+
+    sklearn_ensemble.RandomForestClassifier = _RFClassifier
+
+    sklearn_model_selection = ModuleType("sklearn.model_selection")
+
+    class _GridSearch:
+        def __init__(self, *_, **__):
+            self.best_estimator_ = _RFClassifier()
+            self.best_params_ = {}
+
+        def fit(self, *_, **__):
+            return None
+
+    class _TimeSeriesSplit:
+        def __init__(self, *_, **__):
+            pass
+
+        def split(self, *_):
+            return []
+
+    sklearn_model_selection.GridSearchCV = _GridSearch
+    sklearn_model_selection.TimeSeriesSplit = _TimeSeriesSplit
+
+    sklearn_module.metrics = sklearn_metrics
+    sklearn_module.ensemble = sklearn_ensemble
+    sklearn_module.model_selection = sklearn_model_selection
+
+    skl2onnx_module = ModuleType("skl2onnx")
+
+    def _convert_sklearn(*_, **__):
+        class _ONNX:
+            def SerializeToString(self):
+                return b""
+
+        return _ONNX()
+
+    skl2onnx_module.convert_sklearn = _convert_sklearn
+
+    skl2onnx_common = ModuleType("skl2onnx.common")
+    skl2onnx_common_data_types = ModuleType("skl2onnx.common.data_types")
+
+    class _FloatTensorType:
+        def __init__(self, *_):
+            pass
+
+    skl2onnx_common_data_types.FloatTensorType = _FloatTensorType
+    skl2onnx_common.data_types = skl2onnx_common_data_types
+    skl2onnx_module.common = skl2onnx_common
+
+    modules = {
+        "mlflow": mlflow_module,
+        "mlflow.sklearn": mlflow_sklearn,
+        "sklearn": sklearn_module,
+        "sklearn.metrics": sklearn_metrics,
+        "sklearn.ensemble": sklearn_ensemble,
+        "sklearn.model_selection": sklearn_model_selection,
+        "skl2onnx": skl2onnx_module,
+        "skl2onnx.common": skl2onnx_common,
+        "skl2onnx.common.data_types": skl2onnx_common_data_types,
+    }
+
+    for name, module in modules.items():
+        monkeypatch.setitem(sys.modules, name, module)
+
+    # Ensure training pipeline picks up the stubbed modules
+    import importlib
+
+    if "trading_platform.ai.training.pipeline" in sys.modules:
+        importlib.reload(sys.modules["trading_platform.ai.training.pipeline"])
+
+    yield modules
+
+
+def test_import_pipeline_without_lightgbm(monkeypatch, mock_pipeline_modules):
+    """Ensure pipeline falls back when lightgbm import fails."""
+    import importlib
+    import sys
+    from builtins import __import__ as real_import
+
+    monkeypatch.delitem(
+        sys.modules,
+        "trading_platform.ai.training.pipeline",
+        raising=False,
+    )
+
+    def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "lightgbm":
+            raise ImportError("Mock missing lightgbm")
+        return real_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr("builtins.__import__", fake_import)
+    module = importlib.import_module("trading_platform.ai.training.pipeline")
+    assert module.lgb is None
+    monkeypatch.delitem(
+        sys.modules,
+        "trading_platform.ai.training.pipeline",
+        raising=False,
+    )
+
+
+@pytest.mark.usefixtures("mock_pipeline_modules")
 class TestAITrainingPipelineImports:
     """Test imports and basic instantiation."""
-    
-    @patch.dict("sys.modules", {
-        "lightgbm": MagicMock(),
-        "sklearn": MagicMock(),
-        "sklearn.ensemble": MagicMock(),
-        "sklearn.model_selection": MagicMock(),
-        "skl2onnx": MagicMock(),
-        "skl2onnx.common.data_types": MagicMock(),
-        "mlflow": MagicMock(),
-        "mlflow.sklearn": MagicMock(),
-    })
+
     def test_import_pipeline_module(self):
         """Test that the pipeline module can be imported with mocked dependencies."""
         from trading_platform.ai.training.pipeline import AITrainingPipeline, _flatten_dict
@@ -35,19 +187,10 @@ class TestAITrainingPipelineImports:
         assert _flatten_dict is not None
 
 
+@pytest.mark.usefixtures("mock_pipeline_modules")
 class TestFlattenDict:
     """Test the _flatten_dict utility function."""
-    
-    @patch.dict("sys.modules", {
-        "lightgbm": MagicMock(),
-        "sklearn": MagicMock(),
-        "sklearn.ensemble": MagicMock(),  
-        "sklearn.model_selection": MagicMock(),
-        "skl2onnx": MagicMock(),
-        "skl2onnx.common.data_types": MagicMock(),
-        "mlflow": MagicMock(),
-        "mlflow.sklearn": MagicMock(),
-    })
+
     def test_flatten_dict_nested(self):
         """Test flattening nested dictionary."""
         from trading_platform.ai.training.pipeline import _flatten_dict
@@ -69,16 +212,6 @@ class TestFlattenDict:
         result = _flatten_dict(nested)
         assert result == expected
 
-    @patch.dict("sys.modules", {
-        "lightgbm": MagicMock(),
-        "sklearn": MagicMock(), 
-        "sklearn.ensemble": MagicMock(),
-        "sklearn.model_selection": MagicMock(),
-        "skl2onnx": MagicMock(),
-        "skl2onnx.common.data_types": MagicMock(),
-        "mlflow": MagicMock(),
-        "mlflow.sklearn": MagicMock(),
-    })
     def test_flatten_dict_flat(self):
         """Test flattening already flat dictionary."""
         from trading_platform.ai.training.pipeline import _flatten_dict
@@ -88,16 +221,7 @@ class TestFlattenDict:
         assert result == flat
 
 
-@patch.dict("sys.modules", {
-    "lightgbm": MagicMock(),
-    "sklearn": MagicMock(),
-    "sklearn.ensemble": MagicMock(),
-    "sklearn.model_selection": MagicMock(),
-    "skl2onnx": MagicMock(),
-    "skl2onnx.common.data_types": MagicMock(),
-    "mlflow": MagicMock(),
-    "mlflow.sklearn": MagicMock(),
-})
+@pytest.mark.usefixtures("mock_pipeline_modules")
 class TestAITrainingPipeline:
     """Test AITrainingPipeline class with comprehensive mocking."""
 
@@ -402,14 +526,16 @@ class TestAITrainingPipeline:
         mock_model_info = MagicMock()
         mock_model_info.model_uri = "models:/test_model/1"
 
+        config_text = Path(mock_config).read_text()
+
         with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), \
              patch("mlflow.log_metrics") as mock_log_metrics, \
              patch("mlflow.sklearn.log_model", return_value=mock_model_info) as mock_log_model, \
-             patch("trading_platform.ai.training.pipeline.convert_sklearn", 
+             patch("trading_platform.ai.training.pipeline.convert_sklearn",
                    return_value=mock_onnx_model) as mock_convert, \
              patch("mlflow.log_artifact") as mock_log_artifact, \
              patch("mlflow.log_dict") as mock_log_dict, \
-             patch("builtins.open", mock.mock_open()) as mock_file, \
+             patch("builtins.open", mock.mock_open(read_data=config_text)) as mock_file, \
              patch("os.remove") as mock_remove:
             
             pipeline = AITrainingPipeline(mock_config)
@@ -475,18 +601,20 @@ class TestAITrainingPipeline:
         mock_onnx_model.SerializeToString.return_value = b"test"
         mock_model_info = MagicMock()
 
+        config_text = Path(mock_config).read_text()
+
         with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), \
              patch("mlflow.start_run") as mock_start_run, \
              patch("mlflow.log_params"), \
              patch("mlflow.log_metrics"), \
              patch("mlflow.sklearn.log_model", return_value=mock_model_info), \
-             patch("trading_platform.ai.training.pipeline.RandomForestClassifier", 
+             patch("trading_platform.ai.training.pipeline.RandomForestClassifier",
                    return_value=mock_model), \
-             patch("trading_platform.ai.training.pipeline.convert_sklearn", 
+             patch("trading_platform.ai.training.pipeline.convert_sklearn",
                    return_value=mock_onnx_model), \
              patch("mlflow.log_artifact"), \
              patch("mlflow.log_dict"), \
-             patch("builtins.open", mock.mock_open()), \
+             patch("builtins.open", mock.mock_open(read_data=config_text)), \
              patch("os.remove"):
             
             mock_run_context = MagicMock()
