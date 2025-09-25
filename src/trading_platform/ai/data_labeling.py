@@ -1,13 +1,3 @@
-# ruff: noqa: E402
-
-import warnings
-
-warnings.filterwarnings(
-    "ignore",
-    message="The NumPy module was reloaded (imported a second time).*",
-    category=UserWarning,
-)
-
 import pandas as pd
 
 
@@ -50,7 +40,7 @@ class DataLabeler:
         except (TypeError, ValueError):
             # Handle pandas/numpy compatibility issues
             valid_index = price_change.dropna().index
-            labels = labels.iloc[:len(valid_index)]
+            labels = labels.iloc[: len(valid_index)]
 
         print(
             "Generated future price direction labels using methodology "
@@ -96,8 +86,7 @@ def main() -> None:
         print("\nSample DataFrame with generated labels:")
         print(pd.concat([sample_df, labels.rename("target")], axis=1).dropna())
     except Exception as exc:
-        print("\nExample execution encountered a compatibility issue:"
-              f" {exc}")
+        print("\nExample execution encountered a compatibility issue:" f" {exc}")
         labeler = DataLabeler(look_ahead_bars=1)
         print("DataLabeler created successfully for demonstration.")
 
