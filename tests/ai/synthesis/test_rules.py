@@ -272,6 +272,44 @@ def test_strategy_parameter_optimization_rule_with_none_params():
     assert conclusion.evidence["none_params"] == {"param2": None, "param4": None}
 
 
+def test_strategy_parameter_optimization_rule_empty_params():
+    """Test StrategyParameterOptimizationOpportunityRule empty params - line 171."""
+    rule = StrategyParameterOptimizationOpportunityRule()
+    analysis_data: dict = {"strategy_params": {}}  # Empty params dict
+
+    conclusion = rule.evaluate(analysis_data)
+    assert conclusion is None
+
+
+def test_inefficient_exits_rule_no_inefficient_trades():
+    """Test InefficientExitsRule when no trades exceed thresholds - branch 86->104."""
+    rule = InefficientExitsRule()
+    analysis_data = {
+        "trades": [
+            {"mfe_currency": 5.0, "mae_currency": 3.0},  # Low MFE and MAE
+            {"mfe_currency": 8.0, "mae_currency": 7.0},  # Still below threshold
+            {"mfe_currency": 2.0, "mae_currency": 4.0},  # All below 10.0 threshold
+        ]
+    }
+
+    conclusion = rule.evaluate(analysis_data)
+    assert conclusion is None  # No inefficient trades found
+
+
+def test_base_diagnostic_rule_pass_statement():
+    """Test the pass statement in BaseDiagnosticRule.evaluate - covers line 38."""
+    from trading_platform.ai.synthesis.rules import BaseDiagnosticRule
+    
+    # Create a minimal concrete implementation that explicitly calls the abstract method
+    class TestRule(BaseDiagnosticRule):
+        def evaluate(self, analysis_data):
+            # Directly invoke the abstract method implementation to hit the pass statement
+            return BaseDiagnosticRule.evaluate(self, analysis_data)
+    
+    rule = TestRule()
+    # The base class evaluate method just has 'pass', so returns None
+    result = rule.evaluate({})
+    assert result is None
 def test_data_quality_impact_rule_triggered():
     """
     Tests DataQualityImpactRule when both quality score and win rate are low.
