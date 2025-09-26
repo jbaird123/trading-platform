@@ -10,7 +10,7 @@ def test_oanda_streaming_connector_lifecycle():
     connector = OandaStreamingConnector(
         account_id="test-account",
         access_token="test-token",
-        instrument="EUR_USD",
+        instrument="EURUSD",
     )
 
     # Assert initial state
@@ -23,7 +23,7 @@ def test_oanda_streaming_connector_lifecycle():
     tick = connector.get_next_tick()
     assert tick is not None
     assert tick["type"] == "PRICE"
-    assert tick["instrument"] == "EUR_USD"
+    assert tick["instrument"] == "EURUSD"
     assert "bids" in tick and "asks" in tick
 
     # Act: Disconnect

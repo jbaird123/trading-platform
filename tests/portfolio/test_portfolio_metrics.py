@@ -13,7 +13,7 @@ def test_calculate_equity_curve_simple():
     """
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2023, 1, 1),
             exit_time=datetime(2023, 1, 2),
             entry_price=1.0,
@@ -23,7 +23,7 @@ def test_calculate_equity_curve_simple():
             pnl=100.0,
         ),
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2023, 1, 3),
             exit_time=datetime(2023, 1, 4),
             entry_price=1.0,
@@ -58,7 +58,7 @@ def test_calculate_win_rate_simple():
     """
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2023, 1, 1),
             exit_time=datetime(2023, 1, 2),
             entry_price=1.0,
@@ -68,7 +68,7 @@ def test_calculate_win_rate_simple():
             pnl=100.0,  # Win
         ),
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2023, 1, 3),
             exit_time=datetime(2023, 1, 4),
             entry_price=1.0,
@@ -78,7 +78,7 @@ def test_calculate_win_rate_simple():
             pnl=-50.0,  # Loss
         ),
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2023, 1, 5),
             exit_time=datetime(2023, 1, 6),
             entry_price=1.0,

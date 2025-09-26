@@ -129,7 +129,7 @@ def run_backtest(
                 skipped.append(
                     {
                         "timestamp": _fmt_ts(current_bar.name),
-                        "symbol": "EUR_USD",
+                        "symbol": "EURUSD",
                         "reason_code": "position_cap",
                         "policy_snapshot": {"cap": cap_now},
                         "notes": None,
@@ -152,7 +152,7 @@ def run_backtest(
                         skipped.append(
                             {
                                 "timestamp": _fmt_ts(current_bar.name),
-                                "symbol": "EUR_USD",
+                                "symbol": "EURUSD",
                                 "reason_code": "rmm_block",
                                 "regime": {
                                     "label": ctx.get("label"),
@@ -177,7 +177,7 @@ def run_backtest(
                     skipped.append(
                         {
                             "timestamp": _fmt_ts(now),
-                            "symbol": "EUR_USD",
+                            "symbol": "EURUSD",
                             "reason_code": "risk_cap",
                             "policy_snapshot": {
                                 "daily_loss_cap": float(config.daily_loss_cap)
@@ -199,7 +199,7 @@ def run_backtest(
                 skipped.append(
                     {
                         "timestamp": _fmt_ts(current_bar.name),
-                        "symbol": "EUR_USD",
+                        "symbol": "EURUSD",
                         "reason_code": "position_cap",
                         "policy_snapshot": {"cap": cap},
                         "notes": None,
@@ -213,7 +213,7 @@ def run_backtest(
                 size = float(config.position_size)
 
                 portfolio.create_new_position(
-                    symbol="EUR_USD",
+                    symbol="EURUSD",
                     side=current_signal,
                     entry_price=entry_price,
                     size=size,
@@ -235,7 +235,7 @@ def run_backtest(
             skipped.append(
                 {
                     "timestamp": _fmt_ts(current_bar.name),
-                    "symbol": "EUR_USD",
+                    "symbol": "EURUSD",
                     "reason_code": reason,
                     "policy_snapshot": snap,
                     "notes": None,
@@ -388,7 +388,7 @@ def _simulate_counterfactual_exact(
     )
     entry_time = cast(datetime, market_data.index[start_index])
     pm.create_new_position(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         side=side,
         entry_price=entry_price,
         size=size,

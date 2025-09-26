@@ -27,7 +27,7 @@ def _mk_df() -> pd.DataFrame:
 def test_run_backtest_accepts_instrument_snapshot():
     df = _mk_df()
     signals = pd.Series(["flat", "long", "flat"], index=df.index)
-    instr = {"symbol": "EUR_USD", "tick_size": 0.0001}
+    instr = {"symbol": "EURUSD", "tick_size": 0.0001}
     config = RunConfig(
         user_id="test_user",
         run_seed=42,

@@ -190,7 +190,7 @@ def test_counterfactual_fast_invalid_start_index():
         side="long",
         entry_price=1.0,
         size=100,
-        instrument={"symbol": "EUR_USD", "lot_size": 100_000},
+        instrument={"symbol": "EURUSD", "lot_size": 100_000},
         cost_model=None,
     )
     assert result == {}
@@ -217,7 +217,7 @@ def test_counterfactual_fast_short_side():
         side="short",
         entry_price=1.00,
         size=100,
-        instrument={"symbol": "EUR_USD", "lot_size": 100_000},
+        instrument={"symbol": "EURUSD", "lot_size": 100_000},
         cost_model=None,
     )
     assert isinstance(result, dict)
@@ -247,7 +247,7 @@ def test_counterfactual_exact_invalid_start_index():
         side="long",
         entry_price=1.0,
         size=100,
-        instrument={"symbol": "EUR_USD", "lot_size": 100_000},
+        instrument={"symbol": "EURUSD", "lot_size": 100_000},
         cost_model=None,
     )
     assert result == {}

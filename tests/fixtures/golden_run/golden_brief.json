@@ -229,7 +229,7 @@
   "skipped_trades": [
     {
       "timestamp": "2023-01-01T02:00:00+00:00",
-      "symbol": "EUR_USD",
+      "symbol": "EURUSD",
       "reason_code": "position_cap",
       "policy_snapshot": {
         "cap": 1
@@ -238,7 +238,7 @@
     },
     {
       "timestamp": "2023-01-01T03:00:00+00:00",
-      "symbol": "EUR_USD",
+      "symbol": "EURUSD",
       "reason_code": "position_cap",
       "policy_snapshot": {
         "cap": 1
@@ -247,7 +247,7 @@
     },
     {
       "timestamp": "2023-01-01T04:00:00+00:00",
-      "symbol": "EUR_USD",
+      "symbol": "EURUSD",
       "reason_code": "position_cap",
       "policy_snapshot": {
         "cap": 1
@@ -256,7 +256,7 @@
     },
     {
       "timestamp": "2023-01-01T05:00:00+00:00",
-      "symbol": "EUR_USD",
+      "symbol": "EURUSD",
       "reason_code": "position_cap",
       "policy_snapshot": {
         "cap": 1
@@ -265,7 +265,7 @@
     },
     {
       "timestamp": "2023-01-01T06:00:00+00:00",
-      "symbol": "EUR_USD",
+      "symbol": "EURUSD",
       "reason_code": "position_cap",
       "policy_snapshot": {
         "cap": 1
@@ -274,7 +274,7 @@
     },
     {
       "timestamp": "2023-01-01T07:00:00+00:00",
-      "symbol": "EUR_USD",
+      "symbol": "EURUSD",
       "reason_code": "position_cap",
       "policy_snapshot": {
         "cap": 1
@@ -283,7 +283,7 @@
     },
     {
       "timestamp": "2023-01-01T08:00:00+00:00",
-      "symbol": "EUR_USD",
+      "symbol": "EURUSD",
       "reason_code": "position_cap",
       "policy_snapshot": {
         "cap": 1
@@ -292,7 +292,7 @@
     },
     {
       "timestamp": "2023-01-01T09:00:00+00:00",
-      "symbol": "EUR_USD",
+      "symbol": "EURUSD",
       "reason_code": "position_cap",
       "policy_snapshot": {
         "cap": 1
@@ -301,7 +301,7 @@
     },
     {
       "timestamp": "2023-01-01T10:00:00+00:00",
-      "symbol": "EUR_USD",
+      "symbol": "EURUSD",
       "reason_code": "position_cap",
       "policy_snapshot": {
         "cap": 1
@@ -310,7 +310,7 @@
     },
     {
       "timestamp": "2023-01-01T11:00:00+00:00",
-      "symbol": "EUR_USD",
+      "symbol": "EURUSD",
       "reason_code": "position_cap",
       "policy_snapshot": {
         "cap": 1
@@ -319,7 +319,7 @@
     },
     {
       "timestamp": "2023-01-01T12:00:00+00:00",
-      "symbol": "EUR_USD",
+      "symbol": "EURUSD",
       "reason_code": "position_cap",
       "policy_snapshot": {
         "cap": 1

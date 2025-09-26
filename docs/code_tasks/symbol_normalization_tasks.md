@@ -85,7 +85,7 @@ The developer must follow these tasks in the specified sequence. All changes mus
 
 ### 4. Refactor Application Code
 
-- [ ] **4.1. Create Failing Tests for a Target Module (e.g., Backtester)**
+- [x] **4.1. Create Failing Tests for a Target Module (e.g., Backtester)**
     - **File:** `tests/backtester/test_backtester.py`, `tests/portfolio/test_portfolio.py`
     - **Action:** Update tests to use the new canonical symbol format, which will cause them to fail initially.
     - **Logic:**
@@ -93,14 +93,14 @@ The developer must follow these tasks in the specified sequence. All changes mus
         2.  Change the symbol in the test setup and assertions to the new canonical `"EURUSD"`.
         3.  Run `pytest` and confirm that these tests now fail.
 
-- [ ] **4.2. Refactor the Target Module (e.g., Backtester)**
+- [x] **4.2. Refactor the Target Module (e.g., Backtester)**
     - **File:** `src/trading_platform/backtester/core.py`, `src/trading_platform/portfolio/portfolio.py`
     - **Action:** Refactor the source code to use the canonical symbol format internally.
     - **Logic:**
         1.  Replace all internal uses of hardcoded symbols like `"EUR_USD"` with the canonical `"EURUSD"`.
         2.  Rerun the tests from step 4.1 and ensure they now pass.
 
-- [ ] **4.3. Apply Normalization Pattern to All Other Modules**
+- [x] **4.3. Apply Normalization Pattern to All Other Modules**
     - **Action:** Apply the same test-first refactoring pattern from steps 4.1 and 4.2 to all other modules. The initial code search revealed that nearly every module will require changes.
 
 ### 5. Update Documentation
