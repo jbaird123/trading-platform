@@ -1,24 +1,25 @@
 from __future__ import annotations
 
-from datetime import datetime
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
-from pyarrow import ArrowInvalid
-
-from trading_platform.core.config import RunConfig
-from trading_platform.reporting.brief import (_lookup_schema, _round_currency,
-                                            _round_price, _schema_node_type,
-                                            generate_brief, save_run_brief)
+from trading_platform.reporting.brief import (
+    _lookup_schema,
+    _round_currency,
+    _round_price,
+    _schema_node_type,
+    generate_brief,
+)
 
 
 @patch("os.path.exists", return_value=True)
 @patch("pandas.read_parquet")
-def test_generate_brief_with_empty_signals_file(mock_read_parquet, mock_exists, tmp_path):
+def test_generate_brief_with_empty_signals_file(
+    mock_read_parquet, mock_exists, tmp_path
+):
     """Verify brief generation handles an empty signals file gracefully."""
-    mock_read_parquet.return_value = pd.DataFrame(columns=['signal'])
+    mock_read_parquet.return_value = pd.DataFrame(columns=["signal"])
     signals_path = tmp_path / "signals.parquet"
     signals_path.touch()
 
@@ -64,7 +65,9 @@ def test_generate_brief_with_empty_checksums_dict():
 
 @patch("os.path.exists", return_value=True)
 @patch("pandas.read_parquet")
-def test_generate_brief_handles_invalid_signals_dataframe(mock_read_parquet, mock_exists):
+def test_generate_brief_handles_invalid_signals_dataframe(
+    mock_read_parquet, mock_exists
+):
     """Test that a signal DataFrame without a 'signal' column raises ValueError."""
     mock_read_parquet.return_value = pd.DataFrame({"other_column": [1, 2, 3]})
     with pytest.raises(ValueError, match="must contain 'signal' column"):
@@ -92,7 +95,6 @@ def test_generate_brief_handles_invalid_signals_type(mock_read_parquet, mock_exi
         )
 
 
-@patch("os.path.exists", return_value=T
 def test_schema_node_type():
     assert _schema_node_type({"type": "string"}) == "string"
     assert _schema_node_type({"type": ["string", "null"]}) == "null/string"
@@ -102,23 +104,14 @@ def test_schema_node_type():
 def test_lookup_schema():
     schema = {
         "properties": {
-            "foo": {
-                "properties": {
-                    "bar": {
-                        "type": "string",
-                        "description": "a bar"
-                    }
-                }
-            },
-            "baz": {
-                "type": "object",
-                "additionalProperties": {
-                    "type": "integer"
-                }
-            }
+            "foo": {"properties": {"bar": {"type": "string", "description": "a bar"}}},
+            "baz": {"type": "object", "additionalProperties": {"type": "integer"}},
         }
     }
-    assert _lookup_schema(schema, ["foo", "bar"]) == {"type": "string", "description": "a bar"}
+    assert _lookup_schema(schema, ["foo", "bar"]) == {
+        "type": "string",
+        "description": "a bar",
+    }
     assert _lookup_schema(schema, ["foo", "qux"]) is None
     assert _lookup_schema(schema, ["baz", "any"]) == {"type": "integer"}
     assert _lookup_schema(schema, ["foo"]) is not None
