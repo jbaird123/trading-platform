@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+from trading_platform.data.instrument import InstrumentDefinition
 
 # Define the schema contract as a constant. This makes it easy to manage and reuse.
 # It maps the raw column names to our desired normalized names.
@@ -89,7 +90,9 @@ def load_and_normalize_data(file_path: Path) -> tuple[pd.DataFrame, list[str]]:
         return pd.DataFrame(), quality_flags
 
 
-def resample_ohlc(df: pd.DataFrame, rule: str) -> pd.DataFrame:
+def resample_ohlc(
+    df: pd.DataFrame, rule: str, instrument: InstrumentDefinition | None = None
+) -> pd.DataFrame:
     """Resample an OHLCV DataFrame using canonical aggregation rules.
 
     - open: first
@@ -97,14 +100,47 @@ def resample_ohlc(df: pd.DataFrame, rule: str) -> pd.DataFrame:
     - low: min
     - close: last
     - volume: sum
+
+    For daily resampling ('D' or '1D'), uses the session close time from the
+    instrument definition to group data by trading day.
     """
     # Normalize rule to lowercase (avoid pandas deprecation warnings)
     rule = str(rule).lower()
-    out = df.resample(rule, label="left").agg(
+
+    # Set up resampling kwargs
+    resample_kwargs = {"label": "left"}
+    if rule.upper() in ("D", "1D") and instrument and instrument.sessions:
+        # Use the hour from the first session definition as the origin for daily bars
+        session_hour = instrument.sessions[0].close_time.hour
+        # Set origin to the session close time on epoch day with UTC timezone
+        resample_kwargs["origin"] = pd.Timestamp(f"1970-01-01 {session_hour:02d}:00:00", tz="UTC")
+
+    out = df.resample(rule, **resample_kwargs).agg(
         open=("open", "first"),
         high=("high", "max"),
         low=("low", "min"),
         close=("close", "last"),
         volume=("volume", "sum"),
     )
-    return out.dropna(how="any")
+    out = out.dropna(how="any")
+    
+    # For daily resampling with session offset, normalize timestamps to calendar dates
+    if rule.upper() in ("D", "1D") and instrument and instrument.sessions:
+        # Convert index to calendar date with 00:00:00 time
+        session_hour = instrument.sessions[0].close_time.hour
+        new_index = []
+        for ts in out.index:
+            # The resampled timestamp at session hour represents the trading day ending at that time
+            # For example, 2022-12-31 17:00 represents data ending at 17:00 on 2022-12-31,
+            # which should be labeled as the 2023-01-01 calendar day (next day)
+            # With origin parameter set correctly, timestamps should always be at session_hour
+            if ts.hour == session_hour:
+                calendar_date = (ts + pd.Timedelta(days=1)).date()
+            else:
+                # Defensive fallback: if timestamp hour doesn't match session hour,
+                # use the timestamp's date as-is
+                calendar_date = ts.date()
+            new_index.append(pd.Timestamp(calendar_date, tz=ts.tz))
+        out.index = pd.DatetimeIndex(new_index, name=out.index.name)
+    
+    return out
