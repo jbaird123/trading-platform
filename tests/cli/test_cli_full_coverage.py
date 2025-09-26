@@ -41,9 +41,7 @@ def cli_stubs(monkeypatch, tmp_path):
             index=pd.date_range("2024-01-01", periods=3, freq="h"),
         )
         df_any = cast(Any, df)
-        df_any.to_parquet = lambda *_a, **_k: (_ for _ in ()).throw(
-            Exception("boom")
-        )
+        df_any.to_parquet = lambda *_a, **_k: (_ for _ in ()).throw(Exception("boom"))
         return df_any, ["dq_flag"]
 
     monkeypatch.setattr(cli, "load_from_catalog", fake_load_from_catalog)

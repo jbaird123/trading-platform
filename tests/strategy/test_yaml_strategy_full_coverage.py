@@ -12,10 +12,12 @@ from trading_platform.strategy import yaml_strategy as ys
 def _base_config() -> dict[str, Any]:
     return {
         "strategy_name": "Test",
-        "long_entry_rules": [{"any_of": [{"condition": "is_above", "left": 1,
-                                             "right": 0}]}],
-        "long_exit_rules": [{"any_of": [{"condition": "is_below", "left": 1,
-                                            "right": 2}]}],
+        "long_entry_rules": [
+            {"any_of": [{"condition": "is_above", "left": 1, "right": 0}]}
+        ],
+        "long_exit_rules": [
+            {"any_of": [{"condition": "is_below", "left": 1, "right": 2}]}
+        ],
     }
 
 
@@ -68,14 +70,14 @@ def test_series_for_operand_variants():
 
 def test_eval_predicate_all_conditions():
     df = pd.DataFrame({"a": [1, 2, 3], "b": [3, 2, 1]})
-    above = ys._eval_predicate(df, {"condition": "is_above", "left": "b",
-                                    "right": "a"})
-    below = ys._eval_predicate(df, {"condition": "is_below", "left": "a",
-                                    "right": "b"})
-    cross_up = ys._eval_predicate(df, {"condition": "cross_above", "left": "a",
-                                       "right": "b"})
-    cross_down = ys._eval_predicate(df, {"condition": "cross_below", "left": "b",
-                                         "right": "a"})
+    above = ys._eval_predicate(df, {"condition": "is_above", "left": "b", "right": "a"})
+    below = ys._eval_predicate(df, {"condition": "is_below", "left": "a", "right": "b"})
+    cross_up = ys._eval_predicate(
+        df, {"condition": "cross_above", "left": "a", "right": "b"}
+    )
+    cross_down = ys._eval_predicate(
+        df, {"condition": "cross_below", "left": "b", "right": "a"}
+    )
     default = ys._eval_predicate(df, {"condition": "unknown"})
     assert list(above) == [True, False, False]
     assert list(below) == [True, False, False]
@@ -86,10 +88,8 @@ def test_eval_predicate_all_conditions():
 
 def test_eval_rule_block_branches():
     df = pd.DataFrame({"x": [2, 3, 4], "y": [0, 1, 2]})
-    all_block = {"all_of": [{"condition": "is_above", "left": "x",
-                              "right": "y"}]}
-    any_block = {"any_of": [{"condition": "is_below", "left": "y",
-                              "right": "x"}]}
+    all_block = {"all_of": [{"condition": "is_above", "left": "x", "right": "y"}]}
+    any_block = {"any_of": [{"condition": "is_below", "left": "y", "right": "x"}]}
     none_block = {}
     assert ys._eval_rule_block(df, all_block).all()
     assert ys._eval_rule_block(df, any_block).iloc[0]
@@ -123,10 +123,12 @@ def test_compiled_strategy_generate_signals_basic(monkeypatch):
         name="basic",
         overlays=[],
         features=[{"name": "feat"}],
-        long_entry_blocks=[{"any_of": [{"condition": "is_above", "left": "close",
-                                          "right": 1.5}]}],
-        long_exit_blocks=[{"any_of": [{"condition": "is_below", "left": "close",
-                                         "right": 1.5}]}],
+        long_entry_blocks=[
+            {"any_of": [{"condition": "is_above", "left": "close", "right": 1.5}]}
+        ],
+        long_exit_blocks=[
+            {"any_of": [{"condition": "is_below", "left": "close", "right": 1.5}]}
+        ],
         short_entry_blocks=[],
         short_exit_blocks=[],
         parameters={},
@@ -157,14 +159,18 @@ def test_compiled_strategy_slope_and_ai_filter(monkeypatch):
         name="ai",
         overlays=[],
         features=[{"name": "fast"}],
-        long_entry_blocks=[{"any_of": [{"condition": "is_above", "left": "close",
-                                          "right": 0.5}]}],
-        long_exit_blocks=[{"any_of": [{"condition": "is_below", "left": "close",
-                                         "right": 3.5}]}],
-        short_entry_blocks=[{"any_of": [{"condition": "is_below", "left": "close",
-                                           "right": 3.5}]}],
-        short_exit_blocks=[{"any_of": [{"condition": "is_above", "left": "close",
-                                          "right": 3.5}]}],
+        long_entry_blocks=[
+            {"any_of": [{"condition": "is_above", "left": "close", "right": 0.5}]}
+        ],
+        long_exit_blocks=[
+            {"any_of": [{"condition": "is_below", "left": "close", "right": 3.5}]}
+        ],
+        short_entry_blocks=[
+            {"any_of": [{"condition": "is_below", "left": "close", "right": 3.5}]}
+        ],
+        short_exit_blocks=[
+            {"any_of": [{"condition": "is_above", "left": "close", "right": 3.5}]}
+        ],
         parameters={"slope_filter": True, "slope_feature": "ema_slow"},
         slope_filter=True,
         slope_feature="ema_slow",
@@ -187,8 +193,9 @@ def test_compiled_strategy_ai_filter_missing_features(monkeypatch, caplog):
         name="missing-ai",
         overlays=[],
         features=[{"name": "fast"}],
-        long_entry_blocks=[{"any_of": [{"condition": "is_above", "left": "close",
-                                          "right": 0}]}],
+        long_entry_blocks=[
+            {"any_of": [{"condition": "is_above", "left": "close", "right": 0}]}
+        ],
         long_exit_blocks=[],
         short_entry_blocks=[],
         short_exit_blocks=[],
@@ -210,8 +217,9 @@ def test_compiled_strategy_ai_filter_exception(monkeypatch, caplog):
         name="ai-error",
         overlays=[],
         features=[],
-        long_entry_blocks=[{"any_of": [{"condition": "is_above", "left": "close",
-                                          "right": 0}]}],
+        long_entry_blocks=[
+            {"any_of": [{"condition": "is_above", "left": "close", "right": 0}]}
+        ],
         long_exit_blocks=[],
         short_entry_blocks=[],
         short_exit_blocks=[],
@@ -228,16 +236,19 @@ def test_compiled_strategy_ai_filter_exception(monkeypatch, caplog):
 def test_compiled_strategy_ai_filter_with_inputs(monkeypatch):
     base = pd.DataFrame({"close": [1, 2], "fast": [0.5, 0.6]})
     _patch_features(monkeypatch, base)
-    ai_client = DummyAIClient([
-        {"prediction": "long", "confidence": 0.9},
-        {"prediction": "flat", "confidence": 0.9},
-    ])
+    ai_client = DummyAIClient(
+        [
+            {"prediction": "long", "confidence": 0.9},
+            {"prediction": "flat", "confidence": 0.9},
+        ]
+    )
     strat = ys.CompiledStrategy(
         name="ai-inputs",
         overlays=[],
         features=[{"name": "fast"}],
-        long_entry_blocks=[{"any_of": [{"condition": "is_above", "left": "close",
-                                          "right": 0}]}],
+        long_entry_blocks=[
+            {"any_of": [{"condition": "is_above", "left": "close", "right": 0}]}
+        ],
         long_exit_blocks=[],
         short_entry_blocks=[],
         short_exit_blocks=[],
@@ -255,10 +266,12 @@ def test_compiled_strategy_ai_filter_with_inputs(monkeypatch):
 def test_compile_strategy_ai_enabled(monkeypatch):
     cfg = {
         "strategy_name": "compile",
-        "long_entry_rules": [{"any_of": [{"condition": "is_above", "left": 1,
-                                             "right": 0}]}],
-        "long_exit_rules": [{"any_of": [{"condition": "is_below", "left": 1,
-                                            "right": 2}]}],
+        "long_entry_rules": [
+            {"any_of": [{"condition": "is_above", "left": 1, "right": 0}]}
+        ],
+        "long_exit_rules": [
+            {"any_of": [{"condition": "is_below", "left": 1, "right": 2}]}
+        ],
         "features": [],
         "parameters": {"slope_filter": True, "slope_feature": "custom"},
         "ai_filter": {
@@ -286,10 +299,12 @@ def test_compile_strategy_ai_enabled(monkeypatch):
 def test_compile_strategy_ai_disabled_without_jsonschema(monkeypatch):
     cfg = {
         "strategy_name": "no-ai",
-        "long_entry_rules": [{"any_of": [{"condition": "is_above", "left": 1,
-                                             "right": 0}]}],
-        "long_exit_rules": [{"any_of": [{"condition": "is_below", "left": 1,
-                                            "right": 2}]}],
+        "long_entry_rules": [
+            {"any_of": [{"condition": "is_above", "left": 1, "right": 0}]}
+        ],
+        "long_exit_rules": [
+            {"any_of": [{"condition": "is_below", "left": 1, "right": 2}]}
+        ],
         "ai_filter": {"enabled": True},
         "parameters": "not-a-dict",
     }
@@ -324,11 +339,13 @@ def test_reload_without_jsonschema(monkeypatch):
         "compute_features",
         lambda frame, feats, params: df.copy(),
     )
-    ai_client = DummyAIClient([
-        {"prediction": "short", "confidence": 0.9},
-        {"prediction": "short", "confidence": 0.9},
-        {"prediction": "flat", "confidence": 0.9},
-    ])
+    ai_client = DummyAIClient(
+        [
+            {"prediction": "short", "confidence": 0.9},
+            {"prediction": "short", "confidence": 0.9},
+            {"prediction": "flat", "confidence": 0.9},
+        ]
+    )
     strat = target.CompiledStrategy(
         name="reload",
         overlays=[],
@@ -336,12 +353,10 @@ def test_reload_without_jsonschema(monkeypatch):
         long_entry_blocks=[],
         long_exit_blocks=[],
         short_entry_blocks=[
-            {"any_of": [{"condition": "is_below", "left": "close",
-                           "right": 0.5}]}
+            {"any_of": [{"condition": "is_below", "left": "close", "right": 0.5}]}
         ],
         short_exit_blocks=[
-            {"any_of": [{"condition": "is_above", "left": "close",
-                           "right": 0.5}]}
+            {"any_of": [{"condition": "is_above", "left": "close", "right": 0.5}]}
         ],
         parameters={},
         ai_filter_enabled=True,
@@ -382,8 +397,7 @@ def test_reload_without_jsonschema(monkeypatch):
         overlays=[],
         features=[{"name": "fast"}],
         long_entry_blocks=[
-            {"any_of": [{"condition": "is_above", "left": "close",
-                           "right": -1}]}
+            {"any_of": [{"condition": "is_above", "left": "close", "right": -1}]}
         ],
         long_exit_blocks=[],
         short_entry_blocks=[],
@@ -401,8 +415,7 @@ def test_reload_without_jsonschema(monkeypatch):
         overlays=[],
         features=[{"name": "fast"}],
         long_entry_blocks=[
-            {"any_of": [{"condition": "is_above", "left": "close",
-                           "right": -1}]}
+            {"any_of": [{"condition": "is_above", "left": "close", "right": -1}]}
         ],
         long_exit_blocks=[],
         short_entry_blocks=[],
@@ -414,6 +427,8 @@ def test_reload_without_jsonschema(monkeypatch):
         ai_input_features=["missing"],
     )
     missing_ai.generate_signals(df)
+
+
 def test_load_strategy_config_returns_dict():
     cfg = {"name": "inline"}
     out = ys.load_strategy_config(cfg)

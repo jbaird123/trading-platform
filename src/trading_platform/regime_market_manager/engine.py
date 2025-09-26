@@ -148,9 +148,7 @@ class RMMEngine:
             df = pd.DataFrame(index=target_index)
             df["label"] = "unknown"
             df["confidence"] = 0.0
-            df["allowed_sides"] = [
-                [] for _ in range(len(target_index))
-            ]  # pyright: ignore
+            df["allowed_sides"] = [[] for _ in range(len(target_index))]  # pyright: ignore
             return df[["label", "confidence", "allowed_sides"]]
         # Reindex with forward-fill to align to target_index boundaries
         aligned = daily.reindex(daily.index.union(target_index)).sort_index().ffill()
