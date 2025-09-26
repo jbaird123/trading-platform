@@ -27,7 +27,7 @@ def test_open_and_close_long_position():
 
     # Open a long position
     portfolio.create_new_position(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         entry_time=entry_time,
         entry_price=1.1000,
         side="long",
@@ -37,7 +37,7 @@ def test_open_and_close_long_position():
     assert portfolio._open_position is not None
     assert portfolio._open_position.entry_price == 1.1000
     assert portfolio._open_position.side == "long"
-    assert portfolio._open_position.symbol == "EUR_USD"
+    assert portfolio._open_position.symbol == "EURUSD"
 
     # Close the position with a profit
     portfolio.close_position(
@@ -56,7 +56,7 @@ def test_open_and_close_long_position():
     assert trade.entry_price == 1.1000
     assert trade.exit_price == 1.1050
     assert trade.side == "long"
-    assert trade.symbol == "EUR_USD"
+    assert trade.symbol == "EURUSD"
     assert trade.exit_reason == "signal"
     # PnL = (1.1050 - 1.1000) * 10000 = 5.0
     assert trade.pnl == pytest.approx(50.0)
@@ -103,7 +103,7 @@ def test_cannot_open_position_if_one_is_already_open():
     """Verify that a new position cannot be opened if one is active."""
     portfolio = PortfolioManager()
     portfolio.create_new_position(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
         side="long",
@@ -125,7 +125,7 @@ def test_cannot_open_position_if_one_is_already_open():
 
     # Verify that the original position is unchanged
     assert portfolio._open_position is initial_position
-    assert portfolio._open_position.symbol == "EUR_USD"
+    assert portfolio._open_position.symbol == "EURUSD"
 
 
 @requires("PM-5.1", "PM-5.2")

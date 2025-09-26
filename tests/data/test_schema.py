@@ -182,7 +182,7 @@ def test_resample_ohlc_with_daily_session_offset() -> None:
         sessions=[
             SessionDefinition(close_time=time(17, 0), close_timezone="America/New_York")
         ],
-        symbol="EUR_USD",
+        symbol="EURUSD",
     )
 
     # Create 1-minute sample data spanning from 16:55 to 16:59 on 2023-01-01
@@ -246,7 +246,7 @@ def test_resample_ohlc_with_non_daily_rule_and_instrument() -> None:
         sessions=[
             SessionDefinition(close_time=time(17, 0), close_timezone="America/New_York")
         ],
-        symbol="EUR_USD",
+        symbol="EURUSD",
     )
 
     # Create sample minute data
@@ -283,7 +283,7 @@ def test_resample_ohlc_daily_with_multiple_days_edge_case() -> None:
         sessions=[
             SessionDefinition(close_time=time(17, 0), close_timezone="America/New_York")
         ],
-        symbol="EUR_USD",
+        symbol="EURUSD",
     )
 
     # Create data at different hours across multiple days to create edge case
@@ -356,7 +356,7 @@ def test_resample_ohlc_direct_timestamp_normalization_branches() -> None:
         sessions=[
             SessionDefinition(close_time=time(17, 0), close_timezone="America/New_York")
         ],
-        symbol="EUR_USD",
+        symbol="EURUSD",
     )
 
     # Create data that will definitely trigger session-aware resampling
@@ -398,7 +398,7 @@ def test_resample_ohlc_timestamp_normalization_edge_case() -> None:
         sessions=[
             SessionDefinition(close_time=time(17, 0), close_timezone="America/New_York")
         ],
-        symbol="EUR_USD",
+        symbol="EURUSD",
     )
 
     # Create a minimal DataFrame to exercise the normalization logic
