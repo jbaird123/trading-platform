@@ -41,9 +41,9 @@ For each consolidation task, proceed as follows:
 - [x] Consolidate `test_yaml_strategy_*` files into `test_yaml_strategy.py`.
 
 ### `tests/ai`
-- [ ] Consolidate `test_inference_client_*` files into `test_inference_client.py`.
-- [ ] Consolidate `test_training_pipeline_*` files into `test_training_pipeline.py`.
-- [ ] Review and consolidate other `*_coverage_gaps.py` files into their corresponding component test files.
+- [x] Consolidate `test_inference_client_*` files into `test_inference_client.py`.
+- [x] Consolidate `test_training_pipeline_*` files into `test_training_pipeline.py`.
+- [x] Review and consolidate other `*_coverage_gaps.py` files into their corresponding component test files.
 
 ### `tests/data`
 - [ ] Consolidate `test_loader_*` files into `test_loader.py`.

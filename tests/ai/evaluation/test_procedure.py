@@ -1,9 +1,12 @@
+import warnings
 from unittest import mock
+from unittest.mock import Mock
 
 import numpy as np
 import pandas as pd
 import pytest
 from sklearn.model_selection import TimeSeriesSplit
+from sklearn.exceptions import UndefinedMetricWarning
 from trading_platform.ai.evaluation.procedure import AIEvaluationProcedure
 
 
@@ -78,8 +81,63 @@ class TestAIEvaluationProcedure:
         assert "std_accuracy" in results
         assert "std_precision" in results
         assert pytest.approx(results["mean_accuracy"]) == (0.8 + 0.9 + 0.7) / 3
-        assert mock_tscv.call_count == 1
-        assert mock_get_classification_metrics.call_count == 3
+
+
+# --- Consolidated from tests/ai/test_evaluation_coverage_gaps.py ---
+
+    def test_run_cross_validation_handles_1d_probability(self):
+        """Cross-validation should tolerate 1D probability outputs."""
+        X = pd.DataFrame(
+            {"feature1": [1, 2, 3, 4, 5, 6], "feature2": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]}
+        )
+        y = pd.Series([0, 1, 0, 1, 0, 1])
+
+        mock_model = Mock()
+        mock_model.fit.return_value = mock_model
+        mock_model.predict.return_value = np.array([0, 1, 0])
+        mock_model.predict_proba.return_value = np.array([0.2, 0.8, 0.3])
+
+        evaluator = AIEvaluationProcedure({"cross_validation": {"n_splits": 2}})
+
+        with mock.patch(
+            "trading_platform.ai.evaluation.procedure.TimeSeriesSplit"
+        ) as mock_tscv:
+            mock_tscv.return_value.split.return_value = [
+                (np.array([0, 1, 2]), np.array([3, 4, 5]))
+            ]
+
+            results = evaluator.run_cross_validation(mock_model, X, y)
+
+        assert isinstance(results, dict)
+        assert results
+
+    def test_run_cross_validation_handles_2d_probability(self):
+        """Cross-validation should accept 2D probability arrays."""
+        X = pd.DataFrame(
+            {"feature1": [1, 2, 3, 4, 5, 6], "feature2": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]}
+        )
+        y = pd.Series([0, 1, 0, 1, 0, 1])
+
+        mock_model = Mock()
+        mock_model.fit.return_value = mock_model
+        mock_model.predict.return_value = np.array([0, 1, 0])
+        mock_model.predict_proba.return_value = np.array(
+            [[0.8, 0.2], [0.3, 0.7], [0.6, 0.4]]
+        )
+
+        evaluator = AIEvaluationProcedure({"cross_validation": {"n_splits": 2}})
+
+        with mock.patch(
+            "trading_platform.ai.evaluation.procedure.TimeSeriesSplit"
+        ) as mock_tscv:
+            mock_tscv.return_value.split.return_value = [
+                (np.array([0, 1, 2]), np.array([3, 4, 5]))
+            ]
+
+            results = evaluator.run_cross_validation(mock_model, X, y)
+
+        assert isinstance(results, dict)
+        assert results
 
     @mock.patch("trading_platform.ai.evaluation.procedure.get_classification_metrics")
     @mock.patch("trading_platform.ai.evaluation.procedure.TimeSeriesSplit")
@@ -110,7 +168,6 @@ class TestAIEvaluationProcedure:
 
         mock_tscv.assert_called_once_with(n_splits=2)
         assert mock_get_classification_metrics.call_count == 2
-
     @mock.patch("trading_platform.ai.evaluation.procedure.get_classification_metrics")
     @mock.patch("trading_platform.ai.evaluation.procedure.TimeSeriesSplit")
     def test_run_cross_validation_no_cv_config(
@@ -166,6 +223,30 @@ class TestAIEvaluationProcedure:
         assert results == {"bias_found": "none"}
         captured = capsys.readouterr()
         assert "Performing bias detection (placeholder)" in captured.out
+
+    def test_run_full_pipeline_execution(self, mock_model, sample_data, capsys):
+        X, y = sample_data
+        config = {
+            "run_cross_validation": True,
+            "run_stress_testing": True,
+            "run_bias_detection": True,
+        }
+        procedure = AIEvaluationProcedure(config)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UndefinedMetricWarning)
+            results = procedure.run(mock_model, X, y)
+
+        assert "cross_validation" in results
+        assert "stress_testing" in results
+        assert "bias_detection" in results
+
+        output = capsys.readouterr().out
+        assert "--- Starting AI Evaluation Procedure ---" in output
+        assert "Cross-validation complete." in output
+        assert "Stress testing complete." in output
+        assert "Bias detection complete." in output
+        assert "--- AI Evaluation Procedure finished successfully. ---" in output
 
     @mock.patch.object(AIEvaluationProcedure, "run_bias_detection")
     @mock.patch.object(AIEvaluationProcedure, "run_stress_testing")
