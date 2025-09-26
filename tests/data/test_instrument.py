@@ -22,3 +22,21 @@ def test_get_instrument_definition_not_found():
         ValueError, match="No instrument definition found for symbol: FAKE"
     ):
         get_instrument_definition("FAKE")
+
+
+def test_instrument_definition_to_dict_defaults():
+    definition = get_instrument_definition("EUR/USD")
+    result = definition.to_dict()
+    assert result["asset_class"] == "Forex"
+    assert result["tick_size"] == 0.00001
+    assert result["symbol"] == "EUR/USD"
+    assert result["base_ccy"] is None and result["quote_ccy"] is None
+
+
+def test_instrument_definition_to_dict_with_overrides():
+    definition = get_instrument_definition("EUR/USD")
+    definition.base_ccy = "EUR"
+    definition.quote_ccy = "USD"
+    result = definition.to_dict()
+    assert result["base_ccy"] == "EUR"
+    assert result["quote_ccy"] == "USD"
