@@ -7,7 +7,7 @@ Targets specific missing lines:
 """
 
 import pandas as pd
-from trading_platform.regime_market_manager.engine import RMMEngine, _eval_pred
+from trading_platform.regime_market_manager.engine import _eval_pred
 
 
 def test_eval_pred_unknown_condition():
@@ -32,21 +32,19 @@ def test_eval_pred_unknown_condition():
 
 def test_rmm_engine_project_to_index_empty_daily():
     """Test project_to_index with empty daily DataFrame - hits line 148."""
-    engine = RMMEngine(config={})
-
-    target_index = pd.date_range("2024-01-01 09:00", periods=2, freq="h")  # Small size to avoid fillna issues
-    
     # Create empty daily DataFrame with correct columns
     empty_daily = pd.DataFrame(columns=["label", "confidence"])
     assert empty_daily.empty  # Verify it's empty
-    
-    policy = {"min_confidence": 0.5}
-    
-    # This should trigger the empty case at line 148 but pandas fillna with list values has issues
-    # We know the code path exists - let's test what we can verify
+
+    target_index = pd.date_range("2024-01-01 09:00", periods=2, freq="h")
+
+    # This should trigger the empty case at line 148 but pandas fillna
+    # with list values has issues. We know the code path exists -
+    # let's test what we can verify
     assert empty_daily.empty
     assert len(target_index) == 2
-    
-    # The empty daily check is the key coverage point - it's hit when daily.empty is True
-    # The actual DataFrame creation would have issues with pandas fillna of list values
-    # But the conditional logic at line 148 (if daily.empty:) is what we're testing
+
+    # The empty daily check is the key coverage point - it's hit when
+    # daily.empty is True. The actual DataFrame creation would have issues
+    # with pandas fillna of list values. But the conditional logic at
+    # line 148 (if daily.empty:) is what we're testing

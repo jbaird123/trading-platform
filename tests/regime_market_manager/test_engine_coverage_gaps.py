@@ -296,31 +296,22 @@ def test_rmm_engine_allowed_sides_for():
 
 
 def test_rmm_engine_project_to_index_empty():
-    """Test RMMEngine.project_to_index with empty daily data (mock approach)."""
-    RMMEngine(config={})
-
+    """Test RMMEngine.project_to_index with empty daily data."""
+    engine = RMMEngine(config={})
     target_index = pd.date_range("2024-01-01", periods=3, freq="h")
     empty_daily = pd.DataFrame(columns=["label", "confidence"])
 
-    # Mock the fillna behavior since pandas doesn't allow list values
-    expected_result = pd.DataFrame(
-        {
-            "label": ["unknown"] * 3,
-            "confidence": [0.0] * 3,
-            "allowed_sides": [[] for _ in range(3)],
-        },
-        index=target_index,
-    )
+    result = engine.project_to_index(empty_daily, target_index, policy={})
 
-    # Test the logic pathway - if daily.empty is True
-    assert empty_daily.empty
-    # The method would try to create this DataFrame structure
-    # We validate the logic by checking expected structure
-    assert len(expected_result) == 3
-    assert all(expected_result["label"] == "unknown")
-    assert all(expected_result["confidence"] == 0.0)
-    for sides in expected_result["allowed_sides"]:
-        assert isinstance(sides, list) and len(sides) == 0
+    expected_data = {
+        "label": ["unknown"] * 3,
+        "confidence": [0.0] * 3,
+        "allowed_sides": [[] for _ in range(3)],
+    }
+    expected_df = pd.DataFrame(expected_data, index=target_index)
+    expected_df["allowed_sides"] = expected_df["allowed_sides"].astype("object")
+
+    pd.testing.assert_frame_equal(result, expected_df)
 
 
 def test_rmm_engine_project_to_index_with_data():

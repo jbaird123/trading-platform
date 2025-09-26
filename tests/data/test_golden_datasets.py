@@ -105,8 +105,13 @@ def test_indicator_matches_tradingview(
     assert not aligned_calculated.empty, f"No overlapping data for {our_name}"
 
     tolerance = TOLERANCES.get(our_name, {"rtol": 1e-5, "atol": 1e-8})
+    rtol = float(tolerance.get("rtol", 1e-5))
+    atol = float(tolerance.get("atol", 1e-8))
     assert np.allclose(
-        aligned_golden, aligned_calculated, **tolerance
+        aligned_golden,
+        aligned_calculated,
+        rtol=rtol,
+        atol=atol,
     ), f"Indicator '{our_name}' failed validation against TradingView data."
 
 
