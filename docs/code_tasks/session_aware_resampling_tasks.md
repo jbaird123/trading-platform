@@ -70,7 +70,7 @@ This document outlines the precise, ordered steps required to implement session-
 
 ### 4. Implement: Session-Aware Daily Resampling
 
-- [ ] **4.1. Create Test for Daily Resampling with Session Offset**
+- [x] **4.1. Create Test for Daily Resampling with Session Offset**
     *   **File:** `tests/data/test_schema.py`
     *   **Action:** Create a new test function `test_resample_ohlc_with_daily_session_offset`.
     *   **Logic:**
@@ -81,7 +81,7 @@ This document outlines the precise, ordered steps required to implement session-
         5.  Assert that the timestamp of this row is the date of the data, with the time component being `00:00:00`.
         6.  Assert that the `close` price of the resampled bar is equal to the `close` price of the 1-minute bar at `16:59`.
 
-- [ ] **4.2. Implement Session-Aware Resampling Logic**
+- [x] **4.2. Implement Session-Aware Resampling Logic**
     *   **File:** `src/trading_platform/data/schema.py`
     *   **Action:**
         1.  Import `InstrumentDefinition` from `..data.instrument`.

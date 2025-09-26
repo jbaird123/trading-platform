@@ -56,7 +56,7 @@ def load_from_catalog(
     # Resample if timeframe provided
     tf = data_request.get("timeframe")
     if tf:
-        df = resample_ohlc(df, str(tf))
+        df = resample_ohlc(df, str(tf), instrument)
 
     # Filter by start/end AFTER resample for index alignment
     start = data_request.get("start")

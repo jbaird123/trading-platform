@@ -63,7 +63,23 @@ def main() -> int:
         )
         return 0
 
-    coverage_targets = [str(path.relative_to(REPO_ROOT)) for path in src_files]
+    def to_module_name(path: Path) -> str:
+        """Translate a source path into an importable module name."""
+
+        relative_path = path.relative_to(SRC_ROOT)
+        parts = list(relative_path.parts)
+        if not parts:
+            return "trading_platform"
+
+        if parts[-1] == "__init__.py":
+            parts = parts[:-1]
+        else:
+            parts[-1] = parts[-1].removesuffix(".py")
+
+        module_parts = ["trading_platform"] + [part for part in parts if part]
+        return ".".join(module_parts)
+
+    coverage_targets = [to_module_name(path) for path in src_files]
     pytest_cmd = [
         "poetry",
         "run",
