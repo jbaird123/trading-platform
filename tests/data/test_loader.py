@@ -1,4 +1,5 @@
 """Consolidated tests for trading_platform.data.loader.load_from_catalog."""
+
 from __future__ import annotations
 
 from pathlib import Path

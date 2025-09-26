@@ -1,4 +1,5 @@
 """Consolidated tests for trading_platform.data.schema.load_and_normalize_data."""
+
 from __future__ import annotations
 
 import tempfile
@@ -57,7 +58,9 @@ def test_load_and_normalize_handles_missing_timestamp_column(tmp_path: Path) -> 
 
 def test_load_and_normalize_handles_bad_timestamp_parse(tmp_path: Path) -> None:
     csv_file = tmp_path / "bad_ts.csv"
-    csv_file.write_text("UTCTime,Open,High,Low,Close,Volume\nnot-a-date,1,2,0.5,1.5,100\n")
+    csv_file.write_text(
+        "UTCTime,Open,High,Low,Close,Volume\nnot-a-date,1,2,0.5,1.5,100\n"
+    )
 
     df, flags = load_and_normalize_data(csv_file)
 
@@ -110,9 +113,7 @@ def test_schema_missing_or_unknown_columns() -> None:
 
 
 def test_schema_normalized_column_validation() -> None:
-    path_missing = _write_temp_csv(
-        "timestamp,open\n2023-01-01 00:00:00,1.0\n"
-    )
+    path_missing = _write_temp_csv("timestamp,open\n2023-01-01 00:00:00,1.0\n")
     try:
         result, flags = load_and_normalize_data(path_missing)
         assert result.empty
@@ -147,4 +148,3 @@ def test_schema_successful_normalization_again() -> None:
         assert set(["open", "high", "low", "close", "volume"]).issubset(result.columns)
     finally:
         path.unlink(missing_ok=True)
-

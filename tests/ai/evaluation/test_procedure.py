@@ -82,8 +82,7 @@ class TestAIEvaluationProcedure:
         assert "std_precision" in results
         assert pytest.approx(results["mean_accuracy"]) == (0.8 + 0.9 + 0.7) / 3
 
-
-# --- Consolidated from tests/ai/test_evaluation_coverage_gaps.py ---
+    # --- Consolidated from tests/ai/test_evaluation_coverage_gaps.py ---
 
     def test_run_cross_validation_handles_1d_probability(self):
         """Cross-validation should tolerate 1D probability outputs."""
@@ -168,6 +167,7 @@ class TestAIEvaluationProcedure:
 
         mock_tscv.assert_called_once_with(n_splits=2)
         assert mock_get_classification_metrics.call_count == 2
+
     @mock.patch("trading_platform.ai.evaluation.procedure.get_classification_metrics")
     @mock.patch("trading_platform.ai.evaluation.procedure.TimeSeriesSplit")
     def test_run_cross_validation_no_cv_config(

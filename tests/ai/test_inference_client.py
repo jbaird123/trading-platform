@@ -3,6 +3,7 @@ Consolidated tests for trading_platform.ai.inference_client.AIInferenceClient.
 
 Merged behavioural suite with coverage-gap scenarios.
 """
+
 from __future__ import annotations
 
 import logging
@@ -15,6 +16,7 @@ import pytest
 from trading_platform.ai.inference_client import AIInferenceClient
 
 # --- test_inference_client.py ---
+
 
 @pytest.fixture
 def mock_httpx_client():
@@ -277,6 +279,7 @@ Test coverage gaps in AI Inference Client module.
 
 Targets specific missing lines in ai/inference_client.py to improve coverage.
 """
+
 
 def test_inference_client_request_error():
     """Test AIInferenceClient when httpx.RequestError is raised. Covers line 67."""
