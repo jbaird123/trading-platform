@@ -247,9 +247,7 @@ class TestWalkForwardOptimizeCoverage:
             "trading_platform.core.sweeps.compile_strategy"
         ) as mock_compile, patch(
             "trading_platform.core.sweeps.run_backtest"
-        ) as mock_backtest, patch(
-            "random.seed"
-        ) as mock_seed:
+        ) as mock_backtest, patch("random.seed") as mock_seed:
             mock_compile.return_value = Mock()
             mock_backtest.return_value = ([], 100.0)
 
@@ -1228,7 +1226,6 @@ class TestEdgeCasesAndHelperFunctions:
         ) as mock_compile, patch(
             "trading_platform.core.sweeps.run_backtest"
         ) as mock_backtest:
-
             # Set up mocks
             mock_compile.return_value = Mock()
             # Create a mock trade
