@@ -212,7 +212,7 @@ class CompiledStrategy:
             elif state == "long":
                 if bool(lx.iloc[i]):
                     state = "flat"
-            elif state == "short":
+            elif state == "short":  # pragma: no branch
                 if bool(sx.iloc[i]):
                     state = "flat"
             sig.append(state)

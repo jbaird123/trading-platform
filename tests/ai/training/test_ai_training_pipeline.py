@@ -1,6 +1,7 @@
+import importlib
 from pathlib import Path
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import lightgbm as lgb
 import numpy as np
@@ -56,7 +57,10 @@ def mock_config_path(tmp_path):
             "end_date": "2023-01-02",
         },
         "features": [],
-        "labeling": {},
+        "labeling": {
+            "look_ahead_bars": 1,
+            "price_change_threshold": 0.001,
+        },
         "model": {"type": "random_forest"},
         "evaluation": {"run_cross_validation": False},
     }
@@ -74,9 +78,15 @@ def temp_mlflow_uri(tmp_path):
 # Test cases for AITrainingPipeline
 
 
-@patch("mlflow.set_tracking_uri")
-@patch("mlflow.set_experiment")
-def test_aitp_init(mock_set_experiment, mock_set_tracking_uri, mock_config_path):
+def test_aitp_init(monkeypatch, mock_config_path):
+    importlib.reload(training_pipeline)
+    mock_set_experiment = MagicMock()
+    mock_set_tracking_uri = MagicMock()
+    monkeypatch.setattr(training_pipeline.mlflow, "set_experiment", mock_set_experiment)
+    monkeypatch.setattr(
+        training_pipeline.mlflow, "set_tracking_uri", mock_set_tracking_uri
+    )
+
     pipeline = AITrainingPipeline(mock_config_path)
     assert pipeline.config["run_id"] == "test_run"
     assert pipeline.run_id == "test_run"
@@ -85,31 +95,36 @@ def test_aitp_init(mock_set_experiment, mock_set_tracking_uri, mock_config_path)
 
 
 def test_aitp_load_config_file_not_found():
+    importlib.reload(training_pipeline)
     with pytest.raises(FileNotFoundError):
         AITrainingPipeline("non_existent_config.yaml")
 
 
 def test_aitp_load_config_invalid_yaml(tmp_path):
+    importlib.reload(training_pipeline)
     invalid_config_file = tmp_path / "invalid.yaml"
     invalid_config_file.write_text("key: - value")  # Invalid YAML syntax
     with pytest.raises(yaml.YAMLError):
         AITrainingPipeline(str(invalid_config_file))
 
 
-@patch("trading_platform.ai.training.pipeline.DataCatalog")
-@patch("trading_platform.ai.training.pipeline.AIDataConnector")
-@patch("trading_platform.ai.training.pipeline.FeatureEngineeringPipeline")
-@patch("trading_platform.ai.training.pipeline.DataLabeler")
-def test_aitp_load_and_prepare_data(
-    mock_data_labeler_cls,
-    mock_feature_pipeline_cls,
-    mock_data_connector_cls,
-    mock_data_catalog_cls,
-    mock_config_path,
-):
+def test_aitp_load_and_prepare_data(monkeypatch, mock_config_path):
+    importlib.reload(training_pipeline)
     """
     Tests the full data loading and preparation flow within the training pipeline.
     """
+    mock_data_catalog_cls = MagicMock()
+    mock_data_connector_cls = MagicMock()
+    mock_feature_pipeline_cls = MagicMock()
+    mock_data_labeler_cls = MagicMock()
+
+    monkeypatch.setattr(training_pipeline, "DataCatalog", mock_data_catalog_cls)
+    monkeypatch.setattr(training_pipeline, "AIDataConnector", mock_data_connector_cls)
+    monkeypatch.setattr(
+        training_pipeline, "FeatureEngineeringPipeline", mock_feature_pipeline_cls
+    )
+    monkeypatch.setattr(training_pipeline, "DataLabeler", mock_data_labeler_cls)
+
     pipeline = AITrainingPipeline(mock_config_path)
 
     # Mock instances returned by the mocked classes
@@ -165,17 +180,20 @@ def test_aitp_load_and_prepare_data(
     assert X.index.equals(y.index)
 
 
-@patch("trading_platform.ai.training.pipeline.DataCatalog")
-@patch("trading_platform.ai.training.pipeline.AIDataConnector")
-@patch("trading_platform.ai.training.pipeline.FeatureEngineeringPipeline")
-@patch("trading_platform.ai.training.pipeline.DataLabeler")
-def test_aitp_load_and_prepare_data_with_nans(
-    mock_data_labeler_cls,
-    mock_feature_pipeline_cls,
-    mock_data_connector_cls,
-    mock_data_catalog_cls,
-    mock_config_path,
-):
+def test_aitp_load_and_prepare_data_with_nans(monkeypatch, mock_config_path):
+    importlib.reload(training_pipeline)
+    mock_data_catalog_cls = MagicMock()
+    mock_data_connector_cls = MagicMock()
+    mock_feature_pipeline_cls = MagicMock()
+    mock_data_labeler_cls = MagicMock()
+
+    monkeypatch.setattr(training_pipeline, "DataCatalog", mock_data_catalog_cls)
+    monkeypatch.setattr(training_pipeline, "AIDataConnector", mock_data_connector_cls)
+    monkeypatch.setattr(
+        training_pipeline, "FeatureEngineeringPipeline", mock_feature_pipeline_cls
+    )
+    monkeypatch.setattr(training_pipeline, "DataLabeler", mock_data_labeler_cls)
+
     pipeline = AITrainingPipeline(mock_config_path)
 
     mock_data_connector_instance = mock_data_connector_cls.return_value
@@ -202,12 +220,16 @@ def test_aitp_load_and_prepare_data_with_nans(
     assert X.index[0] == pd.to_datetime("2023-01-01")
 
 
-@patch("trading_platform.ai.training.pipeline.lgb")
-@patch("trading_platform.ai.training.pipeline.RandomForestClassifier")
-@patch("trading_platform.ai.training.pipeline.GridSearchCV")
-def test_aitp_train_model_lightgbm_no_tuning(
-    mock_grid_search_cv, mock_rf_classifier, mock_lgb, mock_config_path
-):
+def test_aitp_train_model_lightgbm_no_tuning(monkeypatch, mock_config_path):
+    importlib.reload(training_pipeline)
+    mock_lgb = MagicMock()
+    mock_rf_classifier = MagicMock()
+    mock_grid_search_cv = MagicMock()
+
+    monkeypatch.setattr(training_pipeline, "lgb", mock_lgb)
+    monkeypatch.setattr(training_pipeline, "RandomForestClassifier", mock_rf_classifier)
+    monkeypatch.setattr(training_pipeline, "GridSearchCV", mock_grid_search_cv)
+
     config_content = {
         "run_id": "test_run",
         "experiment_name": "Test Experiment",
@@ -235,13 +257,18 @@ def test_aitp_train_model_lightgbm_no_tuning(
     assert trained_model == mock_lgb_classifier_instance
 
 
-@patch("trading_platform.ai.training.pipeline.lgb")
-@patch("trading_platform.ai.training.pipeline.RandomForestClassifier")
-@patch("trading_platform.ai.training.pipeline.GridSearchCV")
-@patch("mlflow.log_params")
-def test_aitp_train_model_lightgbm_with_tuning(
-    mock_log_params, mock_grid_search_cv, mock_rf_classifier, mock_lgb, mock_config_path
-):
+def test_aitp_train_model_lightgbm_with_tuning(monkeypatch, mock_config_path):
+    importlib.reload(training_pipeline)
+    mock_lgb = MagicMock()
+    mock_rf_classifier = MagicMock()
+    mock_grid_search_cv = MagicMock()
+    mock_log_params = MagicMock()
+
+    monkeypatch.setattr(training_pipeline, "lgb", mock_lgb)
+    monkeypatch.setattr(training_pipeline, "RandomForestClassifier", mock_rf_classifier)
+    monkeypatch.setattr(training_pipeline, "GridSearchCV", mock_grid_search_cv)
+    monkeypatch.setattr(training_pipeline.mlflow, "log_params", mock_log_params)
+
     config_content = {
         "run_id": "test_run",
         "experiment_name": "Test Experiment",
@@ -285,12 +312,16 @@ def test_aitp_train_model_lightgbm_with_tuning(
     assert trained_model == mock_grid_search_instance.best_estimator_
 
 
-@patch("trading_platform.ai.training.pipeline.lgb")
-@patch("trading_platform.ai.training.pipeline.RandomForestClassifier")
-@patch("trading_platform.ai.training.pipeline.GridSearchCV")
-def test_aitp_train_model_random_forest_no_tuning(
-    mock_grid_search_cv, mock_rf_classifier, mock_lgb, mock_config_path
-):
+def test_aitp_train_model_random_forest_no_tuning(monkeypatch, mock_config_path):
+    importlib.reload(training_pipeline)
+    mock_lgb = MagicMock()
+    mock_rf_classifier = MagicMock()
+    mock_grid_search_cv = MagicMock()
+
+    monkeypatch.setattr(training_pipeline, "lgb", mock_lgb)
+    monkeypatch.setattr(training_pipeline, "RandomForestClassifier", mock_rf_classifier)
+    monkeypatch.setattr(training_pipeline, "GridSearchCV", mock_grid_search_cv)
+
     config_content = {
         "run_id": "test_run",
         "experiment_name": "Test Experiment",
@@ -318,13 +349,18 @@ def test_aitp_train_model_random_forest_no_tuning(
     assert trained_model == mock_rf_classifier_instance
 
 
-@patch("trading_platform.ai.training.pipeline.lgb")
-@patch("trading_platform.ai.training.pipeline.RandomForestClassifier")
-@patch("trading_platform.ai.training.pipeline.GridSearchCV")
-@patch("mlflow.log_params")
-def test_aitp_train_model_random_forest_with_tuning(
-    mock_log_params, mock_grid_search_cv, mock_rf_classifier, mock_lgb, mock_config_path
-):
+def test_aitp_train_model_random_forest_with_tuning(monkeypatch, mock_config_path):
+    importlib.reload(training_pipeline)
+    mock_lgb = MagicMock()
+    mock_rf_classifier = MagicMock()
+    mock_grid_search_cv = MagicMock()
+    mock_log_params = MagicMock()
+
+    monkeypatch.setattr(training_pipeline, "lgb", mock_lgb)
+    monkeypatch.setattr(training_pipeline, "RandomForestClassifier", mock_rf_classifier)
+    monkeypatch.setattr(training_pipeline, "GridSearchCV", mock_grid_search_cv)
+    monkeypatch.setattr(training_pipeline.mlflow, "log_params", mock_log_params)
+
     config_content = {
         "run_id": "test_run",
         "experiment_name": "Test Experiment",
@@ -367,6 +403,7 @@ def test_aitp_train_model_random_forest_with_tuning(
 
 
 def test_aitp_train_model_unsupported_type(mock_config_path):
+    importlib.reload(training_pipeline)
     config_content = {
         "run_id": "test_run",
         "experiment_name": "Test Experiment",
@@ -389,12 +426,13 @@ def test_aitp_train_model_unsupported_type(mock_config_path):
         pipeline._train_model(X, y)
 
 
-@patch("trading_platform.ai.training.pipeline.lgb.LGBMClassifier")
-def test_aitp_train_model_lightgbm_import_error(mock_lgbm_classifier, mock_config_path):
-    # Simulate ImportError by making the constructor raise ImportError
+def test_aitp_train_model_lightgbm_import_error(monkeypatch, mock_config_path):
+    importlib.reload(training_pipeline)
+    mock_lgbm_classifier = MagicMock()
     mock_lgbm_classifier.side_effect = ImportError(
         "LightGBM is not installed or cannot be imported."
     )
+    monkeypatch.setattr(training_pipeline.lgb, "LGBMClassifier", mock_lgbm_classifier)
 
     config_content = {
         "run_id": "test_run",
@@ -420,27 +458,32 @@ def test_aitp_train_model_lightgbm_import_error(mock_lgbm_classifier, mock_confi
         pipeline._train_model(X, y)
 
 
-@patch("trading_platform.ai.training.pipeline.AIEvaluationProcedure")
-@patch("mlflow.log_metrics")
-@patch("mlflow.sklearn.log_model")
-@patch("trading_platform.ai.training.pipeline.convert_sklearn")
-@patch("mlflow.log_artifact")
-@patch("trading_platform.ai.training.pipeline.DiagnosticSynthesisEngine")
-@patch("json.loads")
-@patch("mlflow.log_dict")
-@patch("os.remove")
-def test_aitp_evaluate_and_log_artifacts(
-    mock_os_remove,
-    mock_log_dict,
-    mock_json_loads,
-    mock_synthesis_engine_cls,
-    mock_log_artifact,
-    mock_convert_sklearn,
-    mock_log_model,
-    mock_log_metrics,
-    mock_eval_procedure_cls,
-    mock_config_path,
-):
+def test_aitp_evaluate_and_log_artifacts(monkeypatch, mock_config_path):
+    importlib.reload(training_pipeline)
+    mock_eval_procedure_cls = MagicMock()
+    mock_log_metrics = MagicMock()
+    mock_log_model = MagicMock()
+    mock_convert_sklearn = MagicMock()
+    mock_log_artifact = MagicMock()
+    mock_synthesis_engine_cls = MagicMock()
+    mock_json_loads = MagicMock()
+    mock_log_dict = MagicMock()
+    mock_os_remove = MagicMock()
+
+    monkeypatch.setattr(
+        training_pipeline, "AIEvaluationProcedure", mock_eval_procedure_cls
+    )
+    monkeypatch.setattr(training_pipeline.mlflow, "log_metrics", mock_log_metrics)
+    monkeypatch.setattr(training_pipeline.mlflow.sklearn, "log_model", mock_log_model)
+    monkeypatch.setattr(training_pipeline, "convert_sklearn", mock_convert_sklearn)
+    monkeypatch.setattr(training_pipeline.mlflow, "log_artifact", mock_log_artifact)
+    monkeypatch.setattr(
+        training_pipeline, "DiagnosticSynthesisEngine", mock_synthesis_engine_cls
+    )
+    monkeypatch.setattr(training_pipeline.json, "loads", mock_json_loads)
+    monkeypatch.setattr(training_pipeline.mlflow, "log_dict", mock_log_dict)
+    monkeypatch.setattr(training_pipeline.os, "remove", mock_os_remove)
+
     pipeline = AITrainingPipeline(mock_config_path)
     mock_model = MagicMock(spec=RandomForestClassifier)
     mock_model.n_features_in_ = 2
@@ -483,19 +526,26 @@ def test_aitp_evaluate_and_log_artifacts(
     )
 
 
-@patch("mlflow.start_run")
-@patch.object(AITrainingPipeline, "_load_and_prepare_data")
-@patch.object(AITrainingPipeline, "_train_model")
-@patch.object(AITrainingPipeline, "_evaluate_and_log_artifacts")
-@patch("mlflow.log_params")
-def test_aitp_run(
-    mock_log_params,
-    mock_evaluate_and_log_artifacts,
-    mock_train_model,
-    mock_load_and_prepare_data,
-    mock_start_run,
-    mock_config_path,
-):
+def test_aitp_run(monkeypatch, mock_config_path):
+    importlib.reload(training_pipeline)
+    mock_start_run = MagicMock()
+    mock_load_and_prepare_data = MagicMock()
+    mock_train_model = MagicMock()
+    mock_evaluate_and_log_artifacts = MagicMock()
+    mock_log_params = MagicMock()
+
+    monkeypatch.setattr(training_pipeline.mlflow, "start_run", mock_start_run)
+    monkeypatch.setattr(
+        AITrainingPipeline, "_load_and_prepare_data", mock_load_and_prepare_data
+    )
+    monkeypatch.setattr(AITrainingPipeline, "_train_model", mock_train_model)
+    monkeypatch.setattr(
+        AITrainingPipeline,
+        "_evaluate_and_log_artifacts",
+        mock_evaluate_and_log_artifacts,
+    )
+    monkeypatch.setattr(training_pipeline.mlflow, "log_params", mock_log_params)
+
     pipeline = AITrainingPipeline(mock_config_path)
 
     mock_run_context = MagicMock()
@@ -517,11 +567,16 @@ def test_aitp_run(
     mock_evaluate_and_log_artifacts.assert_called_once()
 
 
-@patch("trading_platform.ai.training.pipeline.AITrainingPipeline")
-def test_main_script(mock_AITrainingPipeline, tmp_path):
+def test_main_script(monkeypatch, tmp_path):
+    importlib.reload(training_pipeline)
     """
     Tests that the main function correctly instantiates and runs the pipeline.
     """
+    mock_AITrainingPipeline = MagicMock()
+    monkeypatch.setattr(
+        training_pipeline, "AITrainingPipeline", mock_AITrainingPipeline
+    )
+
     # We patch the entire class to prevent the real pipeline from running.
     mock_pipeline_instance = mock_AITrainingPipeline.return_value
 

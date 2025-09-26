@@ -14,6 +14,7 @@ from typing import Any
 
 import jsonschema
 import pandas as pd
+from pyarrow import ArrowInvalid  # type: ignore[import-untyped]
 from trading_platform.portfolio.metrics import (
     calculate_equity_curve,
     calculate_win_rate,
@@ -493,12 +494,20 @@ def generate_brief(
             signals = pd.read_parquet(signals_path)
         # Accept Series or DataFrame with 'signal' column
         if signals is not None:
-            if isinstance(signals, pd.DataFrame) and "signal" in signals.columns:
+            if isinstance(signals, pd.DataFrame):
+                if "signal" not in signals.columns:
+                    raise ValueError(
+                        "Signal DataFrame must contain 'signal' column. Found columns: "
+                        f"{list(signals.columns)}"
+                    )
                 sig = signals["signal"]
             elif isinstance(signals, pd.Series):
                 sig = signals
             else:
-                sig = None
+                raise ValueError(
+                    f"Signals must be pandas DataFrame or Series, got {type(signals)}"
+                )
+
             if sig is not None:
                 nonflat = sig[sig != "flat"]
                 signal_persistence_pct = (
@@ -530,7 +539,8 @@ def generate_brief(
                         avg_signal_duration_bars
                     ),
                 }
-    except Exception:
+    except (OSError, FileNotFoundError, pd.errors.ParserError, ArrowInvalid):
+        # Only catch file I/O and parsing errors, let data validation errors propagate
         pass
     base = {
         "meta": _to_jsonable(meta),

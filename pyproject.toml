@@ -89,6 +89,8 @@ filterwarnings = [
     "ignore:Field onnx.AttributeProto.ints:DeprecationWarning:onnx.helper",
     # Third-party starlette library emits a PendingDeprecationWarning; harmless for our tests, ignore it.
     "ignore:Please use `import python_multipart` instead.:PendingDeprecationWarning:starlette.formparsers",
+    # pandas occasionally re-imports NumPy in the sandboxed test environment.
+    "ignore:The NumPy module was reloaded.*:UserWarning",
 ]
 markers = [
     "req_DH_2_1: Marks a test as covering a specific requirement.",

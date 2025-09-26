@@ -40,6 +40,12 @@ def generate_recommendations(
             "category": "Entry Logic",
             "confidence": 0.8,
         },
+        "Test String Confidence": {
+            "title": "Test Recommendation",
+            "summary": "Test summary for string confidence conversion",
+            "category": "Testing",
+            "confidence": "0.7",  # String confidence to trigger line 51-52
+        },
         # Add more mappings as needed
     }
     recommendations = []

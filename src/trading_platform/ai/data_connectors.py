@@ -20,14 +20,14 @@ class DataCatalog:
         )
         # Simulate data retrieval
         data = {
-            "timestamp": pd.to_datetime(["2023-01-01", "2023-01-02", "2023-01-03"]),
             "open": [1.0, 1.1, 1.2],
             "high": [1.1, 1.2, 1.3],
             "low": [0.9, 1.0, 1.1],
             "close": [1.05, 1.15, 1.25],
             "volume": [100, 110, 120],
         }
-        df = pd.DataFrame(data).set_index("timestamp")
+        df = pd.DataFrame(data)
+        df.index = pd.to_datetime(["2023-01-01", "2023-01-02", "2023-01-03"])
         return df
 
     def get_available_symbols(self) -> list[str]:
@@ -95,7 +95,7 @@ class AIDataConnector:
 
 
 # Example usage (for demonstration purposes)
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     mock_data_catalog = DataCatalog()
     ai_connector = AIDataConnector(mock_data_catalog)
 
@@ -104,7 +104,7 @@ if __name__ == "__main__":
             "EURUSD", "1D", "2023-01-01", "2023-01-03"
         )
         print("\nSuccessfully loaded training data:")
-        print(training_df.head())
+        print(f"DataFrame shape: {training_df.shape}")
         print("\nData Lineage:")
         print(ai_connector.get_data_lineage())
     except ValueError as e:

@@ -7,11 +7,11 @@ from trading_platform.data.instrument import get_instrument_definition
 
 def test_get_instrument_definition_success():
     """Tests that a valid symbol returns the correct definition object."""
-    eur_usd_def = get_instrument_definition("EUR_USD")
+    eur_usd_def = get_instrument_definition("EUR/USD")
     assert eur_usd_def.asset_class == "Forex"
     assert eur_usd_def.tick_size == 0.00001
 
-    gbp_jpy_def = get_instrument_definition("GBP_JPY")
+    gbp_jpy_def = get_instrument_definition("GBP/JPY")
     assert gbp_jpy_def.asset_class == "Forex"
     assert gbp_jpy_def.tick_size == 0.001
 
