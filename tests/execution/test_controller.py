@@ -8,8 +8,7 @@ from unittest.mock import Mock
 
 import pandas as pd
 import pytest
-from trading_platform.execution import OandaStubAdapter
-from trading_platform.execution import controller
+from trading_platform.execution import OandaStubAdapter, controller
 from trading_platform.execution.controller import (
     ControllerResult,
     ReconcileReport,
@@ -21,8 +20,8 @@ from trading_platform.execution.controller import (
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
-
 # Helper Functions & Classes from various files
+
 
 def _make_market(values: list[float]) -> pd.DataFrame:
     idx = [datetime(2024, 1, 1, h) for h in range(len(values))]
