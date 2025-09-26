@@ -2,6 +2,15 @@
 
 This document tracks the effort to refactor and reorganize the test suite for better clarity and maintainability. The goal is to consolidate test files based on the component they test, rather than why the test was written (e.g., for coverage).
 
+It is of vital importance that no test coverage gets lost in this process.  Migrate tests from one file to another as needed, but do not rewrite or delete any.  We must maintain 100% test coverage.
+
+For each consolidation task, proceed as follows:
+1. Concatenate the files inot the new single file specified in the instructions.
+2. Clean up the new file - deduping imports, etc.
+3. Delete the hold files.
+4. Do not change any functionality.  This is purely a reorganization of tests into different files.
+
+
 ## Phase 1: File Consolidation
 
 ### `tests/execution`
@@ -15,11 +24,11 @@ This document tracks the effort to refactor and reorganize the test suite for be
 - [x] Consolidate event-related tests (`test_blackout_events.py`, `test_blackout_windows.py`) into a new `test_events.py`.
 
 ### `tests/reporting`
-- [ ] Consolidate all `test_brief_*.py` files into `test_brief.py`.
-- [ ] Consolidate all `test_compare_*.py` files into `test_compare.py`.
-- [ ] Consolidate all `test_html_export_*.py` files into `test_html_export.py`.
-- [ ] Consolidate all cost-related reporting tests into `test_costs.py`.
-- [ ] Consolidate remaining export-related tests (`test_trades_csv_export.py`, etc.) into `test_exports.py`.
+- [x] Consolidate all `test_brief_*.py` files into `test_brief.py`.
+- [x] Consolidate all `test_compare_*.py` files into `test_compare.py`.
+- [x] Consolidate all `test_html_export_*.py` files into `test_html_export.py`.
+- [x] Consolidate all cost-related reporting tests into `test_costs.py`.
+- [x] Consolidate remaining export-related tests (`test_trades_csv_export.py`, etc.) into `test_exports.py`.
 
 ### `tests/core`
 - [ ] Consolidate `test_sweeps_*` and `test_parameter_sweep_*` files into `test_sweeps.py`.
