@@ -202,9 +202,15 @@ cython_debug/
 # ---------------------------------------------------------------------------
 # Project-specific ignores
 
-# Keep full datasets out of version control; track the directory via .gitkeep
-data/full/*
+# Ignore all data files by default
+data/*
+
+# But explicitly un-ignore the samples directory and its contents
+!data/samples/
+
+# And un-ignore the .gitkeep files that track the empty directories
 !data/full/.gitkeep
+!data/samples/.gitkeep
 
 # Common large/local artifacts not needed in Git
 *.parquet
