@@ -3,6 +3,7 @@ Consolidated tests for trading_platform.strategy.features.
 
 Merged comprehensive coverage, gap, and path-focused suites.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -25,6 +26,7 @@ from trading_platform.strategy.features import (
 # --- test_features_comprehensive_coverage.py ---
 
 """Comprehensive test coverage for strategy/features.py to achieve 100% coverage."""
+
 
 def test_resolve_parameter_not_found():
     """Test _resolve_parameter when parameter is not found (lines 149-152)."""
@@ -350,6 +352,7 @@ def test_compute_features_all_indicator_types():
 # --- test_features_coverage_gaps.py ---
 
 """Test coverage for strategy/features.py missing lines."""
+
 
 def test_price_series_fallback():
     """Test _price_series fallback to close when invalid source (line 51)."""

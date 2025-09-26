@@ -3,6 +3,7 @@ Consolidated tests for trading_platform.strategy.base.
 
 Merged original behavioural checks with coverage-gap tests.
 """
+
 from __future__ import annotations
 
 import pandas as pd

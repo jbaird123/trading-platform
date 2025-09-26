@@ -3,6 +3,7 @@ Consolidated tests for trading_platform.strategy.yaml_strategy.
 
 Combined 100% coverage suite, gap fillers, full coverage, and parser smoke tests.
 """
+
 from __future__ import annotations
 
 import json
@@ -35,6 +36,7 @@ Complete test coverage for yaml_strategy.py - targeting 100% coverage.
 This file covers all missing lines identified in the coverage report:
 Lines 13-14, 88, 104, 148-152, 156-198, 215->218, 216->218, 223-228
 """
+
 
 class TestJsonschemaImportFallback:
     """Test lines 13-14: jsonschema import fallback."""
@@ -615,6 +617,7 @@ Test coverage gaps in YAML strategy parser module.
 Targets specific missing lines in strategy/yaml_strategy.py to improve coverage.
 """
 
+
 def test_validate_strategy_config_missing_jsonschema():
     """Test validate_strategy_config when jsonschema unavailable. Covers lines 13-14."""
     valid_config: dict[str, list[str]] = {"entry_signals": [], "exit_signals": []}
@@ -900,6 +903,7 @@ def test_compile_strategy_invalid_parameters():
 
 
 # --- test_yaml_strategy_full_coverage.py ---
+
 
 def _base_config() -> dict[str, Any]:
     return {

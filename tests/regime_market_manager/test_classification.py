@@ -1,10 +1,12 @@
 """Consolidated tests for RMM classification logic."""
+
 from __future__ import annotations
 
 from trading_platform.regime_market_manager.classification import classify_regime
 from trading_platform.regime_market_manager.config import RegimeManagerConfig
 
 # --- Unit behaviour coverage -----------------------------------------------------
+
 
 def test_trend_down_when_adx_high_and_slope_negative() -> None:
     cfg = RegimeManagerConfig()
@@ -40,6 +42,7 @@ def test_high_adx_neutral_slope_falls_through_to_range() -> None:
 
 
 # --- Additional branch coverage --------------------------------------------------
+
 
 def _base_config() -> RegimeManagerConfig:
     return RegimeManagerConfig(
@@ -88,4 +91,3 @@ def test_range_low_confidence_between_thresholds() -> None:
     out = classify_regime(indicators, cfg)
     assert out["regime"] == "range"
     assert out["confidence"] == "low"
-

@@ -1,4 +1,5 @@
 """Consolidated tests for Regime Market Manager engine logic."""
+
 from __future__ import annotations
 
 from unittest.mock import patch
@@ -14,6 +15,7 @@ from trading_platform.regime_market_manager.engine import (
 
 # --- Helper utilities -----------------------------------------------------------
 
+
 def _sample_df() -> pd.DataFrame:
     return pd.DataFrame(
         {"close": [1.0, 1.1, 1.2], "volume": [100, 200, 300]},
@@ -22,6 +24,7 @@ def _sample_df() -> pd.DataFrame:
 
 
 # --- Base operand/predicate helpers --------------------------------------------
+
 
 def test_op_series_edge_cases() -> None:
     df = _sample_df()
@@ -111,6 +114,7 @@ def test_eval_block_empty_conditions() -> None:
 
 
 # --- Engine-level behaviour -----------------------------------------------------
+
 
 def _engine_config() -> dict:
     return {
@@ -215,9 +219,7 @@ def test_rmm_engine_classify_daily_unknown_regime() -> None:
 
 
 def test_rmm_engine_allowed_sides_for() -> None:
-    assert (
-        RMMEngine.allowed_sides_for("trend_up", 0.3, {"min_confidence": 0.5}) == []
-    )
+    assert RMMEngine.allowed_sides_for("trend_up", 0.3, {"min_confidence": 0.5}) == []
     assert (
         RMMEngine.allowed_sides_for("trend_up", 0.8, {"allow_labels": ["trend_down"]})
         == []

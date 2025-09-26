@@ -176,6 +176,6 @@ def test_prediction_request_model_validation():
     # Invalid payload should raise a validation error
     with pytest.raises(Exception):
         # Create invalid raw data that will fail pydantic validation
-        PredictionRequest.model_validate({
-            "features": [{"name": "feature", "value": "bad"}]
-        })
+        PredictionRequest.model_validate(
+            {"features": [{"name": "feature", "value": "bad"}]}
+        )

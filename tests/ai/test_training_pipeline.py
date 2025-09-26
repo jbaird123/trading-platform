@@ -3,6 +3,7 @@ Consolidated tests for trading_platform.ai.training.pipeline.AITrainingPipeline.
 
 Combined integration-style suite with coverage gap scenarios.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -22,6 +23,7 @@ from trading_platform.ai.training import pipeline as training_pipeline
 from trading_platform.ai.training.pipeline import AITrainingPipeline
 
 # --- ai/training/test_ai_training_pipeline.py ---
+
 
 # Fixtures for configuration files
 @pytest.fixture
@@ -612,6 +614,7 @@ def test_main_script(monkeypatch, tmp_path):
 Cover AI training pipeline gaps required for full coverage.
 """
 
+
 def create_test_config(model_type="lightgbm"):
     """Create a temporary test configuration file."""
     config_data = {
@@ -634,13 +637,11 @@ def test_training_pipeline_coverage():
     # Mock MLflow to avoid actual logging
     with patch.object(training_pipeline.mlflow, "log_artifact"), patch.object(
         training_pipeline.mlflow, "log_metric"
-    ), patch.object(
-        training_pipeline.mlflow, "log_param"
-    ), patch.object(
+    ), patch.object(training_pipeline.mlflow, "log_param"), patch.object(
         training_pipeline.mlflow, "set_tag"
-    ), patch.object(
-        training_pipeline.mlflow, "start_run"
-    ), patch.object(training_pipeline.mlflow, "end_run"):
+    ), patch.object(training_pipeline.mlflow, "start_run"), patch.object(
+        training_pipeline.mlflow, "end_run"
+    ):
         # Create a pipeline instance with a test config
         config_path = create_test_config()
         try:
@@ -724,13 +725,11 @@ def test_training_pipeline_model_types():
 
     with patch.object(training_pipeline.mlflow, "log_artifact"), patch.object(
         training_pipeline.mlflow, "log_metric"
-    ), patch.object(
-        training_pipeline.mlflow, "log_param"
-    ), patch.object(
+    ), patch.object(training_pipeline.mlflow, "log_param"), patch.object(
         training_pipeline.mlflow, "set_tag"
-    ), patch.object(
-        training_pipeline.mlflow, "start_run"
-    ), patch.object(training_pipeline.mlflow, "end_run"):
+    ), patch.object(training_pipeline.mlflow, "start_run"), patch.object(
+        training_pipeline.mlflow, "end_run"
+    ):
         config_path = create_test_config()
         try:
             pipeline = AITrainingPipeline(config_path=config_path)
