@@ -130,10 +130,13 @@ def resample_ohlc(
     # Normalize rule to lowercase (avoid pandas deprecation warnings)
     rule = str(rule).lower()
 
-    # Set up resampling parameters
+    # Extract session hour for daily resampling logic
+    session_hour = None
     if rule.upper() in ("D", "1D") and instrument and instrument.sessions:
-        # Use the hour from the first session definition as the origin for daily bars
         session_hour = instrument.sessions[0].close_time.hour
+
+    # Set up resampling parameters
+    if session_hour is not None:
         # Set origin to the session close time on epoch day with UTC timezone
         origin_ts = pd.Timestamp(f"1970-01-01 {session_hour:02d}:00:00", tz="UTC")
         out = df.resample(rule, label="left", origin=origin_ts).agg(
@@ -155,8 +158,7 @@ def resample_ohlc(
     out = out.dropna(how="any")
 
     # For daily resampling with session offset, normalize timestamps to calendar dates
-    if rule.upper() in ("D", "1D") and instrument and instrument.sessions:
-        session_hour = instrument.sessions[0].close_time.hour
+    if session_hour is not None:
         # Type assertion: after resampling, index should be DatetimeIndex
         datetime_index = pd.DatetimeIndex(out.index)
         out.index = _calendarize_session_close_index(datetime_index, session_hour)
