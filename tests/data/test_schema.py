@@ -6,9 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-
 from trading_platform.data.schema import load_and_normalize_data
-
 
 # --- Happy-path and error handling ------------------------------------------------
 

@@ -37,9 +37,10 @@ def test_reason_none_outside_blackouts() -> None:
 
 
 def test_reason_static_wrap_and_non_wrap_and_event() -> None:
-    """Ensure reason prioritises blackout types correctly for static and event windows."""
+    """Ensure reason prioritises blackout types correctly."""
     policy = TradingWindowPolicy.from_config(
-        blackout_utc=[("10:00", "11:00"), ("23:00", "01:00")], blackout_events=[]
+        blackout_utc=[("10:00", "11:00"), ("23:00", "01:00")],
+        blackout_events=[],
     )
     assert policy.reason(datetime(2024, 1, 1, 10, 30)) == "blackout_static"
     assert policy.reason(datetime(2024, 1, 2, 0, 30)) == "blackout_static"

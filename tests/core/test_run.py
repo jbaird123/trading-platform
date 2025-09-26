@@ -10,7 +10,7 @@ import json
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 from unittest.mock import patch
 
 import jsonschema
@@ -496,7 +496,7 @@ def test_finalize_run_empty_parameter_search_results():
         run_path = Path(temp_dir)
 
         # Create parameter_search results with empty results list
-        parameter_search_payload: Dict[str, Any] = {"results": []}
+        parameter_search_payload: dict[str, Any] = {"results": []}
 
         with patch("trading_platform.core.run.save_run_brief") as mock_brief, patch(
             "trading_platform.core.run.save_chart_from_brief"
@@ -1423,7 +1423,7 @@ def test_finalize_run_uses_config_snapshots(tmp_path):
 # Validates: [JSON-F.1], [JSON-F.2], [JSON-F.3]
 
 
-def _dummy_strategy() -> CompiledStrategy:
+def _dummy_strategy_2() -> CompiledStrategy:
     return CompiledStrategy(
         name="dummy",
         parameters={},
@@ -1436,7 +1436,7 @@ def _dummy_strategy() -> CompiledStrategy:
     )
 
 
-def _t(ts: datetime, pnl: float) -> Trade:
+def _t2(ts: datetime, pnl: float) -> Trade:
     return Trade(
         symbol="X",
         entry_time=ts,
@@ -1469,9 +1469,9 @@ def test_finalize_run_populates_mc_wfe_paramsearch(tmp_path):
         meta={"strategy_name": "S", "run_id": "r"},
         params={},
         trades=[
-            _t(datetime(2024, 1, 1), 5.0),
-            _t(datetime(2024, 1, 1, 1), -5.0),
-            _t(datetime(2024, 1, 1, 2), 10.0),
+            _t2(datetime(2024, 1, 1), 5.0),
+            _t2(datetime(2024, 1, 1, 1), -5.0),
+            _t2(datetime(2024, 1, 1, 2), 10.0),
         ],
         initial_cash=1000.0,
         config=cfg,
@@ -1484,7 +1484,7 @@ def test_finalize_run_populates_mc_wfe_paramsearch(tmp_path):
 # --- test_finalize_run_prefer_args.py ---
 
 
-def _t(ts: datetime, pnl: float) -> Trade:
+def _t3(ts: datetime, pnl: float) -> Trade:
     return Trade(
         symbol="X",
         entry_time=ts,
@@ -1514,7 +1514,7 @@ def test_finalize_run_prefers_explicit_mc_over_config(tmp_path):
         run_path,
         meta={"strategy_name": "S", "run_id": "r"},
         params={},
-        trades=[_t(datetime(2024, 1, 1), 1.0)],
+        trades=[_t3(datetime(2024, 1, 1), 1.0)],
         initial_cash=1000.0,
         config=cfg,
         monte_carlo={"mode": "test", "trials": 1},

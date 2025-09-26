@@ -1,6 +1,6 @@
-import numpy as np
 from unittest.mock import Mock, patch
 
+import numpy as np
 from trading_platform.ai.lab import predictor, trainer
 
 

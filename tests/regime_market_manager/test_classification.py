@@ -4,7 +4,6 @@ from __future__ import annotations
 from trading_platform.regime_market_manager.classification import classify_regime
 from trading_platform.regime_market_manager.config import RegimeManagerConfig
 
-
 # --- Unit behaviour coverage -----------------------------------------------------
 
 def test_trend_down_when_adx_high_and_slope_negative() -> None:

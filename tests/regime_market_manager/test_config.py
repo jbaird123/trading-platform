@@ -1,10 +1,10 @@
 """Consolidated tests for RMM configuration validation."""
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import patch
 
 import pytest
-
 from trading_platform.regime_market_manager.config import (
     RegimeManagerConfig,
     validate_rmm_config,
@@ -55,7 +55,8 @@ def test_validate_rmm_config_regimes_must_be_non_empty_list() -> None:
     with patch(f"{CONFIG_MODULE}.jsonschema") as mock_jsonschema:
         mock_jsonschema.validate.return_value = None
 
-        for payload in ("invalid", [],):  # type: ignore[arg-type]
+        payload: Any
+        for payload in ("invalid", []):
             with pytest.raises(ValueError, match="regimes must be a non-empty array"):
                 validate_rmm_config({"regimes": payload})
 
@@ -76,7 +77,9 @@ def test_validate_rmm_config_regime_structure() -> None:
         with pytest.raises(ValueError, match="regime.confidence must be 0..1"):
             validate_rmm_config({"regimes": [{"label": "x", "confidence": 1.5}]})
 
-        bad_conditions = {"regimes": [{"label": "x", "conditions": "bad", "confidence": 0.5}]}
+        bad_conditions = {
+            "regimes": [{"label": "x", "conditions": "bad", "confidence": 0.5}]
+        }
         with pytest.raises(ValueError, match="regime.conditions must be an object"):
             validate_rmm_config(bad_conditions)
 

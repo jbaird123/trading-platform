@@ -5,8 +5,8 @@ from unittest.mock import Mock
 import numpy as np
 import pandas as pd
 import pytest
-from sklearn.model_selection import TimeSeriesSplit
 from sklearn.exceptions import UndefinedMetricWarning
+from sklearn.model_selection import TimeSeriesSplit
 from trading_platform.ai.evaluation.procedure import AIEvaluationProcedure
 
 

@@ -1,13 +1,11 @@
 """Consolidated tests for trading_platform.data.loader.load_from_catalog."""
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
 import pandas as pd
 import pytest
 import yaml
-
 from trading_platform.data.loader import load_from_catalog
 
 
