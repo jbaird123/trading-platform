@@ -36,9 +36,9 @@ For each consolidation task, proceed as follows:
 - [x] Consolidate `test_policy_branches_*` into `test_policy.py`.
 
 ### `tests/strategy`
-- [ ] Consolidate `test_base_strategy_*` files into `test_base_strategy.py`.
-- [ ] Consolidate `test_features_*` files into `test_features.py`.
-- [ ] Consolidate `test_yaml_strategy_*` files into `test_yaml_strategy.py`.
+- [x] Consolidate `test_base_strategy_*` files into `test_base_strategy.py`.
+- [x] Consolidate `test_features_*` files into `test_features.py`.
+- [x] Consolidate `test_yaml_strategy_*` files into `test_yaml_strategy.py`.
 
 ### `tests/ai`
 - [ ] Consolidate `test_inference_client_*` files into `test_inference_client.py`.
