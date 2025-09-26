@@ -36,6 +36,10 @@ def test_event_blackout_blocks_new_entries():
 
     ev = {"start": datetime(2023, 1, 1, 11, 0), "end": datetime(2023, 1, 1, 12, 30)}
     config = RunConfig(
+        user_id="test_user",
+        run_seed=42,
+        log_level="INFO",
+        allow_flip_on_bar=False,
         initial_cash=1000.0,
         position_size=1.0,
         blackout_events=[ev],
@@ -61,15 +65,22 @@ def test_static_blackout_blocks_new_entries():
         "2023-01-02T02:00:00",
     ]
     idx = [datetime.fromisoformat(t) for t in times]
-    df = pd.DataFrame({
-        "open": [1.0] * len(idx),
-        "high": [1.1] * len(idx),
-        "low": [0.9] * len(idx),
-        "close": [1.0] * len(idx),
-        "volume": [100] * len(idx),
-    }, index=idx)
+    df = pd.DataFrame(
+        {
+            "open": [1.0] * len(idx),
+            "high": [1.1] * len(idx),
+            "low": [0.9] * len(idx),
+            "close": [1.0] * len(idx),
+            "volume": [100] * len(idx),
+        },
+        index=idx,
+    )
     signals = pd.Series(["long"] * 4, index=df.index)
     config = RunConfig(
+        user_id="test_user",
+        run_seed=42,
+        log_level="INFO",
+        allow_flip_on_bar=False,
         initial_cash=1000.0,
         position_size=1.0,
         blackout_utc=[("23:00", "01:00")],

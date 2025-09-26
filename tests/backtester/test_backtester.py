@@ -38,13 +38,16 @@ def _dummy_strategy_cfg() -> CompiledStrategy:
 def test_rmm_blocks_signal_not_in_allowed_sides():
     """Test RMM blocking when signal not in allowed sides."""
     idx = [datetime(2024, 1, 1, h) for h in range(5)]
-    df = pd.DataFrame({
-        "open": [1.005] * 5,
-        "high": [1.005] * 5,
-        "low": [1.005] * 5,
-        "close": [1.005] * 5,
-        "volume": [100] * 5,
-    }, index=idx)
+    df = pd.DataFrame(
+        {
+            "open": [1.005] * 5,
+            "high": [1.005] * 5,
+            "low": [1.005] * 5,
+            "close": [1.005] * 5,
+            "volume": [100] * 5,
+        },
+        index=idx,
+    )
     signals = pd.Series(["long"] * 5, index=df.index)
     rmm_context = {
         timestamp: {
@@ -56,7 +59,12 @@ def test_rmm_blocks_signal_not_in_allowed_sides():
         for timestamp in df.index
     }
     config = RunConfig(
-        initial_cash=10000.0, position_size=100.0, allow_flip_on_bar=False
+        user_id="test_user",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=10000.0,
+        position_size=100.0,
+        allow_flip_on_bar=False,
     )
     rem = RiskExitManager(config={})
 
@@ -79,18 +87,72 @@ def test_rmm_blocks_signal_not_in_allowed_sides():
     assert skipped_list[0]["reason_code"] == "rmm_block"
 
 
+def test_rmm_allows_signal_opens_position() -> None:
+    idx = [datetime(2024, 1, 1, h) for h in range(3)]
+    df = pd.DataFrame(
+        {
+            "open": [1.0, 1.0, 1.0],
+            "high": [1.1, 1.1, 1.1],
+            "low": [0.9, 0.9, 0.9],
+            "close": [1.0, 1.0, 1.0],
+            "volume": [100] * 3,
+        },
+        index=idx,
+    )
+    signals = pd.Series(["long", "flat", "flat"], index=df.index)
+    rmm_context = {
+        df.index[0]: {
+            "allowed_sides": ["long"],
+            "label": "bull",
+            "confidence": 0.7,
+            "policy": {"min_confidence": 0.5},
+        }
+    }
+    config = RunConfig(
+        user_id="test_user",
+        run_seed=42,
+        log_level="INFO",
+        allow_flip_on_bar=False,
+        initial_cash=1_000.0,
+        position_size=1.0,
+    )
+    rem = RiskExitManager(config={})
+
+    trades = run_backtest(
+        market_data=df,
+        signals=signals,
+        strategy=_dummy_strategy_cfg(),
+        config=config,
+        rem=rem,
+        rmm_context=rmm_context,
+    )
+
+    assert len(trades) == 1
+    assert trades[0].side == "long"
+
+
 def test_return_skips_only():
     """Test return combination with skips only (no exposure)."""
     idx = [datetime(2024, 1, 1, h) for h in range(3)]
-    df = pd.DataFrame({
-        "open": [1.005] * 3,
-        "high": [1.005] * 3,
-        "low": [1.005] * 3,
-        "close": [1.005] * 3,
-        "volume": [100] * 3,
-    }, index=idx)
+    df = pd.DataFrame(
+        {
+            "open": [1.005] * 3,
+            "high": [1.005] * 3,
+            "low": [1.005] * 3,
+            "close": [1.005] * 3,
+            "volume": [100] * 3,
+        },
+        index=idx,
+    )
     signals = pd.Series(["long"] * 3, index=df.index)
-    config = RunConfig(initial_cash=10000.0, position_size=100.0)
+    config = RunConfig(
+        user_id="test_user",
+        run_seed=42,
+        log_level="INFO",
+        allow_flip_on_bar=False,
+        initial_cash=10000.0,
+        position_size=100.0,
+    )
     rem = RiskExitManager(config={})
 
     result = run_backtest(
@@ -110,13 +172,16 @@ def test_return_skips_only():
 def test_counterfactual_fast_invalid_start_index():
     """Test counterfactual fast with invalid start index."""
     idx = [datetime(2024, 1, 1, h) for h in range(5)]
-    df = pd.DataFrame({
-        "open": [1.005] * 5,
-        "high": [1.005] * 5,
-        "low": [1.005] * 5,
-        "close": [1.005] * 5,
-        "volume": [100] * 5,
-    }, index=idx)
+    df = pd.DataFrame(
+        {
+            "open": [1.005] * 5,
+            "high": [1.005] * 5,
+            "low": [1.005] * 5,
+            "close": [1.005] * 5,
+            "volume": [100] * 5,
+        },
+        index=idx,
+    )
 
     result = _simulate_counterfactual_fast(
         market_data=df,
@@ -134,13 +199,16 @@ def test_counterfactual_fast_invalid_start_index():
 def test_counterfactual_fast_short_side():
     """Test counterfactual fast simulation with short side."""
     idx = [datetime(2024, 1, 1, h) for h in range(5)]
-    df = pd.DataFrame({
-        "open": [1.0] * 5,
-        "high": [1.03] * 5,
-        "low": [0.97] * 5,
-        "close": [1.0] * 5,
-        "volume": [100] * 5,
-    }, index=idx)
+    df = pd.DataFrame(
+        {
+            "open": [1.0] * 5,
+            "high": [1.03] * 5,
+            "low": [0.97] * 5,
+            "close": [1.0] * 5,
+            "volume": [100] * 5,
+        },
+        index=idx,
+    )
 
     result = _simulate_counterfactual_fast(
         market_data=df,
@@ -159,13 +227,16 @@ def test_counterfactual_fast_short_side():
 def test_counterfactual_exact_invalid_start_index():
     """Test counterfactual exact with invalid start index."""
     idx = [datetime(2024, 1, 1, h) for h in range(5)]
-    df = pd.DataFrame({
-        "open": [1.005] * 5,
-        "high": [1.005] * 5,
-        "low": [1.005] * 5,
-        "close": [1.005] * 5,
-        "volume": [100] * 5,
-    }, index=idx)
+    df = pd.DataFrame(
+        {
+            "open": [1.005] * 5,
+            "high": [1.005] * 5,
+            "low": [1.005] * 5,
+            "close": [1.005] * 5,
+            "volume": [100] * 5,
+        },
+        index=idx,
+    )
     mock_rem = Mock()
 
     result = _simulate_counterfactual_exact(
@@ -182,9 +253,89 @@ def test_counterfactual_exact_invalid_start_index():
     assert result == {}
 
 
+def test_counterfactual_exact_rem_exit_breaks_loop() -> None:
+    idx = [datetime(2024, 1, 1, h) for h in range(3)]
+    df = pd.DataFrame(
+        {
+            "open": [100.0, 101.0, 102.0],
+            "high": [101.0, 102.0, 103.0],
+            "low": [99.0, 100.0, 101.0],
+            "close": [100.5, 101.5, 102.5],
+            "volume": [100] * 3,
+        },
+        index=idx,
+    )
+
+    class StubREM:
+        def check_exits(self, position: Any, current_bar: pd.Series) -> dict | None:
+            return {
+                "exit_price": float(current_bar["close"]),
+                "reason": "stub_exit",
+            }
+
+    result = _simulate_counterfactual_exact(
+        market_data=df,
+        strategy=_dummy_strategy_cfg(),
+        start_index=0,
+        side="long",
+        entry_price=100.0,
+        size=1.0,
+        instrument={},
+        cost_model={},
+        rem=StubREM(),  # type: ignore[arg-type]
+    )
+
+    assert result["cf_exit_kind"] == "rem"
+    assert result["cf_mode"] == "exact"
+    assert result["cf_exit_price"] == 100.5
+
+
+def test_counterfactual_exact_returns_empty_when_position_not_created(
+    monkeypatch: Any,
+) -> None:
+    idx = [datetime(2024, 1, 1, h) for h in range(2)]
+    df = pd.DataFrame(
+        {
+            "open": [100.0, 100.0],
+            "high": [101.0, 101.0],
+            "low": [99.0, 99.0],
+            "close": [100.0, 100.0],
+            "volume": [100, 100],
+        },
+        index=idx,
+    )
+
+    monkeypatch.setattr(
+        "trading_platform.backtester.core.PortfolioManager.create_new_position",
+        lambda *args, **kwargs: None,
+    )
+
+    class NoExitREM:
+        def check_exits(self, position: Any, current_bar: pd.Series) -> None:
+            return None
+
+    result = _simulate_counterfactual_exact(
+        market_data=df,
+        strategy=_dummy_strategy_cfg(),
+        start_index=0,
+        side="long",
+        entry_price=100.0,
+        size=1.0,
+        instrument={},
+        cost_model={},
+        rem=NoExitREM(),  # type: ignore[arg-type]
+    )
+
+    assert result == {}
+
+
 def test_backtester_with_rem_pips_stop_loss():
     """Tests that the Backtester correctly handles a 'pips'-based stop-loss."""
     config = RunConfig(
+        user_id="test_user",
+        run_seed=42,
+        log_level="INFO",
+        allow_flip_on_bar=False,
         initial_cash=10000.0,
         position_size=1.0,
         rem_config={"stop_loss": {"pips": 50}},
@@ -195,8 +346,20 @@ def test_backtester_with_rem_pips_stop_loss():
     stop_price = entry_price - (50 * 0.0001)
     market_data = pd.DataFrame(
         [
-            {"open": 1.1900, "high": 1.1950, "low": 1.1850, "close": entry_price, "volume": 100},
-            {"open": 1.2010, "high": 1.2020, "low": stop_price, "close": 1.1960, "volume": 100},
+            {
+                "open": 1.1900,
+                "high": 1.1950,
+                "low": 1.1850,
+                "close": entry_price,
+                "volume": 100,
+            },
+            {
+                "open": 1.2010,
+                "high": 1.2020,
+                "low": stop_price,
+                "close": 1.1960,
+                "volume": 100,
+            },
         ],
         index=pd.to_datetime(["2023-01-01 10:00", "2023-01-01 11:00"]).tz_localize(
             "UTC"
@@ -222,13 +385,16 @@ class TestBacktesterCoreCoverage:
     def sample_data(self):
         dates = pd.date_range("2023-01-01", periods=10, freq="D")
         close_prices = [1.02 + i * 0.1 for i in range(10)]
-        return pd.DataFrame({
-            "open": close_prices,
-            "high": close_prices,
-            "low": close_prices,
-            "close": close_prices,
-            "volume": [100] * 10,
-        }, index=dates)
+        return pd.DataFrame(
+            {
+                "open": close_prices,
+                "high": close_prices,
+                "low": close_prices,
+                "close": close_prices,
+                "volume": [100] * 10,
+            },
+            index=dates,
+        )
 
     @pytest.fixture
     def sample_signals(self):
@@ -237,6 +403,10 @@ class TestBacktesterCoreCoverage:
     @pytest.fixture
     def mock_config(self):
         return RunConfig(
+            user_id="test_user",
+            run_seed=42,
+            log_level="INFO",
+            allow_flip_on_bar=False,
             initial_cash=10000.0,
             position_size=1.0,
             instrument={"multiplier": 1.0, "min_size": 0.01},
