@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import logging
 
-from trading_platform.core.utils import gen_run_id, get_logger
+import pytest
+from trading_platform.core.utils import gen_run_id, get_logger, normalize_symbol
 
 
 def test_gen_run_id_contains_prefix_and_utc_suffix():
@@ -33,3 +34,28 @@ def test_get_logger_with_level():
     assert log.level == logging.DEBUG
     # Reset level for other tests
     log.setLevel(logging.INFO)
+
+
+@pytest.mark.parametrize(
+    "input_symbol,expected_output",
+    [
+        ("EUR/USD", "EURUSD"),
+        ("EUR_USD", "EURUSD"),
+        ("eur-jpy", "EURJPY"),
+        ("SPY", "SPY"),
+        ("EURUSD", "EURUSD"),
+        ("gbp/usd", "GBPUSD"),
+        ("USD-CAD", "USDCAD"),
+        ("usd_jpy", "USDJPY"),
+        ("NZD/USD", "NZDUSD"),
+        ("AUD_JPY", "AUDJPY"),
+        ("EUR.GBP", "EURGBP"),  # Test dot separator
+        ("USD123CAD", "USDCAD"),  # Test with numbers
+        ("BTC-USD", "BTCUSD"),
+        ("eth_usdt", "ETHUSDT"),
+    ],
+)
+def test_normalize_symbol(input_symbol: str, expected_output: str) -> None:
+    """Test normalize_symbol function with comprehensive input variations."""
+    result = normalize_symbol(input_symbol)
+    assert result == expected_output

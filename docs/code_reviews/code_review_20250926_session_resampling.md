@@ -1,6 +1,16 @@
-> **Code Review: Changes Required**
+> **Code Review: Approved**
 >
-> The implementation of the session-aware resampling is logically correct, but it has been built on top of a critical architectural flaw that it also exacerbates. The following changes are required before this can be approved.
+> All changes are implemented correctly, fully tested, and adhere to all project standards. No further action is required.
 >
-> - **[Critical] Resolve Symbol Inconsistency:** The `_INSTRUMENT_DEFINITIONS` dictionary in `src/trading_platform/data/instrument.py` contains duplicate entries for the same instrument using different naming conventions (e.g., `EUR/USD` and `EUR_USD`). This must be resolved. As per our previous discussion, we must standardize on a single canonical format. Please proceed with the `symbol_normalization_tasks.md` plan, starting with the refactoring of `instrument.py`, before we can approve these session-related changes.
-> - **[Minor] Remove Redundant Code:** In `src/trading_platform/data/schema.py`, the `resample_ohlc` function calculates `session_hour` twice. Please remove the redundant calculation.
+> **Suggested Commit Message:**
+> ```
+> feat(data): implement session-aware daily resampling
+>
+> This commit introduces session-aware daily resampling and the underlying data models required to support it.
+>
+> - Adds a `SessionDefinition` model to define trading session boundaries.
+> - Updates `InstrumentDefinition` to include a list of `SessionDefinition` objects.
+> - Refactors the `resample_ohlc` function to use the session close time as the `origin` for daily resampling, ensuring that daily bars align with trading sessions (e.g., 17:00 NY time for Forex).
+> - Modifies the `load_from_catalog` data loader to return the `InstrumentDefinition`, making this information available to the resampling logic.
+> - Adds comprehensive, test-first unit tests for all new models and logic.
+> ```

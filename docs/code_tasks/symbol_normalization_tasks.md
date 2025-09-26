@@ -6,7 +6,7 @@ The developer must follow these tasks in the specified sequence. All changes mus
 
 ### 1. Implement the Canonical Symbol Utility
 
-- **1.1. Create Test for the `normalize_symbol` Utility**
+- [x] **1.1. Create Test for the `normalize_symbol` Utility**
     - **File:** `tests/core/test_utils.py`
     - **Action:** Create a new test function `test_normalize_symbol`.
     - **Logic:**
@@ -18,7 +18,7 @@ The developer must follow these tasks in the specified sequence. All changes mus
         6.  Assert that `normalize_symbol("SPY")` returns `"SPY"`.
         7.  Assert that calling `normalize_symbol("EURUSD")` with an already-canonical symbol returns `"EURUSD"`.
 
-- **1.2. Implement the `normalize_symbol` Utility**
+- [x] **1.2. Implement the `normalize_symbol` Utility**
     - **File:** `src/trading_platform/core/utils.py`
     - **Action:** Create the `normalize_symbol` function.
     - **Logic:** The function must remove all non-alphanumeric characters and convert to uppercase.
@@ -30,7 +30,7 @@ The developer must follow these tasks in the specified sequence. All changes mus
 
 ### 2. Refactor Instrument Definitions
 
-- **2.1. Create Test for Instrument Definition Normalization**
+- [ ] **2.1. Create Test for Instrument Definition Normalization**
     - **File:** `tests/data/test_instrument.py`
     - **Action:** Create a new test function `test_get_instrument_definition_with_normalization`.
     - **Logic:**
@@ -39,7 +39,7 @@ The developer must follow these tasks in the specified sequence. All changes mus
         3.  Assert that `get_instrument_definition("EUR_USD")` returns the exact same definition object.
         4.  For each of the calls above, assert that the returned `InstrumentDefinition` object has its `symbol` attribute set to the canonical value: `"EURUSD"`.
 
-- **2.2. Refactor `instrument.py` to Use Normalization**
+- [ ] **2.2. Refactor `instrument.py` to Use Normalization**
     - **File:** `src/trading_platform/data/instrument.py`
     - **Action:** Modify the instrument dictionary and the getter function to enforce normalization.
     - **Logic:**
@@ -61,13 +61,13 @@ The developer must follow these tasks in the specified sequence. All changes mus
 
 ### 3. Refactor Data Catalog and Loader
 
-- **3.1. Standardize `data_catalog.yaml`**
+- [ ] **3.1. Standardize `data_catalog.yaml`**
     - **File:** `config/data_catalog.yaml`
     - **Action:** Update all instrument keys to the canonical format.
     - **Logic:**
         -   Ensure all top-level keys for instruments are in the `EURUSD` format. For example, `EUR_USD:` must be changed to `EURUSD:`.
 
-- **3.2. Update `load_from_catalog` Test**
+- [ ] **3.2. Update `load_from_catalog` Test**
     - **File:** `tests/data/test_loader.py`
     - **Action:** Modify existing tests for `load_from_catalog` to verify normalization.
     - **Logic:**
@@ -75,7 +75,7 @@ The developer must follow these tasks in the specified sequence. All changes mus
         2.  Assert that the function correctly loads data by looking up the canonical key (`"EURUSD"`) in the catalog.
         3.  Assert that the returned `InstrumentDefinition` object has its `symbol` attribute set to `"EURUSD"`.
 
-- **3.3. Refactor `loader.py` to Use Normalization**
+- [ ] **3.3. Refactor `loader.py` to Use Normalization**
     - **File:** `src/trading_platform/data/loader.py`
     - **Action:** Modify the `load_from_catalog` function.
     - **Logic:**
@@ -85,7 +85,7 @@ The developer must follow these tasks in the specified sequence. All changes mus
 
 ### 4. Refactor Application Code
 
-- **4.1. Create Failing Tests for a Target Module (e.g., Backtester)**
+- [ ] **4.1. Create Failing Tests for a Target Module (e.g., Backtester)**
     - **File:** `tests/backtester/test_backtester.py`, `tests/portfolio/test_portfolio.py`
     - **Action:** Update tests to use the new canonical symbol format, which will cause them to fail initially.
     - **Logic:**
@@ -93,19 +93,19 @@ The developer must follow these tasks in the specified sequence. All changes mus
         2.  Change the symbol in the test setup and assertions to the new canonical `"EURUSD"`.
         3.  Run `pytest` and confirm that these tests now fail.
 
-- **4.2. Refactor the Target Module (e.g., Backtester)**
+- [ ] **4.2. Refactor the Target Module (e.g., Backtester)**
     - **File:** `src/trading_platform/backtester/core.py`, `src/trading_platform/portfolio/portfolio.py`
     - **Action:** Refactor the source code to use the canonical symbol format internally.
     - **Logic:**
         1.  Replace all internal uses of hardcoded symbols like `"EUR_USD"` with the canonical `"EURUSD"`.
         2.  Rerun the tests from step 4.1 and ensure they now pass.
 
-- **4.3. Apply Normalization Pattern to All Other Modules**
+- [ ] **4.3. Apply Normalization Pattern to All Other Modules**
     - **Action:** Apply the same test-first refactoring pattern from steps 4.1 and 4.2 to all other modules. The initial code search revealed that nearly every module will require changes.
 
 ### 5. Update Documentation
 
-- **5.1. Update `project_requirements.md`**
+- [ ] **5.1. Update `project_requirements.md`**
     - **File:** `docs/project_requirements.md`
     - **Action:** Add a new system-wide requirement to formally document the symbol policy.
     - **Logic:**
