@@ -5,6 +5,7 @@ from typing import Any
 
 import pandas as pd
 
+from ..core.utils import normalize_symbol
 from .instrument import InstrumentDefinition, get_instrument_definition
 from .schema import load_and_normalize_data, resample_ohlc
 
@@ -27,6 +28,9 @@ def load_from_catalog(
     if not symbol:
         raise ValueError("data_request.symbol is required")
 
+    # Normalize symbol to canonical format for catalog lookup
+    canonical_symbol = normalize_symbol(symbol)
+
     # Default catalog path relative to repo root
     cpath = catalog_path or Path("config/data_catalog.yaml")
     if not cpath.exists():
@@ -35,7 +39,7 @@ def load_from_catalog(
     import yaml
 
     catalog = yaml.safe_load(cpath.read_text()) or {}
-    entry = (catalog.get(symbol) or {}) if isinstance(catalog, dict) else {}
+    entry = (catalog.get(canonical_symbol) or {}) if isinstance(catalog, dict) else {}
     csv_path = entry.get("csv_path") if isinstance(entry, dict) else None
     if not csv_path:
         raise ValueError(f"symbol not in catalog: {symbol}")

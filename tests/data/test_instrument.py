@@ -35,7 +35,7 @@ def test_instrument_definition_to_dict_defaults():
     result = definition.to_dict()
     assert result["asset_class"] == "Forex"
     assert result["tick_size"] == 0.00001
-    assert result["symbol"] == "EUR/USD"
+    assert result["symbol"] == "EURUSD"  # Now expects normalized symbol
     assert result["base_ccy"] is None and result["quote_ccy"] is None
 
 
@@ -99,3 +99,26 @@ def test_forex_instruments_use_standard_session():
     gbp_jpy_def = get_instrument_definition("GBP_JPY")
     assert gbp_jpy_def.sessions[0].close_time == expected_close_time
     assert gbp_jpy_def.sessions[0].close_timezone == expected_timezone
+
+
+def test_get_instrument_definition_with_normalization():
+    """Test that instrument definitions work with symbol normalization."""
+    # Test that EUR/USD returns the correct definition without raising an error
+    eur_usd_slash = get_instrument_definition("EUR/USD")
+    assert eur_usd_slash.asset_class == "Forex"
+    assert eur_usd_slash.tick_size == 0.00001
+
+    # Test that EUR_USD returns the exact same definition object
+    eur_usd_underscore = get_instrument_definition("EUR_USD")
+    assert eur_usd_underscore.asset_class == "Forex"
+    assert eur_usd_underscore.tick_size == 0.00001
+
+    # For each of the calls above, assert that the returned InstrumentDefinition
+    # object has its symbol attribute set to the canonical value: "EURUSD"
+    assert eur_usd_slash.symbol == "EURUSD"
+    assert eur_usd_underscore.symbol == "EURUSD"
+
+    # Verify they are functionally equivalent
+    assert eur_usd_slash.asset_class == eur_usd_underscore.asset_class
+    assert eur_usd_slash.tick_size == eur_usd_underscore.tick_size
+    assert eur_usd_slash.point_value == eur_usd_underscore.point_value

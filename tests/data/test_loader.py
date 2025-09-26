@@ -35,7 +35,7 @@ def test_load_from_catalog_filters_and_resamples(tmp_path: Path) -> None:
     csv_path = tmp_path / "eurusd.csv"
     _write_sample_csv(csv_path)
     catalog_path = tmp_path / "catalog.yaml"
-    _write_catalog(catalog_path, {"EUR_USD": {"csv_path": str(csv_path)}})
+    _write_catalog(catalog_path, {"EURUSD": {"csv_path": str(csv_path)}})
 
     request = {
         "symbol": "EUR_USD",
@@ -94,7 +94,7 @@ def test_loader_empty_data_from_csv(tmp_path: Path) -> None:
     csv_file = tmp_path / "empty.csv"
     csv_file.write_text("")
     catalog_path = tmp_path / "catalog.yaml"
-    _write_catalog(catalog_path, {"EUR_USD": {"csv_path": str(csv_file)}})
+    _write_catalog(catalog_path, {"EURUSD": {"csv_path": str(csv_file)}})
 
     with pytest.raises(ValueError, match="Loaded data is empty"):
         load_from_catalog({"symbol": "EUR_USD"}, catalog_path=catalog_path)
@@ -111,7 +111,7 @@ def test_loader_with_timeframe_resampling(tmp_path: Path) -> None:
         "2023-01-01 00:01:00,1.05,1.15,0.95,1.10,1100\n"
     )
     catalog_path = tmp_path / "catalog.yaml"
-    _write_catalog(catalog_path, {"EUR_USD": {"csv_path": str(csv_file)}})
+    _write_catalog(catalog_path, {"EURUSD": {"csv_path": str(csv_file)}})
 
     df, flags, instrument = load_from_catalog(
         {"symbol": "EUR_USD", "timeframe": "1min"}, catalog_path=catalog_path
@@ -126,7 +126,7 @@ def test_loader_without_timeframe_leaves_rows_intact(tmp_path: Path) -> None:
     csv_file = tmp_path / "eurusd.csv"
     _write_sample_csv(csv_file)
     catalog_path = tmp_path / "catalog.yaml"
-    _write_catalog(catalog_path, {"EUR_USD": {"csv_path": str(csv_file)}})
+    _write_catalog(catalog_path, {"EURUSD": {"csv_path": str(csv_file)}})
 
     df, flags, instrument = load_from_catalog(
         {"symbol": "EUR_USD"}, catalog_path=catalog_path
@@ -142,7 +142,7 @@ def test_load_from_catalog_returns_instrument_definition(tmp_path: Path) -> None
     csv_file = tmp_path / "eurusd.csv"
     _write_sample_csv(csv_file)
     catalog_path = tmp_path / "catalog.yaml"
-    _write_catalog(catalog_path, {"EUR_USD": {"csv_path": str(csv_file)}})
+    _write_catalog(catalog_path, {"EURUSD": {"csv_path": str(csv_file)}})
 
     # Mock get_instrument_definition to avoid dependency on actual definitions
     from unittest.mock import patch
@@ -171,3 +171,36 @@ def test_load_from_catalog_returns_instrument_definition(tmp_path: Path) -> None
         # Assert that the third element is an instance of InstrumentDefinition
         assert isinstance(instrument, InstrumentDefinition)
         assert instrument.symbol == "EUR_USD"
+
+
+def test_load_from_catalog_with_symbol_normalization(tmp_path: Path) -> None:
+    """Test that load_from_catalog works with symbol normalization."""
+    csv_file = tmp_path / "eurusd.csv"
+    _write_sample_csv(csv_file)
+    catalog_path = tmp_path / "catalog.yaml"
+
+    # Use canonical format in catalog
+    _write_catalog(catalog_path, {"EURUSD": {"csv_path": str(csv_file)}})
+
+    # Test that EUR_USD (non-canonical) finds EURUSD in catalog
+    df, flags, instrument = load_from_catalog(
+        {"symbol": "EUR_USD"}, catalog_path=catalog_path
+    )
+
+    assert not flags
+    assert not df.empty
+    assert list(df.columns) == ["open", "high", "low", "close", "volume"]
+    assert instrument.symbol == "EURUSD"  # Should be normalized to canonical format
+
+    # Test that EUR/USD (another non-canonical format) also works
+    df2, flags2, instrument2 = load_from_catalog(
+        {"symbol": "EUR/USD"}, catalog_path=catalog_path
+    )
+
+    assert not flags2
+    assert not df2.empty
+    assert instrument2.symbol == "EURUSD"  # Should be normalized to canonical format
+
+    # Verify both return the same data
+    pd.testing.assert_frame_equal(df, df2)
+    assert instrument.symbol == instrument2.symbol
