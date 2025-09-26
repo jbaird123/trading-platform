@@ -1,11 +1,11 @@
 """
-Comprehensive test coverage for execution/controller.py and execution/oanda_stub.py to achieve 100% coverage.
+Comprehensive test coverage for execution/controller.py and execution/oanda_stub.py.
 
-This file targets the specific missing lines and branches identified in the coverage report:
+This file targets the specific missing lines and branches identified in coverage:
 
 Controller.py:
 - Line 95: diffs.append("side_mismatch") in reconcile function (not reconcile_report)
-- Line 99: diffs.append("size_mismatch") in reconcile function (not reconcile_report)  
+- Line 99: diffs.append("size_mismatch") in reconcile function (not reconcile_report)
 - Line 134: continue statement when desired == "flat" and no position
 - Branch 147->125: kill switch break when max_orders reached
 
@@ -17,7 +17,6 @@ from datetime import datetime
 from unittest.mock import Mock
 
 import pandas as pd
-
 from trading_platform.execution.controller import reconcile, run_live_controller
 from trading_platform.execution.oanda_stub import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
@@ -87,14 +86,14 @@ def test_reconcile_function_no_mismatches():
 
 
 def test_live_controller_flat_continue_line_134():
-    """Test run_live_controller continue statement when desired='flat' and no position."""
-    # Use exact same setup as the working test from test_controller_flat_continue.py
+    """Test run_live_controller continue when desired='flat' and no position."""
+    # Use same setup as test_controller_flat_continue.py
     idx = [datetime(2024, 1, 1, h) for h in range(3)]
     market_data = pd.DataFrame(
         {
             "open": [1, 1, 1],
             "high": [1, 1, 1],
-            "low": [1, 1, 1], 
+            "low": [1, 1, 1],
             "close": [1, 1, 1],
             "volume": [1, 1, 1],
         },
@@ -132,7 +131,7 @@ def test_live_controller_flat_continue_line_134():
 
 def test_live_controller_kill_switch_branch_147_to_125():
     """Test run_live_controller kill switch break to hit branch 147->125."""
-    # Create market data that will trigger long signals 
+    # Create market data that will trigger long signals
     idx = [datetime(2024, 1, 1, h) for h in range(3)]
     vals = [3.0, 3.0, 3.0]  # High values to trigger long signals
     market_data = pd.DataFrame(
@@ -180,7 +179,7 @@ def test_live_controller_kill_switch_branch_147_to_125():
 
 
 def test_oanda_stub_flat_with_position_branch_103_to_119():
-    """Test OandaStubAdapter flat order with existing position to hit branch 103->119."""
+    """Test OandaStubAdapter flat order with existing position."""
     # Create portfolio manager with an existing long position
     pm = PortfolioManager(initial_cash=1000.0)
     pm.create_new_position("EURUSD", "long", 1.1000, 1.0, datetime(2024, 1, 1, 10))
@@ -215,7 +214,7 @@ def test_oanda_stub_flat_with_position_branch_103_to_119():
 
 
 def test_oanda_stub_flat_without_position():
-    """Test OandaStubAdapter flat order without position (should not hit branch 103->119)."""
+    """Test OandaStubAdapter flat order without position."""
     # Create portfolio manager without position
     pm = PortfolioManager(initial_cash=1000.0)
 

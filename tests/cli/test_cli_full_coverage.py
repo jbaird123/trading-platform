@@ -892,13 +892,14 @@ def test_find_last_briefs_sorted(tmp_path):
 
     runs = tmp_path / "runs"
     runs.mkdir()
-    paths = []
+    paths: list[Path] = []
     for name in ["a", "b", "c"]:
         run_dir = runs / name
         run_dir.mkdir()
         brief = run_dir / "brief.json"
         brief.write_text("{}")
-        os.utime(brief, (os.path.getmtime(brief) + len(paths),) * 2)
+        timestamp = os.path.getmtime(brief) + float(len(paths))
+        os.utime(brief, (timestamp, timestamp))
         paths.append(brief)
 
     latest = cli._find_last_briefs(runs, None, 2)

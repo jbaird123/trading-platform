@@ -145,11 +145,13 @@ class RMMEngine:
         indexed by target_index.
         """
         if daily.empty:
-            return pd.DataFrame(
-                index=target_index, columns=["label", "confidence", "allowed_sides"]
-            ).fillna(  # noqa: E501
-                {"label": "unknown", "confidence": 0.0, "allowed_sides": []}
-            )
+            df = pd.DataFrame(index=target_index)
+            df["label"] = "unknown"
+            df["confidence"] = 0.0
+            df["allowed_sides"] = [
+                [] for _ in range(len(target_index))
+            ]  # pyright: ignore
+            return df[["label", "confidence", "allowed_sides"]]
         # Reindex with forward-fill to align to target_index boundaries
         aligned = daily.reindex(daily.index.union(target_index)).sort_index().ffill()
         aligned = aligned.loc[target_index]
