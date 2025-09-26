@@ -21,7 +21,6 @@ from sklearn.ensemble import RandomForestClassifier
 from trading_platform.ai.training import pipeline as training_pipeline
 from trading_platform.ai.training.pipeline import AITrainingPipeline
 
-
 # --- ai/training/test_ai_training_pipeline.py ---
 
 # Fixtures for configuration files
@@ -671,12 +670,15 @@ def test_training_pipeline_coverage():
                     pass
 
             for func, args in (
-                (getattr(pipeline, "export_onnx_model", None), ("/tmp/test_model.onnx",)),
+                (
+                    getattr(pipeline, "export_onnx_model", None),
+                    ("/tmp/test_model.onnx",),
+                ),
                 (getattr(pipeline, "save_model", None), ("/tmp/test_model.pkl",)),
             ):
                 if callable(func):
                     try:
-                        func(*args)  # type: ignore[misc]
+                        func(*args)
                     except Exception:
                         pass
         finally:

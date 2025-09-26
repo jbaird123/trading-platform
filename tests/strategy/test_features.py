@@ -10,7 +10,6 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 import pytest
-
 from trading_platform.strategy.features import (
     _price_series,
     _resolve_parameter,
@@ -22,7 +21,6 @@ from trading_platform.strategy.features import (
     hhv,
     llv,
 )
-
 
 # --- test_features_comprehensive_coverage.py ---
 
@@ -514,8 +512,6 @@ def test_feature_functions_with_nan_data():
 # --- test_features_more_paths.py ---
 
 # Validates: [DH-2.11]
-import pandas as pd
-from trading_platform.strategy.features import compute_features
 
 
 def test_dc_vwap_and_unknown_type():
@@ -543,8 +539,6 @@ def test_dc_vwap_and_unknown_type():
 # --- test_features_price_sources.py ---
 
 # Validates: [DH-2.11]
-import pandas as pd
-from trading_platform.strategy.features import compute_features
 
 
 def test_price_sources_hl2_ohlc4_and_source_ref():

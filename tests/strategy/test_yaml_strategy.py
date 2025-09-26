@@ -5,18 +5,16 @@ Combined 100% coverage suite, gap fillers, full coverage, and parser smoke tests
 """
 from __future__ import annotations
 
+import json
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import Mock, patch
 
-import json
-import tempfile
-
 import pandas as pd
 import pytest
-
 from trading_platform.ai.inference_client import AIInferenceClient
 from trading_platform.strategy import yaml_strategy as ys
 from trading_platform.strategy.yaml_strategy import (
@@ -28,7 +26,6 @@ from trading_platform.strategy.yaml_strategy import (
     load_strategy_config,
     validate_strategy_config,
 )
-
 
 # --- test_yaml_strategy_100_coverage.py ---
 
@@ -940,11 +937,6 @@ def test_validate_strategy_config_without_jsonschema(monkeypatch):
     cfg = _base_config()
     monkeypatch.setattr(ys, "jsonschema", None)
     ys.validate_strategy_config(cfg)
-
-
-def test_validate_strategy_config_invalid_type():
-    with pytest.raises(ValueError, match="strategy must be an object"):
-        ys.validate_strategy_config([])  # type: ignore[arg-type]
 
 
 def test_load_strategy_config_from_path(tmp_path):

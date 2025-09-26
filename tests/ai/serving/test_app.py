@@ -1,11 +1,16 @@
 import runpy
 import sys
-
-import pytest
 from unittest.mock import patch
 
+import pytest
 from fastapi.testclient import TestClient
-from trading_platform.ai.serving.app import API_KEY, API_KEY_NAME, Feature, PredictionRequest, app
+from trading_platform.ai.serving.app import (
+    API_KEY,
+    API_KEY_NAME,
+    Feature,
+    PredictionRequest,
+    app,
+)
 
 client = TestClient(app)
 
@@ -170,4 +175,7 @@ def test_prediction_request_model_validation():
 
     # Invalid payload should raise a validation error
     with pytest.raises(Exception):
-        PredictionRequest(features=[{"name": "feature", "value": "bad"}])
+        # Create invalid raw data that will fail pydantic validation
+        PredictionRequest.model_validate({
+            "features": [{"name": "feature", "value": "bad"}]
+        })

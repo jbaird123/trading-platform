@@ -1,7 +1,8 @@
 """
 Consolidated coverage and functional tests for trading_platform.core.sweeps.
 
-Merged from test_sweeps_100_coverage.py, test_sweeps_coverage_gaps.py, and test_parameter_sweep_full.py.
+Merged from test_sweeps_100_coverage.py, test_sweeps_coverage_gaps.py, and
+test_parameter_sweep_full.py.
 """
 
 from __future__ import annotations

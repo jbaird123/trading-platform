@@ -1,5 +1,4 @@
 import importlib
-import os
 import runpy
 import sys
 from io import StringIO

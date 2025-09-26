@@ -5,14 +5,12 @@ from unittest.mock import patch
 
 import pandas as pd
 import pytest
-
 from trading_platform.regime_market_manager.engine import (
     RMMEngine,
     _eval_block,
     _eval_pred,
     _op_series,
 )
-
 
 # --- Helper utilities -----------------------------------------------------------
 
@@ -43,17 +41,33 @@ def test_eval_pred_known_conditions() -> None:
         index=pd.date_range("2024-01-01", periods=4),
     )
 
-    result = _eval_pred(df, {"condition": "is_above", "left": "price", "right": "threshold"})
-    pd.testing.assert_series_equal(result, pd.Series([False, True, True, True], index=df.index))
+    result = _eval_pred(
+        df, {"condition": "is_above", "left": "price", "right": "threshold"}
+    )
+    pd.testing.assert_series_equal(
+        result, pd.Series([False, True, True, True], index=df.index)
+    )
 
-    result = _eval_pred(df, {"condition": "is_below", "left": "price", "right": "threshold"})
-    pd.testing.assert_series_equal(result, pd.Series([True, False, False, False], index=df.index))
+    result = _eval_pred(
+        df, {"condition": "is_below", "left": "price", "right": "threshold"}
+    )
+    pd.testing.assert_series_equal(
+        result, pd.Series([True, False, False, False], index=df.index)
+    )
 
-    result = _eval_pred(df, {"condition": "cross_above", "left": "price", "right": "threshold"})
-    pd.testing.assert_series_equal(result, pd.Series([False, True, False, False], index=df.index))
+    result = _eval_pred(
+        df, {"condition": "cross_above", "left": "price", "right": "threshold"}
+    )
+    pd.testing.assert_series_equal(
+        result, pd.Series([False, True, False, False], index=df.index)
+    )
 
-    result = _eval_pred(df, {"condition": "cross_below", "left": "price", "right": "threshold"})
-    pd.testing.assert_series_equal(result, pd.Series([False, False, False, False], index=df.index))
+    result = _eval_pred(
+        df, {"condition": "cross_below", "left": "price", "right": "threshold"}
+    )
+    pd.testing.assert_series_equal(
+        result, pd.Series([False, False, False, False], index=df.index)
+    )
 
 
 def test_eval_pred_unknown_condition_defaults_false() -> None:
@@ -87,7 +101,9 @@ def test_eval_block_any_of() -> None:
 
 
 def test_eval_block_empty_conditions() -> None:
-    df = pd.DataFrame({"value": [1.0, 2.0]}, index=pd.date_range("2024-01-01", periods=2))
+    df = pd.DataFrame(
+        {"value": [1.0, 2.0]}, index=pd.date_range("2024-01-01", periods=2)
+    )
     pd.testing.assert_series_equal(
         _eval_block(df, {"other_field": []}),
         pd.Series([False, False], index=df.index),
@@ -141,7 +157,9 @@ def test_rmm_engine_classify_daily_matches_regime() -> None:
         index=pd.date_range("2024-01-01", periods=24, freq="h"),
     )
 
-    with patch("trading_platform.regime_market_manager.engine.resample_ohlc") as mock_resample, patch(
+    with patch(
+        "trading_platform.regime_market_manager.engine.resample_ohlc"
+    ) as mock_resample, patch(
         "trading_platform.regime_market_manager.engine.compute_features"
     ) as mock_features:
         daily = pd.DataFrame(
@@ -178,7 +196,9 @@ def test_rmm_engine_classify_daily_unknown_regime() -> None:
         index=pd.date_range("2024-01-01", periods=1, freq="h"),
     )
 
-    with patch("trading_platform.regime_market_manager.engine.resample_ohlc") as mock_resample, patch(
+    with patch(
+        "trading_platform.regime_market_manager.engine.resample_ohlc"
+    ) as mock_resample, patch(
         "trading_platform.regime_market_manager.engine.compute_features"
     ) as mock_features:
         daily = hourly_data.copy()
@@ -195,9 +215,17 @@ def test_rmm_engine_classify_daily_unknown_regime() -> None:
 
 
 def test_rmm_engine_allowed_sides_for() -> None:
-    assert RMMEngine.allowed_sides_for("trend_up", 0.3, {"min_confidence": 0.5}) == []
-    assert RMMEngine.allowed_sides_for("trend_up", 0.8, {"allow_labels": ["trend_down"]}) == []
-    assert RMMEngine.allowed_sides_for("trend_up", 0.8, {"block_labels": ["trend_up"]}) == []
+    assert (
+        RMMEngine.allowed_sides_for("trend_up", 0.3, {"min_confidence": 0.5}) == []
+    )
+    assert (
+        RMMEngine.allowed_sides_for("trend_up", 0.8, {"allow_labels": ["trend_down"]})
+        == []
+    )
+    assert (
+        RMMEngine.allowed_sides_for("trend_up", 0.8, {"block_labels": ["trend_up"]})
+        == []
+    )
     assert RMMEngine.allowed_sides_for("trend_up", 0.8, {}) == ["long"]
     assert RMMEngine.allowed_sides_for("trend_down", 0.8, {}) == ["short"]
     assert RMMEngine.allowed_sides_for("range", 0.8, {}) == []
@@ -228,7 +256,9 @@ def test_rmm_engine_project_to_index_with_daily_data() -> None:
         {"label": ["trend_up"], "confidence": [0.8]},
         index=pd.date_range("2024-01-01", periods=1, freq="D"),
     )
-    result = engine.project_to_index(daily, target_index, policy={"min_confidence": 0.5})
+    result = engine.project_to_index(
+        daily, target_index, policy={"min_confidence": 0.5}
+    )
     assert len(result) == 6
     assert all(result["label"] == "trend_up")
     assert all(result["confidence"] == 0.8)

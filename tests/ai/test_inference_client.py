@@ -5,16 +5,14 @@ Merged behavioural suite with coverage-gap scenarios.
 """
 from __future__ import annotations
 
+import logging
 from unittest import mock
 from unittest.mock import Mock, patch
 
 import httpx
-import logging
 import pandas as pd
 import pytest
-
 from trading_platform.ai.inference_client import AIInferenceClient
-
 
 # --- test_inference_client.py ---
 
