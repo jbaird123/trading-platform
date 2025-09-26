@@ -86,7 +86,7 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     data_req = cfg_raw.get("data_request")
     if isinstance(data_req, dict):
         # Delegate sourcing to Data Handler via catalog
-        df, dq_flags = load_from_catalog(data_req)
+        df, dq_flags, instrument_def = load_from_catalog(data_req)
     else:
         idx = pd.date_range("2024-01-01", periods=5, freq="h")
         vals = [1.0, 2.0, 3.0, 2.0, 1.0]

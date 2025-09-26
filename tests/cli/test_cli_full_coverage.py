@@ -36,13 +36,35 @@ def cli_stubs(monkeypatch, tmp_path):
     monkeypatch.setattr(cli, "_get_git_commit", lambda: "abc123")
 
     def fake_load_from_catalog(request: dict[str, Any]):
+        from datetime import time
+
+        from trading_platform.data.instrument import (
+            InstrumentDefinition,
+            SessionDefinition,
+        )
+
         df = pd.DataFrame(
             {"close": [1.0, 2.0, 3.0]},
             index=pd.date_range("2024-01-01", periods=3, freq="h"),
         )
         df_any = cast(Any, df)
         df_any.to_parquet = lambda *_a, **_k: (_ for _ in ()).throw(Exception("boom"))
-        return df_any, ["dq_flag"]
+
+        # Create a mock instrument definition
+        mock_instrument = InstrumentDefinition(
+            asset_class="Forex",
+            point_value=1.0,
+            tick_size=0.00001,
+            commission_model={"type": "spread"},
+            sessions=[
+                SessionDefinition(
+                    close_time=time(17, 0), close_timezone="America/New_York"
+                )
+            ],
+            symbol="TEST",
+        )
+
+        return df_any, ["dq_flag"], mock_instrument
 
     monkeypatch.setattr(cli, "load_from_catalog", fake_load_from_catalog)
 
@@ -169,9 +191,31 @@ def test_cmd_run_backtest_fast_mode_last_days_and_overrides(
     cli, run_path, calls = cli_stubs
 
     def load_catalog(_request):
+        from datetime import time
+
+        from trading_platform.data.instrument import (
+            InstrumentDefinition,
+            SessionDefinition,
+        )
+
         idx = pd.date_range("2024-01-01", periods=4, freq="h")
         df = pd.DataFrame({"close": [1.0, 2.0, 3.0, 4.0]}, index=idx)
-        return df, []
+
+        # Create a mock instrument definition
+        mock_instrument = InstrumentDefinition(
+            asset_class="Forex",
+            point_value=1.0,
+            tick_size=0.00001,
+            commission_model={"type": "spread"},
+            sessions=[
+                SessionDefinition(
+                    close_time=time(17, 0), close_timezone="America/New_York"
+                )
+            ],
+            symbol="TEST",
+        )
+
+        return df, [], mock_instrument
 
     monkeypatch.setattr(cli, "load_from_catalog", load_catalog)
     monkeypatch.setattr(
@@ -269,8 +313,30 @@ def test_cmd_run_backtest_fast_mode_limit_and_exception(
     cli, _, calls = cli_stubs
 
     def load_catalog(_request):
+        from datetime import time
+
+        from trading_platform.data.instrument import (
+            InstrumentDefinition,
+            SessionDefinition,
+        )
+
         df = pd.DataFrame({"close": list(range(6))})
-        return df, []
+
+        # Create a mock instrument definition
+        mock_instrument = InstrumentDefinition(
+            asset_class="Forex",
+            point_value=1.0,
+            tick_size=0.00001,
+            commission_model={"type": "spread"},
+            sessions=[
+                SessionDefinition(
+                    close_time=time(17, 0), close_timezone="America/New_York"
+                )
+            ],
+            symbol="TEST",
+        )
+
+        return df, [], mock_instrument
 
     monkeypatch.setattr(cli, "load_from_catalog", load_catalog)
     monkeypatch.setattr(
@@ -507,9 +573,31 @@ def test_cmd_run_backtest_with_paths_and_failures(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "RunConfig", DummyRunConfig)
 
     def load_catalog(_request):
+        from datetime import time
+
+        from trading_platform.data.instrument import (
+            InstrumentDefinition,
+            SessionDefinition,
+        )
+
         idx = pd.date_range("2024-01-01", periods=6, freq="h")
         df = pd.DataFrame({"close": range(6)}, index=idx)
-        return df, []
+
+        # Create a mock instrument definition
+        mock_instrument = InstrumentDefinition(
+            asset_class="Forex",
+            point_value=1.0,
+            tick_size=0.00001,
+            commission_model={"type": "spread"},
+            sessions=[
+                SessionDefinition(
+                    close_time=time(17, 0), close_timezone="America/New_York"
+                )
+            ],
+            symbol="TEST",
+        )
+
+        return df, [], mock_instrument
 
     monkeypatch.setattr(cli, "load_from_catalog", load_catalog)
     monkeypatch.setattr(

@@ -48,7 +48,7 @@ This document outlines the precise, ordered steps required to implement session-
 
 ### 3. Refactor: Enhance Data Loader to Return Instrument Definition
 
-- [ ] **3.1. Create Test for Modified Loader Return Signature**
+- [x] **3.1. Create Test for Modified Loader Return Signature**
     *   **File:** `tests/data/test_loader.py` (create this new file).
     *   **Action:** Create a test function `test_load_from_catalog_returns_instrument_definition`.
     *   **Logic:**
@@ -57,7 +57,7 @@ This document outlines the precise, ordered steps required to implement session-
         3.  Assert that the function returns a tuple with exactly three elements.
         4.  Assert that the third element is an instance of `InstrumentDefinition`.
 
-- [ ] **3.2. Implement Modified Loader Logic**
+- [x] **3.2. Implement Modified Loader Logic**
     *   **File:** `src/trading_platform/data/loader.py`
     *   **Action:**
         1.  Import `get_instrument_definition` and `InstrumentDefinition` from `..data.instrument`.

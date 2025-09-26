@@ -5,13 +5,14 @@ from typing import Any
 
 import pandas as pd
 
+from .instrument import InstrumentDefinition, get_instrument_definition
 from .schema import load_and_normalize_data, resample_ohlc
 
 
 def load_from_catalog(
     data_request: dict[str, Any],
     catalog_path: Path | None = None,
-) -> tuple[pd.DataFrame, list[str]]:
+) -> tuple[pd.DataFrame, list[str], InstrumentDefinition]:
     """Load normalized OHLCV from a symbol catalog using a data request.
 
     data_request keys:
@@ -39,6 +40,9 @@ def load_from_catalog(
     if not csv_path:
         raise ValueError(f"symbol not in catalog: {symbol}")
 
+    # Get instrument definition after validating symbol is in catalog
+    instrument = get_instrument_definition(symbol)
+
     df, flags = load_and_normalize_data(Path(str(csv_path)).expanduser())
 
     # Fail fast if loader detected unusable data
@@ -62,4 +66,4 @@ def load_from_catalog(
     if end:
         df = df.loc[: pd.to_datetime(end, utc=True)]
 
-    return df, flags
+    return df, flags, instrument
