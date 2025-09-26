@@ -43,9 +43,7 @@ def test_all_indicators_have_required_fields():
 
 def test_indicator_categories():
     """Test that all indicators have valid categories."""
-    valid_categories = {
-        "trend", "momentum", "volatility", "volume", "price", "levels"
-    }
+    valid_categories = {"trend", "momentum", "volatility", "volume", "price", "levels"}
 
     for indicator_name, indicator_config in INDICATORS.items():
         category = indicator_config["category"]
@@ -101,17 +99,32 @@ def test_specific_indicators_exist():
     """Test that expected specific indicators exist in registry."""
     expected_indicators = {
         # Moving Averages
-        "SMA", "EMA", "WMA",
+        "SMA",
+        "EMA",
+        "WMA",
         # Momentum/Oscillators
-        "MACD", "RSI", "STOCH", "CCI", "ROC",
+        "MACD",
+        "RSI",
+        "STOCH",
+        "CCI",
+        "ROC",
         # Trend
-        "PSAR", "ADX",
+        "PSAR",
+        "ADX",
         # Volatility
-        "BB", "BBWidth", "ATR", "KC",
+        "BB",
+        "BBWidth",
+        "ATR",
+        "KC",
         # Volume
-        "OBV", "CMF", "VWAP",
+        "OBV",
+        "CMF",
+        "VWAP",
         # Levels/Derived
-        "FIB", "HHV", "LLV", "DC"
+        "FIB",
+        "HHV",
+        "LLV",
+        "DC",
     }
 
     for indicator in expected_indicators:
@@ -296,8 +309,8 @@ def test_indicator_naming_conventions():
     for indicator_name in INDICATORS.keys():
         # Names should not contain spaces
         msg = f"{indicator_name} should not contain spaces"
-        assert ' ' not in indicator_name, msg
+        assert " " not in indicator_name, msg
         # Names should be alphanumeric or underscores
-        clean_name = indicator_name.replace('_', '')
+        clean_name = indicator_name.replace("_", "")
         msg = f"{indicator_name} should be alphanumeric"
         assert clean_name.isalnum(), msg

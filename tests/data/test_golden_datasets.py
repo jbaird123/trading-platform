@@ -149,5 +149,5 @@ def test_resampling_1min_to_1h_matches_golden_data(golden_data_1h):
     assert np.allclose(
         aligned_resampled["volume"],
         aligned_golden["volume"],
-        rtol=1e-2  # Allow for 1% difference in volume
+        rtol=1e-2,  # Allow for 1% difference in volume
     ), "Resampled volume does not match golden data within tolerance."
