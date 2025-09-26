@@ -105,7 +105,7 @@ The developer must follow these tasks in the specified sequence. All changes mus
 
 ### 5. Update Documentation
 
-- [ ] **5.1. Update `project_requirements.md`**
+- [x] **5.1. Update `project_requirements.md`**
     - **File:** `docs/project_requirements.md`
     - **Action:** Add a new system-wide requirement to formally document the symbol policy.
     - **Logic:**
