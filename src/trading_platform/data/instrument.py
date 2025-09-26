@@ -21,27 +21,42 @@ class InstrumentDefinition(BaseModel):
         return self.model_dump()
 
 
-# Placeholder for a more robust instrument definition provider.
-_INSTRUMENT_DEFINITIONS: dict[str, dict[str, Any]] = {
-    "EUR_USD": {
-        "asset_class": "Forex",
-        "point_value": 1.0,  # Canonical value, not lot-specific
-        "tick_size": 0.00001,
-        "commission_model": {"type": "spread"},
-        "sessions": [("00:00", "23:59")],
-    },
-    "GBP_JPY": {
+# Define default properties for asset classes to reduce repetition.
+_ASSET_CLASS_DEFAULTS: dict[str, dict[str, Any]] = {
+    "Forex": {
         "asset_class": "Forex",
         "point_value": 1.0,
-        "tick_size": 0.001,
         "commission_model": {"type": "spread"},
         "sessions": [("00:00", "23:59")],
-    },
+    }
+}
+
+# Define instrument-specific overrides and properties.
+_INSTRUMENT_DEFINITIONS: dict[str, dict[str, Any]] = {
+    "AUD/USD": {"tick_size": 0.00001},
+    "EUR/GBP": {"tick_size": 0.00001},
+    "EUR/JPY": {"tick_size": 0.001},
+    "EUR/USD": {"tick_size": 0.00001},
+    "GBP/JPY": {"tick_size": 0.001},
+    "GBP/USD": {"tick_size": 0.00001},
+    "NZD/USD": {"tick_size": 0.00001},
+    "USD/CAD": {"tick_size": 0.00001},
+    "USD/CHF": {"tick_size": 0.00001},
+    "USD/JPY": {"tick_size": 0.001},
 }
 
 
 def get_instrument_definition(symbol: str) -> InstrumentDefinition:
     """Retrieves the instrument definition for a given symbol."""
-    if symbol not in _INSTRUMENT_DEFINITIONS:
+    instrument_overrides = _INSTRUMENT_DEFINITIONS.get(symbol)
+    if not instrument_overrides:
         raise ValueError(f"No instrument definition found for symbol: {symbol}")
-    return InstrumentDefinition(**_INSTRUMENT_DEFINITIONS[symbol])
+
+    # For now, all defined instruments are Forex. This can be expanded later.
+    asset_class = "Forex"
+    defaults = _ASSET_CLASS_DEFAULTS.get(asset_class, {})
+
+    # Merge defaults with instrument-specific overrides.
+    merged_props = {**defaults, **instrument_overrides, "symbol": symbol}
+
+    return InstrumentDefinition(**merged_props)

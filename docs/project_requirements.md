@@ -130,6 +130,27 @@ _Last updated: 2025-09-16_
 - **[DH-2.12]** Expose a `DataRequest(symbol, timeframe, start, end, features=[...]) -> DataFrame` interface.
 - **[DH-2.13]** All functionality must be tested using golden dataset fixtures, schema invariants, and resampling correctness checks.
 
+### Automated Data Synchronization Service
+
+- **[DH-2.14] Core Functionality:** The system must provide a service to incrementally download and update **1-minute** historical market data from Dukascopy for a configured list of symbols, reusing the existing `dukascopy-python` library.
+
+- **[DH-2.15] Executable Interface:** The service shall be executable as a standalone script or CLI command.
+    - **[DH-2.15.1]** The command must accept arguments to specify the symbol(s) to update, including a flag to run for all defined instruments (e.g., `--symbol EUR/USD` or `--all`).
+
+- **[DH-2.16] Automatic Date Range Detection:**
+    - **[DH-2.16.1]** For a given symbol, the service must automatically determine the correct start date for a new download by finding the most recent data file in `data/full/` or `data/incremental/` and parsing the `toDate` from its filename.
+    - **[DH-2.16.2]** The end date for the download must be the most recent completed day (i.e., yesterday UTC) to avoid partial daily data.
+
+- **[DH-2.17] Incremental File Storage & Naming:**
+    - **[DH-2.17.1]** Newly downloaded data must be stored in a new directory structure: `data/incremental/<SYMBOL>/`, where `<SYMBOL>` is the sanitized instrument name (e.g., `eurusd`).
+    - **[DH-2.17.2]** Filenames must strictly adhere to the established convention: `{instrument}_{interval}_{startDate}_{endDate}.csv`, where dates are formatted as `YYYYMMDD`. Example: `eurusd_interval_min_1_20250824_20250926.csv`.
+
+- **[DH-2.18] Unified Data Loading:** The core `DataHandler` must be updated to seamlessly load the complete history for a symbol.
+    - **[DH-2.18.1]** When data for a symbol is requested, the `DataHandler` must load the base file from `data/full/` and then load and concatenate all incremental files from `data/incremental/<SYMBOL>/` in chronological order.
+    - **[DH-2.18.2]** The final DataFrame must be a single, unified time-series with no duplicate entries.
+
+- **[DH-2.19] Service Logging & Reporting:** The service must provide clear, structured logging output, including the symbol being processed, the date range being downloaded, the number of new records fetched, and the location of the new incremental file.
+
 ### Future Enhancements
 - **[DH-F.1]** Implement an automated data synchronization service to connect to Dukascopy's API and regularly update the local historical CSV data, ensuring it remains current.
 - **[DH-F.2]** Implement a data versioning strategy (e.g., using DVC) to link backtest results to a specific dataset version.
