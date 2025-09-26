@@ -31,9 +31,9 @@ For each consolidation task, proceed as follows:
 - [x] Consolidate remaining export-related tests (`test_trades_csv_export.py`, etc.) into `test_exports.py`.
 
 ### `tests/core`
-- [ ] Consolidate `test_sweeps_*` and `test_parameter_sweep_*` files into `test_sweeps.py`.
-- [ ] Consolidate `test_run_*` and `test_finalize_run_*` files into `test_run.py`.
-- [ ] Consolidate `test_policy_branches_*` into `test_policy.py`.
+- [x] Consolidate `test_sweeps_*` and `test_parameter_sweep_*` files into `test_sweeps.py`.
+- [x] Consolidate `test_run_*` and `test_finalize_run_*` files into `test_run.py`.
+- [x] Consolidate `test_policy_branches_*` into `test_policy.py`.
 
 ### `tests/strategy`
 - [ ] Consolidate `test_base_strategy_*` files into `test_base_strategy.py`.
