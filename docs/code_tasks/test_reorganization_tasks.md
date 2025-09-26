@@ -46,9 +46,9 @@ For each consolidation task, proceed as follows:
 - [x] Review and consolidate other `*_coverage_gaps.py` files into their corresponding component test files.
 
 ### `tests/data`
-- [ ] Consolidate `test_loader_*` files into `test_loader.py`.
-- [ ] Consolidate `test_schema_*` files into `test_schema.py`.
-- [ ] Consolidate `test_instrument_*` files into `test_instrument.py`.
+- [x] Consolidate `test_loader_*` files into `test_loader.py`.
+- [x] Consolidate `test_schema_*` files into `test_schema.py`.
+- [x] Consolidate `test_instrument_*` files into `test_instrument.py`.
 
 ### `tests/regime_market_manager`
 - [ ] Consolidate `test_classification_*` files into `test_classification.py`.
