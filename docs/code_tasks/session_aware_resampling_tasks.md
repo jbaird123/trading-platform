@@ -27,7 +27,7 @@ This document outlines the precise, ordered steps required to implement session-
 
 ### 2. Update: Standardize Forex Session Information
 
-- [ ] **2.1. Create Test for Standard Forex Session**
+- [x] **2.1. Create Test for Standard Forex Session**
     *   **File:** `tests/data/test_instrument.py`
     *   **Action:** Create a new test function `test_forex_instruments_use_standard_session`.
     *   **Logic:**
@@ -36,7 +36,7 @@ This document outlines the precise, ordered steps required to implement session-
         3.  Call `get_instrument_definition("EUR_USD")` and assert that its `sessions[0].close_time` and `sessions[0].close_timezone` match the expected session.
         4.  Call `get_instrument_definition("GBP_JPY")` and assert the same.
 
-- [ ] **2.2. Implement Standard Forex Session Data**
+- [x] **2.2. Implement Standard Forex Session Data**
     *   **File:** `src/trading_platform/data/instrument.py`
     *   **Action:**
         1.  At the top of the file, define a constant for the standard Forex session:

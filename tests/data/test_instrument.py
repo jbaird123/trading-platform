@@ -82,3 +82,20 @@ def test_instrument_and_session_models():
             symbol="TEST/USD",
             # Missing sessions field - should raise ValidationError
         )
+
+
+def test_forex_instruments_use_standard_session():
+    """Test that forex instruments use the standard session."""
+    # Define the expected session
+    expected_close_time = time(17, 0)
+    expected_timezone = "America/New_York"
+
+    # Test EUR_USD
+    eur_usd_def = get_instrument_definition("EUR_USD")
+    assert eur_usd_def.sessions[0].close_time == expected_close_time
+    assert eur_usd_def.sessions[0].close_timezone == expected_timezone
+
+    # Test GBP_JPY
+    gbp_jpy_def = get_instrument_definition("GBP_JPY")
+    assert gbp_jpy_def.sessions[0].close_time == expected_close_time
+    assert gbp_jpy_def.sessions[0].close_timezone == expected_timezone

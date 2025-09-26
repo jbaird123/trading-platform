@@ -29,13 +29,18 @@ class InstrumentDefinition(BaseModel):
         return self.model_dump()
 
 
+# Standard Forex session constant
+_FOREX_SESSION = [
+    SessionDefinition(close_time=time(17, 0), close_timezone="America/New_York")
+]
+
 # Define default properties for asset classes to reduce repetition.
 _ASSET_CLASS_DEFAULTS: dict[str, dict[str, Any]] = {
     "Forex": {
         "asset_class": "Forex",
         "point_value": 1.0,
         "commission_model": {"type": "spread"},
-        "sessions": [SessionDefinition(close_time=time(23, 59), close_timezone="UTC")],
+        "sessions": _FOREX_SESSION,
     }
 }
 
@@ -45,7 +50,9 @@ _INSTRUMENT_DEFINITIONS: dict[str, dict[str, Any]] = {
     "EUR/GBP": {"tick_size": 0.00001},
     "EUR/JPY": {"tick_size": 0.001},
     "EUR/USD": {"tick_size": 0.00001},
+    "EUR_USD": {"tick_size": 0.00001, "sessions": _FOREX_SESSION},
     "GBP/JPY": {"tick_size": 0.001},
+    "GBP_JPY": {"tick_size": 0.001, "sessions": _FOREX_SESSION},
     "GBP/USD": {"tick_size": 0.00001},
     "NZD/USD": {"tick_size": 0.00001},
     "USD/CAD": {"tick_size": 0.00001},
