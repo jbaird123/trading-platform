@@ -51,6 +51,6 @@ For each consolidation task, proceed as follows:
 - [x] Consolidate `test_instrument_*` files into `test_instrument.py`.
 
 ### `tests/regime_market_manager`
-- [ ] Consolidate `test_classification_*` files into `test_classification.py`.
-- [ ] Consolidate `test_config_*` files into `test_config.py`.
-- [ ] Consolidate `test_rmm_engine_*` files into `test_engine.py`.
+- [x] Consolidate `test_classification_*` files into `test_classification.py`.
+- [x] Consolidate `test_config_*` files into `test_config.py`.
+- [x] Consolidate `test_rmm_engine_*` files into `test_engine.py`.
