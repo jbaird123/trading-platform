@@ -6,6 +6,7 @@ from typing import Any
 
 import pandas as pd
 import pytest
+from trading_platform.ai.inference_client import AIInferenceClient
 from trading_platform.strategy import yaml_strategy as ys
 
 
@@ -90,14 +91,15 @@ def test_eval_rule_block_branches():
     df = pd.DataFrame({"x": [2, 3, 4], "y": [0, 1, 2]})
     all_block = {"all_of": [{"condition": "is_above", "left": "x", "right": "y"}]}
     any_block = {"any_of": [{"condition": "is_below", "left": "y", "right": "x"}]}
-    none_block = {}
+    none_block: dict[str, Any] = {}
     assert ys._eval_rule_block(df, all_block).all()
     assert ys._eval_rule_block(df, any_block).iloc[0]
     assert not ys._eval_rule_block(df, none_block).any()
 
 
-class DummyAIClient:
+class DummyAIClient(AIInferenceClient):
     def __init__(self, responses: list[dict[str, Any]] | Exception):
+        super().__init__()
         self._responses = responses
         self.calls = 0
 
@@ -109,11 +111,14 @@ class DummyAIClient:
 
 
 def _patch_features(monkeypatch, frame: pd.DataFrame) -> None:
-    monkeypatch.setattr(
-        ys,
-        "compute_features",
-        lambda df, f, p: frame.copy(),
-    )
+    def fake_features(
+        df: pd.DataFrame,
+        feats: list[dict],
+        params: dict,
+    ) -> pd.DataFrame:
+        return frame.reset_index(drop=True).copy()
+
+    monkeypatch.setattr(ys, "compute_features", fake_features)
 
 
 def test_compiled_strategy_generate_signals_basic(monkeypatch):
@@ -137,6 +142,70 @@ def test_compiled_strategy_generate_signals_basic(monkeypatch):
     assert list(sig) == ["flat", "long", "flat"]
     assert strat.get_context(1) == {"feat": 1}
     assert strat.get_context(10) == {}
+
+
+def test_compiled_strategy_short_exit_branch(monkeypatch):
+    base = pd.DataFrame({"close": [12, 8, 7, 11]})
+    _patch_features(monkeypatch, base)
+    strat = ys.CompiledStrategy(
+        name="short-exit",
+        overlays=[],
+        features=[],
+        long_entry_blocks=[],
+        long_exit_blocks=[],
+        short_entry_blocks=[
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": "close",
+                        "right": 9,
+                    }
+                ]
+            }
+        ],
+        short_exit_blocks=[
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": "close",
+                        "right": 10,
+                    }
+                ]
+            }
+        ],
+        parameters={},
+    )
+    sig = strat.generate_signals(base)
+    assert list(sig) == ["flat", "short", "short", "flat"]
+
+
+def test_compiled_strategy_short_exit_never_triggers(monkeypatch):
+    base = pd.DataFrame({"close": [12, 8, 7, 6]})
+    _patch_features(monkeypatch, base)
+    strat = ys.CompiledStrategy(
+        name="short-stick",
+        overlays=[],
+        features=[],
+        long_entry_blocks=[],
+        long_exit_blocks=[],
+        short_entry_blocks=[
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": "close",
+                        "right": 9,
+                    }
+                ]
+            }
+        ],
+        short_exit_blocks=[],
+        parameters={},
+    )
+    sig = strat.generate_signals(base)
+    assert list(sig) == ["flat", "short", "short", "short"]
 
 
 def test_compiled_strategy_slope_and_ai_filter(monkeypatch):
@@ -184,6 +253,29 @@ def test_compiled_strategy_slope_and_ai_filter(monkeypatch):
     assert ai_client.calls == 1
     assert len(values) == 4
     assert set(values).issubset({"flat", "long", "short"})
+
+
+def test_compiled_strategy_slope_filter_missing_column(monkeypatch):
+    base = pd.DataFrame({"close": [1.0, 2.0, 3.0]})
+    _patch_features(monkeypatch, base)
+    strat = ys.CompiledStrategy(
+        name="slope-missing",
+        overlays=[],
+        features=[],
+        long_entry_blocks=[
+            {"any_of": [{"condition": "is_above", "left": "close", "right": 0}]}
+        ],
+        long_exit_blocks=[
+            {"any_of": [{"condition": "is_below", "left": "close", "right": 5}]}
+        ],
+        short_entry_blocks=[],
+        short_exit_blocks=[],
+        parameters={"slope_filter": True, "slope_feature": "ema_missing"},
+        slope_filter=True,
+        slope_feature="ema_missing",
+    )
+    sig = strat.generate_signals(base)
+    assert list(sig) == ["long", "flat", "long"]
 
 
 def test_compiled_strategy_ai_filter_missing_features(monkeypatch, caplog):
@@ -236,6 +328,15 @@ def test_compiled_strategy_ai_filter_exception(monkeypatch, caplog):
 def test_compiled_strategy_ai_filter_with_inputs(monkeypatch):
     base = pd.DataFrame({"close": [1, 2], "fast": [0.5, 0.6]})
     _patch_features(monkeypatch, base)
+    original_getitem = pd.DataFrame.__getitem__
+
+    def safe_getitem(self: pd.DataFrame, key):
+        if isinstance(key, list):
+            data = {col: original_getitem(self, col) for col in key}
+            return pd.DataFrame(data, index=self.index)
+        return original_getitem(self, key)
+
+    monkeypatch.setattr(pd.DataFrame, "__getitem__", safe_getitem)
     ai_client = DummyAIClient(
         [
             {"prediction": "long", "confidence": 0.9},
