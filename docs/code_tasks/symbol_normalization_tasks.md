@@ -30,7 +30,7 @@ The developer must follow these tasks in the specified sequence. All changes mus
 
 ### 2. Refactor Instrument Definitions
 
-- [ ] **2.1. Create Test for Instrument Definition Normalization**
+- [x] **2.1. Create Test for Instrument Definition Normalization**
     - **File:** `tests/data/test_instrument.py`
     - **Action:** Create a new test function `test_get_instrument_definition_with_normalization`.
     - **Logic:**
@@ -39,7 +39,7 @@ The developer must follow these tasks in the specified sequence. All changes mus
         3.  Assert that `get_instrument_definition("EUR_USD")` returns the exact same definition object.
         4.  For each of the calls above, assert that the returned `InstrumentDefinition` object has its `symbol` attribute set to the canonical value: `"EURUSD"`.
 
-- [ ] **2.2. Refactor `instrument.py` to Use Normalization**
+- [x] **2.2. Refactor `instrument.py` to Use Normalization**
     - **File:** `src/trading_platform/data/instrument.py`
     - **Action:** Modify the instrument dictionary and the getter function to enforce normalization.
     - **Logic:**
@@ -61,13 +61,13 @@ The developer must follow these tasks in the specified sequence. All changes mus
 
 ### 3. Refactor Data Catalog and Loader
 
-- [ ] **3.1. Standardize `data_catalog.yaml`**
+- [x] **3.1. Standardize `data_catalog.yaml`**
     - **File:** `config/data_catalog.yaml`
     - **Action:** Update all instrument keys to the canonical format.
     - **Logic:**
         -   Ensure all top-level keys for instruments are in the `EURUSD` format. For example, `EUR_USD:` must be changed to `EURUSD:`.
 
-- [ ] **3.2. Update `load_from_catalog` Test**
+- [x] **3.2. Update `load_from_catalog` Test**
     - **File:** `tests/data/test_loader.py`
     - **Action:** Modify existing tests for `load_from_catalog` to verify normalization.
     - **Logic:**
@@ -75,7 +75,7 @@ The developer must follow these tasks in the specified sequence. All changes mus
         2.  Assert that the function correctly loads data by looking up the canonical key (`"EURUSD"`) in the catalog.
         3.  Assert that the returned `InstrumentDefinition` object has its `symbol` attribute set to `"EURUSD"`.
 
-- [ ] **3.3. Refactor `loader.py` to Use Normalization**
+- [x] **3.3. Refactor `loader.py` to Use Normalization**
     - **File:** `src/trading_platform/data/loader.py`
     - **Action:** Modify the `load_from_catalog` function.
     - **Logic:**
