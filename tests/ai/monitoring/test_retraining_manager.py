@@ -1,4 +1,5 @@
-from unittest.mock import patch
+import sys
+from unittest.mock import Mock, patch
 
 import pandas as pd
 import pytest
@@ -204,3 +205,79 @@ class TestAIRetrainingManager:
         mock_retraining_manager.trigger_training_pipeline()
         MockAITrainingPipeline.assert_called_once_with(config_path="config.yaml")
         MockAITrainingPipeline.return_value.run.assert_called_once()
+
+
+# --- Consolidated from tests/ai/test_monitoring_retraining_coverage_gaps.py ---
+
+
+def _fixture_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
+    new_data = pd.DataFrame({"feature1": [1, 2, 3]})
+    baseline_data = pd.DataFrame({"feature1": [1, 2, 3]})
+    model_predictions = pd.Series([1, 0, 1])
+    true_labels = pd.Series([1, 0, 1])
+    return new_data, baseline_data, model_predictions, true_labels
+
+
+def test_scheduled_retraining_interval() -> None:
+    manager = AIRetrainingManager(
+        {"retraining_criteria": {"scheduled_interval": "weekly"}}
+    )
+    brief: dict[str, dict[str, float]] = {"overall_performance": {}}
+
+    with patch.object(
+        manager.drift_detector,
+        "check_for_drift",
+        return_value={"data_drift_detected": False, "concept_drift_detected": False},
+    ):
+        assert (
+            manager.evaluate_retraining_need(
+                *_fixture_inputs(), current_performance_brief=brief
+            )
+            is False
+        )
+
+
+def test_retraining_missing_performance_data() -> None:
+    manager = AIRetrainingManager(
+        {
+            "retraining_criteria": {
+                "on_performance_degradation": True,
+                "min_sharpe_for_retraining": 1.0,
+            }
+        }
+    )
+    with patch.object(
+        manager.drift_detector,
+        "check_for_drift",
+        return_value={"data_drift_detected": False, "concept_drift_detected": False},
+    ):
+        assert (
+            manager.evaluate_retraining_need(
+                *_fixture_inputs(), current_performance_brief={}
+            )
+            is False
+        )
+
+
+def test_retraining_none_sharpe_threshold() -> None:
+    manager = AIRetrainingManager(
+        {
+            "retraining_criteria": {
+                "on_performance_degradation": True,
+                "min_sharpe_for_retraining": None,
+            }
+        }
+    )
+    brief = {"overall_performance": {"sharpe_ratio": None}}
+
+    with patch.object(
+        manager.drift_detector,
+        "check_for_drift",
+        return_value={"data_drift_detected": False, "concept_drift_detected": False},
+    ):
+        assert (
+            manager.evaluate_retraining_need(
+                *_fixture_inputs(), current_performance_brief=brief
+            )
+            is False
+        )

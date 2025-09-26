@@ -1,3 +1,10 @@
+import importlib
+import os
+import runpy
+import sys
+from io import StringIO
+from unittest.mock import patch
+
 import pandas as pd
 import pytest
 from trading_platform.ai.feature_engineering.pipeline import (
@@ -149,3 +156,90 @@ def test_run_dropna_behavior(sample_dataframe):
     # The first two rows should be dropped for SMA(3)
     assert len(featured_df) == len(short_df) - 2
     assert not featured_df.isnull().any().any()
+
+
+# --- Consolidated from tests/ai/test_feature_engineering_coverage_gaps.py ---
+
+
+def test_feature_engineering_pipeline_main_block():
+    """Ensure the pipeline demo main block executes and prints status."""
+
+    module_name = "trading_platform.ai.feature_engineering.pipeline"
+    package_name = "trading_platform.ai.feature_engineering"
+    captured_output = StringIO()
+
+    saved_module = sys.modules.pop(module_name, None)
+    package = sys.modules.get(package_name)
+    saved_attr = None
+    if package is not None and hasattr(package, "pipeline"):
+        saved_attr = package.pipeline
+        delattr(package, "pipeline")
+
+    with patch("sys.stdout", captured_output), patch("sys.argv", ["pipeline.py"]):
+        try:
+            runpy.run_module(module_name, run_name="__main__")
+        except SystemExit:
+            pass
+        finally:
+            if saved_module is not None:
+                sys.modules[module_name] = saved_module
+            else:
+                sys.modules.pop(module_name, None)
+
+            package = sys.modules.get(package_name)
+            if package is not None:
+                if saved_attr is not None:
+                    setattr(package, "pipeline", saved_attr)
+                elif hasattr(package, "pipeline"):
+                    delattr(package, "pipeline")
+            elif saved_attr is not None:
+                training_pkg = importlib.import_module(package_name)
+                setattr(training_pkg, "pipeline", saved_attr)
+
+    output = captured_output.getvalue()
+    assert "Running feature engineering for 2 features..." in output
+    assert "Feature engineering complete." in output
+    assert "DataFrame with new features:" in output
+
+
+def test_feature_engineering_pipeline_example_data():
+    """Demo configurations should generate expected indicator columns."""
+    from trading_platform.ai.feature_engineering.pipeline import (
+        FeatureEngineeringPipeline,
+    )
+
+    dates = pd.date_range("2023-01-01", periods=20, freq="D")
+    data = {
+        "timestamp": dates,
+        "open": [1.0 + i * 0.01 for i in range(20)],
+        "high": [1.1 + i * 0.01 for i in range(20)],
+        "low": [0.95 + i * 0.01 for i in range(20)],
+        "close": [1.05 + i * 0.01 for i in range(20)],
+        "volume": [100 + i * 5 for i in range(20)],
+    }
+    sample_df = pd.DataFrame(data).set_index("timestamp")
+
+    features_to_add_buggy = [
+        {"kind": "sma", "length": 2},
+        {"kind": "rsi", "length": 2},
+    ]
+
+    pipeline_buggy = FeatureEngineeringPipeline(sample_df)
+    featured_df_buggy = pipeline_buggy.run(features_to_add_buggy)
+
+    assert "close" in featured_df_buggy.columns
+    assert "sma_14" in featured_df_buggy.columns
+    assert "rsi_14" in featured_df_buggy.columns
+
+    features_to_add_correct = [
+        {"kind": "sma", "params": {"length": 2}},
+        {"kind": "rsi", "params": {"length": 2}},
+    ]
+
+    pipeline_correct = FeatureEngineeringPipeline(sample_df)
+    featured_df_correct = pipeline_correct.run(features_to_add_correct)
+
+    assert not featured_df_correct.empty
+    assert "close" in featured_df_correct.columns
+    assert "sma_2" in featured_df_correct.columns
+    assert "rsi_2" in featured_df_correct.columns
