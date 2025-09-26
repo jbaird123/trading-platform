@@ -4,7 +4,7 @@ This document outlines the precise, ordered steps required to implement the auto
 
 ### 1. Refactor Instrument Definition Logic
 
-*   **1.1. Create Test for Asset Class Defaults**
+- [ ] **1.1. Create Test for Asset Class Defaults**
     *   **File:** `tests/data/test_instrument.py`
     *   **Action:** Create a new test function `test_get_instrument_definition_uses_asset_class_defaults`.
     *   **Logic:**
@@ -15,7 +15,7 @@ This document outlines the precise, ordered steps required to implement the auto
         5.  Assert that the `tick_size` is `0.00001` (the instrument-specific override).
         6.  Call `get_instrument_definition` for "EUR/JPY" and assert its `tick_size` is `0.001`.
 
-*   **1.2. Implement Asset Class Default Logic**
+- [ ] **1.2. Implement Asset Class Default Logic**
     *   **File:** `src/trading_platform/data/instrument.py`
     *   **Action:** Refactor the file to use a dictionary for asset class defaults.
     *   **Logic:**
@@ -25,7 +25,7 @@ This document outlines the precise, ordered steps required to implement the auto
 
 ### 2. Implement Data Synchronization Service
 
-*   **2.1. Create Test for Last Sync Date Discovery**
+- [ ] **2.1. Create Test for Last Sync Date Discovery**
     *   **File:** `tests/data/test_sync_service.py` (create this new file).
     *   **Action:** Create a test function `test_get_last_sync_date_from_filenames`.
     *   **Logic:**
@@ -33,7 +33,7 @@ This document outlines the precise, ordered steps required to implement the auto
         2.  Create a list of dummy filenames: `['eurusd_interval_min_1_20240101_20240531.csv', 'eurusd_interval_min_1_20240601_20240823.csv']`.
         3.  Call `get_last_sync_date` with this list and assert that it returns a `datetime.date` object for `2024-08-23`.
 
-*   **2.2. Implement Last Sync Date Discovery**
+- [ ] **2.2. Implement Last Sync Date Discovery**
     *   **File:** `src/trading_platform/data/sync_service.py` (create this new file).
     *   **Action:** Create the `get_last_sync_date` function.
     *   **Logic:**
@@ -43,7 +43,7 @@ This document outlines the precise, ordered steps required to implement the auto
 
 ### 3. Implement Main Orchestration Script
 
-*   **3.1. Create Test for Main Sync Script**
+- [ ] **3.1. Create Test for Main Sync Script**
     *   **File:** `tests/data/test_sync.py` (create this new file).
     *   **Action:** Create a test function `test_main_sync_logic`.
     *   **Logic:**
@@ -54,7 +54,7 @@ This document outlines the precise, ordered steps required to implement the auto
         5.  Assert `download_and_save_data` was called with `start_date=date(2025, 9, 21)` and `end_date` being yesterday.
         6.  Repeat the test, calling `main` with `['--all', ...]`. Assert that `download_and_save_data` is called for all defined instruments.
 
-*   **3.2. Implement Main Orchestration Script**
+- [ ] **3.2. Implement Main Orchestration Script**
     *   **File:** `src/trading_platform/data/sync.py` (create this new file).
     *   **Action:** Create the main script logic.
     *   **Logic:**
@@ -66,7 +66,7 @@ This document outlines the precise, ordered steps required to implement the auto
 
 ### 4. Refactor Data Loader for Incremental Files
 
-*   **4.1. Create Test for Unified Data Loading**
+- [ ] **4.1. Create Test for Unified Data Loading**
     *   **File:** `tests/data/test_loader.py`
     *   **Action:** Create a test function `test_load_from_catalog_loads_incremental_data`.
     *   **Logic:**
@@ -74,7 +74,7 @@ This document outlines the precise, ordered steps required to implement the auto
         2.  Call `load_from_catalog` for the relevant symbol.
         3.  Assert that the returned DataFrame contains the correct total number of rows and that the index is sorted and unique.
 
-*   **4.2. Implement Unified Data Loading**
+- [ ] **4.2. Implement Unified Data Loading**
     *   **File:** `src/trading_platform/data/loader.py`
     *   **Action:** Refactor the `load_from_catalog` function.
     *   **Logic:**

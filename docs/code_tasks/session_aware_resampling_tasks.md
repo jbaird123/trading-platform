@@ -4,7 +4,7 @@ This document outlines the precise, ordered steps required to implement session-
 
 ### 1. Refactor: Strengthen the Instrument and Session Data Models
 
-*   **1.1. Create Test for New Data Models**
+- [x] **1.1. Create Test for New Data Models**
     *   **File:** `tests/data/test_instrument.py`
     *   **Action:** Create a new test function `test_instrument_and_session_models`.
     *   **Logic:**
@@ -13,7 +13,7 @@ This document outlines the precise, ordered steps required to implement session-
         3.  Assert that a `SessionDefinition` object can be successfully created with `close_time="17:00"` and `close_timezone="America/New_York"`.
         4.  Assert that an `InstrumentDefinition` can be successfully created when its `sessions` field is a list containing a valid `SessionDefinition` object.
 
-*   **1.2. Implement `SessionDefinition` and Update `InstrumentDefinition`**
+- [x] **1.2. Implement `SessionDefinition` and Update `InstrumentDefinition`**
     *   **File:** `src/trading_platform/data/instrument.py`
     *   **Action:**
         1.  Import `time` from the `datetime` module.
@@ -27,7 +27,7 @@ This document outlines the precise, ordered steps required to implement session-
 
 ### 2. Update: Standardize Forex Session Information
 
-*   **2.1. Create Test for Standard Forex Session**
+- [ ] **2.1. Create Test for Standard Forex Session**
     *   **File:** `tests/data/test_instrument.py`
     *   **Action:** Create a new test function `test_forex_instruments_use_standard_session`.
     *   **Logic:**
@@ -36,7 +36,7 @@ This document outlines the precise, ordered steps required to implement session-
         3.  Call `get_instrument_definition("EUR_USD")` and assert that its `sessions[0].close_time` and `sessions[0].close_timezone` match the expected session.
         4.  Call `get_instrument_definition("GBP_JPY")` and assert the same.
 
-*   **2.2. Implement Standard Forex Session Data**
+- [ ] **2.2. Implement Standard Forex Session Data**
     *   **File:** `src/trading_platform/data/instrument.py`
     *   **Action:**
         1.  At the top of the file, define a constant for the standard Forex session:
@@ -48,7 +48,7 @@ This document outlines the precise, ordered steps required to implement session-
 
 ### 3. Refactor: Enhance Data Loader to Return Instrument Definition
 
-*   **3.1. Create Test for Modified Loader Return Signature**
+- [ ] **3.1. Create Test for Modified Loader Return Signature**
     *   **File:** `tests/data/test_loader.py` (create this new file).
     *   **Action:** Create a test function `test_load_from_catalog_returns_instrument_definition`.
     *   **Logic:**
@@ -57,7 +57,7 @@ This document outlines the precise, ordered steps required to implement session-
         3.  Assert that the function returns a tuple with exactly three elements.
         4.  Assert that the third element is an instance of `InstrumentDefinition`.
 
-*   **3.2. Implement Modified Loader Logic**
+- [ ] **3.2. Implement Modified Loader Logic**
     *   **File:** `src/trading_platform/data/loader.py`
     *   **Action:**
         1.  Import `get_instrument_definition` and `InstrumentDefinition` from `..data.instrument`.
@@ -70,7 +70,7 @@ This document outlines the precise, ordered steps required to implement session-
 
 ### 4. Implement: Session-Aware Daily Resampling
 
-*   **4.1. Create Test for Daily Resampling with Session Offset**
+- [ ] **4.1. Create Test for Daily Resampling with Session Offset**
     *   **File:** `tests/data/test_schema.py`
     *   **Action:** Create a new test function `test_resample_ohlc_with_daily_session_offset`.
     *   **Logic:**
@@ -81,7 +81,7 @@ This document outlines the precise, ordered steps required to implement session-
         5.  Assert that the timestamp of this row is the date of the data, with the time component being `00:00:00`.
         6.  Assert that the `close` price of the resampled bar is equal to the `close` price of the 1-minute bar at `16:59`.
 
-*   **4.2. Implement Session-Aware Resampling Logic**
+- [ ] **4.2. Implement Session-Aware Resampling Logic**
     *   **File:** `src/trading_platform/data/schema.py`
     *   **Action:**
         1.  Import `InstrumentDefinition` from `..data.instrument`.
@@ -98,7 +98,7 @@ This document outlines the precise, ordered steps required to implement session-
                 # Use the hour from the first session definition as the base for daily bars
                 session_hour = instrument.sessions[0].close_time.hour
                 resample_kwargs["base"] = session_hour
-            
+
             out = df.resample(rule, **resample_kwargs).agg(...)
             ```
         4.  Ensure the `df.resample` call uses `**resample_kwargs`.
