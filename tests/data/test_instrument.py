@@ -1,8 +1,14 @@
 # Validates: [DH-2.8]
 from __future__ import annotations
 
+from datetime import time
+
 import pytest
-from trading_platform.data.instrument import get_instrument_definition
+from trading_platform.data.instrument import (
+    InstrumentDefinition,
+    SessionDefinition,
+    get_instrument_definition,
+)
 
 
 def test_get_instrument_definition_success():
@@ -40,3 +46,39 @@ def test_instrument_definition_to_dict_with_overrides():
     result = definition.to_dict()
     assert result["base_ccy"] == "EUR"
     assert result["quote_ccy"] == "USD"
+
+
+def test_instrument_and_session_models():
+    """Test new SessionDefinition model and updated InstrumentDefinition."""
+    from pydantic import ValidationError
+
+    # Test that SessionDefinition can be created successfully
+    session = SessionDefinition(
+        close_time=time(17, 0), close_timezone="America/New_York"
+    )
+    assert session.close_time == time(17, 0)
+    assert session.close_timezone == "America/New_York"
+
+    # Test that InstrumentDefinition can be created with SessionDefinition
+    valid_sessions = [session]
+    instrument = InstrumentDefinition(
+        asset_class="Forex",
+        point_value=1.0,
+        tick_size=0.00001,
+        commission_model={"type": "spread"},
+        sessions=valid_sessions,
+        symbol="TEST/USD",
+    )
+    assert len(instrument.sessions) == 1
+    assert instrument.sessions[0].close_time == time(17, 0)
+
+    # Test that InstrumentDefinition cannot be created without sessions field
+    with pytest.raises(ValidationError):
+        InstrumentDefinition(  # type: ignore[call-arg]
+            asset_class="Forex",
+            point_value=1.0,
+            tick_size=0.00001,
+            commission_model={"type": "spread"},
+            symbol="TEST/USD",
+            # Missing sessions field - should raise ValidationError
+        )

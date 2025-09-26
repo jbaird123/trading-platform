@@ -1,8 +1,16 @@
 from __future__ import annotations
 
+from datetime import time
 from typing import Any
 
 from pydantic import BaseModel
+
+
+class SessionDefinition(BaseModel):
+    """Defines a trading session with close time and timezone."""
+
+    close_time: time
+    close_timezone: str
 
 
 class InstrumentDefinition(BaseModel):
@@ -12,7 +20,7 @@ class InstrumentDefinition(BaseModel):
     point_value: float
     tick_size: float
     commission_model: dict
-    sessions: list[tuple[str, str]]
+    sessions: list[SessionDefinition]
     symbol: str | None = None
     base_ccy: str | None = None
     quote_ccy: str | None = None
@@ -27,7 +35,7 @@ _ASSET_CLASS_DEFAULTS: dict[str, dict[str, Any]] = {
         "asset_class": "Forex",
         "point_value": 1.0,
         "commission_model": {"type": "spread"},
-        "sessions": [("00:00", "23:59")],
+        "sessions": [SessionDefinition(close_time=time(23, 59), close_timezone="UTC")],
     }
 }
 
