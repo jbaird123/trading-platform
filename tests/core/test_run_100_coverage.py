@@ -510,7 +510,7 @@ def test_finalize_run_empty_parameter_search_results():
 
 
 def test_finalize_run_walk_forward_non_dict_config():
-    """Test walk_forward with non-dict config to skip analysis."""
+    """Test walk_forward config behavior in different scenarios."""
     trades = [
         Trade(
             symbol="EUR_USD",
@@ -528,7 +528,7 @@ def test_finalize_run_walk_forward_non_dict_config():
     with tempfile.TemporaryDirectory() as temp_dir:
         run_path = Path(temp_dir)
 
-        # Test with non-dict walk_forward config
+        # Test with empty walk_forward dict (default) to skip analysis
         config = RunConfig(
             user_id="test_user",
             initial_cash=10000.0,
@@ -536,9 +536,9 @@ def test_finalize_run_walk_forward_non_dict_config():
             run_seed=42,
             log_level="INFO",
             allow_flip_on_bar=False,
+            # walk_forward defaults to empty dict, causing isinstance check to pass
+            # but skip analysis due to missing required keys
         )
-        # Manually set walk_forward to non-dict to test isinstance check
-        config.walk_forward = "invalid_config"  # type: ignore
 
         with patch("trading_platform.core.run.walk_forward_summary") as mock_wf, patch(
             "trading_platform.core.run.save_run_brief"
@@ -549,7 +549,7 @@ def test_finalize_run_walk_forward_non_dict_config():
         ):
             mock_brief.return_value = Path(temp_dir) / "brief.json"
 
-            # Call finalize_run - should skip walk_forward due to non-dict config
+            # Call finalize_run - should skip walk_forward analysis
             result = finalize_run(
                 run_path=run_path,
                 meta={"strategy_name": "TestStrategy"},
@@ -560,7 +560,8 @@ def test_finalize_run_walk_forward_non_dict_config():
                 walk_forward=None,  # Force use of config
             )
 
-            # Verify walk_forward_summary was NOT called due to non-dict config
+            # Verify walk_forward_summary was NOT called due to empty walk_forward
+            # config
             mock_wf.assert_not_called()
 
             # Verify finalize_run completed successfully

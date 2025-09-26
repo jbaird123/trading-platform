@@ -14,6 +14,7 @@ from typing import Any
 
 import jsonschema
 import pandas as pd
+from pyarrow import ArrowInvalid  # type: ignore[import-untyped]
 from trading_platform.portfolio.metrics import (
     calculate_equity_curve,
     calculate_win_rate,
@@ -538,7 +539,7 @@ def generate_brief(
                         avg_signal_duration_bars
                     ),
                 }
-    except (OSError, FileNotFoundError, pd.errors.ParserError):
+    except (OSError, FileNotFoundError, pd.errors.ParserError, ArrowInvalid):
         # Only catch file I/O and parsing errors, let data validation errors propagate
         pass
     base = {
