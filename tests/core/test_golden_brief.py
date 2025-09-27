@@ -91,9 +91,9 @@ def test_brief_matches_golden_master(tmp_path: Path):
 
     # 2. Load all configs
     cfg_raw = yaml.safe_load(config_path.read_text())
-    strat_cfg = yaml.safe_load(Path(cfg_raw["strategy"]).read_text())
-    rem_cfg = yaml.safe_load(Path(cfg_raw["rem"]).read_text())
-    data_path = Path(cfg_raw["data"]["source"])
+    strat_cfg = yaml.safe_load((fixture_dir / cfg_raw["strategy"]).read_text())
+    rem_cfg = yaml.safe_load((fixture_dir / cfg_raw["rem"]).read_text())
+    data_path = fixture_dir / cfg_raw["data"]["source"]
 
     # 3. Prepare backtest inputs
     df, dq_flags = load_and_normalize_data(data_path)
@@ -148,6 +148,17 @@ def test_brief_matches_golden_master(tmp_path: Path):
     }
     params_snapshot = strat_cfg.get("parameters", {})
 
+    provenance = {
+        "run_id": run_config.run_id,
+        "strategy_name": strategy.name,
+        "data_start": cfg_raw["data"]["start_date"],
+        "data_end": cfg_raw["data"]["end_date"],
+        "symbols": [run_config.instrument["symbol"]],
+        "app_version": "0.0.1",  # Replace with dynamic version if available
+        "git_commit": _get_git_commit(),
+        "run_seed": run_config.run_seed,
+    }
+
     recommendations = [
         {
             "id": "consider_adx_filter_for_entries",
@@ -161,6 +172,7 @@ def test_brief_matches_golden_master(tmp_path: Path):
     finalize_run(
         run_path=run_output_path,
         meta=meta,
+        provenance=provenance,
         params=params_snapshot,
         trades=trades,
         initial_cash=initial_cash,

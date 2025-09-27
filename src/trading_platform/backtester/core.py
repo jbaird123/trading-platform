@@ -417,9 +417,9 @@ def _simulate_counterfactual_fast(
     return {
         "cf_exit_time": exit_time.isoformat(),
         "cf_exit_price": exit_price,
-        "cf_pnl_currency": pnl_net,
-        "cf_mfe_currency": float(favorable),
-        "cf_mae_currency": float(adverse),
+        "counterfactual_pnl": pnl_net,
+        "counterfactual_mfe_currency": float(favorable),
+        "counterfactual_mae_currency": float(adverse),
         "cf_bars_held": bars_held,
         "cf_mode": "fast",
     }
@@ -499,9 +499,9 @@ def _simulate_counterfactual_exact(
     return {
         "cf_exit_time": t.exit_time.isoformat(),
         "cf_exit_price": float(t.exit_price),
-        "cf_pnl_currency": float(t.pnl),
-        "cf_mfe_currency": float(t.mfe_currency or 0.0),
-        "cf_mae_currency": float(t.mae_currency or 0.0),
+        "counterfactual_pnl": float(t.pnl),
+        "counterfactual_mfe_currency": float(t.mfe_currency or 0.0),
+        "counterfactual_mae_currency": float(t.mae_currency or 0.0),
         "cf_bars_held": int(t.bars_held or 0),
         "cf_bars_touched": bars_touched,
         "cf_start_index": int(start_index),
