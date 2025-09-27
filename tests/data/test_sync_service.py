@@ -55,7 +55,18 @@ def test_get_last_sync_date_with_older_file_after_newer() -> None:
     assert result == date(2024, 8, 23)
 
 
-def test_download_and_save_data_placeholder() -> None:
-    # Placeholder must be callable without side effects
-    # Should not raise any exceptions
-    download_and_save_data("EUR/USD", date.today(), date.today(), Path("."))
+def test_download_and_save_data_with_mock(tmp_path: Path, monkeypatch) -> None:
+    """Test download_and_save_data with mocked dukascopy-python."""
+    from unittest.mock import patch
+
+    import pandas as pd
+
+    # Mock the dukascopy fetch function to return empty DataFrame
+    with patch("dukascopy_python.fetch") as mock_fetch:
+        mock_fetch.return_value = pd.DataFrame()
+
+        # Should not raise any exceptions even with no data
+        download_and_save_data("EUR/USD", date(2024, 1, 1), date(2024, 1, 1), tmp_path)
+
+        # Verify that fetch was called
+        assert mock_fetch.called

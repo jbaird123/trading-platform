@@ -58,8 +58,8 @@ def download_and_save_data(
 ) -> None:
     """Download and save market data for a given symbol and date range.
 
-    This is a placeholder function that will be implemented later with actual
-    data source integration (e.g., Dukascopy API).
+    Uses the dukascopy-python library to fetch minute-level data from
+    Dukascopy and saves it in the expected format for the trading platform.
 
     Args:
         symbol: The financial instrument symbol (e.g., "EUR/USD")
@@ -67,5 +67,64 @@ def download_and_save_data(
         end_date: End date for data download
         data_root: Root directory where data files should be saved
     """
-    # Placeholder implementation - to be replaced with actual download logic
-    pass
+    from datetime import datetime
+
+    from dukascopy_python import INTERVAL_MIN_1, OFFER_SIDE_BID, fetch
+
+    # Validate date range
+    today = date.today()
+    if start_date > today:
+        print(f"! Start date {start_date} is in the future")
+        return
+
+    if end_date > today:
+        print(f"! Adjusting end date from {end_date} to {today}")
+        end_date = today
+
+    # Normalize symbol for file naming
+    normalized_symbol = symbol.replace("/", "").lower()
+
+    print(f"Downloading {symbol} data from {start_date} to {end_date}")
+
+    try:
+        # Convert dates to datetime objects for dukascopy-python
+        # Note: end_date is interpreted as start of that day (not end of day)
+        # to match reference implementation behavior
+        start_dt = datetime.combine(start_date, datetime.min.time())
+        end_dt = datetime.combine(end_date, datetime.min.time())
+
+        # Fetch data using dukascopy-python library
+        print("  Fetching data from Dukascopy...")
+        df = fetch(
+            instrument=symbol,
+            interval=INTERVAL_MIN_1,
+            offer_side=OFFER_SIDE_BID,
+            start=start_dt,
+            end=end_dt,
+        )
+
+        if df is not None and not df.empty:
+            print(f"    ✓ Got {len(df)} minute candles")
+
+            # Save to incremental directory
+            incremental_dir = data_root / "incremental" / normalized_symbol
+            incremental_dir.mkdir(parents=True, exist_ok=True)
+
+            filename = (
+                f"{normalized_symbol}_interval_minute_1_"
+                f"{start_date.strftime('%Y%m%d')}_"
+                f"{end_date.strftime('%Y%m%d')}.csv"
+            )
+            output_path = incremental_dir / filename
+
+            # Save DataFrame with timestamp index as column (to match expected format)
+            df.reset_index().to_csv(output_path, index=False)
+            print(f"✓ Saved {len(df)} minute candles to {output_path}")
+        else:
+            print("! No data was returned from Dukascopy")
+
+    except Exception as e:
+        print(f"! Error fetching data from Dukascopy: {e}")
+        import traceback
+
+        traceback.print_exc()

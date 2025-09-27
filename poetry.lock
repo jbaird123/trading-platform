@@ -433,6 +433,25 @@ trio = ["trio (>=0.30)"]
 wmi = ["wmi (>=1.5.1) ; platform_system == \"Windows\""]
 
 [[package]]
+name = "dukascopy-python"
+version = "4.0.1"
+description = "Download and stream historical price data for variety of financial instruments (Forex, Commodities and Indices) from Dukascopy Bank SA."
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "dukascopy_python-4.0.1-py3-none-any.whl", hash = "sha256:bb7ccb9b38e43276f08256c41f66ca38fd972d0d5db0081660ee652d14ddf431"},
+    {file = "dukascopy_python-4.0.1.tar.gz", hash = "sha256:5bdcf2c8a72d69ec035a56e59b5534a96ccbbbecdbe4f22d74608d88eaf39b64"},
+]
+
+[package.dependencies]
+pandas = "*"
+requests = "*"
+
+[package.extras]
+dev = ["build", "twine"]
+
+[[package]]
 name = "email-validator"
 version = "2.3.0"
 description = "A robust email address syntax and deliverability validation library."
@@ -3619,4 +3638,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "449473e4842c68f436de289f8f8e5d9824a93aa6365fc797205f0825afe76732"
+content-hash = "1469443ca722a3a9de62c18b2a66ebcba90ac16111b63d954535d70ffd35445f"
