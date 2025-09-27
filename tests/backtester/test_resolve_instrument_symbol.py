@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from trading_platform.backtester.core import resolve_instrument_symbol
 
 

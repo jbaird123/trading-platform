@@ -6,12 +6,6 @@ Merged from finalize_run and run coverage suites.
 
 from __future__ import annotations
 
-
-def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
-    """Helper to create instrument dict for RunConfig."""
-    return {"symbol": symbol}
-
-
 import json
 import tempfile
 from datetime import datetime, timedelta
@@ -25,6 +19,12 @@ from trading_platform.core.config import RunConfig
 from trading_platform.core.run import finalize_run, initialize_run
 from trading_platform.portfolio.trade import Trade
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
+
+
+def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
+    """Helper to create instrument dict for RunConfig."""
+    return {"symbol": symbol}
+
 
 # --- test_run_100_coverage.py ---
 
