@@ -120,8 +120,8 @@ git checkout -b feature/accuracy-validation-strategy
     -   Add a `costs` model to populate cost data.
     -   Append the `monte_carlo`, `walk_forward`, and `parameter_search` configurations as originally planned.
 
-### 11. [ ] Regenerate the Golden Brief File
+### 11. [x] Regenerate the Golden Brief File
 -   **Action:** This task is identical to **Task 5** from the previous plan. Delete the old file and copy the new one from the test output.
 
-### 12. [ ] Final Verification
+### 12. [x] Final Verification
 -   **Action:** This task is identical to **Task 6** from the previous plan. Run `pytest tests/core/test_golden_brief.py` to confirm it passes against the new, complete, and validated golden brief.

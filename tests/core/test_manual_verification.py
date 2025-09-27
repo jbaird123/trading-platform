@@ -4,7 +4,8 @@ This test implements Layer 1 of the accuracy validation strategy by running
 a backtest with manually crafted data and comparing the results against
 hand-calculated expected values.
 
-OBJECTIVE: Validate core PnL calculations, equity calculations, and blackout rule functionality.
+OBJECTIVE: Validate core PnL calculations, equity calculations, and blackout rule
+functionality.
 """
 
 from __future__ import annotations
@@ -106,30 +107,34 @@ def test_core_calculations_match_manual_csv():
     print("\n=== MANUAL VERIFICATION TEST RESULTS ===")
 
     # Core PnL calculation validation
-    assert (
-        performance["total_pnl"] == expected_total_pnl
-    ), f"CORE PnL FAILED - Expected {expected_total_pnl}, got {performance['total_pnl']}"
+    assert performance["total_pnl"] == expected_total_pnl, (
+        f"CORE PnL FAILED - Expected {expected_total_pnl}, "
+        f"got {performance['total_pnl']}"
+    )
     print(f"✅ Core PnL calculation: {performance['total_pnl']}")
 
     # Core equity calculation validation
-    assert (
-        performance["final_equity"] == expected_final_equity
-    ), f"CORE EQUITY FAILED - Expected {expected_final_equity}, got {performance['final_equity']}"
+    assert performance["final_equity"] == expected_final_equity, (
+        f"CORE EQUITY FAILED - Expected {expected_final_equity}, "
+        f"got {performance['final_equity']}"
+    )
     print(f"✅ Core equity calculation: {performance['final_equity']}")
 
     # Core win rate calculation validation
-    assert (
-        performance["win_rate"] == expected_win_rate
-    ), f"CORE WIN RATE FAILED - Expected {expected_win_rate}, got {performance['win_rate']}"
+    assert performance["win_rate"] == expected_win_rate, (
+        f"CORE WIN RATE FAILED - Expected {expected_win_rate}, "
+        f"got {performance['win_rate']}"
+    )
     print(f"✅ Core win rate calculation: {performance['win_rate']}")
 
     # Blackout rule functionality validation
     blackout_skips = [
         s for s in skipped if s.get("skip_reason") == expected_blackout_reason
     ]
-    assert (
-        len(blackout_skips) >= 1
-    ), f"BLACKOUT RULE FAILED - Expected at least 1 blackout skip, got {len(blackout_skips)}"
+    assert len(blackout_skips) >= 1, (
+        f"BLACKOUT RULE FAILED - Expected at least 1 blackout skip, "
+        f"got {len(blackout_skips)}"
+    )
 
     # Validate blackout occurred at 09:00 (within blackout window 08:00-10:00)
     blackout_trade = blackout_skips[0]
@@ -137,7 +142,8 @@ def test_core_calculations_match_manual_csv():
         "09:00:00" in blackout_trade["entry_time"]
     ), f"Expected blackout skip around 09:00, got {blackout_trade['entry_time']}"
     print(
-        f"✅ Blackout rule functionality: {len(blackout_skips)} skip(s) detected at correct time"
+        f"✅ Blackout rule functionality: {len(blackout_skips)} skip(s) "
+        f"detected at correct time"
     )
 
     print(f"✅ Completed trades: {len(completed_trades)}")

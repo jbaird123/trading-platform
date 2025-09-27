@@ -30,7 +30,7 @@ def compute_stationarity(trades: list[Trade]) -> dict:
     pnl_series = [trade.pnl for trade in trades]
 
     try:
-        from statsmodels.tsa.stattools import adfuller, kpss  # type: ignore
+        from statsmodels.tsa.stattools import adfuller, kpss
 
         # Run ADF test (null hypothesis: unit root/non-stationary)
         adf_result = adfuller(pnl_series)

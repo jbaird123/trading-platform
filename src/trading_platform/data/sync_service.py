@@ -254,7 +254,7 @@ def download_and_save_data(
     from datetime import datetime
 
     # dukascopy_python has no type stubs in this environment; ignore import typing
-    from dukascopy_python import INTERVAL_MIN_1, OFFER_SIDE_BID, fetch  # type: ignore
+    from dukascopy_python import INTERVAL_MIN_1, OFFER_SIDE_BID, fetch
 
     # Validate date range
     today = date.today()

@@ -1,7 +1,7 @@
 run_id: "golden_run_1"
 strategy: "./strategy.yaml"
 rem: "./rem.yaml"
-regime_market_manager: "./rmm.yaml"
+regime_market_manager: "./rem.yaml"
 instrument:
   symbol: "GOLDEN_TICKER"
   timeframe: "1H"
