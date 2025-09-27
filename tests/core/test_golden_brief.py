@@ -138,7 +138,14 @@ def test_brief_matches_golden_master(tmp_path: Path):
         exposure = []
 
     # 5. Generate the brief in a temporary location
-    meta = {"strategy_name": strategy.name, "run_id": run_config.run_id}
+    from trading_platform.cli import _get_git_commit
+
+    meta = {
+        "strategy_name": strategy.name,
+        "run_id": run_config.run_id,
+        "git_commit": _get_git_commit(),
+        "run_seed": run_config.run_seed,
+    }
     params_snapshot = strat_cfg.get("parameters", {})
 
     recommendations = [
@@ -170,5 +177,26 @@ def test_brief_matches_golden_master(tmp_path: Path):
 
     actual_brief = json.loads(generated_brief_path.read_text())
     golden_brief = json.loads(golden_brief_path.read_text())
+
+    # Validate skipped_trades structure
+    assert isinstance(actual_brief["skipped_trades"], list)
+    assert (
+        len(actual_brief["skipped_trades"]) >= 1
+    ), "Expected at least one skipped trade"
+
+    first_skip = actual_brief["skipped_trades"][0]
+    required_keys = {
+        "symbol",
+        "side",
+        "size",
+        "entry_time",
+        "skip_reason",
+        "counterfactual_pnl",
+        "counterfactual_mfe_currency",
+        "counterfactual_mae_currency",
+    }
+
+    for key in required_keys:
+        assert key in first_skip, f"Missing required key '{key}' in skipped trade"
 
     assert_briefs_equal(actual_brief, golden_brief)
