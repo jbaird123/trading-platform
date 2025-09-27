@@ -119,10 +119,10 @@ def test_verify_data_continuity_with_weekend_gap(tmp_path: Path):
     """Test that verification accepts valid weekend gaps."""
     import pandas as pd
     
-    # Set up directory structure
-    full_dir = tmp_path / "full"
+    # Set up directory structure with new convention
+    full_symbol_dir = tmp_path / "full" / "eurusd"
     inc_dir = tmp_path / "incremental" / "eurusd"
-    full_dir.mkdir(parents=True)
+    full_symbol_dir.mkdir(parents=True)
     inc_dir.mkdir(parents=True)
     
     # Create existing file ending on Friday
@@ -131,7 +131,7 @@ def test_verify_data_continuity_with_weekend_gap(tmp_path: Path):
         'open': [1.1720], 'high': [1.1721], 'low': [1.1720], 
         'close': [1.1721], 'volume': [100]
     })
-    existing_file = full_dir / "eurusd_interval_minute_1_20250822_20250822.csv"
+    existing_file = full_symbol_dir / "eurusd_interval_minute_1_20250822_20250822.csv"
     existing_data.to_csv(existing_file, index=False)
     
     # Create new file starting on Sunday
@@ -152,10 +152,10 @@ def test_verify_data_continuity_with_market_hours_gap(tmp_path: Path):
     import pandas as pd
     import pytest
     
-    # Set up directory structure
-    full_dir = tmp_path / "full"
+    # Set up directory structure with new convention
+    full_symbol_dir = tmp_path / "full" / "eurusd"
     inc_dir = tmp_path / "incremental" / "eurusd"
-    full_dir.mkdir(parents=True)
+    full_symbol_dir.mkdir(parents=True)
     inc_dir.mkdir(parents=True)
     
     # Create existing file ending on Wednesday morning
@@ -164,7 +164,7 @@ def test_verify_data_continuity_with_market_hours_gap(tmp_path: Path):
         'open': [1.1720], 'high': [1.1721], 'low': [1.1720],
         'close': [1.1721], 'volume': [100]
     })
-    existing_file = full_dir / "eurusd_interval_minute_1_20250820_20250820.csv"
+    existing_file = full_symbol_dir / "eurusd_interval_minute_1_20250820_20250820.csv"
     existing_data.to_csv(existing_file, index=False)
     
     # Create new file starting on Wednesday afternoon (gap during market hours)
