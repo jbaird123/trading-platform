@@ -70,8 +70,44 @@ def _to_module_name(path: Path) -> str:
     return ".".join(module_parts)
 
 
-def _candidate_tests_for(path: Path, test_files: list[Path]) -> list[Path]:
-    """Return test files whose stem references the module's base name."""
+def _contains_module_reference(
+    test_file: Path,
+    *,
+    module_name: str,
+    cache: dict[Path, str],
+) -> bool:
+    """Return True if the test file references the target module."""
+
+    if test_file in cache:
+        content = cache[test_file]
+    else:
+        try:
+            content = test_file.read_text()
+        except OSError:
+            cache[test_file] = ""
+            return False
+        cache[test_file] = content
+
+    if module_name in content:
+        return True
+
+    if "." in module_name:
+        parent, child = module_name.rsplit(".", 1)
+        direct_import = f"from {parent} import {child}"
+        if direct_import in content:
+            return True
+
+    return False
+
+
+def _candidate_tests_for(
+    path: Path,
+    test_files: list[Path],
+    *,
+    module_name: str,
+    cache: dict[Path, str],
+) -> list[Path]:
+    """Return test files that likely exercise ``path``."""
 
     base_name = path.stem
     if base_name == "__init__":
@@ -87,10 +123,15 @@ def _candidate_tests_for(path: Path, test_files: list[Path]) -> list[Path]:
         test_rel_parts = [
             part.lower() for part in test_file.relative_to(TESTS_ROOT).parts
         ]
-        if top_level and top_level not in test_rel_parts:
+        if top_level and top_level in test_rel_parts:
+            matches.append(test_file)
             continue
         if base_name_lower in test_file.stem.lower():
             matches.append(test_file)
+            continue
+        if _contains_module_reference(test_file, module_name=module_name, cache=cache):
+            matches.append(test_file)
+
     return matches
 
 
@@ -105,7 +146,8 @@ def main() -> int:
         )
         return 0
 
-    coverage_targets = [_to_module_name(path) for path in src_files]
+    module_names = {path: _to_module_name(path) for path in src_files}
+    coverage_targets = list(module_names.values())
 
     # Precompute available test files under tests/
     if TESTS_ROOT.exists():
@@ -114,8 +156,15 @@ def main() -> int:
         all_test_files = []
 
     test_targets: set[Path] = set()
+    content_cache: dict[Path, str] = {}
     for path in src_files:
-        for test_file in _candidate_tests_for(path, all_test_files):
+        module_name = module_names[path]
+        for test_file in _candidate_tests_for(
+            path,
+            all_test_files,
+            module_name=module_name,
+            cache=content_cache,
+        ):
             test_targets.add(test_file)
 
     pytest_cmd = [
