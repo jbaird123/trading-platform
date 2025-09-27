@@ -146,7 +146,7 @@ def _empty_sections() -> dict[str, Any]:
         "costs": {},
         "exposure": {},
         "contrasts": {},
-        "stop_tp_candidates": [],
+        "stop_tp_candidates": {},
         "parameter_search": {},
         "stationarity": {},
         "feature_analysis": {},
