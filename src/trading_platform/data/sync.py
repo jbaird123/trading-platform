@@ -53,14 +53,17 @@ def process_symbol(symbol: str, data_root: Path) -> None:
         symbol: The financial instrument symbol
         data_root: Root directory for data files
     """
+    print(f"\n--- Processing Symbol: {symbol} ---")
     # Normalize symbol for file pattern matching
     # Convert "EUR/USD" to "eurusd" for filename matching
     normalized_symbol = symbol.replace("/", "").lower()
+    print(f"Normalized Symbol: {normalized_symbol}")
 
     # Find all existing data files for this symbol
     # Look in both full and incremental directories
     full_dir = data_root / "full"
     incremental_dir = data_root / "incremental" / normalized_symbol
+    print(f"Searching for files in {full_dir} and {incremental_dir}")
 
     # Collect all CSV files
     files: list[Path] = []
@@ -73,22 +76,30 @@ def process_symbol(symbol: str, data_root: Path) -> None:
         pattern = "*.csv"
         files.extend(Path(f) for f in glob.glob(str(incremental_dir / pattern)))
 
+    print(f"Found {len(files)} files: {files}")
+
     # Get the last sync date
     last_sync_date = get_last_sync_date(files)
+    print(f"Calculated Last Sync Date: {last_sync_date}")
 
     if last_sync_date is None:
         # No existing data - could start from a default date
         # For now, skip symbols with no existing data
+        print("No existing data found or could not parse date. Skipping.")
         return
 
     # Calculate new date range
     start_date = last_sync_date + timedelta(days=1)
     end_date = date.today() - timedelta(days=1)  # Yesterday
+    print(f"Calculated Download Range: {start_date} to {end_date}")
 
     # Only proceed if there are new days to fetch
     if start_date <= end_date:
+        print(f"Attempting to download new data for {symbol}...")
         download_and_save_data(symbol, start_date, end_date, data_root)
+    else:
+        print("Data is already up-to-date. No download needed.")
 
 
 if __name__ == "__main__":
-    main()
+    main()  # pragma: no cover
