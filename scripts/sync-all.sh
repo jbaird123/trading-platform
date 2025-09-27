@@ -21,7 +21,18 @@ fi
 echo "🔄 Synchronizing all instruments..."
 echo "Data directory: $DATA_DIR"
 
-# Run sync for all instruments
-poetry run python -m trading_platform.data.sync --all --data-root "$DATA_DIR"
+# Define the instruments to sync (same as in instrument.py)
+INSTRUMENTS=("EUR/USD" "GBP/USD" "AUD/USD" "USD/JPY" "USD/CHF" "USD/CAD" "NZD/USD" "EUR/GBP" "EUR/JPY" "GBP/JPY")
 
-echo "✅ All instruments synchronized"
+# Run sync for each instrument individually (like running sync-instrument.sh multiple times)
+for symbol in "${INSTRUMENTS[@]}"; do
+    echo "🔄 Synchronizing instrument: $symbol..."
+    if poetry run python -m trading_platform.data.sync --symbol "$symbol" --data-root "$DATA_DIR"; then
+        echo "✅ $symbol synchronized successfully"
+    else
+        echo "❌ Failed to synchronize $symbol"
+        # Continue with other instruments instead of failing completely
+    fi
+done
+
+echo "✅ All instrument synchronization attempts completed"

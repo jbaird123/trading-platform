@@ -694,7 +694,15 @@
       "properties": {
         "feature_correlation_matrix": {
           "type": "object",
-          "description": "Pearson correlation matrix of all numerical features available at trade entry."
+          "description": "Pearson correlation matrix of all numerical features available at trade entry.",
+          "additionalProperties": {
+            "type": "object",
+            "description": "Correlation values for a specific feature against all other features.",
+            "additionalProperties": {
+              "type": "number",
+              "description": "Correlation coefficient between two features (values between -1 and 1)."
+            }
+          }
         }
       }
     },
