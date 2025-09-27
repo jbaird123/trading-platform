@@ -37,6 +37,7 @@ def test_cmd_run_backtest_else_branch(tmp_path: Path, monkeypatch) -> None:
         "user_id": "else_user",
         "runs_dir": str(tmp_path),
         "initial_cash": 1000,
+        "instrument": {"symbol": "EURUSD"},
         "strategy": {
             "strategy_name": "S",
             "long_entry_rules": [

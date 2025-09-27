@@ -90,6 +90,7 @@ class TestParameterSweepCoverage:
                 "user_id": "test_user",
                 "initial_cash": 10000.0,
                 "position_size": 100.0,
+                "instrument": {"symbol": "EURUSD"},
             }
             strategy_cfg = {"entry_signals": ["long"]}
 
@@ -136,7 +137,7 @@ class TestParameterSweepCoverage:
             index=pd.date_range("2024-01-01", periods=2, freq="h"),
         )
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         # Create mock trades that cause drawdown
@@ -175,7 +176,7 @@ class TestParameterSweepCoverage:
             index=pd.date_range("2024-01-01", periods=2, freq="h"),
         )
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
@@ -207,7 +208,7 @@ class TestParameterSweepCoverage:
             index=pd.date_range("2024-01-01", periods=2, freq="h"),
         )
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         # Create mock trades with varying PnL for volatility calculation
@@ -267,7 +268,7 @@ class TestWalkForwardOptimizeCoverage:
             # Call with seed to hit line 200
             result = walk_forward_optimize_and_test(
                 df=df,
-                base_cfg={"config": "test"},
+                base_cfg={"config": "test", "instrument": {"symbol": "EURUSD"}},
                 strategy_cfg={"name": "test"},
                 grid={"test_param": [1]},
                 window=2,
@@ -292,7 +293,7 @@ class TestWalkForwardOptimizeCoverage:
             index=pd.date_range("2024-01-01", periods=4, freq="D"),
         )
 
-        base_cfg = {"initial_cash": 10000.0, "user_id": "test"}
+        base_cfg = {"initial_cash": 10000.0, "user_id": "test", "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
         grid = {"param1": [1, 2]}
 
@@ -355,7 +356,7 @@ class TestMonteCarloResimulationCoverage:
             index=pd.date_range("2024-01-01", periods=2, freq="h"),
         )
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         # Configure Gaussian perturbation
@@ -399,7 +400,7 @@ class TestMonteCarloResimulationCoverage:
             index=pd.date_range("2024-01-01", periods=2, freq="h"),
         )
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         # Configure cost jitter to test lines 286-289
@@ -453,7 +454,7 @@ class TestMonteCarloResimulationCoverage:
             index=pd.date_range("2024-01-01", periods=2, freq="h"),
         )
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         # Create trades with losses to test drawdown calculation
@@ -492,7 +493,7 @@ class TestMonteCarloResimulationCoverage:
             index=pd.date_range("2024-01-01", periods=2, freq="h"),
         )
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         # Mix of winning and losing trades
@@ -531,7 +532,7 @@ class TestMonteCarloResimulationCoverage:
             index=pd.date_range("2024-01-01", periods=2, freq="h"),
         )
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         mock_trade = Mock()
@@ -567,7 +568,7 @@ class TestMonteCarloResimulationCoverage:
             index=pd.date_range("2024-01-01", periods=2, freq="h"),
         )
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         # Create trades that will result in ruin (final equity <= 0)
@@ -624,7 +625,7 @@ class TestEdgeCasesAndHelperFunctions:
             {"close": [1.0]}, index=pd.date_range("2024-01-01", periods=1, freq="h")
         )
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
@@ -656,7 +657,7 @@ class TestEdgeCasesAndHelperFunctions:
             {"close": [1.0]}, index=pd.date_range("2024-01-01", periods=1, freq="h")
         )
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         mock_trade = Mock()
@@ -690,7 +691,7 @@ class TestEdgeCasesAndHelperFunctions:
         )
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            base_cfg = {"initial_cash": 10000.0}
+            base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
             strategy_cfg = {"entry_signals": ["long"]}
 
             mock_trade = Mock()
@@ -730,7 +731,7 @@ class TestEdgeCasesAndHelperFunctions:
             {"close": [1.0]}, index=pd.date_range("2024-01-01", periods=1, freq="h")
         )
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
@@ -756,7 +757,7 @@ class TestEdgeCasesAndHelperFunctions:
             {"close": [1.0]}, index=pd.date_range("2024-01-01", periods=1, freq="h")
         )
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
@@ -793,7 +794,7 @@ class TestEdgeCasesAndHelperFunctions:
             index=pd.date_range("2024-01-01", periods=4, freq="D"),
         )
 
-        base_cfg = {"initial_cash": 10000.0, "user_id": "test"}
+        base_cfg = {"initial_cash": 10000.0, "user_id": "test", "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
         grid = {"param1": [1]}
 
@@ -858,7 +859,7 @@ class TestEdgeCasesAndHelperFunctions:
         }
         mock_cfg.model_copy.return_value = mock_cfg_copy
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         cost_jitter = {
@@ -905,7 +906,7 @@ class TestEdgeCasesAndHelperFunctions:
             index=pd.date_range("2024-01-01", periods=2, freq="h"),
         )
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         # Create trades that will trigger various equity curve conditions
@@ -944,7 +945,7 @@ class TestEdgeCasesAndHelperFunctions:
             index=pd.date_range("2024-01-01", periods=2, freq="h"),
         )
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         losing_trade = Mock()
@@ -979,7 +980,7 @@ class TestEdgeCasesAndHelperFunctions:
             {"close": [1.0]}, index=pd.date_range("2024-01-01", periods=1, freq="h")
         )
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
@@ -1011,7 +1012,7 @@ class TestEdgeCasesAndHelperFunctions:
             index=pd.date_range("2024-01-01", periods=2, freq="h"),
         )
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         # Create multiple trials with varied outcomes for risk calculation
@@ -1070,7 +1071,7 @@ class TestEdgeCasesAndHelperFunctions:
             index=pd.date_range("2024-01-01", periods=4, freq="D"),
         )
 
-        base_cfg = {"initial_cash": 10000.0, "user_id": "test"}
+        base_cfg = {"initial_cash": 10000.0, "user_id": "test", "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
         grid = {"param1": [1]}
 
@@ -1121,7 +1122,7 @@ class TestEdgeCasesAndHelperFunctions:
             index=pd.date_range("2024-01-01", periods=2, freq="h"),
         )
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         # Test with None cost_model to trigger getattr default
@@ -1184,7 +1185,7 @@ class TestEdgeCasesAndHelperFunctions:
         }
         mock_cfg.model_copy.return_value = mock_updated_cfg
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         mock_trade = Mock()
@@ -1250,7 +1251,7 @@ class TestEdgeCasesAndHelperFunctions:
 
             result = monte_carlo_resimulation(
                 df=df,
-                base_cfg={"config": "test"},
+                base_cfg={"config": "test", "instrument": {"symbol": "EURUSD"}},
                 strategy_cfg={"name": "test"},
                 trials=1,
                 perturbation={"mode": "gaussian", "std_pct": 0.1},
@@ -1268,7 +1269,7 @@ class TestEdgeCasesAndHelperFunctions:
             index=pd.date_range("2024-01-01", periods=2, freq="h"),
         )
 
-        base_cfg = {"initial_cash": 0.0}  # Zero initial cash to test edge cases
+        base_cfg = {"initial_cash": 0.0, "instrument": {"symbol": "EURUSD"}}  # Zero initial cash to test edge cases
         strategy_cfg = {"entry_signals": ["long"]}
 
         # Create trades with different outcomes
@@ -1314,7 +1315,7 @@ class TestEdgeCasesAndHelperFunctions:
             index=pd.date_range("2024-01-01", periods=4, freq="D"),
         )
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
         grid = {"param1": [1]}
 
@@ -1368,7 +1369,7 @@ class TestEdgeCasesAndHelperFunctions:
             index=pd.date_range("2024-01-01", periods=1, freq="h"),
         )
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         # Perturbation with std_pct = 0 should trigger line 302 return
@@ -1403,7 +1404,7 @@ class TestEdgeCasesAndHelperFunctions:
             index=pd.date_range("2024-01-01", periods=1, freq="h"),
         )
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         # Use perturbation to trigger the float conversion paths
@@ -1437,7 +1438,7 @@ class TestEdgeCasesAndHelperFunctions:
             {"close": [1.0]}, index=pd.date_range("2024-01-01", periods=1, freq="h")
         )
 
-        base_cfg = {"initial_cash": 5000.0}  # Lower initial cash
+        base_cfg = {"initial_cash": 5000.0, "instrument": {"symbol": "EURUSD"}}  # Lower initial cash
         strategy_cfg = {"entry_signals": ["long"]}
 
         # Create a very profitable trade to create new peak
@@ -1470,7 +1471,7 @@ class TestEdgeCasesAndHelperFunctions:
             {"close": [1.0]}, index=pd.date_range("2024-01-01", periods=1, freq="h")
         )
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
@@ -1498,7 +1499,7 @@ class TestEdgeCasesAndHelperFunctions:
             {"close": [1.0]}, index=pd.date_range("2024-01-01", periods=1, freq="h")
         )
 
-        base_cfg = {"initial_cash": 10000.0}
+        base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
         # Create losing trades to trigger CVaR calculation (tail <= var_95)
@@ -1729,6 +1730,7 @@ def test_parameter_sweep_with_rem_path():
             "initial_cash": 10000.0,
             "position_size": 100.0,
             "rem_path": yaml_path,  # This should trigger lines 93-98
+            "instrument": {"symbol": "EURUSD"},
         }
 
         strategy_cfg = {"entry_signals": ["long"], "exit_signals": ["short"]}
@@ -1782,6 +1784,7 @@ def test_parameter_sweep_with_debug_dir():
             "run_seed": 42,
             "initial_cash": 10000.0,
             "position_size": 100.0,
+            "instrument": {"symbol": "EURUSD"},
         }
 
         strategy_cfg = {"entry_signals": ["long"], "exit_signals": ["short"]}
@@ -1834,6 +1837,7 @@ def test_parameter_sweep_random_space():
         "run_seed": 42,
         "initial_cash": 10000.0,
         "position_size": 100.0,
+        "instrument": {"symbol": "EURUSD"},
     }
 
     strategy_cfg = {"entry_signals": ["long"], "exit_signals": ["short"]}
@@ -1963,6 +1967,7 @@ def test_run_parameter_sweep_returns_top_and_results():
         "warmup_bars": 0,
         "tie_break_policy": {"rule": "stop_then_tp"},
         "rem_config": {"stop_loss": {"price_offset": 0.002}},
+        "instrument": {"symbol": "EURUSD"},
     }
     strat_cfg = _strategy_cfg()
     out = run_parameter_sweep(
@@ -1986,6 +1991,7 @@ def test_parameter_sweep_pnl_minus_dd_objective():
         "warmup_bars": 0,
         "tie_break_policy": {"rule": "stop_then_tp"},
         "rem_config": {"stop_loss": {"price_offset": 0.002}},
+        "instrument": {"symbol": "EURUSD"},
     }
     strat_cfg = _strategy_cfg()
     out = run_parameter_sweep(
@@ -2007,6 +2013,7 @@ def test_parameter_sweep_pnl_dd_vol_objective():
         "warmup_bars": 0,
         "tie_break_policy": {"rule": "stop_then_tp"},
         "rem_config": {"stop_loss": {"price_offset": 0.002}},
+        "instrument": {"symbol": "EURUSD"},
     }
     strat_cfg = _strategy_cfg()
     out = run_parameter_sweep(
