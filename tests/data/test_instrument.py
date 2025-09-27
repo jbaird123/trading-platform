@@ -122,3 +122,23 @@ def test_get_instrument_definition_with_normalization():
     assert eur_usd_slash.asset_class == eur_usd_underscore.asset_class
     assert eur_usd_slash.tick_size == eur_usd_underscore.tick_size
     assert eur_usd_slash.point_value == eur_usd_underscore.point_value
+
+
+def test_get_instrument_definition_uses_asset_class_defaults():
+    """Test that instrument definitions correctly use asset class defaults."""
+    # Call get_instrument_definition for "EUR/USD"
+    eur_usd = get_instrument_definition("EUR/USD")
+
+    # Assert that the returned object's asset_class is "Forex"
+    assert eur_usd.asset_class == "Forex"
+
+    # Assert that the sessions property is not empty
+    assert eur_usd.sessions is not None
+    assert len(eur_usd.sessions) > 0
+
+    # Assert that the tick_size is 0.00001 (the instrument-specific override)
+    assert eur_usd.tick_size == 0.00001
+
+    # Call get_instrument_definition for "EUR/JPY" and assert its tick_size
+    eur_jpy = get_instrument_definition("EUR/JPY")
+    assert eur_jpy.tick_size == 0.001

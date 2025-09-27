@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import glob
 from pathlib import Path
 from typing import Any
 
@@ -47,7 +48,9 @@ def load_from_catalog(
     # Get instrument definition after validating symbol is in catalog
     instrument = get_instrument_definition(symbol)
 
-    df, flags = load_and_normalize_data(Path(str(csv_path)).expanduser())
+    # Load base file
+    base_path = Path(str(csv_path)).expanduser()
+    df, flags = load_and_normalize_data(base_path)
 
     # Fail fast if loader detected unusable data
     if df.empty:
@@ -56,6 +59,38 @@ def load_from_catalog(
             f"Flags: {flags}. Ensure CSV has 'timestamp' plus OHLCV columns."
         )
         raise ValueError(msg)
+
+    # Load incremental files if they exist
+    dataframes = [df]
+
+    # Construct path to incremental directory
+    # Assume base file is in 'data/full/' and incremental is in
+    # 'data/incremental/{symbol}/'
+    base_dir = base_path.parent
+    data_root = base_dir.parent if base_dir.name == "full" else base_dir
+    incremental_dir = data_root / "incremental" / canonical_symbol.lower()
+
+    if incremental_dir.exists():
+        # Find all CSV files in incremental directory
+        pattern = str(incremental_dir / "*.csv")
+        incremental_files = glob.glob(pattern)
+
+        # Load each incremental file
+        for file_path in incremental_files:
+            try:
+                inc_df, inc_flags = load_and_normalize_data(Path(file_path))
+                if not inc_df.empty:
+                    dataframes.append(inc_df)
+                    flags.extend(inc_flags)
+            except Exception:
+                # Skip files that fail to load - they may be incomplete
+                continue
+
+    # Combine all dataframes if we have more than just the base
+    if len(dataframes) > 1:
+        df = pd.concat(dataframes, ignore_index=False)
+        # Sort by index and drop duplicates to ensure clean time-series
+        df = df.sort_index().drop_duplicates()
 
     # Resample if timeframe provided
     tf = data_request.get("timeframe")
