@@ -21,16 +21,24 @@ def test_skipped_trades_and_filter_impact_in_brief():
     )
     skips: list[dict[str, Any]] = [
         {
-            "timestamp": datetime(2024, 1, 1, 0, 0).isoformat(),
+            "entry_time": datetime(2024, 1, 1, 0, 0).isoformat(),
             "symbol": "X",
-            "reason_code": "blackout_static",
+            "side": "long",
+            "size": 1.0,
+            "skip_reason": "blackout_static",
+            "counterfactual_entry_price": 1.0,
+            "counterfactual_pnl": 0.0,
             "policy_snapshot": {"blackout_utc": [("00:00", "01:00")]},
             "notes": None,
         },
         {
-            "timestamp": datetime(2024, 1, 1, 2, 0).isoformat(),
+            "entry_time": datetime(2024, 1, 1, 2, 0).isoformat(),
             "symbol": "X",
-            "reason_code": "position_cap",
+            "side": "long",
+            "size": 1.0,
+            "skip_reason": "position_cap",
+            "counterfactual_entry_price": 1.0,
+            "counterfactual_pnl": 0.0,
             "policy_snapshot": {"cap": 1},
             "notes": None,
         },
