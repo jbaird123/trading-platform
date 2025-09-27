@@ -35,14 +35,7 @@ def cli_stubs(monkeypatch, tmp_path):
     monkeypatch.setattr(cli, "initialize_run", lambda cfg: run_path)
     monkeypatch.setattr(cli, "_get_git_commit", lambda: "abc123")
 
-    def fake_load_from_catalog(request: dict[str, Any]):
-        from datetime import time
-
-        from trading_platform.data.instrument import (
-            InstrumentDefinition,
-            SessionDefinition,
-        )
-
+    def fake_load_instrument_data(symbol: str, data_root):
         df = pd.DataFrame(
             {"close": [1.0, 2.0, 3.0]},
             index=pd.date_range("2024-01-01", periods=3, freq="h"),
@@ -50,8 +43,21 @@ def cli_stubs(monkeypatch, tmp_path):
         df_any = cast(Any, df)
         df_any.to_parquet = lambda *_a, **_k: (_ for _ in ()).throw(Exception("boom"))
 
-        # Create a mock instrument definition
-        mock_instrument = InstrumentDefinition(
+        return df_any, ["dq_flag"]
+        df_any = cast(Any, df)
+        df_any.to_parquet = lambda *_a, **_k: (_ for _ in ()).throw(Exception("boom"))
+
+        return df_any, ["dq_flag"]
+
+    def fake_get_instrument_definition(symbol: str):
+        from datetime import time
+
+        from trading_platform.data.instrument import (
+            InstrumentDefinition,
+            SessionDefinition,
+        )
+
+        return InstrumentDefinition(
             asset_class="Forex",
             point_value=1.0,
             tick_size=0.00001,
@@ -64,9 +70,14 @@ def cli_stubs(monkeypatch, tmp_path):
             symbol="TEST",
         )
 
-        return df_any, ["dq_flag"], mock_instrument
+    def fake_resample_ohlc(df, timeframe, instrument):
+        return df
 
-    monkeypatch.setattr(cli, "load_from_catalog", fake_load_from_catalog)
+    monkeypatch.setattr(cli, "load_instrument_data", fake_load_instrument_data)
+    monkeypatch.setattr(
+        cli, "get_instrument_definition", fake_get_instrument_definition
+    )
+    monkeypatch.setattr(cli, "resample_ohlc", fake_resample_ohlc)
 
     class DummyStrategy:
         def __init__(self) -> None:
@@ -190,34 +201,13 @@ def test_cmd_run_backtest_fast_mode_last_days_and_overrides(
 ):
     cli, run_path, calls = cli_stubs
 
-    def load_catalog(_request):
-        from datetime import time
-
-        from trading_platform.data.instrument import (
-            InstrumentDefinition,
-            SessionDefinition,
-        )
-
+    def load_catalog(symbol, data_root):
         idx = pd.date_range("2024-01-01", periods=4, freq="h")
         df = pd.DataFrame({"close": [1.0, 2.0, 3.0, 4.0]}, index=idx)
 
-        # Create a mock instrument definition
-        mock_instrument = InstrumentDefinition(
-            asset_class="Forex",
-            point_value=1.0,
-            tick_size=0.00001,
-            commission_model={"type": "spread"},
-            sessions=[
-                SessionDefinition(
-                    close_time=time(17, 0), close_timezone="America/New_York"
-                )
-            ],
-            symbol="TEST",
-        )
+        return df, []
 
-        return df, [], mock_instrument
-
-    monkeypatch.setattr(cli, "load_from_catalog", load_catalog)
+    monkeypatch.setattr(cli, "load_instrument_data", load_catalog)
     monkeypatch.setattr(
         pd.DataFrame,
         "to_parquet",
@@ -312,33 +302,12 @@ def test_cmd_run_backtest_fast_mode_limit_and_exception(
 ):
     cli, _, calls = cli_stubs
 
-    def load_catalog(_request):
-        from datetime import time
-
-        from trading_platform.data.instrument import (
-            InstrumentDefinition,
-            SessionDefinition,
-        )
-
+    def load_catalog(symbol, data_root):
         df = pd.DataFrame({"close": list(range(6))})
 
-        # Create a mock instrument definition
-        mock_instrument = InstrumentDefinition(
-            asset_class="Forex",
-            point_value=1.0,
-            tick_size=0.00001,
-            commission_model={"type": "spread"},
-            sessions=[
-                SessionDefinition(
-                    close_time=time(17, 0), close_timezone="America/New_York"
-                )
-            ],
-            symbol="TEST",
-        )
+        return df, []
 
-        return df, [], mock_instrument
-
-    monkeypatch.setattr(cli, "load_from_catalog", load_catalog)
+    monkeypatch.setattr(cli, "load_instrument_data", load_catalog)
     monkeypatch.setattr(
         pd.DataFrame,
         "to_parquet",
@@ -572,34 +541,13 @@ def test_cmd_run_backtest_with_paths_and_failures(tmp_path, monkeypatch):
 
     monkeypatch.setattr(cli, "RunConfig", DummyRunConfig)
 
-    def load_catalog(_request):
-        from datetime import time
-
-        from trading_platform.data.instrument import (
-            InstrumentDefinition,
-            SessionDefinition,
-        )
-
+    def load_catalog(symbol, data_root):
         idx = pd.date_range("2024-01-01", periods=6, freq="h")
         df = pd.DataFrame({"close": range(6)}, index=idx)
 
-        # Create a mock instrument definition
-        mock_instrument = InstrumentDefinition(
-            asset_class="Forex",
-            point_value=1.0,
-            tick_size=0.00001,
-            commission_model={"type": "spread"},
-            sessions=[
-                SessionDefinition(
-                    close_time=time(17, 0), close_timezone="America/New_York"
-                )
-            ],
-            symbol="TEST",
-        )
+        return df, []
 
-        return df, [], mock_instrument
-
-    monkeypatch.setattr(cli, "load_from_catalog", load_catalog)
+    monkeypatch.setattr(cli, "load_instrument_data", load_catalog)
     monkeypatch.setattr(
         pd.DataFrame,
         "to_parquet",

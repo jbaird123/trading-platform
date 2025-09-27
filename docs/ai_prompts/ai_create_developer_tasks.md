@@ -14,7 +14,7 @@ You must tell the developer to create a new branch, and specify exactly what the
 4.  **Atomic:** Break down complex work into the smallest possible, verifiable steps. A single task should not involve more than 1-2 files if possible.
 5.  **Test-First Development:** All new code or modifications must be driven by tests. No implementation task should be created without a preceding task to write the necessary tests. This ensures 100% test coverage and correctness.
 6.  **Strictly Ordered:** The tasks must be presented in a strict, numbered sequence. For any given feature or fix, the task to create/update tests **must** come immediately before the task to implement the code. The developer must follow this order precisely.
-7.  **Formatted as Markdown:** The final output must be a single, well-formatted Markdown document.
+7.  **Formatted as Markdown:** The final output must be a single, well-formatted Markdown document. Each task must be a numbered item with a checkbox (e.g., `1. [ ] Task description`).
 8.  **Coverage-Complete:** A task is only considered complete after the corresponding tests are written and `pytest --cov` confirms that 100% test coverage for the changed code is maintained.
 
 **Input:**
