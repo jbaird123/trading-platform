@@ -24,6 +24,11 @@ def _dummy_strategy() -> CompiledStrategy:
     )
 
 
+def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
+    """Helper to create instrument dict for RunConfig."""
+    return {"symbol": symbol}
+
+
 @pytest.mark.req_BT_7_10
 def test_return_skips_without_exposure():
     idx = [datetime(2024, 1, 1, h) for h in range(1)]
@@ -38,6 +43,7 @@ def test_return_skips_without_exposure():
         initial_cash=1000.0,
         position_size=1.0,
         allow_flip_on_bar=False,
+        instrument=_instrument(),
     )
     rem = RiskExitManager(config={})
     result = run_backtest(

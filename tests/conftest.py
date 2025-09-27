@@ -12,6 +12,11 @@ from tests.backtester.dummy_objects import (
 )
 
 
+def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
+    """Helper to create instrument dict for RunConfig."""
+    return {"symbol": symbol}
+
+
 @given(
     parsers.parse('a market data series with columns "{columns}"'),
     target_fixture="shared_context",
@@ -59,6 +64,7 @@ def when_backtest_is_run(shared_context: dict) -> None:
         position_size=1.0,
         allow_flip_on_bar=True,
         rem_config=rem_config,
+        instrument=_instrument(),
     )
     rem = RiskExitManager(config=config.rem_config or {})
     trades = run_backtest(

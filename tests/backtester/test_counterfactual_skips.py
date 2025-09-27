@@ -17,6 +17,11 @@ from tests.backtester.dummy_objects import (
 )
 
 
+def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
+    """Helper to create instrument dict for RunConfig."""
+    return {"symbol": symbol}
+
+
 def _mk_df() -> pd.DataFrame:
     idx = [
         datetime(2023, 1, 1, 0, 0),
@@ -47,6 +52,7 @@ def test_counterfactual_for_blackout_skip_with_tp():
         position_size=10000.0,
         allow_flip_on_bar=False,
         blackout_utc=[("00:00", "00:30")],
+        instrument=_instrument(),
     )
     rem = RiskExitManager(config={})
     result = run_backtest(
@@ -74,6 +80,7 @@ def test_rmm_skip_records_policy_snapshot() -> None:
         allow_flip_on_bar=False,
         initial_cash=1000.0,
         position_size=1.0,
+        instrument=_instrument(),
     )
     rem = RiskExitManager(config={})
     rmm_ctx = {
@@ -113,6 +120,7 @@ def test_run_backtest_returns_exposure_without_skips() -> None:
         allow_flip_on_bar=False,
         initial_cash=1000.0,
         position_size=1.0,
+        instrument=_instrument(),
     )
     rem = RiskExitManager(config={})
     result = run_backtest(
