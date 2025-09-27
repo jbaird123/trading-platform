@@ -560,11 +560,49 @@
       "properties": {
         "hour_of_day": {
           "type": "object",
-          "description": "Performance metrics grouped by the hour of the day (UTC)."
+          "description": "Performance metrics grouped by the hour of the day (UTC).",
+          "additionalProperties": {
+            "type": "object",
+            "description": "Performance metrics for a specific hour bucket.",
+            "properties": {
+              "n_trades": {
+                "type": "integer",
+                "description": "Number of trades that entered during this hour."
+              },
+              "total_pnl": {
+                "type": "number",
+                "description": "Total PnL for trades entered during this hour."
+              },
+              "win_rate": {
+                "type": "number",
+                "description": "Win rate for trades entered during this hour."
+              }
+            },
+            "required": ["n_trades", "total_pnl", "win_rate"]
+          }
         },
         "day_of_week": {
           "type": "object",
-          "description": "Performance metrics grouped by the day of the week (0=Monday)."
+          "description": "Performance metrics grouped by the day of the week (0=Monday).",
+          "additionalProperties": {
+            "type": "object",
+            "description": "Performance metrics for a specific day of week bucket.",
+            "properties": {
+              "n_trades": {
+                "type": "integer",
+                "description": "Number of trades that entered during this day of week."
+              },
+              "total_pnl": {
+                "type": "number",
+                "description": "Total PnL for trades entered during this day of week."
+              },
+              "win_rate": {
+                "type": "number",
+                "description": "Win rate for trades entered during this day of week."
+              }
+            },
+            "required": ["n_trades", "total_pnl", "win_rate"]
+          }
         }
       }
     },
@@ -574,11 +612,65 @@
       "properties": {
         "long_trades": {
           "type": "object",
-          "description": "Performance metrics for long trades."
+          "description": "Performance metrics for long trades.",
+          "properties": {
+            "n_trades": {
+              "type": "integer",
+              "description": "Number of long trades executed."
+            },
+            "total_pnl": {
+              "type": "number",
+              "description": "Total PnL for long trades."
+            },
+            "win_rate": {
+              "type": "number",
+              "description": "Win rate for long trades."
+            },
+            "avg_pnl": {
+              "type": "number",
+              "description": "Average PnL per long trade."
+            },
+            "avg_win": {
+              "type": "number",
+              "description": "Average PnL of winning long trades."
+            },
+            "avg_loss": {
+              "type": "number",
+              "description": "Average PnL of losing long trades."
+            }
+          },
+          "required": ["n_trades", "total_pnl", "win_rate", "avg_pnl", "avg_win", "avg_loss"]
         },
         "short_trades": {
           "type": "object",
-          "description": "Performance metrics for short trades."
+          "description": "Performance metrics for short trades.",
+          "properties": {
+            "n_trades": {
+              "type": "integer",
+              "description": "Number of short trades executed."
+            },
+            "total_pnl": {
+              "type": "number",
+              "description": "Total PnL for short trades."
+            },
+            "win_rate": {
+              "type": "number",
+              "description": "Win rate for short trades."
+            },
+            "avg_pnl": {
+              "type": "number",
+              "description": "Average PnL per short trade."
+            },
+            "avg_win": {
+              "type": "number",
+              "description": "Average PnL of winning short trades."
+            },
+            "avg_loss": {
+              "type": "number",
+              "description": "Average PnL of losing short trades."
+            }
+          },
+          "required": ["n_trades", "total_pnl", "win_rate", "avg_pnl", "avg_win", "avg_loss"]
         }
       }
     },
@@ -630,9 +722,48 @@
       }
     },
     "stop_tp_candidates": {
-      "type": "array",
-      "description": "List of stop-loss/take-profit candidate levels considered during analysis.",
-      "items": {}
+      "type": "object",
+      "description": "Stop-loss and take-profit candidate levels from MFE/MAE analysis.",
+      "properties": {
+        "mfe_percentiles": {
+          "type": "object",
+          "description": "Maximum Favorable Excursion percentile levels.",
+          "properties": {
+            "25th": {
+              "type": "number",
+              "description": "25th percentile of MFE values."
+            },
+            "50th": {
+              "type": "number",
+              "description": "50th percentile (median) of MFE values."
+            },
+            "75th": {
+              "type": "number",
+              "description": "75th percentile of MFE values."
+            }
+          },
+          "required": ["25th", "50th", "75th"]
+        },
+        "mae_percentiles": {
+          "type": "object",
+          "description": "Maximum Adverse Excursion percentile levels.",
+          "properties": {
+            "25th": {
+              "type": "number",
+              "description": "25th percentile of MAE values."
+            },
+            "50th": {
+              "type": "number",
+              "description": "50th percentile (median) of MAE values."
+            },
+            "75th": {
+              "type": "number",
+              "description": "75th percentile of MAE values."
+            }
+          },
+          "required": ["25th", "50th", "75th"]
+        }
+      }
     },
   "field_definitions": {
       "type": "object",

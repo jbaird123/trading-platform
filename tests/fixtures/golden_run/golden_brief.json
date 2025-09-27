@@ -16,7 +16,7 @@
     "peak_gross_exposure": 110.0
   },
   "contrasts": {},
-  "stop_tp_candidates": [],
+  "stop_tp_candidates": {},
   "parameter_search": {},
   "stationarity": {},
   "feature_analysis": {},
@@ -205,7 +205,6 @@
   "risk_snapshot.max_loss": "Largest single losing trade (most negative PnL).",
   "risk_snapshot.max_win": "Largest single winning trade.",
   "risk_snapshot.win_rate": "Percentage of trades with PnL > 0.",
-  "stop_tp_candidates": "List of stop-loss/take-profit candidate levels considered during analysis.",
   "strategy_params.atr_length": "Scalar value (number, string, boolean, or null).",
   "strategy_params.fast": "Scalar value (number, string, boolean, or null).",
   "strategy_params.slow": "Scalar value (number, string, boolean, or null).",
