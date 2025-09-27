@@ -41,7 +41,7 @@
   "meta": {
     "strategy_name": "Golden_EMA_Crossover",
     "run_id": "golden_run_test",
-    "git_commit": "e3250a3",
+    "git_commit": "2bbca3c",
     "run_seed": 42
   },
   "strategy_params": {
@@ -168,7 +168,7 @@
     "data_end": null,
     "symbols": [],
     "app_version": "0.0.1",
-    "git_commit": "e3250a3",
+    "git_commit": "2bbca3c",
     "run_seed": 42
   },
   "artifacts": {},
@@ -429,7 +429,7 @@
     }
   ],
   "filter_impact": {
-    "unknown": {
+    "position_cap": {
       "n_skipped": 11,
       "total_cf_pnl": 0.0,
       "mean_cf_pnl": 0.0,
