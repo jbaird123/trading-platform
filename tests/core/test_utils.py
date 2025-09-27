@@ -50,7 +50,8 @@ def test_get_logger_with_level():
         ("NZD/USD", "NZDUSD"),
         ("AUD_JPY", "AUDJPY"),
         ("EUR.GBP", "EURGBP"),  # Test dot separator
-        ("USD123CAD", "USDCAD"),  # Test with numbers
+        ("ESZ24", "ESZ24"),  # Test numbers preserved
+        ("CLV24/NYM", "CLV24NYM"),  # Test numbers with separators
         ("BTC-USD", "BTCUSD"),
         ("eth_usdt", "ETHUSDT"),
     ],
