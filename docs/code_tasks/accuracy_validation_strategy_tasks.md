@@ -73,11 +73,11 @@ git checkout -b feature/accuracy-validation-strategy
 
 *Goal: Use automated, random testing to ensure the relationships between reported metrics are always logically sound.*
 
-### 4. [ ] Add `hypothesis` to the Project
+### 4. [x] Add `hypothesis` to the Project
 1.  **Action:** Add `hypothesis` as a development dependency.
 2.  **Command:** Run `poetry add "hypothesis" --group dev`, then `poetry lock && poetry install`.
 
-### 5. [ ] Implement Property-Based Tests
+### 5. [x] Implement Property-Based Tests
 1.  **File to Create:** `tests/core/test_properties.py`
 2.  **Logic for `test_equity_and_pnl_are_consistent`:**
     -   Use `@given` from `hypothesis` to generate a float for `initial_equity` and a list of mock `Trade` objects.
