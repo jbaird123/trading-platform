@@ -74,15 +74,15 @@ def verify_data_continuity(
     normalized_symbol = symbol.replace("/", "").lower()
     
     # Find all existing data files for this symbol (excluding the new file)
-    full_dir = data_root / "full"
+    full_symbol_dir = data_root / "full" / normalized_symbol
     incremental_dir = data_root / "incremental" / normalized_symbol
     
     all_files = []
     
     # Collect full files
-    if full_dir.exists():
+    if full_symbol_dir.exists():
         pattern = f"{normalized_symbol}_*.csv"
-        for file_path in full_dir.glob(pattern):
+        for file_path in full_symbol_dir.glob(pattern):
             all_files.append(file_path)
     
     # Collect incremental files (excluding the new one)
