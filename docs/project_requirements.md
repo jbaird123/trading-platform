@@ -390,17 +390,17 @@ _Last updated: 2025-09-16_
     - **[AI-10.7.2]** This feature may incur external API costs and introduce network latency. This directly relates to `[SYS-12.1]` and `[SYS-12.2]`, and the user must opt-in to use it.
     - **[AI-10.7.3]** The CLI help text for this feature must include a clear warning that it sends backtest data to a third-party API and may incur costs.
     - **[AI-10.7.4]** API credentials for the LLM service must be managed securely via environment variables, in accordance with `[SYS-13.1]`.
+- **[AI-10.8]** **Advanced Testing Orchestration**:
+  - **[AI-10.8.1]** Orchestrate parameter searches (grid search, random search) ([AI-10.3.1]).
+  - **[AI-10.8.2]** Perform walk-forward evaluation (WFE) ([AI-10.3.2]).
+  - **[AI-10.8.3]** Conduct detailed regime analysis ([AI-10.3.3]).
+  - **[AI-10.8.4]** Implement the standard two-stage validation workflow (sweep then Monte Carlo) ([AI-10.3.4]).
 
 ### Future Enhancements
 - **[AI-F.1]** **Analysis & Recommendations**:
   - **[AI-F.1.1]** Identify performance clusters (winning and losing) based on features, regimes, etc. ([AI-10.2.1]).
   - **[AI-F.1.2]** In comparison reports, quantify the statistical significance of performance differences ([AI-10.2.2]).
   - **[AI-F.1.3]** Highlight potential data issues such as distributional drift and non-stationarity ([AI-10.2.5]).
-- **[AI-F.2]** **Advanced Testing Orchestration**:
-  - **[AI-F.2.1]** Orchestrate parameter searches (grid search, random search) ([AI-10.3.1]).
-  - **[AI-F.2.2]** Perform walk-forward evaluation (WFE) ([AI-10.3.2]).
-  - **[AI-F.2.3]** Conduct detailed regime analysis ([AI-10.3.3]).
-  - **[AI-F.2.4]** Implement the standard two-stage validation workflow (sweep then Monte Carlo) ([AI-10.3.4]).
 - **[AI-F.3]** All findings and recommendations must be available in both machine-readable JSON and human-readable summaries ([AI-10.4]).
 - **[AI-F.4]** Support **automated hypothesis generation**, producing candidate entry/exit rules or strategy variants ([AI-10.5]).
 - **[AI-F.5]** Provide **explainability outputs** (e.g., feature attribution, importance scores) to justify AI recommendations ([AI-10.6]).
@@ -430,9 +430,9 @@ _Last updated: 2025-09-16_
 - **[JSON-11.15]** **trades**: An array of trade objects, each with full details including `pnl`, `entry_time`, `exit_time`, `mfe_currency`, `mae_currency`, etc. See [JSON-11.30] for the detailed trade object schema.
 - **[JSON-11.16]** **skipped_trades**: An array of counterfactual trade objects that were skipped by a filter.
 - **[JSON-11.17]** **filter_impact**: An object mapping each filter reason to its aggregated impact metrics.
-- **[JSON-11.18]** **monte_carlo**: Placeholder for Monte Carlo simulation results.
-- **[JSON-11.19]** **walk_forward**: Placeholder for walk-forward analysis results.
-- **[JSON-11.20]** **parameter_search**: Placeholder for parameter search results.
+- **[JSON-11.18]** **monte_carlo**: Contains the results and summary statistics from the Monte Carlo simulation.
+- **[JSON-11.19]** **walk_forward**: Contains the results and summary statistics from the walk-forward evaluation.
+- **[JSON-11.20]** **parameter_search**: Contains the results and summary statistics from the parameter search.
 - **[JSON-11.21]** **instrument_definitions**: A snapshot of the instrument metadata used in the run.
 - **[JSON-11.22]** **cost_model**: A snapshot of the cost model configuration.
 - **[JSON-11.23]** **fill_policy**: A snapshot of the fill policy configuration.
