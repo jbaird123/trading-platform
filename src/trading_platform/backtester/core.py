@@ -164,9 +164,14 @@ def run_backtest(
             if open_ct >= cap_now:
                 skipped.append(
                     {
-                        "timestamp": _fmt_ts(current_bar.name),
+                        "entry_time": _fmt_ts(current_bar.name),
                         "symbol": symbol,
-                        "reason_code": "position_cap",
+                        "side": current_signal,
+                        "size": float(config.position_size),
+                        "skip_reason": "position_cap",
+                        "counterfactual_pnl": 0.0,
+                        "counterfactual_mfe_currency": 0.0,
+                        "counterfactual_mae_currency": 0.0,
                         "policy_snapshot": {"cap": cap_now},
                         "notes": None,
                     }
@@ -187,9 +192,14 @@ def run_backtest(
                     if current_signal not in allowed_sides:
                         skipped.append(
                             {
-                                "timestamp": _fmt_ts(current_bar.name),
+                                "entry_time": _fmt_ts(current_bar.name),
                                 "symbol": symbol,
-                                "reason_code": "rmm_block",
+                                "side": current_signal,
+                                "size": float(config.position_size),
+                                "skip_reason": "rmm_block",
+                                "counterfactual_pnl": 0.0,
+                                "counterfactual_mfe_currency": 0.0,
+                                "counterfactual_mae_currency": 0.0,
                                 "regime": {
                                     "label": ctx.get("label"),
                                     "confidence": ctx.get("confidence"),
@@ -201,7 +211,6 @@ def run_backtest(
                                     ),
                                 },
                                 "notes": None,
-                                "side": current_signal,
                                 "entry_index": i,
                                 "entry_price": float(current_bar["close"]),
                             }
@@ -212,14 +221,18 @@ def run_backtest(
                 if portfolio.hit_daily_loss_cap(now, float(config.daily_loss_cap)):
                     skipped.append(
                         {
-                            "timestamp": _fmt_ts(now),
+                            "entry_time": _fmt_ts(now),
                             "symbol": symbol,
-                            "reason_code": "risk_cap",
+                            "side": current_signal,
+                            "size": float(config.position_size),
+                            "skip_reason": "risk_cap",
+                            "counterfactual_pnl": 0.0,
+                            "counterfactual_mfe_currency": 0.0,
+                            "counterfactual_mae_currency": 0.0,
                             "policy_snapshot": {
                                 "daily_loss_cap": float(config.daily_loss_cap)
                             },
                             "notes": None,
-                            "side": current_signal,
                             "entry_index": i,
                             "entry_price": float(current_bar["close"]),
                         }
@@ -234,12 +247,16 @@ def run_backtest(
             if open_ct >= cap:
                 skipped.append(
                     {
-                        "timestamp": _fmt_ts(current_bar.name),
+                        "entry_time": _fmt_ts(current_bar.name),
                         "symbol": symbol,
-                        "reason_code": "position_cap",
+                        "side": current_signal,
+                        "size": float(config.position_size),
+                        "skip_reason": "position_cap",
+                        "counterfactual_pnl": 0.0,
+                        "counterfactual_mfe_currency": 0.0,
+                        "counterfactual_mae_currency": 0.0,
                         "policy_snapshot": {"cap": cap},
                         "notes": None,
-                        "side": current_signal,
                         "entry_index": i,
                         "entry_price": float(current_bar["close"]),
                     }
@@ -270,12 +287,16 @@ def run_backtest(
             }
             skipped.append(
                 {
-                    "timestamp": _fmt_ts(current_bar.name),
+                    "entry_time": _fmt_ts(current_bar.name),
                     "symbol": symbol,
-                    "reason_code": reason,
+                    "side": current_signal,
+                    "size": float(config.position_size),
+                    "skip_reason": reason,
+                    "counterfactual_pnl": 0.0,
+                    "counterfactual_mfe_currency": 0.0,
+                    "counterfactual_mae_currency": 0.0,
                     "policy_snapshot": snap,
                     "notes": None,
-                    "side": current_signal,
                     "entry_index": i,
                     "entry_price": float(current_bar["close"]),
                 }
@@ -396,9 +417,10 @@ def _simulate_counterfactual_fast(
     return {
         "cf_exit_time": exit_time.isoformat(),
         "cf_exit_price": exit_price,
-        "cf_pnl_currency": pnl_net,
-        "cf_mfe_currency": float(favorable),
-        "cf_mae_currency": float(adverse),
+        "counterfactual_pnl": pnl_net,
+        "cf_pnl_currency": pnl_net,  # Alias for brief generation compatibility
+        "counterfactual_mfe_currency": float(favorable),
+        "counterfactual_mae_currency": float(adverse),
         "cf_bars_held": bars_held,
         "cf_mode": "fast",
     }
@@ -478,9 +500,10 @@ def _simulate_counterfactual_exact(
     return {
         "cf_exit_time": t.exit_time.isoformat(),
         "cf_exit_price": float(t.exit_price),
-        "cf_pnl_currency": float(t.pnl),
-        "cf_mfe_currency": float(t.mfe_currency or 0.0),
-        "cf_mae_currency": float(t.mae_currency or 0.0),
+        "counterfactual_pnl": float(t.pnl),
+        "cf_pnl_currency": float(t.pnl),  # Alias for brief generation compatibility
+        "counterfactual_mfe_currency": float(t.mfe_currency or 0.0),
+        "counterfactual_mae_currency": float(t.mae_currency or 0.0),
         "cf_bars_held": int(t.bars_held or 0),
         "cf_bars_touched": bars_touched,
         "cf_start_index": int(start_index),

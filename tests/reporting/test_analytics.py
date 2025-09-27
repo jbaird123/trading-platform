@@ -55,7 +55,7 @@ def test_compute_stationarity_insufficient_data():
 
 def test_compute_stationarity_handles_statsmodels_errors(monkeypatch):
     """Test compute_stationarity returns empty dict when statsmodels fails."""
-    import statsmodels.tsa.stattools as stattools  # type: ignore
+    import statsmodels.tsa.stattools as stattools
     from trading_platform.reporting import analytics
 
     trades = [_mock_trade(float(i % 3 - 1)) for i in range(25)]

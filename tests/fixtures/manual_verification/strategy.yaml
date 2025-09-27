@@ -1,0 +1,22 @@
+strategy_name: Manual_Verification_Strategy
+features:
+  - name: sma_fast
+    type: SMA
+    params:
+      length: 3
+  - name: sma_slow
+    type: SMA
+    params:
+      length: 8
+long_entry_rules:
+  - all_of:
+      - { condition: cross_above, left: { ref: sma_fast }, right: { ref: sma_slow } }
+long_exit_rules:
+  - all_of:
+      - { condition: cross_below, left: { ref: sma_fast }, right: { ref: sma_slow } }
+short_entry_rules:
+  - all_of:
+      - { condition: cross_below, left: { ref: sma_fast }, right: { ref: sma_slow } }
+short_exit_rules:
+  - all_of:
+      - { condition: cross_above, left: { ref: sma_fast }, right: { ref: sma_slow } }

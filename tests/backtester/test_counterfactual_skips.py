@@ -105,7 +105,7 @@ def test_rmm_skip_records_policy_snapshot() -> None:
     skips_typed = cast(list[dict[str, Any]], skips)
     assert not trades
     assert exposures  # exposure logged before skip continue
-    assert skips_typed[0]["reason_code"] == "rmm_block"
+    assert skips_typed[0]["skip_reason"] == "rmm_block"
     snap = skips_typed[0]["policy_snapshot"]
     assert snap["allowed_sides"] == ["short"]
 

@@ -1,0 +1,11 @@
+regime_market_manager:
+  type: daily_trend
+  params:
+    ma_length: 20
+  policies:
+    - regime: trend_up
+      allowed_sides: ["long"]
+    - regime: trend_down
+      allowed_sides: ["short"]
+    - regime: range
+      allowed_sides: []
