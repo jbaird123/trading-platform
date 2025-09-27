@@ -204,3 +204,51 @@ def test_load_from_catalog_with_symbol_normalization(tmp_path: Path) -> None:
     # Verify both return the same data
     pd.testing.assert_frame_equal(df, df2)
     assert instrument.symbol == instrument2.symbol
+
+
+def test_load_from_catalog_loads_incremental_data(tmp_path: Path) -> None:
+    """Test that load_from_catalog can load and combine incremental data files."""
+    # Create base file
+    base_file = tmp_path / "eurusd_base.csv"
+    base_file.write_text(
+        "UTCTime,Open,High,Low,Close,Volume\n"
+        "2023-01-01 00:00:00,1.0,1.1,0.9,1.05,1000\n"
+        "2023-01-01 01:00:00,1.05,1.15,0.95,1.10,1100\n"
+    )
+
+    # Create incremental directory and files
+    incremental_dir = tmp_path / "incremental" / "eurusd"
+    incremental_dir.mkdir(parents=True)
+
+    inc_file1 = incremental_dir / "eurusd_20230102.csv"
+    inc_file1.write_text(
+        "UTCTime,Open,High,Low,Close,Volume\n"
+        "2023-01-02 00:00:00,1.10,1.20,1.00,1.15,1200\n"
+    )
+
+    inc_file2 = incremental_dir / "eurusd_20230103.csv"
+    inc_file2.write_text(
+        "UTCTime,Open,High,Low,Close,Volume\n"
+        "2023-01-03 00:00:00,1.15,1.25,1.05,1.20,1300\n"
+    )
+
+    # Create catalog pointing to base file
+    catalog_path = tmp_path / "catalog.yaml"
+    _write_catalog(catalog_path, {"EURUSD": {"csv_path": str(base_file)}})
+
+    # Test loading - should combine all files
+    df, flags, instrument = load_from_catalog(
+        {"symbol": "EURUSD"}, catalog_path=catalog_path
+    )
+
+    # Assert that the returned DataFrame contains data from all files
+    assert not flags
+    assert len(df) == 4  # 2 base + 1 + 1 incremental
+
+    # Assert that the index is sorted and unique
+    assert df.index.is_monotonic_increasing
+    assert df.index.is_unique
+
+    # Verify data spans from base file to incremental files
+    assert df.index[0].strftime("%Y-%m-%d") == "2023-01-01"
+    assert df.index[-1].strftime("%Y-%m-%d") == "2023-01-03"
