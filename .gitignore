@@ -238,3 +238,4 @@ mlruns/
 mlruns_test/
 mlruns_integration_test/
 test_mlruns/
+temp/
