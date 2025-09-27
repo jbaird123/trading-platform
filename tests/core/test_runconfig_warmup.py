@@ -12,6 +12,7 @@ def test_runconfig_has_warmup_bars_field():
         initial_cash=1000.0,
         position_size=1.0,
         allow_flip_on_bar=False,
+        instrument={"symbol": "EURUSD"},
     )
     assert hasattr(cfg, "warmup_bars")
     assert isinstance(cfg.warmup_bars, int)
@@ -22,6 +23,7 @@ def test_runconfig_has_warmup_bars_field():
         initial_cash=1000.0,
         position_size=1.0,
         allow_flip_on_bar=False,
+        instrument={"symbol": "EURUSD"},
         warmup_bars=5,
     )
     assert cfg2.warmup_bars == 5

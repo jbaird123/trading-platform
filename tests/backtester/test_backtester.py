@@ -257,6 +257,7 @@ def test_counterfactual_exact_invalid_start_index():
         size=100,
         instrument={"symbol": "EURUSD", "lot_size": 100_000},
         cost_model=None,
+        symbol="EURUSD",
     )
     assert result == {}
 
@@ -291,6 +292,7 @@ def test_counterfactual_exact_rem_exit_breaks_loop() -> None:
         instrument={},
         cost_model={},
         rem=StubREM(),  # type: ignore[arg-type]
+        symbol="EURUSD",
     )
 
     assert result["cf_exit_kind"] == "rem"
@@ -332,6 +334,7 @@ def test_counterfactual_exact_returns_empty_when_position_not_created(
         instrument={},
         cost_model={},
         rem=NoExitREM(),  # type: ignore[arg-type]
+        symbol="EURUSD",
     )
 
     assert result == {}
@@ -503,5 +506,6 @@ class TestBacktesterCoreCoverage:
             instrument={"symbol": "EURUSD", "multiplier": 1.0, "min_size": 0.01},
             cost_model={"type": "percentage", "rate": 0.001},
             rem=mock_rem,
+            symbol="EURUSD",
         )
         assert result["cf_exit_kind"] == "rem"
