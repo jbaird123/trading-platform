@@ -814,3 +814,203 @@ def test_generate_brief_handles_null_signal_column(monkeypatch, tmp_path):
         "signal_persistence_pct": 0.0,
         "avg_signal_duration_bars": 0.0,
     }
+
+
+def test_brief_includes_stationarity_analysis():
+    """Test that generate_brief includes stationarity analysis for sufficient trades."""
+    # Create 25 trades for stationarity analysis (needs 20+)
+    trades = [_trade(float(i % 5 - 2)) for i in range(25)]
+
+    # Provide field definitions to avoid schema validation issues
+    field_definitions = {
+        "stationarity.adf_p_value": "P-value from Augmented Dickey-Fuller test",
+        "stationarity.kpss_p_value": "P-value from KPSS test",
+    }
+
+    brief_data = generate_brief(
+        meta={"strategy_name": "TestStrat", "run_id": "test-stat"},
+        params={},
+        trades=trades,
+        initial_cash=1000.0,
+        field_definitions=field_definitions,
+    )
+
+    # Should contain stationarity section
+    assert "stationarity" in brief_data
+    assert isinstance(brief_data["stationarity"], dict)
+
+    # Should have expected keys when sufficient trades
+    stationarity = brief_data["stationarity"]
+    assert "adf_p_value" in stationarity
+    assert "kpss_p_value" in stationarity
+    assert isinstance(stationarity["adf_p_value"], float)
+    assert isinstance(stationarity["kpss_p_value"], float)
+
+
+def test_brief_stationarity_empty_with_insufficient_trades():
+    """Test that stationarity is empty when fewer than 20 trades."""
+    # Create only 10 trades (less than required 20)
+    trades = [_trade(float(i)) for i in range(10)]
+
+    # Provide empty field definitions since stationarity will be empty
+    field_definitions: dict[str, str] = {}
+
+    brief_data = generate_brief(
+        meta={"strategy_name": "TestStrat", "run_id": "test-stat-empty"},
+        params={},
+        trades=trades,
+        initial_cash=1000.0,
+        field_definitions=field_definitions,
+    )
+
+    # Should contain empty stationarity section
+    assert "stationarity" in brief_data
+    assert brief_data["stationarity"] == {}
+
+
+def test_brief_includes_feature_analysis():
+    """Test that generate_brief includes feature analysis for trades with context."""
+    # Create trades with context_at_entry containing numerical features
+    trades = []
+    for i in range(5):
+        ctx = {
+            "ema_fast": 1.2 + i * 0.1,
+            "ema_slow": 1.0 + i * 0.05,
+            "rsi": 50.0 + i * 2.0,
+        }
+        entry_time = datetime(2024, 1, 1) + timedelta(hours=i)
+        trade = Trade(
+            symbol="TEST",
+            entry_time=entry_time,
+            exit_time=entry_time + timedelta(hours=1),
+            entry_price=1.0,
+            exit_price=1.01 + i * 0.001,
+            side="long",
+            size=1.0,
+            pnl=float(i * 10 - 20),
+            context_at_entry=ctx,
+        )
+        trades.append(trade)
+
+    # Provide field definitions to avoid schema validation issues
+    field_definitions = {
+        "feature_analysis.feature_correlation_matrix": (
+            "Correlation matrix of numerical features from entry contexts"
+        ),
+    }
+
+    brief_data = generate_brief(
+        meta={"strategy_name": "TestFeatures", "run_id": "test-features"},
+        params={},
+        trades=trades,
+        initial_cash=1000.0,
+        field_definitions=field_definitions,
+    )
+
+    # Should contain feature_analysis section
+    assert "feature_analysis" in brief_data
+    assert isinstance(brief_data["feature_analysis"], dict)
+
+    # Should have correlation matrix when context available
+    feature_analysis = brief_data["feature_analysis"]
+    assert "feature_correlation_matrix" in feature_analysis
+
+    corr_matrix = feature_analysis["feature_correlation_matrix"]
+    assert isinstance(corr_matrix, dict)
+
+    # Should have correlations for our features
+    assert "ema_fast" in corr_matrix
+    assert "ema_slow" in corr_matrix
+    assert "rsi" in corr_matrix
+
+
+def test_brief_feature_analysis_empty_without_context():
+    """Test that feature_analysis is empty when no numerical context available."""
+    # Create trades without context_at_entry
+    trades = [_trade(float(i)) for i in range(3)]
+
+    field_definitions: dict[str, str] = {}
+
+    brief_data = generate_brief(
+        meta={"strategy_name": "TestNoFeatures", "run_id": "test-no-features"},
+        params={},
+        trades=trades,
+        initial_cash=1000.0,
+        field_definitions=field_definitions,
+    )
+
+    # Should contain empty feature_analysis section
+    assert "feature_analysis" in brief_data
+    assert brief_data["feature_analysis"] == {}
+
+
+def test_brief_includes_activity_analysis():
+    """Test that generate_brief includes activity analysis."""
+    # Create trades over multiple days
+    base_time = datetime(2024, 1, 1, 10, 0, 0)
+    trades = [
+        _trade(100.0, ts=base_time),
+        _trade(200.0, ts=base_time + timedelta(days=1)),
+        _trade(-50.0, ts=base_time + timedelta(days=3)),
+    ]
+
+    field_definitions = {
+        "activity.average_trades_per_day": "Average number of trades per day",
+    }
+
+    brief_data = generate_brief(
+        meta={"strategy_name": "TestActivity", "run_id": "test-activity"},
+        params={},
+        trades=trades,
+        initial_cash=1000.0,
+        field_definitions=field_definitions,
+    )
+
+    assert "activity" in brief_data
+    assert "average_trades_per_day" in brief_data["activity"]
+    assert isinstance(brief_data["activity"]["average_trades_per_day"], float)
+
+
+def test_brief_activity_empty_with_no_trades():
+    """Test that activity is empty with no trades."""
+    field_definitions: dict[str, str] = {}
+
+    brief_data = generate_brief(
+        meta={"strategy_name": "TestNoActivity", "run_id": "test-no-activity"},
+        params={},
+        trades=[],
+        initial_cash=1000.0,
+        field_definitions=field_definitions,
+    )
+
+    assert "activity" in brief_data
+    assert brief_data["activity"] == {}
+
+
+def test_brief_includes_timing_buckets():
+    """Test that generate_brief includes timing buckets analysis."""
+    # Create trades at different times
+    trades = [
+        _trade(100.0, ts=datetime(2024, 1, 1, 10, 0, 0)),  # Monday 10am
+        _trade(-50.0, ts=datetime(2024, 1, 2, 14, 0, 0)),  # Tuesday 2pm
+    ]
+
+    field_definitions = {
+        "timing_buckets.hour_of_day": "Performance metrics by hour of day",
+        "timing_buckets.day_of_week": "Performance metrics by day of week",
+    }
+
+    brief_data = generate_brief(
+        meta={"strategy_name": "TestTiming", "run_id": "test-timing"},
+        params={},
+        trades=trades,
+        initial_cash=1000.0,
+        field_definitions=field_definitions,
+    )
+
+    assert "timing_buckets" in brief_data
+    timing = brief_data["timing_buckets"]
+    assert "hour_of_day" in timing
+    assert "day_of_week" in timing
+    assert isinstance(timing["hour_of_day"], dict)
+    assert isinstance(timing["day_of_week"], dict)

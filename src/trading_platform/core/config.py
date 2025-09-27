@@ -3,9 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
-from .utils import gen_run_id
+from .utils import gen_run_id, normalize_symbol
 
 
 class RunConfig(BaseModel):
@@ -127,3 +127,17 @@ class RunConfig(BaseModel):
             "'exact' re-simulates bar-by-bar with REM."
         ),
     )
+
+    @model_validator(mode="after")
+    def validate_instrument_symbol(self) -> RunConfig:
+        """Ensure instrument contains a valid, normalized symbol."""
+        if not isinstance(self.instrument, dict):
+            raise ValueError("instrument symbol is required")
+
+        symbol = self.instrument.get("symbol", "")
+        if not symbol or not symbol.strip():
+            raise ValueError("instrument symbol is required")
+
+        # Normalize the symbol and store it back
+        self.instrument["symbol"] = normalize_symbol(symbol)
+        return self

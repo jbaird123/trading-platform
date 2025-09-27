@@ -33,6 +33,7 @@ def test_blackout_policy_snapshot_appears_in_brief(tmp_path):
         initial_cash=10000.0,
         position_size=1.0,
         allow_flip_on_bar=False,
+        instrument={"symbol": "EURUSD"},
         blackout_utc=[("23:00", "01:00")],
         blackout_events=[
             {"start": datetime(2023, 1, 1, 11), "end": datetime(2023, 1, 1, 12)}

@@ -7,6 +7,7 @@ import pandas as pd
 
 from trading_platform.core.config import RunConfig
 from trading_platform.core.policy import TradingWindowPolicy
+from trading_platform.core.utils import normalize_symbol
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
 from trading_platform.risk_manager.core import RiskExitManager
@@ -17,6 +18,39 @@ from trading_platform.strategy.yaml_strategy import CompiledStrategy
 When `return_exposure` is True, returns `(trades, exposure_curve)`; otherwise
 returns just `trades`.
 """
+
+
+def resolve_instrument_symbol(instrument: Any) -> str:
+    """
+    Resolve and normalize the instrument symbol from various input formats.
+
+    Args:
+        instrument: Can be None, a dict with 'symbol' key, or object with
+                   'symbol' attribute
+
+    Returns:
+        str: Normalized symbol in canonical format
+
+    Raises:
+        ValueError: If instrument is None, missing symbol, or has empty symbol
+    """
+    if instrument is None:
+        raise ValueError("instrument with symbol is required")
+
+    # Handle dict format (config snapshot)
+    if isinstance(instrument, dict):
+        symbol = instrument.get("symbol", "")
+    # Handle object with symbol attribute
+    elif hasattr(instrument, "symbol"):
+        symbol = getattr(instrument, "symbol", "")
+    else:
+        raise ValueError("instrument with symbol is required")
+
+    # Check for empty or whitespace-only symbol
+    if not symbol or not str(symbol).strip():
+        raise ValueError("instrument with symbol is required")
+
+    return normalize_symbol(str(symbol))
 
 
 def run_backtest(
@@ -68,6 +102,8 @@ def run_backtest(
     if market_data["close"].isna().any():
         first_bad = market_data[market_data["close"].isna()].index[0]
         raise ValueError(f"market_data.close has NaNs; first at index: {first_bad}")
+
+    symbol = resolve_instrument_symbol(config.instrument)
 
     portfolio = PortfolioManager(
         initial_cash=config.initial_cash,
@@ -129,7 +165,7 @@ def run_backtest(
                 skipped.append(
                     {
                         "timestamp": _fmt_ts(current_bar.name),
-                        "symbol": "EURUSD",
+                        "symbol": symbol,
                         "reason_code": "position_cap",
                         "policy_snapshot": {"cap": cap_now},
                         "notes": None,
@@ -152,7 +188,7 @@ def run_backtest(
                         skipped.append(
                             {
                                 "timestamp": _fmt_ts(current_bar.name),
-                                "symbol": "EURUSD",
+                                "symbol": symbol,
                                 "reason_code": "rmm_block",
                                 "regime": {
                                     "label": ctx.get("label"),
@@ -177,7 +213,7 @@ def run_backtest(
                     skipped.append(
                         {
                             "timestamp": _fmt_ts(now),
-                            "symbol": "EURUSD",
+                            "symbol": symbol,
                             "reason_code": "risk_cap",
                             "policy_snapshot": {
                                 "daily_loss_cap": float(config.daily_loss_cap)
@@ -199,7 +235,7 @@ def run_backtest(
                 skipped.append(
                     {
                         "timestamp": _fmt_ts(current_bar.name),
-                        "symbol": "EURUSD",
+                        "symbol": symbol,
                         "reason_code": "position_cap",
                         "policy_snapshot": {"cap": cap},
                         "notes": None,
@@ -213,7 +249,7 @@ def run_backtest(
                 size = float(config.position_size)
 
                 portfolio.create_new_position(
-                    symbol="EURUSD",
+                    symbol=symbol,
                     side=current_signal,
                     entry_price=entry_price,
                     size=size,
@@ -235,7 +271,7 @@ def run_backtest(
             skipped.append(
                 {
                     "timestamp": _fmt_ts(current_bar.name),
-                    "symbol": "EURUSD",
+                    "symbol": symbol,
                     "reason_code": reason,
                     "policy_snapshot": snap,
                     "notes": None,
@@ -290,6 +326,7 @@ def run_backtest(
                     instrument=config.instrument,
                     cost_model=config.cost_model,
                     rem=rem,
+                    symbol=symbol,
                 )
             s.update(cf)
 
@@ -378,6 +415,7 @@ def _simulate_counterfactual_exact(
     instrument: dict | None,
     cost_model: dict | None,
     rem: RiskExitManager,
+    symbol: str,
 ) -> dict[str, Any]:
     """Exact counterfactual: bar-by-bar re-simulation with REM."""
     if start_index < 0 or start_index >= len(market_data):
@@ -388,7 +426,7 @@ def _simulate_counterfactual_exact(
     )
     entry_time = cast(datetime, market_data.index[start_index])
     pm.create_new_position(
-        symbol="EURUSD",
+        symbol=symbol,
         side=side,
         entry_price=entry_price,
         size=size,

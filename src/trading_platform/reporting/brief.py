@@ -20,6 +20,14 @@ from trading_platform.portfolio.metrics import (
     calculate_win_rate,
 )
 from trading_platform.portfolio.trade import Trade
+from trading_platform.reporting.analytics import (
+    compute_activity,
+    compute_contrasts,
+    compute_feature_analysis,
+    compute_stationarity,
+    compute_stop_tp_candidates,
+    compute_timing_buckets,
+)
 
 # Path to the JSON Schema for brief field documentation
 SCHEMA_PATH = Path("docs/schemas/brief.schema.json")
@@ -138,7 +146,7 @@ def _empty_sections() -> dict[str, Any]:
         "costs": {},
         "exposure": {},
         "contrasts": {},
-        "stop_tp_candidates": [],
+        "stop_tp_candidates": {},
         "parameter_search": {},
         "stationarity": {},
         "feature_analysis": {},
@@ -542,6 +550,25 @@ def generate_brief(
     except (OSError, FileNotFoundError, pd.errors.ParserError, ArrowInvalid):
         # Only catch file I/O and parsing errors, let data validation errors propagate
         pass
+
+    # --- Stationarity analysis section ---
+    stationarity = compute_stationarity(trades)
+
+    # --- Feature analysis section ---
+    feature_analysis = compute_feature_analysis(trades)
+
+    # --- Activity analysis section ---
+    activity = compute_activity(trades)
+
+    # --- Timing buckets analysis section ---
+    timing_buckets = compute_timing_buckets(trades)
+
+    # --- Contrasts analysis section ---
+    contrasts = compute_contrasts(trades)
+
+    # --- Stop/TP candidates analysis section ---
+    stop_tp_candidates = compute_stop_tp_candidates(trades)
+
     base = {
         "meta": _to_jsonable(meta),
         "strategy_params": _to_jsonable(params),
@@ -561,6 +588,12 @@ def generate_brief(
         "data_quality": _to_jsonable(data_quality or {}),
         "model_analysis": model_analysis,
         "signal_quality_analysis": signal_quality_analysis,
+        "stationarity": stationarity,
+        "feature_analysis": feature_analysis,
+        "activity": activity,
+        "timing_buckets": timing_buckets,
+        "contrasts": contrasts,
+        "stop_tp_candidates": stop_tp_candidates,
         # Snapshots and placeholders (configurable)
         "instrument_definitions": _to_jsonable(instrument_definitions or {}),
         "cost_model": _to_jsonable(cost_model or {}),
