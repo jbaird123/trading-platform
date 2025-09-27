@@ -550,25 +550,25 @@ def generate_brief(
     except (OSError, FileNotFoundError, pd.errors.ParserError, ArrowInvalid):
         # Only catch file I/O and parsing errors, let data validation errors propagate
         pass
-    
+
     # --- Stationarity analysis section ---
     stationarity = compute_stationarity(trades)
-    
+
     # --- Feature analysis section ---
     feature_analysis = compute_feature_analysis(trades)
-    
+
     # --- Activity analysis section ---
     activity = compute_activity(trades)
-    
+
     # --- Timing buckets analysis section ---
     timing_buckets = compute_timing_buckets(trades)
-    
+
     # --- Contrasts analysis section ---
     contrasts = compute_contrasts(trades)
-    
+
     # --- Stop/TP candidates analysis section ---
     stop_tp_candidates = compute_stop_tp_candidates(trades)
-    
+
     base = {
         "meta": _to_jsonable(meta),
         "strategy_params": _to_jsonable(params),
