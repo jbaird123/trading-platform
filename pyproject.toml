@@ -78,6 +78,9 @@ module = [
     "httpx.*",
     "joblib",
     "google.*",
+    "statsmodels.*",
+    "dukascopy_python",
+    "pyarrow",
 ]
 ignore_missing_imports = true
 
