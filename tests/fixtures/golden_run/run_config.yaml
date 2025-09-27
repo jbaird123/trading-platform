@@ -8,3 +8,24 @@ data:
   source: "tests/fixtures/golden_run/data.csv"
   start_date: "2023-01-01"
   end_date: "2023-01-31"
+
+monte_carlo:
+  trials: 10
+  mode: 'bootstrap_trades'
+
+walk_forward:
+  splits:
+    - train_start: "2023-01-01"
+      train_end: "2023-01-10"
+      test_start: "2023-01-11"
+      test_end: "2023-01-12"
+
+parameter_search:
+  top:
+    params:
+      fast: 10
+    score: 1.2
+  results:
+    - params:
+        fast: 10
+      score: 1.2

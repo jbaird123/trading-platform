@@ -90,7 +90,7 @@ def test_rmm_blocks_signal_not_in_allowed_sides():
 
     assert not trades_list
     assert len(skipped_list) == 5
-    assert skipped_list[0]["reason_code"] == "rmm_block"
+    assert skipped_list[0]["skip_reason"] == "rmm_block"
 
 
 def test_rmm_allows_signal_opens_position() -> None:

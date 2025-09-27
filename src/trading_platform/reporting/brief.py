@@ -638,10 +638,10 @@ def generate_brief(
             if "cf_pnl_currency" in trade:
                 trade["cf_pnl_currency"] = _round_currency(trade["cf_pnl_currency"])
         placeholders["skipped_trades"] = _to_jsonable(skipped_trades)
-        # Aggregate impact metrics by reason_code
+        # Aggregate impact metrics by skip_reason
         agg: dict[str, Any] = {}
         for s in skipped_trades:
-            rc = s.get("reason_code") or "unknown"
+            rc = s.get("skip_reason") or "unknown"
             st = agg.setdefault(
                 rc,
                 {
@@ -659,7 +659,7 @@ def generate_brief(
             vals = [
                 float(s.get("cf_pnl_currency", 0.0))
                 for s in skipped_trades
-                if (s.get("reason_code") or "unknown") == rc
+                if (s.get("skip_reason") or "unknown") == rc
             ]
             st["total_cf_pnl"] = _round_currency(float(sum(vals)))
             st["mean_cf_pnl"] = _round_currency(
