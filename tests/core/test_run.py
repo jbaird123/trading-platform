@@ -11,6 +11,7 @@ def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
     """Helper to create instrument dict for RunConfig."""
     return {"symbol": symbol}
 
+
 import json
 import tempfile
 from datetime import datetime, timedelta
@@ -1413,7 +1414,7 @@ def test_finalize_run_uses_config_snapshots(tmp_path):
         initial_cash=10000.0,
         position_size=1.0,
         allow_flip_on_bar=False,
-            instrument=_instrument(),
+        instrument=_instrument(),
         instrument_definitions={
             "EURUSD": {"symbol": "EURUSD", "tick_size": 0.0001, "base_ccy": "EUR"}
         },
@@ -1480,7 +1481,7 @@ def test_finalize_run_populates_mc_wfe_paramsearch(tmp_path):
         initial_cash=10000.0,
         position_size=1.0,
         allow_flip_on_bar=False,
-            instrument=_instrument(),
+        instrument=_instrument(),
         monte_carlo={"trials": 50, "seed": 123},
         walk_forward={"window": 2, "step": 1},
         parameter_search={"grid": {"a": [1, 2]}, "objective": "total_pnl"},
@@ -1529,7 +1530,7 @@ def test_finalize_run_prefers_explicit_mc_over_config(tmp_path):
         initial_cash=10000.0,
         position_size=1.0,
         allow_flip_on_bar=False,
-            instrument=_instrument(),
+        instrument=_instrument(),
         monte_carlo={"trials": 1},
     )
     brief_path = finalize_run(
