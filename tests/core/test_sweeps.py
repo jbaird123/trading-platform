@@ -293,7 +293,11 @@ class TestWalkForwardOptimizeCoverage:
             index=pd.date_range("2024-01-01", periods=4, freq="D"),
         )
 
-        base_cfg = {"initial_cash": 10000.0, "user_id": "test", "instrument": {"symbol": "EURUSD"}}
+        base_cfg = {
+            "initial_cash": 10000.0,
+            "user_id": "test",
+            "instrument": {"symbol": "EURUSD"},
+        }
         strategy_cfg = {"entry_signals": ["long"]}
         grid = {"param1": [1, 2]}
 
@@ -794,7 +798,11 @@ class TestEdgeCasesAndHelperFunctions:
             index=pd.date_range("2024-01-01", periods=4, freq="D"),
         )
 
-        base_cfg = {"initial_cash": 10000.0, "user_id": "test", "instrument": {"symbol": "EURUSD"}}
+        base_cfg = {
+            "initial_cash": 10000.0,
+            "user_id": "test",
+            "instrument": {"symbol": "EURUSD"},
+        }
         strategy_cfg = {"entry_signals": ["long"]}
         grid = {"param1": [1]}
 
@@ -1071,7 +1079,11 @@ class TestEdgeCasesAndHelperFunctions:
             index=pd.date_range("2024-01-01", periods=4, freq="D"),
         )
 
-        base_cfg = {"initial_cash": 10000.0, "user_id": "test", "instrument": {"symbol": "EURUSD"}}
+        base_cfg = {
+            "initial_cash": 10000.0,
+            "user_id": "test",
+            "instrument": {"symbol": "EURUSD"},
+        }
         strategy_cfg = {"entry_signals": ["long"]}
         grid = {"param1": [1]}
 
@@ -1269,7 +1281,10 @@ class TestEdgeCasesAndHelperFunctions:
             index=pd.date_range("2024-01-01", periods=2, freq="h"),
         )
 
-        base_cfg = {"initial_cash": 0.0, "instrument": {"symbol": "EURUSD"}}  # Zero initial cash to test edge cases
+        base_cfg = {
+            "initial_cash": 0.0,
+            "instrument": {"symbol": "EURUSD"},
+        }  # Zero initial cash to test edge cases
         strategy_cfg = {"entry_signals": ["long"]}
 
         # Create trades with different outcomes
@@ -1438,7 +1453,10 @@ class TestEdgeCasesAndHelperFunctions:
             {"close": [1.0]}, index=pd.date_range("2024-01-01", periods=1, freq="h")
         )
 
-        base_cfg = {"initial_cash": 5000.0, "instrument": {"symbol": "EURUSD"}}  # Lower initial cash
+        base_cfg = {
+            "initial_cash": 5000.0,
+            "instrument": {"symbol": "EURUSD"},
+        }  # Lower initial cash
         strategy_cfg = {"entry_signals": ["long"]}
 
         # Create a very profitable trade to create new peak
