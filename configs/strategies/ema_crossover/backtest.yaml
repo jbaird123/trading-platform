@@ -6,13 +6,18 @@ tie_break_policy:
   rule: "stop_then_tp"
 position_size: 25000
 
+# Instrument configuration (required for validation)
+instrument:
+  symbol: "EUR_USD"
+  timeframe: "1H"
+
 # Data source is owned by the Data Handler. This run config
 # declares only the intent of what to request.
 data_request:
   symbol: "EUR_USD"
   timeframe: "1H"
-  start: "2021-01-01"
-  end: "2023-03-01"
+  start: "2025-03-01"
+  end: "2025-09-26"
 
 counterfactual_mode: exact   # fast | exact; default is fast
 fast_mode:

@@ -60,7 +60,7 @@ git checkout -b feature/accuracy-validation-strategy
         ```
 
 ### 2. [ ] Manually Calculate Expected Results
-1.  **Action:** Create a spreadsheet (`docs/manual_calcs/verification.xlsx`) and manually perform the backtest bar-by-bar using the files from Task 1. Assume an initial equity of $100,000 and zero costs.
+1.  **Action:** Create a csv (`docs/manual_calcs/verification.csv`) and manually perform the backtest bar-by-bar using the files from Task 1. Assume an initial equity of $100,000 and zero costs.
 2.  **Derive and record the following exact values:**
     -   `n_trades`
     -   `total_pnl`
@@ -73,11 +73,11 @@ git checkout -b feature/accuracy-validation-strategy
 ### 3. [ ] Implement the Manual Verification Test
 1.  **File to Create:** `tests/core/test_manual_verification.py`
 2.  **Logic:**
-    -   Write a test function `test_core_calculations_match_manual_spreadsheet`.
+    -   Write a test function `test_core_calculations_match_manual_csv`.
     -   Inside the test, load the strategy and data from `tests/fixtures/manual_verification/`.
     -   Run the backtest using `run_backtest`.
     -   Generate the performance report using the backtest results.
-    -   Assert that the values in the performance report exactly match the hardcoded values you derived in your spreadsheet from Task 2.
+    -   Assert that the values in the performance report exactly match the hardcoded values you derived in your csv from Task 2.
 
 ---
 
