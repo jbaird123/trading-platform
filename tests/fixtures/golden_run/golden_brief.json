@@ -11,7 +11,7 @@
     }
   },
   "exposure": {
-    "average_gross_exposure": 97.85,
+    "average_gross_exposure": 25.15,
     "peak_gross_exposure": 110.0
   },
   "contrasts": {},
@@ -36,12 +36,12 @@
   "feature_analysis": {},
   "checksums": {
     "instrument_defs_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-    "config_snapshot_hash": "88b69d0b1d60c056d513c75853a882c72369e9ccf70b8ea126e28bb30a0dbdb5"
+    "config_snapshot_hash": "60b9c2a3c90b1d373be73017a8142a8dff23925447895d57bec1531a1a080cbb"
   },
   "meta": {
     "strategy_name": "Golden_EMA_Crossover",
     "run_id": "golden_run_test",
-    "git_commit": "2bbca3c",
+    "git_commit": "82c7907",
     "run_seed": 42
   },
   "strategy_params": {
@@ -168,7 +168,7 @@
     "data_end": null,
     "symbols": [],
     "app_version": "0.0.1",
-    "git_commit": "2bbca3c",
+    "git_commit": "82c7907",
     "run_seed": 42
   },
   "artifacts": {},
@@ -274,132 +274,6 @@
   ],
   "skipped_trades": [
     {
-      "entry_time": "2023-01-01T02:00:00+00:00",
-      "symbol": "GOLDENTICKER",
-      "side": "long",
-      "size": 1.0,
-      "skip_reason": "position_cap",
-      "counterfactual_pnl": 0.0,
-      "counterfactual_mfe_currency": 0.0,
-      "counterfactual_mae_currency": 0.0,
-      "policy_snapshot": {
-        "cap": 1
-      },
-      "notes": null
-    },
-    {
-      "entry_time": "2023-01-01T03:00:00+00:00",
-      "symbol": "GOLDENTICKER",
-      "side": "long",
-      "size": 1.0,
-      "skip_reason": "position_cap",
-      "counterfactual_pnl": 0.0,
-      "counterfactual_mfe_currency": 0.0,
-      "counterfactual_mae_currency": 0.0,
-      "policy_snapshot": {
-        "cap": 1
-      },
-      "notes": null
-    },
-    {
-      "entry_time": "2023-01-01T04:00:00+00:00",
-      "symbol": "GOLDENTICKER",
-      "side": "long",
-      "size": 1.0,
-      "skip_reason": "position_cap",
-      "counterfactual_pnl": 0.0,
-      "counterfactual_mfe_currency": 0.0,
-      "counterfactual_mae_currency": 0.0,
-      "policy_snapshot": {
-        "cap": 1
-      },
-      "notes": null
-    },
-    {
-      "entry_time": "2023-01-01T05:00:00+00:00",
-      "symbol": "GOLDENTICKER",
-      "side": "long",
-      "size": 1.0,
-      "skip_reason": "position_cap",
-      "counterfactual_pnl": 0.0,
-      "counterfactual_mfe_currency": 0.0,
-      "counterfactual_mae_currency": 0.0,
-      "policy_snapshot": {
-        "cap": 1
-      },
-      "notes": null
-    },
-    {
-      "entry_time": "2023-01-01T06:00:00+00:00",
-      "symbol": "GOLDENTICKER",
-      "side": "long",
-      "size": 1.0,
-      "skip_reason": "position_cap",
-      "counterfactual_pnl": 0.0,
-      "counterfactual_mfe_currency": 0.0,
-      "counterfactual_mae_currency": 0.0,
-      "policy_snapshot": {
-        "cap": 1
-      },
-      "notes": null
-    },
-    {
-      "entry_time": "2023-01-01T07:00:00+00:00",
-      "symbol": "GOLDENTICKER",
-      "side": "long",
-      "size": 1.0,
-      "skip_reason": "position_cap",
-      "counterfactual_pnl": 0.0,
-      "counterfactual_mfe_currency": 0.0,
-      "counterfactual_mae_currency": 0.0,
-      "policy_snapshot": {
-        "cap": 1
-      },
-      "notes": null
-    },
-    {
-      "entry_time": "2023-01-01T08:00:00+00:00",
-      "symbol": "GOLDENTICKER",
-      "side": "long",
-      "size": 1.0,
-      "skip_reason": "position_cap",
-      "counterfactual_pnl": 0.0,
-      "counterfactual_mfe_currency": 0.0,
-      "counterfactual_mae_currency": 0.0,
-      "policy_snapshot": {
-        "cap": 1
-      },
-      "notes": null
-    },
-    {
-      "entry_time": "2023-01-01T09:00:00+00:00",
-      "symbol": "GOLDENTICKER",
-      "side": "long",
-      "size": 1.0,
-      "skip_reason": "position_cap",
-      "counterfactual_pnl": 0.0,
-      "counterfactual_mfe_currency": 0.0,
-      "counterfactual_mae_currency": 0.0,
-      "policy_snapshot": {
-        "cap": 1
-      },
-      "notes": null
-    },
-    {
-      "entry_time": "2023-01-01T10:00:00+00:00",
-      "symbol": "GOLDENTICKER",
-      "side": "long",
-      "size": 1.0,
-      "skip_reason": "position_cap",
-      "counterfactual_pnl": 0.0,
-      "counterfactual_mfe_currency": 0.0,
-      "counterfactual_mae_currency": 0.0,
-      "policy_snapshot": {
-        "cap": 1
-      },
-      "notes": null
-    },
-    {
       "entry_time": "2023-01-01T11:00:00+00:00",
       "symbol": "GOLDENTICKER",
       "side": "long",
@@ -430,7 +304,7 @@
   ],
   "filter_impact": {
     "position_cap": {
-      "n_skipped": 11,
+      "n_skipped": 2,
       "total_cf_pnl": 0.0,
       "mean_cf_pnl": 0.0,
       "median_cf_pnl": 0.0

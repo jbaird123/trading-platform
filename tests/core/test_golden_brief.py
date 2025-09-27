@@ -148,17 +148,6 @@ def test_brief_matches_golden_master(tmp_path: Path):
     }
     params_snapshot = strat_cfg.get("parameters", {})
 
-    provenance = {
-        "run_id": run_config.run_id,
-        "strategy_name": strategy.name,
-        "data_start": cfg_raw["data"]["start_date"],
-        "data_end": cfg_raw["data"]["end_date"],
-        "symbols": [run_config.instrument["symbol"]],
-        "app_version": "0.0.1",  # Replace with dynamic version if available
-        "git_commit": _get_git_commit(),
-        "run_seed": run_config.run_seed,
-    }
-
     recommendations = [
         {
             "id": "consider_adx_filter_for_entries",
@@ -172,7 +161,6 @@ def test_brief_matches_golden_master(tmp_path: Path):
     finalize_run(
         run_path=run_output_path,
         meta=meta,
-        provenance=provenance,
         params=params_snapshot,
         trades=trades,
         initial_cash=initial_cash,
