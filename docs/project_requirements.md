@@ -56,6 +56,7 @@ _Last updated: 2025-09-16_
   - **[SYS-1.3.2]** An **Instrument Definition** (part of the Data Handler) provides rich metadata for each symbol required for runtime translation (e.g., `point_value`, `tick_size`).
   - **[SYS-1.3.3]** User-facing components (e.g., Risk & Exit Manager configuration) may allow inputs in native terms (pips, points), but these **must be translated** into the canonical model by the Backtester or Execution Layer at runtime before being passed to the Portfolio Manager.
   - **[SYS-1.3.4]** All core PnL calculations must be performed in a consistent base currency.
+  - **[SYS-1.3.5]** The canonical internal representation for instrument symbols is all-uppercase with no separators (e.g., 'EURUSD', 'SPY'). A normalization utility at 'src/trading_platform/core/utils.py' must be used at all system boundaries to enforce this standard.
 - **[SYS-1.4] Strategy Comparison & A/B Testing**:
   - **[SYS-1.4.1]** The platform must support running comparative analyses between two or more strategy variations.
   - **[SYS-1.4.2]** This includes comparing a baseline strategy against a version with modified parameters, different risk models, or additional signal layers (e.g., with and without an AI-driven event filter).

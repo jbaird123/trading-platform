@@ -16,3 +16,6 @@ The document is here: `docs/project_requirements.md`.
 - Treat the document as a **serious, production-intended specification**.
 - Do not just summarize — your focus is on **critique and actionable advice**.
 - Assume the audience is a **technical team** familiar with Python, backtesting systems, and algorithmic trading.
+
+
+Plase your findings in a new markdown file in the docs/architecture_reviews folder.

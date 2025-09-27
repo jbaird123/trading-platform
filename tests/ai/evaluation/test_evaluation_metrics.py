@@ -1,5 +1,9 @@
+import numpy as np
+import pandas as pd
 from trading_platform.ai.evaluation.metrics import (
+    calculate_sortino_ratio,
     calculate_statistical_significance,
+    get_classification_metrics,
 )
 
 
@@ -38,3 +42,41 @@ def test_calculate_statistical_significance_no_difference():
     assert "t_statistic" in results
     assert "p_value" in results
     assert results["p_value"] > 0.05  # Expecting a non-significant p-value
+
+
+# --- Consolidated from tests/ai/test_evaluation_coverage_gaps.py ---
+
+
+def test_sortino_ratio_zero_downside_std() -> None:
+    """Downside standard deviation of zero should yield a sortino ratio of 0."""
+    pnl_series = pd.Series([-1.0, -1.0, -1.0, -1.0, -1.0])
+    assert calculate_sortino_ratio(pnl_series) == 0.0
+
+
+def test_sortino_ratio_no_downside_returns() -> None:
+    """Positive-only returns produce a sortino ratio of 0."""
+    pnl_series = pd.Series([1.0, 2.0, 1.5, 3.0, 2.5])
+    assert calculate_sortino_ratio(pnl_series) == 0.0
+
+
+def test_sortino_ratio_normal_case() -> None:
+    """Mixed returns should compute a finite sortino ratio."""
+    pnl_series = pd.Series([1.0, -0.5, 2.0, -1.0, 1.5, -0.3])
+    result = calculate_sortino_ratio(pnl_series, periods_per_year=252)
+    assert isinstance(result, float)
+    assert not np.isnan(result)
+
+
+def test_get_classification_metrics_comprehensive() -> None:
+    """Classification metric helper returns comprehensive results."""
+    y_true = pd.Series([0, 1, 0, 1, 0])
+    y_pred = pd.Series([0, 1, 0, 1, 0])
+    y_prob = pd.Series([0.1, 0.9, 0.2, 0.8, 0.1])
+
+    result = get_classification_metrics(y_true, y_pred, y_prob)
+    expected_keys = ["accuracy", "precision", "recall", "f1_score", "roc_auc"]
+    for key in expected_keys:
+        assert key in result
+        assert isinstance(result[key], float)
+
+    assert result["accuracy"] == 1.0

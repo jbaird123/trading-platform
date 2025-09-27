@@ -19,3 +19,8 @@ def get_logger(name: str = "trading") -> logging.Logger:
         h.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
         log.addHandler(h)
     return log
+
+
+def normalize_symbol(symbol: str) -> str:
+    """Converts a symbol string to the canonical 'EURUSD' format."""
+    return "".join(filter(str.isalpha, symbol)).upper()

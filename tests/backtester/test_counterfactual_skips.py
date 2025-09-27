@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any, cast
 
 import pandas as pd
 import pytest
@@ -10,7 +11,10 @@ from trading_platform.backtester.core import run_backtest
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 
-from tests.backtester.dummy_objects import _dummy_strategy_with_tp
+from tests.backtester.dummy_objects import (
+    _dummy_strategy_cfg,
+    _dummy_strategy_with_tp,
+)
 
 
 def _mk_df() -> pd.DataFrame:
@@ -58,3 +62,67 @@ def test_counterfactual_for_blackout_skip_with_tp():
     assert skips and "cf_exit_time" in skips[0]  # type: ignore[index]
     # Entry at 100, TP 2 => pnl ~ 2 * size (size=10000)
     assert skips[0]["cf_pnl_currency"] == approx(2.0 * 10000)  # type: ignore[index]
+
+
+def test_rmm_skip_records_policy_snapshot() -> None:
+    df = _mk_df()
+    sig = pd.Series(["long", "flat", "flat"], index=df.index)
+    config = RunConfig(
+        user_id="test_user",
+        run_seed=42,
+        log_level="INFO",
+        allow_flip_on_bar=False,
+        initial_cash=1000.0,
+        position_size=1.0,
+    )
+    rem = RiskExitManager(config={})
+    rmm_ctx = {
+        df.index[0]: {
+            "allowed_sides": ["short"],
+            "label": "bear",
+            "confidence": 0.4,
+            "policy": {"min_confidence": 0.6},
+        }
+    }
+    result = run_backtest(
+        market_data=df,
+        signals=sig,
+        strategy=_dummy_strategy_cfg(),
+        config=config,
+        rem=rem,
+        rmm_context=rmm_ctx,
+        return_exposure=True,
+        return_skips=True,
+    )
+    trades, exposures, skips = cast(tuple[list, list, list], result)
+    skips_typed = cast(list[dict[str, Any]], skips)
+    assert not trades
+    assert exposures  # exposure logged before skip continue
+    assert skips_typed[0]["reason_code"] == "rmm_block"
+    snap = skips_typed[0]["policy_snapshot"]
+    assert snap["allowed_sides"] == ["short"]
+
+
+def test_run_backtest_returns_exposure_without_skips() -> None:
+    df = _mk_df()
+    sig = pd.Series(["flat", "flat", "flat"], index=df.index)
+    config = RunConfig(
+        user_id="test_user",
+        run_seed=42,
+        log_level="INFO",
+        allow_flip_on_bar=False,
+        initial_cash=1000.0,
+        position_size=1.0,
+    )
+    rem = RiskExitManager(config={})
+    result = run_backtest(
+        market_data=df,
+        signals=sig,
+        strategy=_dummy_strategy_cfg(),
+        config=config,
+        rem=rem,
+        return_exposure=True,
+    )
+    trades, exposure_curve = cast(tuple[list, list], result)
+    assert trades == []
+    assert len(exposure_curve) == len(df)

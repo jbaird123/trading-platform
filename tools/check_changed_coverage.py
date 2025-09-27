@@ -17,6 +17,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = REPO_ROOT / "src" / "trading_platform"
+TESTS_ROOT = REPO_ROOT / "tests"
 
 
 def _staged_source_files() -> list[Path]:
@@ -52,6 +53,47 @@ def _staged_source_files() -> list[Path]:
     return staged_paths
 
 
+def _to_module_name(path: Path) -> str:
+    """Translate a source path into an importable module name."""
+
+    relative_path = path.relative_to(SRC_ROOT)
+    parts = list(relative_path.parts)
+    if not parts:
+        return "trading_platform"
+
+    if parts[-1] == "__init__.py":
+        parts = parts[:-1]
+    else:
+        parts[-1] = parts[-1].removesuffix(".py")
+
+    module_parts = ["trading_platform"] + [part for part in parts if part]
+    return ".".join(module_parts)
+
+
+def _candidate_tests_for(path: Path, test_files: list[Path]) -> list[Path]:
+    """Return test files whose stem references the module's base name."""
+
+    base_name = path.stem
+    if base_name == "__init__":
+        base_name = path.parent.name
+
+    base_name_lower = base_name.lower()
+    relative_parent = path.relative_to(SRC_ROOT).parent
+    parent_parts = list(relative_parent.parts)
+    top_level = parent_parts[0].lower() if parent_parts else None
+
+    matches: list[Path] = []
+    for test_file in test_files:
+        test_rel_parts = [
+            part.lower() for part in test_file.relative_to(TESTS_ROOT).parts
+        ]
+        if top_level and top_level not in test_rel_parts:
+            continue
+        if base_name_lower in test_file.stem.lower():
+            matches.append(test_file)
+    return matches
+
+
 def main() -> int:
     os.chdir(REPO_ROOT)
 
@@ -63,7 +105,19 @@ def main() -> int:
         )
         return 0
 
-    coverage_targets = [str(path.relative_to(REPO_ROOT)) for path in src_files]
+    coverage_targets = [_to_module_name(path) for path in src_files]
+
+    # Precompute available test files under tests/
+    if TESTS_ROOT.exists():
+        all_test_files = sorted(TESTS_ROOT.rglob("test_*.py"))
+    else:
+        all_test_files = []
+
+    test_targets: set[Path] = set()
+    for path in src_files:
+        for test_file in _candidate_tests_for(path, all_test_files):
+            test_targets.add(test_file)
+
     pytest_cmd = [
         "poetry",
         "run",
@@ -72,6 +126,13 @@ def main() -> int:
         "--cov-report=term",
         "--cov-fail-under=100",
     ] + [f"--cov={target}" for target in coverage_targets]
+
+    if test_targets:
+        pytest_cmd.extend(
+            str(path.relative_to(REPO_ROOT)) for path in sorted(test_targets)
+        )
+    else:
+        pytest_cmd.append("tests")
 
     pretty_cmd = " ".join(shlex.quote(part) for part in pytest_cmd)
     print(f"Running targeted coverage: {pretty_cmd}")
