@@ -4,18 +4,18 @@ from datetime import datetime
 from typing import Any
 
 import pandas as pd
-
 from trading_platform.backtester.core import (
     _simulate_counterfactual_exact,
     run_backtest,
 )
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
+
 from tests.backtester.dummy_objects import _dummy_strategy_cfg
 
 
 def test_run_backtest_returns_trades_and_exposure_only() -> None:
-    idx = pd.date_range("2024-01-01", periods=4, freq="H")
+    idx = pd.date_range("2024-01-01", periods=4, freq="h")
     df = pd.DataFrame(
         {
             "open": [1.0, 1.01, 1.02, 1.03],
@@ -38,7 +38,7 @@ def test_run_backtest_returns_trades_and_exposure_only() -> None:
     )
     rem = RiskExitManager(config={})
 
-    trades, exposure = run_backtest(
+    result = run_backtest(
         market_data=df,
         signals=signals,
         strategy=_dummy_strategy_cfg(),
@@ -46,6 +46,7 @@ def test_run_backtest_returns_trades_and_exposure_only() -> None:
         rem=rem,
         return_exposure=True,
     )
+    trades, exposure = result[:2]  # Extract only trades and exposure
 
     assert isinstance(trades, list)
     assert isinstance(exposure, list)
@@ -59,7 +60,7 @@ class _NeverExitREM:
 
 
 def test_counterfactual_exact_exit_kind_end() -> None:
-    idx = pd.date_range("2024-02-01", periods=4, freq="H")
+    idx = pd.date_range("2024-02-01", periods=4, freq="h")
     df = pd.DataFrame(
         {
             "open": [100.0, 101.0, 102.0, 103.0],
