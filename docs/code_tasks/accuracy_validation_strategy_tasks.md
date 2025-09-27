@@ -95,16 +95,16 @@ git checkout -b feature/accuracy-validation-strategy
 
 *Goal: Update the `golden_brief.json` to be a complete, accurate, and verified artifact for detecting future regressions.*
 
-### 6. [ ] Create a Test to Validate `skipped_trades` Structure
+### 6. [x] Create a Test to Validate `skipped_trades` Structure
 -   **Action:** This task is identical to **Task 1** from the `populate_golden_brief_tasks.md` plan. Implement the test in `tests/core/test_golden_brief.py` to validate the keys of a `skipped_trades` object.
 
-### 7. [ ] Fix `skipped_trades` Generation Logic
+### 7. [x] Fix `skipped_trades` Generation Logic
 -   **Action:** This task is identical to **Task 2** from the previous plan. Fix the logic in `trading_platform/backtester/core.py`.
 
-### 8. [ ] Add Missing `meta` and `provenance` Fields
+### 8. [x] Add Missing `meta` and `provenance` Fields
 -   **Action:** This task is identical to **Task 3** from the previous plan. Update the `finalize_run` call in `tests/core/test_golden_brief.py`.
 
-### 9. [ ] Create Self-Contained Golden Run Configurations
+### 9. [x] Create Self-Contained Golden Run Configurations
 1.  **Action:** Create a new strategy file specifically for the golden run.
     -   **File:** `tests/fixtures/golden_run/strategy.yaml`
     -   **Content:** A simple strategy guaranteed to generate trades.
@@ -112,7 +112,7 @@ git checkout -b feature/accuracy-validation-strategy
     -   **File:** `tests/fixtures/golden_run/rmm.yaml`
     -   **Content:** A basic RMM configuration.
 
-### 10. [ ] Update Run Config and Activate Analysis Modules
+### 10. [x] Update Run Config and Activate Analysis Modules
 1.  **File to Modify:** `tests/fixtures/golden_run/run_config.yaml`
 2.  **Logic:**
     -   Change the `strategy` path to point to the new local file: `./strategy.yaml`.
