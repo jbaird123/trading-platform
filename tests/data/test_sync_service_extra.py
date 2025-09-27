@@ -1,16 +1,17 @@
 from __future__ import annotations
 
+import sys
 from datetime import date, timedelta
 from pathlib import Path
-import sys
 
 import pandas as pd
 import pytest
-
 from trading_platform.data import sync_service as ss
 
 
-def test_verify_data_continuity_all_prev_unreadable(tmp_path: Path, monkeypatch, capsys) -> None:
+def test_verify_data_continuity_all_prev_unreadable(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
     # Create a couple of files that will be considered prev files
     full_dir = tmp_path / "full" / "eurusd"
     full_dir.mkdir(parents=True)
@@ -20,7 +21,9 @@ def test_verify_data_continuity_all_prev_unreadable(tmp_path: Path, monkeypatch,
     inc_dir = tmp_path / "incremental" / "eurusd"
     inc_dir.mkdir(parents=True)
     new_file = inc_dir / "eurusd_interval_minute_1_20230102_20230102.csv"
-    new_file.write_text("timestamp,open,high,low,close,volume\n2023-01-02 00:00:00+00:00,1,2,3,4,5\n")
+    new_file.write_text(
+        "timestamp,open,high,low,close,volume\n" "2023-01-02 00:00:00+00:00,1,2,3,4,5\n"
+    )
 
     # Monkeypatch read_csv to always raise for prev files
     def fake_read_csv(path, *a, **k):
@@ -33,7 +36,9 @@ def test_verify_data_continuity_all_prev_unreadable(tmp_path: Path, monkeypatch,
     assert "Could not determine latest timestamp" in out
 
 
-def test_verify_data_continuity_new_file_read_error(tmp_path: Path, monkeypatch, capsys) -> None:
+def test_verify_data_continuity_new_file_read_error(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
     full_dir = tmp_path / "full" / "eurusd"
     full_dir.mkdir(parents=True)
     prev = full_dir / "eurusd_interval_minute_1_20230101_20230101.csv"
@@ -83,7 +88,9 @@ def test_download_and_save_data_start_in_future(tmp_path: Path, capsys) -> None:
     assert "Start date" in out and "in the future" in out
 
 
-def test_download_and_save_data_end_adjusted_and_fetch_raises(monkeypatch, tmp_path: Path, capsys) -> None:
+def test_download_and_save_data_end_adjusted_and_fetch_raises(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
     # Create fake module with fetch that raises
     class FakeDukaErr:
         INTERVAL_MIN_1 = 1
@@ -111,7 +118,9 @@ def test_weekend_and_market_hours_tz_naive() -> None:
     assert not ss._is_during_market_hours(last_ts, first_ts)
 
 
-def test_download_and_save_data_import_error(monkeypatch, tmp_path: Path, capsys) -> None:
+def test_download_and_save_data_import_error(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
     # Force ImportError for dukascopy_python by patching __import__
     import builtins
 

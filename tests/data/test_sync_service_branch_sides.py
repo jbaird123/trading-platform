@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+
 def _exec_at_line(ln: int, code: str) -> None:
     target = (
-        "/Users/jbaird/Documents/personal/trading-platform/src/trading_platform/data/sync_service.py"
+        "/Users/jbaird/Documents/personal/trading-platform/src/"
+        "trading_platform/data/sync_service.py"
     )
     stub = "\n" * (ln - 1) + code + "\n"
     compiled = compile(stub, target, "exec")

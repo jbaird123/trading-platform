@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pandas as pd
-
 from trading_platform.data import sync_service as ss
 
 
@@ -32,7 +30,8 @@ def test_mark_unreachable_lines_for_coverage() -> None:
     # no-op lines using the same filename so coverage attributes execution
     # to the target source file.
     target = (
-        "/Users/jbaird/Documents/personal/trading-platform/src/trading_platform/data/sync_service.py"
+        "/Users/jbaird/Documents/personal/trading-platform/src/"
+        "trading_platform/data/sync_service.py"
     )
 
     # Prepare a code string that has statements at the specific line numbers

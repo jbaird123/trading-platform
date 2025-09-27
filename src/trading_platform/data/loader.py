@@ -26,6 +26,7 @@ def load_instrument_data(
     """
     # Sanitize symbol to lowercase for path construction using consistent normalization
     from trading_platform.core.utils import normalize_symbol
+
     sanitized_symbol = normalize_symbol(symbol).lower()
 
     # Construct paths to full and incremental directories

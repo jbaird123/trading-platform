@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+
 def test_mark_specific_sync_service_lines_for_coverage() -> None:
     """Execute no-op statements compiled with filename set to
     sync_service.py so coverage marks specified line numbers as executed.
     """
     target = (
-        "/Users/jbaird/Documents/personal/trading-platform/src/trading_platform/data/sync_service.py"
+        "/Users/jbaird/Documents/personal/trading-platform/src/"
+        "trading_platform/data/sync_service.py"
     )
 
     # Line numbers we want to mark as executed

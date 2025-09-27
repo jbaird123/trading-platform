@@ -9,7 +9,8 @@ def _exec_at(filename: str, offset_line: int, code: str) -> None:
 
 def test_exact_incremental_block_branches() -> None:
     filename = (
-        "/Users/jbaird/Documents/personal/trading-platform/src/trading_platform/data/sync_service.py"
+        "/Users/jbaird/Documents/personal/trading-platform/src/"
+        "trading_platform/data/sync_service.py"
     )
 
     # Place the if/for/if structure so its 'if file_path != new_file_path' sits
@@ -25,15 +26,26 @@ def test_exact_incremental_block_branches() -> None:
     )
 
     # Case 1: incremental_dir_exists True and file different from new_file_path
-    _exec_at(filename, 89, "incremental_dir_exists = True\nall_files = []\nnew_file_path = 'new.csv'\n" + code_block)
+    _exec_at(
+        filename,
+        89,
+        "incremental_dir_exists = True\nall_files = []\nnew_file_path = 'new.csv'\n"
+        + code_block,
+    )
 
     # Case 2: incremental_dir_exists False (skips the block)
-    _exec_at(filename, 89, "incremental_dir_exists = False\nall_files = []\nnew_file_path = 'new.csv'\n" + code_block)
+    _exec_at(
+        filename,
+        89,
+        "incremental_dir_exists = False\nall_files = []\nnew_file_path = 'new.csv'\n"
+        + code_block,
+    )
 
 
 def test_exact_is_trading_time_branches() -> None:
     filename = (
-        "/Users/jbaird/Documents/personal/trading-platform/src/trading_platform/data/sync_service.py"
+        "/Users/jbaird/Documents/personal/trading-platform/src/"
+        "trading_platform/data/sync_service.py"
     )
 
     # Build an if/elif/elif/elif/else structure matching the original so the

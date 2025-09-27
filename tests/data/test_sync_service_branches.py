@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
-
 from trading_platform.data import sync_service as ss
 
 
@@ -14,22 +12,16 @@ def test_latest_file_selection(tmp_path: Path) -> None:
     full_dir.mkdir(parents=True)
 
     f1 = full_dir / "eurusd_interval_minute_1_20230101_20230101.csv"
-    f1.write_text(
-        "timestamp,open\n2023-01-01 00:00:00+00:00,1\n"
-    )
+    f1.write_text("timestamp,open\n2023-01-01 00:00:00+00:00,1\n")
 
     f2 = full_dir / "eurusd_interval_minute_1_20230102_20230102.csv"
-    f2.write_text(
-        "timestamp,open\n2023-01-02 00:00:00+00:00,1\n"
-    )
+    f2.write_text("timestamp,open\n2023-01-02 00:00:00+00:00,1\n")
 
     # New file starts after latest existing file
     inc_dir = tmp_path / "incremental" / "eurusd"
     inc_dir.mkdir(parents=True)
     new_file = inc_dir / "new.csv"
-    new_file.write_text(
-        "timestamp,open\n2023-01-02 00:05:00+00:00,1\n"
-    )
+    new_file.write_text("timestamp,open\n2023-01-02 00:05:00+00:00,1\n")
 
     # The gap is 5 minutes during market hours so a RuntimeError is expected.
     # Also verify the function prints the expected timestamp/gap information
@@ -44,9 +36,7 @@ def test_incremental_file_equal_new_file_skipped(tmp_path: Path) -> None:
     inc_dir = tmp_path / "incremental" / "eurusd"
     inc_dir.mkdir(parents=True)
     new_file = inc_dir / "eurusd_interval_minute_1_20230103_20230103.csv"
-    new_file.write_text(
-        "timestamp,open\n2023-01-03 00:00:00+00:00,1\n"
-    )
+    new_file.write_text("timestamp,open\n2023-01-03 00:00:00+00:00,1\n")
 
     # No full dir and the only incremental file is the new file, so
     # verify_data_continuity should skip and report no previous files
