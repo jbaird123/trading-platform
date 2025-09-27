@@ -220,13 +220,13 @@ def test_load_from_catalog_loads_incremental_data(tmp_path: Path) -> None:
     incremental_dir = tmp_path / "incremental" / "eurusd"
     incremental_dir.mkdir(parents=True)
 
-    inc_file1 = incremental_dir / "eurusd_20230102.csv"
+    inc_file1 = incremental_dir / "eurusd_interval_min_1_20230102_20230102.csv"
     inc_file1.write_text(
         "UTCTime,Open,High,Low,Close,Volume\n"
         "2023-01-02 00:00:00,1.10,1.20,1.00,1.15,1200\n"
     )
 
-    inc_file2 = incremental_dir / "eurusd_20230103.csv"
+    inc_file2 = incremental_dir / "eurusd_interval_min_1_20230103_20230103.csv"
     inc_file2.write_text(
         "UTCTime,Open,High,Low,Close,Volume\n"
         "2023-01-03 00:00:00,1.15,1.25,1.05,1.20,1300\n"
@@ -252,3 +252,56 @@ def test_load_from_catalog_loads_incremental_data(tmp_path: Path) -> None:
     # Verify data spans from base file to incremental files
     assert df.index[0].strftime("%Y-%m-%d") == "2023-01-01"
     assert df.index[-1].strftime("%Y-%m-%d") == "2023-01-03"
+
+
+def test_loader_skips_empty_incremental_files(tmp_path: Path) -> None:
+    """Empty incremental CSV files must not be appended to the dataset."""
+    base_file = tmp_path / "eurusd_base.csv"
+    _write_sample_csv(base_file)
+    catalog_path = tmp_path / "catalog.yaml"
+    _write_catalog(catalog_path, {"EURUSD": {"csv_path": str(base_file)}})
+
+    incremental_dir = tmp_path / "incremental" / "eurusd"
+    incremental_dir.mkdir(parents=True)
+    empty_file = incremental_dir / "eurusd_interval_min_1_20240101_20240101.csv"
+    empty_file.write_text("timestamp,open,high,low,close,volume\n")
+
+    df, flags, _ = load_from_catalog({"symbol": "EURUSD"}, catalog_path=catalog_path)
+
+    assert len(df) == 3
+    assert flags == []
+
+
+def test_loader_ignores_failed_incremental_files(tmp_path: Path) -> None:
+    """Incremental loader failures are ignored while base data is returned."""
+    base_file = tmp_path / "eurusd_base.csv"
+    _write_sample_csv(base_file)
+    catalog_path = tmp_path / "catalog.yaml"
+    _write_catalog(catalog_path, {"EURUSD": {"csv_path": str(base_file)}})
+
+    incremental_dir = tmp_path / "incremental" / "eurusd"
+    incremental_dir.mkdir(parents=True)
+    bad_file = incremental_dir / "eurusd_interval_min_1_bad_bad.csv"
+    bad_file.write_text("garbage\n")
+
+    from unittest.mock import patch
+
+    from trading_platform.data import loader as loader_module
+
+    real_load = loader_module.load_and_normalize_data
+
+    def side_effect(path: Path):
+        if Path(path) == base_file:
+            return real_load(Path(path))
+        raise RuntimeError("failed incremental load")
+
+    with patch(
+        "trading_platform.data.loader.load_and_normalize_data",
+        side_effect=side_effect,
+    ):
+        df, flags, _ = load_from_catalog(
+            {"symbol": "EURUSD"}, catalog_path=catalog_path
+        )
+
+    assert len(df) == 3
+    assert flags == []

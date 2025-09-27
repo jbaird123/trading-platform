@@ -1,4 +1,5 @@
 """Main orchestration script for data synchronization."""
+
 from __future__ import annotations
 
 import argparse
@@ -19,12 +20,14 @@ def main(args: list[str] | None = None) -> None:
     Args:
         args: Command line arguments. If None, uses sys.argv
     """
-    parser = argparse.ArgumentParser(description='Synchronize market data')
-    parser.add_argument('--symbol', type=str, help='Symbol to sync (e.g., EUR/USD)')
-    parser.add_argument('--all', action='store_true',
-                        help='Sync all defined instruments')
-    parser.add_argument('--data-root', type=str, required=True,
-                       help='Root directory for data files')
+    parser = argparse.ArgumentParser(description="Synchronize market data")
+    parser.add_argument("--symbol", type=str, help="Symbol to sync (e.g., EUR/USD)")
+    parser.add_argument(
+        "--all", action="store_true", help="Sync all defined instruments"
+    )
+    parser.add_argument(
+        "--data-root", type=str, required=True, help="Root directory for data files"
+    )
 
     parsed_args = parser.parse_args(args)
 
@@ -36,7 +39,7 @@ def main(args: list[str] | None = None) -> None:
     elif parsed_args.symbol:
         symbols = [parsed_args.symbol]
     else:
-        parser.error('Either --symbol or --all must be specified')
+        parser.error("Either --symbol or --all must be specified")
 
     # Process each symbol
     for symbol in symbols:
@@ -52,7 +55,7 @@ def process_symbol(symbol: str, data_root: Path) -> None:
     """
     # Normalize symbol for file pattern matching
     # Convert "EUR/USD" to "eurusd" for filename matching
-    normalized_symbol = symbol.replace('/', '').lower()
+    normalized_symbol = symbol.replace("/", "").lower()
 
     # Find all existing data files for this symbol
     # Look in both full and incremental directories

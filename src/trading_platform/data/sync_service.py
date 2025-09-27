@@ -1,4 +1,5 @@
 """Data synchronization service for automated market data updates."""
+
 from __future__ import annotations
 
 import re
@@ -20,10 +21,12 @@ def get_last_sync_date(files: list[Path]) -> date | None:
         extracts and returns date(2024, 5, 31)
     """
     if not files:
-        return None    # Pattern to match the date range in filenames like:
+        return None
+
+    # Pattern to match the date range in filenames like:
     # eurusd_interval_min_1_20240101_20240531.csv
     # Group 2 captures the 'toDate' (second date)
-    date_pattern = r'(\d{8})_(\d{8})'
+    date_pattern = r"(\d{8})_(\d{8})"
 
     latest_date = None
 
@@ -37,7 +40,7 @@ def get_last_sync_date(files: list[Path]) -> date | None:
 
             # Parse the date string (YYYYMMDD format)
             try:
-                file_date = datetime.strptime(to_date_str, '%Y%m%d').date()
+                file_date = datetime.strptime(to_date_str, "%Y%m%d").date()
 
                 # Keep track of the most recent date
                 if latest_date is None or file_date > latest_date:
