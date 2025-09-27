@@ -110,3 +110,56 @@ The developer must follow these tasks in the specified sequence. All changes mus
     - **Action:** Add a new system-wide requirement to formally document the symbol policy.
     - **Logic:**
         -   Under `[SYS-1.3] Instrument Agnostic Architecture`, add a new requirement: `[SYS-1.3.5] The canonical internal representation for instrument symbols is all-uppercase with no separators (e.g., 'EURUSD', 'SPY'). A normalization utility at 'src/trading_platform/core/utils.py' must be used at all system boundaries to enforce this standard.`
+
+### 6. Refactor Hardcoded Symbols from Application Code
+
+- [x] **6.1. Create Test for Backtester Core Refactoring**
+    - **File:** `tests/backtester/test_backtester.py`
+    - **Action:** Modify existing tests that use default or example `RunConfig`s originating from `src/trading_platform/backtester/core.py`.
+    - **Logic:**
+        1.  Identify functions in `backtester/core.py` that create configurations with a hardcoded symbol.
+        2.  Modify their tests to ensure the functions can be provided with a symbol (e.g., "GBPJPY") and that the created configuration uses this provided symbol instead of the hardcoded one.
+
+- [x] **6.2. Refactor `backtester/core.py`**
+    - **File:** `src/trading_platform/backtester/core.py`
+    - **Action:** Refactor functions to accept a `symbol` parameter instead of using a hardcoded value.
+    - **Logic:**
+        1.  Modified the `_simulate_counterfactual_fast` and `_simulate_counterfactual_exact` function signatures to accept a `symbol: str = "EURUSD"` parameter.
+        2.  Replaced all hardcoded `"EURUSD"` references in skipped trade logging with calls to `_get_symbol()` helper function that safely extracts the symbol from `config.instrument` with proper fallback handling.
+
+- [x] **6.3. Create Test for AI Data Connectors Refactoring**
+    - **File:** `tests/ai/test_data_connectors.py`
+    - **Action:** Add or modify tests for functions that currently return hardcoded symbols.
+    - **Logic:**
+        1.  Added `test_data_catalog_get_available_symbols_should_use_instrument_registry()` test that sets up framework to verify refactoring to use instrument registry.
+        2.  Added `test_main_block_should_accept_custom_symbol()` test that verifies `load_training_data` works with custom symbols and prepares for main block refactoring.
+
+- [x] **6.4. Refactor `ai/data_connectors.py`**
+    - **File:** `src/trading_platform/ai/data_connectors.py`
+    - **Action:** Remove hardcoded symbols.
+    - **Logic:**
+        1.  Modified `get_available_symbols()` to dynamically read available symbols from `_INSTRUMENT_DEFINITIONS` registry instead of returning hardcoded `["EURUSD", "GBPUSD"]`.
+        2.  Modified the main block example to accept a `symbol` parameter via command line arguments (defaulting to "EURUSD" for backward compatibility) instead of hardcoding "EURUSD".
+
+- [x] **6.5. Create Test for Execution Controller Refactoring**
+    - **File:** `tests/execution/test_controller.py`
+    - **Action:** Modify the relevant test for the function that calls `adapter.place_order` with hardcoded symbol.
+    - **Logic:**
+        1.  Added `test_run_live_controller_should_accept_custom_symbol()` test that verifies current behavior (hardcoded "EURUSD" in place_order calls).
+        2.  Set up framework to validate refactoring that would accept a symbol parameter and use it instead of hardcoded value.
+
+- [x] **6.6. Refactor `execution/controller.py`**
+    - **File:** `src/trading_platform/execution/controller.py`
+    - **Action:** Refactor the function containing the hardcoded symbol.
+    - **Logic:**
+        1.  Modified the `run_live_controller` function signature to accept a `symbol: str = "EURUSD"` parameter.
+        2.  Used this `symbol` variable in the call to `adapter.place_order` instead of hardcoded "EURUSD".
+
+### 7. Update Docstrings for Refactored Code
+
+- [x] **7.1. Review and Update Docstrings**
+    - **Action:** After all refactoring in Section 6 is complete, review every function that was modified.
+    - **Logic:**
+        1.  Updated docstrings for `_simulate_counterfactual_fast` and `_simulate_counterfactual_exact` in `backtester/core.py` to document the new `symbol` parameter.
+        2.  Added comprehensive docstring for `run_live_controller` in `execution/controller.py` including documentation for the new `symbol` parameter.
+        3.  All docstrings now clearly explain the purpose and expected format of the `symbol` parameter.
