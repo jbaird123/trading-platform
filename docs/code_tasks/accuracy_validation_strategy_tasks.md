@@ -116,11 +116,24 @@ git checkout -b feature/accuracy-validation-strategy
 ### 8. [ ] Add Missing `meta` and `provenance` Fields
 -   **Action:** This task is identical to **Task 3** from the previous plan. Update the `finalize_run` call in `tests/core/test_golden_brief.py`.
 
-### 9. [ ] Activate Advanced Analysis Modules
--   **Action:** This task is identical to **Task 4** from the previous plan. Update `tests/fixtures/golden_run/run_config.yaml` to enable `monte_carlo`, etc.
+### 9. [ ] Create Self-Contained Golden Run Configurations
+1.  **Action:** Create a new strategy file specifically for the golden run.
+    -   **File:** `tests/fixtures/golden_run/strategy.yaml`
+    -   **Content:** A simple strategy guaranteed to generate trades.
+2.  **Action:** Create a new RMM file for the golden run.
+    -   **File:** `tests/fixtures/golden_run/rmm.yaml`
+    -   **Content:** A basic RMM configuration.
 
-### 10. [ ] Regenerate the Golden Brief File
+### 10. [ ] Update Run Config and Activate Analysis Modules
+1.  **File to Modify:** `tests/fixtures/golden_run/run_config.yaml`
+2.  **Logic:**
+    -   Change the `strategy` path to point to the new local file: `./strategy.yaml`.
+    -   Add a `regime_market_manager` section pointing to `./rmm.yaml`.
+    -   Add a `costs` model to populate cost data.
+    -   Append the `monte_carlo`, `walk_forward`, and `parameter_search` configurations as originally planned.
+
+### 11. [ ] Regenerate the Golden Brief File
 -   **Action:** This task is identical to **Task 5** from the previous plan. Delete the old file and copy the new one from the test output.
 
-### 11. [ ] Final Verification
+### 12. [ ] Final Verification
 -   **Action:** This task is identical to **Task 6** from the previous plan. Run `pytest tests/core/test_golden_brief.py` to confirm it passes against the new, complete, and validated golden brief.
