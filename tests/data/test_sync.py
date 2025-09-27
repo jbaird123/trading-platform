@@ -10,10 +10,10 @@ from trading_platform.data.sync import main
 
 def test_main_sync_logic(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Integration test for main sync logic."""
-    # Create a dummy file in the test directory
-    full_dir = tmp_path / "full"
-    full_dir.mkdir()
-    dummy_file = full_dir / "eurusd_interval_min_1_20250901_20250920.csv"
+    # Create a dummy file in the test directory with new structure
+    full_symbol_dir = tmp_path / "full" / "eurusd"
+    full_symbol_dir.mkdir(parents=True)
+    dummy_file = full_symbol_dir / "eurusd_interval_min_1_20250901_20250920.csv"
     dummy_file.write_text("timestamp,open,high,low,close,volume\n")
 
     # Mock the download_and_save_data function
@@ -135,11 +135,11 @@ def test_process_symbol_skips_when_up_to_date(
 ) -> None:
     from trading_platform.data.sync import process_symbol
 
-    full_dir = tmp_path / "full"
-    full_dir.mkdir()
+    full_symbol_dir = tmp_path / "full" / "eurusd"
+    full_symbol_dir.mkdir(parents=True)
     latest = date.today() - timedelta(days=1)
     filename = f"eurusd_interval_min_1_{latest:%Y%m%d}_{latest:%Y%m%d}.csv"
-    (full_dir / filename).write_text("timestamp,open,high,low,close,volume\n")
+    (full_symbol_dir / filename).write_text("timestamp,open,high,low,close,volume\n")
 
     def fake_last_sync(files):
         assert files

@@ -61,16 +61,16 @@ def process_symbol(symbol: str, data_root: Path) -> None:
 
     # Find all existing data files for this symbol
     # Look in both full and incremental directories
-    full_dir = data_root / "full"
+    full_symbol_dir = data_root / "full" / normalized_symbol
     incremental_dir = data_root / "incremental" / normalized_symbol
-    print(f"Searching for files in {full_dir} and {incremental_dir}")
+    print(f"Searching for files in {full_symbol_dir} and {incremental_dir}")
 
     # Collect all CSV files
     files: list[Path] = []
 
-    if full_dir.exists():
+    if full_symbol_dir.exists():
         pattern = f"{normalized_symbol}_*.csv"
-        files.extend(Path(f) for f in glob.glob(str(full_dir / pattern)))
+        files.extend(Path(f) for f in glob.glob(str(full_symbol_dir / pattern)))
 
     if incremental_dir.exists():
         pattern = "*.csv"
