@@ -79,7 +79,7 @@ def test_daily_loss_cap_blocks_new_entries():
     )
     trades, exposure, skipped = cast(tuple[list, list, list], result)
 
-    assert any(s.get("reason_code") == "risk_cap" for s in skipped)
+    assert any(s.get("skip_reason") == "risk_cap" for s in skipped)
 
 
 def test_exposure_curve_tracks_gross_notional():
@@ -160,7 +160,7 @@ def test_position_cap_skips_same_direction_entry():
     trades, exposure, skipped = cast(tuple[list, list, list], result)
 
     assert len(trades) == 0
-    assert any(s.get("reason_code") == "position_cap" for s in skipped)
+    assert any(s.get("skip_reason") == "position_cap" for s in skipped)
 
 
 def test_position_cap_not_reached_when_already_open():
@@ -201,7 +201,7 @@ def test_position_cap_not_reached_when_already_open():
     trades, exposure, skipped = cast(tuple[list, list, list], result)
 
     assert len(trades) == 0
-    assert not any(s.get("reason_code") == "position_cap" for s in skipped)
+    assert not any(s.get("skip_reason") == "position_cap" for s in skipped)
 
 
 def test_position_cap_zero_blocks_new_entry():
@@ -241,7 +241,7 @@ def test_position_cap_zero_blocks_new_entry():
     )
     trades, exposure, skipped = cast(tuple[list, list, list], result)
 
-    assert any(s.get("reason_code") == "position_cap" for s in skipped)
+    assert any(s.get("skip_reason") == "position_cap" for s in skipped)
 
 
 def test_rmm_blocks_disallowed_side():
@@ -290,4 +290,4 @@ def test_rmm_blocks_disallowed_side():
     trades, exposure, skips = cast(tuple[list, list, list], result)
 
     assert len(cast(list, trades)) == 0
-    assert any(s.get("reason_code") == "rmm_block" for s in cast(list, skips))
+    assert any(s.get("skip_reason") == "rmm_block" for s in cast(list, skips))

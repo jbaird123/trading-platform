@@ -673,7 +673,18 @@ def test_generate_brief_handles_signal_dataframe_and_artifacts(monkeypatch, tmp_
         signals_path=str(tmp_path / "signals.parquet"),
         rmm_spans_path="/tmp/rmm.parquet",
         processed_data_path="/tmp/data.parquet",
-        skipped_trades=[{"reason_code": "blackout", "cf_pnl_currency": 12.3456}],
+        skipped_trades=[
+            {
+                "entry_time": "2024-01-01T00:00:00",
+                "symbol": "EURUSD",
+                "side": "long",
+                "size": 100.0,
+                "skip_reason": "blackout",
+                "counterfactual_entry_price": 1.0,
+                "counterfactual_pnl": 0.0,
+                "cf_pnl_currency": 12.3456,
+            }
+        ],
     )
 
     sq = brief_data["signal_quality_analysis"]

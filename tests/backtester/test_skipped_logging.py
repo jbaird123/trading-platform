@@ -63,7 +63,7 @@ def test_skip_logged_for_blackout():
     assert skips is not None
     assert len(skips) >= 1  # type: ignore[arg-type]
     s0 = skips[0]  # type: ignore[index]
-    assert s0["reason_code"] in ("blackout_static", "blackout")
+    assert s0["skip_reason"] in ("blackout_static", "blackout")
     assert "policy_snapshot" in s0
 
 
@@ -94,4 +94,4 @@ def test_skip_logged_for_position_cap():
     trades, _exp, skips = result  # type: ignore[misc]
     # One entry, second long should be skipped due to cap
     assert skips is not None
-    assert any(s.get("reason_code") == "position_cap" for s in skips)  # type: ignore[union-attr]
+    assert any(s.get("skip_reason") == "position_cap" for s in skips)  # type: ignore[union-attr]

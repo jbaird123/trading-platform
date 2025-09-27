@@ -15,7 +15,7 @@ git checkout -b feature/populate-golden-brief
 
 The following tasks must be completed in strict sequential order.
 
-### 1. [ ] Create a Test to Validate `skipped_trades` Structure
+### 1. [x] Create a Test to Validate `skipped_trades` Structure
 1.  **File to Modify:** `tests/core/test_golden_brief.py`
 2.  **Action:** In the `test_brief_matches_golden_master` function, immediately before the final `assert_briefs_equal(actual_brief, golden_brief)` call, add a new assertion block.
 3.  **Logic:** This block must verify the structure of the items within the `skipped_trades` list in the `actual_brief`.
@@ -32,7 +32,7 @@ The following tasks must be completed in strict sequential order.
         -   `counterfactual_mae_currency`
 4.  **Expected Outcome:** This test will fail until Task 2 is completed.
 
-### 2. [ ] Fix `skipped_trades` Generation Logic
+### 2. [x] Fix `skipped_trades` Generation Logic
 1.  **File to Modify:** `trading_platform/backtester/core.py`
 2.  **Action:** Locate the logic within the `run_backtest` function where skipped trade dictionaries are created. This is likely where a dictionary with `reason_code` is appended to a list of skips.
 3.  **Logic:** Modify the creation of the skipped trade dictionary to conform to the schema.
@@ -46,7 +46,7 @@ The following tasks must be completed in strict sequential order.
         -   `counterfactual_mae_currency`: Set to `0.0` as a placeholder.
 4.  **Verification:** Run the test from Task 1. It should now pass.
 
-### 3. [ ] Add Missing `meta` and `provenance` Fields
+### 3. [x] Add Missing `meta` and `provenance` Fields
 1.  **File to Modify:** `tests/core/test_golden_brief.py`
 2.  **Action:** Locate the call to `finalize_run` inside `test_brief_matches_golden_master`.
 3.  **Logic:** The `run_config` object is already created in the test. Update the `meta` dictionary passed to `finalize_run` to include `git_commit` and `run_seed` by sourcing them from the `run_config` object.
@@ -60,7 +60,7 @@ The following tasks must be completed in strict sequential order.
     }
     ```
 
-### 4. [ ] Activate Advanced Analysis Modules
+### 4. [x] Activate Advanced Analysis Modules
 1.  **File to Modify:** `tests/fixtures/golden_run/run_config.yaml`
 2.  **Action:** Add configurations for the currently empty analysis sections.
 3.  **Logic:** Append the following configurations to the YAML file. Use minimal settings to ensure the test remains fast.
@@ -87,7 +87,7 @@ The following tasks must be completed in strict sequential order.
           score: 1.2
     ```
 
-### 5. [ ] Regenerate the Golden Brief File
+### 5. [x] Regenerate the Golden Brief File
 1.  **Action:** Manually delete the existing golden brief file.
     ```bash
     rm tests/fixtures/golden_run/golden_brief.json
@@ -99,7 +99,7 @@ The following tasks must be completed in strict sequential order.
     cp /tmp/path/from/test/output/brief.json tests/fixtures/golden_run/golden_brief.json
     ```
 
-### 6. [ ] Final Verification
+### 6. [x] Final Verification
 1.  **Action:** Run the `test_golden_brief.py` test again.
     ```bash
     pytest tests/core/test_golden_brief.py
