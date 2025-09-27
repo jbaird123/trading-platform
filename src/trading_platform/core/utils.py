@@ -23,4 +23,4 @@ def get_logger(name: str = "trading") -> logging.Logger:
 
 def normalize_symbol(symbol: str) -> str:
     """Converts a symbol string to the canonical 'EURUSD' format."""
-    return "".join(filter(str.isalpha, symbol)).upper()
+    return "".join(filter(str.isalnum, symbol)).upper()
