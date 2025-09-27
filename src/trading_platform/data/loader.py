@@ -24,8 +24,9 @@ def load_instrument_data(
     Raises:
         FileNotFoundError: If no data files are found for the symbol
     """
-    # Sanitize symbol to lowercase for path construction
-    sanitized_symbol = symbol.replace("/", "").lower()
+    # Sanitize symbol to lowercase for path construction using consistent normalization
+    from trading_platform.core.utils import normalize_symbol
+    sanitized_symbol = normalize_symbol(symbol).lower()
 
     # Construct paths to full and incremental directories
     full_dir = data_root / "full" / sanitized_symbol
