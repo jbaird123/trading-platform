@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
+
+import pandas as pd
 
 
 def get_last_sync_date(files: list[Path]) -> date | None:
@@ -51,6 +53,181 @@ def get_last_sync_date(files: list[Path]) -> date | None:
                 continue
 
     return latest_date
+
+
+def verify_data_continuity(
+    symbol: str, data_root: Path, new_file_path: Path
+) -> None:
+    """Verify data continuity between existing files and newly downloaded data.
+    
+    Checks for unexpected gaps during normal forex market hours while allowing
+    expected weekend market closures.
+    
+    Args:
+        symbol: The financial instrument symbol (e.g., "EUR/USD")
+        data_root: Root directory where data files are stored
+        new_file_path: Path to the newly created incremental file
+        
+    Raises:
+        RuntimeError: If an unexpected data gap is detected during market hours
+    """
+    normalized_symbol = symbol.replace("/", "").lower()
+    
+    # Find all existing data files for this symbol (excluding the new file)
+    full_dir = data_root / "full"
+    incremental_dir = data_root / "incremental" / normalized_symbol
+    
+    all_files = []
+    
+    # Collect full files
+    if full_dir.exists():
+        pattern = f"{normalized_symbol}_*.csv"
+        for file_path in full_dir.glob(pattern):
+            all_files.append(file_path)
+    
+    # Collect incremental files (excluding the new one)
+    if incremental_dir.exists():
+        for file_path in incremental_dir.glob("*.csv"):
+            if file_path != new_file_path:
+                all_files.append(file_path)
+    
+    if not all_files:
+        print("  No previous files found - skipping continuity check")
+        return
+    
+    # Find the most recent existing file by examining actual data timestamps
+    latest_file = None
+    latest_timestamp = None
+    
+    for file_path in all_files:
+        try:
+            # Read last line of each file to get the latest timestamp
+            df = pd.read_csv(file_path)
+            if not df.empty:
+                df['timestamp'] = pd.to_datetime(df['timestamp'])
+                file_last_ts = df.iloc[-1]['timestamp']
+                
+                if latest_timestamp is None or file_last_ts > latest_timestamp:
+                    latest_timestamp = file_last_ts
+                    latest_file = file_path
+        except Exception as e:
+            print(f"  Warning: Could not read {file_path}: {e}")
+            continue
+    
+    if latest_file is None or latest_timestamp is None:
+        print("  Could not determine latest timestamp - skipping continuity check")
+        return
+    
+    # Read first timestamp from the new file
+    try:
+        new_df = pd.read_csv(new_file_path)
+        if new_df.empty:
+            print("  New file is empty - skipping continuity check")
+            return
+            
+        new_df['timestamp'] = pd.to_datetime(new_df['timestamp'])
+        first_new_timestamp = new_df.iloc[0]['timestamp']
+    except Exception as e:
+        print(f"  Warning: Could not read new file {new_file_path}: {e}")
+        return
+    
+    # Calculate the gap
+    gap = first_new_timestamp - latest_timestamp
+    gap_minutes = gap.total_seconds() / 60
+    
+    print(f"  Last existing data: {latest_timestamp}")
+    print(f"  First new data: {first_new_timestamp}")
+    print(f"  Gap: {gap} ({gap_minutes:.0f} minutes)")
+    
+    # Check if this is an expected weekend closure
+    if _is_expected_weekend_gap(latest_timestamp, first_new_timestamp):
+        print("  ✓ Gap is expected weekend market closure")
+        return
+    
+    # Check for unexpected gaps during market hours
+    if gap_minutes > 1:  # Allow for normal 1-minute intervals
+        # If gap is during market hours, this is an error
+        if _is_during_market_hours(latest_timestamp, first_new_timestamp):
+            raise RuntimeError(
+                f"Unexpected data gap detected during market hours: "
+                f"{gap} ({gap_minutes:.0f} minutes) between "
+                f"{latest_timestamp} and {first_new_timestamp}"
+            )
+        else:
+            print(f"  ✓ Gap appears to be during market closure")
+    else:
+        print("  ✓ Data appears continuous")
+
+
+def _is_expected_weekend_gap(last_ts: pd.Timestamp, first_ts: pd.Timestamp) -> bool:
+    """Check if the gap represents a normal weekend forex market closure.
+    
+    Forex markets typically close Friday evening (~21:00 UTC) and reopen
+    Sunday evening (~21:00 UTC).
+    """
+    # Convert to UTC if not already
+    if last_ts.tz is None:
+        last_ts = last_ts.tz_localize('UTC')
+    if first_ts.tz is None:
+        first_ts = first_ts.tz_localize('UTC')
+        
+    # Check if last timestamp is Friday evening (after 20:00 UTC)
+    last_is_friday_evening = (
+        last_ts.weekday() == 4 and  # Friday
+        last_ts.hour >= 20
+    )
+    
+    # Check if first timestamp is Sunday evening or Monday morning (before 06:00 UTC)
+    first_is_weekend_end = (
+        (first_ts.weekday() == 6 and first_ts.hour >= 20) or  # Sunday evening
+        (first_ts.weekday() == 0 and first_ts.hour <= 6)      # Monday early morning
+    )
+    
+    gap_hours = (first_ts - last_ts).total_seconds() / 3600
+    
+    # Weekend gap should be roughly 46-52 hours
+    is_weekend_duration = 44 <= gap_hours <= 54
+    
+    return last_is_friday_evening and first_is_weekend_end and is_weekend_duration
+
+
+def _is_during_market_hours(last_ts: pd.Timestamp, first_ts: pd.Timestamp) -> bool:
+    """Check if the gap occurs during normal forex trading hours.
+    
+    Forex markets trade 24/5 (Monday ~00:00 UTC to Friday ~21:00 UTC).
+    Only return True if the gap is clearly within continuous trading periods,
+    not across weekend boundaries.
+    """
+    # Convert to UTC if not already
+    if last_ts.tz is None:
+        last_ts = last_ts.tz_localize('UTC')
+    if first_ts.tz is None:
+        first_ts = first_ts.tz_localize('UTC')
+    
+    def is_trading_time(ts):
+        weekday = ts.weekday()
+        hour = ts.hour
+        
+        # Monday 00:00 to Friday 21:00 UTC (approximately)
+        if weekday == 0:  # Monday
+            return hour >= 0  # From midnight Monday
+        elif 1 <= weekday <= 4:  # Tuesday to Friday
+            return True  # All day
+        elif weekday == 4:  # Friday
+            return hour <= 21  # Until 21:00 Friday
+        elif weekday == 5:  # Saturday
+            return False  # No trading
+        elif weekday == 6:  # Sunday
+            return hour >= 21  # From 21:00 Sunday
+        else:
+            return False
+    
+    # If this crosses a weekend boundary, it's not "during market hours"
+    if _is_expected_weekend_gap(last_ts, first_ts):
+        return False
+    
+    # Both timestamps should be during trading hours for this to be a market hours gap
+    return is_trading_time(last_ts) and is_trading_time(first_ts)
 
 
 def download_and_save_data(
@@ -120,6 +297,10 @@ def download_and_save_data(
             # Save DataFrame with timestamp index as column (to match expected format)
             df.reset_index().to_csv(output_path, index=False)
             print(f"✓ Saved {len(df)} minute candles to {output_path}")
+            
+            # Verify data continuity
+            print("  Verifying data continuity...")
+            verify_data_continuity(symbol, data_root, output_path)
         else:
             print("! No data was returned from Dukascopy")
 
