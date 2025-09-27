@@ -14,7 +14,7 @@ General data synchronization script that accepts any sync parameters.
 # Sync specific symbol
 ./scripts/sync-data.sh --symbol EUR/USD --data-root ./data
 
-# Sync all instruments  
+# Sync all instruments
 ./scripts/sync-data.sh --all --data-root ./data
 
 # Get help
@@ -33,6 +33,22 @@ This script will:
 - Create `./data/full/` and `./data/incremental/` directories if they don't exist
 - Sync all instruments defined in the platform
 - Use the project's `./data` directory as the data root
+
+### 🚀 Strategy Improvement
+
+#### `run-improvement-cycle.sh`
+Automates one full cycle of the strategy improvement plan. It runs a full backtest with all analyses (parameter search, WFE, Monte Carlo) and then generates both quantitative and qualitative AI diagnostic reports.
+
+**Usage:**
+```bash
+# Run a full improvement cycle on a strategy config
+./scripts/run-improvement-cycle.sh configs/strategies/ema_crossover/backtest.yaml
+```
+This script will:
+1.  Run the backtest with all analyses enabled in the config file.
+2.  Generate a quantitative `ai_diagnostic_report.json`.
+3.  Generate a qualitative `ai_qualitative_report.md` (using an external LLM).
+4.  Print the locations of all reports and guide you on the next steps for iterative improvement.
 
 ### 🧪 Development & Testing
 
