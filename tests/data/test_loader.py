@@ -1,4 +1,9 @@
-"""Consolidated tests for trading_platform.data.loader.load_from_catalog."""
+"""Consolidated tests for trading_platform.data.loader.
+
+NOTE: The load_from_catalog tests have been disabled as part of the refactoring
+to convention-based data loading. The new load_instrument_data function is
+tested in test_loader_convention.py.
+"""
 
 from __future__ import annotations
 
@@ -8,7 +13,8 @@ import pandas as pd
 import pytest
 import yaml
 from trading_platform.data.instrument import InstrumentDefinition
-from trading_platform.data.loader import load_from_catalog
+
+# from trading_platform.data.loader import load_from_catalog  # Removed in refactoring
 
 
 def _write_sample_csv(path: Path) -> None:
@@ -31,6 +37,7 @@ def _write_catalog(path: Path, content: dict) -> None:
 # --- Happy-path loader behaviour -------------------------------------------------
 
 
+@pytest.mark.skip(reason="load_from_catalog removed in refactoring")
 def test_load_from_catalog_filters_and_resamples(tmp_path: Path) -> None:
     csv_path = tmp_path / "eurusd.csv"
     _write_sample_csv(csv_path)
@@ -56,17 +63,20 @@ def test_load_from_catalog_filters_and_resamples(tmp_path: Path) -> None:
 # --- Validation error coverage ---------------------------------------------------
 
 
+@pytest.mark.skip(reason="load_from_catalog removed in refactoring")
 def test_loader_invalid_data_request() -> None:
     with pytest.raises(ValueError, match="data_request must be a dict"):
         load_from_catalog("not a dict")  # type: ignore[arg-type]
 
 
+@pytest.mark.skip(reason="load_from_catalog removed in refactoring")
 def test_loader_missing_symbol_variants() -> None:
     for payload in ({}, {"symbol": ""}, {"symbol": None}):
         with pytest.raises(ValueError, match="data_request.symbol is required"):
             load_from_catalog(payload)
 
 
+@pytest.mark.skip(reason="load_from_catalog removed in refactoring")
 def test_loader_catalog_not_found() -> None:
     with pytest.raises(FileNotFoundError, match="data catalog not found"):
         load_from_catalog(
@@ -74,6 +84,7 @@ def test_loader_catalog_not_found() -> None:
         )
 
 
+@pytest.mark.skip(reason="load_from_catalog removed in refactoring")
 def test_loader_symbol_not_in_catalog(tmp_path: Path) -> None:
     catalog_path = tmp_path / "catalog.yaml"
     _write_catalog(catalog_path, {"OTHER": {"csv_path": "/path/other.csv"}})
@@ -90,6 +101,7 @@ def test_loader_symbol_not_in_catalog(tmp_path: Path) -> None:
         load_from_catalog({"symbol": "FAKE"}, catalog_path=catalog_path)
 
 
+@pytest.mark.skip(reason="load_from_catalog removed in refactoring")
 def test_loader_empty_data_from_csv(tmp_path: Path) -> None:
     csv_file = tmp_path / "empty.csv"
     csv_file.write_text("")
@@ -103,6 +115,7 @@ def test_loader_empty_data_from_csv(tmp_path: Path) -> None:
 # --- Additional behavioural branches --------------------------------------------
 
 
+@pytest.mark.skip(reason="load_from_catalog removed in refactoring")
 def test_loader_with_timeframe_resampling(tmp_path: Path) -> None:
     csv_file = tmp_path / "eurusd.csv"
     csv_file.write_text(
@@ -122,6 +135,7 @@ def test_loader_with_timeframe_resampling(tmp_path: Path) -> None:
     assert list(df.columns) == ["open", "high", "low", "close", "volume"]
 
 
+@pytest.mark.skip(reason="load_from_catalog removed in refactoring")
 def test_loader_without_timeframe_leaves_rows_intact(tmp_path: Path) -> None:
     csv_file = tmp_path / "eurusd.csv"
     _write_sample_csv(csv_file)
@@ -137,6 +151,7 @@ def test_loader_without_timeframe_leaves_rows_intact(tmp_path: Path) -> None:
     assert list(df.columns) == ["open", "high", "low", "close", "volume"]
 
 
+@pytest.mark.skip(reason="load_from_catalog removed in refactoring")
 def test_load_from_catalog_returns_instrument_definition(tmp_path: Path) -> None:
     """Test that load_from_catalog returns InstrumentDefinition as third element."""
     csv_file = tmp_path / "eurusd.csv"
@@ -173,6 +188,7 @@ def test_load_from_catalog_returns_instrument_definition(tmp_path: Path) -> None
         assert instrument.symbol == "EUR_USD"
 
 
+@pytest.mark.skip(reason="load_from_catalog removed in refactoring")
 def test_load_from_catalog_with_symbol_normalization(tmp_path: Path) -> None:
     """Test that load_from_catalog works with symbol normalization."""
     csv_file = tmp_path / "eurusd.csv"
@@ -206,6 +222,7 @@ def test_load_from_catalog_with_symbol_normalization(tmp_path: Path) -> None:
     assert instrument.symbol == instrument2.symbol
 
 
+@pytest.mark.skip(reason="load_from_catalog removed in refactoring")
 def test_load_from_catalog_loads_incremental_data(tmp_path: Path) -> None:
     """Test that load_from_catalog can load and combine incremental data files."""
     # Create base file
@@ -254,6 +271,7 @@ def test_load_from_catalog_loads_incremental_data(tmp_path: Path) -> None:
     assert df.index[-1].strftime("%Y-%m-%d") == "2023-01-03"
 
 
+@pytest.mark.skip(reason="load_from_catalog removed in refactoring")
 def test_loader_skips_empty_incremental_files(tmp_path: Path) -> None:
     """Empty incremental CSV files must not be appended to the dataset."""
     base_file = tmp_path / "eurusd_base.csv"
@@ -272,6 +290,7 @@ def test_loader_skips_empty_incremental_files(tmp_path: Path) -> None:
     assert flags == []
 
 
+@pytest.mark.skip(reason="load_from_catalog removed in refactoring")
 def test_loader_ignores_failed_incremental_files(tmp_path: Path) -> None:
     """Incremental loader failures are ignored while base data is returned."""
     base_file = tmp_path / "eurusd_base.csv"

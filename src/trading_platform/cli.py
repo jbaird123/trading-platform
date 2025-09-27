@@ -21,7 +21,9 @@ from trading_platform.core.sweeps import (
     run_parameter_sweep,
     walk_forward_optimize_and_test,
 )
-from trading_platform.data.loader import load_from_catalog
+from trading_platform.data.instrument import get_instrument_definition
+from trading_platform.data.loader import load_instrument_data
+from trading_platform.data.schema import resample_ohlc
 from trading_platform.execution.oanda_stub import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
@@ -85,8 +87,20 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     dq_flags: list[str] = []
     data_req = cfg_raw.get("data_request")
     if isinstance(data_req, dict):
-        # Delegate sourcing to Data Handler via catalog
-        df, dq_flags, instrument_def = load_from_catalog(data_req)
+        # Delegate sourcing to Data Handler using convention-based approach
+        instrument_def = get_instrument_definition(data_req["symbol"])
+        df, dq_flags = load_instrument_data(data_req["symbol"], Path("data"))
+
+        tf = data_req.get("timeframe")
+        if tf:
+            df = resample_ohlc(df, str(tf), instrument_def)
+
+        start = data_req.get("start")
+        end = data_req.get("end")
+        if start:
+            df = df.loc[pd.to_datetime(start, utc=True) :]
+        if end:
+            df = df.loc[: pd.to_datetime(end, utc=True)]
     else:
         idx = pd.date_range("2024-01-01", periods=5, freq="h")
         vals = [1.0, 2.0, 3.0, 2.0, 1.0]
