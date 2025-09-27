@@ -37,6 +37,8 @@ def test_cmd_run_backtest_yaml_requires_pyyaml(tmp_path: Path) -> None:
                 "user_id: yml_user",
                 f"runs_dir: {tmp_path}",
                 "initial_cash: 1000",
+                "instrument:",
+                "  symbol: EURUSD",
                 "strategy:",
                 "  strategy_name: S",
                 "  long_entry_rules:",

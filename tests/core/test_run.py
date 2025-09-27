@@ -20,6 +20,12 @@ from trading_platform.core.run import finalize_run, initialize_run
 from trading_platform.portfolio.trade import Trade
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
+
+def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
+    """Helper to create instrument dict for RunConfig."""
+    return {"symbol": symbol}
+
+
 # --- test_run_100_coverage.py ---
 
 """
@@ -59,6 +65,7 @@ def test_finalize_run_monte_carlo_exception_handling_line_117():
             run_seed=42,
             log_level="INFO",
             allow_flip_on_bar=False,
+            instrument=_instrument(),
             monte_carlo={
                 "enabled": True,
                 "trials": 10,
@@ -136,6 +143,7 @@ def test_finalize_run_walk_forward_exception_handling_line_127():
             run_seed=42,
             log_level="INFO",
             allow_flip_on_bar=False,
+            instrument=_instrument(),
             walk_forward={"window": 30, "step": 10},
         )
 
@@ -204,6 +212,7 @@ def test_finalize_run_walk_forward_invalid_config_branch_121_to_130():
             run_seed=42,
             log_level="INFO",
             allow_flip_on_bar=False,
+            instrument=_instrument(),
             walk_forward={"window": 0, "step": 0},  # Invalid config
         )
 
@@ -264,6 +273,7 @@ def test_finalize_run_parameter_search_exception_handling_line_149():
             run_seed=42,
             log_level="INFO",
             allow_flip_on_bar=False,
+            instrument=_instrument(),
             parameter_search={
                 "grid": {"param1": [1, 2, 3]},
                 "objective": "total_pnl",
@@ -550,6 +560,7 @@ def test_finalize_run_walk_forward_non_dict_config():
             run_seed=42,
             log_level="INFO",
             allow_flip_on_bar=False,
+            instrument=_instrument(),
             # walk_forward defaults to empty dict, causing isinstance check to pass
             # but skip analysis due to missing required keys
         )
@@ -608,6 +619,7 @@ def test_finalize_run_walk_forward_param_not_none():
             run_seed=42,
             log_level="INFO",
             allow_flip_on_bar=False,
+            instrument=_instrument(),
             walk_forward={"window": 30, "step": 10},
         )
 
@@ -660,6 +672,7 @@ def test_initialize_run_creates_directory_and_config():
             runs_dir=Path(temp_dir) / "runs",
             run_seed=42,
             allow_flip_on_bar=False,
+            instrument=_instrument(),
             log_level="INFO",
             initial_cash=10000.0,
             position_size=100.0,
@@ -709,6 +722,7 @@ def test_finalize_run_monte_carlo_enabled():
             run_seed=42,
             log_level="INFO",
             allow_flip_on_bar=False,
+            instrument=_instrument(),
             monte_carlo={
                 "enabled": True,
                 "trials": 50,
@@ -772,6 +786,7 @@ def test_finalize_run_walk_forward_enabled():
             run_seed=42,
             log_level="INFO",
             allow_flip_on_bar=False,
+            instrument=_instrument(),
             walk_forward={"window": 30, "step": 5},
         )
 
@@ -834,6 +849,7 @@ def test_finalize_run_parameter_search_enabled():
             run_seed=42,
             log_level="INFO",
             allow_flip_on_bar=False,
+            instrument=_instrument(),
             parameter_search={
                 "grid": {"param1": [1, 2, 3]},
                 "objective": "total_pnl",
@@ -898,6 +914,7 @@ def test_finalize_run_parameter_search_random_space():
             run_seed=42,
             log_level="INFO",
             allow_flip_on_bar=False,
+            instrument=_instrument(),
             parameter_search={
                 "random_space": {"param1": [1.0, 2.0, 3.0]},
                 "n_samples": 10,
@@ -958,6 +975,7 @@ def test_finalize_run_parameter_search_export_csv():
             run_seed=42,
             log_level="INFO",
             allow_flip_on_bar=False,
+            instrument=_instrument(),
         )
 
         # Mock parameter search results with detailed structure
@@ -1024,6 +1042,7 @@ def test_finalize_run_exception_handling():
             run_seed=42,
             log_level="INFO",
             allow_flip_on_bar=False,
+            instrument=_instrument(),
         )
 
         # Test Monte Carlo exception handling
@@ -1076,6 +1095,7 @@ def test_finalize_run_parameter_search_csv_export_exception():
             run_seed=42,
             log_level="INFO",
             allow_flip_on_bar=False,
+            instrument=_instrument(),
         )
 
         # Create malformed parameter search payload to trigger exception
@@ -1394,6 +1414,7 @@ def test_finalize_run_uses_config_snapshots(tmp_path):
         initial_cash=10000.0,
         position_size=1.0,
         allow_flip_on_bar=False,
+        instrument=_instrument(),
         instrument_definitions={
             "EURUSD": {"symbol": "EURUSD", "tick_size": 0.0001, "base_ccy": "EUR"}
         },
@@ -1460,6 +1481,7 @@ def test_finalize_run_populates_mc_wfe_paramsearch(tmp_path):
         initial_cash=10000.0,
         position_size=1.0,
         allow_flip_on_bar=False,
+        instrument=_instrument(),
         monte_carlo={"trials": 50, "seed": 123},
         walk_forward={"window": 2, "step": 1},
         parameter_search={"grid": {"a": [1, 2]}, "objective": "total_pnl"},
@@ -1508,6 +1530,7 @@ def test_finalize_run_prefers_explicit_mc_over_config(tmp_path):
         initial_cash=10000.0,
         position_size=1.0,
         allow_flip_on_bar=False,
+        instrument=_instrument(),
         monte_carlo={"trials": 1},
     )
     brief_path = finalize_run(

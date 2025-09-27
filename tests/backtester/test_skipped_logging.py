@@ -30,6 +30,11 @@ def _df() -> pd.DataFrame:
     )
 
 
+def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
+    """Helper to create instrument dict for RunConfig."""
+    return {"symbol": symbol}
+
+
 @pytest.mark.req_BT_7_10
 def test_skip_logged_for_blackout():
     df = _df()
@@ -42,6 +47,7 @@ def test_skip_logged_for_blackout():
         position_size=1.0,
         allow_flip_on_bar=False,
         blackout_utc=[("00:00", "00:30")],
+        instrument=_instrument(),
     )
     rem = RiskExitManager(config={})
     result = run_backtest(
@@ -73,6 +79,7 @@ def test_skip_logged_for_position_cap():
         position_size=1.0,
         allow_flip_on_bar=False,
         pm_limits={"max_open_long": 1, "max_open_short": 1},
+        instrument=_instrument(),
     )
     rem = RiskExitManager(config={})
     result = run_backtest(

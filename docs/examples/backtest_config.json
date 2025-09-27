@@ -2,6 +2,7 @@
   "user_id": "example_user",
   "runs_dir": "runs",
   "initial_cash": 10000,
+  "instrument": {"symbol": "EURUSD"},
   "strategy": {
     "strategy_name": "Example",
     "long_entry_rules": [

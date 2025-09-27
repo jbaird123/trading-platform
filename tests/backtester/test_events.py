@@ -22,6 +22,11 @@ def _dummy_strategy_cfg() -> CompiledStrategy:
     )
 
 
+def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
+    """Helper to create instrument dict for RunConfig."""
+    return {"symbol": symbol}
+
+
 def _mk_df(start: datetime, n: int, step_minutes: int = 60) -> pd.DataFrame:
     idx = [start + timedelta(minutes=i * step_minutes) for i in range(n)]
     data = {"open": 1.0, "high": 1.1, "low": 0.9, "close": 1.0, "volume": 100}
@@ -43,6 +48,7 @@ def test_event_blackout_blocks_new_entries():
         initial_cash=1000.0,
         position_size=1.0,
         blackout_events=[ev],
+        instrument=_instrument(),
     )
     rem = RiskExitManager(config={})
     trades = run_backtest(
@@ -84,6 +90,7 @@ def test_static_blackout_blocks_new_entries():
         initial_cash=1000.0,
         position_size=1.0,
         blackout_utc=[("23:00", "01:00")],
+        instrument=_instrument(),
     )
     rem = RiskExitManager(config={})
     trades = run_backtest(

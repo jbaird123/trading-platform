@@ -37,6 +37,11 @@ def _dummy_strategy_with_sl(stop_loss_pips: float) -> CompiledStrategy:
     )
 
 
+def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
+    """Helper to create instrument dict for RunConfig."""
+    return {"symbol": symbol}
+
+
 def test_daily_loss_cap_blocks_new_entries():
     """Test that the daily loss cap blocks new entries after being hit."""
     idx = [datetime(2024, 1, 1, h) for h in range(3)]
@@ -59,6 +64,7 @@ def test_daily_loss_cap_blocks_new_entries():
         position_size=1.0,
         daily_loss_cap=5.0,
         allow_flip_on_bar=False,
+        instrument=_instrument(),
     )
     rem = RiskExitManager(config={})
 
@@ -97,6 +103,7 @@ def test_exposure_curve_tracks_gross_notional():
         initial_cash=1000.0,
         position_size=10000.0,
         allow_flip_on_bar=False,
+        instrument=_instrument(),
     )
     rem = RiskExitManager(config={})
 
@@ -137,6 +144,7 @@ def test_position_cap_skips_same_direction_entry():
         initial_cash=1000.0,
         position_size=1.0,
         allow_flip_on_bar=False,
+        instrument=_instrument(),
     )
     rem = RiskExitManager(config={})
 
@@ -177,6 +185,7 @@ def test_position_cap_not_reached_when_already_open():
         position_size=1.0,
         pm_limits={"max_open_long": 2},
         allow_flip_on_bar=False,
+        instrument=_instrument(),
     )
     rem = RiskExitManager(config={})
 
@@ -217,6 +226,7 @@ def test_position_cap_zero_blocks_new_entry():
         position_size=1.0,
         pm_limits={"max_open_long": 0},
         allow_flip_on_bar=False,
+        instrument=_instrument(),
     )
     rem = RiskExitManager(config={})
 
@@ -255,6 +265,7 @@ def test_rmm_blocks_disallowed_side():
         initial_cash=1000.0,
         position_size=1.0,
         allow_flip_on_bar=False,
+        instrument=_instrument(),
     )
     rem = RiskExitManager(config={})
     rmm_ctx = {
