@@ -10,7 +10,7 @@ def test_load_instrument_data_alternate_test_dir(tmp_path: Path) -> None:
     named '<sanitized_symbol>_test' when the standard 'full/<symbol>'
     path is not present.
     """
-    # Create the alternative test dir structure: eurusd_test/full/... 
+    # Create the alternative test dir structure: eurusd_test/full/...
     test_root = tmp_path
     symbol = "EUR/USD"
     sanitized = "eurusd"

@@ -27,18 +27,18 @@ def _write_sample_csv(path: Path) -> None:
     )
 
 
-def _setup_data_directory(base_path: Path) -> None:
+def _setup_data_directory(base_path: Path) -> tuple[Path, Path]:
     """Set up full data directory structure for testing."""
     # Create directories
     full_dir = base_path / "full" / "eurusd"
     inc_dir = base_path / "incremental" / "eurusd"
     full_dir.mkdir(parents=True)
     inc_dir.mkdir(parents=True)
-    
+
     # Create base file
     base_file = full_dir / "eurusd_interval_minute_1_20230101_20230101.csv"
     _write_sample_csv(base_file)
-    
+
     return full_dir, inc_dir
 
 
@@ -66,7 +66,7 @@ def test_loader_symbol_not_found(tmp_path: Path) -> None:
     """Test loader handles symbol not found in data directory."""
     # Create directory but no data for FAKE symbol
     tmp_path.mkdir(exist_ok=True)
-    
+
     with pytest.raises(FileNotFoundError, match="No data files found for symbol"):
         load_instrument_data("FAKE", tmp_path)
 
@@ -74,7 +74,7 @@ def test_loader_symbol_not_found(tmp_path: Path) -> None:
 def test_loader_empty_data_from_csv(tmp_path: Path) -> None:
     """Test loader handles empty CSV files."""
     full_dir, _ = _setup_data_directory(tmp_path)
-    
+
     # Overwrite with empty file
     csv_file = full_dir / "eurusd_interval_minute_1_20230101_20230101.csv"
     csv_file.write_text("timestamp,open,high,low,close,volume\n")
@@ -89,7 +89,7 @@ def test_loader_empty_data_from_csv(tmp_path: Path) -> None:
 def test_loader_with_minute_data(tmp_path: Path) -> None:
     """Test loader handles minute-level data correctly."""
     full_dir, _ = _setup_data_directory(tmp_path)
-    
+
     # Overwrite with minute-level data
     csv_file = full_dir / "eurusd_interval_minute_1_20230101_20230101.csv"
     csv_file.write_text(
