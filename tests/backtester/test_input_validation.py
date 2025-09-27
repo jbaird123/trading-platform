@@ -9,6 +9,11 @@ from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
 
+def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
+    """Helper to create instrument dict for RunConfig."""
+    return {"symbol": symbol}
+
+
 def _dummy_strategy() -> CompiledStrategy:
     return CompiledStrategy(
         name="dummy",
@@ -52,6 +57,7 @@ def test_validation_missing_columns():
         initial_cash=1000.0,
         position_size=1.0,
         allow_flip_on_bar=False,
+        instrument=_instrument(),
     )
     rem = RiskExitManager(config={})
     with pytest.raises(ValueError, match="missing required columns"):
@@ -69,6 +75,7 @@ def test_validation_close_has_nans():
         initial_cash=1000.0,
         position_size=1.0,
         allow_flip_on_bar=False,
+        instrument=_instrument(),
     )
     rem = RiskExitManager(config={})
     with pytest.raises(ValueError, match="close has NaNs"):
@@ -85,6 +92,7 @@ def test_validation_length_mismatch():
         initial_cash=1000.0,
         position_size=1.0,
         allow_flip_on_bar=False,
+        instrument=_instrument(),
     )
     rem = RiskExitManager(config={})
     with pytest.raises(ValueError, match="signals length "):
@@ -102,6 +110,7 @@ def test_validation_invalid_signal_value():
         initial_cash=1000.0,
         position_size=1.0,
         allow_flip_on_bar=False,
+        instrument=_instrument(),
     )
     rem = RiskExitManager(config={})
     with pytest.raises(ValueError, match="invalid values"):

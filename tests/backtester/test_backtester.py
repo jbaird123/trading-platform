@@ -22,6 +22,11 @@ BacktestTriple = tuple[
 ]
 
 
+def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
+    """Helper to create instrument dict for RunConfig."""
+    return {"symbol": symbol}
+
+
 def _dummy_strategy_cfg() -> CompiledStrategy:
     return CompiledStrategy(
         name="dummy",
@@ -64,6 +69,7 @@ def test_rmm_blocks_signal_not_in_allowed_sides():
         log_level="INFO",
         initial_cash=10000.0,
         position_size=100.0,
+        instrument=_instrument(),
         allow_flip_on_bar=False,
     )
     rem = RiskExitManager(config={})
@@ -114,6 +120,7 @@ def test_rmm_allows_signal_opens_position() -> None:
         log_level="INFO",
         allow_flip_on_bar=False,
         initial_cash=1_000.0,
+        instrument=_instrument(),
         position_size=1.0,
     )
     rem = RiskExitManager(config={})
@@ -151,6 +158,7 @@ def test_return_skips_only():
         log_level="INFO",
         allow_flip_on_bar=False,
         initial_cash=10000.0,
+        instrument=_instrument(),
         position_size=100.0,
     )
     rem = RiskExitManager(config={})
@@ -339,7 +347,7 @@ def test_backtester_with_rem_pips_stop_loss():
         initial_cash=10000.0,
         position_size=1.0,
         rem_config={"stop_loss": {"pips": 50}},
-        instrument={"pip_location": 0.0001},
+        instrument={"symbol": "EURUSD", "pip_location": 0.0001},
     )
     rem = RiskExitManager(config=config.rem_config or {})
     entry_price = 1.20000
@@ -409,7 +417,7 @@ class TestBacktesterCoreCoverage:
             allow_flip_on_bar=False,
             initial_cash=10000.0,
             position_size=1.0,
-            instrument={"multiplier": 1.0, "min_size": 0.01},
+            instrument={"symbol": "EURUSD", "multiplier": 1.0, "min_size": 0.01},
             cost_model={"type": "percentage", "rate": 0.001},
         )
 
@@ -492,7 +500,7 @@ class TestBacktesterCoreCoverage:
             side="long",
             entry_price=1.12,
             size=1.0,
-            instrument={"multiplier": 1.0, "min_size": 0.01},
+            instrument={"symbol": "EURUSD", "multiplier": 1.0, "min_size": 0.01},
             cost_model={"type": "percentage", "rate": 0.001},
             rem=mock_rem,
         )
