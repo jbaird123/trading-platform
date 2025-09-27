@@ -27,6 +27,7 @@ def test_cmd_run_backtest_toy_data_path(tmp_path: Path) -> None:
         "user_id": "toy_user",
         "runs_dir": str(tmp_path),
         "initial_cash": 1000,
+        "instrument": {"symbol": "EURUSD"},
         "strategy": {
             "strategy_name": "S",
             "long_entry_rules": [

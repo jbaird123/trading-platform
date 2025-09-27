@@ -73,6 +73,7 @@ def test_cmd_run_backtest_reads_csv_path(tmp_path: Path) -> None:
         "user_id": "cli_csv",
         "runs_dir": str(tmp_path),
         "initial_cash": 1000,
+        "instrument": {"symbol": "EURUSD"},
         "data": {"csv_path": str(csv)},
         "strategy": {
             "strategy_name": "TestStrat",

@@ -19,6 +19,11 @@ def _mk_df(n: int) -> pd.DataFrame:
     return pd.DataFrame([data] * n, index=idx)
 
 
+def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
+    """Helper to create instrument dict for RunConfig."""
+    return {"symbol": symbol}
+
+
 @pytest.mark.req_BT_7_7
 def test_warmup_delays_first_entry_until_threshold():
     # 5 bars hourly, warmup of 3 bars → first entry allowed at index 3 (4th bar)
@@ -33,6 +38,7 @@ def test_warmup_delays_first_entry_until_threshold():
         position_size=1.0,
         allow_flip_on_bar=False,
         warmup_bars=3,
+        instrument=_instrument(),
     )
     rem = RiskExitManager(config={})
     result = run_backtest(
@@ -62,6 +68,7 @@ def test_no_warmup_allows_immediate_entry():
         position_size=1.0,
         allow_flip_on_bar=False,
         warmup_bars=0,
+        instrument=_instrument(),
     )
     rem = RiskExitManager(config={})
     result = run_backtest(

@@ -12,6 +12,11 @@ from trading_platform.risk_manager.core import RiskExitManager
 from tests.backtester.dummy_objects import _dummy_strategy_with_sl_tp
 
 
+def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
+    """Helper to create instrument dict for RunConfig."""
+    return {"symbol": symbol}
+
+
 @pytest.mark.req_BT_7_6
 def test_tie_break_stop_then_tp_for_long():
     idx = [datetime(2024, 1, 1, h) for h in range(2)]
@@ -37,6 +42,7 @@ def test_tie_break_stop_then_tp_for_long():
             "stop_loss": {"absolute_price": 95.0},
             "take_profit": {"absolute_price": 105.0},
         },
+        instrument=_instrument(),
     )
     rem = RiskExitManager(config=config.rem_config or {})
     result = run_backtest(

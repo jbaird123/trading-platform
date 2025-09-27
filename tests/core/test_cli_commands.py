@@ -34,6 +34,7 @@ def test_cmd_run_backtest_config_minimal(tmp_path: Path) -> None:
         "user_id": "cli_cfg",
         "runs_dir": str(tmp_path),
         "initial_cash": 1000,
+        "instrument": {"symbol": "EURUSD"},
         "strategy": {
             "strategy_name": "TestStrat",
             "long_entry_rules": [
@@ -82,6 +83,7 @@ def test_cmd_run_backtest_saves_signals_artifact(tmp_path: Path) -> None:
     cfg_obj = {
         "user_id": "cli_cfg_signals",
         "runs_dir": str(tmp_path),
+        "instrument": {"symbol": "EURUSD"},
         "strategy": {
             "strategy_name": "TestStrat",
             "long_entry_rules": [
@@ -121,6 +123,7 @@ def test_cmd_run_backtest_saves_rmm_spans_artifact(tmp_path: Path) -> None:
     cfg_obj = {
         "user_id": "cli_cfg_rmm_spans",
         "runs_dir": str(tmp_path),
+        "instrument": {"symbol": "EURUSD"},
         "strategy": {
             "strategy_name": "TestStrat",
             "long_entry_rules": [
@@ -179,6 +182,7 @@ def test_cmd_run_live_stub_with_config(tmp_path: Path) -> None:
     live_cfg = {
         "user_id": "cli_live",
         "runs_dir": str(tmp_path),
+        "instrument": {"symbol": "EURUSD"},
         "blackout_utc": [["23:00", "01:00"]],
     }
     cfg.write_text(json.dumps(live_cfg))
