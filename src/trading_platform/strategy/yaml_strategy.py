@@ -198,24 +198,14 @@ class CompiledStrategy:
                 logger.error(f"Error during AI inference: {e}. Skipping AI filter.")
 
         sig: list[str] = []
-        state = "flat"
         for i in range(len(df2)):
-            if state == "flat":
-                if bool(le.iloc[i]) and (
-                    not self.slope_filter or bool(slope_up.iloc[i])
-                ):
-                    state = "long"
-                elif bool(se.iloc[i]) and (
-                    not self.slope_filter or bool(slope_down.iloc[i])
-                ):
-                    state = "short"
-            elif state == "long":
-                if bool(lx.iloc[i]):
-                    state = "flat"
-            elif state == "short":  # pragma: no branch
-                if bool(sx.iloc[i]):
-                    state = "flat"
-            sig.append(state)
+            # Generate point-in-time event signals, not persistent states
+            if bool(le.iloc[i]) and (not self.slope_filter or bool(slope_up.iloc[i])):
+                sig.append("long")
+            elif bool(se.iloc[i]) and (not self.slope_filter or bool(slope_down.iloc[i])):
+                sig.append("short")
+            else:
+                sig.append("flat")
         return pd.Series(sig, index=df2.index)
 
     def get_context(self, index: int) -> dict[str, Any]:
