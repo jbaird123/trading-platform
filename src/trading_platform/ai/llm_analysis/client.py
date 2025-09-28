@@ -11,7 +11,7 @@ class LlmApiClient:
         if not api_key:
             raise ValueError("GEMINI_API_KEY environment variable not set.")
         genai.configure(api_key=api_key)
-        self._model = genai.GenerativeModel("gemini-pro")
+        self._model = genai.GenerativeModel("gemini-2.5-flash")
 
     def get_feedback(self, prompt: str) -> str:
         """Sends a prompt to the LLM and returns the text response."""
