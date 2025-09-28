@@ -19,8 +19,26 @@ class LLMAnalysisEngine:
         return prompt_path.read_text()
 
     def _format_brief_for_prompt(self) -> str:
-        """Formats the brief JSON into a string for the prompt."""
-        return json.dumps(self._brief, indent=2)
+        """
+        Formats the brief JSON into a string for the prompt, summarizing bulky
+        lists to stay within token limits.
+        """
+        brief_copy = self._brief.copy()
+
+        for key in ["trades", "skipped_trades"]:
+            if key in brief_copy and isinstance(brief_copy[key], list):
+                trades_list = brief_copy[key]
+                if len(trades_list) > 10:
+                    summary = {
+                        "total_trades": len(trades_list),
+                        "first_5_trades": trades_list[:5],
+                        "last_5_trades": trades_list[-5:],
+                    }
+                    brief_copy[key] = summary
+
+        brief_copy.pop("field_definitions", None)
+
+        return json.dumps(brief_copy, indent=2)
 
     def run(self) -> str:
         """Generates and returns the qualitative feedback from the LLM."""
