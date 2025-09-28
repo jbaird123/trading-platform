@@ -30,7 +30,7 @@ def test_llm_api_client_initialization_with_api_key(
     mock_configure.assert_called_once_with(api_key="test-api-key")
 
     # Verify GenerativeModel was created with correct model name
-    mock_model_class.assert_called_once_with("gemini-pro")
+    mock_model_class.assert_called_once_with("gemini-2.5-flash")
 
     # Verify the model is stored
     assert client._model is mock_model
