@@ -26,6 +26,7 @@ def when_backtest_is_run(shared_context: dict) -> None:
     sl = shared_context.get("stop_loss")
     tp = shared_context.get("take_profit")
     strategy = _dummy_strategy_with_sl_tp(float(sl or 0.0), float(tp or 0.0))
+    strategy.generate_signals(shared_context["market_data"])  # Populate _feature_df for context lookups
     config = RunConfig(
         user_id="test_user",
         run_seed=123,

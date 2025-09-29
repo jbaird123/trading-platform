@@ -38,6 +38,8 @@ def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
 @pytest.mark.req_BT_7_10
 def test_skip_logged_for_blackout():
     df = _df()
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(df)  # Populate _feature_df for context lookups
     sig = pd.Series(["long", "flat", "flat"], index=df.index)
     config = RunConfig(
         user_id="test",
@@ -51,9 +53,12 @@ def test_skip_logged_for_blackout():
     )
     rem = RiskExitManager(config={})
     result = run_backtest(
+
         market_data=df,
+
         signals=sig,
-        strategy=_dummy_strategy_cfg(),
+
+        strategy=strategy,
         config=config,
         rem=rem,
         return_exposure=True,
@@ -70,6 +75,8 @@ def test_skip_logged_for_blackout():
 @pytest.mark.req_BT_7_10
 def test_skip_logged_for_position_cap():
     df = _df()
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(df)  # Populate _feature_df for context lookups
     sig = pd.Series(["long", "long", "flat"], index=df.index)
     config = RunConfig(
         user_id="test",
@@ -83,9 +90,12 @@ def test_skip_logged_for_position_cap():
     )
     rem = RiskExitManager(config={})
     result = run_backtest(
+
         market_data=df,
+
         signals=sig,
-        strategy=_dummy_strategy_cfg(),
+
+        strategy=strategy,
         config=config,
         rem=rem,
         return_exposure=True,

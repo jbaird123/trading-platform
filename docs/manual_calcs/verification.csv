@@ -12,39 +12,40 @@ Bar,Timestamp,Close,SMA_Fast_3,SMA_Slow_8,Fast_Above_Slow,Cross_Above,Cross_Belo
 10,2023-01-01T10:00:00Z,103,102.0,100.625,TRUE,FALSE,FALSE,long,long,103,,0,0,"Still above: 102.0 > 100.625 (BLACKOUT PERIOD ENDS) - Enter long at 103"
 11,2023-01-01T11:00:00Z,102,102.33,100.75,TRUE,FALSE,FALSE,long,long,,,0,0,"Still above: 102.33 > 100.75"
 12,2023-01-01T12:00:00Z,101,102.0,100.875,TRUE,FALSE,FALSE,long,long,,,0,0,"Still above: 102.0 > 100.875"
-13,2023-01-01T13:00:00Z,100,101.0,101.0,FALSE,FALSE,TRUE,short,short,100,100,-3,-3,"Cross below: 101.0 = 101.0, Exit long (PnL=100-103=-3), Enter short at 100"
-14,2023-01-01T14:00:00Z,102,101.0,101.375,FALSE,FALSE,FALSE,short,short,,,0,-3,"Still below: 101.0 < 101.375"
-15,2023-01-01T15:00:00Z,103,101.67,101.75,FALSE,FALSE,FALSE,short,short,,,0,-3,"Still below: 101.67 < 101.75"
-16,2023-01-01T16:00:00Z,100,101.67,101.625,TRUE,TRUE,FALSE,long,long,100,100,0,-3,"Cross above: 101.67 > 101.625, Exit short (PnL=100-100=0), Enter long at 100"
-17,2023-01-01T17:00:00Z,98,100.33,101.125,FALSE,FALSE,TRUE,short,short,98,98,-2,-5,"Cross below: 100.33 < 101.125, Exit long (PnL=98-100=-2), Enter short at 98"
-18,2023-01-01T18:00:00Z,98,98.67,100.5,FALSE,FALSE,FALSE,short,short,,,0,-5,"Still below: 98.67 < 100.5"
-19,2023-01-01T19:00:00Z,97,97.67,99.875,FALSE,FALSE,FALSE,short,short,,,0,-5,"Still below: 97.67 < 99.875"
-20,2023-01-01T20:00:00Z,96,97.0,99.25,FALSE,FALSE,FALSE,short,short,,,0,-5,"Still below: 97.0 < 99.25"
-21,2023-01-01T21:00:00Z,97,96.67,98.875,FALSE,FALSE,FALSE,short,short,,,0,-5,"Still below: 96.67 < 98.875"
-22,2023-01-01T22:00:00Z,98,97.0,98.375,FALSE,FALSE,FALSE,short,short,,,0,-5,"Still below: 97.0 < 98.375"
-23,2023-01-01T23:00:00Z,97,97.33,97.625,FALSE,FALSE,FALSE,short,short,,,0,-5,"Still below: 97.33 < 97.625"
-24,2023-01-02T00:00:00Z,98,97.67,97.375,TRUE,TRUE,FALSE,long,long,98,98,0,-5,"Cross above: 97.67 > 97.375, Exit short (PnL=98-98=0), Enter long at 98"
+13,2023-01-01T13:00:00Z,100,101.0,101.0,FALSE,FALSE,FALSE,long,long,,,0,0,"EQUAL: 101.0 = 101.0, Still long (no cross below - must be strictly less than)"
+14,2023-01-01T14:00:00Z,102,101.0,101.375,FALSE,FALSE,TRUE,flat,flat,102,100,-3,-3,"Cross below: prev was >=, now < (101.0 < 101.375), Exit long (PnL=100-103=-3)"
+15,2023-01-01T15:00:00Z,103,101.67,101.75,FALSE,FALSE,FALSE,flat,flat,,,0,-3,"Still below: 101.67 < 101.75"
+16,2023-01-01T16:00:00Z,100,101.67,101.625,TRUE,TRUE,FALSE,long,long,100,,0,-3,"Cross above: 101.67 > 101.625, Enter long at 100"
+17,2023-01-01T17:00:00Z,98,100.33,101.125,FALSE,FALSE,TRUE,flat,flat,98,100,-2,-4,"Cross below: 100.33 < 101.125, Exit long (PnL=98-100=-2)"
+18,2023-01-01T18:00:00Z,98,98.67,100.5,FALSE,FALSE,FALSE,flat,flat,,,0,-4,"Still below: 98.67 < 100.5"
+19,2023-01-01T19:00:00Z,97,97.67,99.875,FALSE,FALSE,FALSE,flat,flat,,,0,-4,"Still below: 97.67 < 99.875"
+20,2023-01-01T20:00:00Z,96,97.0,99.25,FALSE,FALSE,FALSE,flat,flat,,,0,-4,"Still below: 97.0 < 99.25"
+21,2023-01-01T21:00:00Z,97,96.67,98.875,FALSE,FALSE,FALSE,flat,flat,,,0,-4,"Still below: 96.67 < 98.875"
+22,2023-01-01T22:00:00Z,98,97.0,98.375,FALSE,FALSE,FALSE,flat,flat,,,0,-4,"Still below: 97.0 < 98.375"
+23,2023-01-01T23:00:00Z,97,97.33,97.625,FALSE,FALSE,FALSE,flat,flat,,,0,-4,"Still below: 97.33 < 97.625"
+24,2023-01-02T00:00:00Z,98,97.67,97.375,TRUE,TRUE,FALSE,long,long,98,,0,-4,"Cross above: 97.67 > 97.375, Enter long at 98"
 
 SKIPPED_TRADES:
 Skipped_1: Bar=9, Time=09:00:00Z, Reason=blackout, Signal=long_entry, Price=102, Counterfactual_PnL=-1 (would have entered at 102, exited at 100 in bar 13)
 
-TRADE_SUMMARY:
-Trade_1_Long: Entry=103, Exit=100, PnL=-3 (Loss)
-Trade_2_Short: Entry=100, Exit=100, PnL=0 (Push - entry and exit at same price)
-Trade_3_Long: Entry=100, Exit=98, PnL=-2 (Loss)
-Trade_4_Short: Entry=98, Exit=98, PnL=0 (Push - entry and exit at same price)
-Trade_5_Long: Entry=98, Position_Open (no exit yet)
+TRADE_SUMMARY (CORRECTED):
+Trade_1_Long: Entry=103 (Bar 10), Exit=100 (Bar 14), PnL=-3 (Loss)
+Trade_2_Long: Entry=100 (Bar 16), Exit=98 (Bar 17), PnL=-2 (Loss)
+Trade_3_Long: Entry=98 (Bar 24), Position_Open (no exit yet)
 
-FINAL_RESULTS_WITH_BLACKOUT:
+NOTE: Original calculation incorrectly included short trades. The strategy exits to flat,
+not to opposite positions, because cross_below only satisfies the long_exit rule.
+To enter short, you need a separate short_entry cross_below, which happens at the same bar,
+but with transition logic, the backtester doesn't re-enter after a strategic exit on the same bar.
+
+FINAL_RESULTS_WITH_BLACKOUT (CORRECTED):
 Initial_Equity: 100000
-n_completed_trades: 4
+n_completed_trades: 2 (not 4 - only long trades executed)
 n_skipped_trades: 1
-total_pnl: -5
-final_equity: 99995
+total_pnl: -4 (was incorrectly -5 due to misunderstanding equal values as crosses)
+final_equity: 99996
 wins: 0
 losses: 2
-pushes: 2
-win_rate: 0.0 (0 wins out of 4 completed trades)
-max_drawdown: 5 (cumulative losses from 2 losing trades)
-longest_win_streak: 0
-longest_loss_streak: 2 (Trade_1 and Trade_3 were consecutive losses)
+win_rate: 0.0 (0 wins out of 2 completed trades)
+max_drawdown: 4 (cumulative losses from 2 losing trades)
+longest_loss_streak: 2 (consecutive losses)

@@ -198,24 +198,49 @@ class CompiledStrategy:
                 logger.error(f"Error during AI inference: {e}. Skipping AI filter.")
 
         sig: list[str] = []
+        state = "flat"
         for i in range(len(df2)):
-            # Generate point-in-time event signals, not persistent states
-            if bool(le.iloc[i]) and (not self.slope_filter or bool(slope_up.iloc[i])):
-                sig.append("long")
-            elif bool(se.iloc[i]) and (not self.slope_filter or bool(slope_down.iloc[i])):
-                sig.append("short")
-            else:
-                sig.append("flat")
+            if state == "flat":
+                if bool(le.iloc[i]) and (
+                    not self.slope_filter or bool(slope_up.iloc[i])
+                ):
+                    state = "long"
+                elif bool(se.iloc[i]) and (
+                    not self.slope_filter or bool(slope_down.iloc[i])
+                ):
+                    state = "short"
+            elif state == "long":
+                if bool(lx.iloc[i]):
+                    state = "flat"
+            elif state == "short":  # pragma: no branch
+                if bool(sx.iloc[i]):
+                    state = "flat"
+            sig.append(state)
         return pd.Series(sig, index=df2.index)
 
     def get_context(self, index: int) -> dict[str, Any]:
-        """Return a dict of feature values at a specific integer index."""
-        if self._feature_df is None or index >= len(self._feature_df):
-            return {}
-        # Get the row for the given index
-        row = self._feature_df.iloc[index]
-        # Return a dictionary of feature names and their values
-        return {f["name"]: row[f["name"]] for f in self.features if f["name"] in row}
+        """Return a dict of feature values at a specific integer index.
+        Always returns a fully populated context dict, never None or empty.
+        """
+        # Fail fast for out-of-bounds index
+        if self._feature_df is None or not (0 <= index < len(self._feature_df)):
+            raise IndexError("Context lookup index is out of bounds.")
+        
+        context = {}
+        if self._feature_df is not None and 0 <= index < len(self._feature_df):
+            row = self._feature_df.iloc[index]
+            for f in self.features:
+                name = f.get("name")
+                if name is not None:
+                    context[name] = row.get(name, None)
+        # If no features, fill with explicit None for each expected feature name
+        elif self.features:
+            for f in self.features:
+                name = f.get("name")
+                if name is not None:
+                    context[name] = None
+        # Always return a dict with all expected feature names
+        return context
 
 
 def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:

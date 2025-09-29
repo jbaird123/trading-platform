@@ -37,6 +37,8 @@ def test_event_blackout_blocks_new_entries():
     """Test that a defined event blackout window blocks new entries."""
     start = datetime(2023, 1, 1, 10, 0)
     df = _mk_df(start, 4, 60)
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(df)
     signals = pd.Series(["long", "long", "long", "long"], index=df.index)
 
     ev = {"start": datetime(2023, 1, 1, 11, 0), "end": datetime(2023, 1, 1, 12, 30)}
@@ -54,7 +56,7 @@ def test_event_blackout_blocks_new_entries():
     trades = run_backtest(
         market_data=df,
         signals=signals,
-        strategy=_dummy_strategy_cfg(),
+        strategy=strategy,
         config=config,
         rem=rem,
     )
@@ -81,6 +83,8 @@ def test_static_blackout_blocks_new_entries():
         },
         index=idx,
     )
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(df)  # Populate _feature_df for context lookups
     signals = pd.Series(["long"] * 4, index=df.index)
     config = RunConfig(
         user_id="test_user",
@@ -96,7 +100,7 @@ def test_static_blackout_blocks_new_entries():
     trades = run_backtest(
         market_data=df,
         signals=signals,
-        strategy=_dummy_strategy_cfg(),
+        strategy=strategy,
         config=config,
         rem=rem,
     )
