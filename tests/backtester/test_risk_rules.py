@@ -55,6 +55,8 @@ def test_daily_loss_cap_blocks_new_entries():
         },
         index=idx,
     )
+    strategy = _dummy_strategy_with_sl(10.0)
+    strategy.generate_signals(df)  # Populate _feature_df for context lookups
     sig = pd.Series(["long", "flat", "long"], index=df.index)
     config = RunConfig(
         user_id="test_user",
@@ -71,7 +73,7 @@ def test_daily_loss_cap_blocks_new_entries():
     result = run_backtest(
         market_data=df,
         signals=sig,
-        strategy=_dummy_strategy_with_sl(10.0),
+        strategy=strategy,
         config=config,
         rem=rem,
         return_exposure=True,
@@ -95,6 +97,8 @@ def test_exposure_curve_tracks_gross_notional():
         },
         index=idx,
     )
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(df)  # Populate _feature_df for context lookups
     sig = pd.Series(["flat", "long", "long", "flat"], index=df.index)
     config = RunConfig(
         user_id="test_user",
@@ -110,7 +114,7 @@ def test_exposure_curve_tracks_gross_notional():
     result = run_backtest(
         market_data=df,
         signals=sig,
-        strategy=_dummy_strategy_cfg(),
+        strategy=strategy,
         config=config,
         rem=rem,
         return_exposure=True,
@@ -136,6 +140,8 @@ def test_position_cap_skips_same_direction_entry():
         },
         index=idx,
     )
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(df)  # Populate _feature_df for context lookups
     sig = pd.Series(["long", "long"], index=df.index)
     config = RunConfig(
         user_id="test_user",
@@ -151,7 +157,7 @@ def test_position_cap_skips_same_direction_entry():
     result = run_backtest(
         market_data=df,
         signals=sig,
-        strategy=_dummy_strategy_cfg(),
+        strategy=strategy,
         config=config,
         rem=rem,
         return_exposure=True,
@@ -176,6 +182,8 @@ def test_position_cap_not_reached_when_already_open():
         },
         index=idx,
     )
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(df)  # Populate _feature_df for context lookups
     sig = pd.Series(["long", "long"], index=df.index)
     config = RunConfig(
         user_id="test_user",
@@ -192,7 +200,7 @@ def test_position_cap_not_reached_when_already_open():
     result = run_backtest(
         market_data=df,
         signals=sig,
-        strategy=_dummy_strategy_cfg(),
+        strategy=strategy,
         config=config,
         rem=rem,
         return_exposure=True,
@@ -217,6 +225,8 @@ def test_position_cap_zero_blocks_new_entry():
         },
         index=idx,
     )
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(df)  # Populate _feature_df for context lookups
     sig = pd.Series(["long", "long"], index=df.index)
     config = RunConfig(
         user_id="test_user",
@@ -233,7 +243,7 @@ def test_position_cap_zero_blocks_new_entry():
     result = run_backtest(
         market_data=df,
         signals=sig,
-        strategy=_dummy_strategy_cfg(),
+        strategy=strategy,
         config=config,
         rem=rem,
         return_exposure=True,
@@ -257,6 +267,8 @@ def test_rmm_blocks_disallowed_side():
         },
         index=idx,
     )
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(df)  # Populate _feature_df for context lookups
     sig = pd.Series(["long", "flat"], index=df.index)
     cfg = RunConfig(
         user_id="test_user",
@@ -280,7 +292,7 @@ def test_rmm_blocks_disallowed_side():
     result = run_backtest(
         market_data=df,
         signals=sig,
-        strategy=_dummy_strategy_cfg(),
+        strategy=strategy,
         config=cfg,
         rem=rem,
         rmm_context=rmm_ctx,

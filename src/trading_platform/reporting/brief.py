@@ -33,6 +33,57 @@ from trading_platform.reporting.analytics import (
 SCHEMA_PATH = Path("docs/schemas/brief.schema.json")
 
 
+def _extract_rmm_policy(config_snapshot: dict[str, Any] | None) -> dict[str, Any]:
+    """Extract RMM policy information from config snapshot for AI context."""
+    if not config_snapshot:
+        return {}
+    
+    rmm_config = config_snapshot.get("rmm_config", {})
+    if not rmm_config:
+        return {}
+    
+    policy = {
+        "name": rmm_config.get("name", "Unknown"),
+        "version": rmm_config.get("version", "Unknown"),
+        "policy": rmm_config.get("policy", {}),
+        "regimes": rmm_config.get("regimes", []),
+        "features_used": [f.get("name") for f in rmm_config.get("features", []) if f.get("name")],
+        "regime_labels": [r.get("label") for r in rmm_config.get("regimes", []) if r.get("label")],
+        "min_confidence": rmm_config.get("policy", {}).get("min_confidence", None),
+        "allowed_labels": rmm_config.get("policy", {}).get("allow_labels", []),
+    }
+    
+    return policy
+
+
+def _extract_rem_policy(config_snapshot: dict[str, Any] | None) -> dict[str, Any]:
+    """Extract REM (Risk Exit Manager) policy information from config snapshot for AI context."""
+    if not config_snapshot:
+        return {}
+    
+    rem_config = config_snapshot.get("rem_config", {})
+    if not rem_config:
+        return {}
+    
+    policy = {
+        "stop_loss": rem_config.get("stop_loss", {}),
+        "take_profit": rem_config.get("take_profit", {}),
+        "trailing_stop": rem_config.get("trailing_stop", {}),
+        "time_exit": rem_config.get("time_exit", {}),
+    }
+    
+    # Add human-readable interpretations
+    stop_loss = rem_config.get("stop_loss", {})
+    take_profit = rem_config.get("take_profit", {})
+    
+    if stop_loss.get("price_offset"):
+        policy["stop_loss_pips"] = f"{stop_loss['price_offset'] * 10000:.0f} pips"
+    if take_profit.get("price_offset"):
+        policy["take_profit_pips"] = f"{take_profit['price_offset'] * 10000:.0f} pips"
+        
+    return policy
+
+
 def _schema_node_type(node: dict[str, Any]) -> str:
     t = node.get("type")
     if isinstance(t, list):
@@ -417,20 +468,8 @@ def generate_brief(
 ) -> dict[str, Any]:
     """Assemble a JSON brief from trades and metrics (incremental MVP)."""
     meta = meta or {}
-    expected_params = [
-        "fast",
-        "slow",
-        "stop_type",
-        "stop_value",
-        "tp_type",
-        "tp_value",
-        "trail_type",
-        "trail_value",
-        "atr_length",
-        "tie_break",
-    ]
-    params_in = params or {}
-    params = {k: params_in.get(k) for k in expected_params}
+    # Use the actual strategy parameters as provided, don't hardcode parameter names
+    params = params or {}
     performance = compute_overall_performance(trades, initial_cash)
     risk_snapshot = compute_risk_snapshot(trades)
     equity_stats = compute_equity_stats(trades, initial_cash)
@@ -600,6 +639,8 @@ def generate_brief(
         "fill_policy": _to_jsonable(fill_policy or {}),
         "tie_break_policy": _to_jsonable(tie_break_policy or {}),
         "blackout_policy": _to_jsonable(blackout_policy or {}),
+        "rmm_policy": _extract_rmm_policy(config_snapshot),
+        "rem_policy": _extract_rem_policy(config_snapshot),
         "environment": _to_jsonable(env),
         "provenance": _to_jsonable(prov),
         "checksums": _to_jsonable(checksums),
@@ -609,8 +650,82 @@ def generate_brief(
         "trades": trades_json,
         "recommendations": _to_jsonable(recommendations or []),
     }
+    
+    # Add policy information if available (these are not in schema yet)
+    rmm_policy = _extract_rmm_policy(config_snapshot)
+    if rmm_policy:
+        base["rmm_policy"] = rmm_policy
+        
+    rem_policy = _extract_rem_policy(config_snapshot)  
+    if rem_policy:
+        base["rem_policy"] = rem_policy
+    
     placeholders = _empty_sections()
     placeholders.update(base)
+    # --- Regime Summary Augmentation ---
+    rmm_policy = placeholders.get("rmm_policy", {})
+    regimes = rmm_policy.get("regimes", [])
+    allowed_labels = rmm_policy.get("allowed_labels", [])
+    regime_counts = {}
+    for trade in placeholders.get("trades", []):
+        # Defensive: context_at_entry may be None (schema allows null). Accept
+        # either a flat 'regime_label' or a nested 'regime': {"label": ...}.
+        ctx = trade.get("context_at_entry") or {}
+        regime = None
+        if isinstance(ctx, dict):
+            regime = ctx.get("regime_label") or (ctx.get("regime") or {}).get("label")
+        if regime:
+            regime_counts[regime] = regime_counts.get(regime, 0) + 1
+    for skip in placeholders.get("skipped_trades", []):
+        regime = skip.get("regime", {}).get("label")
+        if regime:
+            regime_counts[regime] = regime_counts.get(regime, 0) + 1
+    regime_labels = [r.get("label") for r in regimes if r.get("label")]
+    regime_summary = {
+        "regime_labels": regime_labels,
+        "allowed_labels": allowed_labels,
+        "regime_counts": regime_counts,
+        "n_trades": len(placeholders.get("trades", [])),
+        "n_skipped_trades": len(placeholders.get("skipped_trades", [])),
+        "n_long": sum(1 for t in placeholders.get("trades", []) if t.get("side") == "long"),
+        "n_short": sum(1 for t in placeholders.get("trades", []) if t.get("side") == "short"),
+        "n_long_skipped": sum(1 for s in placeholders.get("skipped_trades", []) if s.get("side") == "long"),
+        "n_short_skipped": sum(1 for s in placeholders.get("skipped_trades", []) if s.get("side") == "short"),
+        "n_allowed_regimes": len(allowed_labels),
+        "n_active_regimes": len(set(regime_counts.keys())),
+        "n_trades_in_allowed_regimes": sum(
+            regime_counts.get(label, 0) for label in allowed_labels
+        ),
+        "n_trades_in_disallowed_regimes": sum(
+            regime_counts.get(label, 0)
+            for label in regime_labels
+            if label not in allowed_labels
+        ) if regimes else 0,
+        # 'narrative' intentionally omitted; scenario-specific explanations should
+        # be generated dynamically in reporting, not hardcoded in the brief.
+    }
+    placeholders["regime_summary"] = regime_summary
+
+    # --- Policy Effects Augmentation ---
+    policy_effects = {
+        # 'rmm_filtering' narrative intentionally omitted; should be generated
+        # dynamically in reporting, not hardcoded in the brief.
+        "n_trades": len(placeholders.get("trades", [])),
+        "n_skipped_trades": len(placeholders.get("skipped_trades", [])),
+        "n_long": regime_summary["n_long"],
+        "n_short": regime_summary["n_short"],
+        "n_long_skipped": regime_summary["n_long_skipped"],
+        "n_short_skipped": regime_summary["n_short_skipped"],
+    }
+    placeholders["policy_effects"] = policy_effects
+
+    # Attach skipped trades before field_definitions so they're included in leaf paths
+    skipped_trades = skipped_trades or []
+    for trade in skipped_trades:
+        if "cf_pnl_currency" in trade:
+            trade["cf_pnl_currency"] = _round_currency(trade["cf_pnl_currency"])
+    placeholders["skipped_trades"] = _to_jsonable(skipped_trades)
+
     # Populate field_definitions strictly from the JSON Schema if not provided
     if not field_definitions:
         try:
@@ -632,12 +747,8 @@ def generate_brief(
     checks = placeholders.get("checksums")
     if isinstance(checks, dict) and not checks:
         placeholders.pop("checksums", None)
-    # Attach skipped trades and filter impact if provided
+    
     if skipped_trades:
-        for trade in skipped_trades:
-            if "cf_pnl_currency" in trade:
-                trade["cf_pnl_currency"] = _round_currency(trade["cf_pnl_currency"])
-        placeholders["skipped_trades"] = _to_jsonable(skipped_trades)
         # Aggregate impact metrics by skip_reason
         agg: dict[str, Any] = {}
         for s in skipped_trades:
