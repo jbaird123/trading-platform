@@ -6,6 +6,14 @@ tie_break_policy:
   rule: "stop_then_tp"
 position_size: 25000
 
+# Transaction costs configuration
+cost_model:
+  spread_per_unit: 0.00015  # 1.5 pips for EUR/USD ($0.00015 per dollar)
+  slippage_per_unit: 0.0    # No additional slippage for now
+  commission:
+    type: "per_unit"         # Per unit commission
+    value: 0.0               # No additional commission for now
+
 # Instrument configuration (required for validation)
 instrument:
   symbol: "EUR_USD"
@@ -26,7 +34,13 @@ fast_mode:
 rem_path: "config/rem/basic_price_exits.yaml"
 strategy_path: "config/strategy/ema_crossover.yaml"
 
-# Optional: per-run overrides to strategy tunables
+# Strategy parameters for this run (for brief reporting)
+strategy_params:
+  ema_fast_length: 16
+  ema_slow_length: 50
+  slope_filter: false
+
+# Optional: per-run overrides to strategy tunables (for execution)
 strategy_overrides:
   features:
     ema_fast:
@@ -35,4 +49,4 @@ strategy_overrides:
       length: 50
 
 # Regime Market Manager (mandatory)
-# rmm_path: "config/rmm/daily_trend.yaml"
+rmm_path: "config/rmm/daily_trend.yaml"

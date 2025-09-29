@@ -53,6 +53,8 @@ def test_rmm_blocks_signal_not_in_allowed_sides():
         },
         index=idx,
     )
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(df)  # Populate _feature_df for context lookups
     signals = pd.Series(["long"] * 5, index=df.index)
     rmm_context = {
         timestamp: {
@@ -79,7 +81,7 @@ def test_rmm_blocks_signal_not_in_allowed_sides():
         run_backtest(
             market_data=df,
             signals=signals,
-            strategy=_dummy_strategy_cfg(),
+            strategy=strategy,
             config=config,
             rem=rem,
             rmm_context=rmm_context,
@@ -105,6 +107,8 @@ def test_rmm_allows_signal_opens_position() -> None:
         },
         index=idx,
     )
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(df)  # Populate _feature_df for context lookups
     signals = pd.Series(["long", "flat", "flat"], index=df.index)
     rmm_context = {
         df.index[0]: {
@@ -128,7 +132,7 @@ def test_rmm_allows_signal_opens_position() -> None:
     trades = run_backtest(
         market_data=df,
         signals=signals,
-        strategy=_dummy_strategy_cfg(),
+        strategy=strategy,
         config=config,
         rem=rem,
         rmm_context=rmm_context,
@@ -151,6 +155,8 @@ def test_return_skips_only():
         },
         index=idx,
     )
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(df)  # Populate _feature_df for context lookups
     signals = pd.Series(["long"] * 3, index=df.index)
     config = RunConfig(
         user_id="test_user",
@@ -166,7 +172,7 @@ def test_return_skips_only():
     result = run_backtest(
         market_data=df,
         signals=signals,
-        strategy=_dummy_strategy_cfg(),
+        strategy=strategy,
         config=config,
         rem=rem,
         return_exposure=False,
@@ -376,12 +382,14 @@ def test_backtester_with_rem_pips_stop_loss():
             "UTC"
         ),
     )
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(market_data)  # Populate _feature_df for context lookups
     signals = pd.Series(["long", "long"], index=market_data.index)
 
     trades = run_backtest(
         market_data=market_data,
         signals=signals,
-        strategy=_dummy_strategy_cfg(),
+        strategy=strategy,
         config=config,
         rem=rem,
     )
@@ -509,3 +517,151 @@ class TestBacktesterCoreCoverage:
             symbol="EURUSD",
         )
         assert result["cf_exit_kind"] == "rem"
+
+
+def test_rmm_context_enrichment_in_trades_and_skips():
+    """
+    Test that RMM context (regime_label) is properly enriched in both executed trades 
+    and skipped trades when running a backtest with RMM enabled.
+    
+    This test is expected to fail until the implementation is complete.
+    """
+    # Create test data with enough bars for meaningful regime detection
+    idx = [datetime(2024, 1, 1, h) for h in range(10)]
+    df = pd.DataFrame(
+        {
+            "open": [1.0, 1.1, 1.2, 1.3, 1.4, 1.3, 1.2, 1.1, 1.0, 0.9],
+            "high": [1.1, 1.2, 1.3, 1.4, 1.5, 1.4, 1.3, 1.2, 1.1, 1.0],
+            "low": [0.9, 1.0, 1.1, 1.2, 1.3, 1.2, 1.1, 1.0, 0.9, 0.8],
+            "close": [1.0, 1.1, 1.2, 1.3, 1.4, 1.3, 1.2, 1.1, 1.0, 0.9],
+            "volume": [100] * 10,
+        },
+        index=idx,
+    )
+    
+    # Generate mixed signals - some long, some short, some flat
+    signals = pd.Series(
+        ["long", "long", "short", "flat", "long", "short", "flat", "long", "short", "flat"], 
+        index=df.index
+    )
+    
+    # Create RMM context that will:
+    # 1. Allow some trades (when regime matches signal direction)  
+    # 2. Block some trades (when regime doesn't match signal direction)
+    rmm_context = {}
+    for i, timestamp in enumerate(df.index):
+        if i < 3:  # First 3 bars: trend_up regime, allows long only
+            rmm_context[timestamp] = {
+                "allowed_sides": ["long"],
+                "label": "trend_up",
+                "confidence": 0.8,
+                "policy": {"min_confidence": 0.6},
+            }
+        elif i < 7:  # Next 4 bars: trend_down regime, allows short only  
+            rmm_context[timestamp] = {
+                "allowed_sides": ["short"],
+                "label": "trend_down", 
+                "confidence": 0.9,
+                "policy": {"min_confidence": 0.6},
+            }
+        else:  # Last 3 bars: range regime, allows both
+            rmm_context[timestamp] = {
+                "allowed_sides": ["long", "short"],
+                "label": "range",
+                "confidence": 0.7,
+                "policy": {"min_confidence": 0.6},
+            }
+
+    # Use simple dummy strategy since we're passing signals directly
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(df)  # Populate _feature_df for context lookups
+
+    config = RunConfig(
+        user_id="test_context_enrichment",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=10000.0,
+        position_size=100.0,
+        instrument=_instrument(),
+        allow_flip_on_bar=True,  # Allow position flips to get more trades
+    )
+
+    rem = RiskExitManager(config={})
+
+    # Run backtest with RMM context - signals are passed directly to run_backtest
+    trades_list, _, skipped_list = cast(
+        BacktestTriple,
+        run_backtest(
+            market_data=df,
+            signals=signals,
+            strategy=strategy,
+            config=config,
+            rem=rem,
+            rmm_context=rmm_context,
+            return_exposure=False,
+            return_skips=True,
+        ),
+    )
+
+    # Expected results based on our RMM setup:
+    # Bar 0: long signal, trend_up regime (allows long) -> should execute
+    # Bar 1: long signal, trend_up regime (allows long) -> should execute 
+    # Bar 2: short signal, trend_up regime (allows long) -> should skip
+    # Bar 3: flat signal -> no trade attempt
+    # Bar 4: long signal, trend_down regime (allows short) -> should skip
+    # Bar 5: short signal, trend_down regime (allows short) -> should execute
+    # Bar 6: flat signal -> no trade attempt  
+    # Bar 7: long signal, range regime (allows both) -> should execute
+    # Bar 8: short signal, range regime (allows both) -> should execute
+    # Bar 9: flat signal -> no trade attempt
+
+    # Acceptance Criteria 1: At least one trade was skipped due to RMM policy
+    rmm_skipped = [s for s in skipped_list if s.get("skip_reason") == "rmm_block"]
+    assert len(rmm_skipped) >= 1, f"Expected at least 1 RMM-blocked trade, got {len(rmm_skipped)}"
+
+    # Acceptance Criteria 2: Skipped trades contain regime context
+    for skip in rmm_skipped:
+        # Check that the skipped trade has regime information in its context
+        # This may be in different places depending on implementation
+        regime_found = False
+        
+        # Check if regime info is directly in the skip dict
+        if "regime" in skip and "label" in skip["regime"]:
+            regime_label = skip["regime"]["label"]
+            regime_found = True
+        
+        # Check if there's a context field with regime info
+        elif "context" in skip and skip["context"] and "regime_label" in skip["context"]:
+            regime_label = skip["context"]["regime_label"]
+            regime_found = True
+            
+        # Check if there's a context field with nested regime info    
+        elif "context" in skip and skip["context"] and "regime" in skip["context"]:
+            regime_info = skip["context"]["regime"]
+            if isinstance(regime_info, dict) and "label" in regime_info:
+                regime_label = regime_info["label"] 
+                regime_found = True
+
+        assert regime_found, f"Skipped trade missing regime context: {skip}"
+        assert regime_label in ["trend_up", "trend_down", "range"], f"Invalid regime label: {regime_label}"
+
+    # Acceptance Criteria 3: Executed trades contain regime context in context_at_entry
+    assert len(trades_list) >= 1, f"Expected at least 1 executed trade, got {len(trades_list)}"
+    
+    for trade in trades_list:
+        context_at_entry = getattr(trade, "context_at_entry", None)
+        assert context_at_entry is not None, f"Trade missing context_at_entry: {trade}"
+        assert isinstance(context_at_entry, dict), f"context_at_entry should be dict, got {type(context_at_entry)}"
+        
+        # Check for regime_label in context_at_entry
+        regime_found = False
+        if "regime_label" in context_at_entry:
+            regime_label = context_at_entry["regime_label"]
+            regime_found = True
+        elif "regime" in context_at_entry and isinstance(context_at_entry["regime"], dict):
+            if "label" in context_at_entry["regime"]:
+                regime_label = context_at_entry["regime"]["label"]
+                regime_found = True
+                
+        assert regime_found, f"Trade context_at_entry missing regime info: {context_at_entry}"
+        assert regime_label in ["trend_up", "trend_down", "range"], f"Invalid regime label in trade: {regime_label}"

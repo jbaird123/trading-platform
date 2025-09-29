@@ -10,7 +10,7 @@ def test_crossover_logic():
     """Test crossover detection with synthetic data"""
     
     # Create synthetic EMA data with clear crossovers
-    dates = pd.date_range('2025-01-01', periods=20, freq='H')
+    dates = pd.date_range('2025-01-01', periods=20, freq='h')
     
     # Fast EMA starts below slow, then crosses above, then back below
     ema_fast = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9,  # Rising
