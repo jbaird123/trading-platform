@@ -16,7 +16,7 @@ class RiskExitManager:
     take-profit rules.
     """
 
-    def __init__(self, config: dict[str, Any], instrument: dict | None = None):
+    def __init__(self, config: dict[str, Any] | None = None, instrument: dict | None = None):
         """
         Initializes the RiskExitManager with a given risk configuration.
 
@@ -25,7 +25,7 @@ class RiskExitManager:
                     to the schema defined in the project requirements.
             instrument: A dictionary with instrument-specific metadata.
         """
-        self.config = config
+        self.config = config or {}
         self.instrument = instrument or {}
 
     def check_exits(

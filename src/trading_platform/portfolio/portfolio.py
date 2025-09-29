@@ -60,13 +60,16 @@ class PortfolioManager:
         if instrument is not None:
             self.instrument = instrument
 
+        # Ensure context_at_entry is a dict (not None) to keep downstream
+        # code simpler and avoid AttributeError when accessing keys.
+        ctx = context_at_entry or {}
         self._open_position = Position(
             symbol=symbol,
             side=side,
             entry_price=entry_price,
             size=size,
             entry_time=entry_time,
-            context_at_entry=context_at_entry,
+            context_at_entry=ctx,
             initial_risk_ccy=initial_risk_ccy,
         )
 
@@ -149,6 +152,7 @@ class PortfolioManager:
             mfe_currency=max(pos.mfe_currency, favorable),
             mae_currency=max(pos.mae_currency, adverse),
             initial_risk_ccy=pos.initial_risk_ccy,
+            context_at_entry=pos.context_at_entry,  # Preserve the context!
         )
 
     def close_position(
@@ -193,8 +197,13 @@ class PortfolioManager:
         if initial_risk_ccy and initial_risk_ccy > 0:
             r_multiple = pnl / initial_risk_ccy
 
+        # Ensure the recorded trade has a non-null context_at_entry for
+        # reporting/brief generation convenience. Position.context_at_entry
+        # was coerced to a dict at creation, but be defensive here as well.
+        pos_dict = dict(self._open_position.__dict__)
+        pos_dict["context_at_entry"] = pos_dict.get("context_at_entry") or {}
         trade = Trade(
-            **self._open_position.__dict__,
+            **pos_dict,
             exit_price=exit_price,
             exit_time=exit_time,
             pnl=pnl,

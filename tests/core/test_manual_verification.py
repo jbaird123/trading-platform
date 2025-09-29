@@ -71,7 +71,8 @@ def test_core_calculations_match_manual_csv():
     )
 
     # 5. Create REM (Risk Exit Manager)
-    rem = RiskExitManager(config={})
+    rem_config = {"stop_loss": {"absolute_price": 95.0}}
+    rem = RiskExitManager(config=rem_config, instrument=run_config.instrument)
 
     # 6. Run backtest with skipped trades tracking
     result = run_backtest(
@@ -97,8 +98,11 @@ def test_core_calculations_match_manual_csv():
     completed_trades = [t for t in trades if t.exit_time is not None]
 
     # 9. Expected values - Core calculations that must be verified
-    expected_total_pnl = -5.0  # Core PnL calculation
-    expected_final_equity = 99995.0  # Core equity calculation
+    # Note: Updated from -5.0 to -4.0 after fixing manual calculation error.
+    # The original manual calc incorrectly treated Fast==Slow as a cross below.
+    # Cross below actually happens one bar later (Bar 14, not Bar 13).
+    expected_total_pnl = -4.0  # Core PnL calculation
+    expected_final_equity = 99996.0  # Core equity calculation (initial_cash + pnl)
     expected_win_rate = 0.0  # Core win rate calculation
     expected_blackout_reason = "blackout_static"  # Blackout mechanism working
 

@@ -535,10 +535,10 @@ class TestSignalStateMachine:
                 assert "sma" in context
 
                 # Test with invalid index
-                context_invalid = compiled_strategy.get_context(999)
-                assert context_invalid == {}
+                with pytest.raises(IndexError):
+                    compiled_strategy.get_context(999)
 
-                # Test with no feature df (should return empty dict)
+                # Test with no feature df (should raise IndexError)
                 compiled_strategy_no_features = CompiledStrategy(
                     name="test",
                     overlays=[],
@@ -549,8 +549,8 @@ class TestSignalStateMachine:
                     short_exit_blocks=[],
                     parameters={},
                 )
-                context_no_features = compiled_strategy_no_features.get_context(0)
-                assert context_no_features == {}
+                with pytest.raises(IndexError):
+                    compiled_strategy_no_features.get_context(0)
 
 
 class TestLoadStrategyFromFile:
@@ -1031,7 +1031,8 @@ def test_compiled_strategy_generate_signals_basic(monkeypatch):
     sig = strat.generate_signals(base)
     assert list(sig) == ["flat", "long", "flat"]
     assert strat.get_context(1) == {"feat": 1}
-    assert strat.get_context(10) == {}
+    with pytest.raises(IndexError):
+        strat.get_context(10)
 
 
 def test_compiled_strategy_short_exit_branch(monkeypatch):

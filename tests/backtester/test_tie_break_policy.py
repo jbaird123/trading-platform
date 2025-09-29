@@ -30,6 +30,8 @@ def test_tie_break_stop_then_tp_for_long():
         },
         index=idx,
     )
+    strategy = _dummy_strategy_with_sl_tp(95.0, 105.0)
+    strategy.generate_signals(df)  # Populate _feature_df for context lookups
     sig = pd.Series(["long", "flat"], index=df.index)
     config = RunConfig(
         user_id="test",
@@ -46,9 +48,12 @@ def test_tie_break_stop_then_tp_for_long():
     )
     rem = RiskExitManager(config=config.rem_config or {})
     result = run_backtest(
+
         market_data=df,
+
         signals=sig,
-        strategy=_dummy_strategy_with_sl_tp(95.0, 105.0),
+
+        strategy=strategy,
         config=config,
         rem=rem,
         return_exposure=True,

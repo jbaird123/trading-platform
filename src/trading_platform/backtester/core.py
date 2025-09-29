@@ -123,10 +123,24 @@ def run_backtest(
     def _fmt_ts(val: Any) -> str:
         return val.isoformat() if isinstance(val, datetime) else str(val)
 
+    prev_signal = "flat"  # Track previous signal for transition detection
+    warmup_threshold = max(0, config.warmup_bars)
     for i in range(len(market_data)):
         current_signal = signals.iloc[i]
         current_bar = market_data.iloc[i]
         context = strategy.get_context(i)
+
+        # Detect signal transitions
+        # Treat first bar after warmup as a transition to allow entry
+        signal_changed = (current_signal != prev_signal) or (i == warmup_threshold and current_signal in ["long", "short"])
+        
+        # Enrich context with regime information from RMM if available
+        if rmm_context is not None:
+            rmm_ctx = rmm_context.get(cast(datetime, current_bar.name))
+            if rmm_ctx is not None:
+                # Create a copy to avoid modifying the original strategy context
+                context = dict(context or {})
+                context["regime_label"] = rmm_ctx.get("label")
 
         # Evaluate risk-based exits using the Risk & Exit Manager (REM)
         # This is evaluated before strategic exits, per the Exit Precedence Policy.
@@ -178,9 +192,11 @@ def run_backtest(
                 )
 
         # Potentially open a new position based on signal and policy
+        # Only enter on signal transitions to prevent re-entry on persistent signals
         if (
             not portfolio.current_position
             and current_signal in ["long", "short"]
+            and signal_changed  # NEW: Only enter when signal changes
             and policy.can_open(cast(datetime, current_bar.name))
             and i >= max(0, config.warmup_bars)
         ):
@@ -308,6 +324,9 @@ def run_backtest(
             if pos is not None:
                 exposure_val = float(abs(pos.size) * float(current_bar["close"]))
             exposure_curve.append((cast(datetime, current_bar.name), exposure_val))
+
+        # Update previous signal for next iteration
+        prev_signal = current_signal
 
     if skipped:
         # Choose counterfactual mode

@@ -26,6 +26,8 @@ def test_run_backtest_returns_trades_and_exposure_only() -> None:
         },
         index=idx,
     )
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(df)  # Populate _feature_df for context lookups
     signals = pd.Series(["long", "flat", "flat", "flat"], index=idx)
     config = RunConfig(
         user_id="tester",
@@ -39,9 +41,15 @@ def test_run_backtest_returns_trades_and_exposure_only() -> None:
     rem = RiskExitManager(config={})
 
     result = run_backtest(
+
+
         market_data=df,
+
+
         signals=signals,
-        strategy=_dummy_strategy_cfg(),
+
+
+        strategy=strategy,
         config=config,
         rem=rem,
         return_exposure=True,
