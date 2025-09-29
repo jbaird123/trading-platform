@@ -1,0 +1,29 @@
+# Ignore everything by default to keep the context small
+*
+
+# --- Keep essential project files ---
+# Re-include the main source code
+!/src/
+
+# Re-include key documentation and configuration
+!/docs/project_requirements.md
+!/docs/schemas/
+!/pyproject.toml
+!/poetry.lock
+!/.pre-commit-config.yaml
+
+# --- Ignore common noise ---
+# Explicitly ignore large, irrelevant directories
+/data/
+/htmlcov/
+/mlruns/
+/mlruns_test/
+/mlruns_integration_test/
+/test_mlruns/
+/test_run/
+/.pytest_cache/
+/.mypy_cache/
+/.ruff_cache/
+/.hypothesis/
+__pycache__/
+*.pyc
