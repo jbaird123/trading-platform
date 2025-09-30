@@ -136,7 +136,7 @@ def run_backtest(
         # Update portfolio's signal tracking state
         # This detects transitions and updates entry windows
         portfolio.update_signal_state(current_signal, i, warmup_threshold)
-        
+
         # Enrich context with regime information from RMM if available
         if rmm_context is not None:
             rmm_ctx = rmm_context.get(cast(datetime, current_bar.name))

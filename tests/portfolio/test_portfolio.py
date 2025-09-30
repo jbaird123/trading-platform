@@ -257,10 +257,14 @@ def test_entry_window_warmup_threshold():
 
     # Bars 0-49: Signal is "short", no transition
     for i in range(1, 50):
-        signal_changed = portfolio.update_signal_state("short", bar_index=i, warmup_threshold=50)
+        signal_changed = portfolio.update_signal_state(
+            "short", bar_index=i, warmup_threshold=50
+        )
         assert not signal_changed  # No transition during warmup
 
     # Bar 50: At warmup threshold, signal="short" triggers transition
-    signal_changed = portfolio.update_signal_state("short", bar_index=50, warmup_threshold=50)
+    signal_changed = portfolio.update_signal_state(
+        "short", bar_index=50, warmup_threshold=50
+    )
     assert signal_changed  # Warmup threshold should trigger transition
     assert portfolio.should_attempt_entry("short", 50, entry_window_bars=3)
