@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from typing import Any, cast
 
@@ -18,6 +19,8 @@ from trading_platform.strategy.yaml_strategy import CompiledStrategy
 When `return_exposure` is True, returns `(trades, exposure_curve)`; otherwise
 returns just `trades`.
 """
+
+logger = logging.getLogger(__name__)
 
 
 def resolve_instrument_symbol(instrument: Any) -> str:
@@ -157,6 +160,8 @@ def run_backtest(
                 # Update exposure only if requested
                 if return_exposure:
                     exposure_curve.append((cast(datetime, current_bar.name), 0.0))
+                # Update signal tracking before continuing to next bar
+                prev_signal = current_signal
                 continue
 
         # Process signal-based exits and update position metrics
@@ -193,6 +198,7 @@ def run_backtest(
 
         # Potentially open a new position based on signal and policy
         # Only enter on signal transitions to prevent re-entry on persistent signals
+
         if (
             not portfolio.current_position
             and current_signal in ["long", "short"]
@@ -231,6 +237,8 @@ def run_backtest(
                                 "entry_price": float(current_bar["close"]),
                             }
                         )
+                        # Update signal tracking before continuing to next bar
+                        prev_signal = current_signal
                         continue
             if config.daily_loss_cap is not None and config.daily_loss_cap > 0:
                 now = cast(datetime, current_bar.name)
@@ -253,6 +261,8 @@ def run_backtest(
                             "entry_price": float(current_bar["close"]),
                         }
                     )
+                    # Update signal tracking before continuing to next bar
+                    prev_signal = current_signal
                     continue
             cap = (
                 limits.get("max_open_long", 1)

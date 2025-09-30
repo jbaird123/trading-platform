@@ -200,6 +200,15 @@ class CompiledStrategy:
         sig: list[str] = []
         state = "flat"
         for i in range(len(df2)):
+            # Check exits first
+            if state == "long":
+                if bool(lx.iloc[i]):
+                    state = "flat"
+            elif state == "short":
+                if bool(sx.iloc[i]):
+                    state = "flat"
+
+            # Check entries (including same bar as exit)
             if state == "flat":
                 if bool(le.iloc[i]) and (
                     not self.slope_filter or bool(slope_up.iloc[i])
@@ -209,12 +218,7 @@ class CompiledStrategy:
                     not self.slope_filter or bool(slope_down.iloc[i])
                 ):
                     state = "short"
-            elif state == "long":
-                if bool(lx.iloc[i]):
-                    state = "flat"
-            elif state == "short":  # pragma: no branch
-                if bool(sx.iloc[i]):
-                    state = "flat"
+
             sig.append(state)
         return pd.Series(sig, index=df2.index)
 

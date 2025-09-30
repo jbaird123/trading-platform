@@ -98,12 +98,14 @@ def test_core_calculations_match_manual_csv():
     completed_trades = [t for t in trades if t.exit_time is not None]
 
     # 9. Expected values - Core calculations that must be verified
-    # Note: Updated from -5.0 to -4.0 after fixing manual calculation error.
-    # The original manual calc incorrectly treated Fast==Slow as a cross below.
-    # Cross below actually happens one bar later (Bar 14, not Bar 13).
-    expected_total_pnl = -4.0  # Core PnL calculation
-    expected_final_equity = 99996.0  # Core equity calculation (initial_cash + pnl)
-    expected_win_rate = 0.0  # Core win rate calculation
+    # Note: Updated to 10.0 after fixing same-bar exit/entry bug.
+    # Previously, when a long exited on cross_below, the strategy wouldn't
+    # check for short entry on the same bar. Now it correctly enters short
+    # when both long_exit and short_entry conditions are met on the same bar.
+    # This results in 5 trades (2 long losses, 3 short wins) = 10.0 total PnL
+    expected_total_pnl = 10.0  # Core PnL calculation
+    expected_final_equity = 100010.0  # Core equity calculation (initial_cash + pnl)
+    expected_win_rate = 0.6  # Core win rate calculation (3 wins out of 5 trades)
     expected_blackout_reason = "blackout_static"  # Blackout mechanism working
 
     # 10. CORE ASSERTIONS: Validate the essential calculations
@@ -140,11 +142,12 @@ def test_core_calculations_match_manual_csv():
         f"got {len(blackout_skips)}"
     )
 
-    # Validate blackout occurred at 09:00 (within blackout window 08:00-10:00)
-    blackout_trade = blackout_skips[0]
-    assert (
-        "09:00:00" in blackout_trade["entry_time"]
-    ), f"Expected blackout skip around 09:00, got {blackout_trade['entry_time']}"
+    # Validate blackout occurred within blackout window (08:00-10:00)
+    # After fixing same-bar exit/entry, there may be multiple blackout skips
+    blackout_times = [skip["entry_time"] for skip in blackout_skips]
+    assert any("08:00:00" in t or "09:00:00" in t for t in blackout_times), (
+        f"Expected blackout skip between 08:00-10:00, got {blackout_times}"
+    )
     print(
         f"✅ Blackout rule functionality: {len(blackout_skips)} skip(s) "
         f"detected at correct time"

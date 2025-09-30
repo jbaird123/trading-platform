@@ -91,7 +91,8 @@ def test_rmm_blocks_signal_not_in_allowed_sides():
     )
 
     assert not trades_list
-    assert len(skipped_list) == 5
+    # With event-based entries, only the first signal transition triggers an entry attempt
+    assert len(skipped_list) == 1
     assert skipped_list[0]["skip_reason"] == "rmm_block"
 
 
