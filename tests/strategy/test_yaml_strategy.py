@@ -1166,7 +1166,10 @@ def test_compiled_strategy_slope_filter_missing_column(monkeypatch):
         slope_feature="ema_missing",
     )
     sig = strat.generate_signals(base)
-    assert list(sig) == ["long", "flat", "long"]
+    # After fixing same-bar exit/entry bug: long_exit (close < 5) is always true,
+    # so it exits on every bar, but long_entry (close > 0) is also always true,
+    # so it immediately re-enters. Result: stays long throughout.
+    assert list(sig) == ["long", "long", "long"]
 
 
 def test_compiled_strategy_ai_filter_missing_features(monkeypatch, caplog):
@@ -1538,3 +1541,54 @@ def test_yaml_strategy_all_of_and_short_side():
     sig = strat.generate_signals(df)
     # flat, exit short, enter short
     assert list(sig) == ["short", "flat", "short"]
+
+
+def test_same_bar_exit_and_opposite_entry():
+    """Test that when long exits and short enters on same bar, short is entered.
+
+    This is critical for strategies like EMA crossover where:
+    - Long exit = fast crosses below slow
+    - Short entry = fast crosses below slow
+
+    Without proper handling, the exit would set state to flat and never check for entry.
+    """
+    cfg = {
+        "strategy_name": "CrossoverTest",
+        "features": [],
+        "long_entry_rules": [
+            {"all_of": [{"condition": "cross_above", "left": "close", "right": 10.0}]}
+        ],
+        "long_exit_rules": [
+            {"any_of": [{"condition": "cross_below", "left": "close", "right": 10.0}]}
+        ],
+        "short_entry_rules": [
+            {"all_of": [{"condition": "cross_below", "left": "close", "right": 10.0}]}
+        ],
+        "short_exit_rules": [
+            {"any_of": [{"condition": "cross_above", "left": "close", "right": 10.0}]}
+        ],
+    }
+    strat = compile_strategy(cfg)
+
+    # Create data where we cross above (enter long), then cross below (exit long + enter short)
+    df = pd.DataFrame(
+        {
+            "open": [9, 11, 9, 11],  # Below, Above, Below, Above
+            "high": [9, 11, 9, 11],
+            "low": [9, 11, 9, 11],
+            "close": [9, 11, 9, 11],
+            "volume": [1, 1, 1, 1],
+        },
+        index=[datetime(2024, 1, 1, i) for i in range(4)],
+    )
+
+    sig = strat.generate_signals(df)
+    signals = list(sig)
+
+    # Expected:
+    # Bar 0: close=9 (below 10), no cross yet -> flat
+    # Bar 1: close=11 (above 10), cross_above from 9->11 -> long
+    # Bar 2: close=9 (below 10), cross_below from 11->9 -> exit long AND enter short -> short
+    # Bar 3: close=11 (above 10), cross_above from 9->11 -> exit short AND enter long -> long
+
+    assert signals == ["flat", "long", "short", "long"], f"Got {signals}"
