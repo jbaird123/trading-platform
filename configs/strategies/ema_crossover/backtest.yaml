@@ -24,7 +24,7 @@ instrument:
 data_request:
   symbol: "EUR_USD"
   timeframe: "1H"
-  start: "2025-03-01"
+  start: "2024-03-01"
   end: "2025-09-26"
 
 counterfactual_mode: exact   # fast | exact; default is fast
