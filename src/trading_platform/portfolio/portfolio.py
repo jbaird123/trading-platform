@@ -37,6 +37,16 @@ class PortfolioManager:
             precision_engine if precision_engine is not None else FloatEngine(),
         )
 
+        # Entry window tracking for signal-based entry management
+        # Format: {side: (transition_bar_index, last_entered_bar_index)}
+        # transition_bar_index: when signal changed to this side
+        # last_entered_bar_index: last bar where we entered on this signal (None if not entered)
+        self._entry_windows: dict[str, tuple[int, int | None]] = {
+            "long": (-1, None),
+            "short": (-1, None),
+        }
+        self._prev_signal: str = "flat"
+
     @property
     def current_position(self) -> Position | None:
         """Public read-only access to the current open position, if any."""
@@ -72,6 +82,91 @@ class PortfolioManager:
             context_at_entry=ctx,
             initial_risk_ccy=initial_risk_ccy,
         )
+
+    def update_signal_state(
+        self, current_signal: str, bar_index: int, warmup_threshold: int
+    ) -> bool:
+        """
+        Update internal signal tracking state and detect signal transitions.
+
+        Args:
+            current_signal: Current signal value ("long", "short", "flat")
+            bar_index: Current bar index in the backtest/live stream
+            warmup_threshold: Bar index where warmup period ends
+
+        Returns:
+            True if signal changed (transition detected), False otherwise
+        """
+        # Detect signal transitions
+        # Treat first bar after warmup as a transition to allow entry
+        signal_changed = (current_signal != self._prev_signal) or (
+            bar_index == warmup_threshold and current_signal in ["long", "short"]
+        )
+
+        # Update entry windows when signal transitions
+        if signal_changed and current_signal in ["long", "short"]:
+            # Reset the window for this side
+            self._entry_windows[current_signal] = (bar_index, None)
+
+        # Update prev_signal for next bar
+        self._prev_signal = current_signal
+
+        return signal_changed
+
+    def should_attempt_entry(
+        self, current_signal: str, bar_index: int, entry_window_bars: int
+    ) -> bool:
+        """
+        Determine if we should attempt to open a position based on entry window policy.
+
+        This implements [PM-5.8] Entry Window Management.
+
+        Args:
+            current_signal: Current signal value ("long", "short", "flat")
+            bar_index: Current bar index
+            entry_window_bars: Entry window configuration
+                0 = event-based (only on exact transition)
+                N > 0 = allow delayed entry within N bars
+                -1 = infinite window (always try when signal active)
+
+        Returns:
+            True if we should attempt entry, False otherwise
+        """
+        if current_signal not in ["long", "short"]:
+            return False
+
+        transition_bar, last_entered = self._entry_windows[current_signal]
+
+        if transition_bar < 0:  # No valid transition exists
+            return False
+
+        bars_since_transition = bar_index - transition_bar
+
+        # Check window conditions:
+        # 1. Within configured window (or window is -1 for infinite)
+        # 2. Haven't already entered on this signal instance
+        if entry_window_bars == -1:
+            # Infinite window: always try when signal is active
+            return last_entered is None
+        elif bars_since_transition <= entry_window_bars:
+            # Within finite window and haven't entered yet
+            return last_entered is None
+
+        return False
+
+    def mark_entry_on_signal(self, side: str, bar_index: int) -> None:
+        """
+        Mark that we've successfully entered on the current signal instance.
+
+        This prevents re-entry after risk-based exits (e.g., stop-loss) on the
+        same signal instance.
+
+        Args:
+            side: Position side that was entered ("long" or "short")
+            bar_index: Bar index where entry occurred
+        """
+        transition_bar, _ = self._entry_windows[side]
+        self._entry_windows[side] = (transition_bar, bar_index)
 
     def hit_daily_loss_cap(self, ts: datetime, cap: float) -> bool:
         """Return True if realized PnL for ts.date() is <= -cap."""

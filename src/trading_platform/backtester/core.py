@@ -126,27 +126,16 @@ def run_backtest(
     def _fmt_ts(val: Any) -> str:
         return val.isoformat() if isinstance(val, datetime) else str(val)
 
-    prev_signal = "flat"  # Track previous signal for transition detection
     warmup_threshold = max(0, config.warmup_bars)
-
-    # Track entry windows: {side: (transition_bar_index, last_entered_bar_index)}
-    # transition_bar_index: when signal changed to this side
-    # last_entered_bar_index: last bar where we entered on this signal (to prevent re-entry after REM exit)
-    entry_windows: dict[str, tuple[int, int | None]] = {"long": (-1, None), "short": (-1, None)}
 
     for i in range(len(market_data)):
         current_signal = signals.iloc[i]
         current_bar = market_data.iloc[i]
         context = strategy.get_context(i)
 
-        # Detect signal transitions
-        # Treat first bar after warmup as a transition to allow entry
-        signal_changed = (current_signal != prev_signal) or (i == warmup_threshold and current_signal in ["long", "short"])
-
-        # Update entry windows when signal transitions
-        if signal_changed and current_signal in ["long", "short"]:
-            # Reset the window for this side
-            entry_windows[current_signal] = (i, None)
+        # Update portfolio's signal tracking state
+        # This detects transitions and updates entry windows
+        portfolio.update_signal_state(current_signal, i, warmup_threshold)
         
         # Enrich context with regime information from RMM if available
         if rmm_context is not None:
@@ -171,8 +160,6 @@ def run_backtest(
                 # Update exposure only if requested
                 if return_exposure:
                     exposure_curve.append((cast(datetime, current_bar.name), 0.0))
-                # Update signal tracking before continuing to next bar
-                prev_signal = current_signal
                 continue
 
         # Process signal-based exits and update position metrics
@@ -208,30 +195,14 @@ def run_backtest(
                 )
 
         # Potentially open a new position based on signal and policy
-        # Use entry windows to determine if we should attempt entry
-
-        # Check if we're within the entry window for current signal
-        within_entry_window = False
-        if current_signal in ["long", "short"]:
-            transition_bar, last_entered = entry_windows[current_signal]
-            if transition_bar >= 0:  # Valid transition exists
-                bars_since_transition = i - transition_bar
-                window_size = config.entry_window_bars
-
-                # Check window conditions:
-                # 1. Within configured window (or window is -1 for infinite)
-                # 2. Haven't already entered on this signal instance
-                if window_size == -1:
-                    # Infinite window: always try when signal is active
-                    within_entry_window = (last_entered is None)
-                elif bars_since_transition <= window_size:
-                    # Within finite window and haven't entered yet
-                    within_entry_window = (last_entered is None)
+        # Delegate to Portfolio Manager to check entry window policy
+        should_attempt = portfolio.should_attempt_entry(
+            current_signal, i, config.entry_window_bars
+        )
 
         if (
             not portfolio.current_position
-            and current_signal in ["long", "short"]
-            and within_entry_window
+            and should_attempt
             and policy.can_open(cast(datetime, current_bar.name))
             and i >= max(0, config.warmup_bars)
         ):
@@ -266,8 +237,6 @@ def run_backtest(
                                 "entry_price": float(current_bar["close"]),
                             }
                         )
-                        # Update signal tracking before continuing to next bar
-                        prev_signal = current_signal
                         continue
             if config.daily_loss_cap is not None and config.daily_loss_cap > 0:
                 now = cast(datetime, current_bar.name)
@@ -290,8 +259,6 @@ def run_backtest(
                             "entry_price": float(current_bar["close"]),
                         }
                     )
-                    # Update signal tracking before continuing to next bar
-                    prev_signal = current_signal
                     continue
             cap = (
                 limits.get("max_open_long", 1)
@@ -331,8 +298,7 @@ def run_backtest(
                     initial_risk_ccy=None,  # This is now handled by REM
                 )
                 # Mark that we've entered on this signal instance
-                transition_bar, _ = entry_windows[current_signal]
-                entry_windows[current_signal] = (transition_bar, i)
+                portfolio.mark_entry_on_signal(current_signal, i)
         elif (
             not portfolio.current_position
             and current_signal in ["long", "short"]
@@ -366,9 +332,6 @@ def run_backtest(
             if pos is not None:
                 exposure_val = float(abs(pos.size) * float(current_bar["close"]))
             exposure_curve.append((cast(datetime, current_bar.name), exposure_val))
-
-        # Update previous signal for next iteration
-        prev_signal = current_signal
 
     if skipped:
         # Choose counterfactual mode
