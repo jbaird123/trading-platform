@@ -128,6 +128,12 @@ def run_backtest(
 
     prev_signal = "flat"  # Track previous signal for transition detection
     warmup_threshold = max(0, config.warmup_bars)
+
+    # Track entry windows: {side: (transition_bar_index, last_entered_bar_index)}
+    # transition_bar_index: when signal changed to this side
+    # last_entered_bar_index: last bar where we entered on this signal (to prevent re-entry after REM exit)
+    entry_windows: dict[str, tuple[int, int | None]] = {"long": (-1, None), "short": (-1, None)}
+
     for i in range(len(market_data)):
         current_signal = signals.iloc[i]
         current_bar = market_data.iloc[i]
@@ -136,6 +142,11 @@ def run_backtest(
         # Detect signal transitions
         # Treat first bar after warmup as a transition to allow entry
         signal_changed = (current_signal != prev_signal) or (i == warmup_threshold and current_signal in ["long", "short"])
+
+        # Update entry windows when signal transitions
+        if signal_changed and current_signal in ["long", "short"]:
+            # Reset the window for this side
+            entry_windows[current_signal] = (i, None)
         
         # Enrich context with regime information from RMM if available
         if rmm_context is not None:
@@ -197,12 +208,30 @@ def run_backtest(
                 )
 
         # Potentially open a new position based on signal and policy
-        # Only enter on signal transitions to prevent re-entry on persistent signals
+        # Use entry windows to determine if we should attempt entry
+
+        # Check if we're within the entry window for current signal
+        within_entry_window = False
+        if current_signal in ["long", "short"]:
+            transition_bar, last_entered = entry_windows[current_signal]
+            if transition_bar >= 0:  # Valid transition exists
+                bars_since_transition = i - transition_bar
+                window_size = config.entry_window_bars
+
+                # Check window conditions:
+                # 1. Within configured window (or window is -1 for infinite)
+                # 2. Haven't already entered on this signal instance
+                if window_size == -1:
+                    # Infinite window: always try when signal is active
+                    within_entry_window = (last_entered is None)
+                elif bars_since_transition <= window_size:
+                    # Within finite window and haven't entered yet
+                    within_entry_window = (last_entered is None)
 
         if (
             not portfolio.current_position
             and current_signal in ["long", "short"]
-            and signal_changed  # NEW: Only enter when signal changes
+            and within_entry_window
             and policy.can_open(cast(datetime, current_bar.name))
             and i >= max(0, config.warmup_bars)
         ):
@@ -301,6 +330,9 @@ def run_backtest(
                     context_at_entry=context,
                     initial_risk_ccy=None,  # This is now handled by REM
                 )
+                # Mark that we've entered on this signal instance
+                transition_bar, _ = entry_windows[current_signal]
+                entry_windows[current_signal] = (transition_bar, i)
         elif (
             not portfolio.current_position
             and current_signal in ["long", "short"]

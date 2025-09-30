@@ -666,3 +666,189 @@ def test_rmm_context_enrichment_in_trades_and_skips():
                 
         assert regime_found, f"Trade context_at_entry missing regime info: {context_at_entry}"
         assert regime_label in ["trend_up", "trend_down", "range"], f"Invalid regime label in trade: {regime_label}"
+
+
+def test_entry_window_allows_delayed_entry():
+    """Test that entry window allows entry when RMM unblocks within window."""
+    # Bar 0: signal="long", RMM blocks
+    # Bar 1: signal="long", RMM blocks
+    # Bar 2: signal="long", RMM allows → should enter (within 3-bar window)
+    # Bar 3: signal="flat" → exits
+    idx = [datetime(2024, 1, 1, h) for h in range(5)]
+    df = pd.DataFrame(
+        {
+            "open": [1.0] * 5,
+            "high": [1.0] * 5,
+            "low": [1.0] * 5,
+            "close": [1.0] * 5,
+            "volume": [100] * 5,
+        },
+        index=idx,
+    )
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(df)
+    # Signal goes flat at bar 3 to trigger exit
+    signals = pd.Series(["long", "long", "long", "flat", "flat"], index=df.index)
+
+    # Block for first 2 bars, then allow
+    rmm_context = {
+        idx[0]: {"allowed_sides": ["short"], "label": "bearish", "confidence": 0.8, "policy": {}},
+        idx[1]: {"allowed_sides": ["short"], "label": "bearish", "confidence": 0.8, "policy": {}},
+        idx[2]: {"allowed_sides": ["long"], "label": "bullish", "confidence": 0.8, "policy": {}},
+        idx[3]: {"allowed_sides": ["long"], "label": "bullish", "confidence": 0.8, "policy": {}},
+        idx[4]: {"allowed_sides": ["long"], "label": "bullish", "confidence": 0.8, "policy": {}},
+    }
+
+    config = RunConfig(
+        user_id="test_user",
+        run_seed=42,
+        initial_cash=10000.0,
+        position_size=100.0,
+        instrument=_instrument(),
+        entry_window_bars=3,  # Allow 3 bars for entry after signal transition
+    )
+    rem = RiskExitManager(config={})
+
+    trades_list, _, skipped_list = cast(
+        BacktestTriple,
+        run_backtest(
+            market_data=df,
+            signals=signals,
+            strategy=strategy,
+            config=config,
+            rem=rem,
+            rmm_context=rmm_context,
+            return_exposure=False,
+            return_skips=True,
+        ),
+    )
+
+    # Should have 1 trade that entered on bar 2
+    assert len(trades_list) == 1
+    assert trades_list[0].entry_time == idx[2]
+    assert trades_list[0].side == "long"
+
+    # Should have 2 skipped trades (bars 0 and 1)
+    assert len(skipped_list) == 2
+    assert skipped_list[0]["skip_reason"] == "rmm_block"
+    assert skipped_list[1]["skip_reason"] == "rmm_block"
+
+
+def test_entry_window_expires():
+    """Test that entry window expires after configured bars."""
+    # Bar 0: signal="long", RMM blocks
+    # Bar 1: signal="long", RMM blocks
+    # Bar 2: signal="long", RMM blocks (window=1, expires after bar 1)
+    # Bar 3: signal="long", RMM allows → should NOT enter (window expired)
+    idx = [datetime(2024, 1, 1, h) for h in range(5)]
+    df = pd.DataFrame(
+        {
+            "open": [1.0] * 5,
+            "high": [1.0] * 5,
+            "low": [1.0] * 5,
+            "close": [1.0] * 5,
+            "volume": [100] * 5,
+        },
+        index=idx,
+    )
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(df)
+    signals = pd.Series(["long"] * 5, index=df.index)
+
+    # Block for first 3 bars, then allow
+    rmm_context = {
+        idx[0]: {"allowed_sides": ["short"], "label": "bearish", "confidence": 0.8, "policy": {}},
+        idx[1]: {"allowed_sides": ["short"], "label": "bearish", "confidence": 0.8, "policy": {}},
+        idx[2]: {"allowed_sides": ["short"], "label": "bearish", "confidence": 0.8, "policy": {}},
+        idx[3]: {"allowed_sides": ["long"], "label": "bullish", "confidence": 0.8, "policy": {}},
+        idx[4]: {"allowed_sides": ["long"], "label": "bullish", "confidence": 0.8, "policy": {}},
+    }
+
+    config = RunConfig(
+        user_id="test_user",
+        run_seed=42,
+        initial_cash=10000.0,
+        position_size=100.0,
+        instrument=_instrument(),
+        entry_window_bars=1,  # Only allow 1 bar after transition (bars 0-1)
+    )
+    rem = RiskExitManager(config={})
+
+    trades_list, _, skipped_list = cast(
+        BacktestTriple,
+        run_backtest(
+            market_data=df,
+            signals=signals,
+            strategy=strategy,
+            config=config,
+            rem=rem,
+            rmm_context=rmm_context,
+            return_exposure=False,
+            return_skips=True,
+        ),
+    )
+
+    # Should have no trades (window expired before RMM allowed)
+    assert len(trades_list) == 0
+
+    # Should have 2 skipped trades (bars 0 and 1, within window)
+    assert len(skipped_list) == 2
+
+
+def test_entry_window_prevents_reentry_after_rem_exit():
+    """Test that we only enter once per signal transition (no re-entry on same signal)."""
+    # Bar 0: signal transitions to "long", enter
+    # Bar 1: signal still "long", position still open
+    # Bar 2: signal transitions to "flat", exit
+    # Bar 3: signal transitions back to "long", should enter again (new transition)
+    # Bar 4: signal still "long", should NOT re-enter
+    idx = [datetime(2024, 1, 1, h) for h in range(5)]
+    df = pd.DataFrame(
+        {
+            "open": [1.0] * 5,
+            "high": [1.0] * 5,
+            "low": [1.0] * 5,
+            "close": [1.0] * 5,
+            "volume": [100] * 5,
+        },
+        index=idx,
+    )
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(df)
+    # Signal: long -> long -> flat -> long -> long
+    signals = pd.Series(["long", "long", "flat", "long", "flat"], index=df.index)
+
+    # Allow all bars
+    rmm_context = {
+        ts: {"allowed_sides": ["long", "short"], "label": "neutral", "confidence": 0.8, "policy": {}}
+        for ts in idx
+    }
+
+    config = RunConfig(
+        user_id="test_user",
+        run_seed=42,
+        initial_cash=10000.0,
+        position_size=100.0,
+        instrument=_instrument(),
+        entry_window_bars=5,  # Large window
+    )
+    rem = RiskExitManager(config={})
+
+    result = run_backtest(
+        market_data=df,
+        signals=signals,
+        strategy=strategy,
+        config=config,
+        rem=rem,
+        rmm_context=rmm_context,
+        return_exposure=False,
+        return_skips=False,
+    )
+    trades_list = result if isinstance(result, list) else result[0]
+
+    # Should have 2 trades (bar 0-2 and bar 3-4)
+    assert len(trades_list) == 2
+    assert trades_list[0].entry_time == idx[0]
+    assert trades_list[0].exit_time == idx[2]
+    assert trades_list[1].entry_time == idx[3]
+    assert trades_list[1].exit_time == idx[4]

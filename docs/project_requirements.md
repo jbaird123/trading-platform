@@ -46,6 +46,7 @@ _Last updated: 2025-09-16_
 - **[SYS-1.1] Architecture**:
   - **[SYS-1.1.1]** Modular separation is paramount. The core components (SE, REM, PM, RMM) must be decoupled.
   - **[SYS-1.1.2]** A **Run Configuration** binds these components together for a specific backtest or live trading session. It specifies the instrument, the strategy to use, the risk model to apply, the data source, etc.
+  - **[SYS-1.1.3]** **Backtest/Live Trading Parity**: The live trading engine (Execution Layer) must use the **exact same** entry and exit logic as the Backtester. All stateful trading logic (entry windows, position tracking, risk management) must reside in shared components (primarily the Portfolio Manager) that are used identically by both BT and EL.
 - **[SYS-1.2] Inter-Module Communication & Boundaries**:
   - **[SYS-1.2.1]** To facilitate a future split into multiple repositories, modules must communicate only through well-defined public APIs (e.g., functions and classes exposed in `__init__.py` files).
   - **[SYS-1.2.2]** Direct imports of internal sub-modules (e.g., `from trading_platform.data.internal_helpers import ...`) are strictly forbidden.
@@ -207,11 +208,20 @@ _Last updated: 2025-09-16_
 ### Core Requirements
 - **[PM-5.1]** **Core Responsibility**: To be the single source of truth for the portfolio's state at any given time.
 - **[PM-5.2]** The PM works exclusively in **canonical terms** (e.g., it does not know about "pips").
-- **[PM-5.3]** **State Management**: Track cash balance, open positions, and total equity (mark-to-market), and maintain a log of all executed trades.
+- **[PM-5.3]** **State Management**: Track cash balance, open positions, total equity (mark-to-market), and maintain a log of all executed trades. The PM must also maintain stateful tracking of signal transitions to support entry window logic.
 - **[PM-5.4]** **Order Processing**: Process incoming signals to generate orders and update position values based on new market data.
 - **[PM-5.5]** **Position Sizing**: Implement fixed-risk and fixed-fraction sizing logic.
 - **[PM-5.6]** **Trade & PnL Logic**: Generate a canonical `Trade` record upon position closure and calculate key performance metrics.
 - **[PM-5.7]** **Portfolio-Level Risk Management**: Enforce rules like daily loss caps, maximum drawdown limits, and directional position caps.
+- **[PM-5.8]** **Entry Window Management**: The PM must track signal transitions and enforce configurable entry windows to prevent duplicate entries on the same signal instance.
+  - **[PM-5.8.1]** Track the timestamp/bar index when each signal transition occurs (e.g., flat→long, short→long).
+  - **[PM-5.8.2]** Track whether an entry has already occurred on the current signal instance to prevent re-entry after risk-based exits (e.g., stop-loss).
+  - **[PM-5.8.3]** Support configurable entry window policies:
+    - `entry_window_bars: 0` = Event-based (only enter on exact signal transition bar)
+    - `entry_window_bars: N` (N > 0) = Allow delayed entry within N bars if initially blocked by filters (e.g., RMM)
+    - `entry_window_bars: -1` = Infinite window (always attempt entry when signal is active, state-based)
+  - **[PM-5.8.4]** Reset entry tracking when a new signal transition occurs.
+  - **[PM-5.8.5]** This state must be serializable for live trading to ensure consistency across restarts.
 
 ### Future Enhancements
 - **[PM-F.1]** Support **dynamic allocation policies** based on regime signals provided by the RMM ([PM-5.8]).
@@ -230,7 +240,10 @@ _Last updated: 2025-09-16_
 ## 7) Backtester (BT)
 
 ### Core Requirements
-- **[BT-7.1]** **Core Responsibility**: To simulate the passage of time and orchestrate the interaction between other components.
+- **[BT-7.1]** **Core Responsibility**: To simulate the passage of time and orchestrate the interaction between other components (Strategy Engine, RMM, Portfolio Manager, REM).
+  - **[BT-7.1.1]** The Backtester is responsible for the bar-by-bar simulation loop, feeding data to the Strategy Engine and coordinating component calls.
+  - **[BT-7.1.2]** The Backtester **must not** contain entry decision logic. Entry decisions (including entry window checks) are the responsibility of the Portfolio Manager ([PM-5.8]).
+  - **[BT-7.1.3]** The Backtester provides signals, RMM context, and current bar data to the Portfolio Manager, which determines whether to open a position.
 - **[BT-7.2]** **Rule Translation**: The Backtester **uses the shared Rule Translator** to convert native REM rules (e.g., "50 pips") into canonical price levels.
 - **[BT-7.3]** The primary mechanism will be an **iterative, bar-by-bar loop**. A fully vectorized implementation is a potential future performance enhancement.
 - **[BT-7.4]** The Backtester must **accept a configurable cost model at initialization and pass it to the Portfolio Manager**.
@@ -256,7 +269,7 @@ _Last updated: 2025-09-16_
 - **[EL-8.2]** Implement a broker adapter for OANDA as the initial target.
 - **[EL-8.3]** The adapter must map the internal canonical order format to the broker's specific API format.
 - **[EL-8.4]** The adapter must handle API connectivity issues, including retries and rate-limit management.
-- **[EL-8.5]** **Portfolio Interaction**: The EL must use the same `PortfolioManager` component as the backtester.
+- **[EL-8.5]** **Portfolio Interaction**: The EL must use the same `PortfolioManager` component as the backtester. This ensures all stateful logic (entry windows, position tracking, risk management) behaves identically in live trading as in backtests ([SYS-1.1.3], [PM-5.8]).
 - **[EL-8.6]** The EL must handle live streams of both market data and event data.
 - **[EL-8.7]** All actions, orders, and broker responses must be captured via structured logging.
 - **[EL-8.8]** Implement a reconciliation process to check for discrepancies between the internal portfolio state and the broker's state.
