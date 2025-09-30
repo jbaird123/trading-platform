@@ -137,8 +137,43 @@ def run_backtest(
         if rmm_context is not None:
             rmm_ctx = rmm_context.get(cast(datetime, current_bar.name))
             if rmm_ctx is not None:
-                # Restructure: separate strategy features from regime data
-                strategy_features = dict(context or {})
+                import math
+
+                def _round_feature(name: str, val: Any) -> float | None:
+                    """Round feature value based on its type."""
+                    if val is None:
+                        return None
+                    try:
+                        f = float(val)
+                        if math.isnan(f) or math.isinf(f):
+                            return None
+                        name_lower = name.lower()
+                        # ADX, ATR: 2 decimals
+                        if any(x in name_lower for x in ['adx', 'atr']):
+                            return round(f, 2)
+                        # RSI, Stochastic, CCI: 2 decimals
+                        elif any(x in name_lower for x in ['rsi', 'stoch', 'cci']):
+                            return round(f, 2)
+                        # Volume: whole numbers
+                        elif 'volume' in name_lower or 'vol' in name_lower:
+                            return round(f, 0)
+                        # EMA, SMA, prices: 5 decimals
+                        elif any(x in name_lower for x in ['ema', 'sma', 'price', 'close', 'open', 'high', 'low']):
+                            return round(f, 5)
+                        # MACD, momentum: 4 decimals
+                        elif any(x in name_lower for x in ['macd', 'mom', 'roc']):
+                            return round(f, 4)
+                        # Default: 4 decimals
+                        else:
+                            return round(f, 4)
+                    except (ValueError, TypeError):
+                        return None
+
+                # Round strategy features
+                strategy_features = {
+                    name: _round_feature(name, val)
+                    for name, val in (context or {}).items()
+                }
 
                 # Build nested regime object with all available data
                 regime_data = {
