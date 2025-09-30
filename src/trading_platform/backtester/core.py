@@ -157,9 +157,9 @@ def run_backtest(
                         # Volume: whole numbers
                         elif 'volume' in name_lower or 'vol' in name_lower:
                             return round(f, 0)
-                        # EMA, SMA, prices: 5 decimals
+                        # EMA, SMA, prices: 4 decimals
                         elif any(x in name_lower for x in ['ema', 'sma', 'price', 'close', 'open', 'high', 'low']):
-                            return round(f, 5)
+                            return round(f, 4)
                         # MACD, momentum: 4 decimals
                         elif any(x in name_lower for x in ['macd', 'mom', 'roc']):
                             return round(f, 4)
