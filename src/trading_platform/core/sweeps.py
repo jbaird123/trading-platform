@@ -37,12 +37,46 @@ def _rmm_context(df: pd.DataFrame, cfg_raw: dict[str, Any]) -> dict | None:
     from typing import cast as _cast
 
     proj = eng.project_to_index(daily, _cast(pd.DatetimeIndex, df.index), policy=pol)
+
+    # Extract regime feature names from config
+    feature_names = [f.get("name") for f in rmm_cfg.get("features", []) if f.get("name")]
+
+    import math
+
+    def _safe_float(val: Any) -> float | None:
+        """Convert value to float, returning None for NaN/inf."""
+        if val is None:
+            return None
+        try:
+            f = float(val)
+            if math.isnan(f) or math.isinf(f):
+                return None
+            return f
+        except (ValueError, TypeError):
+            return None
+
+    # DEBUG: Check first row to see what's available
+    if not proj.empty:
+        first_row = proj.iloc[0]
+        print(f"DEBUG _rmm_context: Feature names = {feature_names}")
+        print(f"DEBUG _rmm_context: First row index = {list(first_row.index)}")
+        for fname in feature_names:
+            if fname in first_row.index:
+                print(f"DEBUG _rmm_context: {fname} = {first_row[fname]}")
+
     return {
         ts: {
             "label": str(row["label"]),
             "confidence": float(row["confidence"]),
             "allowed_sides": list(row.get("allowed_sides") or []),
             "policy": pol,
+            # Include regime feature values
+            "features": {
+                fname: _safe_float(row.get(fname))
+                for fname in feature_names
+                if fname in row.index
+            },
+            "timeframe": "daily",  # TODO: Make configurable
         }
         for ts, row in proj.iterrows()
     }

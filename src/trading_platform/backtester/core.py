@@ -137,9 +137,24 @@ def run_backtest(
         if rmm_context is not None:
             rmm_ctx = rmm_context.get(cast(datetime, current_bar.name))
             if rmm_ctx is not None:
-                # Create a copy to avoid modifying the original strategy context
-                context = dict(context or {})
-                context["regime_label"] = rmm_ctx.get("label")
+                # Restructure: separate strategy features from regime data
+                strategy_features = dict(context or {})
+
+                # Build nested regime object with all available data
+                regime_data = {
+                    "label": rmm_ctx.get("label"),
+                    "confidence": rmm_ctx.get("confidence"),
+                    "allowed_sides": rmm_ctx.get("allowed_sides"),
+                    "policy": rmm_ctx.get("policy", {}),
+                    "features": rmm_ctx.get("features", {}),
+                    "timeframe": rmm_ctx.get("timeframe", "daily"),
+                }
+
+                # Rebuild context with proper structure
+                context = {
+                    "strategy_features": strategy_features,
+                    "regime": regime_data
+                }
 
         # Evaluate risk-based exits using the Risk & Exit Manager (REM)
         # This is evaluated before processing strategy commands
