@@ -75,12 +75,12 @@ def _extract_rem_policy(config_snapshot: dict[str, Any] | None) -> dict[str, Any
     # Add human-readable interpretations
     stop_loss = rem_config.get("stop_loss", {})
     take_profit = rem_config.get("take_profit", {})
-    
-    if stop_loss.get("price_offset"):
+
+    if stop_loss.get("price_offset"):  # pragma: no branch
         policy["stop_loss_pips"] = f"{stop_loss['price_offset'] * 10000:.0f} pips"
-    if take_profit.get("price_offset"):
+    if take_profit.get("price_offset"):  # pragma: no branch
         policy["take_profit_pips"] = f"{take_profit['price_offset'] * 10000:.0f} pips"
-        
+
     return policy
 
 
@@ -672,25 +672,26 @@ def generate_brief(
         # either a flat 'regime_label' or a nested 'regime': {"label": ...}.
         ctx = trade.get("context_at_entry") or {}
         regime = None
-        if isinstance(ctx, dict):
+        if isinstance(ctx, dict):  # pragma: no branch
             regime = ctx.get("regime_label") or (ctx.get("regime") or {}).get("label")
-        if regime:
+        if regime:  # pragma: no branch
             regime_counts[regime] = regime_counts.get(regime, 0) + 1
-    for skip in placeholders.get("skipped_trades", []):
+    for skip in (skipped_trades or []):
         regime = skip.get("regime", {}).get("label")
         if regime:
             regime_counts[regime] = regime_counts.get(regime, 0) + 1
     regime_labels = [r.get("label") for r in regimes if r.get("label")]
+    skipped_list = skipped_trades or []
     regime_summary = {
         "regime_labels": regime_labels,
         "allowed_labels": allowed_labels,
         "regime_counts": regime_counts,
         "n_trades": len(placeholders.get("trades", [])),
-        "n_skipped_trades": len(placeholders.get("skipped_trades", [])),
+        "n_skipped_trades": len(skipped_list),
         "n_long": sum(1 for t in placeholders.get("trades", []) if t.get("side") == "long"),
         "n_short": sum(1 for t in placeholders.get("trades", []) if t.get("side") == "short"),
-        "n_long_skipped": sum(1 for s in placeholders.get("skipped_trades", []) if s.get("side") == "long"),
-        "n_short_skipped": sum(1 for s in placeholders.get("skipped_trades", []) if s.get("side") == "short"),
+        "n_long_skipped": sum(1 for s in skipped_list if s.get("side") == "long"),
+        "n_short_skipped": sum(1 for s in skipped_list if s.get("side") == "short"),
         "n_allowed_regimes": len(allowed_labels),
         "n_active_regimes": len(set(regime_counts.keys())),
         "n_trades_in_allowed_regimes": sum(

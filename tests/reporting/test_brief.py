@@ -1025,3 +1025,70 @@ def test_brief_includes_timing_buckets():
     assert "day_of_week" in timing
     assert isinstance(timing["hour_of_day"], dict)
     assert isinstance(timing["day_of_week"], dict)
+
+
+def test_brief_regime_counts_include_skipped_trades():
+    """Test that regime_summary counts include skipped trades with regime context."""
+    # Create trades with context_at_entry containing regime info using dataclass replace
+    from dataclasses import replace
+
+    base_trade_1 = _trade(100.0, ts=datetime(2024, 1, 1, 10, 0, 0))
+    base_trade_2 = _trade(-50.0, ts=datetime(2024, 1, 2, 14, 0, 0))
+
+    # Add context_at_entry with regime_label to trades
+    trades = [
+        replace(base_trade_1, context_at_entry={"regime_label": "bull"}),
+        replace(base_trade_2, context_at_entry={"regime_label": "bull"}),
+    ]
+
+    # Create skipped trades with regime context in nested format
+    skipped_trades = [
+        {
+            "side": "long",
+            "entry_time": "2024-01-03T10:00:00",
+            "skip_reason": "blackout_regime",
+            "regime": {"label": "bear"},
+        },
+        {
+            "side": "short",
+            "entry_time": "2024-01-04T10:00:00",
+            "skip_reason": "blackout_regime",
+            "regime": {"label": "sideways"},
+        },
+    ]
+
+    # Configure RMM policy with regime definitions
+    config_snapshot = {
+        "rmm": {
+            "regimes": [
+                {"label": "bull"},
+                {"label": "bear"},
+                {"label": "sideways"},
+            ],
+            "allowed_labels": ["bull"],
+        }
+    }
+
+    brief_data = generate_brief(
+        meta={"strategy_name": "TestRegimeSkips", "run_id": "test-regime-skips"},
+        params={},
+        trades=trades,
+        initial_cash=1000.0,
+        skipped_trades=skipped_trades,
+        config_snapshot=config_snapshot,
+    )
+
+    # Verify regime_summary includes counts from both trades and skipped_trades
+    assert "regime_summary" in brief_data
+    regime_summary = brief_data["regime_summary"]
+    assert "regime_counts" in regime_summary
+
+    # Should have counts for all three regimes
+    regime_counts = regime_summary["regime_counts"]
+    assert regime_counts.get("bull") == 2  # 2 completed trades
+    assert regime_counts.get("bear") == 1  # 1 skipped trade
+    assert regime_counts.get("sideways") == 1  # 1 skipped trade
+
+    # Verify trade and skip counts
+    assert regime_summary["n_trades"] == 2
+    assert regime_summary["n_skipped_trades"] == 2

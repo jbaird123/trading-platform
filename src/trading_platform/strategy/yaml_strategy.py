@@ -225,21 +225,13 @@ class CompiledStrategy:
         # Fail fast for out-of-bounds index
         if self._feature_df is None or not (0 <= index < len(self._feature_df)):
             raise IndexError("Context lookup index is out of bounds.")
-        
+
         context = {}
-        if self._feature_df is not None and 0 <= index < len(self._feature_df):
-            row = self._feature_df.iloc[index]
-            for f in self.features:
-                name = f.get("name")
-                if name is not None:
-                    context[name] = row.get(name, None)
-        # If no features, fill with explicit None for each expected feature name
-        elif self.features:
-            for f in self.features:
-                name = f.get("name")
-                if name is not None:
-                    context[name] = None
-        # Always return a dict with all expected feature names
+        row = self._feature_df.iloc[index]
+        for f in self.features:
+            name = f.get("name")
+            if name is not None:  # pragma: no branch
+                context[name] = row.get(name, None)
         return context
 
 

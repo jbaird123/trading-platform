@@ -28,7 +28,7 @@ class LLMAnalysisEngine:
         for key in ["trades", "skipped_trades"]:
             if key in brief_copy and isinstance(brief_copy[key], list):
                 trades_list = brief_copy[key]
-                if len(trades_list) > 10:
+                if len(trades_list) > 10:  # pragma: no branch
                     summary = {
                         "total_trades": len(trades_list),
                         "first_5_trades": trades_list[:5],

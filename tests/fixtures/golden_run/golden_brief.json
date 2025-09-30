@@ -36,12 +36,12 @@
   "feature_analysis": {},
   "checksums": {
     "instrument_defs_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-    "config_snapshot_hash": "60b9c2a3c90b1d373be73017a8142a8dff23925447895d57bec1531a1a080cbb"
+    "config_snapshot_hash": "e487a35e3a942c863fd308338348f08b3220076c16d334c48315e02605c38e20"
   },
   "meta": {
     "strategy_name": "Golden_EMA_Crossover",
-    "run_id": "golden_run_test",
-    "git_commit": "481973c",
+    "run_id": "golden_run",
+    "git_commit": "a2b0a96",
     "run_seed": 42
   },
   "strategy_params": {},
@@ -164,13 +164,13 @@
     }
   },
   "provenance": {
-    "run_id": "golden_run_test",
+    "run_id": "golden_run",
     "strategy_name": "Golden_EMA_Crossover",
     "data_start": null,
     "data_end": null,
     "symbols": [],
     "app_version": "0.0.1",
-    "git_commit": "481973c",
+    "git_commit": "a2b0a96",
     "run_seed": 42
   },
   "artifacts": {},
@@ -292,10 +292,10 @@
     "allowed_labels": [],
     "regime_counts": {},
     "n_trades": 0,
-    "n_skipped_trades": 0,
+    "n_skipped_trades": 2,
     "n_long": 0,
     "n_short": 0,
-    "n_long_skipped": 0,
+    "n_long_skipped": 2,
     "n_short_skipped": 0,
     "n_allowed_regimes": 0,
     "n_active_regimes": 0,
@@ -307,7 +307,7 @@
     "n_skipped_trades": 0,
     "n_long": 0,
     "n_short": 0,
-    "n_long_skipped": 0,
+    "n_long_skipped": 2,
     "n_short_skipped": 0
   },
   "skipped_trades": [
