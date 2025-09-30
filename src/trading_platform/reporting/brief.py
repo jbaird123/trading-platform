@@ -165,6 +165,13 @@ def _round_price(value: float | None) -> float | None:
 
 def _to_jsonable(obj: Any) -> Any:
     """Convert objects (dataclasses, datetimes) to JSON-serializable forms."""
+    # Handle NaN values - convert to null for valid JSON
+    if isinstance(obj, float):
+        import math
+        if math.isnan(obj):
+            return None
+        if math.isinf(obj):
+            return None
     # asdict() only accepts dataclass instances, not classes.
     if is_dataclass(obj) and not isinstance(obj, type):
         return {k: _to_jsonable(v) for k, v in asdict(obj).items()}

@@ -252,12 +252,38 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         per_bar = rmm_engine.project_to_index(
             daily_regimes, cast(pd.DatetimeIndex, df.index), policy=rmm_policy
         )
+        # Extract regime feature names from config
+        feature_names = [
+            f.get("name") for f in rmm_cfg.get("features", []) if f.get("name")
+        ]
+
+        import math
+
+        def _safe_float(val: Any) -> float | None:
+            """Convert value to float, returning None for NaN/inf."""
+            if val is None:
+                return None
+            try:
+                f = float(val)
+                if math.isnan(f) or math.isinf(f):
+                    return None
+                return f
+            except (ValueError, TypeError):
+                return None
+
         rmm_context = {
             cast(datetime, ts): {
                 "label": str(row["label"]),
                 "confidence": float(row["confidence"]),
                 "allowed_sides": list(row["allowed_sides"] or []),
                 "policy": rmm_policy,
+                # Include regime feature values
+                "features": {
+                    fname: _safe_float(row.get(fname))
+                    for fname in feature_names
+                    if fname in row.index
+                },
+                "timeframe": "daily",  # TODO: Make configurable
             }
             for ts, row in per_bar.iterrows()
         }

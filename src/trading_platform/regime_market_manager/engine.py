@@ -79,7 +79,10 @@ class RMMEngine:
             raise ValueError(f"rmm schema validation error{where}: {e.message}") from e
 
     def classify_daily(self, df_hourly: pd.DataFrame) -> pd.DataFrame:
-        """Return daily regime labels/confidence based on RMM config rules."""
+        """Return daily regime labels/confidence based on RMM config rules.
+
+        Returns DataFrame with: label, confidence, and all computed regime features.
+        """
         cfg = self.config
         feats = list(cfg.get("features") or [])
         regimes = list(cfg.get("regimes") or [])
@@ -100,7 +103,11 @@ class RMMEngine:
                 chosen = ("unknown", 0.0)
             labels.append(chosen[0])
             confs.append(chosen[1])
-        out = pd.DataFrame({"label": labels, "confidence": confs}, index=df.index)
+
+        # Include computed features alongside label and confidence
+        out = df.copy()
+        out["label"] = labels
+        out["confidence"] = confs
         return out
 
     @staticmethod
@@ -141,16 +148,17 @@ class RMMEngine:
     ) -> pd.DataFrame:
         """Forward-fill daily regimes onto target index with allowed sides.
 
-        Returns DataFrame with columns: label, confidence, allowed_sides
-        indexed by target_index.
+        Returns DataFrame with all columns from daily (including regime features)
+        plus allowed_sides, indexed by target_index.
         """
         if daily.empty:
             df = pd.DataFrame(index=target_index)
             df["label"] = "unknown"
             df["confidence"] = 0.0
             df["allowed_sides"] = [[] for _ in range(len(target_index))]  # pyright: ignore
-            return df[["label", "confidence", "allowed_sides"]]
+            return df
         # Reindex with forward-fill to align to target_index boundaries
+        # This preserves all columns including regime features
         aligned = daily.reindex(daily.index.union(target_index)).sort_index().ffill()
         aligned = aligned.loc[target_index]
         allowed = [

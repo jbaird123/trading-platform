@@ -33,6 +33,8 @@ google-generativeai = "^0.8.5"
 statsmodels = "^0.14.5"
 requests = "^2.31.0"
 dukascopy-python = "^4.0.1"
+openai = "^1.58.1"
+anthropic = "^0.40.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"
@@ -81,6 +83,8 @@ module = [
     "statsmodels.*",
     "dukascopy_python",
     "pyarrow",
+    "openai",
+    "anthropic",
 ]
 ignore_missing_imports = true
 
