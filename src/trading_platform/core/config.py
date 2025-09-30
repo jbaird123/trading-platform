@@ -75,6 +75,15 @@ class RunConfig(BaseModel):
         default=0,
         description="Number of initial bars to ignore for entries (indicator warm-up).",
     )
+    entry_window_bars: int = Field(
+        default=0,
+        description=(
+            "Number of bars after a signal transition during which entry attempts "
+            "are allowed. 0 = only on exact transition bar (event-based), "
+            ">0 = allow RMM-blocked entries to execute if unblocked within window, "
+            "-1 = infinite (always try when signal is active, state-based)."
+        ),
+    )
     # Trading window / blackout policy
     blackout_utc: list[tuple[str, str]] = Field(
         default_factory=list,
