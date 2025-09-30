@@ -43,26 +43,38 @@ def _rmm_context(df: pd.DataFrame, cfg_raw: dict[str, Any]) -> dict | None:
 
     import math
 
-    def _safe_float(val: Any) -> float | None:
-        """Convert value to float, returning None for NaN/inf."""
+    def _round_feature(name: str, val: Any) -> float | None:
+        """Round feature value based on its type, returning None for NaN/inf."""
         if val is None:
             return None
         try:
             f = float(val)
             if math.isnan(f) or math.isinf(f):
                 return None
-            return f
+
+            # Determine precision based on feature name/type
+            name_lower = name.lower()
+
+            # ADX, ATR: 2 decimals (percentage-like)
+            if any(x in name_lower for x in ['adx', 'atr']):
+                return round(f, 2)
+            # RSI, Stochastic, CCI: 2 decimals (bounded indicators)
+            elif any(x in name_lower for x in ['rsi', 'stoch', 'cci']):
+                return round(f, 2)
+            # Volume: whole numbers
+            elif 'volume' in name_lower or 'vol' in name_lower:
+                return round(f, 0)
+            # EMA, SMA, prices: 5 decimals (forex precision)
+            elif any(x in name_lower for x in ['ema', 'sma', 'price', 'close', 'open', 'high', 'low']):
+                return round(f, 5)
+            # MACD, momentum: 4 decimals
+            elif any(x in name_lower for x in ['macd', 'mom', 'roc']):
+                return round(f, 4)
+            # Default: 4 decimals
+            else:
+                return round(f, 4)
         except (ValueError, TypeError):
             return None
-
-    # DEBUG: Check first row to see what's available
-    if not proj.empty:
-        first_row = proj.iloc[0]
-        print(f"DEBUG _rmm_context: Feature names = {feature_names}")
-        print(f"DEBUG _rmm_context: First row index = {list(first_row.index)}")
-        for fname in feature_names:
-            if fname in first_row.index:
-                print(f"DEBUG _rmm_context: {fname} = {first_row[fname]}")
 
     return {
         ts: {
@@ -70,9 +82,9 @@ def _rmm_context(df: pd.DataFrame, cfg_raw: dict[str, Any]) -> dict | None:
             "confidence": float(row["confidence"]),
             "allowed_sides": list(row.get("allowed_sides") or []),
             "policy": pol,
-            # Include regime feature values
+            # Include regime feature values with appropriate rounding
             "features": {
-                fname: _safe_float(row.get(fname))
+                fname: _round_feature(fname, row.get(fname))
                 for fname in feature_names
                 if fname in row.index
             },
