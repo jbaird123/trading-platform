@@ -1328,9 +1328,9 @@ def test_finalize_run_signal_quality_analysis(tmp_path):
     run_path = tmp_path / "user" / "runC"
     run_path.mkdir(parents=True, exist_ok=True)
     signals_path = run_path / "signals.parquet"
-    # Simulate a signal series: 3 'long', 2 'flat', 2 'short', 3 'flat', 4 'long'
+    # Simulate a command signal series: 14 bars with 5 commands total
     sigs = pd.Series(
-        ["long"] * 3 + ["flat"] * 2 + ["short"] * 2 + ["flat"] * 3 + ["long"] * 4,
+        ["enter_long", None, None, "exit_long", None, "enter_short", "exit_short", None, None, None, "enter_long", None, None, "exit_long"],
         name="signal",
     )
     sigs.to_frame().to_parquet(signals_path)
@@ -1366,10 +1366,10 @@ def test_finalize_run_signal_quality_analysis(tmp_path):
     sqa = data["signal_quality_analysis"]
     assert "signal_persistence_pct" in sqa
     assert "avg_signal_duration_bars" in sqa
-    # There are 3+2+4=9 non-flat bars out of 14 total
-    assert abs(sqa["signal_persistence_pct"] - (9 / 14 * 100)) < 1e-2
-    # Non-flat runs: [3,2,4] => avg = 3.0
-    assert abs(sqa["avg_signal_duration_bars"] - 3.0) < 1e-6
+    # There are 6 non-None commands out of 14 total
+    assert abs(sqa["signal_persistence_pct"] - (6 / 14 * 100)) < 1e-2
+    # Commands fire once, so avg duration = 1.0
+    assert abs(sqa["avg_signal_duration_bars"] - 1.0) < 1e-6
 
 
 # --- test_finalize_run_config_injection.py ---

@@ -42,9 +42,9 @@ def _mdf(n: int = 3) -> pd.DataFrame:
     return df
 
 
-def _signals(n: int = 3, value: str = "flat") -> pd.Series:
+def _signals(n: int = 3, value=None) -> pd.Series:
     idx = pd.date_range("2023-01-01", periods=n, freq="min")
-    return pd.Series([value] * n, index=idx, dtype=str)
+    return pd.Series([value] * n, index=idx)
 
 
 def test_validation_missing_columns():
@@ -113,5 +113,5 @@ def test_validation_invalid_signal_value():
         instrument=_instrument(),
     )
     rem = RiskExitManager(config={})
-    with pytest.raises(ValueError, match="invalid values"):
+    with pytest.raises(ValueError, match="invalid command values"):
         run_backtest(df, sig, strategy=_dummy_strategy(), config=config, rem=rem)

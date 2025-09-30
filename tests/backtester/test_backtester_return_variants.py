@@ -28,7 +28,7 @@ def test_run_backtest_returns_trades_and_exposure_only() -> None:
     )
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)  # Populate _feature_df for context lookups
-    signals = pd.Series(["long", "flat", "flat", "flat"], index=idx)
+    signals = pd.Series(["enter_long", "exit_long", None, None], index=idx)
     config = RunConfig(
         user_id="tester",
         run_seed=7,

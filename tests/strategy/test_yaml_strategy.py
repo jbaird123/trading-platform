@@ -405,10 +405,10 @@ class TestAIFilterLogic:
 
 
 class TestSignalStateMachine:
-    """Test lines 215-228: signal state machine logic and get_context method."""
+    """Test command generation logic and get_context method."""
 
     def test_signal_state_transitions_short_exit(self):
-        """Test short state exit transition - covers line 215->218."""
+        """Test short entry and exit command generation."""
         compiled_strategy = CompiledStrategy(
             name="ShortExitStrategy",
             overlays=[],
@@ -439,12 +439,12 @@ class TestSignalStateMachine:
 
             signals = compiled_strategy.generate_signals(df)
 
-            # Should transition: flat -> short -> flat
-            assert signals.iloc[0] == "short"  # Enter short
-            assert signals.iloc[2] == "flat"  # Exit short
+            # Should generate: enter_short -> None -> exit_short
+            assert signals.iloc[0] == "enter_short"  # Enter short
+            assert signals.iloc[2] == "exit_short"  # Exit short
 
     def test_signal_state_transitions_all_states(self):
-        """Test all signal state transitions - covers lines 215-228."""
+        """Test command generation for multiple entries and exits."""
         compiled_strategy = CompiledStrategy(
             name="AllStatesStrategy",
             overlays=[],
@@ -486,13 +486,13 @@ class TestSignalStateMachine:
 
             signals = compiled_strategy.generate_signals(df)
 
-            # Check that we get proper state transitions
+            # Check that we get proper command generation
             assert isinstance(signals, pd.Series)
             assert len(signals) == len(df)
 
-            # All states should be one of: 'flat', 'long', 'short'
-            valid_states = {"flat", "long", "short"}
-            assert all(state in valid_states for state in signals.values)
+            # All commands should be valid
+            valid_commands = {"enter_long", "enter_short", "exit_long", "exit_short", None}
+            assert all(cmd in valid_commands for cmd in signals.values)
 
     def test_get_context_method(self):
         """Test get_context method - covers lines 223-228."""
@@ -1029,7 +1029,7 @@ def test_compiled_strategy_generate_signals_basic(monkeypatch):
         parameters={},
     )
     sig = strat.generate_signals(base)
-    assert list(sig) == ["flat", "long", "flat"]
+    assert list(sig) == [None, "enter_long", "exit_long"]
     assert strat.get_context(1) == {"feat": 1}
     with pytest.raises(IndexError):
         strat.get_context(10)
@@ -1069,7 +1069,7 @@ def test_compiled_strategy_short_exit_branch(monkeypatch):
         parameters={},
     )
     sig = strat.generate_signals(base)
-    assert list(sig) == ["flat", "short", "short", "flat"]
+    assert list(sig) == [None, "enter_short", None, "exit_short"]
 
 
 def test_compiled_strategy_short_exit_never_triggers(monkeypatch):
@@ -1096,7 +1096,7 @@ def test_compiled_strategy_short_exit_never_triggers(monkeypatch):
         parameters={},
     )
     sig = strat.generate_signals(base)
-    assert list(sig) == ["flat", "short", "short", "short"]
+    assert list(sig) == [None, "enter_short", None, None]
 
 
 def test_compiled_strategy_slope_and_ai_filter(monkeypatch):
@@ -1143,7 +1143,7 @@ def test_compiled_strategy_slope_and_ai_filter(monkeypatch):
     values = list(sig)
     assert ai_client.calls == 1
     assert len(values) == 4
-    assert set(values).issubset({"flat", "long", "short"})
+    assert set(values).issubset({"enter_long", "enter_short", "exit_long", "exit_short", None})
 
 
 def test_compiled_strategy_slope_filter_missing_column(monkeypatch):
@@ -1166,10 +1166,11 @@ def test_compiled_strategy_slope_filter_missing_column(monkeypatch):
         slope_feature="ema_missing",
     )
     sig = strat.generate_signals(base)
-    # After fixing same-bar exit/entry bug: long_exit (close < 5) is always true,
-    # so it exits on every bar, but long_entry (close > 0) is also always true,
-    # so it immediately re-enters. Result: stays long throughout.
-    assert list(sig) == ["long", "long", "long"]
+    # long_exit (close < 5) is always true, so exits every bar
+    # long_entry (close > 0) is also always true, so enters every bar
+    # With command model: both fire same bar, entry command overwrites exit
+    # Result: enter_long command on every bar
+    assert list(sig) == ["enter_long", "enter_long", "enter_long"]
 
 
 def test_compiled_strategy_ai_filter_missing_features(monkeypatch, caplog):
@@ -1192,7 +1193,7 @@ def test_compiled_strategy_ai_filter_missing_features(monkeypatch, caplog):
         ai_input_features=["missing"],
     )
     sig = strat.generate_signals(base)
-    assert list(sig) == ["long", "long"]
+    assert list(sig) == ["enter_long", None]
     assert "Missing AI input features" in caplog.text
 
 
@@ -1215,7 +1216,7 @@ def test_compiled_strategy_ai_filter_exception(monkeypatch, caplog):
         ai_confidence_threshold=0.5,
     )
     sig = strat.generate_signals(base)
-    assert list(sig) == ["long", "long"]
+    assert list(sig) == ["enter_long", None]
     assert "Error during AI inference" in caplog.text
 
 
@@ -1255,7 +1256,7 @@ def test_compiled_strategy_ai_filter_with_inputs(monkeypatch):
     )
     sig = strat.generate_signals(base)
     assert ai_client.calls == 1
-    assert list(sig) == ["long", "long"]
+    assert list(sig) == ["enter_long", None]
 
 
 def test_compile_strategy_ai_enabled(monkeypatch):
@@ -1460,8 +1461,8 @@ def test_yaml_strategy_compile_and_signals_is_above_below():
         index=[datetime(2024, 1, 1, i) for i in range(5)],
     )
     sig = strat.generate_signals(df)
-    # Expect: flat at 1.0, enter long at 2.0, remain long at 3.0 and 2.0, exit at 1.0
-    assert list(sig) == ["flat", "long", "long", "long", "flat"]
+    # Expect: None at 1.0, enter_long at 2.0, None at 3.0 and 2.0, exit_long at 1.0
+    assert list(sig) == [None, "enter_long", None, None, "exit_long"]
 
 
 def test_yaml_strategy_cross_above_below():
@@ -1507,8 +1508,8 @@ def test_yaml_strategy_cross_above_below():
         index=[datetime(2024, 1, 1, i) for i in range(5)],
     )
     sig = strat.generate_signals(df)
-    # Signals will be flat until indicators are warm
-    assert sig.iloc[-1] == "flat" or sig.iloc[-1] == "short"
+    # Signals will be None until indicators fire, or exit commands
+    assert sig.iloc[-1] in [None, "enter_short", "exit_long"]
 
 
 def test_yaml_strategy_all_of_and_short_side():
@@ -1539,8 +1540,8 @@ def test_yaml_strategy_all_of_and_short_side():
         index=[datetime(2024, 1, 1, i) for i in range(3)],
     )
     sig = strat.generate_signals(df)
-    # flat, exit short, enter short
-    assert list(sig) == ["short", "flat", "short"]
+    # enter_short, exit_short, enter_short
+    assert list(sig) == ["enter_short", "exit_short", "enter_short"]
 
 
 def test_same_bar_exit_and_opposite_entry():
@@ -1586,9 +1587,9 @@ def test_same_bar_exit_and_opposite_entry():
     signals = list(sig)
 
     # Expected:
-    # Bar 0: close=9 (below 10), no cross yet -> flat
-    # Bar 1: close=11 (above 10), cross_above from 9->11 -> long
-    # Bar 2: close=9 (below 10), cross_below from 11->9 -> exit long AND enter short -> short
-    # Bar 3: close=11 (above 10), cross_above from 9->11 -> exit short AND enter long -> long
+    # Bar 0: close=9 (below 10), no cross yet -> None
+    # Bar 1: close=11 (above 10), cross_above from 9->11 -> enter_long
+    # Bar 2: close=9 (below 10), cross_below from 11->9 -> exit_long then enter_short (entry overwrites)
+    # Bar 3: close=11 (above 10), cross_above from 9->11 -> exit_short then enter_long (entry overwrites)
 
-    assert signals == ["flat", "long", "short", "long"], f"Got {signals}"
+    assert signals == [None, "enter_long", "enter_short", "enter_long"], f"Got {signals}"

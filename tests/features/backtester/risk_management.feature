@@ -6,12 +6,12 @@ Feature: Backtester Risk Management
 
   Background:
     Given a market data series with columns "open", "high", "low", "close", "volume"
-    And a signal series with "long, short, flat" signals
+    And a signal series with "enter_long, enter_short, exit_long, exit_short" commands
     And the backtester is configured with a stop-loss of 10.0 and a take-profit of 20.0
 
   @req_BT_7_9
   Scenario: A long trade is closed by a stop-loss
-    Given the signal at bar 2 is "long"
+    Given the signal at bar 2 is "enter_long"
     And the close price at bar 2 is 100.0  # Entry price
     And the low price at bar 3 is 89.0     # Stop-loss is 100.0 - 10.0 = 90.0. This should trigger it.
     And the high price at bar 3 is 95.0
@@ -23,7 +23,7 @@ Feature: Backtester Risk Management
 
   @req_BT_7_9
   Scenario: A long trade is closed by a take-profit
-    Given the signal at bar 2 is "long"
+    Given the signal at bar 2 is "enter_long"
     And the close price at bar 2 is 100.0  # Entry price
     And the low price at bar 3 is 105.0
     And the high price at bar 3 is 121.0   # Take-profit is 100.0 + 20.0 = 120.0. This should trigger it.

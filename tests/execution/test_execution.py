@@ -182,7 +182,7 @@ def test_controller_precise_continue_with_rejected_order():
 
     class RejectLongAdapter(OandaStubAdapter):
         def place_order(self, *, symbol, side, size, meta=None):
-            if side == "long":
+            if side == "enter_long":
                 from trading_platform.execution.adapter_base import OrderResult
 
                 return OrderResult(

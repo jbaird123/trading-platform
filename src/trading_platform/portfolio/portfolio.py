@@ -6,6 +6,7 @@ from typing import Any, cast
 import pandas as pd
 from trading_platform.core.costs import CostModel
 from trading_platform.core.precision import FloatEngine, PrecisionEngine
+from trading_platform.core.types import SignalCommand
 from trading_platform.portfolio.position import Position
 from trading_platform.portfolio.trade import Trade
 
@@ -37,15 +38,14 @@ class PortfolioManager:
             precision_engine if precision_engine is not None else FloatEngine(),
         )
 
-        # Entry window tracking for signal-based entry management
-        # Format: {side: (transition_bar_index, last_entered_bar_index)}
-        # transition_bar_index: when signal changed to this side
-        # last_entered_bar_index: last bar where we entered on this signal (None if not entered)
+        # Entry window tracking for command-based entry management
+        # Format: {side: (window_start_bar_index, last_entered_bar_index)}
+        # window_start_bar_index: when entry command was received for this side
+        # last_entered_bar_index: last bar where we entered on this command (None if not entered)
         self._entry_windows: dict[str, tuple[int, int | None]] = {
             "long": (-1, None),
             "short": (-1, None),
         }
-        self._prev_signal: str = "flat"
 
     @property
     def current_position(self) -> Position | None:
@@ -83,90 +83,161 @@ class PortfolioManager:
             initial_risk_ccy=initial_risk_ccy,
         )
 
-    def update_signal_state(
-        self, current_signal: str, bar_index: int, warmup_threshold: int
-    ) -> bool:
+    def process_command(
+        self,
+        command: SignalCommand,
+        bar_index: int,
+        warmup_threshold: int,
+        entry_window_bars: int,
+        allow_flip: bool,
+        current_bar: pd.Series,
+        context: dict | None = None,
+    ) -> dict[str, Any]:
         """
-        Update internal signal tracking state and detect signal transitions.
+        Process a strategy command and manage portfolio state.
+
+        This is the central method for command-based signal processing,
+        implementing [PM-5.8] Entry Window Management.
 
         Args:
-            current_signal: Current signal value ("long", "short", "flat")
-            bar_index: Current bar index in the backtest/live stream
-            warmup_threshold: Bar index where warmup period ends
-
-        Returns:
-            True if signal changed (transition detected), False otherwise
-        """
-        # Detect signal transitions
-        # Treat first bar after warmup as a transition to allow entry
-        signal_changed = (current_signal != self._prev_signal) or (
-            bar_index == warmup_threshold and current_signal in ["long", "short"]
-        )
-
-        # Update entry windows when signal transitions
-        if signal_changed and current_signal in ["long", "short"]:
-            # Reset the window for this side
-            self._entry_windows[current_signal] = (bar_index, None)
-
-        # Update prev_signal for next bar
-        self._prev_signal = current_signal
-
-        return signal_changed
-
-    def should_attempt_entry(
-        self, current_signal: str, bar_index: int, entry_window_bars: int
-    ) -> bool:
-        """
-        Determine if we should attempt to open a position based on entry window policy.
-
-        This implements [PM-5.8] Entry Window Management.
-
-        Args:
-            current_signal: Current signal value ("long", "short", "flat")
+            command: The signal command from strategy
             bar_index: Current bar index
-            entry_window_bars: Entry window configuration
-                0 = event-based (only on exact transition)
-                N > 0 = allow delayed entry within N bars
-                -1 = infinite window (always try when signal active)
+            warmup_threshold: Bar index where warmup ends
+            entry_window_bars: Entry window policy (0, N, or -1)
+            allow_flip: Whether to allow flipping positions
+            current_bar: Current market data bar
+            context: Strategy context (regime, indicators, etc.)
 
         Returns:
-            True if we should attempt entry, False otherwise
+            Dictionary with:
+            - "action": "entered" | "exited" | "ignored" | "window_opened" | "window_active"
+            - "side": "long" | "short" | None
+            - "reason": str (if ignored)
         """
-        if current_signal not in ["long", "short"]:
-            return False
+        # Skip warmup period
+        if bar_index < warmup_threshold:
+            return {"action": "ignored", "reason": "warmup", "side": None}
 
-        transition_bar, last_entered = self._entry_windows[current_signal]
+        # Handle None/null commands - check for active entry windows
+        if command is None:
+            return self._check_active_entry_windows(
+                bar_index, entry_window_bars, current_bar, context
+            )
 
-        if transition_bar < 0:  # No valid transition exists
-            return False
+        # Entry commands
+        if command in ["enter_long", "enter_short"]:
+            side = "long" if command == "enter_long" else "short"
+            return self._handle_entry_command(
+                side, bar_index, entry_window_bars, allow_flip, current_bar, context
+            )
 
-        bars_since_transition = bar_index - transition_bar
+        # Exit commands
+        elif command in ["exit_long", "exit_short"]:
+            side = "long" if command == "exit_long" else "short"
+            return self._handle_exit_command(side, current_bar, context)
 
-        # Check window conditions:
-        # 1. Within configured window (or window is -1 for infinite)
-        # 2. Haven't already entered on this signal instance
-        if entry_window_bars == -1:
-            # Infinite window: always try when signal is active
-            return last_entered is None
-        elif bars_since_transition <= entry_window_bars:
-            # Within finite window and haven't entered yet
-            return last_entered is None
+        return {"action": "ignored", "reason": "unknown_command", "side": None}
 
-        return False
+    def _handle_entry_command(
+        self,
+        side: str,
+        bar_index: int,
+        entry_window_bars: int,
+        allow_flip: bool,
+        current_bar: pd.Series,
+        context: dict | None,
+    ) -> dict[str, Any]:
+        """Handle enter_long or enter_short command."""
 
-    def mark_entry_on_signal(self, side: str, bar_index: int) -> None:
+        # Already in same-side position
+        if self.current_position and self.current_position.side == side:
+            return {"action": "ignored", "reason": "already_in_position", "side": side}
+
+        # In opposite position - always close per Decision 1
+        if self.current_position and self.current_position.side != side:
+            self.close_position(
+                exit_price=current_bar["close"],
+                exit_time=cast(datetime, current_bar.name),
+                exit_reason="opposite_signal",
+                context_at_exit=context,
+            )
+            # After closing, check if we should open entry window
+            if not allow_flip:
+                # Just exit, don't open entry window
+                return {"action": "exited", "side": side, "reason": "opposite_signal"}
+            # Fall through to open entry window for flip
+
+        # Flat or just closed - open entry window for this side
+        self._entry_windows[side] = (bar_index, None)  # (window_start, last_entered)
+
+        return {"action": "window_opened", "side": side}
+
+    def _handle_exit_command(
+        self, side: str, current_bar: pd.Series, context: dict | None
+    ) -> dict[str, Any]:
+        """Handle exit_long or exit_short command."""
+
+        if self.current_position and self.current_position.side == side:
+            self.close_position(
+                exit_price=current_bar["close"],
+                exit_time=cast(datetime, current_bar.name),
+                exit_reason="signal",
+                context_at_exit=context,
+            )
+            return {"action": "exited", "side": side}
+        else:
+            return {
+                "action": "ignored",
+                "reason": "no_matching_position",
+                "side": side,
+            }
+
+    def _check_active_entry_windows(
+        self,
+        bar_index: int,
+        entry_window_bars: int,
+        current_bar: pd.Series,
+        context: dict | None,
+    ) -> dict[str, Any]:
+        """Check if we have active entry windows to maintain (for None commands)."""
+
+        # This allows entry windows to stay open across bars with None commands
+        # Backtester will check if entry is now possible (e.g., RMM unblocked)
+
+        for side in ["long", "short"]:
+            window_start, last_entered = self._entry_windows[side]
+
+            if window_start >= 0 and last_entered is None:  # Window open, not entered
+                bars_since_start = bar_index - window_start
+
+                if entry_window_bars == -1 or bars_since_start <= entry_window_bars:
+                    return {"action": "window_active", "side": side}
+
+        return {"action": "ignored", "reason": "no_active_command", "side": None}
+
+    def can_attempt_entry(self, side: str, bar_index: int, entry_window_bars: int) -> bool:
         """
-        Mark that we've successfully entered on the current signal instance.
-
-        This prevents re-entry after risk-based exits (e.g., stop-loss) on the
-        same signal instance.
+        Check if we can attempt entry for this side (used by backtester).
 
         Args:
-            side: Position side that was entered ("long" or "short")
-            bar_index: Bar index where entry occurred
+            side: Position side ("long" or "short")
+            bar_index: Current bar index
+            entry_window_bars: Entry window policy
+
+        Returns:
+            True if entry can be attempted, False otherwise
         """
-        transition_bar, _ = self._entry_windows[side]
-        self._entry_windows[side] = (transition_bar, bar_index)
+        window_start, last_entered = self._entry_windows[side]
+
+        if window_start < 0 or last_entered is not None:
+            return False  # No window open or already entered
+
+        bars_since_start = bar_index - window_start
+
+        if entry_window_bars == -1:
+            return True  # Infinite window
+
+        return bars_since_start <= entry_window_bars
 
     def hit_daily_loss_cap(self, ts: datetime, cap: float) -> bool:
         """Return True if realized PnL for ts.date() is <= -cap."""

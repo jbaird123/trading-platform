@@ -41,7 +41,7 @@ def _dummy_strategy_cfg() -> CompiledStrategy:
 
 
 def test_rmm_blocks_signal_not_in_allowed_sides():
-    """Test RMM blocking when signal not in allowed sides."""
+    """Test RMM blocking when command not in allowed sides."""
     idx = [datetime(2024, 1, 1, h) for h in range(5)]
     df = pd.DataFrame(
         {
@@ -55,7 +55,8 @@ def test_rmm_blocks_signal_not_in_allowed_sides():
     )
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)  # Populate _feature_df for context lookups
-    signals = pd.Series(["long"] * 5, index=df.index)
+    # First bar has enter_long command, rest are None
+    signals = pd.Series(["enter_long"] + [None] * 4, index=df.index)
     rmm_context = {
         timestamp: {
             "allowed_sides": ["short"],
@@ -110,7 +111,7 @@ def test_rmm_allows_signal_opens_position() -> None:
     )
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)  # Populate _feature_df for context lookups
-    signals = pd.Series(["long", "flat", "flat"], index=df.index)
+    signals = pd.Series(["enter_long", "exit_long", None], index=df.index)
     rmm_context = {
         df.index[0]: {
             "allowed_sides": ["long"],
@@ -158,7 +159,7 @@ def test_return_skips_only():
     )
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)  # Populate _feature_df for context lookups
-    signals = pd.Series(["long"] * 3, index=df.index)
+    signals = pd.Series(["enter_long", None, "exit_long"], index=df.index)
     config = RunConfig(
         user_id="test_user",
         run_seed=42,
@@ -385,7 +386,7 @@ def test_backtester_with_rem_pips_stop_loss():
     )
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(market_data)  # Populate _feature_df for context lookups
-    signals = pd.Series(["long", "long"], index=market_data.index)
+    signals = pd.Series(["enter_long", None], index=market_data.index)
 
     trades = run_backtest(
         market_data=market_data,
@@ -418,7 +419,7 @@ class TestBacktesterCoreCoverage:
 
     @pytest.fixture
     def sample_signals(self):
-        return pd.Series(["flat", "long", "flat", "short"] * 2 + ["flat"] * 2)
+        return pd.Series([None, "enter_long", "exit_long", "enter_short"] * 2 + [None] * 2)
 
     @pytest.fixture
     def mock_config(self):
@@ -540,9 +541,9 @@ def test_rmm_context_enrichment_in_trades_and_skips():
         index=idx,
     )
     
-    # Generate mixed signals - some long, some short, some flat
+    # Generate mixed command signals
     signals = pd.Series(
-        ["long", "long", "short", "flat", "long", "short", "flat", "long", "short", "flat"], 
+        ["enter_long", None, "enter_short", "exit_short", "enter_long", "enter_short", "exit_short", "enter_long", "enter_short", "exit_short"],
         index=df.index
     )
     
@@ -687,8 +688,8 @@ def test_entry_window_allows_delayed_entry():
     )
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)
-    # Signal goes flat at bar 3 to trigger exit
-    signals = pd.Series(["long", "long", "long", "flat", "flat"], index=df.index)
+    # Signal exits at bar 3
+    signals = pd.Series(["enter_long", None, None, "exit_long", None], index=df.index)
 
     # Block for first 2 bars, then allow
     rmm_context = {
@@ -753,7 +754,7 @@ def test_entry_window_expires():
     )
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)
-    signals = pd.Series(["long"] * 5, index=df.index)
+    signals = pd.Series(["enter_long"] + [None] * 4, index=df.index)
 
     # Block for first 3 bars, then allow
     rmm_context = {
@@ -815,8 +816,8 @@ def test_entry_window_prevents_reentry_after_rem_exit():
     )
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)
-    # Signal: long -> long -> flat -> long -> long
-    signals = pd.Series(["long", "long", "flat", "long", "flat"], index=df.index)
+    # Signal: enter_long -> None -> exit_long -> enter_long -> exit_long
+    signals = pd.Series(["enter_long", None, "exit_long", "enter_long", "exit_long"], index=df.index)
 
     # Allow all bars
     rmm_context = {

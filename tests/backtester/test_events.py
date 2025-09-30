@@ -39,7 +39,7 @@ def test_event_blackout_blocks_new_entries():
     df = _mk_df(start, 4, 60)
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)
-    signals = pd.Series(["long", "long", "long", "long"], index=df.index)
+    signals = pd.Series(["enter_long", None, None, None], index=df.index)
 
     ev = {"start": datetime(2023, 1, 1, 11, 0), "end": datetime(2023, 1, 1, 12, 30)}
     config = RunConfig(
@@ -85,7 +85,7 @@ def test_static_blackout_blocks_new_entries():
     )
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)  # Populate _feature_df for context lookups
-    signals = pd.Series(["long"] * 4, index=df.index)
+    signals = pd.Series(["enter_long"] + [None] * 3, index=df.index)
     config = RunConfig(
         user_id="test_user",
         run_seed=42,

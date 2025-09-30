@@ -697,13 +697,15 @@ def test_generate_brief_handles_signal_dataframe_and_artifacts(monkeypatch, tmp_
 
 
 def test_generate_brief_handles_signal_series_with_flat_values(monkeypatch, tmp_path):
+    """Test signal series with no commands (all None)."""
     trade = _trade(5.0, "take_profit", mfe=6.0, mae=None)
 
     def fake_exists(_: str) -> bool:
         return True
 
     def fake_read_parquet(_: str) -> pd.Series:
-        return pd.Series(["flat", "flat", "flat"])
+        # With command-based signals, "no commands" means all None
+        return pd.Series([None, None, None])
 
     monkeypatch.setattr("os.path.exists", fake_exists)
     monkeypatch.setattr("pandas.read_parquet", fake_read_parquet)

@@ -197,30 +197,39 @@ class CompiledStrategy:
             except Exception as e:
                 logger.error(f"Error during AI inference: {e}. Skipping AI filter.")
 
-        sig: list[str] = []
-        state = "flat"
-        for i in range(len(df2)):
-            # Check exits first
-            if state == "long":
-                if bool(lx.iloc[i]):
-                    state = "flat"
-            elif state == "short":
-                if bool(sx.iloc[i]):
-                    state = "flat"
+        # Generate commands based on entry/exit rules
+        # Strategy maintains internal state to detect transitions,
+        # but this state is not exposed to the caller.
+        commands: list[str | None] = []
+        internal_state = "flat"  # For command generation, not position tracking
 
-            # Check entries (including same bar as exit)
-            if state == "flat":
+        for i in range(len(df2)):
+            cmd = None
+
+            # Check exits first (if we think we're in a position internally)
+            if internal_state == "long" and bool(lx.iloc[i]):
+                cmd = "exit_long"
+                internal_state = "flat"
+            elif internal_state == "short" and bool(sx.iloc[i]):
+                cmd = "exit_short"
+                internal_state = "flat"
+
+            # Check entries (only if we think we're flat internally)
+            if internal_state == "flat":
                 if bool(le.iloc[i]) and (
                     not self.slope_filter or bool(slope_up.iloc[i])
                 ):
-                    state = "long"
+                    cmd = "enter_long"
+                    internal_state = "long"
                 elif bool(se.iloc[i]) and (
                     not self.slope_filter or bool(slope_down.iloc[i])
                 ):
-                    state = "short"
+                    cmd = "enter_short"
+                    internal_state = "short"
 
-            sig.append(state)
-        return pd.Series(sig, index=df2.index)
+            commands.append(cmd)
+
+        return pd.Series(commands, index=df2.index, dtype=object)
 
     def get_context(self, index: int) -> dict[str, Any]:
         """Return a dict of feature values at a specific integer index.

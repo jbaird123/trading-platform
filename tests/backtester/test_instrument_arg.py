@@ -24,7 +24,7 @@ def test_backtester_uses_provided_instrument_symbol():
     )
     strategy = dummy_strategy()
     strategy.generate_signals(df)  # Populate _feature_df for context lookups
-    signals = pd.Series(["long", "long"], index=df.index)
+    signals = pd.Series(["enter_long", "exit_long"], index=df.index)
     config = RunConfig(
         user_id="test",
         run_seed=42,

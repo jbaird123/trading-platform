@@ -4,14 +4,14 @@ Feature: Core Backtester Logic
 
   Background:
     Given a market data series with columns "open", "high", "low", "close", "volume"
-    And a signal series with "long, short, flat" signals
+    And a signal series with "enter_long, enter_short, exit_long, exit_short" commands
 
   @req_BT_7_1
   @req_BT_7_3
   Scenario: Process a simple long entry and exit
-    Given the signal at bar 1 is "long"
+    Given the signal at bar 1 is "enter_long"
     And the close price at bar 1 is 100.0
-    And the signal at bar 2 is "flat"
+    And the signal at bar 2 is "exit_long"
     And the close price at bar 2 is 105.0
     When the backtest is run
     Then there should be 1 trade generated

@@ -41,7 +41,7 @@ Refactor the signal architecture from state-based signals ("long"/"short"/"flat"
 ## Phase 1: Architecture & Design (30 min)
 
 ### 1.1 Define Command Types
-- [ ] Create or update `src/trading_platform/core/types.py`
+- [x] Create or update `src/trading_platform/core/types.py`
 
 ```python
 from typing import Literal
@@ -50,7 +50,7 @@ SignalCommand = Literal["enter_long", "enter_short", "exit_long", "exit_short", 
 ```
 
 ### 1.2 Update Requirements Doc
-- [ ] Modify [SE-3.1]
+- [x] Modify [SE-3.1]
 ```markdown
 **[SE-3.1]** **Core Mandate**: The Strategy Engine is responsible for **signal generation only**.
 Strategies generate **trading commands** (enter_long, enter_short, exit_long, exit_short) based on
@@ -59,7 +59,9 @@ independently, and the Portfolio Manager enforces feasibility (e.g., ignoring ex
 position exists).
 ```
 
-- [ ] Update [PM-5.8.3]
+- [x] Update [PM-5.8.3]
+- [x] Update [SE-3.3]
+- [x] Update [BT-7.1.2]
 ```markdown
 **[PM-5.8.3]** Support configurable entry window policies:
   - Entry windows apply only to **entry commands** (enter_long, enter_short)
@@ -70,30 +72,41 @@ position exists).
 ```
 
 ### 1.3 Decision Points to Document
-- [ ] Document these decisions:
+- [x] Document these decisions:
 
+**Decision 1: Position Flipping**
 - **Q:** Should `enter_short` when in long position trigger auto-exit?
-  - **A:** Yes, if `allow_flip_on_bar=True`. Close current position, then open entry window for new side.
+  - **A:** Yes, an opposite-side entry command ALWAYS triggers exit of current position, regardless of `allow_flip_on_bar`. If `allow_flip_on_bar=True`, then open entry window for new side after exit. If `allow_flip_on_bar=False`, just exit and don't enter.
 
+**Decision 2: Multiple Commands Per Bar**
 - **Q:** Can both entry and exit commands fire on same bar?
   - **A:** Yes. Strategy can emit multiple commands. PM processes in order: exits first, then entries.
 
+**Decision 3: Backwards Compatibility**
 - **Q:** Backwards compatibility during transition?
   - **A:** No backwards compatibility needed. This is a breaking change for all strategies. All YAML strategies will be updated in this refactor.
+
+**Decision 4: Exit Commands Without Position**
+- **Q:** What happens when strategy emits `exit_long` but there's no position (or wrong side)?
+  - **A:** PM silently ignores it with reason "no_matching_position". Strategies don't track positions, so they can emit "impossible" commands.
+
+**Decision 5: Entry Windows for None Commands**
+- **Q:** If entry window is open and current bar has `None` command, should window stay open?
+  - **A:** Yes. Entry windows persist across `None` commands until: (a) entry occurs, (b) window expires per `entry_window_bars`, or (c) opposite-side command received.
 
 ---
 
 ## Phase 2: Core Changes (Portfolio Manager) (1 hour)
 
 ### 2.1 Update PortfolioManager Interface
-- [ ] Remove old methods from `src/trading_platform/portfolio/portfolio.py`
+- [x] Remove old methods from `src/trading_platform/portfolio/portfolio.py`
 ```python
 def update_signal_state(...)  # Delete
 def should_attempt_entry(...)  # Delete
 def mark_entry_on_signal(...)  # Delete
 ```
 
-- [ ] Add `process_command` method
+- [x] Add `process_command` method
 ```python
 def process_command(
     self,
@@ -126,7 +139,7 @@ def process_command(
 ```
 
 ### 2.2 Command Processing Logic
-- [ ] Implement `process_command` method logic
+- [x] Implement `process_command` method logic
 
 ```python
 def process_command(self, command, bar_index, warmup_threshold, entry_window_bars,
@@ -217,12 +230,12 @@ def _check_active_entry_windows(self, bar_index, entry_window_bars, current_bar,
     return {"action": "ignored", "reason": "no_active_command", "side": None}
 ```
 
-- [ ] Implement `_handle_entry_command` method
-- [ ] Implement `_handle_exit_command` method
-- [ ] Implement `_check_active_entry_windows` method
+- [x] Implement `_handle_entry_command` method
+- [x] Implement `_handle_exit_command` method
+- [x] Implement `_check_active_entry_windows` method
 
 ### 2.3 Keep Entry Window State
-- [ ] Delete `_prev_signal` variable
+- [x] Delete `_prev_signal` variable
 
 ```python
 self._entry_windows: dict[str, tuple[int, int | None]] = {
@@ -232,7 +245,7 @@ self._entry_windows: dict[str, tuple[int, int | None]] = {
 ```
 
 ### 2.4 Add Helper for Entry Attempts
-- [ ] Add `can_attempt_entry` helper method
+- [x] Add `can_attempt_entry` helper method
 ```python
 def can_attempt_entry(self, side: str, bar_index: int, entry_window_bars: int) -> bool:
     """Check if we can attempt entry for this side (used by backtester)."""
@@ -254,7 +267,7 @@ def can_attempt_entry(self, side: str, bar_index: int, entry_window_bars: int) -
 ## Phase 3: Strategy Layer Changes (1.5 hours)
 
 ### 3.1 Update BaseStrategy Interface
-- [ ] Update `src/trading_platform/strategy/base.py` docstring and type hints
+- [x] Update `src/trading_platform/strategy/base.py` docstring and type hints
 
 ```python
 from trading_platform.core.types import SignalCommand
@@ -275,7 +288,7 @@ class BaseStrategy:
 ```
 
 ### 3.2 Refactor yaml_strategy.py State Machine
-- [ ] Refactor `_generate_signals_from_rules` in `src/trading_platform/strategy/yaml_strategy.py`
+- [x] Refactor `_generate_signals_from_rules` in `src/trading_platform/strategy/yaml_strategy.py`
 
 ```python
 def _generate_signals_from_rules(self, df: pd.DataFrame) -> pd.Series:
@@ -338,7 +351,7 @@ def _check_slope(self, df: pd.DataFrame, i: int, side: str) -> bool:
 - Exits checked before entries (same bar can have both, exit takes precedence)
 
 ### 3.3 Strategy YAML Schema
-- [ ] Verify YAML schema (no changes needed)
+- [x] Verify YAML schema (no changes needed)
 
 ```yaml
 long_entry_rules: [...]   # Generates "enter_long"
@@ -348,7 +361,7 @@ short_exit_rules: [...]   # Generates "exit_short"
 ```
 
 ### 3.4 Update Existing Strategy YAMLs
-- [ ] Review all YAML files in `config/strategy/` to ensure entry/exit rules are correct
+- [x] Review all YAML files in `config/strategy/` to ensure entry/exit rules are correct
 
 **For EMA crossover specifically:**
 - `long_entry_rules`: cross_above → "enter_long"
@@ -360,7 +373,7 @@ short_exit_rules: [...]   # Generates "exit_short"
 ## Phase 4: Backtester Changes (30 min)
 
 ### 4.1 Update Main Loop
-- [ ] Refactor main loop in `src/trading_platform/backtester/core.py`
+- [x] Refactor main loop in `src/trading_platform/backtester/core.py`
 ```python
 warmup_threshold = max(0, config.warmup_bars)
 
@@ -468,7 +481,7 @@ for i in range(len(market_data)):
 ```
 
 ### 4.2 Simplification Opportunities
-- [ ] Simplify backtester loop logic
+- [x] Simplify backtester loop logic
 - Command validation
 - Entry window management
 - Exit feasibility
@@ -480,7 +493,7 @@ The backtester just needs to:
 4. If PM says "exited", record it
 
 ### 4.3 Remove Old Code
-- [ ] Delete old PM method calls from backtester
+- [x] Delete old PM method calls from backtester
 - `portfolio.update_signal_state()`
 - `portfolio.should_attempt_entry()`
 - `portfolio.mark_entry_on_signal()`
@@ -490,7 +503,7 @@ The backtester just needs to:
 ## Phase 5: Testing Strategy (2 hours)
 
 ### 5.1 Update Portfolio Manager Tests
-- [ ] Add new command-based tests to `tests/portfolio/test_portfolio.py`
+- [x] Add new command-based tests to `tests/portfolio/test_portfolio.py`
 
 ```python
 @requires("PM-5.8")
@@ -615,7 +628,7 @@ def test_entry_window_remains_open_with_none_commands():
     assert not pm.can_attempt_entry("long", 4, 3)
 ```
 
-- [ ] Remove old state-based tests from `tests/portfolio/test_portfolio.py`
+- [x] Remove old state-based tests from `tests/portfolio/test_portfolio.py`
   - Delete `test_entry_window_event_based` (replaced by command-based tests)
 - Delete `test_entry_window_delayed_entry` (replaced)
 - Delete `test_entry_window_infinite` (replaced)
@@ -624,7 +637,7 @@ def test_entry_window_remains_open_with_none_commands():
 - Delete `test_entry_window_warmup_threshold` (replaced)
 
 ### 5.2 Update Strategy Tests
-- [ ] Add command generation tests to `tests/strategy/test_yaml_strategy.py`
+- [ ] Add command generation tests to `tests/strategy/test_yaml_strategy.py` (TODO: Not done yet)
 
 ```python
 def test_ema_crossover_generates_enter_long_command():
@@ -666,7 +679,7 @@ def test_strategy_generates_none_when_no_conditions_met():
 ```
 
 ### 5.3 Update Backtester Integration Tests
-- [ ] Verify integration tests in `tests/backtester/test_backtester.py` still work with commands
+- [x] Verify integration tests in `tests/backtester/test_backtester.py` still work with commands
 
 ---
 
@@ -831,11 +844,11 @@ poetry run pytest --tb=short
 ```
 
 ### 7.2 Run EMA Crossover Backtest
-- [ ] Run EMA crossover backtest
+- [x] Run EMA crossover backtest
 ```bash
 ./configs/strategies/ema_crossover/run_backtest.sh
 ```
-- [ ] Verify backtest results (69 trades, same entry/exit times)
+- [x] Verify backtest results (69 trades, same entry/exit times) ✅ VERIFIED: 69 trades produced
 - Number of trades is still 69
 - Key crossover trades at Oct 21, Oct 29, Nov 1 still present
 - Entry/exit times match previous run

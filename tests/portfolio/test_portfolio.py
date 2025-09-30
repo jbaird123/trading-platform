@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import pandas as pd
 import pytest
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.utils.testing import requires
@@ -147,124 +148,154 @@ def test_close_position_does_nothing_if_no_position_is_open():
 # Entry Window Management Tests (validates [PM-5.8])
 
 
-@requires("PM-5.8", "PM-5.8.1", "PM-5.8.2", "PM-5.8.3")
-def test_entry_window_event_based():
-    """Test event-based entry (window=0): only enter on exact signal transition."""
-    portfolio = PortfolioManager(initial_cash=100000)
+@requires("PM-5.8")
+def test_process_enter_long_command():
+    """Test processing enter_long command opens entry window."""
+    pm = PortfolioManager(initial_cash=100000)
 
-    # Bar 0: Signal transitions to "long" (warmup=0)
-    portfolio.update_signal_state("long", bar_index=0, warmup_threshold=0)
-    assert portfolio.should_attempt_entry("long", 0, entry_window_bars=0)
-
-    # Bar 1: Signal still "long", no transition
-    portfolio.update_signal_state("long", bar_index=1, warmup_threshold=0)
-    assert not portfolio.should_attempt_entry("long", 1, entry_window_bars=0)
-
-
-@requires("PM-5.8", "PM-5.8.1", "PM-5.8.2", "PM-5.8.3")
-def test_entry_window_delayed_entry():
-    """Test delayed entry (window=3): can enter within 3 bars of transition."""
-    portfolio = PortfolioManager(initial_cash=100000)
-
-    # Bar 0: Signal transitions to "long"
-    portfolio.update_signal_state("long", bar_index=0, warmup_threshold=0)
-    assert portfolio.should_attempt_entry("long", 0, entry_window_bars=3)
-
-    # Bar 1: Still within window
-    portfolio.update_signal_state("long", bar_index=1, warmup_threshold=0)
-    assert portfolio.should_attempt_entry("long", 1, entry_window_bars=3)
-
-    # Bar 2: Still within window
-    portfolio.update_signal_state("long", bar_index=2, warmup_threshold=0)
-    assert portfolio.should_attempt_entry("long", 2, entry_window_bars=3)
-
-    # Bar 3: Still within window (exactly at edge: 3 - 0 = 3, and 3 <= 3)
-    portfolio.update_signal_state("long", bar_index=3, warmup_threshold=0)
-    assert portfolio.should_attempt_entry("long", 3, entry_window_bars=3)
-
-    # Bar 4: Window expired (4 - 0 = 4, and 4 > 3)
-    portfolio.update_signal_state("long", bar_index=4, warmup_threshold=0)
-    assert not portfolio.should_attempt_entry("long", 4, entry_window_bars=3)
-
-
-@requires("PM-5.8", "PM-5.8.1", "PM-5.8.2", "PM-5.8.3")
-def test_entry_window_infinite():
-    """Test infinite window (window=-1): always try when signal active."""
-    portfolio = PortfolioManager(initial_cash=100000)
-
-    # Bar 0: Signal transitions to "long"
-    portfolio.update_signal_state("long", bar_index=0, warmup_threshold=0)
-    assert portfolio.should_attempt_entry("long", 0, entry_window_bars=-1)
-
-    # Bar 100: Still should attempt (infinite window)
-    portfolio.update_signal_state("long", bar_index=100, warmup_threshold=0)
-    assert portfolio.should_attempt_entry("long", 100, entry_window_bars=-1)
-
-
-@requires("PM-5.8", "PM-5.8.2", "PM-5.8.4")
-def test_entry_window_prevents_reentry_after_entry():
-    """Test that marking entry prevents re-entry on same signal instance."""
-    portfolio = PortfolioManager(initial_cash=100000)
-
-    # Bar 0: Signal transitions to "long"
-    portfolio.update_signal_state("long", bar_index=0, warmup_threshold=0)
-    assert portfolio.should_attempt_entry("long", 0, entry_window_bars=5)
-
-    # Mark entry at bar 0
-    portfolio.mark_entry_on_signal("long", 0)
-
-    # Bar 1: Signal still "long", but already entered
-    portfolio.update_signal_state("long", bar_index=1, warmup_threshold=0)
-    assert not portfolio.should_attempt_entry("long", 1, entry_window_bars=5)
-
-    # Bar 2: Still can't enter (already entered on this signal)
-    portfolio.update_signal_state("long", bar_index=2, warmup_threshold=0)
-    assert not portfolio.should_attempt_entry("long", 2, entry_window_bars=5)
-
-
-@requires("PM-5.8", "PM-5.8.4")
-def test_entry_window_resets_on_new_transition():
-    """Test that new signal transition resets the entry window."""
-    portfolio = PortfolioManager(initial_cash=100000)
-
-    # Bar 0: Signal transitions to "long"
-    portfolio.update_signal_state("long", bar_index=0, warmup_threshold=0)
-    portfolio.mark_entry_on_signal("long", 0)
-
-    # Bar 5: Signal transitions to "short" (new transition)
-    portfolio.update_signal_state("short", bar_index=5, warmup_threshold=0)
-    assert portfolio.should_attempt_entry("short", 5, entry_window_bars=3)
-
-    # Bar 10: Signal transitions back to "long" (resets long window)
-    portfolio.update_signal_state("long", bar_index=10, warmup_threshold=0)
-    assert portfolio.should_attempt_entry("long", 10, entry_window_bars=3)
-
-
-@requires("PM-5.8", "PM-5.8.1")
-def test_entry_window_warmup_threshold():
-    """Test that warmup threshold triggers a transition even if signal unchanged."""
-    portfolio = PortfolioManager(initial_cash=100000)
-
-    # Bar 0: Signal is "long", transition detected (flat -> long)
-    portfolio.update_signal_state("long", bar_index=0, warmup_threshold=50)
-    # But bar 0 < warmup threshold (50), so should_attempt_entry with warmup check would fail
-    # However, our should_attempt_entry doesn't check warmup - that's done in backtester
-    # So this test needs to verify the warmup threshold transition behavior
-
-    # Simulate: signal already "short" during warmup period
-    portfolio._prev_signal = "short"  # Manually set to test warmup transition
-    portfolio._entry_windows["short"] = (0, None)
-
-    # Bars 0-49: Signal is "short", no transition
-    for i in range(1, 50):
-        signal_changed = portfolio.update_signal_state(
-            "short", bar_index=i, warmup_threshold=50
-        )
-        assert not signal_changed  # No transition during warmup
-
-    # Bar 50: At warmup threshold, signal="short" triggers transition
-    signal_changed = portfolio.update_signal_state(
-        "short", bar_index=50, warmup_threshold=50
+    result = pm.process_command(
+        command="enter_long",
+        bar_index=0,
+        warmup_threshold=0,
+        entry_window_bars=3,
+        allow_flip=False,
+        current_bar=pd.Series({"close": 1.0, "open": 1.0, "high": 1.0, "low": 1.0}),
+        context=None,
     )
-    assert signal_changed  # Warmup threshold should trigger transition
-    assert portfolio.should_attempt_entry("short", 50, entry_window_bars=3)
+
+    assert result["action"] == "window_opened"
+    assert result["side"] == "long"
+    assert pm.can_attempt_entry("long", 0, 3)
+
+
+@requires("PM-5.8")
+def test_process_exit_when_no_position():
+    """Test exit command is ignored when no position exists."""
+    pm = PortfolioManager(initial_cash=100000)
+
+    result = pm.process_command(
+        command="exit_long",
+        bar_index=0,
+        warmup_threshold=0,
+        entry_window_bars=3,
+        allow_flip=False,
+        current_bar=pd.Series({"close": 1.0, "open": 1.0, "high": 1.0, "low": 1.0}),
+        context=None,
+    )
+
+    assert result["action"] == "ignored"
+    assert result["reason"] == "no_matching_position"
+
+
+@requires("PM-5.8")
+def test_process_enter_when_already_in_position():
+    """Test enter command is ignored when already in same position."""
+    pm = PortfolioManager(initial_cash=100000)
+
+    # Enter long
+    pm.process_command(
+        "enter_long",
+        bar_index=0,
+        warmup_threshold=0,
+        entry_window_bars=3,
+        allow_flip=False,
+        current_bar=pd.Series({"close": 1.0}, name=datetime(2024, 1, 1)),
+        context=None,
+    )
+    pm.create_new_position(
+        symbol="EURUSD",
+        side="long",
+        entry_price=1.0,
+        size=100,
+        entry_time=datetime(2024, 1, 1),
+    )
+
+    # Try to enter long again
+    result = pm.process_command(
+        "enter_long",
+        bar_index=1,
+        warmup_threshold=0,
+        entry_window_bars=3,
+        allow_flip=False,
+        current_bar=pd.Series({"close": 1.0}, name=datetime(2024, 1, 1, 1)),
+        context=None,
+    )
+
+    assert result["action"] == "ignored"
+    assert result["reason"] == "already_in_position"
+
+
+@requires("PM-5.8")
+def test_process_flip_position():
+    """Test entering opposite position with allow_flip=True."""
+    pm = PortfolioManager(initial_cash=100000)
+
+    # Enter long
+    pm.create_new_position(
+        symbol="EURUSD",
+        side="long",
+        entry_price=1.0,
+        size=100,
+        entry_time=datetime(2024, 1, 1),
+    )
+
+    # Enter short with flip allowed
+    result = pm.process_command(
+        "enter_short",
+        bar_index=1,
+        warmup_threshold=0,
+        entry_window_bars=3,
+        allow_flip=True,
+        current_bar=pd.Series({"close": 1.01}, name=datetime(2024, 1, 1, 1)),
+        context=None,
+    )
+
+    assert result["action"] == "window_opened"
+    assert result["side"] == "short"
+    assert pm.current_position is None  # Closed long
+    assert len(pm.trades) == 1  # Long trade closed
+
+
+@requires("PM-5.8")
+def test_entry_window_remains_open_with_none_commands():
+    """Test entry window stays open across bars with None commands."""
+    pm = PortfolioManager(initial_cash=100000)
+
+    # Bar 0: enter_long command
+    result = pm.process_command(
+        "enter_long",
+        bar_index=0,
+        warmup_threshold=0,
+        entry_window_bars=3,
+        allow_flip=False,
+        current_bar=pd.Series({"close": 1.0}, name=datetime(2024, 1, 1)),
+        context=None,
+    )
+    assert result["action"] == "window_opened"
+
+    # Bar 1: None command (window should stay active)
+    result = pm.process_command(
+        None,
+        bar_index=1,
+        warmup_threshold=0,
+        entry_window_bars=3,
+        allow_flip=False,
+        current_bar=pd.Series({"close": 1.0}, name=datetime(2024, 1, 1, 1)),
+        context=None,
+    )
+    assert result["action"] == "window_active"
+    assert result["side"] == "long"
+    assert pm.can_attempt_entry("long", 1, 3)
+
+    # Bar 4: Window expired
+    result = pm.process_command(
+        None,
+        bar_index=4,
+        warmup_threshold=0,
+        entry_window_bars=3,
+        allow_flip=False,
+        current_bar=pd.Series({"close": 1.0}, name=datetime(2024, 1, 1, 4)),
+        context=None,
+    )
+    assert result["action"] == "ignored"
+    assert not pm.can_attempt_entry("long", 4, 3)
