@@ -134,7 +134,7 @@ def compute_activity(trades: list[Trade]) -> dict:
         # Calculate average trades per day
         avg_trades_per_day = float(len(trades)) / float(days_span)
 
-        return {"average_trades_per_day": avg_trades_per_day}
+        return {"average_trades_per_day": round(avg_trades_per_day, 2)}
 
     except Exception:
         # Return empty dict on any error
@@ -188,8 +188,8 @@ def compute_timing_buckets(trades: list[Trade]) -> dict:
 
             return {
                 "n_trades": n_trades,
-                "total_pnl": total_pnl,
-                "win_rate": win_rate,
+                "total_pnl": round(total_pnl, 2),
+                "win_rate": round(win_rate, 3),
             }
 
         # Convert to final format
@@ -266,11 +266,11 @@ def compute_contrasts(trades: list[Trade]) -> dict:
 
             return {
                 "n_trades": n_trades,
-                "win_rate": win_rate,
-                "avg_pnl": avg_pnl,
-                "total_pnl": total_pnl,
-                "avg_win": avg_win,
-                "avg_loss": avg_loss,
+                "win_rate": round(win_rate, 3),
+                "avg_pnl": round(avg_pnl, 2),
+                "total_pnl": round(total_pnl, 2),
+                "avg_win": round(avg_win, 2),
+                "avg_loss": round(avg_loss, 2),
             }
 
         return {
@@ -333,9 +333,9 @@ def compute_stop_tp_candidates(trades: list[Trade]) -> dict:
                 )
 
             return {
-                "25th": percentile(25),
-                "50th": percentile(50),  # median
-                "75th": percentile(75),
+                "25th": round(percentile(25), 2),
+                "50th": round(percentile(50), 2),  # median
+                "75th": round(percentile(75), 2),
             }
 
         return {
