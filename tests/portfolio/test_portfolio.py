@@ -142,3 +142,125 @@ def test_close_position_does_nothing_if_no_position_is_open():
     # Verify that no trades were created and cash is unchanged
     assert len(portfolio.trades) == 0
     assert portfolio.cash == 100000
+
+
+# Entry Window Management Tests (validates [PM-5.8])
+
+
+@requires("PM-5.8", "PM-5.8.1", "PM-5.8.2", "PM-5.8.3")
+def test_entry_window_event_based():
+    """Test event-based entry (window=0): only enter on exact signal transition."""
+    portfolio = PortfolioManager(initial_cash=100000)
+
+    # Bar 0: Signal transitions to "long" (warmup=0)
+    portfolio.update_signal_state("long", bar_index=0, warmup_threshold=0)
+    assert portfolio.should_attempt_entry("long", 0, entry_window_bars=0)
+
+    # Bar 1: Signal still "long", no transition
+    portfolio.update_signal_state("long", bar_index=1, warmup_threshold=0)
+    assert not portfolio.should_attempt_entry("long", 1, entry_window_bars=0)
+
+
+@requires("PM-5.8", "PM-5.8.1", "PM-5.8.2", "PM-5.8.3")
+def test_entry_window_delayed_entry():
+    """Test delayed entry (window=3): can enter within 3 bars of transition."""
+    portfolio = PortfolioManager(initial_cash=100000)
+
+    # Bar 0: Signal transitions to "long"
+    portfolio.update_signal_state("long", bar_index=0, warmup_threshold=0)
+    assert portfolio.should_attempt_entry("long", 0, entry_window_bars=3)
+
+    # Bar 1: Still within window
+    portfolio.update_signal_state("long", bar_index=1, warmup_threshold=0)
+    assert portfolio.should_attempt_entry("long", 1, entry_window_bars=3)
+
+    # Bar 2: Still within window
+    portfolio.update_signal_state("long", bar_index=2, warmup_threshold=0)
+    assert portfolio.should_attempt_entry("long", 2, entry_window_bars=3)
+
+    # Bar 3: Still within window (exactly at edge: 3 - 0 = 3, and 3 <= 3)
+    portfolio.update_signal_state("long", bar_index=3, warmup_threshold=0)
+    assert portfolio.should_attempt_entry("long", 3, entry_window_bars=3)
+
+    # Bar 4: Window expired (4 - 0 = 4, and 4 > 3)
+    portfolio.update_signal_state("long", bar_index=4, warmup_threshold=0)
+    assert not portfolio.should_attempt_entry("long", 4, entry_window_bars=3)
+
+
+@requires("PM-5.8", "PM-5.8.1", "PM-5.8.2", "PM-5.8.3")
+def test_entry_window_infinite():
+    """Test infinite window (window=-1): always try when signal active."""
+    portfolio = PortfolioManager(initial_cash=100000)
+
+    # Bar 0: Signal transitions to "long"
+    portfolio.update_signal_state("long", bar_index=0, warmup_threshold=0)
+    assert portfolio.should_attempt_entry("long", 0, entry_window_bars=-1)
+
+    # Bar 100: Still should attempt (infinite window)
+    portfolio.update_signal_state("long", bar_index=100, warmup_threshold=0)
+    assert portfolio.should_attempt_entry("long", 100, entry_window_bars=-1)
+
+
+@requires("PM-5.8", "PM-5.8.2", "PM-5.8.4")
+def test_entry_window_prevents_reentry_after_entry():
+    """Test that marking entry prevents re-entry on same signal instance."""
+    portfolio = PortfolioManager(initial_cash=100000)
+
+    # Bar 0: Signal transitions to "long"
+    portfolio.update_signal_state("long", bar_index=0, warmup_threshold=0)
+    assert portfolio.should_attempt_entry("long", 0, entry_window_bars=5)
+
+    # Mark entry at bar 0
+    portfolio.mark_entry_on_signal("long", 0)
+
+    # Bar 1: Signal still "long", but already entered
+    portfolio.update_signal_state("long", bar_index=1, warmup_threshold=0)
+    assert not portfolio.should_attempt_entry("long", 1, entry_window_bars=5)
+
+    # Bar 2: Still can't enter (already entered on this signal)
+    portfolio.update_signal_state("long", bar_index=2, warmup_threshold=0)
+    assert not portfolio.should_attempt_entry("long", 2, entry_window_bars=5)
+
+
+@requires("PM-5.8", "PM-5.8.4")
+def test_entry_window_resets_on_new_transition():
+    """Test that new signal transition resets the entry window."""
+    portfolio = PortfolioManager(initial_cash=100000)
+
+    # Bar 0: Signal transitions to "long"
+    portfolio.update_signal_state("long", bar_index=0, warmup_threshold=0)
+    portfolio.mark_entry_on_signal("long", 0)
+
+    # Bar 5: Signal transitions to "short" (new transition)
+    portfolio.update_signal_state("short", bar_index=5, warmup_threshold=0)
+    assert portfolio.should_attempt_entry("short", 5, entry_window_bars=3)
+
+    # Bar 10: Signal transitions back to "long" (resets long window)
+    portfolio.update_signal_state("long", bar_index=10, warmup_threshold=0)
+    assert portfolio.should_attempt_entry("long", 10, entry_window_bars=3)
+
+
+@requires("PM-5.8", "PM-5.8.1")
+def test_entry_window_warmup_threshold():
+    """Test that warmup threshold triggers a transition even if signal unchanged."""
+    portfolio = PortfolioManager(initial_cash=100000)
+
+    # Bar 0: Signal is "long", transition detected (flat -> long)
+    portfolio.update_signal_state("long", bar_index=0, warmup_threshold=50)
+    # But bar 0 < warmup threshold (50), so should_attempt_entry with warmup check would fail
+    # However, our should_attempt_entry doesn't check warmup - that's done in backtester
+    # So this test needs to verify the warmup threshold transition behavior
+
+    # Simulate: signal already "short" during warmup period
+    portfolio._prev_signal = "short"  # Manually set to test warmup transition
+    portfolio._entry_windows["short"] = (0, None)
+
+    # Bars 0-49: Signal is "short", no transition
+    for i in range(1, 50):
+        signal_changed = portfolio.update_signal_state("short", bar_index=i, warmup_threshold=50)
+        assert not signal_changed  # No transition during warmup
+
+    # Bar 50: At warmup threshold, signal="short" triggers transition
+    signal_changed = portfolio.update_signal_state("short", bar_index=50, warmup_threshold=50)
+    assert signal_changed  # Warmup threshold should trigger transition
+    assert portfolio.should_attempt_entry("short", 50, entry_window_bars=3)
