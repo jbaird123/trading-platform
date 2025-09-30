@@ -165,9 +165,14 @@ _Last updated: 2025-09-16_
 ## 3) Strategy Engine (SE)
 
 ### Core Requirements
-- **[SE-3.1]** **Core Mandate**: The Strategy Engine is responsible for **signal generation only**. Strategy definitions must be purely abstract and instrument-agnostic.
-- **[SE-3.2]** A `BaseStrategy` interface will define methods for preparing data and generating a signal series (`long`, `short`, or `flat`). A `flat` signal is considered a **strategic exit**.
-- **[SE-3.3]** Strategy definitions **must not** contain instrument-specific logic or trade management rules like stop-loss or take-profit. This is the sole responsibility of the Risk & Exit Manager (REM).
+- **[SE-3.1]** **Core Mandate**: The Strategy Engine is responsible for **signal generation only**. Strategies generate **trading commands** (`enter_long`, `enter_short`, `exit_long`, `exit_short`, `None`) based on market conditions. Strategies are stateless and do not track position state - they generate commands independently, and the Portfolio Manager enforces feasibility (e.g., ignoring exit commands when no position exists).
+- **[SE-3.2]** A `BaseStrategy` interface will define methods for preparing data and generating a command series. Commands are discrete trading actions:
+  - `enter_long`: Signal to enter a long position
+  - `enter_short`: Signal to enter a short position
+  - `exit_long`: Signal to exit a long position
+  - `exit_short`: Signal to exit a short position
+  - `None`: No action (most common - strategies only emit commands on specific events)
+- **[SE-3.3]** Strategy definitions **must not** contain instrument-specific logic or trade management rules like stop-loss or take-profit. This is the sole responsibility of the Risk & Exit Manager (REM). Strategies also **must not** track actual position state - they generate commands based purely on market data and indicator logic.
 - **[SE-3.4]** Provide built-in, performance-critical strategies implemented in Python, including: SMA Crossover, PSAR with an ADX filter, and Bollinger Bands Mean Reversion.
 - **[SE-3.5]** **Declarative Strategies (Low-Code/No-Code)**:
   - **[SE-3.5.1]** Support defining strategies using a declarative **YAML format**.
@@ -213,14 +218,16 @@ _Last updated: 2025-09-16_
 - **[PM-5.5]** **Position Sizing**: Implement fixed-risk and fixed-fraction sizing logic.
 - **[PM-5.6]** **Trade & PnL Logic**: Generate a canonical `Trade` record upon position closure and calculate key performance metrics.
 - **[PM-5.7]** **Portfolio-Level Risk Management**: Enforce rules like daily loss caps, maximum drawdown limits, and directional position caps.
-- **[PM-5.8]** **Entry Window Management**: The PM must track signal transitions and enforce configurable entry windows to prevent duplicate entries on the same signal instance.
-  - **[PM-5.8.1]** Track the timestamp/bar index when each signal transition occurs (e.g., flat→long, short→long).
-  - **[PM-5.8.2]** Track whether an entry has already occurred on the current signal instance to prevent re-entry after risk-based exits (e.g., stop-loss).
+- **[PM-5.8]** **Entry Window Management**: The PM must process strategy commands and manage entry windows to control when positions can be opened.
+  - **[PM-5.8.1]** Track the bar index when each entry command is received (`enter_long`, `enter_short`).
+  - **[PM-5.8.2]** Track whether an entry has already occurred on the current entry command to prevent duplicate entries.
   - **[PM-5.8.3]** Support configurable entry window policies:
-    - `entry_window_bars: 0` = Event-based (only enter on exact signal transition bar)
-    - `entry_window_bars: N` (N > 0) = Allow delayed entry within N bars if initially blocked by filters (e.g., RMM)
-    - `entry_window_bars: -1` = Infinite window (always attempt entry when signal is active, state-based)
-  - **[PM-5.8.4]** Reset entry tracking when a new signal transition occurs.
+    - Entry windows apply only to **entry commands** (`enter_long`, `enter_short`)
+    - Exit commands are executed immediately if a matching position exists
+    - `entry_window_bars: 0` = Execute entry commands on exact bar only
+    - `entry_window_bars: N` (N > 0) = Keep entry window open for N bars after entry command (allows delayed entry if RMM initially blocked)
+    - `entry_window_bars: -1` = Infinite window (keep trying to enter as long as entry command is active)
+  - **[PM-5.8.4]** Entry windows remain open across bars with `None` commands until: (a) entry occurs, (b) window expires per `entry_window_bars`, or (c) opposite-side entry command received.
   - **[PM-5.8.5]** This state must be serializable for live trading to ensure consistency across restarts.
 
 ### Future Enhancements
@@ -242,8 +249,8 @@ _Last updated: 2025-09-16_
 ### Core Requirements
 - **[BT-7.1]** **Core Responsibility**: To simulate the passage of time and orchestrate the interaction between other components (Strategy Engine, RMM, Portfolio Manager, REM).
   - **[BT-7.1.1]** The Backtester is responsible for the bar-by-bar simulation loop, feeding data to the Strategy Engine and coordinating component calls.
-  - **[BT-7.1.2]** The Backtester **must not** contain entry decision logic. Entry decisions (including entry window checks) are the responsibility of the Portfolio Manager ([PM-5.8]).
-  - **[BT-7.1.3]** The Backtester provides signals, RMM context, and current bar data to the Portfolio Manager, which determines whether to open a position.
+  - **[BT-7.1.2]** The Backtester **must not** contain entry decision logic. The Backtester passes strategy commands to the Portfolio Manager, which determines feasibility and manages entry windows ([PM-5.8]). The Backtester enforces filters (RMM, loss caps, etc.) when PM indicates an entry window is open.
+  - **[BT-7.1.3]** The Backtester provides commands, RMM context, and current bar data to the Portfolio Manager, which determines whether to open a position.
 - **[BT-7.2]** **Rule Translation**: The Backtester **uses the shared Rule Translator** to convert native REM rules (e.g., "50 pips") into canonical price levels.
 - **[BT-7.3]** The primary mechanism will be an **iterative, bar-by-bar loop**. A fully vectorized implementation is a potential future performance enhancement.
 - **[BT-7.4]** The Backtester must **accept a configurable cost model at initialization and pass it to the Portfolio Manager**.

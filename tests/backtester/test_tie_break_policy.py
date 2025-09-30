@@ -32,7 +32,7 @@ def test_tie_break_stop_then_tp_for_long():
     )
     strategy = _dummy_strategy_with_sl_tp(95.0, 105.0)
     strategy.generate_signals(df)  # Populate _feature_df for context lookups
-    sig = pd.Series(["long", "flat"], index=df.index)
+    sig = pd.Series(["enter_long", "exit_long"], index=df.index)
     config = RunConfig(
         user_id="test",
         run_seed=42,

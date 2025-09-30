@@ -45,7 +45,7 @@ def test_counterfactual_for_blackout_skip_with_tp():
     df = _mk_df()
     strategy = _dummy_strategy_with_tp(2.0)
     strategy.generate_signals(df)  # Populate _feature_df for context lookups
-    sig = pd.Series(["long", "flat", "flat"], index=df.index)
+    sig = pd.Series(["enter_long", "exit_long", None], index=df.index)
     config = RunConfig(
         user_id="test_user",
         run_seed=42,
@@ -79,7 +79,7 @@ def test_rmm_skip_records_policy_snapshot() -> None:
     df = _mk_df()
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)  # Populate _feature_df for context lookups
-    sig = pd.Series(["long", "flat", "flat"], index=df.index)
+    sig = pd.Series(["enter_long", "exit_long", None], index=df.index)
     config = RunConfig(
         user_id="test_user",
         run_seed=42,
@@ -124,7 +124,7 @@ def test_run_backtest_returns_exposure_without_skips() -> None:
     df = _mk_df()
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)  # Populate _feature_df for context lookups
-    sig = pd.Series(["flat", "flat", "flat"], index=df.index)
+    sig = pd.Series([None, None, None], index=df.index)
     config = RunConfig(
         user_id="test_user",
         run_seed=42,

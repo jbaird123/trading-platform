@@ -556,30 +556,20 @@ def generate_brief(
                 )
 
             if sig is not None:
-                nonflat = sig[sig != "flat"]
+                # For command-based signals: count non-None commands
+                # Commands are discrete events that fire once (duration = 1 bar)
+                non_none_commands = sig[sig.notna()]
+                command_count = len(non_none_commands)
+
+                # Signal persistence = % of bars with actual commands
                 signal_persistence_pct = (
-                    100.0 * len(nonflat) / len(sig) if len(sig) else 0.0
+                    100.0 * command_count / len(sig) if len(sig) else 0.0
                 )
-                # Compute average run length of non-flat signals
-                arr = np.array(sig)
-                mask = arr != "flat"
-                if mask.any():
-                    # Find run lengths
-                    run_lengths = []
-                    current = 0
-                    for m in mask:
-                        if m:
-                            current += 1
-                        elif current > 0:
-                            run_lengths.append(current)
-                            current = 0
-                    if current > 0:
-                        run_lengths.append(current)
-                    avg_signal_duration_bars = (
-                        float(np.mean(run_lengths)) if run_lengths else 0.0
-                    )
-                else:
-                    avg_signal_duration_bars = 0.0
+
+                # Average duration = 1 bar for commands (they fire once)
+                # This replaces the old run-length logic for state-based signals
+                avg_signal_duration_bars = 1.0 if command_count > 0 else 0.0
+
                 signal_quality_analysis = {
                     "signal_persistence_pct": _round_currency(signal_persistence_pct),
                     "avg_signal_duration_bars": _round_currency(

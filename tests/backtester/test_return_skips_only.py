@@ -37,7 +37,7 @@ def test_return_skips_without_exposure():
     )
     strategy = _dummy_strategy()
     strategy.generate_signals(df)  # Populate _feature_df for context lookups
-    sig = pd.Series(["long"], index=df.index)
+    sig = pd.Series(["enter_long"], index=df.index)
     config = RunConfig(
         user_id="test",
         run_seed=42,

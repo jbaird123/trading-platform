@@ -235,7 +235,7 @@ def test_run_live_controller_dry_run(monkeypatch):
 
 
 def test_run_live_controller_with_orders_and_kill_switch(monkeypatch):
-    signals = ["long", "flat", "long", "flat"]
+    signals = ["enter_long", "exit_long", "enter_long", "exit_long"]
     strategy = StubStrategy(signals)
     monkeypatch.setattr(controller, "compile_strategy", lambda cfg: strategy)
     pm = PortfolioManager(initial_cash=1_000.0)
@@ -299,12 +299,14 @@ def test_run_live_controller_rejected_order_and_empty_prices(monkeypatch):
 
 
 def test_run_live_controller_skips_flat_when_no_position(monkeypatch):
-    signals = ["long", "flat"]
+    # Test: enter_long when no position, then None
+    # Should only create 1 order (the entry)
+    signals = ["enter_long", None]
     strategy = StubStrategy(signals)
     monkeypatch.setattr(controller, "compile_strategy", lambda cfg: strategy)
     pm = PortfolioManager(initial_cash=500.0)
 
-    results = [StubOrder("accepted"), StubOrder("accepted")]
+    results = [StubOrder("accepted")]
     snapshot = {"open_side": None, "size": 0.0, "cash_balance": 500.0}
     adapter = StubAdapter(results, snapshot)
 

@@ -97,10 +97,10 @@ def run_backtest(
         )
         raise ValueError(msg)
 
-    allowed = {"long", "short", "flat"}
+    allowed = {"enter_long", "enter_short", "exit_long", "exit_short", "None", "nan"}
     invalid_values = set(pd.Series(signals).astype(str).unique()) - allowed
     if invalid_values:
-        raise ValueError(f"signals contain invalid values: {sorted(invalid_values)}")
+        raise ValueError(f"signals contain invalid command values: {sorted(invalid_values)}")
 
     if market_data["close"].isna().any():
         first_bad = market_data[market_data["close"].isna()].index[0]
@@ -129,13 +129,9 @@ def run_backtest(
     warmup_threshold = max(0, config.warmup_bars)
 
     for i in range(len(market_data)):
-        current_signal = signals.iloc[i]
+        command = signals.iloc[i]
         current_bar = market_data.iloc[i]
         context = strategy.get_context(i)
-
-        # Update portfolio's signal tracking state
-        # This detects transitions and updates entry windows
-        portfolio.update_signal_state(current_signal, i, warmup_threshold)
 
         # Enrich context with regime information from RMM if available
         if rmm_context is not None:
@@ -146,7 +142,7 @@ def run_backtest(
                 context["regime_label"] = rmm_ctx.get("label")
 
         # Evaluate risk-based exits using the Risk & Exit Manager (REM)
-        # This is evaluated before strategic exits, per the Exit Precedence Policy.
+        # This is evaluated before processing strategy commands
         if portfolio.current_position:
             exit_details = rem.check_exits(portfolio.current_position, current_bar)
 
@@ -162,75 +158,80 @@ def run_backtest(
                     exposure_curve.append((cast(datetime, current_bar.name), 0.0))
                 continue
 
-        # Process signal-based exits and update position metrics
-        portfolio.on_bar(
+        # Process command through Portfolio Manager
+        result = portfolio.process_command(
+            command=command,
+            bar_index=i,
+            warmup_threshold=warmup_threshold,
+            entry_window_bars=config.entry_window_bars,
+            allow_flip=config.allow_flip_on_bar,
             current_bar=current_bar,
-            current_signal=current_signal,
-            allow_flip_on_bar=config.allow_flip_on_bar,
             context=context,
         )
 
-        # If trying to add in same direction while already open, enforce cap
-        if portfolio.current_position and current_signal in ["long", "short"]:
-            cap_now = (
-                limits.get("max_open_long", 1)
-                if current_signal == "long"
-                else limits.get("max_open_short", 1)
-            )
-            open_ct = 1
-            if open_ct >= cap_now:
-                skipped.append(
-                    {
-                        "entry_time": _fmt_ts(current_bar.name),
-                        "symbol": symbol,
-                        "side": current_signal,
-                        "size": float(config.position_size),
-                        "skip_reason": "position_cap",
-                        "counterfactual_pnl": 0.0,
-                        "counterfactual_mfe_currency": 0.0,
-                        "counterfactual_mae_currency": 0.0,
-                        "policy_snapshot": {"cap": cap_now},
-                        "notes": None,
-                    }
-                )
+        # Update position metrics if we have an open position
+        if portfolio.current_position:
+            portfolio._update_position_metrics(current_bar)
 
-        # Potentially open a new position based on signal and policy
-        # Delegate to Portfolio Manager to check entry window policy
-        should_attempt = portfolio.should_attempt_entry(
-            current_signal, i, config.entry_window_bars
-        )
+        # Attempt entry if PM indicates a window is open
+        if result["action"] in ["window_opened", "window_active"]:
+            side = result["side"]
 
-        if (
-            not portfolio.current_position
-            and should_attempt
-            and policy.can_open(cast(datetime, current_bar.name))
-            and i >= max(0, config.warmup_bars)
-        ):
-            # Enforce RMM side gating if provided
-            if rmm_context is not None:
-                ctx = rmm_context.get(cast(datetime, current_bar.name))
-                if ctx is not None:
-                    allowed_sides = list(ctx.get("allowed_sides") or [])
-                    if current_signal not in allowed_sides:
+            # Check if we can attempt entry for this side
+            if (
+                not portfolio.current_position
+                and portfolio.can_attempt_entry(side, i, config.entry_window_bars)
+                and policy.can_open(cast(datetime, current_bar.name))
+            ):
+                # Enforce RMM side gating if provided
+                if rmm_context is not None:
+                    ctx = rmm_context.get(cast(datetime, current_bar.name))
+                    if ctx is not None:
+                        allowed_sides = list(ctx.get("allowed_sides") or [])
+                        if side not in allowed_sides:
+                            skipped.append(
+                                {
+                                    "entry_time": _fmt_ts(current_bar.name),
+                                    "symbol": symbol,
+                                    "side": side,
+                                    "size": float(config.position_size),
+                                    "skip_reason": "rmm_block",
+                                    "counterfactual_pnl": 0.0,
+                                    "counterfactual_mfe_currency": 0.0,
+                                    "counterfactual_mae_currency": 0.0,
+                                    "regime": {
+                                        "label": ctx.get("label"),
+                                        "confidence": ctx.get("confidence"),
+                                    },
+                                    "policy_snapshot": {
+                                        "allowed_sides": allowed_sides,
+                                        "min_confidence": (
+                                            (ctx.get("policy") or {}).get("min_confidence")
+                                        ),
+                                    },
+                                    "notes": None,
+                                    "entry_index": i,
+                                    "entry_price": float(current_bar["close"]),
+                                }
+                            )
+                            continue
+
+                # Check daily loss cap
+                if config.daily_loss_cap is not None and config.daily_loss_cap > 0:
+                    now = cast(datetime, current_bar.name)
+                    if portfolio.hit_daily_loss_cap(now, float(config.daily_loss_cap)):
                         skipped.append(
                             {
-                                "entry_time": _fmt_ts(current_bar.name),
+                                "entry_time": _fmt_ts(now),
                                 "symbol": symbol,
-                                "side": current_signal,
+                                "side": side,
                                 "size": float(config.position_size),
-                                "skip_reason": "rmm_block",
+                                "skip_reason": "risk_cap",
                                 "counterfactual_pnl": 0.0,
                                 "counterfactual_mfe_currency": 0.0,
                                 "counterfactual_mae_currency": 0.0,
-                                "regime": {
-                                    "label": ctx.get("label"),
-                                    "confidence": ctx.get("confidence"),
-                                },
                                 "policy_snapshot": {
-                                    "allowed_sides": allowed_sides,
-                                    "min_confidence": (
-                                        (ctx.get("policy") or {}).get("min_confidence")
-                                    ),
+                                    "daily_loss_cap": float(config.daily_loss_cap)
                                 },
                                 "notes": None,
                                 "entry_index": i,
@@ -238,93 +239,75 @@ def run_backtest(
                             }
                         )
                         continue
-            if config.daily_loss_cap is not None and config.daily_loss_cap > 0:
-                now = cast(datetime, current_bar.name)
-                if portfolio.hit_daily_loss_cap(now, float(config.daily_loss_cap)):
+
+                # Check position cap
+                cap = (
+                    limits.get("max_open_long", 1)
+                    if side == "long"
+                    else limits.get("max_open_short", 1)
+                )
+                open_ct = 1 if portfolio.current_position else 0
+                if open_ct >= cap:
                     skipped.append(
                         {
-                            "entry_time": _fmt_ts(now),
+                            "entry_time": _fmt_ts(current_bar.name),
                             "symbol": symbol,
-                            "side": current_signal,
+                            "side": side,
                             "size": float(config.position_size),
-                            "skip_reason": "risk_cap",
+                            "skip_reason": "position_cap",
                             "counterfactual_pnl": 0.0,
                             "counterfactual_mfe_currency": 0.0,
                             "counterfactual_mae_currency": 0.0,
-                            "policy_snapshot": {
-                                "daily_loss_cap": float(config.daily_loss_cap)
-                            },
+                            "policy_snapshot": {"cap": cap},
                             "notes": None,
                             "entry_index": i,
                             "entry_price": float(current_bar["close"]),
                         }
                     )
-                    continue
-            cap = (
-                limits.get("max_open_long", 1)
-                if current_signal == "long"
-                else limits.get("max_open_short", 1)
-            )
-            open_ct = 1 if portfolio.current_position else 0
-            if open_ct >= cap:
+                else:
+                    # All filters passed - create position
+                    entry_price = current_bar["close"]
+                    size = float(config.position_size)
+
+                    portfolio.create_new_position(
+                        symbol=symbol,
+                        side=side,
+                        entry_price=entry_price,
+                        size=size,
+                        entry_time=cast(datetime, current_bar.name),
+                        instrument=config.instrument,
+                        context_at_entry=context,
+                        initial_risk_ccy=None,  # This is now handled by REM
+                    )
+                    # Mark that we've entered on this entry window
+                    portfolio._entry_windows[side] = (
+                        portfolio._entry_windows[side][0],
+                        i,
+                    )
+
+            elif not policy.can_open(cast(datetime, current_bar.name)):
+                # Entry window open but blackout period active
+                reason = policy.reason(cast(datetime, current_bar.name)) or "blackout"
+                snap = {
+                    "blackout_utc": config.blackout_utc or [],
+                    "blackout_events": config.blackout_events or [],
+                }
                 skipped.append(
                     {
                         "entry_time": _fmt_ts(current_bar.name),
                         "symbol": symbol,
-                        "side": current_signal,
+                        "side": side,
                         "size": float(config.position_size),
-                        "skip_reason": "position_cap",
+                        "skip_reason": reason,
                         "counterfactual_pnl": 0.0,
                         "counterfactual_mfe_currency": 0.0,
                         "counterfactual_mae_currency": 0.0,
-                        "policy_snapshot": {"cap": cap},
+                        "policy_snapshot": snap,
                         "notes": None,
                         "entry_index": i,
                         "entry_price": float(current_bar["close"]),
                     }
                 )
-            else:
-                entry_price = current_bar["close"]
-                size = float(config.position_size)
-
-                portfolio.create_new_position(
-                    symbol=symbol,
-                    side=current_signal,
-                    entry_price=entry_price,
-                    size=size,
-                    entry_time=cast(datetime, current_bar.name),
-                    instrument=config.instrument,
-                    context_at_entry=context,
-                    initial_risk_ccy=None,  # This is now handled by REM
-                )
-                # Mark that we've entered on this signal instance
-                portfolio.mark_entry_on_signal(current_signal, i)
-        elif (
-            not portfolio.current_position
-            and current_signal in ["long", "short"]
-            and not policy.can_open(cast(datetime, current_bar.name))
-        ):
-            reason = policy.reason(cast(datetime, current_bar.name)) or "blackout"
-            snap = {
-                "blackout_utc": config.blackout_utc or [],
-                "blackout_events": config.blackout_events or [],
-            }
-            skipped.append(
-                {
-                    "entry_time": _fmt_ts(current_bar.name),
-                    "symbol": symbol,
-                    "side": current_signal,
-                    "size": float(config.position_size),
-                    "skip_reason": reason,
-                    "counterfactual_pnl": 0.0,
-                    "counterfactual_mfe_currency": 0.0,
-                    "counterfactual_mae_currency": 0.0,
-                    "policy_snapshot": snap,
-                    "notes": None,
-                    "entry_index": i,
-                    "entry_price": float(current_bar["close"]),
-                }
-            )
 
         if return_exposure:
             pos = portfolio.current_position

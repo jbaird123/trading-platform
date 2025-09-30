@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 import pandas as pd
+from trading_platform.core.types import SignalCommand
 
 
 class BaseStrategy(ABC):
@@ -28,13 +29,21 @@ class BaseStrategy(ABC):
     @abstractmethod
     def generate_signals(self, data: pd.DataFrame) -> pd.Series:
         """
-        Generates trading signals from market data.
+        Generate trading command signals from market data.
+
+        Strategies are stateless and generate commands based purely on
+        price/indicator conditions without tracking actual positions.
 
         Args:
             data: A DataFrame containing OHLCV data.
 
         Returns:
-            A pandas Series with signals ('long', 'short', 'flat').
+            Series of SignalCommand values:
+            - "enter_long": Signal to enter long position
+            - "enter_short": Signal to enter short position
+            - "exit_long": Signal to exit long position
+            - "exit_short": Signal to exit short position
+            - None: No command (do nothing)
         """
         # Check for forbidden columns in the input data
         for col in self._FORBIDDEN_COLUMNS:
