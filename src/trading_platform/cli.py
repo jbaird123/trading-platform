@@ -247,10 +247,11 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         except Exception as exc:  # pragma: no cover
             raise SystemExit(f"RMM config validation failed: {exc}") from exc
         rmm_engine = RMMEngine(config=rmm_cfg)
-        daily_regimes = rmm_engine.classify_daily(df)
+        regime_timeframe = rmm_cfg.get("timeframe", "1D")
+        regimes = rmm_engine.classify_regime(df, timeframe=regime_timeframe)
         rmm_policy = rmm_cfg.get("policy") or {}
         per_bar = rmm_engine.project_to_index(
-            daily_regimes, cast(pd.DatetimeIndex, df.index), policy=rmm_policy
+            regimes, cast(pd.DatetimeIndex, df.index), policy=rmm_policy
         )
         # Extract regime feature names from config
         feature_names = [
@@ -304,7 +305,7 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
                     for fname in feature_names
                     if fname in row.index
                 },
-                "timeframe": "daily",  # TODO: Make configurable
+                "timeframe": regime_timeframe,
             }
             for ts, row in per_bar.iterrows()
         }

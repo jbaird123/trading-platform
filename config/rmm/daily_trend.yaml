@@ -1,5 +1,6 @@
 name: "DailyTrend"
 version: "1.0"
+timeframe: "1D"  # Regime classification timeframe: 1D, 4H, 1H, 15M, etc.
 features:
   - name: ema_fast
     type: EMA
