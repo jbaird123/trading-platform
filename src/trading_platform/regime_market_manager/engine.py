@@ -78,16 +78,28 @@ class RMMEngine:
             where = f" at '{path}'" if path else ""
             raise ValueError(f"rmm schema validation error{where}: {e.message}") from e
 
-    def classify_daily(self, df_hourly: pd.DataFrame) -> pd.DataFrame:
-        """Return daily regime labels/confidence based on RMM config rules.
+    def classify_regime(self, df_data: pd.DataFrame, timeframe: str | None = None) -> pd.DataFrame:
+        """Return regime labels/confidence based on RMM config rules.
 
-        Returns DataFrame with: label, confidence, and all computed regime features.
+        Args:
+            df_data: Input OHLCV data (any timeframe)
+            timeframe: Regime classification timeframe (e.g., "1D", "4H", "1H").
+                      If None, uses timeframe from config. Defaults to "1D" if not specified.
+
+        Returns:
+            DataFrame with: label, confidence, and all computed regime features.
         """
         cfg = self.config
         feats = list(cfg.get("features") or [])
         regimes = list(cfg.get("regimes") or [])
-        daily = resample_ohlc(df_hourly, "1d")
-        df = compute_features(daily, feats)
+
+        # Get timeframe from parameter, config, or default to "1D"
+        if timeframe is None:
+            timeframe = cfg.get("timeframe", "1D")
+
+        # Resample to regime timeframe
+        resampled = resample_ohlc(df_data, timeframe.lower())
+        df = compute_features(resampled, feats)
         labels = []
         confs = []
         for i in range(len(df)):
@@ -109,6 +121,16 @@ class RMMEngine:
         out["label"] = labels
         out["confidence"] = confs
         return out
+
+    def classify_daily(self, df_hourly: pd.DataFrame) -> pd.DataFrame:
+        """Return daily regime labels/confidence based on RMM config rules.
+
+        DEPRECATED: Use classify_regime() instead for multi-timeframe support.
+        This method is kept for backward compatibility.
+
+        Returns DataFrame with: label, confidence, and all computed regime features.
+        """
+        return self.classify_regime(df_hourly, "1D")
 
     @staticmethod
     def allowed_sides_for(label: str, confidence: float, policy: dict) -> list[str]:

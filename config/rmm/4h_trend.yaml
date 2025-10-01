@@ -1,0 +1,56 @@
+name: "4HTrend"
+version: "1.0"
+timeframe: "4H"  # Regime classification on 4-hour bars
+features:
+  - name: ema_fast
+    type: EMA
+    params:
+      length: 20
+    source: close
+  - name: ema_slow
+    type: EMA
+    params:
+      length: 50
+    source: close
+  - name: adx
+    type: ADX
+    params:
+      length: 14
+policy:
+  min_confidence: 0.6
+  allow_labels: ["trend_up", "trend_down"]
+regimes:
+  - label: trend_up
+    confidence: 0.9
+    conditions:
+      all_of:
+        - condition: is_above
+          left:
+            ref: ema_fast
+          right:
+            ref: ema_slow
+        - condition: is_above
+          left:
+            ref: adx
+          right: 20
+  - label: trend_down
+    confidence: 0.9
+    conditions:
+      all_of:
+        - condition: is_below
+          left:
+            ref: ema_fast
+          right:
+            ref: ema_slow
+        - condition: is_above
+          left:
+            ref: adx
+          right: 20
+  - label: range
+    confidence: 0.7
+    conditions:
+      all_of:
+        - condition: is_below
+          left:
+            ref: adx
+          right: 20
