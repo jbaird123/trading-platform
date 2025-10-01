@@ -15,13 +15,8 @@ cost_model:
     type: "per_unit"         # Per unit commission
     value: 0.0               # No additional commission for now
 
-# Instrument configuration (required for validation)
-instrument:
-  symbol: "EUR_USD"
-  timeframe: "1H"
-
-# Data source is owned by the Data Handler. This run config
-# declares only the intent of what to request.
+# Data source configuration
+# Instrument metadata is automatically derived from this
 data_request:
   symbol: "EUR_USD"
   timeframe: "1H"
@@ -29,8 +24,7 @@ data_request:
   end: "2025-09-26"
 
 counterfactual_mode: exact   # fast | exact; default is fast
-fast_mode:
-  limit_bars: 10000
+# For fast mode, add: fast_mode: {limit_bars: 10000}
 
 # Post-exit price tracking for exit efficiency analysis
 post_exit_analysis:
