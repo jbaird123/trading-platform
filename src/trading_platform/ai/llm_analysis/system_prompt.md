@@ -33,6 +33,11 @@ Review regime filtering effectiveness:
 - Trade distribution and concentration risk
 - Does the strategy logic match the performance? (e.g., trend-following should profit in trends)
 
+**Important Context on Signal Persistence:**
+The diagnostic report may include signal persistence metrics. Low persistence rates (1-5%) are NORMAL and EXPECTED for event-based strategies (e.g., crossovers, breakouts) that use a signal window feature. This feature allows signals to persist for N bars to handle regime filter blocking - if a crossover occurs but is blocked by the regime filter, it can still trigger a trade when the regime unblocks within the window.
+
+DO NOT interpret low signal persistence as a flaw. It indicates discrete event-based signals with proper windowing, not problematic state-based signals that trigger on every bar.
+
 ### 6. Curve-Fitting and Robustness
 - Are parameters suspiciously specific or performance concentrated in one period?
 - Look at `stationarity` metrics - is performance stable over time?
