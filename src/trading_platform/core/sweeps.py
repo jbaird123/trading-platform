@@ -40,7 +40,9 @@ def _rmm_context(df: pd.DataFrame, cfg_raw: dict[str, Any]) -> dict | None:
     proj = eng.project_to_index(regimes, _cast(pd.DatetimeIndex, df.index), policy=pol)
 
     # Extract regime feature names from config
-    feature_names = [f.get("name") for f in rmm_cfg.get("features", []) if f.get("name")]
+    feature_names = [
+        f.get("name") for f in rmm_cfg.get("features", []) if f.get("name")
+    ]
 
     import math
 
@@ -57,19 +59,22 @@ def _rmm_context(df: pd.DataFrame, cfg_raw: dict[str, Any]) -> dict | None:
             name_lower = name.lower()
 
             # ADX, ATR: 2 decimals (percentage-like)
-            if any(x in name_lower for x in ['adx', 'atr']):
+            if any(x in name_lower for x in ["adx", "atr"]):
                 return round(f, 2)
             # RSI, Stochastic, CCI: 2 decimals (bounded indicators)
-            elif any(x in name_lower for x in ['rsi', 'stoch', 'cci']):
+            elif any(x in name_lower for x in ["rsi", "stoch", "cci"]):
                 return round(f, 2)
             # Volume: whole numbers
-            elif 'volume' in name_lower or 'vol' in name_lower:
+            elif "volume" in name_lower or "vol" in name_lower:
                 return round(f, 0)
             # EMA, SMA, prices: 4 decimals (forex precision)
-            elif any(x in name_lower for x in ['ema', 'sma', 'price', 'close', 'open', 'high', 'low']):
+            elif any(
+                x in name_lower
+                for x in ["ema", "sma", "price", "close", "open", "high", "low"]
+            ):
                 return round(f, 4)
             # MACD, momentum: 4 decimals
-            elif any(x in name_lower for x in ['macd', 'mom', 'roc']):
+            elif any(x in name_lower for x in ["macd", "mom", "roc"]):
                 return round(f, 4)
             # Default: 4 decimals
             else:
@@ -109,6 +114,21 @@ def run_parameter_sweep(
     vol_penalty: float | None = None,
     debug_dir: str | Path | None = None,
 ) -> dict[str, Any]:
+    # BUGFIX: Reload strategy from file to avoid mutations from baseline compile
+    # If strategy_path is specified, reload it fresh
+    if "strategy_path" in base_cfg:
+        import json
+        from pathlib import Path as PathLib
+
+        import yaml
+
+        strat_path = PathLib(str(base_cfg["strategy_path"]))
+        txt = strat_path.read_text()
+        strategy_cfg = (
+            yaml.safe_load(txt)
+            if str(strat_path).endswith((".yaml", ".yml"))
+            else json.loads(txt)
+        )
     if seed is not None:
         random.seed(seed)
     # Build candidates
@@ -165,8 +185,89 @@ def run_parameter_sweep(
         params = dict(scfg.get("parameters") or {})
         params.update(cand)
         scfg["parameters"] = params
+
+        # DEBUG: Log the config being compiled
+        if log_file is not None:
+            try:
+                with log_file.open("a") as f:
+                    f.write(f"COMPILE params={cand}\n")
+                    f.write(f"  scfg['parameters']={scfg.get('parameters')}\n")
+                    # Check feature params
+                    for feat in scfg.get("features", []):
+                        fname = feat.get("name")
+                        fparams = feat.get("params", {})
+                        f.write(f"  feature '{fname}': params={fparams}\n")
+            except Exception:
+                pass
+
         strat = compile_strategy(scfg)
+
+        # DEBUG: Log compiled feature params
+        if log_file is not None:
+            try:
+                with log_file.open("a") as f:
+                    f.write("COMPILED strategy:\n")
+                    f.write(f"  strat.features type={type(strat.features)}\n")
+                    f.write(
+                        f"  strat.features len={len(strat.features) if hasattr(strat.features, '__len__') else 'N/A'}\n"
+                    )
+                    if hasattr(strat, "features") and strat.features:
+                        for i, feat in enumerate(strat.features):
+                            f.write(f"  feature[{i}]: {feat}\n")
+                    f.write(
+                        f"  strat._feature_df cols={list(strat._feature_df.columns) if hasattr(strat, '_feature_df') and strat._feature_df is not None else 'N/A'}\n"
+                    )
+            except Exception as e:
+                with log_file.open("a") as f:
+                    f.write(f"  COMPILE LOG ERROR: {e}\n")
+
         sig = strat.generate_signals(df)
+
+        # DEBUG: Log detailed info
+        if log_file is not None:
+            try:
+                with log_file.open("a") as f:
+                    f.write(f"DEBUG params={cand}\n")
+                    f.write(
+                        f"  df.shape={df.shape}, df.index[0]={df.index[0]}, df.index[-1]={df.index[-1]}\n"
+                    )
+                    f.write(f"  sig.shape={sig.shape}\n")
+                    vc = sig.value_counts()
+                    f.write(f"  sig.value_counts()={dict(vc)}\n")
+                    f.write(f"  rmm_ctx keys count={len(rmm_ctx) if rmm_ctx else 0}\n")
+                    # Log feature dataframe if available
+                    feat_df = getattr(strat, "_feature_df", None)
+                    if feat_df is not None:
+                        f.write(f"  feat_df.shape={feat_df.shape}\n")
+                        # Check EMA values
+                        if (
+                            "ema_fast" in feat_df.columns
+                            and "ema_slow" in feat_df.columns
+                        ):
+                            non_nan_fast = feat_df["ema_fast"].notna().sum()
+                            non_nan_slow = feat_df["ema_slow"].notna().sum()
+                            f.write(f"  ema_fast non-NaN count={non_nan_fast}\n")
+                            f.write(f"  ema_slow non-NaN count={non_nan_slow}\n")
+                    # Save signals and features for analysis
+                    import pandas as pd
+
+                    sig_df = pd.DataFrame({"signal": sig})
+                    sig_path = (
+                        debug_dir
+                        / f"sweep_signals_{cand['ema_fast_length']}_{cand['ema_slow_length']}.parquet"
+                    )
+                    sig_df.to_parquet(str(sig_path))
+                    # Save feature dataframe
+                    if feat_df is not None:
+                        feat_path = (
+                            debug_dir
+                            / f"sweep_features_{cand['ema_fast_length']}_{cand['ema_slow_length']}.parquet"
+                        )
+                        feat_df.to_parquet(str(feat_path))
+            except Exception as e:
+                with log_file.open("a") as f:
+                    f.write(f"  DEBUG ERROR: {e}\n")
+
         _res = run_backtest(
             market_data=df,
             signals=sig,
