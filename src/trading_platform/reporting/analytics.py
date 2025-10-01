@@ -263,6 +263,16 @@ def compute_contrasts(trades: list[Trade]) -> dict:
                 if losing_trades
                 else 0.0
             )
+            avg_win_gross = (
+                sum(t.pnl_gross for t in winning_trades) / len(winning_trades)
+                if winning_trades
+                else 0.0
+            )
+            avg_loss_gross = (
+                sum(t.pnl_gross for t in losing_trades) / len(losing_trades)
+                if losing_trades
+                else 0.0
+            )
 
             return {
                 "n_trades": n_trades,
@@ -271,6 +281,8 @@ def compute_contrasts(trades: list[Trade]) -> dict:
                 "total_pnl": round(total_pnl, 2),
                 "avg_win": round(avg_win, 2),
                 "avg_loss": round(avg_loss, 2),
+                "avg_win_gross": round(avg_win_gross, 2),
+                "avg_loss_gross": round(avg_loss_gross, 2),
             }
 
         return {

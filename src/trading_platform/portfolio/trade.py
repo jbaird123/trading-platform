@@ -20,12 +20,13 @@ class Trade:
     exit_price: float
     side: str  # "long" or "short"
     size: float
-    pnl: float
+    pnl: float  # Net PnL after all costs
     exit_reason: str | None = None
     stop_loss: float | None = None
     take_profit: float | None = None
-    cost_currency: float = 0.0
-    cost_breakdown: dict | None = None
+    pnl_gross: float = 0.0  # Gross PnL before costs
+    cost_currency: float = 0.0  # Total costs (spread + commission + slippage)
+    cost_breakdown: dict | None = None  # {"spread": X, "commission": Y, "slippage": Z}
     r_multiple: float | None = None
     initial_risk_ccy: float | None = None
     mfe_currency: float | None = None
