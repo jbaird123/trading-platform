@@ -76,16 +76,9 @@ monte_carlo:
     block_len: 12       # 12-hour blocks for intraday patterns
     std_pct: 0.0015     # ±0.15% price noise per bar
 
-# === STRATEGY OVERRIDES ===
-# Start with winning parameters from iteration 9
-strategy_overrides:
-  features:
-    ema_fast:
-      length: 12  # Baseline (will be overridden by parameter_search grid)
-    ema_slow:
-      length: 50  # Baseline (will be overridden by parameter_search grid)
-
-# Strategy parameters for brief reporting
+# === STRATEGY PARAMETERS ===
+# Set baseline parameters - these will be swept by parameter_search
+# DO NOT use strategy_overrides.features - that bypasses parameter substitution!
 strategy_params:
   ema_fast_length: 12
   ema_slow_length: 50
