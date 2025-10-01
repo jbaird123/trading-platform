@@ -34,4 +34,5 @@ class Trade:
     bars_held: int | None = None
     context_at_entry: dict[str, Any] | None = None
     context_at_exit: dict[str, Any] | None = None
-    # 'mfe' and 'mae' will be added later.
+    post_exit_analysis: dict[str, dict[str, float]] | None = None
+    # Structure: {"10": {"mfe": 125.0, "mae": -20.0}, "20": {...}, "50": {...}}

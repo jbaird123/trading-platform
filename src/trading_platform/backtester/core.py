@@ -23,6 +23,78 @@ returns just `trades`.
 logger = logging.getLogger(__name__)
 
 
+def _enrich_trades_with_post_exit_analysis(
+    trades: list[Trade],
+    market_data: pd.DataFrame,
+    horizons: list[int],
+) -> None:
+    """
+    Enrich trades with post-exit price movement analysis.
+
+    For each trade, tracks the maximum favorable and adverse price excursions
+    for N bars after the exit, where N is each horizon in the horizons list.
+
+    Args:
+        trades: List of Trade objects to enrich (modified in-place)
+        market_data: DataFrame with OHLCV data indexed by datetime
+        horizons: List of bar counts to track (e.g., [10, 20, 50])
+    """
+    if not trades or not horizons:
+        return
+
+    # Build a datetime index lookup
+    dt_index = market_data.index.tolist()
+
+    for trade in trades:
+        exit_time = trade.exit_time
+        try:
+            exit_idx = dt_index.index(exit_time)
+        except ValueError:
+            # Exit time not found in data - skip this trade
+            continue
+
+        post_exit_data: dict[str, dict[str, float]] = {}
+
+        for horizon in horizons:
+            end_idx = min(exit_idx + horizon, len(market_data) - 1)
+
+            if end_idx <= exit_idx:
+                # No data available after exit
+                post_exit_data[str(horizon)] = {"mfe": 0.0, "mae": 0.0}
+                continue
+
+            # Get the slice of data after exit
+            post_bars = market_data.iloc[exit_idx + 1 : end_idx + 1]
+
+            if len(post_bars) == 0:
+                post_exit_data[str(horizon)] = {"mfe": 0.0, "mae": 0.0}
+                continue
+
+            # Calculate MFE and MAE based on trade side
+            entry_price = trade.exit_price  # Start from exit price
+            highs = post_bars["high"].values
+            lows = post_bars["low"].values
+            size = trade.size
+
+            if trade.side == "long":
+                # For long: favorable = price went up, adverse = price went down
+                mfe = float(max(highs - entry_price) * size) if len(highs) > 0 else 0.0
+                mae = float(min(lows - entry_price) * size) if len(lows) > 0 else 0.0
+            else:
+                # For short: favorable = price went down, adverse = price went up
+                mfe = float(max(entry_price - lows) * size) if len(lows) > 0 else 0.0
+                mae = float(min(entry_price - highs) * size) if len(highs) > 0 else 0.0
+
+            post_exit_data[str(horizon)] = {
+                "mfe": round(mfe, 2),
+                "mae": round(mae, 2),
+            }
+
+        # Mutate the trade object by creating a new one with updated data
+        # Since Trade is frozen, we need to use object.__setattr__
+        object.__setattr__(trade, 'post_exit_analysis', post_exit_data)
+
+
 def resolve_instrument_symbol(instrument: Any) -> str:
     """
     Resolve and normalize the instrument symbol from various input formats.
@@ -407,6 +479,13 @@ def run_backtest(
                     symbol=symbol,
                 )
             s.update(cf)
+
+    # Post-exit analysis: track price movement after each trade closes
+    post_exit_cfg = getattr(config, 'post_exit_analysis', None)
+    if post_exit_cfg and post_exit_cfg.get('enabled'):
+        _enrich_trades_with_post_exit_analysis(
+            portfolio.trades, market_data, post_exit_cfg.get('horizons', [10, 20, 50])
+        )
 
     if return_exposure and return_skips:
         return (portfolio.trades, exposure_curve, skipped)

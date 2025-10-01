@@ -831,6 +831,71 @@
         }
       }
     },
+    "exit_efficiency": {
+      "type": "object",
+      "description": "Analysis of exit timing efficiency by tracking price movement after each exit.",
+      "properties": {
+        "by_exit_reason": {
+          "type": "object",
+          "description": "Exit efficiency metrics grouped by exit reason (take_profit, stop_loss, signal, etc.).",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "n_trades": {
+                "type": "integer",
+                "description": "Number of trades with this exit reason."
+              },
+              "avg_opportunity_cost_10bar": {
+                "type": "number",
+                "description": "Average additional profit/loss if position held 10 more bars."
+              },
+              "avg_opportunity_cost_20bar": {
+                "type": "number",
+                "description": "Average additional profit/loss if position held 20 more bars."
+              },
+              "avg_opportunity_cost_50bar": {
+                "type": "number",
+                "description": "Average additional profit/loss if position held 50 more bars."
+              },
+              "premature_exit_rate": {
+                "type": "number",
+                "description": "For TP exits: rate where price continued favorably by >2x profit."
+              },
+              "false_stop_rate": {
+                "type": "number",
+                "description": "For SL exits: rate where price reversed to profit after stop."
+              },
+              "suboptimal_exit_rate": {
+                "type": "number",
+                "description": "For signal exits: rate where price continued favorably by >1.5x profit."
+              }
+            }
+          }
+        },
+        "optimal_hold_analysis": {
+          "type": "object",
+          "description": "Analysis of optimal holding duration across all trades.",
+          "properties": {
+            "current_avg_pnl": {
+              "type": "number",
+              "description": "Current average PnL per trade with actual exits."
+            },
+            "if_held_10_bars": {
+              "type": "number",
+              "description": "Hypothetical avg PnL if all trades held 10 more bars."
+            },
+            "if_held_20_bars": {
+              "type": "number",
+              "description": "Hypothetical avg PnL if all trades held 20 more bars."
+            },
+            "if_held_50_bars": {
+              "type": "number",
+              "description": "Hypothetical avg PnL if all trades held 50 more bars."
+            }
+          }
+        }
+      }
+    },
   "field_definitions": {
       "type": "object",
       "description": "Auto-generated descriptions for all fields within this brief, useful for programmatic interpretation and UI generation.",

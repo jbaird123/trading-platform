@@ -23,6 +23,7 @@ from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.analytics import (
     compute_activity,
     compute_contrasts,
+    compute_exit_efficiency,
     compute_feature_analysis,
     compute_stationarity,
     compute_stop_tp_candidates,
@@ -205,6 +206,7 @@ def _empty_sections() -> dict[str, Any]:
         "exposure": {},
         "contrasts": {},
         "stop_tp_candidates": {},
+        "exit_efficiency": {},
         "parameter_search": {},
         "stationarity": {},
         "feature_analysis": {},
@@ -222,6 +224,7 @@ def _serialize_trade(t: Trade) -> dict[str, Any]:
         "entry_price": _round_price(t.entry_price),
         "exit_price": _round_price(t.exit_price),
         "pnl": _round_currency(t.pnl),
+        "pnl_gross": _round_currency(getattr(t, "pnl_gross", None)),
         "exit_reason": t.exit_reason,
         "r_multiple": getattr(t, "r_multiple", None),
         "mfe_currency": _round_currency(getattr(t, "mfe_currency", None)),
@@ -229,12 +232,8 @@ def _serialize_trade(t: Trade) -> dict[str, Any]:
         "bars_held": getattr(t, "bars_held", None),
         "context_at_entry": getattr(t, "context_at_entry", None),
         "context_at_exit": getattr(t, "context_at_exit", None),
-        # Placeholders for future cost modeling (Task 14)
-        "cost_breakdown": {
-            "spread": 0.0,
-            "commission": 0.0,
-            "slippage": 0.0,
-        },
+        "cost_breakdown": getattr(t, "cost_breakdown", None),
+        "post_exit_analysis": getattr(t, "post_exit_analysis", None),
     }
 
 
@@ -624,6 +623,9 @@ def generate_brief(
     # --- Stop/TP candidates analysis section ---
     stop_tp_candidates = compute_stop_tp_candidates(trades)
 
+    # --- Exit efficiency analysis section ---
+    exit_efficiency = compute_exit_efficiency(trades)
+
     base = {
         "meta": _to_jsonable(meta),
         "strategy_params": _to_jsonable(params),
@@ -649,6 +651,7 @@ def generate_brief(
         "timing_buckets": timing_buckets,
         "contrasts": contrasts,
         "stop_tp_candidates": stop_tp_candidates,
+        "exit_efficiency": exit_efficiency,
         # Snapshots and placeholders (configurable)
         "instrument_definitions": _to_jsonable(instrument_definitions or {}),
         "cost_model": _to_jsonable(cost_model or {}),

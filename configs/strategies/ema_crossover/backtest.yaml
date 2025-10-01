@@ -32,6 +32,11 @@ counterfactual_mode: exact   # fast | exact; default is fast
 fast_mode:
   limit_bars: 10000
 
+# Post-exit price tracking for exit efficiency analysis
+post_exit_analysis:
+  enabled: true
+  horizons: [10, 20, 50]  # Track price movement for N bars after each exit
+
 rem_path: "config/rem/basic_price_exits.yaml"
 strategy_path: "config/strategy/ema_crossover.yaml"
 

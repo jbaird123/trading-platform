@@ -137,6 +137,14 @@ class RunConfig(BaseModel):
         ),
     )
 
+    post_exit_analysis: dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Post-exit price tracking configuration for exit efficiency analysis. "
+            "Example: {'enabled': True, 'horizons': [10, 20, 50]}"
+        ),
+    )
+
     @model_validator(mode="after")
     def validate_instrument_symbol(self) -> RunConfig:
         """Ensure instrument contains a valid, normalized symbol."""
