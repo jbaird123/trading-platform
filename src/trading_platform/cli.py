@@ -526,7 +526,20 @@ def cmd_ai_diagnose(args: argparse.Namespace) -> int:
     (output_dir / "ai_diagnostic_report.md").write_text(
         engine.generate_report_markdown()
     )
-    (output_dir / "ai_diagnostic_report.json").write_text(engine.generate_report_json())
+    diagnostic_json = engine.generate_report_json()
+    (output_dir / "ai_diagnostic_report.json").write_text(diagnostic_json)
+
+    # Update brief.json with recommendations from diagnostic report
+    try:
+        diagnostic_data = json.loads(diagnostic_json)
+        recommendations = diagnostic_data.get("recommendations", [])
+        if recommendations:
+            brief_data["recommendations"] = recommendations
+            with open(brief_path, "w") as f:
+                json.dump(brief_data, f, indent=2)
+            print(f"Updated {brief_path} with {len(recommendations)} recommendations")
+    except Exception as e:
+        print(f"Warning: Could not update brief with recommendations: {e}", file=sys.stderr)
 
     # Task 4: Qualitative LLM report generation
     if getattr(args, "qualitative_report", False):
