@@ -1,0 +1,5 @@
+# Trailing stop configuration - Iteration 8
+# Back to optimal 20-pip trail
+
+trailing_stop:
+  price_offset: 0.0020  # Trail by 20 pips from peak
