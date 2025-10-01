@@ -79,18 +79,18 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         return 2
     cfg_path = Path(args.config)
     cfg_raw = _load_config(cfg_path)
-    
+
     # Load REM and RMM configs and include them in cfg_raw for proper config snapshot
     rem_path = cfg_raw.get("rem_path")
     if rem_path:
         rem_cfg = _load_config(Path(str(rem_path)))
         cfg_raw["rem_config"] = rem_cfg
-    
-    rmm_path = cfg_raw.get("rmm_path")  
+
+    rmm_path = cfg_raw.get("rmm_path")
     if rmm_path:
         rmm_cfg = _load_config(Path(str(rmm_path)))
         cfg_raw["rmm_config"] = rmm_cfg
-    
+
     cfg = RunConfig.model_validate(cfg_raw)
     run_path = initialize_run(cfg)
 
@@ -185,6 +185,16 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     strat_path = cfg_raw.get("strategy_path")
     if strat_path:
         strat_cfg = _load_config(Path(str(strat_path)))
+
+    # Apply strategy_params from config (used for parameter sweeps)
+    # This allows the config to override strategy defaults
+    strategy_params_from_cfg = cfg_raw.get("strategy_params")
+    if isinstance(strategy_params_from_cfg, dict):
+        base_params = strat_cfg.get("parameters") or {}
+        if isinstance(base_params, dict):
+            base_params.update({k: v for k, v in strategy_params_from_cfg.items()})
+            strat_cfg["parameters"] = base_params
+
     # Apply optional per-run overrides for strategy tunables
     overrides = cfg_raw.get("strategy_overrides") or {}
     if isinstance(overrides, dict):
@@ -273,19 +283,22 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
                 name_lower = name.lower()
 
                 # ADX, ATR: 2 decimals (percentage-like)
-                if any(x in name_lower for x in ['adx', 'atr']):
+                if any(x in name_lower for x in ["adx", "atr"]):
                     return round(f, 2)
                 # RSI, Stochastic, CCI: 2 decimals (bounded indicators)
-                elif any(x in name_lower for x in ['rsi', 'stoch', 'cci']):
+                elif any(x in name_lower for x in ["rsi", "stoch", "cci"]):
                     return round(f, 2)
                 # Volume: whole numbers
-                elif 'volume' in name_lower or 'vol' in name_lower:
+                elif "volume" in name_lower or "vol" in name_lower:
                     return round(f, 0)
                 # EMA, SMA, prices: 4 decimals (forex precision)
-                elif any(x in name_lower for x in ['ema', 'sma', 'price', 'close', 'open', 'high', 'low']):
+                elif any(
+                    x in name_lower
+                    for x in ["ema", "sma", "price", "close", "open", "high", "low"]
+                ):
                     return round(f, 4)
                 # MACD, momentum: 4 decimals
-                elif any(x in name_lower for x in ['macd', 'mom', 'roc']):
+                elif any(x in name_lower for x in ["macd", "mom", "roc"]):
                     return round(f, 4)
                 # Default: 4 decimals
                 else:
@@ -539,7 +552,10 @@ def cmd_ai_diagnose(args: argparse.Namespace) -> int:
                 json.dump(brief_data, f, indent=2)
             print(f"Updated {brief_path} with {len(recommendations)} recommendations")
     except Exception as e:
-        print(f"Warning: Could not update brief with recommendations: {e}", file=sys.stderr)
+        print(
+            f"Warning: Could not update brief with recommendations: {e}",
+            file=sys.stderr,
+        )
 
     # Task 4: Qualitative LLM report generation
     if getattr(args, "qualitative_report", False):
