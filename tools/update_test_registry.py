@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""
-Auto-update test registry from runs directory.
+"""Auto-update test registry from runs directory.
 
 Usage:
   python tools/update_test_registry.py --strategy ema_crossover
-  python tools/update_test_registry.py --strategy ema_crossover --run runs/researcher/run_20251001_013755_utc
+  python tools/update_test_registry.py --strategy ema_crossover \
+      --run runs/researcher/run_20251001_013755_utc
 """
 
 import argparse

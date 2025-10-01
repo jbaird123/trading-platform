@@ -8,6 +8,33 @@ timeframe: 1H
 
 # Test entries (newest first)
 tests:
+  - test_id: research_001_param_sweep_test
+    date: "2025-10-01"
+    description: "Parameter sweep validation (1 year) - fixed strategy_overrides bug"
+    run_path: runs/researcher/run_20251001_023441_utc
+    config_hash: null
+    data_period:
+      start: "2024-01-01"
+      end: "2024-12-31"
+    config_snapshot:
+      param_grid:
+        ema_fast: [10, 12, 14, 16]
+        ema_slow: [40, 50, 60]
+      trailing_stop: 0.0020
+      rmm: null
+      position_size: 50000
+    results:
+      best_params: {ema_fast: 14, ema_slow: 40}
+      best_score: -493
+      trades_range: [107, 176]
+    insights:
+      - "Fixed critical bug: strategy_overrides.features bypassed parameter substitution"
+      - "All param combos now produce unique results (trade counts 107-176)"
+      - "14/40 EMAs performed best in 2024 data"
+      - "Walk-forward and Monte Carlo also executed successfully"
+    status: completed
+    tags: [research, debugging, parameter_sweep]
+
   - test_id: iter_010_no_rmm_high_freq
     date: "2025-10-01"
     description: "12/50 EMA + 20-pip trail, no RMM - test trade frequency"
@@ -284,6 +311,6 @@ tests:
     tags: [baseline, reference]
 
 # Metadata
-last_updated: "2025-10-01T01:40:00Z"
-total_tests: 11
+last_updated: "2025-10-01T02:35:00Z"
+total_tests: 12
 auto_generated: false  # Set to true when using update script
