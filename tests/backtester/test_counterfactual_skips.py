@@ -43,7 +43,9 @@ def _mk_df() -> pd.DataFrame:
 @pytest.mark.req_BT_7_11
 def test_counterfactual_for_blackout_skip_with_tp():
     df = _mk_df()
-    sig = pd.Series(["long", "flat", "flat"], index=df.index)
+    strategy = _dummy_strategy_with_tp(2.0)
+    strategy.generate_signals(df)  # Populate _feature_df for context lookups
+    sig = pd.Series(["enter_long", "exit_long", None], index=df.index)
     config = RunConfig(
         user_id="test_user",
         run_seed=42,
@@ -56,9 +58,12 @@ def test_counterfactual_for_blackout_skip_with_tp():
     )
     rem = RiskExitManager(config={})
     result = run_backtest(
+
         market_data=df,
+
         signals=sig,
-        strategy=_dummy_strategy_with_tp(2.0),
+
+        strategy=strategy,
         config=config,
         rem=rem,
         return_exposure=True,
@@ -72,7 +77,9 @@ def test_counterfactual_for_blackout_skip_with_tp():
 
 def test_rmm_skip_records_policy_snapshot() -> None:
     df = _mk_df()
-    sig = pd.Series(["long", "flat", "flat"], index=df.index)
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(df)  # Populate _feature_df for context lookups
+    sig = pd.Series(["enter_long", "exit_long", None], index=df.index)
     config = RunConfig(
         user_id="test_user",
         run_seed=42,
@@ -92,9 +99,12 @@ def test_rmm_skip_records_policy_snapshot() -> None:
         }
     }
     result = run_backtest(
+
         market_data=df,
+
         signals=sig,
-        strategy=_dummy_strategy_cfg(),
+
+        strategy=strategy,
         config=config,
         rem=rem,
         rmm_context=rmm_ctx,
@@ -112,7 +122,9 @@ def test_rmm_skip_records_policy_snapshot() -> None:
 
 def test_run_backtest_returns_exposure_without_skips() -> None:
     df = _mk_df()
-    sig = pd.Series(["flat", "flat", "flat"], index=df.index)
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(df)  # Populate _feature_df for context lookups
+    sig = pd.Series([None, None, None], index=df.index)
     config = RunConfig(
         user_id="test_user",
         run_seed=42,
@@ -124,9 +136,12 @@ def test_run_backtest_returns_exposure_without_skips() -> None:
     )
     rem = RiskExitManager(config={})
     result = run_backtest(
+
         market_data=df,
+
         signals=sig,
-        strategy=_dummy_strategy_cfg(),
+
+        strategy=strategy,
         config=config,
         rem=rem,
         return_exposure=True,

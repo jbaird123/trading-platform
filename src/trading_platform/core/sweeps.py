@@ -32,17 +32,64 @@ def _rmm_context(df: pd.DataFrame, cfg_raw: dict[str, Any]) -> dict | None:
     if not isinstance(rmm_cfg, dict) or not rmm_cfg:
         return None
     eng = RMMEngine(config=rmm_cfg)
-    daily = eng.classify_daily(df)
+    regime_timeframe = rmm_cfg.get("timeframe", "1D")
+    regimes = eng.classify_regime(df, timeframe=regime_timeframe)
     pol = rmm_cfg.get("policy") or {}
     from typing import cast as _cast
 
-    proj = eng.project_to_index(daily, _cast(pd.DatetimeIndex, df.index), policy=pol)
+    proj = eng.project_to_index(regimes, _cast(pd.DatetimeIndex, df.index), policy=pol)
+
+    # Extract regime feature names from config
+    feature_names = [f.get("name") for f in rmm_cfg.get("features", []) if f.get("name")]
+
+    import math
+
+    def _round_feature(name: str, val: Any) -> float | None:
+        """Round feature value based on its type, returning None for NaN/inf."""
+        if val is None:
+            return None
+        try:
+            f = float(val)
+            if math.isnan(f) or math.isinf(f):
+                return None
+
+            # Determine precision based on feature name/type
+            name_lower = name.lower()
+
+            # ADX, ATR: 2 decimals (percentage-like)
+            if any(x in name_lower for x in ['adx', 'atr']):
+                return round(f, 2)
+            # RSI, Stochastic, CCI: 2 decimals (bounded indicators)
+            elif any(x in name_lower for x in ['rsi', 'stoch', 'cci']):
+                return round(f, 2)
+            # Volume: whole numbers
+            elif 'volume' in name_lower or 'vol' in name_lower:
+                return round(f, 0)
+            # EMA, SMA, prices: 4 decimals (forex precision)
+            elif any(x in name_lower for x in ['ema', 'sma', 'price', 'close', 'open', 'high', 'low']):
+                return round(f, 4)
+            # MACD, momentum: 4 decimals
+            elif any(x in name_lower for x in ['macd', 'mom', 'roc']):
+                return round(f, 4)
+            # Default: 4 decimals
+            else:
+                return round(f, 4)
+        except (ValueError, TypeError):
+            return None
+
     return {
         ts: {
             "label": str(row["label"]),
             "confidence": float(row["confidence"]),
             "allowed_sides": list(row.get("allowed_sides") or []),
             "policy": pol,
+            # Include regime feature values with appropriate rounding
+            "features": {
+                fname: _round_feature(fname, row.get(fname))
+                for fname in feature_names
+                if fname in row.index
+            },
+            "timeframe": regime_timeframe,
         }
         for ts, row in proj.iterrows()
     }

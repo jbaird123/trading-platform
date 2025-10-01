@@ -29,7 +29,19 @@
       "description": "Run-level performance metrics in the portfolio's base currency.",
       "properties": {
         "n_trades": { "type": "integer", "description": "Total number of trades executed." },
-        "total_pnl": { "type": "number", "description": "Sum of all trade profits and losses." },
+        "total_pnl": { "type": "number", "description": "Sum of all trade profits and losses (net, after costs)." },
+        "total_pnl_gross": { "type": "number", "description": "Sum of all trade profits and losses before transaction costs." },
+        "total_costs": { "type": "number", "description": "Sum of all transaction costs across all trades." },
+        "cost_breakdown": {
+          "type": "object",
+          "description": "Breakdown of total transaction costs by category.",
+          "properties": {
+            "spread": { "type": "number", "description": "Total bid-ask spread costs (entry only)." },
+            "commission": { "type": "number", "description": "Total commission costs (entry and exit)." },
+            "slippage": { "type": "number", "description": "Total slippage costs (entry and exit)." }
+          },
+          "required": ["spread", "commission", "slippage"]
+        },
         "mean_pnl": { "type": "number", "description": "Average PnL per trade." },
         "median_pnl": { "type": "number", "description": "Median PnL per trade." },
         "by_side_total_pnl": {
@@ -45,19 +57,21 @@
         "initial_equity": { "type": "number", "description": "Starting equity of the portfolio." },
         "final_equity": { "type": "number", "description": "Ending equity of the portfolio after all trades." }
       },
-      "required": ["n_trades", "total_pnl", "mean_pnl", "median_pnl", "by_side_total_pnl", "win_rate", "initial_equity", "final_equity"]
+      "required": ["n_trades", "total_pnl", "total_pnl_gross", "total_costs", "cost_breakdown", "mean_pnl", "median_pnl", "by_side_total_pnl", "win_rate", "initial_equity", "final_equity"]
     },
     "risk_snapshot": {
       "type": "object",
       "description": "Key risk metrics based on trade outcomes.",
       "properties": {
         "win_rate": { "type": "number", "description": "Percentage of trades with PnL > 0." },
-        "avg_win": { "type": "number", "description": "Average PnL of winning trades." },
-        "avg_loss": { "type": "number", "description": "Average PnL of losing trades." },
+        "avg_win": { "type": "number", "description": "Average net PnL of winning trades (after costs)." },
+        "avg_loss": { "type": "number", "description": "Average net PnL of losing trades (after costs)." },
+        "avg_win_gross": { "type": "number", "description": "Average gross PnL of winning trades (before costs)." },
+        "avg_loss_gross": { "type": "number", "description": "Average gross PnL of losing trades (before costs)." },
         "max_win": { "type": "number", "description": "Largest single winning trade." },
         "max_loss": { "type": "number", "description": "Largest single losing trade (most negative PnL)." }
       },
-      "required": ["win_rate", "avg_win", "avg_loss", "max_win", "max_loss"]
+      "required": ["win_rate", "avg_win", "avg_loss", "avg_win_gross", "avg_loss_gross", "max_win", "max_loss"]
     },
     "equity_stats": {
       "type": "object",
@@ -544,6 +558,34 @@
       },
       "additionalProperties": false
     },
+    "rmm_policy": {
+      "type": "object",
+      "description": "Regime Market Manager (RMM) policy configuration that controls when trades are allowed based on market regimes.",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the RMM configuration." },
+        "version": { "type": "string", "description": "Version of the RMM configuration." },
+        "policy": { "type": "object", "description": "RMM policy settings including confidence thresholds." },
+        "regimes": { "type": "array", "description": "List of defined market regimes with their conditions." },
+        "features_used": { "type": "array", "description": "List of feature names used by the RMM for regime classification." },
+        "regime_labels": { "type": "array", "description": "List of all possible regime labels." },
+        "min_confidence": { "type": ["number", "null"], "description": "Minimum confidence threshold for regime classification." },
+        "allowed_labels": { "type": "array", "description": "List of regime labels that allow trading." }
+      },
+      "additionalProperties": true
+    },
+    "rem_policy": {
+      "type": "object", 
+      "description": "Risk Exit Manager (REM) policy configuration that controls stop losses, take profits, and other exit conditions.",
+      "properties": {
+        "stop_loss": { "type": "object", "description": "Stop loss configuration including price offsets and conditions." },
+        "take_profit": { "type": "object", "description": "Take profit configuration including price offsets and conditions." },
+        "trailing_stop": { "type": "object", "description": "Trailing stop configuration if enabled." },
+        "time_exit": { "type": "object", "description": "Time-based exit configuration if enabled." },
+        "stop_loss_pips": { "type": "string", "description": "Human-readable stop loss distance in pips." },
+        "take_profit_pips": { "type": "string", "description": "Human-readable take profit distance in pips." }
+      },
+      "additionalProperties": true
+    },
     "activity": {
       "type": "object",
       "description": "Trading activity metrics.",
@@ -632,14 +674,22 @@
             },
             "avg_win": {
               "type": "number",
-              "description": "Average PnL of winning long trades."
+              "description": "Average net PnL of winning long trades (after costs)."
             },
             "avg_loss": {
               "type": "number",
-              "description": "Average PnL of losing long trades."
+              "description": "Average net PnL of losing long trades (after costs)."
+            },
+            "avg_win_gross": {
+              "type": "number",
+              "description": "Average gross PnL of winning long trades (before costs)."
+            },
+            "avg_loss_gross": {
+              "type": "number",
+              "description": "Average gross PnL of losing long trades (before costs)."
             }
           },
-          "required": ["n_trades", "total_pnl", "win_rate", "avg_pnl", "avg_win", "avg_loss"]
+          "required": ["n_trades", "total_pnl", "win_rate", "avg_pnl", "avg_win", "avg_loss", "avg_win_gross", "avg_loss_gross"]
         },
         "short_trades": {
           "type": "object",
@@ -663,14 +713,22 @@
             },
             "avg_win": {
               "type": "number",
-              "description": "Average PnL of winning short trades."
+              "description": "Average net PnL of winning short trades (after costs)."
             },
             "avg_loss": {
               "type": "number",
-              "description": "Average PnL of losing short trades."
+              "description": "Average net PnL of losing short trades (after costs)."
+            },
+            "avg_win_gross": {
+              "type": "number",
+              "description": "Average gross PnL of winning short trades (before costs)."
+            },
+            "avg_loss_gross": {
+              "type": "number",
+              "description": "Average gross PnL of losing short trades (before costs)."
             }
           },
-          "required": ["n_trades", "total_pnl", "win_rate", "avg_pnl", "avg_win", "avg_loss"]
+          "required": ["n_trades", "total_pnl", "win_rate", "avg_pnl", "avg_win", "avg_loss", "avg_win_gross", "avg_loss_gross"]
         }
       }
     },
@@ -773,6 +831,71 @@
         }
       }
     },
+    "exit_efficiency": {
+      "type": "object",
+      "description": "Analysis of exit timing efficiency by tracking price movement after each exit.",
+      "properties": {
+        "by_exit_reason": {
+          "type": "object",
+          "description": "Exit efficiency metrics grouped by exit reason (take_profit, stop_loss, signal, etc.).",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "n_trades": {
+                "type": "integer",
+                "description": "Number of trades with this exit reason."
+              },
+              "avg_opportunity_cost_10bar": {
+                "type": "number",
+                "description": "Average additional profit/loss if position held 10 more bars."
+              },
+              "avg_opportunity_cost_20bar": {
+                "type": "number",
+                "description": "Average additional profit/loss if position held 20 more bars."
+              },
+              "avg_opportunity_cost_50bar": {
+                "type": "number",
+                "description": "Average additional profit/loss if position held 50 more bars."
+              },
+              "premature_exit_rate": {
+                "type": "number",
+                "description": "For TP exits: rate where price continued favorably by >2x profit."
+              },
+              "false_stop_rate": {
+                "type": "number",
+                "description": "For SL exits: rate where price reversed to profit after stop."
+              },
+              "suboptimal_exit_rate": {
+                "type": "number",
+                "description": "For signal exits: rate where price continued favorably by >1.5x profit."
+              }
+            }
+          }
+        },
+        "optimal_hold_analysis": {
+          "type": "object",
+          "description": "Analysis of optimal holding duration across all trades.",
+          "properties": {
+            "current_avg_pnl": {
+              "type": "number",
+              "description": "Current average PnL per trade with actual exits."
+            },
+            "if_held_10_bars": {
+              "type": "number",
+              "description": "Hypothetical avg PnL if all trades held 10 more bars."
+            },
+            "if_held_20_bars": {
+              "type": "number",
+              "description": "Hypothetical avg PnL if all trades held 20 more bars."
+            },
+            "if_held_50_bars": {
+              "type": "number",
+              "description": "Hypothetical avg PnL if all trades held 50 more bars."
+            }
+          }
+        }
+      }
+    },
   "field_definitions": {
       "type": "object",
       "description": "Auto-generated descriptions for all fields within this brief, useful for programmatic interpretation and UI generation.",
@@ -812,6 +935,37 @@
           }
         },
         "required": ["id", "title", "description", "rule", "severity"]
+      }
+    },
+    "regime_summary": {
+      "type": "object",
+      "description": "Summary counts and metadata relating to RMM regimes observed during the run.",
+      "properties": {
+        "regime_labels": { "type": "array", "items": { "type": "string" }, "description": "List of regime labels defined by the RMM." },
+        "allowed_labels": { "type": "array", "items": { "type": "string" }, "description": "Labels the RMM policy allows for trading." },
+        "regime_counts": { "type": "object", "description": "Counts of trades per regime label.", "additionalProperties": { "type": "integer", "description": "Count of trades executed in this regime." } },
+        "n_trades": { "type": "integer", "description": "Number of executed trades." },
+        "n_skipped_trades": { "type": "integer", "description": "Number of skipped trades due to policies (RMM, caps, etc)." },
+        "n_long": { "type": "integer", "description": "Number of long trades executed." },
+        "n_short": { "type": "integer", "description": "Number of short trades executed." },
+        "n_long_skipped": { "type": "integer", "description": "Number of long trades skipped by policy." },
+        "n_short_skipped": { "type": "integer", "description": "Number of short trades skipped by policy." },
+        "n_allowed_regimes": { "type": "integer", "description": "Count of regimes explicitly allowed by the RMM policy." },
+        "n_active_regimes": { "type": "integer", "description": "Number of regimes observed during the run." },
+        "n_trades_in_allowed_regimes": { "type": "integer", "description": "Number of trades that occurred while the regime was allowed by RMM." },
+        "n_trades_in_disallowed_regimes": { "type": "integer", "description": "Number of trades that occurred in regimes not allowed by RMM." }
+      }
+    },
+    "policy_effects": {
+      "type": "object",
+      "description": "High-level counts describing the effects of policy filters (RMM, caps) on trade execution.",
+      "properties": {
+        "n_trades": { "type": "integer", "description": "Number of executed trades after policy filtering." },
+        "n_skipped_trades": { "type": "integer", "description": "Number of potential trades skipped by policies." },
+        "n_long": { "type": "integer", "description": "Number of long trades executed." },
+        "n_short": { "type": "integer", "description": "Number of short trades executed." },
+        "n_long_skipped": { "type": "integer", "description": "Number of long trades skipped by policy." },
+        "n_short_skipped": { "type": "integer", "description": "Number of short trades skipped by policy." }
       }
     }
   },

@@ -1,17 +1,18 @@
 name: "DailyTrend"
 version: "1.0"
+timeframe: "1D"  # Regime classification timeframe: 1D, 4H, 1H, 15M, etc.
 features:
-  - name: d_ema_fast
+  - name: ema_fast
     type: EMA
     params:
       length: 20
     source: close
-  - name: d_ema_slow
+  - name: ema_slow
     type: EMA
     params:
       length: 50
     source: close
-  - name: d_adx
+  - name: adx
     type: ADX
     params:
       length: 14
@@ -25,12 +26,12 @@ regimes:
       all_of:
         - condition: is_above
           left:
-            ref: d_ema_fast
+            ref: ema_fast
           right:
-            ref: d_ema_slow
+            ref: ema_slow
         - condition: is_above
           left:
-            ref: d_adx
+            ref: adx
           right: 20
   - label: trend_down
     confidence: 0.9
@@ -38,12 +39,12 @@ regimes:
       all_of:
         - condition: is_below
           left:
-            ref: d_ema_fast
+            ref: ema_fast
           right:
-            ref: d_ema_slow
+            ref: ema_slow
         - condition: is_above
           left:
-            ref: d_adx
+            ref: adx
           right: 20
   - label: range
     confidence: 0.7
@@ -51,5 +52,5 @@ regimes:
       all_of:
         - condition: is_below
           left:
-            ref: d_adx
+            ref: adx
           right: 20

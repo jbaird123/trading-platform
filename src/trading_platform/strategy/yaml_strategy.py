@@ -197,35 +197,55 @@ class CompiledStrategy:
             except Exception as e:
                 logger.error(f"Error during AI inference: {e}. Skipping AI filter.")
 
-        sig: list[str] = []
-        state = "flat"
+        # Generate commands based on entry/exit rules
+        # Strategy maintains internal state to detect transitions,
+        # but this state is not exposed to the caller.
+        commands: list[str | None] = []
+        internal_state = "flat"  # For command generation, not position tracking
+
         for i in range(len(df2)):
-            if state == "flat":
+            cmd = None
+
+            # Check exits first (if we think we're in a position internally)
+            if internal_state == "long" and bool(lx.iloc[i]):
+                cmd = "exit_long"
+                internal_state = "flat"
+            elif internal_state == "short" and bool(sx.iloc[i]):
+                cmd = "exit_short"
+                internal_state = "flat"
+
+            # Check entries (only if we think we're flat internally)
+            if internal_state == "flat":
                 if bool(le.iloc[i]) and (
                     not self.slope_filter or bool(slope_up.iloc[i])
                 ):
-                    state = "long"
+                    cmd = "enter_long"
+                    internal_state = "long"
                 elif bool(se.iloc[i]) and (
                     not self.slope_filter or bool(slope_down.iloc[i])
                 ):
-                    state = "short"
-            elif state == "long":
-                if bool(lx.iloc[i]):
-                    state = "flat"
-            elif state == "short":  # pragma: no branch
-                if bool(sx.iloc[i]):
-                    state = "flat"
-            sig.append(state)
-        return pd.Series(sig, index=df2.index)
+                    cmd = "enter_short"
+                    internal_state = "short"
+
+            commands.append(cmd)
+
+        return pd.Series(commands, index=df2.index, dtype=object)
 
     def get_context(self, index: int) -> dict[str, Any]:
-        """Return a dict of feature values at a specific integer index."""
-        if self._feature_df is None or index >= len(self._feature_df):
-            return {}
-        # Get the row for the given index
+        """Return a dict of feature values at a specific integer index.
+        Always returns a fully populated context dict, never None or empty.
+        """
+        # Fail fast for out-of-bounds index
+        if self._feature_df is None or not (0 <= index < len(self._feature_df)):
+            raise IndexError("Context lookup index is out of bounds.")
+
+        context = {}
         row = self._feature_df.iloc[index]
-        # Return a dictionary of feature names and their values
-        return {f["name"]: row[f["name"]] for f in self.features if f["name"] in row}
+        for f in self.features:
+            name = f.get("name")
+            if name is not None:  # pragma: no branch
+                context[name] = row.get(name, None)
+        return context
 
 
 def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:

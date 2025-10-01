@@ -23,6 +23,7 @@ from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.analytics import (
     compute_activity,
     compute_contrasts,
+    compute_exit_efficiency,
     compute_feature_analysis,
     compute_stationarity,
     compute_stop_tp_candidates,
@@ -31,6 +32,57 @@ from trading_platform.reporting.analytics import (
 
 # Path to the JSON Schema for brief field documentation
 SCHEMA_PATH = Path("docs/schemas/brief.schema.json")
+
+
+def _extract_rmm_policy(config_snapshot: dict[str, Any] | None) -> dict[str, Any]:
+    """Extract RMM policy information from config snapshot for AI context."""
+    if not config_snapshot:
+        return {}
+    
+    rmm_config = config_snapshot.get("rmm_config", {})
+    if not rmm_config:
+        return {}
+    
+    policy = {
+        "name": rmm_config.get("name", "Unknown"),
+        "version": rmm_config.get("version", "Unknown"),
+        "policy": rmm_config.get("policy", {}),
+        "regimes": rmm_config.get("regimes", []),
+        "features_used": [f.get("name") for f in rmm_config.get("features", []) if f.get("name")],
+        "regime_labels": [r.get("label") for r in rmm_config.get("regimes", []) if r.get("label")],
+        "min_confidence": rmm_config.get("policy", {}).get("min_confidence", None),
+        "allowed_labels": rmm_config.get("policy", {}).get("allow_labels", []),
+    }
+    
+    return policy
+
+
+def _extract_rem_policy(config_snapshot: dict[str, Any] | None) -> dict[str, Any]:
+    """Extract REM (Risk Exit Manager) policy information from config snapshot for AI context."""
+    if not config_snapshot:
+        return {}
+    
+    rem_config = config_snapshot.get("rem_config", {})
+    if not rem_config:
+        return {}
+    
+    policy = {
+        "stop_loss": rem_config.get("stop_loss", {}),
+        "take_profit": rem_config.get("take_profit", {}),
+        "trailing_stop": rem_config.get("trailing_stop", {}),
+        "time_exit": rem_config.get("time_exit", {}),
+    }
+    
+    # Add human-readable interpretations
+    stop_loss = rem_config.get("stop_loss", {})
+    take_profit = rem_config.get("take_profit", {})
+
+    if stop_loss.get("price_offset"):  # pragma: no branch
+        policy["stop_loss_pips"] = f"{stop_loss['price_offset'] * 10000:.0f} pips"
+    if take_profit.get("price_offset"):  # pragma: no branch
+        policy["take_profit_pips"] = f"{take_profit['price_offset'] * 10000:.0f} pips"
+
+    return policy
 
 
 def _schema_node_type(node: dict[str, Any]) -> str:
@@ -114,6 +166,13 @@ def _round_price(value: float | None) -> float | None:
 
 def _to_jsonable(obj: Any) -> Any:
     """Convert objects (dataclasses, datetimes) to JSON-serializable forms."""
+    # Handle NaN values - convert to null for valid JSON
+    if isinstance(obj, float):
+        import math
+        if math.isnan(obj):
+            return None
+        if math.isinf(obj):
+            return None
     # asdict() only accepts dataclass instances, not classes.
     if is_dataclass(obj) and not isinstance(obj, type):
         return {k: _to_jsonable(v) for k, v in asdict(obj).items()}
@@ -147,6 +206,7 @@ def _empty_sections() -> dict[str, Any]:
         "exposure": {},
         "contrasts": {},
         "stop_tp_candidates": {},
+        "exit_efficiency": {},
         "parameter_search": {},
         "stationarity": {},
         "feature_analysis": {},
@@ -164,6 +224,7 @@ def _serialize_trade(t: Trade) -> dict[str, Any]:
         "entry_price": _round_price(t.entry_price),
         "exit_price": _round_price(t.exit_price),
         "pnl": _round_currency(t.pnl),
+        "pnl_gross": _round_currency(getattr(t, "pnl_gross", None)),
         "exit_reason": t.exit_reason,
         "r_multiple": getattr(t, "r_multiple", None),
         "mfe_currency": _round_currency(getattr(t, "mfe_currency", None)),
@@ -171,12 +232,8 @@ def _serialize_trade(t: Trade) -> dict[str, Any]:
         "bars_held": getattr(t, "bars_held", None),
         "context_at_entry": getattr(t, "context_at_entry", None),
         "context_at_exit": getattr(t, "context_at_exit", None),
-        # Placeholders for future cost modeling (Task 14)
-        "cost_breakdown": {
-            "spread": 0.0,
-            "commission": 0.0,
-            "slippage": 0.0,
-        },
+        "cost_breakdown": getattr(t, "cost_breakdown", None),
+        "post_exit_analysis": getattr(t, "post_exit_analysis", None),
     }
 
 
@@ -189,6 +246,14 @@ def compute_overall_performance(
     total_pnl = sum(pnls) if pnls else 0.0
     mean_pnl = (total_pnl / len(trades)) if trades else 0.0
     median_pnl = median(pnls) if pnls else 0.0
+
+    # Gross PnL and cost breakdown
+    total_pnl_gross = sum(t.pnl_gross for t in trades)
+    total_costs = sum(t.cost_currency for t in trades)
+    total_spread = sum(t.cost_breakdown.get("spread", 0.0) for t in trades if t.cost_breakdown)
+    total_commission = sum(t.cost_breakdown.get("commission", 0.0) for t in trades if t.cost_breakdown)
+    total_slippage = sum(t.cost_breakdown.get("slippage", 0.0) for t in trades if t.cost_breakdown)
+
     by_side_total_pnl = {
         "long": sum(t.pnl for t in trades if t.side == "long"),
         "short": sum(t.pnl for t in trades if t.side == "short"),
@@ -196,6 +261,13 @@ def compute_overall_performance(
     return {
         "n_trades": len(trades),
         "total_pnl": _round_currency(total_pnl),
+        "total_pnl_gross": _round_currency(total_pnl_gross),
+        "total_costs": _round_currency(total_costs),
+        "cost_breakdown": {
+            "spread": _round_currency(total_spread),
+            "commission": _round_currency(total_commission),
+            "slippage": _round_currency(total_slippage),
+        },
         "mean_pnl": _round_currency(mean_pnl),
         "median_pnl": _round_currency(median_pnl),
         "by_side_total_pnl": {
@@ -211,10 +283,14 @@ def compute_overall_performance(
 def compute_risk_snapshot(trades: list[Trade]) -> dict[str, Any]:
     wins = [t.pnl for t in trades if t.pnl > 0]
     losses = [t.pnl for t in trades if t.pnl < 0]
+    wins_gross = [t.pnl_gross for t in trades if t.pnl > 0]
+    losses_gross = [t.pnl_gross for t in trades if t.pnl < 0]
     return {
         "win_rate": _round_percentage(calculate_win_rate(trades)),
         "avg_win": _round_currency((sum(wins) / len(wins)) if wins else 0.0),
         "avg_loss": _round_currency((sum(losses) / len(losses)) if losses else 0.0),
+        "avg_win_gross": _round_currency((sum(wins_gross) / len(wins_gross)) if wins_gross else 0.0),
+        "avg_loss_gross": _round_currency((sum(losses_gross) / len(losses_gross)) if losses_gross else 0.0),
         "max_win": _round_currency(max(wins) if wins else 0.0),
         "max_loss": _round_currency(min(losses) if losses else 0.0),
     }
@@ -417,20 +493,8 @@ def generate_brief(
 ) -> dict[str, Any]:
     """Assemble a JSON brief from trades and metrics (incremental MVP)."""
     meta = meta or {}
-    expected_params = [
-        "fast",
-        "slow",
-        "stop_type",
-        "stop_value",
-        "tp_type",
-        "tp_value",
-        "trail_type",
-        "trail_value",
-        "atr_length",
-        "tie_break",
-    ]
-    params_in = params or {}
-    params = {k: params_in.get(k) for k in expected_params}
+    # Use the actual strategy parameters as provided, don't hardcode parameter names
+    params = params or {}
     performance = compute_overall_performance(trades, initial_cash)
     risk_snapshot = compute_risk_snapshot(trades)
     equity_stats = compute_equity_stats(trades, initial_cash)
@@ -517,30 +581,20 @@ def generate_brief(
                 )
 
             if sig is not None:
-                nonflat = sig[sig != "flat"]
+                # For command-based signals: count non-None commands
+                # Commands are discrete events that fire once (duration = 1 bar)
+                non_none_commands = sig[sig.notna()]
+                command_count = len(non_none_commands)
+
+                # Signal persistence = % of bars with actual commands
                 signal_persistence_pct = (
-                    100.0 * len(nonflat) / len(sig) if len(sig) else 0.0
+                    100.0 * command_count / len(sig) if len(sig) else 0.0
                 )
-                # Compute average run length of non-flat signals
-                arr = np.array(sig)
-                mask = arr != "flat"
-                if mask.any():
-                    # Find run lengths
-                    run_lengths = []
-                    current = 0
-                    for m in mask:
-                        if m:
-                            current += 1
-                        elif current > 0:
-                            run_lengths.append(current)
-                            current = 0
-                    if current > 0:
-                        run_lengths.append(current)
-                    avg_signal_duration_bars = (
-                        float(np.mean(run_lengths)) if run_lengths else 0.0
-                    )
-                else:
-                    avg_signal_duration_bars = 0.0
+
+                # Average duration = 1 bar for commands (they fire once)
+                # This replaces the old run-length logic for state-based signals
+                avg_signal_duration_bars = 1.0 if command_count > 0 else 0.0
+
                 signal_quality_analysis = {
                     "signal_persistence_pct": _round_currency(signal_persistence_pct),
                     "avg_signal_duration_bars": _round_currency(
@@ -569,6 +623,9 @@ def generate_brief(
     # --- Stop/TP candidates analysis section ---
     stop_tp_candidates = compute_stop_tp_candidates(trades)
 
+    # --- Exit efficiency analysis section ---
+    exit_efficiency = compute_exit_efficiency(trades)
+
     base = {
         "meta": _to_jsonable(meta),
         "strategy_params": _to_jsonable(params),
@@ -594,12 +651,15 @@ def generate_brief(
         "timing_buckets": timing_buckets,
         "contrasts": contrasts,
         "stop_tp_candidates": stop_tp_candidates,
+        "exit_efficiency": exit_efficiency,
         # Snapshots and placeholders (configurable)
         "instrument_definitions": _to_jsonable(instrument_definitions or {}),
         "cost_model": _to_jsonable(cost_model or {}),
         "fill_policy": _to_jsonable(fill_policy or {}),
         "tie_break_policy": _to_jsonable(tie_break_policy or {}),
         "blackout_policy": _to_jsonable(blackout_policy or {}),
+        "rmm_policy": _extract_rmm_policy(config_snapshot),
+        "rem_policy": _extract_rem_policy(config_snapshot),
         "environment": _to_jsonable(env),
         "provenance": _to_jsonable(prov),
         "checksums": _to_jsonable(checksums),
@@ -609,8 +669,83 @@ def generate_brief(
         "trades": trades_json,
         "recommendations": _to_jsonable(recommendations or []),
     }
+    
+    # Add policy information if available (these are not in schema yet)
+    rmm_policy = _extract_rmm_policy(config_snapshot)
+    if rmm_policy:
+        base["rmm_policy"] = rmm_policy
+        
+    rem_policy = _extract_rem_policy(config_snapshot)  
+    if rem_policy:
+        base["rem_policy"] = rem_policy
+    
     placeholders = _empty_sections()
     placeholders.update(base)
+    # --- Regime Summary Augmentation ---
+    rmm_policy = placeholders.get("rmm_policy", {})
+    regimes = rmm_policy.get("regimes", [])
+    allowed_labels = rmm_policy.get("allowed_labels", [])
+    regime_counts = {}
+    for trade in placeholders.get("trades", []):
+        # Defensive: context_at_entry may be None (schema allows null). Accept
+        # either a flat 'regime_label' or a nested 'regime': {"label": ...}.
+        ctx = trade.get("context_at_entry") or {}
+        regime = None
+        if isinstance(ctx, dict):  # pragma: no branch
+            regime = ctx.get("regime_label") or (ctx.get("regime") or {}).get("label")
+        if regime:  # pragma: no branch
+            regime_counts[regime] = regime_counts.get(regime, 0) + 1
+    for skip in (skipped_trades or []):
+        regime = skip.get("regime", {}).get("label")
+        if regime:
+            regime_counts[regime] = regime_counts.get(regime, 0) + 1
+    regime_labels = [r.get("label") for r in regimes if r.get("label")]
+    skipped_list = skipped_trades or []
+    regime_summary = {
+        "regime_labels": regime_labels,
+        "allowed_labels": allowed_labels,
+        "regime_counts": regime_counts,
+        "n_trades": len(placeholders.get("trades", [])),
+        "n_skipped_trades": len(skipped_list),
+        "n_long": sum(1 for t in placeholders.get("trades", []) if t.get("side") == "long"),
+        "n_short": sum(1 for t in placeholders.get("trades", []) if t.get("side") == "short"),
+        "n_long_skipped": sum(1 for s in skipped_list if s.get("side") == "long"),
+        "n_short_skipped": sum(1 for s in skipped_list if s.get("side") == "short"),
+        "n_allowed_regimes": len(allowed_labels),
+        "n_active_regimes": len(set(regime_counts.keys())),
+        "n_trades_in_allowed_regimes": sum(
+            regime_counts.get(label, 0) for label in allowed_labels
+        ),
+        "n_trades_in_disallowed_regimes": sum(
+            regime_counts.get(label, 0)
+            for label in regime_labels
+            if label not in allowed_labels
+        ) if regimes else 0,
+        # 'narrative' intentionally omitted; scenario-specific explanations should
+        # be generated dynamically in reporting, not hardcoded in the brief.
+    }
+    placeholders["regime_summary"] = regime_summary
+
+    # --- Policy Effects Augmentation ---
+    policy_effects = {
+        # 'rmm_filtering' narrative intentionally omitted; should be generated
+        # dynamically in reporting, not hardcoded in the brief.
+        "n_trades": len(placeholders.get("trades", [])),
+        "n_skipped_trades": len(placeholders.get("skipped_trades", [])),
+        "n_long": regime_summary["n_long"],
+        "n_short": regime_summary["n_short"],
+        "n_long_skipped": regime_summary["n_long_skipped"],
+        "n_short_skipped": regime_summary["n_short_skipped"],
+    }
+    placeholders["policy_effects"] = policy_effects
+
+    # Attach skipped trades before field_definitions so they're included in leaf paths
+    skipped_trades = skipped_trades or []
+    for trade in skipped_trades:
+        if "cf_pnl_currency" in trade:
+            trade["cf_pnl_currency"] = _round_currency(trade["cf_pnl_currency"])
+    placeholders["skipped_trades"] = _to_jsonable(skipped_trades)
+
     # Populate field_definitions strictly from the JSON Schema if not provided
     if not field_definitions:
         try:
@@ -632,12 +767,8 @@ def generate_brief(
     checks = placeholders.get("checksums")
     if isinstance(checks, dict) and not checks:
         placeholders.pop("checksums", None)
-    # Attach skipped trades and filter impact if provided
+    
     if skipped_trades:
-        for trade in skipped_trades:
-            if "cf_pnl_currency" in trade:
-                trade["cf_pnl_currency"] = _round_currency(trade["cf_pnl_currency"])
-        placeholders["skipped_trades"] = _to_jsonable(skipped_trades)
         # Aggregate impact metrics by skip_reason
         agg: dict[str, Any] = {}
         for s in skipped_trades:

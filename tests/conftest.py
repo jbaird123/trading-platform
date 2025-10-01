@@ -31,7 +31,7 @@ def market_data(columns: str) -> dict:
     for raw in columns.split(", "):
         col = raw.strip().strip('"')
         df[col] = 100.0
-    signals: pd.Series = pd.Series("flat", index=idx)
+    signals: pd.Series = pd.Series(None, index=idx)
     return {"market_data": df, "signals": signals}
 
 
@@ -55,6 +55,8 @@ def when_backtest_is_run(shared_context: dict) -> None:
         }
     else:
         strategy = _dummy_strategy_cfg()
+
+    strategy.generate_signals(shared_context["market_data"])  # Populate _feature_df for context lookups
 
     config = RunConfig(
         user_id="test_user",
@@ -83,12 +85,13 @@ def when_backtest_is_run(shared_context: dict) -> None:
 
 
 @given(parsers.parse('a signal series with "{signal_list}" signals'))
+@given(parsers.parse('a signal series with "{signal_list}" commands'))
 def a_signal_series(signal_list: str, shared_context: dict) -> None:
     import pandas as pd
 
     idx = shared_context["market_data"].index
-    # Default to all 'flat' unless overridden by later steps.
-    signals: pd.Series = pd.Series("flat", index=idx)
+    # Default to all None (no commands) unless overridden by later steps.
+    signals: pd.Series = pd.Series(None, index=idx)
     shared_context["signals"] = signals
 
 

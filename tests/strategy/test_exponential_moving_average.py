@@ -58,7 +58,7 @@ CROSSOVER_CFG = {
 
 def test_generate_long_signal_on_crossover():
     """
-    Verifies that a 'long' signal is generated when the fast EMA crosses
+    Verifies that an 'enter_long' command is generated when the fast EMA crosses
     above the slow EMA.
     """
     # Setup: Create data where fast EMA crosses above slow EMA
@@ -72,13 +72,13 @@ def test_generate_long_signal_on_crossover():
     # Action: Generate signals via YAML strategy
     signals = compile_strategy(CROSSOVER_CFG).generate_signals(data)
 
-    # Assert: Check for 'long' signal on the current (last) bar
-    assert signals.iloc[-1] == "long"
+    # Assert: Check for 'enter_long' command on the current (last) bar
+    assert signals.iloc[-1] == "enter_long"
 
 
 def test_generate_short_signal_on_crossunder():
     """
-    Verifies that a 'short' signal is generated when the fast EMA crosses
+    Verifies that an 'enter_short' command is generated when the fast EMA crosses
     below the slow EMA.
     """
     # Setup: Create data where fast EMA crosses below slow EMA
@@ -92,13 +92,13 @@ def test_generate_short_signal_on_crossunder():
     # Action: Generate signals
     signals = compile_strategy(CROSSOVER_CFG).generate_signals(data)
 
-    # Assert: Check for 'short' signal on the current (last) bar
-    assert signals.iloc[-1] == "short"
+    # Assert: Check for 'enter_short' command on the current (last) bar
+    assert signals.iloc[-1] == "enter_short"
 
 
 def test_generate_flat_signal_when_no_crossover():
     """
-    Verifies that a 'flat' signal is generated when there is no crossover event.
+    Verifies that a None command is generated when there is no crossover event.
     """
     # Setup: Create data where fast EMA is above slow EMA but not crossing
     data = pd.DataFrame(
@@ -108,4 +108,4 @@ def test_generate_flat_signal_when_no_crossover():
         }
     )
     signals = compile_strategy(CROSSOVER_CFG).generate_signals(data)
-    assert signals.iloc[-1] == "flat"
+    assert signals.iloc[-1] is None

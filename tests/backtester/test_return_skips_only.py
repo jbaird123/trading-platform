@@ -35,7 +35,9 @@ def test_return_skips_without_exposure():
     df = pd.DataFrame(
         {"open": [1], "high": [1], "low": [1], "close": [1], "volume": [1]}, index=idx
     )
-    sig = pd.Series(["long"], index=df.index)
+    strategy = _dummy_strategy()
+    strategy.generate_signals(df)  # Populate _feature_df for context lookups
+    sig = pd.Series(["enter_long"], index=df.index)
     config = RunConfig(
         user_id="test",
         run_seed=42,
@@ -49,7 +51,7 @@ def test_return_skips_without_exposure():
     result = run_backtest(
         market_data=df,
         signals=sig,
-        strategy=_dummy_strategy(),
+        strategy=strategy,
         config=config,
         rem=rem,
         return_exposure=False,

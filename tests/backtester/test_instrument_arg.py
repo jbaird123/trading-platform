@@ -22,7 +22,9 @@ def test_backtester_uses_provided_instrument_symbol():
         },
         index=idx,
     )
-    signals = pd.Series(["long", "long"], index=df.index)
+    strategy = dummy_strategy()
+    strategy.generate_signals(df)  # Populate _feature_df for context lookups
+    signals = pd.Series(["enter_long", "exit_long"], index=df.index)
     config = RunConfig(
         user_id="test",
         run_seed=42,
@@ -38,7 +40,7 @@ def test_backtester_uses_provided_instrument_symbol():
     result = run_backtest(
         market_data=df,
         signals=signals,
-        strategy=dummy_strategy(),
+        strategy=strategy,
         config=config,
         rem=rem,
         return_skips=True,

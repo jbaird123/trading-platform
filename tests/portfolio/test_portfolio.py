@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import pandas as pd
 import pytest
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.utils.testing import requires
@@ -142,3 +143,159 @@ def test_close_position_does_nothing_if_no_position_is_open():
     # Verify that no trades were created and cash is unchanged
     assert len(portfolio.trades) == 0
     assert portfolio.cash == 100000
+
+
+# Entry Window Management Tests (validates [PM-5.8])
+
+
+@requires("PM-5.8")
+def test_process_enter_long_command():
+    """Test processing enter_long command opens entry window."""
+    pm = PortfolioManager(initial_cash=100000)
+
+    result = pm.process_command(
+        command="enter_long",
+        bar_index=0,
+        warmup_threshold=0,
+        entry_window_bars=3,
+        allow_flip=False,
+        current_bar=pd.Series({"close": 1.0, "open": 1.0, "high": 1.0, "low": 1.0}),
+        context=None,
+    )
+
+    assert result["action"] == "window_opened"
+    assert result["side"] == "long"
+    assert pm.can_attempt_entry("long", 0, 3)
+
+
+@requires("PM-5.8")
+def test_process_exit_when_no_position():
+    """Test exit command is ignored when no position exists."""
+    pm = PortfolioManager(initial_cash=100000)
+
+    result = pm.process_command(
+        command="exit_long",
+        bar_index=0,
+        warmup_threshold=0,
+        entry_window_bars=3,
+        allow_flip=False,
+        current_bar=pd.Series({"close": 1.0, "open": 1.0, "high": 1.0, "low": 1.0}),
+        context=None,
+    )
+
+    assert result["action"] == "ignored"
+    assert result["reason"] == "no_matching_position"
+
+
+@requires("PM-5.8")
+def test_process_enter_when_already_in_position():
+    """Test enter command is ignored when already in same position."""
+    pm = PortfolioManager(initial_cash=100000)
+
+    # Enter long
+    pm.process_command(
+        "enter_long",
+        bar_index=0,
+        warmup_threshold=0,
+        entry_window_bars=3,
+        allow_flip=False,
+        current_bar=pd.Series({"close": 1.0}, name=datetime(2024, 1, 1)),
+        context=None,
+    )
+    pm.create_new_position(
+        symbol="EURUSD",
+        side="long",
+        entry_price=1.0,
+        size=100,
+        entry_time=datetime(2024, 1, 1),
+    )
+
+    # Try to enter long again
+    result = pm.process_command(
+        "enter_long",
+        bar_index=1,
+        warmup_threshold=0,
+        entry_window_bars=3,
+        allow_flip=False,
+        current_bar=pd.Series({"close": 1.0}, name=datetime(2024, 1, 1, 1)),
+        context=None,
+    )
+
+    assert result["action"] == "ignored"
+    assert result["reason"] == "already_in_position"
+
+
+@requires("PM-5.8")
+def test_process_flip_position():
+    """Test entering opposite position with allow_flip=True."""
+    pm = PortfolioManager(initial_cash=100000)
+
+    # Enter long
+    pm.create_new_position(
+        symbol="EURUSD",
+        side="long",
+        entry_price=1.0,
+        size=100,
+        entry_time=datetime(2024, 1, 1),
+    )
+
+    # Enter short with flip allowed
+    result = pm.process_command(
+        "enter_short",
+        bar_index=1,
+        warmup_threshold=0,
+        entry_window_bars=3,
+        allow_flip=True,
+        current_bar=pd.Series({"close": 1.01}, name=datetime(2024, 1, 1, 1)),
+        context=None,
+    )
+
+    assert result["action"] == "window_opened"
+    assert result["side"] == "short"
+    assert pm.current_position is None  # Closed long
+    assert len(pm.trades) == 1  # Long trade closed
+
+
+@requires("PM-5.8")
+def test_entry_window_remains_open_with_none_commands():
+    """Test entry window stays open across bars with None commands."""
+    pm = PortfolioManager(initial_cash=100000)
+
+    # Bar 0: enter_long command
+    result = pm.process_command(
+        "enter_long",
+        bar_index=0,
+        warmup_threshold=0,
+        entry_window_bars=3,
+        allow_flip=False,
+        current_bar=pd.Series({"close": 1.0}, name=datetime(2024, 1, 1)),
+        context=None,
+    )
+    assert result["action"] == "window_opened"
+
+    # Bar 1: None command (window should stay active)
+    result = pm.process_command(
+        None,
+        bar_index=1,
+        warmup_threshold=0,
+        entry_window_bars=3,
+        allow_flip=False,
+        current_bar=pd.Series({"close": 1.0}, name=datetime(2024, 1, 1, 1)),
+        context=None,
+    )
+    assert result["action"] == "window_active"
+    assert result["side"] == "long"
+    assert pm.can_attempt_entry("long", 1, 3)
+
+    # Bar 4: Window expired
+    result = pm.process_command(
+        None,
+        bar_index=4,
+        warmup_threshold=0,
+        entry_window_bars=3,
+        allow_flip=False,
+        current_bar=pd.Series({"close": 1.0}, name=datetime(2024, 1, 1, 4)),
+        context=None,
+    )
+    assert result["action"] == "ignored"
+    assert not pm.can_attempt_entry("long", 4, 3)

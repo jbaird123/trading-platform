@@ -6,6 +6,7 @@ from typing import Any, cast
 import pandas as pd
 from trading_platform.core.costs import CostModel
 from trading_platform.core.precision import FloatEngine, PrecisionEngine
+from trading_platform.core.types import SignalCommand
 from trading_platform.portfolio.position import Position
 from trading_platform.portfolio.trade import Trade
 
@@ -37,6 +38,15 @@ class PortfolioManager:
             precision_engine if precision_engine is not None else FloatEngine(),
         )
 
+        # Entry window tracking for command-based entry management
+        # Format: {side: (window_start_bar_index, last_entered_bar_index)}
+        # window_start_bar_index: when entry command was received for this side
+        # last_entered_bar_index: last bar where we entered on this command (None if not entered)
+        self._entry_windows: dict[str, tuple[int, int | None]] = {
+            "long": (-1, None),
+            "short": (-1, None),
+        }
+
     @property
     def current_position(self) -> Position | None:
         """Public read-only access to the current open position, if any."""
@@ -60,15 +70,174 @@ class PortfolioManager:
         if instrument is not None:
             self.instrument = instrument
 
+        # Ensure context_at_entry is a dict (not None) to keep downstream
+        # code simpler and avoid AttributeError when accessing keys.
+        ctx = context_at_entry or {}
         self._open_position = Position(
             symbol=symbol,
             side=side,
             entry_price=entry_price,
             size=size,
             entry_time=entry_time,
-            context_at_entry=context_at_entry,
+            context_at_entry=ctx,
             initial_risk_ccy=initial_risk_ccy,
         )
+
+    def process_command(
+        self,
+        command: SignalCommand,
+        bar_index: int,
+        warmup_threshold: int,
+        entry_window_bars: int,
+        allow_flip: bool,
+        current_bar: pd.Series,
+        context: dict | None = None,
+    ) -> dict[str, Any]:
+        """
+        Process a strategy command and manage portfolio state.
+
+        This is the central method for command-based signal processing,
+        implementing [PM-5.8] Entry Window Management.
+
+        Args:
+            command: The signal command from strategy
+            bar_index: Current bar index
+            warmup_threshold: Bar index where warmup ends
+            entry_window_bars: Entry window policy (0, N, or -1)
+            allow_flip: Whether to allow flipping positions
+            current_bar: Current market data bar
+            context: Strategy context (regime, indicators, etc.)
+
+        Returns:
+            Dictionary with:
+            - "action": "entered" | "exited" | "ignored" | "window_opened" | "window_active"
+            - "side": "long" | "short" | None
+            - "reason": str (if ignored)
+        """
+        # Skip warmup period
+        if bar_index < warmup_threshold:
+            return {"action": "ignored", "reason": "warmup", "side": None}
+
+        # Handle None/null commands - check for active entry windows
+        if command is None:
+            return self._check_active_entry_windows(
+                bar_index, entry_window_bars, current_bar, context
+            )
+
+        # Entry commands
+        if command in ["enter_long", "enter_short"]:
+            side = "long" if command == "enter_long" else "short"
+            return self._handle_entry_command(
+                side, bar_index, entry_window_bars, allow_flip, current_bar, context
+            )
+
+        # Exit commands
+        elif command in ["exit_long", "exit_short"]:
+            side = "long" if command == "exit_long" else "short"
+            return self._handle_exit_command(side, current_bar, context)
+
+        return {"action": "ignored", "reason": "unknown_command", "side": None}
+
+    def _handle_entry_command(
+        self,
+        side: str,
+        bar_index: int,
+        entry_window_bars: int,
+        allow_flip: bool,
+        current_bar: pd.Series,
+        context: dict | None,
+    ) -> dict[str, Any]:
+        """Handle enter_long or enter_short command."""
+
+        # Already in same-side position
+        if self.current_position and self.current_position.side == side:
+            return {"action": "ignored", "reason": "already_in_position", "side": side}
+
+        # In opposite position - always close per Decision 1
+        if self.current_position and self.current_position.side != side:
+            self.close_position(
+                exit_price=current_bar["close"],
+                exit_time=cast(datetime, current_bar.name),
+                exit_reason="opposite_signal",
+                context_at_exit=context,
+            )
+            # After closing, check if we should open entry window
+            if not allow_flip:
+                # Just exit, don't open entry window
+                return {"action": "exited", "side": side, "reason": "opposite_signal"}
+            # Fall through to open entry window for flip
+
+        # Flat or just closed - open entry window for this side
+        self._entry_windows[side] = (bar_index, None)  # (window_start, last_entered)
+
+        return {"action": "window_opened", "side": side}
+
+    def _handle_exit_command(
+        self, side: str, current_bar: pd.Series, context: dict | None
+    ) -> dict[str, Any]:
+        """Handle exit_long or exit_short command."""
+
+        if self.current_position and self.current_position.side == side:
+            self.close_position(
+                exit_price=current_bar["close"],
+                exit_time=cast(datetime, current_bar.name),
+                exit_reason="signal",
+                context_at_exit=context,
+            )
+            return {"action": "exited", "side": side}
+        else:
+            return {
+                "action": "ignored",
+                "reason": "no_matching_position",
+                "side": side,
+            }
+
+    def _check_active_entry_windows(
+        self,
+        bar_index: int,
+        entry_window_bars: int,
+        current_bar: pd.Series,
+        context: dict | None,
+    ) -> dict[str, Any]:
+        """Check if we have active entry windows to maintain (for None commands)."""
+
+        # This allows entry windows to stay open across bars with None commands
+        # Backtester will check if entry is now possible (e.g., RMM unblocked)
+
+        for side in ["long", "short"]:
+            window_start, last_entered = self._entry_windows[side]
+
+            if window_start >= 0 and last_entered is None:  # Window open, not entered
+                bars_since_start = bar_index - window_start
+
+                if entry_window_bars == -1 or bars_since_start <= entry_window_bars:
+                    return {"action": "window_active", "side": side}
+
+        return {"action": "ignored", "reason": "no_active_command", "side": None}
+
+    def can_attempt_entry(self, side: str, bar_index: int, entry_window_bars: int) -> bool:
+        """
+        Check if we can attempt entry for this side (used by backtester).
+
+        Args:
+            side: Position side ("long" or "short")
+            bar_index: Current bar index
+            entry_window_bars: Entry window policy
+
+        Returns:
+            True if entry can be attempted, False otherwise
+        """
+        window_start, last_entered = self._entry_windows[side]
+
+        if window_start < 0 or last_entered is not None:
+            return False  # No window open or already entered
+
+        bars_since_start = bar_index - window_start
+
+        if entry_window_bars == -1:
+            return True  # Infinite window
+
+        return bars_since_start <= entry_window_bars
 
     def hit_daily_loss_cap(self, ts: datetime, cap: float) -> bool:
         """Return True if realized PnL for ts.date() is <= -cap."""
@@ -149,6 +318,7 @@ class PortfolioManager:
             mfe_currency=max(pos.mfe_currency, favorable),
             mae_currency=max(pos.mae_currency, adverse),
             initial_risk_ccy=pos.initial_risk_ccy,
+            context_at_entry=pos.context_at_entry,  # Preserve the context!
         )
 
     def close_position(
@@ -193,11 +363,17 @@ class PortfolioManager:
         if initial_risk_ccy and initial_risk_ccy > 0:
             r_multiple = pnl / initial_risk_ccy
 
+        # Ensure the recorded trade has a non-null context_at_entry for
+        # reporting/brief generation convenience. Position.context_at_entry
+        # was coerced to a dict at creation, but be defensive here as well.
+        pos_dict = dict(self._open_position.__dict__)
+        pos_dict["context_at_entry"] = pos_dict.get("context_at_entry") or {}
         trade = Trade(
-            **self._open_position.__dict__,
+            **pos_dict,
             exit_price=exit_price,
             exit_time=exit_time,
             pnl=pnl,
+            pnl_gross=pnl_gross,
             exit_reason=exit_reason,
             context_at_exit=context_at_exit,
             cost_currency=total_cost,

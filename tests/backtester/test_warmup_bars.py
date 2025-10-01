@@ -28,8 +28,10 @@ def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
 def test_warmup_delays_first_entry_until_threshold():
     # 5 bars hourly, warmup of 3 bars → first entry allowed at index 3 (4th bar)
     df = _mk_df(5)
-    # Signals: long on first 4 bars, flat on last bar to force close
-    sig = pd.Series(["long", "long", "long", "long", "flat"], index=df.index)
+    # Commands: None during warmup, enter_long at bar 3 (after warmup), exit at bar 4
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(df)  # Populate _feature_df for context lookups
+    sig = pd.Series([None, None, None, "enter_long", "exit_long"], index=df.index)
     config = RunConfig(
         user_id="test",
         run_seed=42,
@@ -42,9 +44,12 @@ def test_warmup_delays_first_entry_until_threshold():
     )
     rem = RiskExitManager(config={})
     result = run_backtest(
+
         market_data=df,
+
         signals=sig,
-        strategy=_dummy_strategy_cfg(),
+
+        strategy=strategy,
         config=config,
         rem=rem,
         return_exposure=True,
@@ -59,7 +64,9 @@ def test_warmup_delays_first_entry_until_threshold():
 @pytest.mark.req_BT_7_7
 def test_no_warmup_allows_immediate_entry():
     df = _mk_df(3)
-    sig = pd.Series(["long", "flat", "flat"], index=df.index)
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(df)  # Populate _feature_df for context lookups
+    sig = pd.Series(["enter_long", "exit_long", None], index=df.index)
     config = RunConfig(
         user_id="test",
         run_seed=42,
@@ -72,9 +79,12 @@ def test_no_warmup_allows_immediate_entry():
     )
     rem = RiskExitManager(config={})
     result = run_backtest(
+
         market_data=df,
+
         signals=sig,
-        strategy=_dummy_strategy_cfg(),
+
+        strategy=strategy,
         config=config,
         rem=rem,
         return_exposure=True,

@@ -20,8 +20,8 @@ SRC_ROOT = REPO_ROOT / "src" / "trading_platform"
 TESTS_ROOT = REPO_ROOT / "tests"
 
 
-def _staged_source_files() -> list[Path]:
-    """Return staged Python files under ``src/trading_platform``."""
+def _staged_files() -> tuple[list[Path], list[Path]]:
+    """Return staged Python files under ``src/trading_platform`` and ``tests``."""
 
     try:
         result = subprocess.run(
@@ -39,9 +39,10 @@ def _staged_source_files() -> list[Path]:
         )
     except subprocess.CalledProcessError as exc:  # pragma: no cover - defensive guard
         print("Failed to determine staged files:", exc, file=sys.stderr)
-        return []
+        return [], []
 
-    staged_paths: list[Path] = []
+    staged_src_paths: list[Path] = []
+    staged_test_paths: list[Path] = []
     for rel_path in result.stdout.splitlines():
         path = (REPO_ROOT / rel_path).resolve()
         if path.suffix != ".py":
@@ -49,8 +50,10 @@ def _staged_source_files() -> list[Path]:
         if not path.exists():
             continue
         if SRC_ROOT in path.parents or path == SRC_ROOT:
-            staged_paths.append(path)
-    return staged_paths
+            staged_src_paths.append(path)
+        elif TESTS_ROOT in path.parents or path == TESTS_ROOT:
+            staged_test_paths.append(path)
+    return staged_src_paths, staged_test_paths
 
 
 def _to_module_name(path: Path) -> str:
@@ -68,6 +71,57 @@ def _to_module_name(path: Path) -> str:
 
     module_parts = ["trading_platform"] + [part for part in parts if part]
     return ".".join(module_parts)
+
+
+def _test_file_to_module_dir(test_path: Path) -> str | None:
+    """Map a test file to its corresponding module directory for coverage.
+
+    For example:
+    - tests/ai/llm_analysis/test_client.py -> trading_platform.ai.llm_analysis
+    - tests/core/test_rem.py -> trading_platform.core
+    """
+    try:
+        relative_path = test_path.relative_to(TESTS_ROOT)
+    except ValueError:
+        return None
+
+    parts = list(relative_path.parts)
+    if not parts:
+        return None
+
+    # Remove the test filename and build module path
+    dir_parts = parts[:-1]  # Remove test_*.py filename
+
+    if not dir_parts:
+        return None
+
+    module_parts = ["trading_platform"] + dir_parts
+    return ".".join(module_parts)
+
+
+def _get_test_directory(test_path: Path) -> Path | None:
+    """Get the test directory that should be run for complete coverage.
+
+    For example:
+    - tests/ai/llm_analysis/test_client.py -> tests/ai/llm_analysis
+    - tests/core/test_rem.py -> tests/core
+    """
+    try:
+        relative_path = test_path.relative_to(TESTS_ROOT)
+    except ValueError:
+        return None
+
+    parts = list(relative_path.parts)
+    if not parts:
+        return None
+
+    # Return the directory containing the test file
+    dir_parts = parts[:-1]  # Remove test_*.py filename
+
+    if not dir_parts:
+        return TESTS_ROOT
+
+    return TESTS_ROOT / Path(*dir_parts)
 
 
 def _contains_module_reference(
@@ -138,34 +192,60 @@ def _candidate_tests_for(
 def main() -> int:
     os.chdir(REPO_ROOT)
 
-    src_files = sorted({path for path in _staged_source_files()})
-    if not src_files:
+    src_files, test_files = _staged_files()
+
+    if not src_files and not test_files:
         print(
-            "No staged source files under src/trading_platform; "
+            "No staged Python files under src/trading_platform or tests; "
             "skipping coverage check."
         )
         return 0
 
-    module_names = {path: _to_module_name(path) for path in src_files}
-    coverage_targets = list(module_names.values())
+    coverage_targets: set[str] = set()
+    test_directories: set[Path] = set()
 
-    # Precompute available test files under tests/
-    if TESTS_ROOT.exists():
-        all_test_files = sorted(TESTS_ROOT.rglob("test_*.py"))
-    else:
-        all_test_files = []
+    # Handle staged source files
+    if src_files:
+        for src_file in src_files:
+            module_name = _to_module_name(src_file)
+            coverage_targets.add(module_name)
 
-    test_targets: set[Path] = set()
-    content_cache: dict[Path, str] = {}
-    for path in src_files:
-        module_name = module_names[path]
-        for test_file in _candidate_tests_for(
-            path,
-            all_test_files,
-            module_name=module_name,
-            cache=content_cache,
-        ):
-            test_targets.add(test_file)
+        # Only find test files for source files if no test files are staged
+        if not test_files:
+            if TESTS_ROOT.exists():
+                all_test_files = sorted(TESTS_ROOT.rglob("test_*.py"))
+            else:
+                all_test_files = []
+
+            content_cache: dict[Path, str] = {}
+            for src_file in src_files:
+                module_name = _to_module_name(src_file)
+                for test_file in _candidate_tests_for(
+                    src_file,
+                    all_test_files,
+                    module_name=module_name,
+                    cache=content_cache,
+                ):
+                    test_dir = _get_test_directory(test_file)
+                    if test_dir:
+                        test_directories.add(test_dir)
+
+    # Handle staged test files - map them to their module directories
+    if test_files:
+        for test_file in test_files:
+            # Add the module this test covers to coverage targets
+            module_name = _test_file_to_module_dir(test_file)
+            if module_name:
+                coverage_targets.add(module_name)
+
+            # Add the test directory to run all tests for complete coverage
+            test_dir = _get_test_directory(test_file)
+            if test_dir and test_dir.exists():
+                test_directories.add(test_dir)
+
+    if not coverage_targets:
+        print("No coverage targets identified; skipping coverage check.")
+        return 0
 
     pytest_cmd = [
         "poetry",
@@ -174,11 +254,11 @@ def main() -> int:
         "--cov-config=.coveragerc",
         "--cov-report=term",
         "--cov-fail-under=100",
-    ] + [f"--cov={target}" for target in coverage_targets]
+    ] + [f"--cov={target}" for target in sorted(coverage_targets)]
 
-    if test_targets:
+    if test_directories:
         pytest_cmd.extend(
-            str(path.relative_to(REPO_ROOT)) for path in sorted(test_targets)
+            str(path.relative_to(REPO_ROOT)) for path in sorted(test_directories)
         )
     else:
         pytest_cmd.append("tests")

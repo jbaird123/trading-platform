@@ -79,6 +79,18 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         return 2
     cfg_path = Path(args.config)
     cfg_raw = _load_config(cfg_path)
+    
+    # Load REM and RMM configs and include them in cfg_raw for proper config snapshot
+    rem_path = cfg_raw.get("rem_path")
+    if rem_path:
+        rem_cfg = _load_config(Path(str(rem_path)))
+        cfg_raw["rem_config"] = rem_cfg
+    
+    rmm_path = cfg_raw.get("rmm_path")  
+    if rmm_path:
+        rmm_cfg = _load_config(Path(str(rmm_path)))
+        cfg_raw["rmm_config"] = rmm_cfg
+    
     cfg = RunConfig.model_validate(cfg_raw)
     run_path = initialize_run(cfg)
 
@@ -222,19 +234,12 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
 
     # REM can be embedded or referenced via a separate file
     rem_cfg = cfg_raw.get("rem_config") or {}
-    rem_path = cfg_raw.get("rem_path")
-    if rem_path:
-        rem_cfg = _load_config(Path(str(rem_path)))
+    rem_cfg = cfg_raw.get("rem_config")
     rem = RiskExitManager(config=rem_cfg)
 
     # RMM optional for legacy configs; if present, build per-bar context
     rmm_context: dict[datetime, dict[str, Any]] | None = None
-    rmm_cfg: dict[str, Any] | None = (
-        cfg.rmm_config if isinstance(cfg.rmm_config, dict) else None
-    )
-    rmm_path = cfg_raw.get("rmm_path")
-    if rmm_path:
-        rmm_cfg = _load_config(Path(str(rmm_path)))
+    rmm_cfg: dict[str, Any] | None = cfg_raw.get("rmm_config")
     rmm_spans_path: Path | None = None
     if isinstance(rmm_cfg, dict) and rmm_cfg:
         try:
@@ -242,17 +247,65 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         except Exception as exc:  # pragma: no cover
             raise SystemExit(f"RMM config validation failed: {exc}") from exc
         rmm_engine = RMMEngine(config=rmm_cfg)
-        daily_regimes = rmm_engine.classify_daily(df)
+        regime_timeframe = rmm_cfg.get("timeframe", "1D")
+        regimes = rmm_engine.classify_regime(df, timeframe=regime_timeframe)
         rmm_policy = rmm_cfg.get("policy") or {}
         per_bar = rmm_engine.project_to_index(
-            daily_regimes, cast(pd.DatetimeIndex, df.index), policy=rmm_policy
+            regimes, cast(pd.DatetimeIndex, df.index), policy=rmm_policy
         )
+        # Extract regime feature names from config
+        feature_names = [
+            f.get("name") for f in rmm_cfg.get("features", []) if f.get("name")
+        ]
+
+        import math
+
+        def _round_feature(name: str, val: Any) -> float | None:
+            """Round feature value based on its type, returning None for NaN/inf."""
+            if val is None:
+                return None
+            try:
+                f = float(val)
+                if math.isnan(f) or math.isinf(f):
+                    return None
+
+                # Determine precision based on feature name/type
+                name_lower = name.lower()
+
+                # ADX, ATR: 2 decimals (percentage-like)
+                if any(x in name_lower for x in ['adx', 'atr']):
+                    return round(f, 2)
+                # RSI, Stochastic, CCI: 2 decimals (bounded indicators)
+                elif any(x in name_lower for x in ['rsi', 'stoch', 'cci']):
+                    return round(f, 2)
+                # Volume: whole numbers
+                elif 'volume' in name_lower or 'vol' in name_lower:
+                    return round(f, 0)
+                # EMA, SMA, prices: 4 decimals (forex precision)
+                elif any(x in name_lower for x in ['ema', 'sma', 'price', 'close', 'open', 'high', 'low']):
+                    return round(f, 4)
+                # MACD, momentum: 4 decimals
+                elif any(x in name_lower for x in ['macd', 'mom', 'roc']):
+                    return round(f, 4)
+                # Default: 4 decimals
+                else:
+                    return round(f, 4)
+            except (ValueError, TypeError):
+                return None
+
         rmm_context = {
             cast(datetime, ts): {
                 "label": str(row["label"]),
                 "confidence": float(row["confidence"]),
                 "allowed_sides": list(row["allowed_sides"] or []),
                 "policy": rmm_policy,
+                # Include regime feature values with appropriate rounding
+                "features": {
+                    fname: _round_feature(fname, row.get(fname))
+                    for fname in feature_names
+                    if fname in row.index
+                },
+                "timeframe": regime_timeframe,
             }
             for ts, row in per_bar.iterrows()
         }
@@ -473,7 +526,20 @@ def cmd_ai_diagnose(args: argparse.Namespace) -> int:
     (output_dir / "ai_diagnostic_report.md").write_text(
         engine.generate_report_markdown()
     )
-    (output_dir / "ai_diagnostic_report.json").write_text(engine.generate_report_json())
+    diagnostic_json = engine.generate_report_json()
+    (output_dir / "ai_diagnostic_report.json").write_text(diagnostic_json)
+
+    # Update brief.json with recommendations from diagnostic report
+    try:
+        diagnostic_data = json.loads(diagnostic_json)
+        recommendations = diagnostic_data.get("recommendations", [])
+        if recommendations:
+            brief_data["recommendations"] = recommendations
+            with open(brief_path, "w") as f:
+                json.dump(brief_data, f, indent=2)
+            print(f"Updated {brief_path} with {len(recommendations)} recommendations")
+    except Exception as e:
+        print(f"Warning: Could not update brief with recommendations: {e}", file=sys.stderr)
 
     # Task 4: Qualitative LLM report generation
     if getattr(args, "qualitative_report", False):

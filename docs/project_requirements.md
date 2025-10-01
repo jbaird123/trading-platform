@@ -46,6 +46,7 @@ _Last updated: 2025-09-16_
 - **[SYS-1.1] Architecture**:
   - **[SYS-1.1.1]** Modular separation is paramount. The core components (SE, REM, PM, RMM) must be decoupled.
   - **[SYS-1.1.2]** A **Run Configuration** binds these components together for a specific backtest or live trading session. It specifies the instrument, the strategy to use, the risk model to apply, the data source, etc.
+  - **[SYS-1.1.3]** **Backtest/Live Trading Parity**: The live trading engine (Execution Layer) must use the **exact same** entry and exit logic as the Backtester. All stateful trading logic (entry windows, position tracking, risk management) must reside in shared components (primarily the Portfolio Manager) that are used identically by both BT and EL.
 - **[SYS-1.2] Inter-Module Communication & Boundaries**:
   - **[SYS-1.2.1]** To facilitate a future split into multiple repositories, modules must communicate only through well-defined public APIs (e.g., functions and classes exposed in `__init__.py` files).
   - **[SYS-1.2.2]** Direct imports of internal sub-modules (e.g., `from trading_platform.data.internal_helpers import ...`) are strictly forbidden.
@@ -164,9 +165,14 @@ _Last updated: 2025-09-16_
 ## 3) Strategy Engine (SE)
 
 ### Core Requirements
-- **[SE-3.1]** **Core Mandate**: The Strategy Engine is responsible for **signal generation only**. Strategy definitions must be purely abstract and instrument-agnostic.
-- **[SE-3.2]** A `BaseStrategy` interface will define methods for preparing data and generating a signal series (`long`, `short`, or `flat`). A `flat` signal is considered a **strategic exit**.
-- **[SE-3.3]** Strategy definitions **must not** contain instrument-specific logic or trade management rules like stop-loss or take-profit. This is the sole responsibility of the Risk & Exit Manager (REM).
+- **[SE-3.1]** **Core Mandate**: The Strategy Engine is responsible for **signal generation only**. Strategies generate **trading commands** (`enter_long`, `enter_short`, `exit_long`, `exit_short`, `None`) based on market conditions. Strategies are stateless and do not track position state - they generate commands independently, and the Portfolio Manager enforces feasibility (e.g., ignoring exit commands when no position exists).
+- **[SE-3.2]** A `BaseStrategy` interface will define methods for preparing data and generating a command series. Commands are discrete trading actions:
+  - `enter_long`: Signal to enter a long position
+  - `enter_short`: Signal to enter a short position
+  - `exit_long`: Signal to exit a long position
+  - `exit_short`: Signal to exit a short position
+  - `None`: No action (most common - strategies only emit commands on specific events)
+- **[SE-3.3]** Strategy definitions **must not** contain instrument-specific logic or trade management rules like stop-loss or take-profit. This is the sole responsibility of the Risk & Exit Manager (REM). Strategies also **must not** track actual position state - they generate commands based purely on market data and indicator logic.
 - **[SE-3.4]** Provide built-in, performance-critical strategies implemented in Python, including: SMA Crossover, PSAR with an ADX filter, and Bollinger Bands Mean Reversion.
 - **[SE-3.5]** **Declarative Strategies (Low-Code/No-Code)**:
   - **[SE-3.5.1]** Support defining strategies using a declarative **YAML format**.
@@ -207,11 +213,22 @@ _Last updated: 2025-09-16_
 ### Core Requirements
 - **[PM-5.1]** **Core Responsibility**: To be the single source of truth for the portfolio's state at any given time.
 - **[PM-5.2]** The PM works exclusively in **canonical terms** (e.g., it does not know about "pips").
-- **[PM-5.3]** **State Management**: Track cash balance, open positions, and total equity (mark-to-market), and maintain a log of all executed trades.
+- **[PM-5.3]** **State Management**: Track cash balance, open positions, total equity (mark-to-market), and maintain a log of all executed trades. The PM must also maintain stateful tracking of signal transitions to support entry window logic.
 - **[PM-5.4]** **Order Processing**: Process incoming signals to generate orders and update position values based on new market data.
 - **[PM-5.5]** **Position Sizing**: Implement fixed-risk and fixed-fraction sizing logic.
 - **[PM-5.6]** **Trade & PnL Logic**: Generate a canonical `Trade` record upon position closure and calculate key performance metrics.
 - **[PM-5.7]** **Portfolio-Level Risk Management**: Enforce rules like daily loss caps, maximum drawdown limits, and directional position caps.
+- **[PM-5.8]** **Entry Window Management**: The PM must process strategy commands and manage entry windows to control when positions can be opened.
+  - **[PM-5.8.1]** Track the bar index when each entry command is received (`enter_long`, `enter_short`).
+  - **[PM-5.8.2]** Track whether an entry has already occurred on the current entry command to prevent duplicate entries.
+  - **[PM-5.8.3]** Support configurable entry window policies:
+    - Entry windows apply only to **entry commands** (`enter_long`, `enter_short`)
+    - Exit commands are executed immediately if a matching position exists
+    - `entry_window_bars: 0` = Execute entry commands on exact bar only
+    - `entry_window_bars: N` (N > 0) = Keep entry window open for N bars after entry command (allows delayed entry if RMM initially blocked)
+    - `entry_window_bars: -1` = Infinite window (keep trying to enter as long as entry command is active)
+  - **[PM-5.8.4]** Entry windows remain open across bars with `None` commands until: (a) entry occurs, (b) window expires per `entry_window_bars`, or (c) opposite-side entry command received.
+  - **[PM-5.8.5]** This state must be serializable for live trading to ensure consistency across restarts.
 
 ### Future Enhancements
 - **[PM-F.1]** Support **dynamic allocation policies** based on regime signals provided by the RMM ([PM-5.8]).
@@ -230,7 +247,10 @@ _Last updated: 2025-09-16_
 ## 7) Backtester (BT)
 
 ### Core Requirements
-- **[BT-7.1]** **Core Responsibility**: To simulate the passage of time and orchestrate the interaction between other components.
+- **[BT-7.1]** **Core Responsibility**: To simulate the passage of time and orchestrate the interaction between other components (Strategy Engine, RMM, Portfolio Manager, REM).
+  - **[BT-7.1.1]** The Backtester is responsible for the bar-by-bar simulation loop, feeding data to the Strategy Engine and coordinating component calls.
+  - **[BT-7.1.2]** The Backtester **must not** contain entry decision logic. The Backtester passes strategy commands to the Portfolio Manager, which determines feasibility and manages entry windows ([PM-5.8]). The Backtester enforces filters (RMM, loss caps, etc.) when PM indicates an entry window is open.
+  - **[BT-7.1.3]** The Backtester provides commands, RMM context, and current bar data to the Portfolio Manager, which determines whether to open a position.
 - **[BT-7.2]** **Rule Translation**: The Backtester **uses the shared Rule Translator** to convert native REM rules (e.g., "50 pips") into canonical price levels.
 - **[BT-7.3]** The primary mechanism will be an **iterative, bar-by-bar loop**. A fully vectorized implementation is a potential future performance enhancement.
 - **[BT-7.4]** The Backtester must **accept a configurable cost model at initialization and pass it to the Portfolio Manager**.
@@ -256,7 +276,7 @@ _Last updated: 2025-09-16_
 - **[EL-8.2]** Implement a broker adapter for OANDA as the initial target.
 - **[EL-8.3]** The adapter must map the internal canonical order format to the broker's specific API format.
 - **[EL-8.4]** The adapter must handle API connectivity issues, including retries and rate-limit management.
-- **[EL-8.5]** **Portfolio Interaction**: The EL must use the same `PortfolioManager` component as the backtester.
+- **[EL-8.5]** **Portfolio Interaction**: The EL must use the same `PortfolioManager` component as the backtester. This ensures all stateful logic (entry windows, position tracking, risk management) behaves identically in live trading as in backtests ([SYS-1.1.3], [PM-5.8]).
 - **[EL-8.6]** The EL must handle live streams of both market data and event data.
 - **[EL-8.7]** All actions, orders, and broker responses must be captured via structured logging.
 - **[EL-8.8]** Implement a reconciliation process to check for discrepancies between the internal portfolio state and the broker's state.

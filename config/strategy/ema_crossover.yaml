@@ -18,7 +18,7 @@ features:
 overlays: [ema_fast, ema_slow]
 long_entry_rules:
   - all_of:
-      - condition: is_above
+      - condition: cross_above
         left:
           ref: ema_fast
         right:
@@ -32,7 +32,7 @@ long_exit_rules:
           ref: ema_slow
 short_entry_rules:
   - all_of:
-      - condition: is_below
+      - condition: cross_below
         left:
           ref: ema_fast
         right:

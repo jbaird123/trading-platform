@@ -75,6 +75,15 @@ class RunConfig(BaseModel):
         default=0,
         description="Number of initial bars to ignore for entries (indicator warm-up).",
     )
+    entry_window_bars: int = Field(
+        default=0,
+        description=(
+            "Number of bars after a signal transition during which entry attempts "
+            "are allowed. 0 = only on exact transition bar (event-based), "
+            ">0 = allow RMM-blocked entries to execute if unblocked within window, "
+            "-1 = infinite (always try when signal is active, state-based)."
+        ),
+    )
     # Trading window / blackout policy
     blackout_utc: list[tuple[str, str]] = Field(
         default_factory=list,
@@ -108,9 +117,14 @@ class RunConfig(BaseModel):
     daily_loss_cap: float | None = Field(
         default=None, description="Portfolio-level daily loss cap in base currency."
     )
+    # Data request for fetching market data
+    data_request: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Data request specification (symbol, timeframe, start, end)."
+    )
     # Component configurations
     instrument: dict[str, Any] | None = Field(
-        default=None, description="Instrument definition for the run."
+        default=None, description="Instrument definition for the run (auto-populated from data_request if omitted)."
     )
     pm_limits: dict[str, int] | None = Field(
         default=None, description="Position manager limits (e.g., max_open_long)."
@@ -128,11 +142,30 @@ class RunConfig(BaseModel):
         ),
     )
 
+    post_exit_analysis: dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Post-exit price tracking configuration for exit efficiency analysis. "
+            "Example: {'enabled': True, 'horizons': [10, 20, 50]}"
+        ),
+    )
+
     @model_validator(mode="after")
     def validate_instrument_symbol(self) -> RunConfig:
-        """Ensure instrument contains a valid, normalized symbol."""
+        """Ensure instrument contains a valid, normalized symbol.
+
+        If instrument is not provided, auto-populate it from data_request.
+        """
+        # Auto-populate instrument from data_request if not provided
+        if not self.instrument and self.data_request:
+            if 'symbol' in self.data_request:
+                self.instrument = {
+                    'symbol': self.data_request['symbol'],
+                    'timeframe': self.data_request.get('timeframe'),
+                }
+
         if not isinstance(self.instrument, dict):
-            raise ValueError("instrument symbol is required")
+            raise ValueError("instrument symbol is required (provide instrument or data_request with symbol)")
 
         symbol = self.instrument.get("symbol", "")
         if not symbol or not symbol.strip():

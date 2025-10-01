@@ -6,9 +6,9 @@ from pytest_bdd import given, parsers, then
 
 @given(parsers.parse("a signal to go long"), target_fixture="shared_context")
 def a_signal_to_go_long(market_data) -> dict:
-    """Prepares a long signal for the first bar."""
+    """Prepares an enter_long command for the first bar."""
     signals = market_data["signals"].copy()
-    signals.iloc[0] = "long"
+    signals.iloc[0] = "enter_long"
     return {"market_data": market_data["market_data"], "signals": signals}
 
 

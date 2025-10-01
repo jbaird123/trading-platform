@@ -120,36 +120,37 @@ def run_live_controller(
 
     strat = compile_strategy(strategy_cfg)
     signals = strat.generate_signals(market_data)
-    current_state = "flat"
     placed = 0
     for i in range(len(market_data)):
-        desired = str(signals.iloc[i])
+        command = signals.iloc[i]
+        # Skip None commands (no action)
+        if command is None or (isinstance(command, float) and pd.isna(command)):
+            continue
+
         ts = market_data.index[i]
         px = float(market_data.iloc[i]["close"])
-        if desired != current_state:
-            # Try to align live state to desired state via market order
-            side = desired
-            if desired == "flat" and pm.current_position is None:
-                # Nothing to flatten
-                continue
-            res = adapter.place_order(
-                symbol="EURUSD", side=side, size=1.0, meta={"price": px, "time": ts}
-            )
-            logs.append(
-                {
-                    "event": "order",
-                    "time": ts,
-                    "side": side,
-                    "status": res.status,
-                    "message": res.message,
-                }
-            )
-            if res.status == "accepted":
-                placed += 1
-                current_state = desired
-                if max_orders is not None and placed >= max_orders:
-                    logs.append({"event": "shutdown", "reason": "kill_switch"})
-                    break
+
+        # For exit commands when no position, skip
+        if command in ("exit_long", "exit_short") and pm.current_position is None:
+            continue
+
+        res = adapter.place_order(
+            symbol="EURUSD", side=command, size=1.0, meta={"price": px, "time": ts}
+        )
+        logs.append(
+            {
+                "event": "order",
+                "time": ts,
+                "side": command,
+                "status": res.status,
+                "message": res.message,
+            }
+        )
+        if res.status == "accepted":
+            placed += 1
+            if max_orders is not None and placed >= max_orders:
+                logs.append({"event": "shutdown", "reason": "kill_switch"})
+                break
     # Reconcile once at the end (use last close as mark)
     mark_px = float(market_data.iloc[-1]["close"]) if len(market_data) else None
     report = reconcile_report(pm, adapter, mark_price=mark_px)

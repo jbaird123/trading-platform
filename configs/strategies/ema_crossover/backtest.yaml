@@ -2,31 +2,45 @@ user_id: "researcher"
 runs_dir: "runs"
 initial_cash: 100000
 warmup_bars: 50
+entry_window_bars: 3  # Allow entry within 3 bars of signal transition
 tie_break_policy:
   rule: "stop_then_tp"
 position_size: 25000
 
-# Instrument configuration (required for validation)
-instrument:
-  symbol: "EUR_USD"
-  timeframe: "1H"
+# Transaction costs configuration
+cost_model:
+  spread_per_unit: 0.00015  # 1.5 pips for EUR/USD ($0.00015 per dollar)
+  slippage_per_unit: 0.0    # No additional slippage for now
+  commission:
+    type: "per_unit"         # Per unit commission
+    value: 0.0               # No additional commission for now
 
-# Data source is owned by the Data Handler. This run config
-# declares only the intent of what to request.
+# Data source configuration
+# Instrument metadata is automatically derived from this
 data_request:
   symbol: "EUR_USD"
   timeframe: "1H"
-  start: "2025-03-01"
+  start: "2024-03-01"
   end: "2025-09-26"
 
 counterfactual_mode: exact   # fast | exact; default is fast
-fast_mode:
-  limit_bars: 10000
+# For fast mode, add: fast_mode: {limit_bars: 10000}
+
+# Post-exit price tracking for exit efficiency analysis
+post_exit_analysis:
+  enabled: true
+  horizons: [10, 20, 50]  # Track price movement for N bars after each exit
 
 rem_path: "config/rem/basic_price_exits.yaml"
 strategy_path: "config/strategy/ema_crossover.yaml"
 
-# Optional: per-run overrides to strategy tunables
+# Strategy parameters for this run (for brief reporting)
+strategy_params:
+  ema_fast_length: 16
+  ema_slow_length: 50
+  slope_filter: false
+
+# Optional: per-run overrides to strategy tunables (for execution)
 strategy_overrides:
   features:
     ema_fast:

@@ -198,7 +198,7 @@ class SignalPersistenceRule(BaseDiagnosticRule):
         persistence_pct = sq.get("signal_persistence_pct")
         if persistence_pct is not None and persistence_pct > self.persistence_threshold:
             summary = (
-                f"Signals are persistent {persistence_pct:.0%} of the time, "
+                f"Signals are persistent {persistence_pct:.1f}% of the time, "
                 "suggesting they may be states, not events. Consider reviewing "
                 "signal logic."
             )
