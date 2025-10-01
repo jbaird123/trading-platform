@@ -247,6 +247,14 @@ def compute_overall_performance(
     total_pnl = sum(pnls) if pnls else 0.0
     mean_pnl = (total_pnl / len(trades)) if trades else 0.0
     median_pnl = median(pnls) if pnls else 0.0
+
+    # Gross PnL and cost breakdown
+    total_pnl_gross = sum(t.pnl_gross for t in trades)
+    total_costs = sum(t.cost_currency for t in trades)
+    total_spread = sum(t.cost_breakdown.get("spread", 0.0) for t in trades if t.cost_breakdown)
+    total_commission = sum(t.cost_breakdown.get("commission", 0.0) for t in trades if t.cost_breakdown)
+    total_slippage = sum(t.cost_breakdown.get("slippage", 0.0) for t in trades if t.cost_breakdown)
+
     by_side_total_pnl = {
         "long": sum(t.pnl for t in trades if t.side == "long"),
         "short": sum(t.pnl for t in trades if t.side == "short"),
@@ -254,6 +262,13 @@ def compute_overall_performance(
     return {
         "n_trades": len(trades),
         "total_pnl": _round_currency(total_pnl),
+        "total_pnl_gross": _round_currency(total_pnl_gross),
+        "total_costs": _round_currency(total_costs),
+        "cost_breakdown": {
+            "spread": _round_currency(total_spread),
+            "commission": _round_currency(total_commission),
+            "slippage": _round_currency(total_slippage),
+        },
         "mean_pnl": _round_currency(mean_pnl),
         "median_pnl": _round_currency(median_pnl),
         "by_side_total_pnl": {
@@ -269,10 +284,14 @@ def compute_overall_performance(
 def compute_risk_snapshot(trades: list[Trade]) -> dict[str, Any]:
     wins = [t.pnl for t in trades if t.pnl > 0]
     losses = [t.pnl for t in trades if t.pnl < 0]
+    wins_gross = [t.pnl_gross for t in trades if t.pnl > 0]
+    losses_gross = [t.pnl_gross for t in trades if t.pnl < 0]
     return {
         "win_rate": _round_percentage(calculate_win_rate(trades)),
         "avg_win": _round_currency((sum(wins) / len(wins)) if wins else 0.0),
         "avg_loss": _round_currency((sum(losses) / len(losses)) if losses else 0.0),
+        "avg_win_gross": _round_currency((sum(wins_gross) / len(wins_gross)) if wins_gross else 0.0),
+        "avg_loss_gross": _round_currency((sum(losses_gross) / len(losses_gross)) if losses_gross else 0.0),
         "max_win": _round_currency(max(wins) if wins else 0.0),
         "max_loss": _round_currency(min(losses) if losses else 0.0),
     }

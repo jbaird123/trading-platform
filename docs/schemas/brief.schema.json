@@ -29,7 +29,19 @@
       "description": "Run-level performance metrics in the portfolio's base currency.",
       "properties": {
         "n_trades": { "type": "integer", "description": "Total number of trades executed." },
-        "total_pnl": { "type": "number", "description": "Sum of all trade profits and losses." },
+        "total_pnl": { "type": "number", "description": "Sum of all trade profits and losses (net, after costs)." },
+        "total_pnl_gross": { "type": "number", "description": "Sum of all trade profits and losses before transaction costs." },
+        "total_costs": { "type": "number", "description": "Sum of all transaction costs across all trades." },
+        "cost_breakdown": {
+          "type": "object",
+          "description": "Breakdown of total transaction costs by category.",
+          "properties": {
+            "spread": { "type": "number", "description": "Total bid-ask spread costs (entry only)." },
+            "commission": { "type": "number", "description": "Total commission costs (entry and exit)." },
+            "slippage": { "type": "number", "description": "Total slippage costs (entry and exit)." }
+          },
+          "required": ["spread", "commission", "slippage"]
+        },
         "mean_pnl": { "type": "number", "description": "Average PnL per trade." },
         "median_pnl": { "type": "number", "description": "Median PnL per trade." },
         "by_side_total_pnl": {
@@ -45,19 +57,21 @@
         "initial_equity": { "type": "number", "description": "Starting equity of the portfolio." },
         "final_equity": { "type": "number", "description": "Ending equity of the portfolio after all trades." }
       },
-      "required": ["n_trades", "total_pnl", "mean_pnl", "median_pnl", "by_side_total_pnl", "win_rate", "initial_equity", "final_equity"]
+      "required": ["n_trades", "total_pnl", "total_pnl_gross", "total_costs", "cost_breakdown", "mean_pnl", "median_pnl", "by_side_total_pnl", "win_rate", "initial_equity", "final_equity"]
     },
     "risk_snapshot": {
       "type": "object",
       "description": "Key risk metrics based on trade outcomes.",
       "properties": {
         "win_rate": { "type": "number", "description": "Percentage of trades with PnL > 0." },
-        "avg_win": { "type": "number", "description": "Average PnL of winning trades." },
-        "avg_loss": { "type": "number", "description": "Average PnL of losing trades." },
+        "avg_win": { "type": "number", "description": "Average net PnL of winning trades (after costs)." },
+        "avg_loss": { "type": "number", "description": "Average net PnL of losing trades (after costs)." },
+        "avg_win_gross": { "type": "number", "description": "Average gross PnL of winning trades (before costs)." },
+        "avg_loss_gross": { "type": "number", "description": "Average gross PnL of losing trades (before costs)." },
         "max_win": { "type": "number", "description": "Largest single winning trade." },
         "max_loss": { "type": "number", "description": "Largest single losing trade (most negative PnL)." }
       },
-      "required": ["win_rate", "avg_win", "avg_loss", "max_win", "max_loss"]
+      "required": ["win_rate", "avg_win", "avg_loss", "avg_win_gross", "avg_loss_gross", "max_win", "max_loss"]
     },
     "equity_stats": {
       "type": "object",
@@ -660,14 +674,22 @@
             },
             "avg_win": {
               "type": "number",
-              "description": "Average PnL of winning long trades."
+              "description": "Average net PnL of winning long trades (after costs)."
             },
             "avg_loss": {
               "type": "number",
-              "description": "Average PnL of losing long trades."
+              "description": "Average net PnL of losing long trades (after costs)."
+            },
+            "avg_win_gross": {
+              "type": "number",
+              "description": "Average gross PnL of winning long trades (before costs)."
+            },
+            "avg_loss_gross": {
+              "type": "number",
+              "description": "Average gross PnL of losing long trades (before costs)."
             }
           },
-          "required": ["n_trades", "total_pnl", "win_rate", "avg_pnl", "avg_win", "avg_loss"]
+          "required": ["n_trades", "total_pnl", "win_rate", "avg_pnl", "avg_win", "avg_loss", "avg_win_gross", "avg_loss_gross"]
         },
         "short_trades": {
           "type": "object",
@@ -691,14 +713,22 @@
             },
             "avg_win": {
               "type": "number",
-              "description": "Average PnL of winning short trades."
+              "description": "Average net PnL of winning short trades (after costs)."
             },
             "avg_loss": {
               "type": "number",
-              "description": "Average PnL of losing short trades."
+              "description": "Average net PnL of losing short trades (after costs)."
+            },
+            "avg_win_gross": {
+              "type": "number",
+              "description": "Average gross PnL of winning short trades (before costs)."
+            },
+            "avg_loss_gross": {
+              "type": "number",
+              "description": "Average gross PnL of losing short trades (before costs)."
             }
           },
-          "required": ["n_trades", "total_pnl", "win_rate", "avg_pnl", "avg_win", "avg_loss"]
+          "required": ["n_trades", "total_pnl", "win_rate", "avg_pnl", "avg_win", "avg_loss", "avg_win_gross", "avg_loss_gross"]
         }
       }
     },

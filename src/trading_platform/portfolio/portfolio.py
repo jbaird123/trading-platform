@@ -373,6 +373,7 @@ class PortfolioManager:
             exit_price=exit_price,
             exit_time=exit_time,
             pnl=pnl,
+            pnl_gross=pnl_gross,
             exit_reason=exit_reason,
             context_at_exit=context_at_exit,
             cost_currency=total_cost,

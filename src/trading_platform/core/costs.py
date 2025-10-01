@@ -16,14 +16,14 @@ class CostModel:
         * Our BT examples: unit = whatever numeric size you pass (e.g., 10k)
 
     Fields
-    - spread_per_unit: applied per side (entry and exit) as base-currency cost
-    - slippage_per_unit: applied per side, base-currency
+    - spread_per_unit: bid-ask spread cost applied once at entry only
+    - slippage_per_unit: applied per side (entry and exit), base-currency
     - commission: supports multiple modes:
         * per_unit: value is base-currency per unit (e.g., $0.005/share)
         * per_trade_flat: value is base-currency per side (e.g., $1.00 per order)
         * bps_notional: value is basis points of notional (price*size*bps/10_000)
 
-    All costs are applied per side (entry and exit) and returned in base currency.
+    Spread is applied only at entry. Commission and slippage are applied per side.
     """
 
     spread_per_unit: float = 0.0
@@ -99,8 +99,16 @@ class CostModel:
         price: float | None = None,
         instrument: dict[str, Any] | None = None,
     ) -> tuple[float, dict[str, float]]:
-        """Cost charged at exit (same as entry for the simple model)."""
-        return self.compute_entry_cost(size, price, instrument)
+        """Cost charged at exit.
+
+        Spread is NOT applied at exit (already paid at entry).
+        Only commission and slippage are charged.
+        """
+        units = effective_units(size, instrument)
+        commission = self._commission_cost(units=units, size=size, price=price)
+        slippage = self.slippage_per_unit * units
+        total = commission + slippage
+        return total, {"spread": 0.0, "commission": commission, "slippage": slippage}
 
 
 def effective_units(size: float, instrument: dict[str, Any] | None) -> float:
