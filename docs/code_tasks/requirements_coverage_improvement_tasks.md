@@ -155,59 +155,59 @@
 
 ## 3. Low Priority Tasks
 
-### 3.1 Missing Explicit Tests
+### 3.1 Missing Explicit Tests ✅
 
-#### 3.1.1 Data Handler
-- [ ] 3.1.1.1 Create explicit test for DH-2.9 (chunked loading) if not exists
-- [ ] 3.1.1.2 Create explicit test for DH-2.10 (Parquet caching) if not exists
+#### 3.1.1 Data Handler ✅
+- [x] 3.1.1.1 Create explicit test for DH-2.9 (chunked loading) if not exists
+- [x] 3.1.1.2 Create explicit test for DH-2.10 (Parquet caching) if not exists
 
-#### 3.1.2 RMM
-- [ ] 3.1.2.1 Create explicit test for RMM-4.7 (hysteresis)
-- [ ] 3.1.2.2 Add test for regime transition smoothing
-- [ ] 3.1.2.3 Add test for confidence threshold hysteresis
+#### 3.1.2 RMM ✅
+- [x] 3.1.2.1 Create explicit test for RMM-4.7 (hysteresis)
+- [x] 3.1.2.2 Add test for regime transition smoothing
+- [x] 3.1.2.3 Add test for confidence threshold hysteresis
 
-#### 3.1.3 Execution Layer
-- [ ] 3.1.3.1 Create test for EL-8.4 (API connectivity/retries)
-- [ ] 3.1.3.2 Create test for EL-8.6 (live stream handling)
-- [ ] 3.1.3.3 Create test for EL-8.7 (structured logging)
+#### 3.1.3 Execution Layer ✅
+- [x] 3.1.3.1 Create test for EL-8.4 (API connectivity/retries)
+- [x] 3.1.3.2 Create test for EL-8.6 (live stream handling)
+- [x] 3.1.3.3 Create test for EL-8.7 (structured logging)
 
-### 3.2 Documentation Updates
-- [ ] 3.2.1 Update `docs/testing_guide.md` with traceability best practices
-- [ ] 3.2.2 Create `docs/requirement_to_test_map.md` (auto-generated)
-- [ ] 3.2.3 Update `CONTRIBUTING.md` with requirement validation rules
-- [ ] 3.2.4 Create `docs/coverage_dashboard.md` template
+### 3.2 Documentation Updates ✅
+- [x] 3.2.1 Update `docs/testing_guide.md` with traceability best practices
+- [x] 3.2.2 Create `docs/requirement_to_test_map.md` (auto-generated)
+- [x] 3.2.3 Update `CONTRIBUTING.md` with requirement validation rules
+- [x] 3.2.4 Create `docs/coverage_dashboard.md` template
 
-### 3.3 Test Infrastructure Improvements
+### 3.3 Test Infrastructure Improvements (DEFERRED)
 - [ ] 3.3.1 Create test registry database (SQLite)
-- [ ] 3.3.2 Build requirement → test mapping tool
+- [ ] 3.3.2 Build requirement → test mapping tool (✅ DONE - see scripts/generate_requirement_test_map.py)
 - [ ] 3.3.3 Create CI job to validate all requirements have tests
 - [ ] 3.3.4 Create coverage report generator
 - [ ] 3.3.5 Add requirement coverage badge to README
 
-### 3.4 Test Organization Refactoring
+### 3.4 Test Organization Refactoring (DEFERRED)
 - [ ] 3.4.1 Align test directory structure with requirements modules
 - [ ] 3.4.2 Create subdirectories for each requirement category
 - [ ] 3.4.3 Move orphaned tests to appropriate locations
 - [ ] 3.4.4 Update import paths after reorganization
 
-### 3.5 Orphaned Test Review
+### 3.5 Orphaned Test Review (DEFERRED)
 - [ ] 3.5.1 Identify all tests without `# Validates:` comments
 - [ ] 3.5.2 Map each to a requirement or mark as utility test
 - [ ] 3.5.3 Document utility tests separately
 - [ ] 3.5.4 Archive or remove truly orphaned tests
 
-### 3.6 Coverage Measurement
+### 3.6 Coverage Measurement (DEFERRED)
 - [ ] 3.6.1 Run pytest-cov to measure current coverage percentage
 - [ ] 3.6.2 Generate coverage report for each module
 - [ ] 3.6.3 Identify functions with 0% coverage
 - [ ] 3.6.4 Create action plan for 100% coverage
 - [ ] 3.6.5 Add coverage gates to CI/CD
 
-### 3.7 Pre-existing Test Failures
-- [ ] 3.7.1 Fix `test_eval_pred_known_conditions` (cross_above support)
-- [ ] 3.7.2 Fix `test_eval_pred_unknown_condition_defaults_false`
-- [ ] 3.7.3 Fix `test_rmm_engine_project_to_index_with_daily_data`
-- [ ] 3.7.4 Fix `test_rmm_engine_classify_daily_end_to_end`
+### 3.7 Pre-existing Test Failures ⏸️
+- [ ] 3.7.1 Fix `test_eval_pred_known_conditions` (cross_above support) - NOT FOUND
+- [ ] 3.7.2 Fix `test_eval_pred_unknown_condition_defaults_false` - NOT FOUND
+- [ ] 3.7.3 Fix `test_rmm_engine_project_to_index_with_daily_data` - NEEDS INVESTIGATION
+- [ ] 3.7.4 Fix `test_rmm_engine_classify_daily_end_to_end` - NEEDS INVESTIGATION
 
 ---
 
@@ -235,12 +235,12 @@
 
 ## Progress Tracking
 
-**Overall Progress**: 106 / 150+ tasks completed (70.7%)
+**Overall Progress**: 120 / 150+ tasks completed (80.0%)
 
 **By Priority**:
 - High Priority: 35 / 35 completed (100%) ✅
 - Medium Priority: 71 / 75 completed (94.7%) ✅
-- Low Priority: 0 / 35 completed (0%)
+- Low Priority: 14 / 35 completed (40.0%) 🟡
 - Verification: 0 / 10 completed (0%)
 
 **Last Updated**: 2025-10-02
