@@ -35,8 +35,17 @@ def _rmm_context(
         )
     if not isinstance(rmm_cfg, dict) or not rmm_cfg:
         return None
-    eng = RMMEngine(config=rmm_cfg)
+
     regime_timeframe = rmm_cfg.get("timeframe", "1D")
+
+    # PERFORMANCE: Check cache first if DataHandler is available
+    if data_handler is not None:
+        cached_context = data_handler.get_rmm_context(rmm_cfg, regime_timeframe)
+        if cached_context is not None:
+            return cached_context
+
+    # Not cached - compute regime classification
+    eng = RMMEngine(config=rmm_cfg)
 
     # Use DataHandler for resampling if available (cached), otherwise fallback to direct resample
     if data_handler is not None:
@@ -96,7 +105,7 @@ def _rmm_context(
         except (ValueError, TypeError):
             return None
 
-    return {
+    rmm_context = {
         ts: {
             "label": str(row["label"]),
             "confidence": float(row["confidence"]),
@@ -112,6 +121,12 @@ def _rmm_context(
         }
         for ts, row in proj.iterrows()
     }
+
+    # Cache the result if DataHandler is available
+    if data_handler is not None:
+        data_handler.set_rmm_context(rmm_cfg, regime_timeframe, rmm_context)
+
+    return rmm_context
 
 
 def run_parameter_sweep(
