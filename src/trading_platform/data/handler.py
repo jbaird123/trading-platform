@@ -105,6 +105,10 @@ class DataHandler:
         # All cached data contains the complete dataset
         self._cache: dict[str, pd.DataFrame] = {}
 
+        # RMM context cache: (rmm_config_hash, timeframe) -> rmm_context_dict
+        # Caches regime classification results to avoid recomputation
+        self._rmm_cache: dict[tuple[str, str], dict] = {}
+
         # Store the base timeframe (assume raw data is 1min)
         self._base_timeframe = "1min"
         self._base_minutes = 1
@@ -202,6 +206,53 @@ class DataHandler:
         """
         return list(self._cache.keys())
 
+    def get_rmm_context(
+        self,
+        rmm_config: dict,
+        timeframe: str,
+    ) -> dict | None:
+        """Get cached RMM context if available.
+
+        Args:
+            rmm_config: RMM configuration dict
+            timeframe: Regime classification timeframe
+
+        Returns:
+            Cached RMM context dict, or None if not cached
+        """
+        import hashlib
+        import json
+
+        # Create stable hash of RMM config for cache key
+        config_str = json.dumps(rmm_config, sort_keys=True)
+        config_hash = hashlib.md5(config_str.encode()).hexdigest()
+
+        cache_key = (config_hash, timeframe)
+        return self._rmm_cache.get(cache_key)
+
+    def set_rmm_context(
+        self,
+        rmm_config: dict,
+        timeframe: str,
+        rmm_context: dict,
+    ) -> None:
+        """Cache RMM context for future use.
+
+        Args:
+            rmm_config: RMM configuration dict
+            timeframe: Regime classification timeframe
+            rmm_context: Computed RMM context to cache
+        """
+        import hashlib
+        import json
+
+        # Create stable hash of RMM config for cache key
+        config_str = json.dumps(rmm_config, sort_keys=True)
+        config_hash = hashlib.md5(config_str.encode()).hexdigest()
+
+        cache_key = (config_hash, timeframe)
+        self._rmm_cache[cache_key] = rmm_context
+
     def clear_cache(self, keep_base: bool = True) -> None:
         """Clear the timeframe cache.
 
@@ -212,3 +263,5 @@ class DataHandler:
             self._cache = {self._base_timeframe: self._raw_data}
         else:
             self._cache = {}
+        # Always clear RMM cache when clearing
+        self._rmm_cache = {}

@@ -20,7 +20,7 @@ cost_model:
 data_request:
   symbol: "EUR_USD"
   timeframe: "1H"
-  start: "2024-03-01"
+  start: "2013-01-01"
   end: "2025-09-26"
 
 counterfactual_mode: exact   # fast | exact; default is fast
@@ -50,4 +50,4 @@ strategy_overrides:
       length: 50
 
 # Regime Market Manager - Iteration 10: Disable to test trade frequency
-#rmm_path: "config/rmm/4h_trend.yaml"
+# rmm_path: "config/rmm/4h_trend.yaml"
