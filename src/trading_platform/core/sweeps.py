@@ -36,6 +36,9 @@ def _rmm_context(
     if not isinstance(rmm_cfg, dict) or not rmm_cfg:
         return None
 
+    # SAFETY: Validate RMM config schema before use
+    RMMEngine.validate_config(rmm_cfg)
+
     regime_timeframe = rmm_cfg.get("timeframe", "1D")
 
     # PERFORMANCE: Check cache first if DataHandler is available
@@ -482,28 +485,39 @@ def monte_carlo_resimulation(
             return data
         out = data.copy()
         if mode_p == "block":
-            bl = int(perturbation.get("block_len", 5) or 5)  # pragma: no cover
-            bl = max(1, bl)  # pragma: no cover
-            for start in range(0, len(out), bl):  # pragma: no cover
-                z = random.gauss(0.0, std_pct)  # pragma: no cover
-                factor = 1.0 + z  # pragma: no cover
-                end = min(len(out), start + bl)  # pragma: no cover
-                rows = out.index[start:end]  # pragma: no cover
-                for col in ("open", "high", "low", "close"):  # pragma: no cover
-                    ser = out.loc[rows, col].astype(float) * factor  # pragma: no cover
-                    out.loc[rows, col] = ser  # pragma: no cover
+            # PERFORMANCE: Vectorized block perturbation
+            import numpy as np
+            bl = int(perturbation.get("block_len", 5) or 5)
+            bl = max(1, bl)
+            n = len(out)
+            num_blocks = (n + bl - 1) // bl  # ceiling division
+
+            # Generate one random factor per block
+            block_factors = np.array([1.0 + random.gauss(0.0, std_pct) for _ in range(num_blocks)])
+
+            # Expand block factors to per-bar factors (repeat each factor bl times)
+            factors = np.repeat(block_factors, bl)[:n]  # Trim to exact length
+
+            # Apply to all OHLC columns at once
+            ohlc_cols = [c for c in ("open", "high", "low", "close") if c in out.columns]
+            if ohlc_cols:
+                out[ohlc_cols] = out[ohlc_cols].astype(float)
+                for col in ohlc_cols:
+                    out[col] = out[col] * factors
         else:
-            # Apply same multiplicative noise per bar to preserve OHLC order
-            for i in range(len(out)):
-                z = random.gauss(0.0, std_pct)
-                factor = 1.0 + z
-                for col in ("open", "high", "low", "close"):
-                    j = out.columns.get_loc(col)
-                    try:
-                        base_val = float(out.iat[i, j])  # type: ignore[arg-type,index]
-                    except Exception:  # pragma: no cover
-                        base_val = 0.0  # pragma: no cover
-                    out.iat[i, j] = base_val * factor  # type: ignore[index]
+            # PERFORMANCE: Vectorized perturbation instead of slow Python loop
+            # Generate random factors for each bar (same factor per bar across OHLC)
+            import numpy as np
+            n = len(out)
+            noise = np.random.normal(0.0, std_pct, n)
+            factors = 1.0 + noise
+
+            # Apply multiplicative noise to all OHLC columns at once
+            ohlc_cols = [c for c in ("open", "high", "low", "close") if c in out.columns]
+            if ohlc_cols:
+                out[ohlc_cols] = out[ohlc_cols].astype(float)
+                for col in ohlc_cols:
+                    out[col] = out[col] * factors
         return out
 
     def _percentile(values: list[float], pct: float) -> float:
@@ -539,7 +553,7 @@ def monte_carlo_resimulation(
     tuw_ratios: list[float] = []
     curves: list[tuple[float, list[float]]] = []  # (final_eq, curve)
 
-    for _ in range(max(1, int(trials))):
+    for trial_idx in range(max(1, int(trials))):
         sim_df = _sample_bars(df) if mode == "bar_bootstrap" else df.copy()
         sim_df = _perturb_bars(sim_df)
         # Optionally jitter cost model per trial

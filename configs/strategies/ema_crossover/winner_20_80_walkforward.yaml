@@ -1,0 +1,48 @@
+user_id: "researcher"
+runs_dir: "runs"
+initial_cash: 100000
+position_size: 50000
+warmup_bars: 100
+entry_window_bars: 3
+tie_break_policy:
+  rule: "stop_then_tp"
+
+# Transaction costs configuration
+cost_model:
+  spread_per_unit: 0.00015  # 1.5 pips for EUR/USD
+  slippage_per_unit: 0.0
+  commission:
+    type: "per_unit"
+    value: 0.0
+
+# Data source - Full 12 years
+data_request:
+  symbol: "EUR_USD"
+  timeframe: "1H"
+  start: "2013-01-01"
+  end: "2025-09-26"
+
+strategy_path: "config/strategy/ema_crossover.yaml"
+rem_path: "config/rem/trailing_stops.yaml"
+rmm_path: "config/rmm/4h_trend.yaml"
+
+# Post-exit analysis
+post_exit_analysis:
+  enabled: true
+  horizons: [10, 20, 50]
+
+# Counterfactual analysis
+counterfactual_mode: exact
+
+# === WALK-FORWARD ANALYSIS ===
+# Test 20/80 winner across time periods for robustness
+walk_forward:
+  window: 20000  # ~2.5 years training
+  step: 10000    # ~1.25 years test step
+  # 12 years = ~105k hours, gives ~9-10 windows
+
+# Strategy parameters - WINNER CONFIG
+strategy_params:
+  ema_fast_length: 20
+  ema_slow_length: 80
+  slope_filter: false

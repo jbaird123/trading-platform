@@ -36,11 +36,11 @@ def _eval_pred(df: pd.DataFrame, pred: dict[str, Any]) -> pd.Series:
         return left > right
     if cond == "is_below":
         return left < right
-    if cond == "cross_above":
-        return (left.shift(1) <= right.shift(1)) & (left > right)
-    if cond == "cross_below":
-        return (left.shift(1) >= right.shift(1)) & (left < right)
-    return pd.Series([False] * len(df), index=df.index)
+    # SAFETY: Fail loudly on unrecognized conditions instead of silently returning False
+    raise ValueError(
+        f"Unrecognized RMM condition: '{cond}'. "
+        f"Supported conditions: is_above, is_below"
+    )
 
 
 def _eval_block(df: pd.DataFrame, block: dict[str, Any]) -> pd.Series:
