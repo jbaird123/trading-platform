@@ -490,6 +490,11 @@ def monte_carlo_resimulation(
     cfg = RunConfig.model_validate(base_cfg)
     rem = RiskExitManager(config=(base_cfg.get("rem_config") or {}))
 
+    # PERFORMANCE FIX: Compute RMM context once before loop instead of per trial
+    # For bar_resimulation mode, the index doesn't change, so we can reuse the same RMM context
+    # For bar_bootstrap mode, the index is preserved (line 441), so RMM context is still valid
+    rmm_ctx = _rmm_context(df, base_cfg)
+
     finals: list[float] = []
     finals_pnl: list[float] = []
     dd_vals: list[float] = []
@@ -528,7 +533,7 @@ def monte_carlo_resimulation(
             strategy=strat,
             config=cfg_trial,
             rem=rem,
-            rmm_context=_rmm_context(sim_df, base_cfg),
+            rmm_context=rmm_ctx,
         )
         trades3: list[Trade]
         if isinstance(_res3, tuple):

@@ -30,15 +30,21 @@ def compute_stationarity(trades: list[Trade]) -> dict:
     pnl_series = [trade.pnl for trade in trades]
 
     try:
+        import warnings
+
         from statsmodels.tsa.stattools import adfuller, kpss
+        from statsmodels.tools.sm_exceptions import InterpolationWarning
 
         # Run ADF test (null hypothesis: unit root/non-stationary)
         adf_result = adfuller(pnl_series)
         adf_p_value = float(adf_result[1])
 
         # Run KPSS test (null hypothesis: stationary)
-        kpss_result = kpss(pnl_series)
-        kpss_p_value = float(kpss_result[1])
+        # Suppress InterpolationWarning when test statistic is outside p-value range
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=InterpolationWarning)
+            kpss_result = kpss(pnl_series)
+            kpss_p_value = float(kpss_result[1])
 
         return {
             "adf_p_value": adf_p_value,
