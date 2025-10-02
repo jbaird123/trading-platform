@@ -16,8 +16,8 @@ from trading_platform.backtester.core import run_backtest
 from trading_platform.core.config import RunConfig
 from trading_platform.core.demo import generate_demo_run
 from trading_platform.core.policy import TradingWindowPolicy
-from trading_platform.core.run import finalize_run, initialize_run
 from trading_platform.core.robustness import walk_forward_summary
+from trading_platform.core.run import finalize_run, initialize_run
 from trading_platform.core.sweeps import (
     run_parameter_sweep,
     walk_forward_optimize_and_test,
@@ -271,53 +271,15 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             f.get("name") for f in rmm_cfg.get("features", []) if f.get("name")
         ]
 
-        import math
-
-        def _round_feature(name: str, val: Any) -> float | None:
-            """Round feature value based on its type, returning None for NaN/inf."""
-            if val is None:
-                return None
-            try:
-                f = float(val)
-                if math.isnan(f) or math.isinf(f):
-                    return None
-
-                # Determine precision based on feature name/type
-                name_lower = name.lower()
-
-                # ADX, ATR: 2 decimals (percentage-like)
-                if any(x in name_lower for x in ["adx", "atr"]):
-                    return round(f, 2)
-                # RSI, Stochastic, CCI: 2 decimals (bounded indicators)
-                elif any(x in name_lower for x in ["rsi", "stoch", "cci"]):
-                    return round(f, 2)
-                # Volume: whole numbers
-                elif "volume" in name_lower or "vol" in name_lower:
-                    return round(f, 0)
-                # EMA, SMA, prices: 4 decimals (forex precision)
-                elif any(
-                    x in name_lower
-                    for x in ["ema", "sma", "price", "close", "open", "high", "low"]
-                ):
-                    return round(f, 4)
-                # MACD, momentum: 4 decimals
-                elif any(x in name_lower for x in ["macd", "mom", "roc"]):
-                    return round(f, 4)
-                # Default: 4 decimals
-                else:
-                    return round(f, 4)
-            except (ValueError, TypeError):
-                return None
-
+        # Build RMM context with full precision - rounding happens in brief.py
         rmm_context = {
             cast(datetime, ts): {
                 "label": str(row["label"]),
                 "confidence": float(row["confidence"]),
                 "allowed_sides": list(row["allowed_sides"] or []),
                 "policy": rmm_policy,
-                # Include regime feature values with appropriate rounding
                 "features": {
-                    fname: _round_feature(fname, row.get(fname))
+                    fname: row.get(fname)
                     for fname in feature_names
                     if fname in row.index
                 },

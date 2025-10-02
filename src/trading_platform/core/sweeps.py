@@ -59,7 +59,9 @@ def _rmm_context(
         df_resampled = df
         already_resampled = False
 
-    regimes = eng.classify_regime(df_resampled, timeframe=regime_timeframe, already_resampled=already_resampled)
+    regimes = eng.classify_regime(
+        df_resampled, timeframe=regime_timeframe, already_resampled=already_resampled
+    )
     pol = rmm_cfg.get("policy") or {}
     from typing import cast as _cast
 
@@ -70,55 +72,15 @@ def _rmm_context(
         f.get("name") for f in rmm_cfg.get("features", []) if f.get("name")
     ]
 
-    import math
-
-    def _round_feature(name: str, val: Any) -> float | None:
-        """Round feature value based on its type, returning None for NaN/inf."""
-        if val is None:
-            return None
-        try:
-            f = float(val)
-            if math.isnan(f) or math.isinf(f):
-                return None
-
-            # Determine precision based on feature name/type
-            name_lower = name.lower()
-
-            # ADX, ATR: 2 decimals (percentage-like)
-            if any(x in name_lower for x in ["adx", "atr"]):
-                return round(f, 2)
-            # RSI, Stochastic, CCI: 2 decimals (bounded indicators)
-            elif any(x in name_lower for x in ["rsi", "stoch", "cci"]):
-                return round(f, 2)
-            # Volume: whole numbers
-            elif "volume" in name_lower or "vol" in name_lower:
-                return round(f, 0)
-            # EMA, SMA, prices: 4 decimals (forex precision)
-            elif any(
-                x in name_lower
-                for x in ["ema", "sma", "price", "close", "open", "high", "low"]
-            ):
-                return round(f, 4)
-            # MACD, momentum: 4 decimals
-            elif any(x in name_lower for x in ["macd", "mom", "roc"]):
-                return round(f, 4)
-            # Default: 4 decimals
-            else:
-                return round(f, 4)
-        except (ValueError, TypeError):
-            return None
-
+    # Build RMM context with full precision - rounding happens in brief.py
     rmm_context = {
         ts: {
             "label": str(row["label"]),
             "confidence": float(row["confidence"]),
             "allowed_sides": list(row.get("allowed_sides") or []),
             "policy": pol,
-            # Include regime feature values with appropriate rounding
             "features": {
-                fname: _round_feature(fname, row.get(fname))
-                for fname in feature_names
-                if fname in row.index
+                fname: row.get(fname) for fname in feature_names if fname in row.index
             },
             "timeframe": regime_timeframe,
         }
@@ -230,8 +192,8 @@ def run_parameter_sweep(
                         fname = feat.get("name")
                         fparams = feat.get("params", {})
                         f.write(f"  feature '{fname}': params={fparams}\n")
-            except Exception:
-                pass
+            except Exception:  # pragma: no cover
+                pass  # pragma: no cover - Defensive: debug logging should not crash sweep
 
         strat = compile_strategy(scfg)
 
@@ -487,19 +449,24 @@ def monte_carlo_resimulation(
         if mode_p == "block":
             # PERFORMANCE: Vectorized block perturbation
             import numpy as np
+
             bl = int(perturbation.get("block_len", 5) or 5)
             bl = max(1, bl)
             n = len(out)
             num_blocks = (n + bl - 1) // bl  # ceiling division
 
             # Generate one random factor per block
-            block_factors = np.array([1.0 + random.gauss(0.0, std_pct) for _ in range(num_blocks)])
+            block_factors = np.array(
+                [1.0 + random.gauss(0.0, std_pct) for _ in range(num_blocks)]
+            )
 
             # Expand block factors to per-bar factors (repeat each factor bl times)
             factors = np.repeat(block_factors, bl)[:n]  # Trim to exact length
 
             # Apply to all OHLC columns at once
-            ohlc_cols = [c for c in ("open", "high", "low", "close") if c in out.columns]
+            ohlc_cols = [
+                c for c in ("open", "high", "low", "close") if c in out.columns
+            ]
             if ohlc_cols:
                 out[ohlc_cols] = out[ohlc_cols].astype(float)
                 for col in ohlc_cols:
@@ -508,12 +475,15 @@ def monte_carlo_resimulation(
             # PERFORMANCE: Vectorized perturbation instead of slow Python loop
             # Generate random factors for each bar (same factor per bar across OHLC)
             import numpy as np
+
             n = len(out)
             noise = np.random.normal(0.0, std_pct, n)
             factors = 1.0 + noise
 
             # Apply multiplicative noise to all OHLC columns at once
-            ohlc_cols = [c for c in ("open", "high", "low", "close") if c in out.columns]
+            ohlc_cols = [
+                c for c in ("open", "high", "low", "close") if c in out.columns
+            ]
             if ohlc_cols:
                 out[ohlc_cols] = out[ohlc_cols].astype(float)
                 for col in ohlc_cols:
