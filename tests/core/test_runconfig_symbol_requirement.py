@@ -1,3 +1,8 @@
+"""Tests for RunConfig symbol requirement validation.
+
+# Validates: [SYS-1.1.2], [SYS-1.7.3]
+"""
+
 import pytest
 from pydantic import ValidationError
 from trading_platform.core.config import RunConfig
