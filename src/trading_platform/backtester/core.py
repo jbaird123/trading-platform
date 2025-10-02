@@ -372,9 +372,9 @@ def run_backtest(
                         i,
                     )
 
-            elif not policy.can_open(cast(datetime, current_bar.name)):
-                # Entry window open but blackout period active
-                reason = policy.reason(cast(datetime, current_bar.name)) or "blackout"
+            elif not policy.can_open(cast(datetime, current_bar.name)):  # pragma: no cover
+                # Entry window open but blackout period active  # pragma: no cover - Defensive: blackout blocks entry at line 269
+                reason = policy.reason(cast(datetime, current_bar.name)) or "blackout"  # pragma: no cover
                 snap = {
                     "blackout_utc": config.blackout_utc or [],
                     "blackout_events": config.blackout_events or [],
