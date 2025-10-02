@@ -1,0 +1,47 @@
+[
+  {
+    "strategy": "ema_crossover",
+    "symbol": "EUR_USD",
+    "timeframe": "1H",
+    "metrics": {
+      "final_pnl": 0,
+      "final_equity": 100000,
+      "num_trades": 0,
+      "win_rate": 0,
+      "sharpe": 0,
+      "max_dd": 0,
+      "profit_factor": 0
+    },
+    "promising": false
+  },
+  {
+    "strategy": "ema_crossover",
+    "symbol": "GBP_USD",
+    "timeframe": "1H",
+    "metrics": {
+      "final_pnl": 0,
+      "final_equity": 100000,
+      "num_trades": 0,
+      "win_rate": 0,
+      "sharpe": 0,
+      "max_dd": 0,
+      "profit_factor": 0
+    },
+    "promising": false
+  },
+  {
+    "strategy": "ema_crossover",
+    "symbol": "USD_JPY",
+    "timeframe": "1H",
+    "metrics": {
+      "final_pnl": 0,
+      "final_equity": 100000,
+      "num_trades": 0,
+      "win_rate": 0,
+      "sharpe": 0,
+      "max_dd": 0,
+      "profit_factor": 0
+    },
+    "promising": false
+  }
+]

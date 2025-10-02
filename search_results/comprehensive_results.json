@@ -1,0 +1,100 @@
+[
+  {
+    "strategy": "EMA_10_30",
+    "symbol": "EUR_USD",
+    "pnl": -17205.5,
+    "num_trades": 2386,
+    "config_path": "search_results/ema_10_30_eur_usd.yaml"
+  },
+  {
+    "strategy": "EMA_10_30",
+    "symbol": "GBP_USD",
+    "pnl": -8068.0,
+    "num_trades": 2339,
+    "config_path": "search_results/ema_10_30_gbp_usd.yaml"
+  },
+  {
+    "strategy": "EMA_10_30",
+    "symbol": "USD_JPY",
+    "pnl": 666270.0,
+    "num_trades": 2504,
+    "config_path": "search_results/ema_10_30_usd_jpy.yaml"
+  },
+  {
+    "strategy": "EMA_10_50",
+    "symbol": "EUR_USD",
+    "pnl": -14861.0,
+    "num_trades": 1852,
+    "config_path": "search_results/ema_10_50_eur_usd.yaml"
+  },
+  {
+    "strategy": "EMA_10_50",
+    "symbol": "GBP_USD",
+    "pnl": -9536.0,
+    "num_trades": 1837,
+    "config_path": "search_results/ema_10_50_gbp_usd.yaml"
+  },
+  {
+    "strategy": "EMA_10_50",
+    "symbol": "USD_JPY",
+    "pnl": 358845.0,
+    "num_trades": 1974,
+    "config_path": "search_results/ema_10_50_usd_jpy.yaml"
+  },
+  {
+    "strategy": "EMA_20_80",
+    "symbol": "EUR_USD",
+    "pnl": -3391.0,
+    "num_trades": 1112,
+    "config_path": "search_results/ema_20_80_eur_usd.yaml"
+  },
+  {
+    "strategy": "EMA_20_80",
+    "symbol": "GBP_USD",
+    "pnl": -2716.5,
+    "num_trades": 1090,
+    "config_path": "search_results/ema_20_80_gbp_usd.yaml"
+  },
+  {
+    "strategy": "EMA_20_80",
+    "symbol": "USD_JPY",
+    "pnl": 403152.5,
+    "num_trades": 1093,
+    "config_path": "search_results/ema_20_80_usd_jpy.yaml"
+  },
+  {
+    "strategy": "EMA_50_200",
+    "symbol": "EUR_USD",
+    "pnl": -2925.0,
+    "num_trades": 472,
+    "config_path": "search_results/ema_50_200_eur_usd.yaml"
+  },
+  {
+    "strategy": "EMA_50_200",
+    "symbol": "GBP_USD",
+    "pnl": -5648.5,
+    "num_trades": 490,
+    "config_path": "search_results/ema_50_200_gbp_usd.yaml"
+  },
+  {
+    "strategy": "EMA_50_200",
+    "symbol": "USD_JPY",
+    "pnl": 168980.0,
+    "num_trades": 496,
+    "config_path": "search_results/ema_50_200_usd_jpy.yaml"
+  },
+  {
+    "strategy": "EMA_20_80_1H",
+    "symbol": "EUR_USD",
+    "pnl": -3391.0,
+    "num_trades": 1112,
+    "config_path": "search_results/ema_20_80_eurusd_1h.yaml"
+  },
+  {
+    "strategy": "EMA_20_80_4H",
+    "symbol": "EUR_USD",
+    "pnl": -970.5,
+    "num_trades": 323,
+    "config_path": "search_results/ema_20_80_eurusd_4h.yaml"
+  }
+]
