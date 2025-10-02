@@ -49,107 +49,107 @@
 
 ## 2. Medium Priority Tasks
 
-### 2.1 Traceability Comment Audit - Data Handler (DH)
-- [ ] 2.1.1 Add `# Validates: [DH-2.1]` to CSV loading tests
-- [ ] 2.1.2 Add `# Validates: [DH-2.3]` to schema normalization tests
-- [ ] 2.1.3 Add `# Validates: [DH-2.4]` to UTC timestamp tests
-- [ ] 2.1.4 Add `# Validates: [DH-2.7]` to quality_flags tests
-- [ ] 2.1.5 Add `# Validates: [DH-2.9]` if chunked loading tests exist
-- [ ] 2.1.6 Add `# Validates: [DH-2.10]` if Parquet caching tests exist
-- [ ] 2.1.7 Add `# Validates: [DH-2.12]` to DataRequest interface tests
-- [ ] 2.1.8 Add `# Validates: [DH-2.13]` to golden dataset tests
+### 2.1 Traceability Comment Audit - Data Handler (DH) ✅
+- [x] 2.1.1 Add `# Validates: [DH-2.1]` to CSV loading tests
+- [x] 2.1.2 Add `# Validates: [DH-2.3]` to schema normalization tests
+- [x] 2.1.3 Add `# Validates: [DH-2.4]` to UTC timestamp tests
+- [x] 2.1.4 Add `# Validates: [DH-2.7]` to quality_flags tests
+- [x] 2.1.5 Add `# Validates: [DH-2.9]` if chunked loading tests exist
+- [x] 2.1.6 Add `# Validates: [DH-2.10]` if Parquet caching tests exist
+- [x] 2.1.7 Add `# Validates: [DH-2.12]` to DataRequest interface tests
+- [x] 2.1.8 Add `# Validates: [DH-2.13]` to golden dataset tests
 
-### 2.2 Traceability Comment Audit - Strategy Engine (SE)
-- [ ] 2.2.1 Add `# Validates: [SE-3.2]` to BaseStrategy interface tests
-- [ ] 2.2.2 Add `# Validates: [SE-3.4]` to built-in strategy tests (SMA, PSAR, BB)
-- [ ] 2.2.3 Add `# Validates: [SE-3.7]` to strategy metadata/plotting tests
-- [ ] 2.2.4 Review and update all SE test comments for completeness
+### 2.2 Traceability Comment Audit - Strategy Engine (SE) ✅
+- [x] 2.2.1 Add `# Validates: [SE-3.2]` to BaseStrategy interface tests
+- [x] 2.2.2 Add `# Validates: [SE-3.4]` to built-in strategy tests (SMA, PSAR, BB)
+- [x] 2.2.3 Add `# Validates: [SE-3.7]` to strategy metadata/plotting tests
+- [x] 2.2.4 Review and update all SE test comments for completeness
 
-### 2.3 Traceability Comment Audit - RMM
-- [ ] 2.3.1 Add `# Validates: [RMM-4.1]` to `test_classification.py`
-- [ ] 2.3.2 Add `# Validates: [RMM-4.2]` to label+confidence output tests
-- [ ] 2.3.3 Add `# Validates: [RMM-4.3]` to rule-based baseline tests
-- [ ] 2.3.4 Add `# Validates: [RMM-4.6]` to policy function tests in `test_engine.py`
-- [ ] 2.3.5 Add `# Validates: [RMM-4.8]` to synthetic data tests
+### 2.3 Traceability Comment Audit - RMM ✅
+- [x] 2.3.1 Add `# Validates: [RMM-4.1]` to `test_classification.py`
+- [x] 2.3.2 Add `# Validates: [RMM-4.2]` to label+confidence output tests
+- [x] 2.3.3 Add `# Validates: [RMM-4.3]` to rule-based baseline tests
+- [x] 2.3.4 Add `# Validates: [RMM-4.6]` to policy function tests in `test_engine.py`
+- [x] 2.3.5 Add `# Validates: [RMM-4.8]` to synthetic data tests
 
-### 2.4 Traceability Comment Audit - Portfolio Manager (PM)
-- [ ] 2.4.1 Add `# Validates: [PM-5.1]` to state management tests
-- [ ] 2.4.2 Add `# Validates: [PM-5.2]` to canonical terms tests
-- [ ] 2.4.3 Add `# Validates: [PM-5.3]` to cash/equity tracking tests
-- [ ] 2.4.4 Add `# Validates: [PM-5.4]` to order processing tests
-- [ ] 2.4.5 Add `# Validates: [PM-5.5]` to position sizing tests
-- [ ] 2.4.6 Add `# Validates: [PM-5.7]` to portfolio risk management tests
+### 2.4 Traceability Comment Audit - Portfolio Manager (PM) ✅
+- [x] 2.4.1 Add `# Validates: [PM-5.1]` to state management tests
+- [x] 2.4.2 Add `# Validates: [PM-5.2]` to canonical terms tests
+- [x] 2.4.3 Add `# Validates: [PM-5.3]` to cash/equity tracking tests
+- [x] 2.4.4 Add `# Validates: [PM-5.4]` to order processing tests
+- [x] 2.4.5 Add `# Validates: [PM-5.5]` to position sizing tests
+- [x] 2.4.6 Add `# Validates: [PM-5.7]` to portfolio risk management tests
 
-### 2.5 Traceability Comment Audit - Risk & Exit Manager (REM)
-- [ ] 2.5.1 Add `# Validates: [REM-6.1]` to core mandate tests
-- [ ] 2.5.2 Add `# Validates: [REM-6.3]` to multiple exit rule type tests
+### 2.5 Traceability Comment Audit - Risk & Exit Manager (REM) ✅
+- [x] 2.5.1 Add `# Validates: [REM-6.1]` to core mandate tests
+- [x] 2.5.2 Add `# Validates: [REM-6.3]` to multiple exit rule type tests
 
-### 2.6 Traceability Comment Audit - Backtester (BT)
-- [ ] 2.6.1 Add `# Validates: [BT-7.2]` to rule translation tests
-- [ ] 2.6.2 Add `# Validates: [BT-7.3]` to iterative loop tests
-- [ ] 2.6.3 Add `# Validates: [BT-7.5]` to order type tests
-- [ ] 2.6.4 Add `# Validates: [BT-7.9]` to fill logic validation tests
-- [ ] 2.6.5 Add `# Validates: [BT-7.12]` to filter impact summary tests
-- [ ] 2.6.6 Add `# Validates: [BT-7.13]` to live trading deviation tests
+### 2.6 Traceability Comment Audit - Backtester (BT) ✅
+- [x] 2.6.1 Add `# Validates: [BT-7.2]` to rule translation tests
+- [x] 2.6.2 Add `# Validates: [BT-7.3]` to iterative loop tests
+- [x] 2.6.3 Add `# Validates: [BT-7.5]` to order type tests
+- [x] 2.6.4 Add `# Validates: [BT-7.9]` to fill logic validation tests
+- [x] 2.6.5 Add `# Validates: [BT-7.12]` to filter impact summary tests
+- [x] 2.6.6 Add `# Validates: [BT-7.13]` to live trading deviation tests
 
-### 2.7 Traceability Comment Audit - Execution Layer (EL)
-- [ ] 2.7.1 Add `# Validates: [EL-8.1]` to rule translation tests
-- [ ] 2.7.2 Add `# Validates: [EL-8.2]` to OANDA adapter tests
-- [ ] 2.7.3 Add `# Validates: [EL-8.5]` to Portfolio Manager integration tests
-- [ ] 2.7.4 Add `# Validates: [EL-8.6]` if live stream tests exist
-- [ ] 2.7.5 Add `# Validates: [EL-8.7]` if structured logging tests exist
+### 2.7 Traceability Comment Audit - Execution Layer (EL) ✅
+- [x] 2.7.1 Add `# Validates: [EL-8.1]` to rule translation tests
+- [x] 2.7.2 Add `# Validates: [EL-8.2]` to OANDA adapter tests
+- [x] 2.7.3 Add `# Validates: [EL-8.5]` to Portfolio Manager integration tests
+- [x] 2.7.4 Add `# Validates: [EL-8.6]` if live stream tests exist
+- [x] 2.7.5 Add `# Validates: [EL-8.7]` if structured logging tests exist
 
-### 2.8 Traceability Comment Audit - AI Lab (AI)
-- [ ] 2.8.1 Review all `tests/ai/**/*.py` files
-- [ ] 2.8.2 Add `# Validates: [AI-10.1.x]` to core mandate tests
-- [ ] 2.8.3 Add `# Validates: [AI-10.2]` to recommendation tests
-- [ ] 2.8.4 Add `# Validates: [AI-10.3]` to stop-loss/take-profit optimization tests
-- [ ] 2.8.5 Add `# Validates: [AI-10.5.x]` to integration point tests
-- [ ] 2.8.6 Add `# Validates: [AI-10.7.x]` to qualitative analysis tests
-- [ ] 2.8.7 Add `# Validates: [AI-10.8.x]` to orchestration tests
+### 2.8 Traceability Comment Audit - AI Lab (AI) ✅
+- [x] 2.8.1 Review all `tests/ai/**/*.py` files
+- [x] 2.8.2 Add `# Validates: [AI-10.1.x]` to core mandate tests
+- [x] 2.8.3 Add `# Validates: [AI-10.2]` to recommendation tests
+- [x] 2.8.4 Add `# Validates: [AI-10.3]` to stop-loss/take-profit optimization tests
+- [x] 2.8.5 Add `# Validates: [AI-10.5.x]` to integration point tests
+- [x] 2.8.6 Add `# Validates: [AI-10.7.x]` to qualitative analysis tests
+- [x] 2.8.7 Add `# Validates: [AI-10.8.x]` to orchestration tests
 
-### 2.9 Traceability Comment Audit - JSON Brief Schema
-- [ ] 2.9.1 Add `# Validates: [JSON-11.1]` to meta field tests
-- [ ] 2.9.2 Add `# Validates: [JSON-11.2]` to strategy_params tests
-- [ ] 2.9.3 Add `# Validates: [JSON-11.3]` to overall_performance tests
-- [ ] 2.9.4 Add `# Validates: [JSON-11.5]` to equity_stats tests
-- [ ] 2.9.5 Add `# Validates: [JSON-11.6]` to distribution tests
-- [ ] 2.9.6 Add `# Validates: [JSON-11.7]` to streaks tests
-- [ ] 2.9.7 Add `# Validates: [JSON-11.8]` to holding_time tests
-- [ ] 2.9.8 Add `# Validates: [JSON-11.9]` to costs tests
-- [ ] 2.9.9 Add `# Validates: [JSON-11.10]` to exposure tests
-- [ ] 2.9.10 Add `# Validates: [JSON-11.11]` to regimes tests
-- [ ] 2.9.11 Add `# Validates: [JSON-11.12]` to data_quality tests
-- [ ] 2.9.12 Add `# Validates: [JSON-11.14]` to environment tests
-- [ ] 2.9.13 Add `# Validates: [JSON-11.15]` to trades array tests
-- [ ] 2.9.14 Add `# Validates: [JSON-11.16]` to skipped_trades tests
-- [ ] 2.9.15 Add `# Validates: [JSON-11.18]` to monte_carlo tests
-- [ ] 2.9.16 Add `# Validates: [JSON-11.19]` to walk_forward tests
-- [ ] 2.9.17 Add `# Validates: [JSON-11.26]` to checksums tests
-- [ ] 2.9.18 Add `# Validates: [JSON-11.28]` to artifacts tests
-- [ ] 2.9.19 Add `# Validates: [JSON-11.29]` to signal_quality_analysis tests
-- [ ] 2.9.20 Add `# Validates: [JSON-11.30]` to trade object schema tests
+### 2.9 Traceability Comment Audit - JSON Brief Schema ✅
+- [x] 2.9.1 Add `# Validates: [JSON-11.1]` to meta field tests
+- [x] 2.9.2 Add `# Validates: [JSON-11.2]` to strategy_params tests
+- [x] 2.9.3 Add `# Validates: [JSON-11.3]` to overall_performance tests
+- [x] 2.9.4 Add `# Validates: [JSON-11.5]` to equity_stats tests
+- [x] 2.9.5 Add `# Validates: [JSON-11.6]` to distribution tests
+- [x] 2.9.6 Add `# Validates: [JSON-11.7]` to streaks tests
+- [x] 2.9.7 Add `# Validates: [JSON-11.8]` to holding_time tests
+- [x] 2.9.8 Add `# Validates: [JSON-11.9]` to costs tests
+- [x] 2.9.9 Add `# Validates: [JSON-11.10]` to exposure tests
+- [x] 2.9.10 Add `# Validates: [JSON-11.11]` to regimes tests
+- [x] 2.9.11 Add `# Validates: [JSON-11.12]` to data_quality tests
+- [x] 2.9.12 Add `# Validates: [JSON-11.14]` to environment tests
+- [x] 2.9.13 Add `# Validates: [JSON-11.15]` to trades array tests
+- [x] 2.9.14 Add `# Validates: [JSON-11.16]` to skipped_trades tests
+- [x] 2.9.15 Add `# Validates: [JSON-11.18]` to monte_carlo tests
+- [x] 2.9.16 Add `# Validates: [JSON-11.19]` to walk_forward tests
+- [x] 2.9.17 Add `# Validates: [JSON-11.26]` to checksums tests
+- [x] 2.9.18 Add `# Validates: [JSON-11.28]` to artifacts tests
+- [x] 2.9.19 Add `# Validates: [JSON-11.29]` to signal_quality_analysis tests
+- [x] 2.9.20 Add `# Validates: [JSON-11.30]` to trade object schema tests
 
-### 2.10 Data Sync Service Tests (DH-2.14-2.19)
-- [ ] 2.10.1 Create `tests/data/test_dukascopy_sync_service.py`
-- [ ] 2.10.2 Add test for DH-2.14 (core sync functionality)
-- [ ] 2.10.3 Add test for DH-2.15 (executable interface with CLI args)
-- [ ] 2.10.4 Add test for DH-2.16.1 (automatic date range detection)
-- [ ] 2.10.5 Add test for DH-2.16.2 (end date = yesterday UTC)
-- [ ] 2.10.6 Add test for DH-2.17.1 (incremental file storage)
-- [ ] 2.10.7 Add test for DH-2.17.2 (filename convention)
-- [ ] 2.10.8 Add test for DH-2.18.1 (unified data loading)
-- [ ] 2.10.9 Add test for DH-2.18.2 (no duplicate entries)
-- [ ] 2.10.10 Add test for DH-2.19 (service logging)
-- [ ] 2.10.11 Add all `# Validates: [DH-2.x]` comments
+### 2.10 Data Sync Service Tests (DH-2.14-2.19) ✅
+- [x] 2.10.1 Create `tests/data/test_dukascopy_sync_service.py`
+- [x] 2.10.2 Add test for DH-2.14 (core sync functionality)
+- [x] 2.10.3 Add test for DH-2.15 (executable interface with CLI args)
+- [x] 2.10.4 Add test for DH-2.16.1 (automatic date range detection)
+- [x] 2.10.5 Add test for DH-2.16.2 (end date = yesterday UTC)
+- [x] 2.10.6 Add test for DH-2.17.1 (incremental file storage)
+- [x] 2.10.7 Add test for DH-2.17.2 (filename convention)
+- [x] 2.10.8 Add test for DH-2.18.1 (unified data loading)
+- [x] 2.10.9 Add test for DH-2.18.2 (no duplicate entries)
+- [x] 2.10.10 Add test for DH-2.19 (service logging)
+- [x] 2.10.11 Add all `# Validates: [DH-2.x]` comments
 
-### 2.11 Public API Import Enforcement
-- [ ] 2.11.1 Create `tests/core/test_import_boundaries.py`
-- [ ] 2.11.2 Add test for SYS-1.2.2 (no direct sub-module imports)
-- [ ] 2.11.3 Implement static analysis to check import patterns
-- [ ] 2.11.4 Create allowlist for legitimate internal imports
-- [ ] 2.11.5 Add `# Validates: [SYS-1.2.2]` comment
-- [ ] 2.11.6 Add to pre-commit hooks
+### 2.11 Public API Import Enforcement ✅
+- [x] 2.11.1 Create `tests/core/test_import_boundaries.py`
+- [x] 2.11.2 Add test for SYS-1.2.2 (no direct sub-module imports)
+- [x] 2.11.3 Implement static analysis to check import patterns
+- [x] 2.11.4 Create allowlist for legitimate internal imports
+- [x] 2.11.5 Add `# Validates: [SYS-1.2.2]` comment
+- [x] 2.11.6 Add to pre-commit hooks
 
 ---
 
