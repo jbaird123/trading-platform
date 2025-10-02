@@ -2044,3 +2044,4 @@ def test_parameter_sweep_pnl_dd_vol_objective():
         vol_penalty=0.1,
     )
     assert "top" in out and "results" in out
+
