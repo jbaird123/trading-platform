@@ -1,0 +1,42 @@
+strategy_name: "Bollinger Band Mean Reversion"
+description: "Buy at lower band, sell at upper band"
+
+parameters:
+  bb_length: 20
+  bb_std: 2.0
+
+features:
+  - name: bb
+    type: BB
+    params:
+      length: 20
+      ndev: 2.0
+    source: close
+
+long_entry_rules:
+  - all_of:
+      - condition: is_below
+        left: close
+        right:
+          ref: bb_lower
+
+long_exit_rules:
+  - any_of:
+      - condition: is_above
+        left: close
+        right:
+          ref: bb_middle
+
+short_entry_rules:
+  - all_of:
+      - condition: is_above
+        left: close
+        right:
+          ref: bb_upper
+
+short_exit_rules:
+  - any_of:
+      - condition: is_below
+        left: close
+        right:
+          ref: bb_middle
