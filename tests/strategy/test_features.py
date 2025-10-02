@@ -1,6 +1,8 @@
 """
 Consolidated tests for trading_platform.strategy.features.
 
+# Validates: [SE-3.6], [SE-3.7], [DH-2.11]
+
 Merged comprehensive coverage, gap, and path-focused suites.
 """
 

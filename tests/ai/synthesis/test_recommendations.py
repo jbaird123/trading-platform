@@ -1,3 +1,8 @@
+"""Tests for AI synthesis recommendations.
+
+# Validates: [AI-10.2]
+"""
+
 from unittest.mock import Mock
 
 from trading_platform.ai.synthesis.recommendations import generate_recommendations

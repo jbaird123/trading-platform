@@ -1,3 +1,8 @@
+"""Golden dataset validation tests.
+
+# Validates: [DH-2.13]
+"""
+
 from pathlib import Path
 
 import numpy as np

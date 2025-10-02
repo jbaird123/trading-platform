@@ -1,6 +1,8 @@
 """
 Consolidated tests for trading_platform.strategy.yaml_strategy.
 
+# Validates: [SE-3.4], [SE-3.5], [SE-3.5.3]
+
 Combined 100% coverage suite, gap fillers, full coverage, and parser smoke tests.
 """
 

@@ -1,4 +1,7 @@
-"""Consolidated tests for RMM classification logic."""
+"""Consolidated tests for RMM classification logic.
+
+# Validates: [RMM-4.1], [RMM-4.2], [RMM-4.3]
+"""
 
 from __future__ import annotations
 

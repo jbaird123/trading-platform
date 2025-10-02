@@ -1,3 +1,8 @@
+"""Risk & Exit Manager tests.
+
+# Validates: [REM-6.1], [REM-6.2], [REM-6.3]
+"""
+
 from __future__ import annotations
 
 from io import StringIO

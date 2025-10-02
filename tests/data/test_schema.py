@@ -1,4 +1,7 @@
-"""Consolidated tests for trading_platform.data.schema.load_and_normalize_data."""
+"""Consolidated tests for trading_platform.data.schema.load_and_normalize_data.
+
+# Validates: [DH-2.3], [DH-2.4]
+"""
 
 from __future__ import annotations
 

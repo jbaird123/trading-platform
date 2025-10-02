@@ -1,5 +1,7 @@
 """Updated tests for trading_platform.data.loader using convention-based data loading.
 
+# Validates: [DH-2.1], [DH-2.12]
+
 These tests have been updated to use the new load_instrument_data function
 instead of the removed load_from_catalog function.
 """
