@@ -527,6 +527,11 @@ def monte_carlo_resimulation(
     # For bar_bootstrap mode, the index is preserved (line 441), so RMM context is still valid
     rmm_ctx = _rmm_context(df, base_cfg, data_handler)
 
+    # PERFORMANCE FIX: Compile strategy once outside loop (doesn't change between trials)
+    strat = compile_strategy(
+        {**strategy_cfg, "parameters": strategy_cfg.get("parameters", {})}
+    )
+
     finals: list[float] = []
     finals_pnl: list[float] = []
     dd_vals: list[float] = []
@@ -555,9 +560,7 @@ def monte_carlo_resimulation(
             cm["spread_per_unit"] = _j(base_sp, sp)
             cm["slippage_per_unit"] = _j(base_sl, sl)
             cfg_trial = cfg.model_copy(update={"cost_model": cm})
-        strat = compile_strategy(
-            {**strategy_cfg, "parameters": strategy_cfg.get("parameters", {})}
-        )
+        # Generate signals on perturbed data (must be per-trial since prices changed)
         sig = strat.generate_signals(sim_df)
         _res3 = run_backtest(
             market_data=sim_df,
