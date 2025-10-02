@@ -17,6 +17,7 @@ from trading_platform.core.config import RunConfig
 from trading_platform.core.demo import generate_demo_run
 from trading_platform.core.policy import TradingWindowPolicy
 from trading_platform.core.run import finalize_run, initialize_run
+from trading_platform.core.robustness import walk_forward_summary
 from trading_platform.core.sweeps import (
     run_parameter_sweep,
     walk_forward_optimize_and_test,
@@ -436,31 +437,39 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             data_handler=data_handler,
         )
 
-    # Optional walk-forward optimize→test (requires grid)
+    # Optional walk-forward analysis
     wf_cfg = cfg_raw.get("walk_forward") or {}
     wf_results = None
     if (
         isinstance(wf_cfg, dict)
         and int(wf_cfg.get("window", 0)) > 0
         and int(wf_cfg.get("step", 0)) > 0
-        and isinstance(ps_cfg, dict)
-        and ps_cfg.get("grid")
     ):
-        grid_cfg = ps_cfg.get("grid")
-        grid_typed = cast(dict[str, list[Any]], grid_cfg)
-        wf_results = walk_forward_optimize_and_test(
-            df,
-            cfg_raw,
-            strat_cfg,
-            window=int(wf_cfg.get("window", 0)),
-            step=int(wf_cfg.get("step", 0)),
-            grid=grid_typed,
-            seed=ps_cfg.get("seed"),
-            objective=str(ps_cfg.get("objective", "total_pnl")),
-            dd_penalty=ps_cfg.get("dd_penalty"),
-            vol_penalty=ps_cfg.get("vol_penalty"),
-            data_handler=data_handler,
-        )
+        # If parameter_search grid is provided, do walk-forward OPTIMIZATION
+        if isinstance(ps_cfg, dict) and ps_cfg.get("grid"):
+            grid_cfg = ps_cfg.get("grid")
+            grid_typed = cast(dict[str, list[Any]], grid_cfg)
+            wf_results = walk_forward_optimize_and_test(
+                df,
+                cfg_raw,
+                strat_cfg,
+                window=int(wf_cfg.get("window", 0)),
+                step=int(wf_cfg.get("step", 0)),
+                grid=grid_typed,
+                seed=ps_cfg.get("seed"),
+                objective=str(ps_cfg.get("objective", "total_pnl")),
+                dd_penalty=ps_cfg.get("dd_penalty"),
+                vol_penalty=ps_cfg.get("vol_penalty"),
+                data_handler=data_handler,
+            )
+        else:
+            # Otherwise, just do walk-forward ANALYSIS on existing trades
+            # (splits trades by time into train/test windows and computes OOS performance)
+            wf_results = walk_forward_summary(
+                trades,
+                window=int(wf_cfg.get("window", 0)),
+                step=int(wf_cfg.get("step", 0)),
+            )
 
     # Optional Monte Carlo (bar-level resimulation)
     mc_cfg = cfg_raw.get("monte_carlo") or {}

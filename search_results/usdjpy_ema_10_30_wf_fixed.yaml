@@ -1,0 +1,39 @@
+user_id: "ai_search"
+runs_dir: "runs"
+initial_cash: 100000
+position_size: 50000
+warmup_bars: 100
+entry_window_bars: 3
+tie_break_policy:
+  rule: "stop_then_tp"
+
+cost_model:
+  spread_per_unit: 0.00015
+  slippage_per_unit: 0.0
+  commission:
+    type: "per_unit"
+    value: 0.0
+
+data_request:
+  symbol: "USD_JPY"
+  timeframe: "1H"
+  start: "2013-01-01"
+  end: "2025-09-26"
+
+strategy_path: "config/strategy/ema_crossover.yaml"
+rem_path: "config/rem/trailing_stops.yaml"
+
+# Parameter search grid for walk-forward
+parameter_search:
+  grid:
+    ema_fast_length: [8, 10, 12]
+    ema_slow_length: [25, 30, 35]
+  objective: "total_pnl"
+
+# Walk-forward analysis: 2-year train, 1-year test
+walk_forward:
+  window: 730  # days
+  step: 365    # days
+
+strategy_params:
+  slope_filter: false
