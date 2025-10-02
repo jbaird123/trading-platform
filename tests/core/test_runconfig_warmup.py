@@ -1,4 +1,4 @@
-# Validates: [BT-7.7]
+# Validates: [BT-7.7], [SYS-1.1.2], [SYS-1.7.3]
 from __future__ import annotations
 
 from trading_platform.core.config import RunConfig
