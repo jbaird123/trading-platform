@@ -155,7 +155,7 @@ class RMMEngine:
         Conventional mapping:
         - trend_up -> ["long"]
         - trend_down -> ["short"]
-        - range/unknown -> []
+        - range/other -> ["long", "short"] (if label passes policy checks)
         """
         min_c = (
             float(policy.get("min_confidence", 0.0))
@@ -174,7 +174,9 @@ class RMMEngine:
             return ["long"]
         if label == "trend_down":
             return ["short"]
-        return []
+        # For non-directional labels (range, unknown, etc.) that pass policy checks,
+        # allow both sides. This enables range-based or neutral regime strategies.
+        return ["long", "short"]
 
     def project_to_index(
         self, daily: pd.DataFrame, target_index: pd.DatetimeIndex, policy: dict | None
@@ -183,6 +185,10 @@ class RMMEngine:
 
         Returns DataFrame with all columns from daily (including regime features)
         plus allowed_sides, indexed by target_index.
+
+        IMPORTANT: Shifts regime data by 1 bar to prevent lookahead bias.
+        At time T, we use the regime from the previous completed bar, not the
+        bar that's currently in progress.
         """
         if daily.empty:
             df = pd.DataFrame(index=target_index)
@@ -190,9 +196,17 @@ class RMMEngine:
             df["confidence"] = 0.0
             df["allowed_sides"] = [[] for _ in range(len(target_index))]  # pyright: ignore
             return df
+
+        # CRITICAL: Shift regime data by 1 bar to prevent lookahead bias
+        # This ensures we only use regime information from COMPLETED bars.
+        # Example: At 10:05 on a 5min chart with 15min RMM:
+        #   - Without shift: would use regime from 10:00 bar (not closed until 10:15) ❌
+        #   - With shift: uses regime from 09:45 bar (closed at 10:00) ✅
+        daily_shifted = daily.shift(1)
+
         # Reindex with forward-fill to align to target_index boundaries
         # This preserves all columns including regime features
-        aligned = daily.reindex(daily.index.union(target_index)).sort_index().ffill()
+        aligned = daily_shifted.reindex(daily_shifted.index.union(target_index)).sort_index().ffill()
         aligned = aligned.loc[target_index]
         allowed = [
             self.allowed_sides_for(
