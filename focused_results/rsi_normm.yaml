@@ -1,0 +1,21 @@
+cost_model:
+  commission:
+    type: per_unit
+    value: 0.0
+  slippage_per_unit: 0.0
+  spread_per_unit: 0.00015
+data_request:
+  end: '2025-09-26'
+  start: '2020-01-01'
+  symbol: USD_JPY
+  timeframe: 5min
+entry_window_bars: 3
+initial_cash: 100000
+position_size: 50000
+rem_path: config/rem/trailing_stops.yaml
+runs_dir: runs
+strategy_path: config/strategy/rsi_mean_reversion.yaml
+tie_break_policy:
+  rule: stop_then_tp
+user_id: focused_search
+warmup_bars: 100
