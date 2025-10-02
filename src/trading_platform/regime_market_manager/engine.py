@@ -104,22 +104,28 @@ class RMMEngine:
             resampled = df_data
         else:
             resampled = resample_ohlc(df_data, timeframe.lower())
+
+        # PERFORMANCE: Compute features once on full DataFrame (vectorized)
         df = compute_features(resampled, feats)
-        labels = []
-        confs = []
-        for i in range(len(df)):
-            row = df.iloc[: i + 1]  # predicates can use shift
-            chosen = None
-            for r in regimes:
-                conds = r.get("conditions") or {}
-                mask = _eval_block(row, conds)
-                if bool(mask.iloc[-1]):
-                    chosen = (str(r.get("label")), float(r.get("confidence", 0.0)))
-                    break
-            if chosen is None:
-                chosen = ("unknown", 0.0)
-            labels.append(chosen[0])
-            confs.append(chosen[1])
+
+        # PERFORMANCE: Evaluate regime conditions vectorized (no per-bar loop)
+        # Initialize with unknown regime
+        labels = pd.Series(["unknown"] * len(df), index=df.index)
+        confs = pd.Series([0.0] * len(df), index=df.index)
+
+        # Evaluate each regime's conditions as vectorized boolean masks
+        for r in regimes:
+            conds = r.get("conditions") or {}
+            mask = _eval_block(df, conds)  # Returns boolean Series for all bars
+            label = str(r.get("label"))
+            confidence = float(r.get("confidence", 0.0))
+
+            # Update labels/confidence where this regime's conditions are true
+            # and no higher-priority regime has already been assigned
+            # (regimes are checked in order, first match wins)
+            update_mask = mask & (labels == "unknown")
+            labels.loc[update_mask] = label
+            confs.loc[update_mask] = confidence
 
         # Include computed features alongside label and confidence
         out = df.copy()

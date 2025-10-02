@@ -50,4 +50,4 @@ strategy_overrides:
       length: 50
 
 # Regime Market Manager - Iteration 10: Disable to test trade frequency
-# rmm_path: "config/rmm/4h_trend.yaml"
+rmm_path: "config/rmm/4h_trend.yaml"
