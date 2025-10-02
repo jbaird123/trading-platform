@@ -78,13 +78,15 @@ class RMMEngine:
             where = f" at '{path}'" if path else ""
             raise ValueError(f"rmm schema validation error{where}: {e.message}") from e
 
-    def classify_regime(self, df_data: pd.DataFrame, timeframe: str | None = None) -> pd.DataFrame:
+    def classify_regime(self, df_data: pd.DataFrame, timeframe: str | None = None, already_resampled: bool = False) -> pd.DataFrame:
         """Return regime labels/confidence based on RMM config rules.
 
         Args:
             df_data: Input OHLCV data (any timeframe)
             timeframe: Regime classification timeframe (e.g., "1D", "4H", "1H").
                       If None, uses timeframe from config. Defaults to "1D" if not specified.
+            already_resampled: If True, assumes df_data is already at the target timeframe.
+                             Used when DataHandler provides pre-resampled data for performance.
 
         Returns:
             DataFrame with: label, confidence, and all computed regime features.
@@ -97,8 +99,11 @@ class RMMEngine:
         if timeframe is None:
             timeframe = cfg.get("timeframe", "1D")
 
-        # Resample to regime timeframe
-        resampled = resample_ohlc(df_data, timeframe.lower())
+        # Resample to regime timeframe (unless caller already resampled via DataHandler)
+        if already_resampled:
+            resampled = df_data
+        else:
+            resampled = resample_ohlc(df_data, timeframe.lower())
         df = compute_features(resampled, feats)
         labels = []
         confs = []

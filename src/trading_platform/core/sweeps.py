@@ -15,7 +15,11 @@ from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
 
 
-def _rmm_context(df: pd.DataFrame, cfg_raw: dict[str, Any]) -> dict | None:
+def _rmm_context(
+    df: pd.DataFrame,
+    cfg_raw: dict[str, Any],
+    data_handler: Any | None = None,
+) -> dict | None:
     rmm_cfg = cfg_raw.get("rmm_config") or {}
     rmm_path = cfg_raw.get("rmm_path")
     if rmm_path:
@@ -33,7 +37,17 @@ def _rmm_context(df: pd.DataFrame, cfg_raw: dict[str, Any]) -> dict | None:
         return None
     eng = RMMEngine(config=rmm_cfg)
     regime_timeframe = rmm_cfg.get("timeframe", "1D")
-    regimes = eng.classify_regime(df, timeframe=regime_timeframe)
+
+    # Use DataHandler for resampling if available (cached), otherwise fallback to direct resample
+    if data_handler is not None:
+        df_resampled = data_handler.get_data(timeframe=regime_timeframe)
+        already_resampled = True
+    else:
+        # Fallback for legacy code paths without DataHandler
+        df_resampled = df
+        already_resampled = False
+
+    regimes = eng.classify_regime(df_resampled, timeframe=regime_timeframe, already_resampled=already_resampled)
     pol = rmm_cfg.get("policy") or {}
     from typing import cast as _cast
 
@@ -111,6 +125,7 @@ def run_parameter_sweep(
     seed: int | None = None,
     objective: str = "total_pnl",
     dd_penalty: float | None = None,
+    data_handler: Any | None = None,
     vol_penalty: float | None = None,
     debug_dir: str | Path | None = None,
 ) -> dict[str, Any]:
@@ -153,7 +168,7 @@ def run_parameter_sweep(
             cands.append({k: random.choice(random_space[k]) for k in keys})
 
     cfg = RunConfig.model_validate(base_cfg)
-    rmm_ctx = _rmm_context(df, base_cfg)
+    rmm_ctx = _rmm_context(df, base_cfg, data_handler)
     rem_cfg = base_cfg.get("rem_config") or {}
     rem_path = base_cfg.get("rem_path")
     if rem_path:
@@ -341,6 +356,7 @@ def walk_forward_optimize_and_test(
     seed: int | None = None,
     objective: str = "total_pnl",
     dd_penalty: float | None = None,
+    data_handler: Any | None = None,
     vol_penalty: float | None = None,
 ) -> dict[str, Any]:
     splits = walk_forward_splits(df.index, window=window, step=step)
@@ -375,7 +391,7 @@ def walk_forward_optimize_and_test(
             strategy=strat,
             config=cfg,
             rem=rem,
-            rmm_context=_rmm_context(test, base_cfg),
+            rmm_context=_rmm_context(test, base_cfg, data_handler),
         )
         trades2: list[Trade]
         if isinstance(_res2, tuple):
@@ -425,6 +441,7 @@ def monte_carlo_resimulation(
     mode: str = "bar_bootstrap",
     cost_jitter: dict[str, Any] | None = None,
     perturbation: dict[str, Any] | None = None,
+    data_handler: Any | None = None,
 ) -> dict[str, Any]:
     """Monte Carlo by resimulating price paths and re-running the engine.
 
@@ -493,7 +510,7 @@ def monte_carlo_resimulation(
     # PERFORMANCE FIX: Compute RMM context once before loop instead of per trial
     # For bar_resimulation mode, the index doesn't change, so we can reuse the same RMM context
     # For bar_bootstrap mode, the index is preserved (line 441), so RMM context is still valid
-    rmm_ctx = _rmm_context(df, base_cfg)
+    rmm_ctx = _rmm_context(df, base_cfg, data_handler)
 
     finals: list[float] = []
     finals_pnl: list[float] = []

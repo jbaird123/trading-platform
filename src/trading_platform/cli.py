@@ -21,9 +21,8 @@ from trading_platform.core.sweeps import (
     run_parameter_sweep,
     walk_forward_optimize_and_test,
 )
+from trading_platform.data.handler import DataHandler
 from trading_platform.data.instrument import get_instrument_definition
-from trading_platform.data.loader import load_instrument_data
-from trading_platform.data.schema import resample_ohlc
 from trading_platform.execution.oanda_stub import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
@@ -94,25 +93,28 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     cfg = RunConfig.model_validate(cfg_raw)
     run_path = initialize_run(cfg)
 
-    # Minimal pipeline: toy data unless provided, simple strategy compile.
+    # Initialize DataHandler for centralized data access with caching
+    data_handler: DataHandler | None = None
     df: pd.DataFrame
     dq_flags: list[str] = []
     data_req = cfg_raw.get("data_request")
     if isinstance(data_req, dict):
-        # Delegate sourcing to Data Handler using convention-based approach
+        # Create DataHandler - loads raw data once, handles all resampling/caching
         instrument_def = get_instrument_definition(data_req["symbol"])
-        df, dq_flags = load_instrument_data(data_req["symbol"], Path("data"))
+        data_handler = DataHandler(
+            symbol=data_req["symbol"],
+            data_root=Path("data"),
+            instrument=instrument_def,
+        )
+        dq_flags = data_handler.data_quality_flags
 
-        tf = data_req.get("timeframe")
-        if tf:
-            df = resample_ohlc(df, str(tf), instrument_def)
-
-        start = data_req.get("start")
-        end = data_req.get("end")
-        if start:
-            df = df.loc[pd.to_datetime(start, utc=True) :]
-        if end:
-            df = df.loc[: pd.to_datetime(end, utc=True)]
+        # Get data for requested timeframe and date range
+        # DataHandler caches complete datasets and applies filtering
+        df = data_handler.get_data(
+            timeframe=data_req.get("timeframe"),
+            start=data_req.get("start"),
+            end=data_req.get("end"),
+        )
     else:
         idx = pd.date_range("2024-01-01", periods=5, freq="h")
         vals = [1.0, 2.0, 3.0, 2.0, 1.0]
@@ -431,6 +433,7 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             dd_penalty=ps_cfg.get("dd_penalty"),
             vol_penalty=ps_cfg.get("vol_penalty"),
             debug_dir=run_path / "debug",
+            data_handler=data_handler,
         )
 
     # Optional walk-forward optimize→test (requires grid)
@@ -456,6 +459,7 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             objective=str(ps_cfg.get("objective", "total_pnl")),
             dd_penalty=ps_cfg.get("dd_penalty"),
             vol_penalty=ps_cfg.get("vol_penalty"),
+            data_handler=data_handler,
         )
 
     # Optional Monte Carlo (bar-level resimulation)
@@ -476,6 +480,7 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             mode=str(mc_cfg.get("mode")),
             cost_jitter=mc_cfg.get("cost_jitter"),
             perturbation=mc_cfg.get("perturbation"),
+            data_handler=data_handler,
         )
 
     finalize_run(
