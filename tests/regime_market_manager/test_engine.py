@@ -230,7 +230,8 @@ def test_rmm_engine_allowed_sides_for() -> None:
     )
     assert RMMEngine.allowed_sides_for("trend_up", 0.8, {}) == ["long"]
     assert RMMEngine.allowed_sides_for("trend_down", 0.8, {}) == ["short"]
-    assert RMMEngine.allowed_sides_for("range", 0.8, {}) == []
+    # Bug #1 fix: range now returns ["long", "short"] instead of []
+    assert RMMEngine.allowed_sides_for("range", 0.8, {}) == ["long", "short"]
 
 
 def test_rmm_engine_project_to_index_empty_daily() -> None:
