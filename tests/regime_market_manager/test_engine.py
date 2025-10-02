@@ -341,3 +341,60 @@ def test_rmm_engine_classify_daily_end_to_end() -> None:
     assert "confidence" in daily.columns
     assert not daily.empty
     assert (daily["confidence"] >= 0).all() and (daily["confidence"] <= 1).all()
+
+
+def test_classify_regime_with_already_resampled_data() -> None:
+    """Test classify_regime when data is already resampled."""
+    # Validates: [REQ-RMM-001] Handle pre-resampled data
+    from trading_platform.regime_market_manager.engine import RMMEngine
+    import pandas as pd
+
+    config = {
+        "features": [],
+        "regimes": [{"label": "default", "conditions": [], "allowed_sides": ["long", "short"]}],
+        "timeframe": "1D",
+    }
+
+    engine = RMMEngine(config=config)
+
+    # Already resampled daily data
+    df = pd.DataFrame({
+        "open": [1.0, 1.1],
+        "high": [1.05, 1.15],
+        "low": [0.95, 1.05],
+        "close": [1.02, 1.12],
+        "volume": [1000, 1100],
+    }, index=pd.date_range("2024-01-01", periods=2, freq="D", tz="UTC"))
+
+    result = engine.classify_regime(df, timeframe="1D", already_resampled=True)
+
+    assert "label" in result.columns
+    assert "confidence" in result.columns
+    assert len(result) == 2
+
+
+def test_classify_regime_without_explicit_timeframe() -> None:
+    """Test classify_regime uses config timeframe when not provided."""
+    # Validates: [REQ-RMM-002] Use config timeframe as default
+    from trading_platform.regime_market_manager.engine import RMMEngine
+    import pandas as pd
+
+    config = {
+        "features": [],
+        "regimes": [{"label": "default", "conditions": [], "allowed_sides": ["long", "short"]}],
+        "timeframe": "1H",
+    }
+
+    engine = RMMEngine(config=config)
+
+    df = pd.DataFrame({
+        "open": [1.0] * 60,
+        "high": [1.05] * 60,
+        "low": [0.95] * 60,
+        "close": [1.02] * 60,
+        "volume": [1000] * 60,
+    }, index=pd.date_range("2024-01-01", periods=60, freq="min", tz="UTC"))
+
+    result = engine.classify_regime(df, timeframe=None)  # Should use "1H" from config
+
+    assert "label" in result.columns
