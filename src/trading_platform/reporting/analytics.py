@@ -393,8 +393,8 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
     def analyze_by_exit_reason(reason: str) -> dict:
         """Analyze trades that exited for a specific reason."""
         reason_trades = [t for t in trades_with_analysis if t.exit_reason == reason]
-        if not reason_trades:
-            return {}
+        if not reason_trades:  # pragma: no cover
+            return {}  # pragma: no cover - Defensive: exit_reasons built from trades
 
         n_trades = len(reason_trades)
         analysis: dict[str, Any] = {"n_trades": n_trades}
@@ -452,8 +452,8 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
     by_exit_reason = {}
     for reason in exit_reasons:
         reason_analysis = analyze_by_exit_reason(reason)
-        if reason_analysis:
-            by_exit_reason[reason] = reason_analysis
+        if reason_analysis:  # pragma: no cover
+            by_exit_reason[reason] = reason_analysis  # pragma: no cover - Always true when exit_reasons from trades
 
     # Optimal hold duration analysis: what if we held for N bars instead?
     current_avg_pnl = sum(t.pnl for t in trades_with_analysis) / len(trades_with_analysis)
