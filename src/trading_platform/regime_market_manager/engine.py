@@ -36,10 +36,26 @@ def _eval_pred(df: pd.DataFrame, pred: dict[str, Any]) -> pd.Series:
         return left > right
     if cond == "is_below":
         return left < right
-    # SAFETY: Fail loudly on unrecognized conditions instead of silently returning False
+    if cond == "cross_above":
+        # True when left crosses from below to above right
+        above_now = left > right
+        above_prev = (left > right).shift(1).fillna(True).astype(bool)
+        # First bar can't be a cross (no previous to compare)
+        result = above_now & ~above_prev
+        result.iloc[0] = False
+        return result
+    if cond == "cross_below":
+        # True when left crosses from above to below right
+        below_now = left < right
+        below_prev = (left < right).shift(1).fillna(True).astype(bool)
+        # First bar can't be a cross (no previous to compare)
+        result = below_now & ~below_prev
+        result.iloc[0] = False
+        return result
+    # SAFETY: Fail loudly on unrecognized conditions
     raise ValueError(
         f"Unrecognized RMM condition: '{cond}'. "
-        f"Supported conditions: is_above, is_below"
+        f"Supported: is_above, is_below, cross_above, cross_below"
     )
 
 
