@@ -1,0 +1,163 @@
+....................................................................FFFF [  6%]
+FFFFF................................................................... [ 12%]
+..........................................F............................. [ 18%]
+........................................................................ [ 24%]
+........................................................................ [ 30%]
+..FF.....FF.............EEEEEEFEE...................................F..F [ 36%]
+FFFFFFFF.F.........FF................................................... [ 42%]
+........................................................................ [ 48%]
+.........FEEEEEEF....................................................... [ 54%]
+..............................................................FFFFFFFF.. [ 60%]
+..................................FFFFFFFFF..........FFFFFFFF........... [ 66%]
+...................................................FF.......FFFF........ [ 73%]
+.................................................F........F............. [ 79%]
+..........F.F........................................................... [ 85%]
+........................................................................ [ 91%]
+........................................................................ [ 97%]
+...............................                                          [100%]
+=============================== warnings summary ===============================
+tests/performance/test_performance_benchmarks.py:25
+  /Users/jbaird/Documents/personal/trading-platform/tests/performance/test_performance_benchmarks.py:25: PytestUnknownMarkWarning: Unknown pytest.mark.slow - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.slow
+
+tests/performance/test_performance_benchmarks.py:85
+  /Users/jbaird/Documents/personal/trading-platform/tests/performance/test_performance_benchmarks.py:85: PytestUnknownMarkWarning: Unknown pytest.mark.slow - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.slow
+
+tests/performance/test_performance_benchmarks.py:135
+  /Users/jbaird/Documents/personal/trading-platform/tests/performance/test_performance_benchmarks.py:135: PytestUnknownMarkWarning: Unknown pytest.mark.slow - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.slow
+
+tests/performance/test_performance_benchmarks.py:197
+  /Users/jbaird/Documents/personal/trading-platform/tests/performance/test_performance_benchmarks.py:197: PytestUnknownMarkWarning: Unknown pytest.mark.slow - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.slow
+
+tests/core/test_strategy_params_bug_fix.py::test_strategy_params_applied_before_compilation
+  /Users/jbaird/Documents/personal/trading-platform/tests/core/test_strategy_params_bug_fix.py:106: FutureWarning: 'H' is deprecated and will be removed in a future version, please use 'h' instead.
+    index=pd.date_range("2024-01-01", periods=100, freq="H"),
+
+tests/core/test_strategy_params_bug_fix.py::test_strategy_params_not_applied_uses_defaults
+  /Users/jbaird/Documents/personal/trading-platform/tests/core/test_strategy_params_bug_fix.py:230: FutureWarning: 'H' is deprecated and will be removed in a future version, please use 'h' instead.
+    index=pd.date_range("2024-01-01", periods=100, freq="H"),
+
+tests/test_core.py::test_a_long_trade_is_closed_by_a_stoploss
+tests/test_core.py::test_a_long_trade_is_closed_by_a_takeprofit
+tests/test_core.py::test_process_a_simple_long_entry_and_exit
+  /Users/jbaird/Documents/personal/trading-platform/tests/conftest.py:165: FutureWarning: Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value 'enter_long' has dtype incompatible with float64, please explicitly cast to a compatible dtype first.
+    shared_context["signals"].iloc[i - 1] = value
+
+tests/test_core.py::test_generate_a_long_signal_on_a_bullish_ema_crossover
+  /Users/jbaird/Documents/personal/trading-platform/tests/conftest.py:254: FutureWarning: Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value 'long' has dtype incompatible with float64, please explicitly cast to a compatible dtype first.
+    shared_context["signals"].iloc[-1] = signal
+
+tests/test_core.py::test_generate_a_short_signal_on_a_bearish_ema_crossover
+  /Users/jbaird/Documents/personal/trading-platform/tests/conftest.py:254: FutureWarning: Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value 'short' has dtype incompatible with float64, please explicitly cast to a compatible dtype first.
+    shared_context["signals"].iloc[-1] = signal
+
+tests/test_core.py::test_maintain_a_flat_signal_when_there_is_no_crossover
+  /Users/jbaird/Documents/personal/trading-platform/tests/conftest.py:254: FutureWarning: Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value 'flat' has dtype incompatible with float64, please explicitly cast to a compatible dtype first.
+    shared_context["signals"].iloc[-1] = signal
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============================= slowest 20 durations =============================
+6.11s call     tests/cli/test_cli_final_coverage.py::test_cli_data_request_with_start_end_filtering
+3.71s call     tests/ai/e2e/test_training_pipeline_e2e.py::test_full_training_pipeline_e2e
+3.33s call     tests/ai/llm_analysis/test_client.py::test_get_feedback_success
+3.30s call     tests/ai/e2e/test_training_pipeline_e2e.py::test_full_training_pipeline_e2e_minimal
+2.59s call     tests/ai/llm_analysis/test_client.py::test_get_feedback_api_exception
+2.48s call     tests/ai/llm_analysis/test_client.py::test_get_feedback_non_string_text
+2.37s call     tests/ai/llm_analysis/test_client.py::test_get_feedback_timeout_exception
+2.32s call     tests/ai/llm_analysis/test_client.py::test_get_feedback_no_text_attribute
+2.30s call     tests/ai/llm_analysis/test_client.py::test_get_feedback_http_error
+0.80s call     tests/ai/synthesis/test_engine.py::test_main_block_execution
+0.63s call     tests/ai/test_data_labeling.py::test_main_block_execution_subprocess
+0.24s call     tests/core/test_properties.py::test_equity_and_pnl_are_consistent
+0.17s call     tests/cli/test_cli_compare_and_paths.py::test_cmd_run_backtest_reads_csv_path
+0.14s call     tests/reporting/test_analytics.py::test_compute_stationarity
+0.11s call     tests/data/test_parquet_caching.py::test_parquet_cache_invalidation_on_source_change
+0.11s call     tests/core/test_cli_commands.py::test_cmd_run_backtest_saves_rmm_spans_artifact
+0.10s call     tests/cli/test_cli_more.py::test_cmd_run_backtest_yaml_requires_pyyaml
+0.10s call     tests/core/test_walk_forward_optimize_and_test.py::test_walk_forward_optimize_and_test_returns_payload
+0.09s call     tests/cli/test_cli_toy_data_path.py::test_cmd_run_backtest_toy_data_path
+0.09s call     tests/core/test_cli_commands.py::test_cmd_run_backtest_saves_signals_artifact
+=========================== short test summary info ============================
+FAILED tests/ai/llm_analysis/test_client.py::test_llm_api_client_raises_without_api_key
+FAILED tests/ai/llm_analysis/test_client.py::test_llm_api_client_initialization_with_api_key
+FAILED tests/ai/llm_analysis/test_client.py::test_get_feedback_success - Asse...
+FAILED tests/ai/llm_analysis/test_client.py::test_get_feedback_no_text_attribute
+FAILED tests/ai/llm_analysis/test_client.py::test_get_feedback_non_string_text
+FAILED tests/ai/llm_analysis/test_client.py::test_get_feedback_api_exception
+FAILED tests/ai/llm_analysis/test_client.py::test_get_feedback_timeout_exception
+FAILED tests/ai/llm_analysis/test_client.py::test_get_feedback_http_error - A...
+FAILED tests/ai/llm_analysis/test_llm_engine.py::test_llm_engine_run - assert...
+FAILED tests/ai/synthesis/test_rules.py::test_signal_persistence_rule_triggered
+FAILED tests/cli/test_cli_ai_diagnose.py::test_cmd_ai_diagnose_triggers_specific_rule
+FAILED tests/cli/test_cli_ai_diagnose_signal_persistence.py::test_cmd_ai_diagnose_triggers_signal_persistence_rule
+FAILED tests/cli/test_cli_coverage_gaps.py::test_cli_data_request_with_all_filters
+FAILED tests/cli/test_cli_coverage_gaps.py::test_cli_no_data_request_uses_toy_data
+FAILED tests/cli/test_cli_full_coverage.py::test_cmd_run_backtest_with_paths_and_failures
+FAILED tests/core/test_golden_brief.py::test_brief_matches_golden_master - As...
+FAILED tests/core/test_import_boundaries.py::test_strategy_base_is_public - I...
+FAILED tests/core/test_import_boundaries.py::test_backtester_is_public - Impo...
+FAILED tests/core/test_import_boundaries.py::test_portfolio_manager_is_public
+FAILED tests/core/test_import_boundaries.py::test_data_loader_is_public - Imp...
+FAILED tests/core/test_import_boundaries.py::test_brief_generation_is_public
+FAILED tests/core/test_import_boundaries.py::test_rmm_is_public - ImportError...
+FAILED tests/core/test_import_boundaries.py::test_rem_is_public - ImportError...
+FAILED tests/core/test_import_boundaries.py::test_yaml_strategy_is_public - I...
+FAILED tests/core/test_import_boundaries.py::test_no_implementation_leakage
+FAILED tests/core/test_import_boundaries.py::test_typing_imports_available - ...
+FAILED tests/core/test_parameter_sweep_consistency.py::test_parameter_sweep_matches_standalone
+FAILED tests/core/test_parameter_sweep_consistency.py::test_strategy_params_override_file_defaults
+FAILED tests/data/test_dukascopy_sync_service.py::test_sync_service_initialization
+FAILED tests/data/test_dukascopy_sync_service.py::test_sync_service_creates_data_directory
+FAILED tests/execution/test_connectivity_retries.py::test_api_connection_retry_on_network_error
+FAILED tests/execution/test_connectivity_retries.py::test_api_connection_exponential_backoff
+FAILED tests/execution/test_connectivity_retries.py::test_api_connection_max_retries_exceeded
+FAILED tests/execution/test_connectivity_retries.py::test_api_connection_timeout_handling
+FAILED tests/execution/test_connectivity_retries.py::test_api_connection_different_error_types
+FAILED tests/execution/test_connectivity_retries.py::test_api_connection_circuit_breaker
+FAILED tests/execution/test_connectivity_retries.py::test_api_connection_health_check
+FAILED tests/execution/test_connectivity_retries.py::test_api_connection_fallback_endpoint
+FAILED tests/execution/test_live_stream.py::test_live_stream_connection_established
+FAILED tests/execution/test_live_stream.py::test_live_stream_receives_price_updates
+FAILED tests/execution/test_live_stream.py::test_live_stream_handles_disconnection
+FAILED tests/execution/test_live_stream.py::test_live_stream_automatic_reconnection
+FAILED tests/execution/test_live_stream.py::test_live_stream_heartbeat_monitoring
+FAILED tests/execution/test_live_stream.py::test_live_stream_handles_rate_limiting
+FAILED tests/execution/test_live_stream.py::test_live_stream_buffering - Modu...
+FAILED tests/execution/test_live_stream.py::test_live_stream_symbol_subscription
+FAILED tests/execution/test_live_stream.py::test_live_stream_error_handling
+FAILED tests/execution/test_structured_logging.py::test_structured_log_format
+FAILED tests/execution/test_structured_logging.py::test_structured_log_includes_context
+FAILED tests/execution/test_structured_logging.py::test_structured_log_trade_lifecycle
+FAILED tests/execution/test_structured_logging.py::test_structured_log_error_tracking
+FAILED tests/execution/test_structured_logging.py::test_structured_log_performance_metrics
+FAILED tests/execution/test_structured_logging.py::test_structured_log_sanitizes_sensitive_data
+FAILED tests/execution/test_structured_logging.py::test_structured_log_correlation_id
+FAILED tests/execution/test_structured_logging.py::test_structured_log_filtering
+FAILED tests/regime_market_manager/test_engine.py::test_eval_pred_known_conditions
+FAILED tests/regime_market_manager/test_engine.py::test_eval_pred_unknown_condition_defaults_false
+FAILED tests/regime_market_manager/test_engine.py::test_rmm_engine_project_to_index_with_daily_data
+FAILED tests/regime_market_manager/test_engine.py::test_rmm_engine_classify_daily_end_to_end
+FAILED tests/regime_market_manager/test_hysteresis.py::test_regime_transition_hysteresis_prevents_flipping
+FAILED tests/regime_market_manager/test_hysteresis.py::test_confidence_threshold_hysteresis
+FAILED tests/reporting/test_brief.py::test_save_run_brief_schema_validation_enabled
+FAILED tests/reporting/test_brief.py::test_brief_schema_accepts_mc_wf_ps_enumerated_fields
+FAILED tests/reporting/test_costs.py::test_trades_include_cost_breakdown_placeholders
+FAILED tests/reporting/test_costs.py::test_mixed_trades_breakdown_and_defaults
+ERROR tests/cli/test_cli_full_coverage.py::test_cmd_run_backtest_full_branch
+ERROR tests/cli/test_cli_full_coverage.py::test_cmd_run_backtest_fast_mode_last_days_and_overrides
+ERROR tests/cli/test_cli_full_coverage.py::test_cmd_run_backtest_fast_mode_limit_and_exception
+ERROR tests/cli/test_cli_full_coverage.py::test_cmd_run_backtest_tuple_variants
+ERROR tests/cli/test_cli_full_coverage.py::test_cmd_run_backtest_fast_mode_not_dict
+ERROR tests/cli/test_cli_full_coverage.py::test_cmd_run_backtest_override_branch_variants
+ERROR tests/cli/test_cli_full_coverage.py::test_cmd_run_backtest_rmm_constant_modes
+ERROR tests/cli/test_cli_full_coverage.py::test_cmd_run_backtest_rmm_empty_projection
+ERROR tests/data/test_dukascopy_sync_service.py::test_sync_service_downloads_missing_data
+ERROR tests/data/test_dukascopy_sync_service.py::test_sync_service_skips_existing_data
+ERROR tests/data/test_dukascopy_sync_service.py::test_sync_service_validates_checksums
+ERROR tests/data/test_dukascopy_sync_service.py::test_sync_service_handles_network_errors
+ERROR tests/data/test_dukascopy_sync_service.py::test_sync_service_supports_multiple_symbols
+ERROR tests/data/test_dukascopy_sync_service.py::test_sync_service_progress_callback
+65 failed, 1104 passed, 1 skipped, 12 warnings, 14 errors in 40.33s
