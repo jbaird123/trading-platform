@@ -1,0 +1,34 @@
+name: "High Volatility Filter"
+version: "1.0"
+timeframe: "15M"
+
+features:
+  - name: bb_width
+    type: BBWidth
+    params:
+      length: 20
+      ndev: 2.0
+    source: close
+
+regimes:
+  - label: high_vol
+    confidence: 0.9
+    conditions:
+      all_of:
+        - condition: is_above
+          left:
+            ref: bb_width
+          right: 0.01
+
+  - label: low_vol
+    confidence: 0.8
+    conditions:
+      all_of:
+        - condition: is_below
+          left:
+            ref: bb_width
+          right: 0.01
+
+policy:
+  min_confidence: 0.5
+  allow_labels: [high_vol]
