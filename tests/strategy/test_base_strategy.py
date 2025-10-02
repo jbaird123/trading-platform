@@ -1,6 +1,8 @@
 """
 Consolidated tests for trading_platform.strategy.base.
 
+# Validates: [SE-3.2]
+
 Merged original behavioural checks with coverage-gap tests.
 """
 

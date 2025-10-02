@@ -1,3 +1,8 @@
+"""Backtester core tests.
+
+# Validates: [BT-7.1], [BT-7.2], [BT-7.3], [BT-7.5], [BT-7.9]
+"""
+
 from __future__ import annotations
 
 from datetime import datetime

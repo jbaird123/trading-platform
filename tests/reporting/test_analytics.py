@@ -1,5 +1,6 @@
-"""
-Tests for analytics functions.
+"""Tests for analytics functions.
+
+# Validates: [JSON-11.5], [JSON-11.6], [JSON-11.7], [JSON-11.8]
 """
 
 from __future__ import annotations

@@ -1,3 +1,8 @@
+"""AI synthesis engine tests.
+
+# Validates: [AI-10.6.1]
+"""
+
 import json
 import logging
 from typing import Any, Dict
