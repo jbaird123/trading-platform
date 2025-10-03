@@ -234,7 +234,7 @@ def main() -> int:
     if test_files:
         for test_file in test_files:
             # Add the module this test covers to coverage targets
-            module_name = _test_file_to_module_dir(test_file)
+            module_name: str | None = _test_file_to_module_dir(test_file)
             if module_name:
                 coverage_targets.add(module_name)
 
