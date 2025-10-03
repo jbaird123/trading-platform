@@ -103,7 +103,7 @@ def test_strategy_params_applied_before_compilation(tmp_path):
             "close": [1.05, 1.15, 1.25, 1.15, 1.05] * 20,
             "volume": [100] * 100,
         },
-        index=pd.date_range("2024-01-01", periods=100, freq="H"),
+        index=pd.date_range("2024-01-01", periods=100, freq="h"),
     )
 
     signals = strat.generate_signals(df)
@@ -227,7 +227,7 @@ def test_strategy_params_not_applied_uses_defaults():
             "close": [1.05, 1.15, 1.25, 1.15, 1.05] * 20,
             "volume": [100] * 100,
         },
-        index=pd.date_range("2024-01-01", periods=100, freq="H"),
+        index=pd.date_range("2024-01-01", periods=100, freq="h"),
     )
 
     signals = strat.generate_signals(df)

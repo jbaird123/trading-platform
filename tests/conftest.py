@@ -91,7 +91,8 @@ def a_signal_series(signal_list: str, shared_context: dict) -> None:
 
     idx = shared_context["market_data"].index
     # Default to all None (no commands) unless overridden by later steps.
-    signals: pd.Series = pd.Series(None, index=idx)
+    # Use object dtype to avoid FutureWarning when assigning string values
+    signals: pd.Series = pd.Series(None, index=idx, dtype=object)
     shared_context["signals"] = signals
 
 
@@ -235,10 +236,18 @@ from pytest_bdd import when  # noqa: E402
 
 @when("the strategy generates signals")
 def when_strategy_generates_signals(shared_context: dict) -> None:
+    import pandas as pd
+
     # Minimal logic for EMA crossover scenarios used in BDD features.
     features = shared_context.get("features")
     if features is None:
         return
+
+    # Initialize signals series if not already created
+    if "signals" not in shared_context:
+        idx = shared_context["market_data"].index
+        shared_context["signals"] = pd.Series(None, index=idx, dtype=object)
+
     idx = shared_context["market_data"].index
     prev, curr = idx[-2], idx[-1]
     ef_prev = float(features.loc[prev, "ema_fast"])

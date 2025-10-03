@@ -39,7 +39,9 @@ def _eval_pred(df: pd.DataFrame, pred: dict[str, Any]) -> pd.Series:
     if cond == "cross_above":
         # True when left crosses from below to above right
         above_now = left > right
-        above_prev = (left > right).shift(1).fillna(True).astype(bool)
+        above_shifted = (left > right).shift(1)
+        # Fill with True to avoid downcasting warning, then convert to bool
+        above_prev = above_shifted.fillna(value=True).astype(bool)
         # First bar can't be a cross (no previous to compare)
         result = above_now & ~above_prev
         result.iloc[0] = False
@@ -47,7 +49,9 @@ def _eval_pred(df: pd.DataFrame, pred: dict[str, Any]) -> pd.Series:
     if cond == "cross_below":
         # True when left crosses from above to below right
         below_now = left < right
-        below_prev = (left < right).shift(1).fillna(True).astype(bool)
+        below_shifted = (left < right).shift(1)
+        # Fill with True to avoid downcasting warning, then convert to bool
+        below_prev = below_shifted.fillna(value=True).astype(bool)
         # First bar can't be a cross (no previous to compare)
         result = below_now & ~below_prev
         result.iloc[0] = False
