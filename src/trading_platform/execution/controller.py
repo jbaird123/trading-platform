@@ -131,7 +131,10 @@ def run_live_controller(
         px = float(market_data.iloc[i]["close"])
 
         # For exit commands when no position, skip
-        if command in ("exit_long", "exit_short") and pm.current_position is None:
+        if (
+            command in ("exit_long", "exit_short", "flat")
+            and pm.current_position is None
+        ):
             continue
 
         res = adapter.place_order(
