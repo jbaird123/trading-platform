@@ -30,7 +30,7 @@ def check_signal_persistence():
         if current_signal != row['signal']:
             # Signal changed
             if current_signal is not None:
-                duration = len(signals.loc[signal_start:timestamp]) - 1
+                duration = len(signals.loc[signal_start:timestamp]) - 1  # type: ignore[misc]
                 durations.append((current_signal, signal_start, timestamp, duration))
                 print(f"{current_signal:>5}: {signal_start} to {timestamp} ({duration:>3} bars)")
 
@@ -39,7 +39,7 @@ def check_signal_persistence():
 
     # Handle the last signal
     if current_signal is not None:
-        duration = len(signals.loc[signal_start:])
+        duration = len(signals.loc[signal_start:])  # type: ignore[misc]
         durations.append((current_signal, signal_start, signals.index[-1], duration))
         print(f"{current_signal:>5}: {signal_start} to {signals.index[-1]} ({duration:>3} bars)")
 

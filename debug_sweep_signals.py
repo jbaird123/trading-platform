@@ -17,7 +17,8 @@ strat_cfg["parameters"] = {
 }
 
 # Load data
-df = load_instrument_data("EUR_USD", "1H", "2013-01-01", "2025-09-26")
+data_root = Path("data")
+df, _ = load_instrument_data("EUR_USD", data_root)
 print(f"Data shape: {df.shape}")
 print(f"Data period: {df.index.min()} to {df.index.max()}")
 

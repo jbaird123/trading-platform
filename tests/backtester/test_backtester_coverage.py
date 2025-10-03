@@ -154,6 +154,7 @@ def test_enrich_trades_with_post_exit_analysis_no_data_after_exit():
 
     # Should have post_exit_analysis with zero MFE/MAE
     assert hasattr(trade, "post_exit_analysis")
+    assert trade.post_exit_analysis is not None, "post_exit_analysis should not be None"
     assert trade.post_exit_analysis["10"]["mfe"] == 0.0
     assert trade.post_exit_analysis["10"]["mae"] == 0.0
 
@@ -188,6 +189,7 @@ def test_enrich_trades_with_post_exit_analysis_empty_post_bars():
 
     # Should have post_exit_analysis with zero MFE/MAE
     assert hasattr(trade, "post_exit_analysis")
+    assert trade.post_exit_analysis is not None, "post_exit_analysis should not be None"
     assert trade.post_exit_analysis["0"]["mfe"] == 0.0
     assert trade.post_exit_analysis["0"]["mae"] == 0.0
 
@@ -221,6 +223,7 @@ def test_enrich_trades_with_post_exit_analysis_long_trade():
 
     # Long: MFE = max(high - exit_price) * size, MAE = min(low - exit_price) * size
     assert hasattr(trade, "post_exit_analysis")
+    assert trade.post_exit_analysis is not None, "post_exit_analysis should not be None"
     assert trade.post_exit_analysis["2"]["mfe"] > 0  # Price went up after exit
     assert trade.post_exit_analysis["2"]["mae"] < 0  # Price also dipped
 
@@ -254,6 +257,7 @@ def test_enrich_trades_with_post_exit_analysis_short_trade():
 
     # Short: MFE = max(exit_price - low) * size, MAE = min(exit_price - high) * size
     assert hasattr(trade, "post_exit_analysis")
+    assert trade.post_exit_analysis is not None, "post_exit_analysis should not be None"
     assert trade.post_exit_analysis["2"]["mfe"] > 0  # Price went down after exit
     # MAE should be 0.0 if high didn't exceed exit price
     assert "mae" in trade.post_exit_analysis["2"]
@@ -304,6 +308,7 @@ def test_post_exit_analysis_integration():
 
     assert len(trades) == 1
     assert hasattr(trades[0], "post_exit_analysis")
+    assert trades[0].post_exit_analysis is not None, "post_exit_analysis should not be None"
     assert "3" in trades[0].post_exit_analysis
     assert "5" in trades[0].post_exit_analysis
 
@@ -490,7 +495,7 @@ def test_skipped_entry_index_conversion_error():
     )
     rem = RiskExitManager(config={})
 
-    trades, _, skipped = run_backtest(
+    result = run_backtest(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -500,8 +505,10 @@ def test_skipped_entry_index_conversion_error():
         return_exposure=False,
         return_skips=True,
     )
+    trades, _, skipped = result  # type: ignore[misc]
 
     # Should have skipped trade with counterfactual analysis
+    assert isinstance(skipped, list), "skipped should be a list"
     assert len(skipped) == 1
     assert skipped[0]["skip_reason"] == "rmm_block"
     assert "counterfactual_pnl" in skipped[0]

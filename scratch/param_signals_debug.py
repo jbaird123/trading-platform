@@ -55,4 +55,6 @@ if strat1._feature_df is not None and strat2._feature_df is not None:
 
     print(f"\nEMA fast (12) last value: {ema_fast_1[-1]:.5f}")
     print(f"EMA fast (10) last value: {ema_fast_2[-1]:.5f}")
-    print(f"EMAs are different: {not (ema_fast_1 == ema_fast_2).all()}")
+    comparison = (ema_fast_1 == ema_fast_2)
+    assert hasattr(comparison, 'all'), "Comparison should be an array with all() method"
+    print(f"EMAs are different: {not comparison.all()}")

@@ -233,11 +233,4 @@ __marimo__/
 .DS_Store
 
 # Trading Platform specific
-# Run outputs & comparisons
-runs/
-mlruns/
-mlruns_test/
-mlruns_integration_test/
-test_mlruns/
-temp/
-test_run/
+workspace/

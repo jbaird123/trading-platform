@@ -301,7 +301,7 @@ def test_run_live_controller_rejected_order_and_empty_prices(monkeypatch):
 def test_run_live_controller_skips_flat_when_no_position(monkeypatch):
     # Test: enter_long when no position, then None
     # Should only create 1 order (the entry)
-    signals = ["enter_long", None]
+    signals = ["enter_long", "flat"]
     strategy = StubStrategy(signals)
     monkeypatch.setattr(controller, "compile_strategy", lambda cfg: strategy)
     pm = PortfolioManager(initial_cash=500.0)

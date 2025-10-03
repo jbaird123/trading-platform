@@ -19,7 +19,7 @@ def test_live_stream_connection_established():
 
     Validates: [EL-8.6]
     """
-    from trading_platform.execution.stream import LiveDataStream
+    from trading_platform.execution.stream import LiveDataStream  # type: ignore[import-untyped]
 
     mock_api = Mock()
     mock_api.connect_stream.return_value = True
@@ -39,7 +39,7 @@ def test_live_stream_receives_price_updates():
     from trading_platform.execution.stream import LiveDataStream
 
     mock_api = Mock()
-    price_queue = Queue()
+    price_queue: Queue[dict[str, object]] = Queue()
 
     # Simulate incoming prices
     mock_prices = [
@@ -250,7 +250,7 @@ class LiveDataStream:
         self.heartbeat_timeout = heartbeat_timeout
         self.auto_reconnect = auto_reconnect
         self.price_queue = price_queue or Queue()
-        self.last_request = 0
+        self.last_request = 0.0
 
     def connect(self):
         return self.api.connect_stream()
