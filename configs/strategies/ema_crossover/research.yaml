@@ -1,5 +1,4 @@
 user_id: "researcher"
-runs_dir: "runs"
 initial_cash: 100000
 position_size: 25000
 warmup_bars: 50

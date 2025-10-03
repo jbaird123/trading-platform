@@ -58,10 +58,12 @@ def minimal_training_config(tmp_path):
 
 @pytest.fixture
 def mock_config_path(tmp_path):
+    from trading_platform.core import paths
+
     config_content = {
         "run_id": "test_run",
         "experiment_name": "Test Experiment",
-        "mlflow_tracking_uri": "./mlruns_test",
+        "mlflow_tracking_uri": paths.MLFLOW_TEST_URI,
         "data": {
             "symbol": "TEST",
             "timeframe": "1H",
@@ -91,6 +93,8 @@ def temp_mlflow_uri(tmp_path):
 
 
 def test_aitp_init(monkeypatch, mock_config_path):
+    from trading_platform.core import paths
+
     importlib.reload(training_pipeline)
     mock_set_experiment = MagicMock()
     mock_set_tracking_uri = MagicMock()
@@ -102,7 +106,7 @@ def test_aitp_init(monkeypatch, mock_config_path):
     pipeline = AITrainingPipeline(mock_config_path)
     assert pipeline.config["run_id"] == "test_run"
     assert pipeline.run_id == "test_run"
-    mock_set_tracking_uri.assert_called_once_with("./mlruns_test")
+    mock_set_tracking_uri.assert_called_once_with(paths.MLFLOW_TEST_URI)
     mock_set_experiment.assert_called_once_with("Test Experiment")
 
 
@@ -233,6 +237,8 @@ def test_aitp_load_and_prepare_data_with_nans(monkeypatch, mock_config_path):
 
 
 def test_aitp_train_model_lightgbm_no_tuning(monkeypatch, mock_config_path):
+    from trading_platform.core import paths
+
     importlib.reload(training_pipeline)
     mock_lgb = MagicMock()
     mock_rf_classifier = MagicMock()
@@ -245,7 +251,7 @@ def test_aitp_train_model_lightgbm_no_tuning(monkeypatch, mock_config_path):
     config_content = {
         "run_id": "test_run",
         "experiment_name": "Test Experiment",
-        "mlflow_tracking_uri": "./mlruns_test",
+        "mlflow_tracking_uri": paths.MLFLOW_TEST_URI,
         "data": {"symbol": "TEST", "timeframe": "1H"},
         "features": [],
         "labeling": {},
@@ -270,6 +276,8 @@ def test_aitp_train_model_lightgbm_no_tuning(monkeypatch, mock_config_path):
 
 
 def test_aitp_train_model_lightgbm_with_tuning(monkeypatch, mock_config_path):
+    from trading_platform.core import paths
+
     importlib.reload(training_pipeline)
     mock_lgb = MagicMock()
     mock_rf_classifier = MagicMock()
@@ -284,7 +292,7 @@ def test_aitp_train_model_lightgbm_with_tuning(monkeypatch, mock_config_path):
     config_content = {
         "run_id": "test_run",
         "experiment_name": "Test Experiment",
-        "mlflow_tracking_uri": "./mlruns_test",
+        "mlflow_tracking_uri": paths.MLFLOW_TEST_URI,
         "data": {"symbol": "TEST", "timeframe": "1H"},
         "features": [],
         "labeling": {},
@@ -325,6 +333,8 @@ def test_aitp_train_model_lightgbm_with_tuning(monkeypatch, mock_config_path):
 
 
 def test_aitp_train_model_random_forest_no_tuning(monkeypatch, mock_config_path):
+    from trading_platform.core import paths
+
     importlib.reload(training_pipeline)
     mock_lgb = MagicMock()
     mock_rf_classifier = MagicMock()
@@ -337,7 +347,7 @@ def test_aitp_train_model_random_forest_no_tuning(monkeypatch, mock_config_path)
     config_content = {
         "run_id": "test_run",
         "experiment_name": "Test Experiment",
-        "mlflow_tracking_uri": "./mlruns_test",
+        "mlflow_tracking_uri": paths.MLFLOW_TEST_URI,
         "data": {"symbol": "TEST", "timeframe": "1H"},
         "features": [],
         "labeling": {},
@@ -362,6 +372,8 @@ def test_aitp_train_model_random_forest_no_tuning(monkeypatch, mock_config_path)
 
 
 def test_aitp_train_model_random_forest_with_tuning(monkeypatch, mock_config_path):
+    from trading_platform.core import paths
+
     importlib.reload(training_pipeline)
     mock_lgb = MagicMock()
     mock_rf_classifier = MagicMock()
@@ -376,7 +388,7 @@ def test_aitp_train_model_random_forest_with_tuning(monkeypatch, mock_config_pat
     config_content = {
         "run_id": "test_run",
         "experiment_name": "Test Experiment",
-        "mlflow_tracking_uri": "./mlruns_test",
+        "mlflow_tracking_uri": paths.MLFLOW_TEST_URI,
         "data": {"symbol": "TEST", "timeframe": "1H"},
         "features": [],
         "labeling": {},
@@ -415,11 +427,13 @@ def test_aitp_train_model_random_forest_with_tuning(monkeypatch, mock_config_pat
 
 
 def test_aitp_train_model_unsupported_type(mock_config_path):
+    from trading_platform.core import paths
+
     importlib.reload(training_pipeline)
     config_content = {
         "run_id": "test_run",
         "experiment_name": "Test Experiment",
-        "mlflow_tracking_uri": "./mlruns_test",
+        "mlflow_tracking_uri": paths.MLFLOW_TEST_URI,
         "data": {"symbol": "TEST", "timeframe": "1H"},
         "features": [],
         "labeling": {},
@@ -439,6 +453,8 @@ def test_aitp_train_model_unsupported_type(mock_config_path):
 
 
 def test_aitp_train_model_lightgbm_import_error(monkeypatch, mock_config_path):
+    from trading_platform.core import paths
+
     importlib.reload(training_pipeline)
     mock_lgbm_classifier = MagicMock()
     mock_lgbm_classifier.side_effect = ImportError(
@@ -449,7 +465,7 @@ def test_aitp_train_model_lightgbm_import_error(monkeypatch, mock_config_path):
     config_content = {
         "run_id": "test_run",
         "experiment_name": "Test Experiment",
-        "mlflow_tracking_uri": "./mlruns_test",
+        "mlflow_tracking_uri": paths.MLFLOW_TEST_URI,
         "data": {"symbol": "TEST", "timeframe": "1H"},
         "features": [],
         "labeling": {},
@@ -617,10 +633,12 @@ Cover AI training pipeline gaps required for full coverage.
 
 def create_test_config(model_type="lightgbm"):
     """Create a temporary test configuration file."""
+    from trading_platform.core import paths
+
     config_data = {
         "run_id": "test_run",
         "experiment_name": "test_experiment",
-        "mlflow_tracking_uri": "./test_mlruns",
+        "mlflow_tracking_uri": paths.MLFLOW_TEST_URI,
         "model": {"type": model_type, "parameters": {"n_estimators": 10}},
         "data": {"features": ["feature1", "feature2"], "target": "target"},
     }
@@ -690,6 +708,8 @@ def test_training_pipeline_coverage():
 
 def test_training_pipeline_initialization():
     """Test pipeline initialization and basic functionality."""
+    from trading_platform.core import paths
+
     # Test basic initialization
     config_path = create_test_config()
     try:
@@ -700,7 +720,7 @@ def test_training_pipeline_initialization():
         config_data = {
             "run_id": "custom_run",
             "experiment_name": "custom_experiment",
-            "mlflow_tracking_uri": "./custom_mlruns",
+            "mlflow_tracking_uri": paths.MLFLOW_CUSTOM_URI,
         }
 
         config_file2 = tempfile.NamedTemporaryFile(

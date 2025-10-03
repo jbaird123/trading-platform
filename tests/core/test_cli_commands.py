@@ -5,6 +5,8 @@ import json
 from argparse import Namespace
 from pathlib import Path
 
+from pytest import MonkeyPatch
+
 from trading_platform.cli import cmd_run_backtest, cmd_run_live
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
@@ -22,13 +24,15 @@ def _dummy_strategy() -> CompiledStrategy:
     )
 
 
-def test_cmd_run_backtest_demo(tmp_path: Path) -> None:
+def test_cmd_run_backtest_demo(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr("trading_platform.core.paths.RUNS_DIR", tmp_path)
     ns = Namespace(demo=True, user="cli_demo", config=None)
     rc = cmd_run_backtest(ns)
     assert rc == 0
 
 
-def test_cmd_run_backtest_config_minimal(tmp_path: Path) -> None:
+def test_cmd_run_backtest_config_minimal(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr("trading_platform.core.paths.RUNS_DIR", tmp_path)
     cfg_path = tmp_path / "cfg.json"
     cfg_obj = {
         "user_id": "cli_cfg",
@@ -78,7 +82,10 @@ def test_cmd_run_backtest_config_minimal(tmp_path: Path) -> None:
     assert briefs, "brief.json not written for config run"
 
 
-def test_cmd_run_backtest_saves_signals_artifact(tmp_path: Path) -> None:
+def test_cmd_run_backtest_saves_signals_artifact(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    monkeypatch.setattr("trading_platform.core.paths.RUNS_DIR", tmp_path)
     cfg_path = tmp_path / "cfg.json"
     cfg_obj = {
         "user_id": "cli_cfg_signals",
@@ -118,7 +125,10 @@ def test_cmd_run_backtest_saves_signals_artifact(tmp_path: Path) -> None:
     assert artifacts["signals_path"] == str(signals_parquet_path)
 
 
-def test_cmd_run_backtest_saves_rmm_spans_artifact(tmp_path: Path) -> None:
+def test_cmd_run_backtest_saves_rmm_spans_artifact(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    monkeypatch.setattr("trading_platform.core.paths.RUNS_DIR", tmp_path)
     cfg_path = tmp_path / "cfg.json"
     cfg_obj = {
         "user_id": "cli_cfg_rmm_spans",
@@ -177,7 +187,8 @@ def test_cmd_run_live_dry_run() -> None:
     assert cmd_run_live(ns) == 0
 
 
-def test_cmd_run_live_stub_with_config(tmp_path: Path) -> None:
+def test_cmd_run_live_stub_with_config(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr("trading_platform.core.paths.RUNS_DIR", tmp_path)
     cfg = tmp_path / "live.json"
     live_cfg = {
         "user_id": "cli_live",

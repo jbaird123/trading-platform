@@ -1,5 +1,4 @@
 user_id: "bb_wf_validation"
-runs_dir: "runs"
 initial_cash: 100000
 warmup_bars: 100
 entry_window_bars: 3
