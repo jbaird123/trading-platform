@@ -5,6 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from . import paths
 from .utils import gen_run_id, normalize_symbol
 
 
@@ -22,7 +23,7 @@ class RunConfig(BaseModel):
     )
     run_seed: int = Field(42, description="Seed for all random number generators.")
     runs_dir: Path = Field(
-        default=Path("runs"),
+        default=paths.RUNS_DIR,
         description="The root directory where run artifacts are stored.",
     )
     log_level: str = Field("INFO", description="The logging level for the run.")

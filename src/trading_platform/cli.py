@@ -13,6 +13,7 @@ import pandas as pd
 
 from trading_platform.ai.synthesis.engine import DiagnosticSynthesisEngine
 from trading_platform.backtester.core import run_backtest
+from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
 from trading_platform.core.demo import generate_demo_run
 from trading_platform.core.policy import TradingWindowPolicy
@@ -104,7 +105,7 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         instrument_def = get_instrument_definition(data_req["symbol"])
         data_handler = DataHandler(
             symbol=data_req["symbol"],
-            data_root=Path("data"),
+            data_root=paths.PROJECT_ROOT / "data",
             instrument=instrument_def,
         )
         dq_flags = data_handler.data_quality_flags
@@ -602,9 +603,11 @@ def _find_last_briefs(runs_dir: Path, user: str | None, n: int) -> list[Path]:
 
 
 def cmd_compare(args: argparse.Namespace) -> int:
+    from trading_platform.core import paths
+
     last = int(getattr(args, "last", 0) or 0)
     if last >= 2:
-        runs_dir = Path(str(getattr(args, "runs_dir", "runs")))
+        runs_dir = Path(str(getattr(args, "runs_dir", paths.RUNS_DIR)))
         user = getattr(args, "user", None)
         paths = _find_last_briefs(runs_dir, user, last)
         if len(paths) < 2:
@@ -639,7 +642,9 @@ def cmd_compare(args: argparse.Namespace) -> int:
 
 
 def cmd_open_chart(args: argparse.Namespace) -> int:
-    runs_dir = Path(str(getattr(args, "runs_dir", "runs")))
+    from trading_platform.core import paths
+
+    runs_dir = Path(str(getattr(args, "runs_dir", paths.RUNS_DIR)))
     user = getattr(args, "user", None)
     paths = _find_last_briefs(runs_dir, user, int(getattr(args, "last", 1)))
     if not paths:
@@ -691,7 +696,7 @@ def main() -> int:
         help="Compare the last N runs (pairwise); ignores a/b when set",
     )
     pc.add_argument(
-        "--runs-dir", default="runs", help="Root runs directory (for --last)"
+        "--runs-dir", default=paths.RUNS_DIR, help="Root runs directory (for --last)"
     )
     pc.add_argument(
         "--user", default=None, help="User id under runs/ to search (for --last)"
@@ -699,7 +704,7 @@ def main() -> int:
     pc.set_defaults(func=cmd_compare)
 
     po = sub.add_parser("open-chart", help="Open latest run chart")
-    po.add_argument("--runs-dir", default="runs", help="Root runs directory")
+    po.add_argument("--runs-dir", default=paths.RUNS_DIR, help="Root runs directory")
     po.add_argument("--user", default=None, help="User id under runs/")
     po.add_argument("--last", type=int, default=1, help="Pick Nth latest run")
     po.add_argument("--open", action="store_true", help="Open in browser")
