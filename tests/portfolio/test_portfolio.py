@@ -69,7 +69,15 @@ def test_open_and_close_long_position():
 @requires("PM-5.1", "PM-5.2", "PM-5.7")
 def test_open_and_close_short_position_with_loss():
     """Verify opening and closing a short position calculates PnL correctly."""
-    portfolio = PortfolioManager(initial_cash=100000)
+    # Provide instrument definition for USD/JPY
+    usdjpy_instrument = {
+        "symbol": "USDJPY",
+        "asset_class": "Forex",
+        "point_value": 1.0,
+        "tick_size": 0.001,
+    }
+
+    portfolio = PortfolioManager(initial_cash=100000, instrument=usdjpy_instrument)
     entry_time = datetime(2023, 1, 1, 12, 0)
     exit_time = datetime(2023, 1, 1, 13, 0)
 
@@ -94,9 +102,11 @@ def test_open_and_close_short_position_with_loss():
     assert len(portfolio.trades) == 1
 
     trade = portfolio.trades[0]
-    # PnL = (150.0 - 152.5) * 1000 = -2500.0
-    assert trade.pnl == pytest.approx(-2500.0)
-    assert portfolio.cash == pytest.approx(100000 - 2500.0)
+    # USD/JPY PnL: (150.0 - 152.5) * 1000 / avg_price
+    # avg_price = (150.0 + 152.5) / 2 = 151.25
+    # PnL = -2.5 * 1000 / 151.25 = -16.53 USD
+    assert trade.pnl == pytest.approx(-16.53, abs=0.01)
+    assert portfolio.cash == pytest.approx(100000 - 16.53, abs=0.01)
 
 
 @requires("PM-5.1")
