@@ -12,7 +12,6 @@ With the fix, it correctly uses the regime from the bar that closed at 10:00 AM
 from __future__ import annotations
 
 import pandas as pd
-import pytest
 from trading_platform.regime_market_manager.engine import RMMEngine
 
 

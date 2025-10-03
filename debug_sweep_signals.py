@@ -1,11 +1,10 @@
 """Debug: Generate signals for 20/80 params and count them."""
 
-import json
-import yaml
-import pandas as pd
 from pathlib import Path
-from trading_platform.strategy.yaml_strategy import compile_strategy
+
+import yaml
 from trading_platform.data.loader import load_instrument_data
+from trading_platform.strategy.yaml_strategy import compile_strategy
 
 # Load the strategy config
 strat_cfg = yaml.safe_load(Path("config/strategy/ema_crossover.yaml").read_text())
@@ -27,7 +26,7 @@ strat = compile_strategy(strat_cfg)
 signals = strat.generate_signals(df)
 
 print(f"\nSignals shape: {signals.shape}")
-print(f"Signal value counts:")
+print("Signal value counts:")
 print(signals.value_counts())
 
 # Check for entry signals specifically

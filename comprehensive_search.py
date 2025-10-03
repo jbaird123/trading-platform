@@ -7,6 +7,7 @@ import json
 import subprocess
 import time
 from pathlib import Path
+
 import yaml
 
 INSTRUMENTS = ["EUR_USD", "GBP_USD", "USD_JPY", "AUD_USD", "EUR_JPY"]

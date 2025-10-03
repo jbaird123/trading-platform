@@ -683,8 +683,8 @@ def test_compute_exit_efficiency_empty_trades() -> None:
 def test_compute_exit_efficiency_no_post_exit_data() -> None:
     """Test exit efficiency with trades lacking post_exit_analysis."""
     # Validates: [REQ-ANALYTICS-EXIT-002] Handle no post-exit data
-    from datetime import datetime
     from dataclasses import replace
+    from datetime import datetime
 
     trade = _mock_trade(100.0, datetime(2024, 1, 1))
     trade = replace(trade, exit_reason="signal", post_exit_analysis=None)
@@ -697,8 +697,8 @@ def test_compute_exit_efficiency_no_post_exit_data() -> None:
 def test_compute_exit_efficiency_take_profit_premature() -> None:
     """Test premature take-profit detection."""
     # Validates: [REQ-ANALYTICS-EXIT-003] Detect premature take-profits
-    from datetime import datetime
     from dataclasses import replace
+    from datetime import datetime
 
     trade = _mock_trade(100.0, datetime(2024, 1, 1))
     trade = replace(
@@ -725,8 +725,8 @@ def test_compute_exit_efficiency_take_profit_premature() -> None:
 def test_compute_exit_efficiency_stop_loss_false() -> None:
     """Test false stop-loss detection."""
     # Validates: [REQ-ANALYTICS-EXIT-004] Detect false stop-losses
-    from datetime import datetime
     from dataclasses import replace
+    from datetime import datetime
 
     trade = _mock_trade(-50.0, datetime(2024, 1, 1))
     trade = replace(
@@ -754,8 +754,8 @@ def test_compute_exit_efficiency_stop_loss_false() -> None:
 def test_compute_exit_efficiency_signal_suboptimal() -> None:
     """Test suboptimal signal exit detection."""
     # Validates: [REQ-ANALYTICS-EXIT-005] Detect suboptimal signal exits
-    from datetime import datetime
     from dataclasses import replace
+    from datetime import datetime
 
     trade = _mock_trade(50.0, datetime(2024, 1, 1))
     trade = replace(
@@ -781,8 +781,8 @@ def test_compute_exit_efficiency_signal_suboptimal() -> None:
 def test_compute_exit_efficiency_optimal_hold_duration() -> None:
     """Test optimal hold duration analysis."""
     # Validates: [REQ-ANALYTICS-EXIT-006] Calculate optimal hold
-    from datetime import datetime
     from dataclasses import replace
+    from datetime import datetime
 
     trade1 = _mock_trade(50.0, datetime(2024, 1, 1))
     trade1 = replace(
@@ -820,8 +820,8 @@ def test_compute_exit_efficiency_optimal_hold_duration() -> None:
 def test_compute_exit_efficiency_no_matching_exit_reason() -> None:
     """Test exit efficiency when no trades match a specific exit reason."""
     # Validates: [REQ-ANALYTICS-EXIT-007] Handle no matching trades
-    from datetime import datetime
     from dataclasses import replace
+    from datetime import datetime
 
     # Create trade with "signal" exit
     trade = _mock_trade(50.0, datetime(2024, 1, 1))
@@ -848,8 +848,8 @@ def test_compute_exit_efficiency_no_matching_exit_reason() -> None:
 def test_compute_exit_efficiency_all_trades_different_exit_reasons() -> None:
     """Test exit efficiency when all trades have different exit reasons."""
     # Validates: [REQ-ANALYTICS-EXIT-008] Handle trades with no common exit reason
-    from datetime import datetime
     from dataclasses import replace
+    from datetime import datetime
 
     # Create 3 trades with 3 different exit reasons
     trade1 = _mock_trade(50.0, datetime(2024, 1, 1))

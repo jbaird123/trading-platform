@@ -32,8 +32,8 @@ def compute_stationarity(trades: list[Trade]) -> dict:
     try:
         import warnings
 
-        from statsmodels.tsa.stattools import adfuller, kpss
         from statsmodels.tools.sm_exceptions import InterpolationWarning
+        from statsmodels.tsa.stattools import adfuller, kpss
 
         # Run ADF test (null hypothesis: unit root/non-stationary)
         adf_result = adfuller(pnl_series)

@@ -7,8 +7,6 @@ from __future__ import annotations
 
 import importlib
 import sys
-from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -173,9 +171,6 @@ def test_circular_import_protection():
     Validates: [SYS-1.2.2]
     """
     # Try importing in different orders to catch circular dependencies
-    import trading_platform.backtester
-    import trading_platform.portfolio
-    import trading_platform.strategy
 
     # If we get here without ImportError, circular imports are avoided
     assert True

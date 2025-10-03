@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import re
 import sqlite3
-from datetime import datetime
 from pathlib import Path
 
 
@@ -184,7 +183,7 @@ def populate_from_test_files(db_path: Path, test_dir: Path):
             (SELECT COUNT(*) FROM requirement_tests) as total_mappings
     """).fetchone()
 
-    print(f"✅ Populated database:")
+    print("✅ Populated database:")
     print(f"   - Requirements: {stats[0]}")
     print(f"   - Test files: {stats[1]}")
     print(f"   - Test cases: {stats[2]}")

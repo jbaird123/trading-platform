@@ -346,8 +346,8 @@ def test_rmm_engine_classify_daily_end_to_end() -> None:
 def test_classify_regime_with_already_resampled_data() -> None:
     """Test classify_regime when data is already resampled."""
     # Validates: [REQ-RMM-001] Handle pre-resampled data
-    from trading_platform.regime_market_manager.engine import RMMEngine
     import pandas as pd
+    from trading_platform.regime_market_manager.engine import RMMEngine
 
     config = {
         "features": [],
@@ -376,8 +376,8 @@ def test_classify_regime_with_already_resampled_data() -> None:
 def test_classify_regime_without_explicit_timeframe() -> None:
     """Test classify_regime uses config timeframe when not provided."""
     # Validates: [REQ-RMM-002] Use config timeframe as default
-    from trading_platform.regime_market_manager.engine import RMMEngine
     import pandas as pd
+    from trading_platform.regime_market_manager.engine import RMMEngine
 
     config = {
         "features": [],

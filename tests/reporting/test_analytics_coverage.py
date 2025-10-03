@@ -1,7 +1,7 @@
 """Additional tests to achieve 100% branch coverage for analytics.py."""
 
-from datetime import datetime
 from dataclasses import replace
+from datetime import datetime
 
 from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.analytics import compute_exit_efficiency
@@ -161,7 +161,6 @@ def test_compute_exit_efficiency_empty_reason_analysis() -> None:
     # However, to get 100% coverage, we might need to test them anyway
     # Let's use mocking to force the condition
 
-    from unittest.mock import patch
 
     # Create normal trade data
     trade = _mock_trade(50.0, datetime(2024, 1, 1))

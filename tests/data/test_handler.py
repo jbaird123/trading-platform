@@ -1,11 +1,10 @@
 """Tests for DataHandler caching and timeframe resampling."""
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
-
 from trading_platform.data.handler import DataHandler, _parse_timeframe_to_minutes
 
 
@@ -165,6 +164,7 @@ def test_find_best_resample_source_fallback_edge_case(tmp_path: Path) -> None:
     """Test _find_best_resample_source with invalid cached timeframes."""
     # Validates: [REQ-DATA-010] Handle invalid cached timeframes gracefully
     from unittest.mock import patch
+
     import pandas as pd
 
     raw_data = pd.DataFrame({
@@ -193,6 +193,7 @@ def test_get_data_with_date_filtering(tmp_path: Path) -> None:
     """Test get_data applies start/end date filtering correctly."""
     # Validates: [REQ-DATA-011] Filter data by date range
     from unittest.mock import patch
+
     import pandas as pd
 
     raw_data = pd.DataFrame({
@@ -226,6 +227,7 @@ def test_find_best_resample_source_uses_raw_data_fallback(tmp_path: Path) -> Non
     """Test _find_best_resample_source falls back to raw data when no match."""
     # Validates: [REQ-DATA-012] Fallback to raw data when no suitable cache
     from unittest.mock import patch
+
     import pandas as pd
 
     raw_data = pd.DataFrame({

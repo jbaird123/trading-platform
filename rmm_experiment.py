@@ -5,9 +5,10 @@ Test different market regime filters to improve the winning BB strategy
 """
 import json
 import subprocess
-from pathlib import Path
-import yaml
 from datetime import datetime
+from pathlib import Path
+
+import yaml
 
 # Base winning strategy
 INSTRUMENT = "USD_JPY"
@@ -180,7 +181,7 @@ def main():
             pass_profit = metrics.get('pnl', 0) > 0
 
             if pass_dd and pass_oos and pass_profit:
-                print(f"   ✅ PASS ALL CRITERIA")
+                print("   ✅ PASS ALL CRITERIA")
             else:
                 fails = []
                 if not pass_dd: fails.append("DD>14d")
@@ -195,7 +196,7 @@ def main():
                 **metrics
             })
         else:
-            print(f"   ❌ Failed to run backtest")
+            print("   ❌ Failed to run backtest")
 
         print()
 

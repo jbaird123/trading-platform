@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Debug why parameter sweep produces identical results."""
 
+from copy import deepcopy
+
 import pandas as pd
 import yaml
-from copy import deepcopy
 from trading_platform.strategy.yaml_strategy import compile_strategy
 
 # Load base strategy

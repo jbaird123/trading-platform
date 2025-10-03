@@ -6,9 +6,6 @@
 from __future__ import annotations
 
 import json
-import logging
-from pathlib import Path
-from unittest.mock import Mock, patch
 
 import pytest
 
@@ -161,8 +158,9 @@ def test_structured_log_correlation_id():
 
     Validates: [EL-8.7]
     """
-    from trading_platform.execution.logging_config import StructuredLogger
     import uuid
+
+    from trading_platform.execution.logging_config import StructuredLogger
 
     logger = StructuredLogger("test")
     correlation_id = str(uuid.uuid4())

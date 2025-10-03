@@ -51,7 +51,7 @@ def generate_traceability_matrix(db_path: Path, output_path: Path):
     lines = [
         "# Requirements Traceability Matrix (RTM)",
         "",
-        f"**Generated**: 2025-10-02",
+        "**Generated**: 2025-10-02",
         f"**Database**: {db_path.name}",
         "",
         "## Executive Summary",

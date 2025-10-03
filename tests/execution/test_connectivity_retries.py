@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import time
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -222,7 +222,7 @@ class CircuitBreaker:
             result = func()
             self.failures = 0
             return result
-        except Exception as e:
+        except Exception:
             self.failures += 1
             self.last_failure_time = time.time()
             if self.failures >= self.failure_threshold:

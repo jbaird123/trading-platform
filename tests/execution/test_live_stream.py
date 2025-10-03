@@ -7,8 +7,7 @@ from __future__ import annotations
 
 import time
 from queue import Queue
-from threading import Event
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
