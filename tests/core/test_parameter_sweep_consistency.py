@@ -8,7 +8,6 @@ baseline compilation.
 
 import json
 from argparse import Namespace
-from datetime import datetime
 
 import pandas as pd
 import pytest

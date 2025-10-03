@@ -4,10 +4,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pandas as pd
-import pytest
 from trading_platform.cli import cmd_run_backtest
-
-
 
 
 def test_cli_data_request_with_all_filters():

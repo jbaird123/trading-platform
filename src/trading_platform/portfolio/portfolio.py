@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any, cast
 
 import pandas as pd
+
 from trading_platform.core.costs import CostModel
 from trading_platform.core.precision import FloatEngine, PrecisionEngine
 from trading_platform.core.types import SignalCommand
