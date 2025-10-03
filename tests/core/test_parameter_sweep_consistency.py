@@ -41,6 +41,9 @@ def test_parameter_sweep_matches_standalone(tmp_path, monkeypatch):
     This verifies the fix for the bug where sweep used strategy file defaults
     while standalone used config parameters.
     """
+    # Mock the centralized RUNS_DIR to use our temp directory
+    monkeypatch.setattr("trading_platform.core.paths.RUNS_DIR", tmp_path)
+
     # Create a minimal strategy config
     strategy_config = {
         "strategy_name": "TestStrategy",
@@ -115,8 +118,7 @@ def test_parameter_sweep_matches_standalone(tmp_path, monkeypatch):
 
     # Config with parameter sweep (single parameter set)
     sweep_config = {
-        "user_id": "test",
-        "runs_dir": str(tmp_path / "runs_sweep"),
+        "user_id": "sweep",
         "initial_cash": 100000,
         "position_size": 10000,
         "warmup_bars": 50,
@@ -142,8 +144,7 @@ def test_parameter_sweep_matches_standalone(tmp_path, monkeypatch):
 
     # Standalone config (no parameter search)
     standalone_config = {
-        "user_id": "test",
-        "runs_dir": str(tmp_path / "runs_standalone"),
+        "user_id": "standalone",
         "initial_cash": 100000,
         "position_size": 10000,
         "warmup_bars": 50,
@@ -169,20 +170,17 @@ def test_parameter_sweep_matches_standalone(tmp_path, monkeypatch):
     with open(standalone_config_path, "w") as f:
         json.dump(standalone_config, f)
 
-    # Change to tmp directory for runs
-    monkeypatch.chdir(tmp_path)
-
     # Run sweep in demo mode (generates synthetic data)
-    ns_sweep = Namespace(demo=False, user="test", config=str(sweep_config_path))
+    ns_sweep = Namespace(demo=False, user="sweep", config=str(sweep_config_path))
     cmd_run_backtest(ns_sweep)
 
     # Run standalone in demo mode
-    ns_standalone = Namespace(demo=False, user="test", config=str(standalone_config_path))
+    ns_standalone = Namespace(demo=False, user="standalone", config=str(standalone_config_path))
     cmd_run_backtest(ns_standalone)
 
-    # Load results
-    sweep_runs = list((tmp_path / "runs_sweep" / "test").glob("run_*"))
-    standalone_runs = list((tmp_path / "runs_standalone" / "test").glob("run_*"))
+    # Load results from centralized runs directory
+    sweep_runs = list((tmp_path / "sweep").glob("run_*"))
+    standalone_runs = list((tmp_path / "standalone").glob("run_*"))
 
     assert len(sweep_runs) == 1, "Expected exactly one sweep run"
     assert len(standalone_runs) == 1, "Expected exactly one standalone run"
@@ -224,6 +222,9 @@ def test_strategy_params_override_file_defaults(tmp_path, monkeypatch):
     This test ensures parameter substitution works correctly when strategy_params
     are specified in the run config.
     """
+    # Mock the centralized RUNS_DIR to use our temp directory
+    monkeypatch.setattr("trading_platform.core.paths.RUNS_DIR", tmp_path)
+
     # Strategy with defaults 12/26
     strategy_config = {
         "strategy_name": "TestStrategy",
@@ -295,7 +296,6 @@ def test_strategy_params_override_file_defaults(tmp_path, monkeypatch):
     # Run with overridden params 20/80
     run_config = {
         "user_id": "test",
-        "runs_dir": str(tmp_path / "runs"),
         "initial_cash": 100000,
         "position_size": 10000,
         "warmup_bars": 50,
@@ -316,14 +316,12 @@ def test_strategy_params_override_file_defaults(tmp_path, monkeypatch):
     with open(config_path, "w") as f:
         json.dump(run_config, f)
 
-    monkeypatch.chdir(tmp_path)
-
     ns = Namespace(demo=False, user="test", config=str(config_path))
     cmd_run_backtest(ns)
 
     # Check that features were computed with 20/80, not 12/26
-    runs = list((tmp_path / "runs" / "test").glob("run_*"))
-    assert len(runs) == 1
+    runs = list((tmp_path / "test").glob("run_*"))
+    assert len(runs) == 1, f"Expected 1 run, found {len(runs)}"
 
     features_path = runs[0] / "features.json"
     with open(features_path) as f:
