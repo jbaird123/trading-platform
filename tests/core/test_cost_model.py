@@ -2,6 +2,26 @@
 from __future__ import annotations
 
 from trading_platform.core.costs import CostModel
+from pytest import approx
+
+
+def test_get_entry_and_exit_prices():
+    cm = CostModel.from_dict({"spread_per_unit": 0.0002})
+    mid_price = 1.1000
+
+    # Long trade
+    assert cm.get_entry_price(mid_price, "long") == approx(1.1001)  # mid + spread/2
+    assert cm.get_exit_price(mid_price, "long") == approx(1.0999)  # mid - spread/2
+
+    # Short trade
+    assert cm.get_entry_price(mid_price, "short") == approx(1.0999)  # mid - spread/2
+    assert cm.get_exit_price(mid_price, "short") == approx(1.1001)  # mid + spread/2
+
+
+def test_compute_spread_cost():
+    cm = CostModel.from_dict({"spread_per_unit": 0.01})
+    cost = cm.compute_spread_cost(size=100)
+    assert cost == 1.0  # 0.01 * 100
 
 
 def test_commission_per_unit_mode():
@@ -13,10 +33,10 @@ def test_commission_per_unit_mode():
         }
     )
     total, bd = cm.compute_entry_cost(size=100, price=10.0)
-    assert bd["spread"] == 1.0  # 0.01 * 100
+    assert bd["spread"] == 0.0  # Spread is not in breakdown from compute_*_cost
     assert bd["slippage"] == 2.0  # 0.02 * 100
     assert bd["commission"] == 5.0  # 0.05 * 100
-    assert total == 8.0
+    assert total == 7.0  # Slippage + Commission
 
 
 def test_commission_per_trade_flat_mode():
@@ -54,13 +74,12 @@ def test_per_unit_costs_scale_by_lot_size():
     )
     instrument = {"lot_size": 100_000}
     total, bd = cm.compute_entry_cost(size=10_000, price=1.2345, instrument=instrument)
-    # units = 0.1; spread=0.05, slippage=0.02, commission=0.2; total=0.27
-    from pytest import approx
-
-    assert bd["spread"] == approx(0.05)
+    # units = 0.1; slippage=0.02, commission=0.2; total=0.22
+    # spread is not included in this calculation
+    assert bd["spread"] == approx(0.0)
     assert bd["slippage"] == approx(0.02)
     assert bd["commission"] == approx(0.2)
-    assert total == approx(0.27)
+    assert total == approx(0.22)
 
 
 def test_bps_notional_commission_ignores_lot_size():
@@ -96,13 +115,12 @@ def test_unknown_commission_type_falls_back_to_zero():
         }
     )
     total, bd = cm.compute_entry_cost(size=10, price=1.0)
-    # commission should be zero; only spread+slippage contribute
-    from pytest import approx
-
+    # commission should be zero; only slippage contributes
+    # spread is not included in this calculation
     assert bd["commission"] == approx(0.0)
-    assert bd["spread"] == approx(1.0)
+    assert bd["spread"] == approx(0.0)
     assert bd["slippage"] == approx(2.0)
-    assert total == approx(3.0)
+    assert total == approx(2.0)
 
 
 def test_effective_units_bad_lot_size_returns_size():
