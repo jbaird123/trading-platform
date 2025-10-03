@@ -217,8 +217,10 @@ def run_parameter_sweep(
                             f.write(f"  feature[{i}]: {feat}\n")
                     feature_cols = (
                         list(strat._feature_df.columns)
-                        if (hasattr(strat, "_feature_df")
-                            and strat._feature_df is not None)
+                        if (
+                            hasattr(strat, "_feature_df")
+                            and strat._feature_df is not None
+                        )
                         else "N/A"
                     )
                     f.write(f"  strat._feature_df cols={feature_cols}\n")
@@ -260,8 +262,7 @@ def run_parameter_sweep(
 
                         sig_df = pd.DataFrame({"signal": sig})
                         sig_path = (
-                            debug_path
-                            / f"sweep_signals_{cand['ema_fast_length']}_"
+                            debug_path / f"sweep_signals_{cand['ema_fast_length']}_"
                             f"{cand['ema_slow_length']}.parquet"
                         )
                         sig_df.to_parquet(str(sig_path))

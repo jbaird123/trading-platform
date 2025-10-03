@@ -192,10 +192,10 @@ def test_parameter_sweep_matches_standalone(tmp_path, monkeypatch):
     assert (
         abs(sweep_pnl - standalone_pnl) < 0.01
     ), f"Sweep result ({sweep_pnl}) differs from standalone ({standalone_pnl})"
-    assert (
-        abs(sweep_baseline_pnl - standalone_pnl) < 0.01
-    ), (f"Sweep baseline ({sweep_baseline_pnl}) differs from standalone "
-        f"({standalone_pnl})")
+    assert abs(sweep_baseline_pnl - standalone_pnl) < 0.01, (
+        f"Sweep baseline ({sweep_baseline_pnl}) differs from standalone "
+        f"({standalone_pnl})"
+    )
     assert (
         sweep_trades == standalone_trades
     ), f"Trade counts differ: sweep={sweep_trades}, standalone={standalone_trades}"

@@ -136,14 +136,14 @@ def test_strategy_params_applied_before_compilation(tmp_path):
         feat_df.iloc[0]["ema_slow"] * (1 - k_80)
     )
 
-    assert (
-        abs(feat_df.iloc[1]["ema_fast"] - expected_fast_1) < 1e-10
-    ), (f"EMA fast not using length=20: expected {expected_fast_1}, "
-        f"got {feat_df.iloc[1]['ema_fast']}")
-    assert (
-        abs(feat_df.iloc[1]["ema_slow"] - expected_slow_1) < 1e-10
-    ), (f"EMA slow not using length=80: expected {expected_slow_1}, "
-        f"got {feat_df.iloc[1]['ema_slow']}")
+    assert abs(feat_df.iloc[1]["ema_fast"] - expected_fast_1) < 1e-10, (
+        f"EMA fast not using length=20: expected {expected_fast_1}, "
+        f"got {feat_df.iloc[1]['ema_fast']}"
+    )
+    assert abs(feat_df.iloc[1]["ema_slow"] - expected_slow_1) < 1e-10, (
+        f"EMA slow not using length=80: expected {expected_slow_1}, "
+        f"got {feat_df.iloc[1]['ema_slow']}"
+    )
 
 
 def test_strategy_params_not_applied_uses_defaults():
