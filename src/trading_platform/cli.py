@@ -83,13 +83,13 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     # Load REM and RMM configs and include them in cfg_raw for proper config snapshot
     rem_path = cfg_raw.get("rem_path")
     if rem_path:
-        rem_cfg = _load_config(Path(str(rem_path)))
-        cfg_raw["rem_config"] = rem_cfg
+        loaded_rem_cfg = _load_config(Path(str(rem_path)))
+        cfg_raw["rem_config"] = loaded_rem_cfg
 
     rmm_path = cfg_raw.get("rmm_path")
     if rmm_path:
-        rmm_cfg = _load_config(Path(str(rmm_path)))
-        cfg_raw["rmm_config"] = rmm_cfg
+        loaded_rmm_cfg = _load_config(Path(str(rmm_path)))
+        cfg_raw["rmm_config"] = loaded_rmm_cfg
 
     cfg = RunConfig.model_validate(cfg_raw)
     run_path = initialize_run(cfg)
@@ -246,9 +246,8 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         pass  # pragma: no cover - Defensive: feature save might fail
 
     # REM can be embedded or referenced via a separate file
-    rem_cfg = cfg_raw.get("rem_config") or {}
-    rem_cfg = cfg_raw.get("rem_config")
-    rem = RiskExitManager(config=rem_cfg)
+    rem_cfg: dict[str, Any] | None = cfg_raw.get("rem_config")
+    rem = RiskExitManager(config=rem_cfg or {})
 
     # RMM optional for legacy configs; if present, build per-bar context
     rmm_context: dict[datetime, dict[str, Any]] | None = None
