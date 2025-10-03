@@ -249,6 +249,8 @@ def compute_contrasts(trades: list[Trade]) -> dict:
                     "total_pnl": 0.0,
                     "avg_win": 0.0,
                     "avg_loss": 0.0,
+                    "avg_win_gross": 0.0,
+                    "avg_loss_gross": 0.0,
                 }
 
             n_trades = len(side_trades)
