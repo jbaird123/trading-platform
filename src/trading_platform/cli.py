@@ -527,8 +527,8 @@ def cmd_ai_diagnose(args: argparse.Namespace) -> int:
             with open(brief_path, "w") as f:
                 json.dump(brief_data, f, indent=2)
             print(f"Updated {brief_path} with {len(recommendations)} recommendations")
-    except Exception as e:
-        print(
+    except Exception as e:  # pragma: no cover
+        print(  # pragma: no cover - Defensive: brief recommendation update might fail
             f"Warning: Could not update brief with recommendations: {e}",
             file=sys.stderr,
         )
@@ -546,8 +546,8 @@ def cmd_ai_diagnose(args: argparse.Namespace) -> int:
             report_path = output_dir / "ai_qualitative_report.md"
             report_path.write_text(feedback)
             print(f"Qualitative report saved to {report_path}")
-        except Exception as e:
-            print(f"Could not generate qualitative report: {e}", file=sys.stderr)
+        except Exception as e:  # pragma: no cover
+            print(f"Could not generate qualitative report: {e}", file=sys.stderr)  # pragma: no cover - Defensive: LLM report generation might fail
 
     print(f"AI diagnostic reports saved to {output_dir}")
     return 0

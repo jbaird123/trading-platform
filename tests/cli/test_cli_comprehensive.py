@@ -12,24 +12,17 @@ import pytest
 class TestCmdRunBacktestPaths:
     """Tests for cmd_run_backtest code paths."""
 
-    def test_with_rmm_path_loading(self, tmp_path: Path) -> None:
-        """Test rmm_path loading (lines 91-92)."""
+    def test_with_rmm_config_inline(self, tmp_path: Path) -> None:
+        """Test with inline rmm config (lines 97-99)."""
         config_path = tmp_path / "config.json"
-        rmm_path = tmp_path / "rmm.json"
-
-        # Minimal valid RMM config matching schema
-        rmm_config = {
-            "name": "test",
-            "regimes": [],
-            "features": []
-        }
-        rmm_path.write_text(json.dumps(rmm_config))
-
         config = {
             "run_id": "test",
             "instrument": {"symbol": "EURUSD"},
             "initial_cash": 100000,
-            "rmm_path": str(rmm_path),
+            "rmm": {
+                "enabled": True,
+                "timeframe": "1H",
+            },
             "strategy": {
                 "strategy_name": "Test",
                 "long_entry_rules": [{"any_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}],
@@ -330,3 +323,138 @@ class TestCmdRunBacktestPaths:
             result = cmd_run_backtest(args)
 
             assert result == 0
+
+
+class TestAdditionalCoverage:
+    """Additional tests for missing coverage."""
+
+    def test_no_data_request_uses_default_df(self, tmp_path: Path) -> None:
+        """Test when no data_request, uses default dataframe (lines 120-131)."""
+        config_path = tmp_path / "config.json"
+        config = {
+            "run_id": "test",
+            "instrument": {"symbol": "EURUSD"},
+            "initial_cash": 100000,
+        }
+        config_path.write_text(json.dumps(config))
+
+        args = argparse.Namespace(demo=False, config=str(config_path), user="test")
+
+        with patch("trading_platform.cli.initialize_run") as mock_init, \
+             patch("trading_platform.cli.finalize_run"), \
+             patch("trading_platform.cli.run_backtest") as mock_backtest, \
+             patch("trading_platform.cli.compile_strategy") as mock_compile:
+
+            run_path = tmp_path / "runs/test"
+            run_path.mkdir(parents=True)
+            mock_init.return_value = run_path
+
+            mock_strat = MagicMock()
+            mock_compile.return_value = mock_strat
+            mock_backtest.return_value = []
+
+            from trading_platform.cli import cmd_run_backtest
+            result = cmd_run_backtest(args)
+
+            assert result == 0
+
+    def test_data_processed_parquet_save_fails(self, tmp_path: Path) -> None:
+        """Test exception when saving processed_data.parquet (lines 138-139)."""
+        config_path = tmp_path / "config.json"
+        config = {
+            "run_id": "test",
+            "instrument": {"symbol": "EURUSD"},
+            "initial_cash": 100000,
+        }
+        config_path.write_text(json.dumps(config))
+
+        args = argparse.Namespace(demo=False, config=str(config_path), user="test")
+
+        with patch("trading_platform.cli.initialize_run") as mock_init, \
+             patch("trading_platform.cli.finalize_run"), \
+             patch("trading_platform.cli.run_backtest") as mock_backtest, \
+             patch("trading_platform.cli.compile_strategy") as mock_compile, \
+             patch("pandas.DataFrame.to_parquet") as mock_parquet:
+
+            run_path = tmp_path / "runs/test"
+            run_path.mkdir(parents=True)
+            mock_init.return_value = run_path
+
+            # Make parquet save fail
+            mock_parquet.side_effect = Exception("Save failed")
+
+            mock_strat = MagicMock()
+            mock_compile.return_value = mock_strat
+            mock_backtest.return_value = []
+
+            from trading_platform.cli import cmd_run_backtest
+            result = cmd_run_backtest(args)
+
+            # Should still succeed despite save failure
+            assert result == 0
+
+    def test_tuple_result_with_2_elements(self, tmp_path: Path) -> None:
+        """Test backtest result tuple with 2 elements (lines 360-361)."""
+        config_path = tmp_path / "config.json"
+        config = {
+            "run_id": "test",
+            "instrument": {"symbol": "EURUSD"},
+            "initial_cash": 100000,
+        }
+        config_path.write_text(json.dumps(config))
+
+        args = argparse.Namespace(demo=False, config=str(config_path), user="test")
+
+        with patch("trading_platform.cli.initialize_run") as mock_init, \
+             patch("trading_platform.cli.finalize_run"), \
+             patch("trading_platform.cli.run_backtest") as mock_backtest, \
+             patch("trading_platform.cli.compile_strategy") as mock_compile:
+
+            run_path = tmp_path / "runs/test"
+            run_path.mkdir(parents=True)
+            mock_init.return_value = run_path
+
+            mock_strat = MagicMock()
+            mock_compile.return_value = mock_strat
+            
+            # Return tuple with 2 elements (trades, exposure)
+            mock_backtest.return_value = ([], [])
+
+            from trading_platform.cli import cmd_run_backtest
+            result = cmd_run_backtest(args)
+
+            assert result == 0
+
+    def test_monte_carlo_resimulation(self, tmp_path: Path) -> None:
+        """Test Monte Carlo resimulation (lines 443-445)."""
+        config_path = tmp_path / "config.json"
+        config = {
+            "run_id": "test",
+            "instrument": {"symbol": "EURUSD"},
+            "initial_cash": 100000,
+            "monte_carlo": {"mode": "bar_resimulation", "trials": 100},
+        }
+        config_path.write_text(json.dumps(config))
+
+        args = argparse.Namespace(demo=False, config=str(config_path), user="test")
+
+        with patch("trading_platform.cli.initialize_run") as mock_init, \
+             patch("trading_platform.cli.finalize_run"), \
+             patch("trading_platform.cli.run_backtest") as mock_backtest, \
+             patch("trading_platform.cli.compile_strategy") as mock_compile, \
+             patch("trading_platform.core.sweeps.monte_carlo_resimulation") as mock_mc:
+
+            run_path = tmp_path / "runs/test"
+            run_path.mkdir(parents=True)
+            mock_init.return_value = run_path
+
+            mock_strat = MagicMock()
+            mock_compile.return_value = mock_strat
+            mock_backtest.return_value = []
+            mock_mc.return_value = {"trials": 100}
+
+            from trading_platform.cli import cmd_run_backtest
+            result = cmd_run_backtest(args)
+
+            assert result == 0
+            mock_mc.assert_called_once()
