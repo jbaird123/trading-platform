@@ -55,7 +55,8 @@ def test_cmd_compare_missing_inputs(tmp_path: Path) -> None:
     assert rc == 2
 
 
-def test_cmd_run_backtest_reads_csv_path(tmp_path: Path) -> None:
+def test_cmd_run_backtest_reads_csv_path(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr("trading_platform.core.paths.RUNS_DIR", tmp_path)
     # Prepare a tiny OHLCV CSV
     csv = tmp_path / "data.csv"
     df = pd.DataFrame(

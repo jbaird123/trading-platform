@@ -261,10 +261,12 @@ class TestAITrainingPipeline:
     @pytest.fixture
     def mock_config(self, tmp_path):
         """Create a mock configuration file."""
+        from trading_platform.core import paths
+
         config = {
             "run_id": "test_run",
             "experiment_name": "Test Experiment",
-            "mlflow_tracking_uri": "./test_mlruns",
+            "mlflow_tracking_uri": paths.MLFLOW_TEST_URI,
             "data": {
                 "symbol": "EURUSD",
                 "timeframe": "1D",
@@ -305,7 +307,9 @@ class TestAITrainingPipeline:
             assert "data" in pipeline.config
 
             # Test MLflow setup calls
-            mock_set_uri.assert_called_once_with("./test_mlruns")
+            from trading_platform.core import paths
+
+            mock_set_uri.assert_called_once_with(paths.MLFLOW_TEST_URI)
             mock_set_exp.assert_called_once_with("Test Experiment")
 
     def test_load_config_missing_defaults(self, tmp_path):
@@ -819,10 +823,12 @@ class TestAITrainingPipeline:
         module_name = "trading_platform.ai.training.pipeline"
         monkeypatch.delitem(sys.modules, module_name, raising=False)
 
+        from trading_platform.core import paths
+
         config = {
             "run_id": "guard_run",
             "experiment_name": "Guard",
-            "mlflow_tracking_uri": "./mlruns",
+            "mlflow_tracking_uri": paths.MLFLOW_DEFAULT_URI,
             "data": {"symbol": "EURUSD"},
             "features": [],
             "labeling": {},

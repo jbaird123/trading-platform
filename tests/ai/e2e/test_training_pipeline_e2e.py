@@ -75,10 +75,12 @@ def mock_external_dependencies_for_e2e():
 
 def test_full_training_pipeline_e2e(tmp_path):
     # Create a dummy config file
+    from trading_platform.core import paths
+
     config_content = {
         "run_id": "e2e_test_run",
         "experiment_name": "E2E Test Experiment",
-        "mlflow_tracking_uri": f"file://{tmp_path}/mlruns",
+        "mlflow_tracking_uri": paths.MLFLOW_TEST_URI,
         "data": {
             "symbol": "TEST",
             "timeframe": "1D",
@@ -114,7 +116,7 @@ def test_full_training_pipeline_e2e(tmp_path):
 
     # Basic assertions to check if MLflow logged something
     # This is a very high-level check for e2e
-    assert (tmp_path / "mlruns").exists()
+    assert paths.MLFLOW_DIR.exists()
     # Further checks could involve parsing MLflow artifacts or checking specific metrics
 
 

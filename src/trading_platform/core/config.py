@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any, Literal
 
@@ -7,6 +8,8 @@ from pydantic import BaseModel, Field, model_validator
 
 from . import paths
 from .utils import gen_run_id, normalize_symbol
+
+logger = logging.getLogger(__name__)
 
 
 class RunConfig(BaseModel):
@@ -154,6 +157,20 @@ class RunConfig(BaseModel):
             "Example: {'enabled': True, 'horizons': [10, 20, 50]}"
         ),
     )
+
+    @model_validator(mode="after")
+    def enforce_workspace_runs_dir(self) -> "RunConfig":
+        """Ensure runs_dir is always inside the workspace, ignoring user config."""
+        expected_runs_dir = paths.RUNS_DIR
+        if self.runs_dir.resolve() != expected_runs_dir.resolve():
+            logger.warning(
+                "Ignoring configured `runs_dir` (%s). "
+                "All runs are stored in the workspace: %s",
+                self.runs_dir,
+                expected_runs_dir,
+            )
+            self.runs_dir = expected_runs_dir
+        return self
 
     @model_validator(mode="after")
     def validate_instrument_symbol(self) -> RunConfig:

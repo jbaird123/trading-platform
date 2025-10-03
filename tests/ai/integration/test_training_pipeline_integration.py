@@ -8,10 +8,12 @@ from trading_platform.ai.training.pipeline import AITrainingPipeline
 
 @pytest.fixture
 def mock_training_config_path(tmp_path):
+    from trading_platform.core import paths
+
     config_content = {
         "run_id": "integration_test_run",
         "experiment_name": "Integration Test Experiment",
-        "mlflow_tracking_uri": "./mlruns_integration_test",
+        "mlflow_tracking_uri": paths.MLFLOW_TEST_URI,
         "data": {
             "symbol": "TEST",
             "timeframe": "1D",
