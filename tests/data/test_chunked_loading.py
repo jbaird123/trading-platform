@@ -9,7 +9,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
-import pytest
 
 
 def test_chunked_loading_processes_large_datasets(tmp_path: Path):

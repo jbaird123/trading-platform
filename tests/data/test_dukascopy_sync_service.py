@@ -5,11 +5,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-import pandas as pd
 import pytest
 
 pytestmark = pytest.mark.skip(reason="Awaiting DukascopySyncService implementation")

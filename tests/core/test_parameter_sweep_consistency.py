@@ -6,14 +6,11 @@ than standalone runs due to strategy_params not being applied before baseline co
 """
 
 import json
-import tempfile
-from pathlib import Path
+from argparse import Namespace
 
 import pandas as pd
 import pytest
-
 from trading_platform.cli import cmd_run_backtest
-from argparse import Namespace
 
 pytestmark = pytest.mark.skip(reason="Parameter sweep tests need investigation")
 

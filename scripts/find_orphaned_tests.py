@@ -77,7 +77,7 @@ def main():
             validated_files.append((test_file, req_ids))
 
     # Print summary
-    print(f"\n📊 Summary:")
+    print("\n📊 Summary:")
     print(f"   Total test files: {len(all_test_files)}")
     print(f"   ✅ Validated: {len(validated_files)}")
     print(f"   🔧 Utility: {len(utility_files)}")
@@ -86,7 +86,7 @@ def main():
     # List orphaned tests
     if orphaned_files:
         print(f"\n{'=' * 70}")
-        print(f"Orphaned Tests (no # Validates: comment):")
+        print("Orphaned Tests (no # Validates: comment):")
         print(f"{'=' * 70}\n")
 
         # Group by directory
@@ -107,7 +107,7 @@ def main():
     # List utility tests
     if utility_files:
         print(f"\n{'=' * 70}")
-        print(f"Utility/Infrastructure Tests:")
+        print("Utility/Infrastructure Tests:")
         print(f"{'=' * 70}\n")
 
         for file in sorted(utility_files):
@@ -116,7 +116,7 @@ def main():
 
     # Coverage statistics by category
     print(f"\n{'=' * 70}")
-    print(f"Coverage by Category:")
+    print("Coverage by Category:")
     print(f"{'=' * 70}\n")
 
     category_stats = {}
@@ -133,23 +133,23 @@ def main():
 
     # Recommendations
     print(f"\n{'=' * 70}")
-    print(f"Recommendations:")
+    print("Recommendations:")
     print(f"{'=' * 70}\n")
 
     if orphaned_files:
         print(f"1. Review {len(orphaned_files)} orphaned test files")
-        print(f"   - Add # Validates: [REQ-ID] comments")
-        print(f"   - Or mark as utility tests if appropriate")
-        print(f"   - Or remove if obsolete")
+        print("   - Add # Validates: [REQ-ID] comments")
+        print("   - Or mark as utility tests if appropriate")
+        print("   - Or remove if obsolete")
 
     if len(validated_files) < len(all_test_files) * 0.9:
-        print(f"\n2. Target 90%+ traceability")
+        print("\n2. Target 90%+ traceability")
         current_pct = (len(validated_files) / len(all_test_files) * 100) if all_test_files else 0
         print(f"   Current: {current_pct:.1f}%")
         print(f"   Gap: {90 - current_pct:.1f}%")
 
-    print(f"\n3. Document utility tests separately")
-    print(f"   Create docs/utility_tests.md listing all utility/infrastructure tests")
+    print("\n3. Document utility tests separately")
+    print("   Create docs/utility_tests.md listing all utility/infrastructure tests")
 
     # Save report
     report_path = project_root / "ORPHANED_TESTS.md"

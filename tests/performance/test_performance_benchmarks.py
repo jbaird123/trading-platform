@@ -10,14 +10,13 @@ These tests verify that the platform meets performance requirements:
 from __future__ import annotations
 
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import pandas as pd
 import pytest
 from trading_platform.backtester.core import run_backtest
 from trading_platform.core.config import RunConfig
 from trading_platform.strategy.features import compute_features
-
 
 # SYS-1.9.1: Vectorized operations on multi-year data
 
@@ -205,8 +204,9 @@ def test_sys_1_9_2_memory_efficiency():
 
     Verify platform uses memory efficiently for large datasets.
     """
-    import psutil
     import os
+
+    import psutil
 
     process = psutil.Process(os.getpid())
     initial_memory = process.memory_info().rss / 1024 / 1024  # MB
@@ -359,8 +359,9 @@ def test_memory_usage_profiling():
 
     Profile memory usage during backtest.
     """
-    import psutil
     import os
+
+    import psutil
 
     process = psutil.Process(os.getpid())
 
@@ -407,7 +408,7 @@ def test_memory_usage_profiling():
         memory_profile["after_data"]
     )
 
-    print(f"\n📊 Memory Profile (100K bars):")
+    print("\n📊 Memory Profile (100K bars):")
     print(f"   Data loading:    {data_memory:>6.1f} MB")
     print(f"   Feature compute: {feature_memory:>6.1f} MB")
     print(f"   Total:          "

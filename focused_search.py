@@ -5,9 +5,10 @@ Test multiple strategies, parameter variations, and RMM filters to get DD under 
 """
 import json
 import subprocess
-from pathlib import Path
-import yaml
 from datetime import datetime
+from pathlib import Path
+
+import yaml
 
 # Focus on USD_JPY (best performer) with 5min timeframe
 INSTRUMENT = "USD_JPY"
@@ -170,7 +171,7 @@ def main():
         and r.get("win_rate", 0) > 0.05  # Lower threshold for USD_JPY
     ]
 
-    print(f"\n✅ Day Trading Candidates (DD ≤ 14 days, WR > 5%, Profitable):")
+    print("\n✅ Day Trading Candidates (DD ≤ 14 days, WR > 5%, Profitable):")
     print(f"   Found: {len(day_trading_candidates)} / {len(results)}")
 
     if day_trading_candidates:

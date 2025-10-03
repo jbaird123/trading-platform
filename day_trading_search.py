@@ -5,9 +5,10 @@ Focus on shorter timeframes and higher win rates suitable for day trading
 """
 import json
 import subprocess
-from pathlib import Path
-import yaml
 from datetime import datetime
+from pathlib import Path
+
+import yaml
 
 INSTRUMENTS = ["EUR_USD", "GBP_USD", "USD_JPY", "EUR_JPY", "GBP_JPY"]
 TIMEFRAMES = ["15min", "30min", "1H"]
@@ -184,7 +185,7 @@ def test_rsi_strategy():
         and r.get("win_rate", 0) > 0.40  # Decent win rate
     ]
 
-    print(f"\n✅ Day Trading Candidates (DD ≤ 14 days, WR > 40%, Profitable):")
+    print("\n✅ Day Trading Candidates (DD ≤ 14 days, WR > 40%, Profitable):")
     print(f"   Found: {len(day_trading_candidates)} / {len(results)}")
 
     if day_trading_candidates:

@@ -5,9 +5,10 @@ Focus on 5min timeframe for true day trading (close positions same day)
 """
 import json
 import subprocess
-from pathlib import Path
-import yaml
 from datetime import datetime
+from pathlib import Path
+
+import yaml
 
 INSTRUMENTS = ["EUR_USD", "GBP_USD", "USD_JPY"]
 TIMEFRAME = "5min"  # True intraday
@@ -158,7 +159,7 @@ def main():
         and r.get("win_rate", 0) > 0.40
     ]
 
-    print(f"\n✅ Day Trading Candidates (DD ≤ 14 days, WR > 40%, Profitable):")
+    print("\n✅ Day Trading Candidates (DD ≤ 14 days, WR > 40%, Profitable):")
     print(f"   Found: {len(day_trading_candidates)} / {len(results)}")
 
     if day_trading_candidates:

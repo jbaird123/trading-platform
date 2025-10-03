@@ -11,9 +11,7 @@ from __future__ import annotations
 from datetime import datetime
 
 import pandas as pd
-import pytest
 from trading_platform.portfolio.portfolio import PortfolioManager
-
 
 # PM-5.8.1: Track bar index when entry command received
 

@@ -545,15 +545,15 @@ def test_rmm_context_enrichment_in_trades_and_skips():
         },
         index=idx,
     )
-    
+
     # Generate mixed command signals
     signals = pd.Series(
         ["enter_long", None, "enter_short", "exit_short", "enter_long", "enter_short", "exit_short", "enter_long", "enter_short", "exit_short"],
         index=df.index
     )
-    
+
     # Create RMM context that will:
-    # 1. Allow some trades (when regime matches signal direction)  
+    # 1. Allow some trades (when regime matches signal direction)
     # 2. Block some trades (when regime doesn't match signal direction)
     rmm_context = {}
     for i, timestamp in enumerate(df.index):
@@ -564,10 +564,10 @@ def test_rmm_context_enrichment_in_trades_and_skips():
                 "confidence": 0.8,
                 "policy": {"min_confidence": 0.6},
             }
-        elif i < 7:  # Next 4 bars: trend_down regime, allows short only  
+        elif i < 7:  # Next 4 bars: trend_down regime, allows short only
             rmm_context[timestamp] = {
                 "allowed_sides": ["short"],
-                "label": "trend_down", 
+                "label": "trend_down",
                 "confidence": 0.9,
                 "policy": {"min_confidence": 0.6},
             }
@@ -612,12 +612,12 @@ def test_rmm_context_enrichment_in_trades_and_skips():
 
     # Expected results based on our RMM setup:
     # Bar 0: long signal, trend_up regime (allows long) -> should execute
-    # Bar 1: long signal, trend_up regime (allows long) -> should execute 
+    # Bar 1: long signal, trend_up regime (allows long) -> should execute
     # Bar 2: short signal, trend_up regime (allows long) -> should skip
     # Bar 3: flat signal -> no trade attempt
     # Bar 4: long signal, trend_down regime (allows short) -> should skip
     # Bar 5: short signal, trend_down regime (allows short) -> should execute
-    # Bar 6: flat signal -> no trade attempt  
+    # Bar 6: flat signal -> no trade attempt
     # Bar 7: long signal, range regime (allows both) -> should execute
     # Bar 8: short signal, range regime (allows both) -> should execute
     # Bar 9: flat signal -> no trade attempt
@@ -631,22 +631,22 @@ def test_rmm_context_enrichment_in_trades_and_skips():
         # Check that the skipped trade has regime information in its context
         # This may be in different places depending on implementation
         regime_found = False
-        
+
         # Check if regime info is directly in the skip dict
         if "regime" in skip and "label" in skip["regime"]:
             regime_label = skip["regime"]["label"]
             regime_found = True
-        
+
         # Check if there's a context field with regime info
         elif "context" in skip and skip["context"] and "regime_label" in skip["context"]:
             regime_label = skip["context"]["regime_label"]
             regime_found = True
-            
-        # Check if there's a context field with nested regime info    
+
+        # Check if there's a context field with nested regime info
         elif "context" in skip and skip["context"] and "regime" in skip["context"]:
             regime_info = skip["context"]["regime"]
             if isinstance(regime_info, dict) and "label" in regime_info:
-                regime_label = regime_info["label"] 
+                regime_label = regime_info["label"]
                 regime_found = True
 
         assert regime_found, f"Skipped trade missing regime context: {skip}"
@@ -654,12 +654,12 @@ def test_rmm_context_enrichment_in_trades_and_skips():
 
     # Acceptance Criteria 3: Executed trades contain regime context in context_at_entry
     assert len(trades_list) >= 1, f"Expected at least 1 executed trade, got {len(trades_list)}"
-    
+
     for trade in trades_list:
         context_at_entry = getattr(trade, "context_at_entry", None)
         assert context_at_entry is not None, f"Trade missing context_at_entry: {trade}"
         assert isinstance(context_at_entry, dict), f"context_at_entry should be dict, got {type(context_at_entry)}"
-        
+
         # Check for regime_label in context_at_entry
         regime_found = False
         if "regime_label" in context_at_entry:
@@ -669,7 +669,7 @@ def test_rmm_context_enrichment_in_trades_and_skips():
             if "label" in context_at_entry["regime"]:
                 regime_label = context_at_entry["regime"]["label"]
                 regime_found = True
-                
+
         assert regime_found, f"Trade context_at_entry missing regime info: {context_at_entry}"
         assert regime_label in ["trend_up", "trend_down", "range"], f"Invalid regime label in trade: {regime_label}"
 

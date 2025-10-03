@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 import pandas as pd
 import pytest
-
 from trading_platform.data.handler import DataHandler, _parse_timeframe_to_minutes
 
 

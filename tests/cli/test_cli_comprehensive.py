@@ -1,12 +1,11 @@
 """Comprehensive tests for CLI module to achieve 100% coverage."""
 
+import argparse
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch, mock_open
-import argparse
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
-import pytest
 
 
 class TestCmdRunBacktestPaths:
@@ -416,7 +415,7 @@ class TestAdditionalCoverage:
 
             mock_strat = MagicMock()
             mock_compile.return_value = mock_strat
-            
+
             # Return tuple with 2 elements (trades, exposure)
             mock_backtest.return_value = ([], [])
 

@@ -5,8 +5,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-
 import pandas as pd
 import pytest
 
@@ -60,7 +58,6 @@ def test_confidence_threshold_hysteresis(tmp_path):
 
     Validates: [RMM-4.7]
     """
-    from trading_platform.regime_market_manager.classification import classify_with_confidence
 
     # Create data with confidence oscillating around threshold
     data = pd.DataFrame({

@@ -6,11 +6,9 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
-import pytest
 
 
 def test_parquet_cache_creates_cache_file(tmp_path: Path):

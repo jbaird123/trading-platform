@@ -1,6 +1,5 @@
 """Additional tests to achieve 100% coverage for brief.py."""
 
-import math
 from datetime import datetime, timedelta
 
 from trading_platform.portfolio.trade import Trade

@@ -60,8 +60,9 @@ def test_load_config_yaml(tmp_path: Path) -> None:
 def test_find_last_briefs_returns_most_recent(tmp_path: Path) -> None:
     """Test _find_last_briefs returns N most recent briefs by mtime."""
     # Validates: [REQ-CLI-HELPER-005] Find last N briefs
-    from trading_platform.cli import _find_last_briefs
     import time
+
+    from trading_platform.cli import _find_last_briefs
 
     runs_dir = tmp_path / "runs"
     user_dir = runs_dir / "test_user"

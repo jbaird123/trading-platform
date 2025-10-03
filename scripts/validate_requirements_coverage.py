@@ -122,7 +122,7 @@ def main():
         return 0
     else:
         print(f"❌ FAILED: Coverage {coverage_pct:.1f}% < {target_coverage}% target")
-        print(f"\nTo pass validation:")
+        print("\nTo pass validation:")
         print(f"  - Add tests for {len(missing_reqs)} missing requirements")
         print(f"  - Current gap: {target_coverage - coverage_pct:.1f}%")
         return 1
