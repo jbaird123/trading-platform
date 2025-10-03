@@ -77,10 +77,10 @@ def test_project_to_index_prevents_lookahead_bias() -> None:
 
     # CRITICAL ASSERTION: At 10:05, must use regime from 09:45 bar
     idx_10_05 = trading_index[4]  # 10:05 AM
-    assert (
-        result.loc[idx_10_05, "label"] == "trend_up"
-    ), ("At 10:05 AM, must use regime from 09:45 bar (closed at 10:00), "
-        "not 10:00 bar (closes at 10:15)")
+    assert result.loc[idx_10_05, "label"] == "trend_up", (
+        "At 10:05 AM, must use regime from 09:45 bar (closed at 10:00), "
+        "not 10:00 bar (closes at 10:15)"
+    )
 
 
 def test_project_to_index_without_shift_would_cause_lookahead() -> None:
@@ -115,14 +115,14 @@ def test_project_to_index_without_shift_would_cause_lookahead() -> None:
 
     # This is the BUG - at 10:05, it uses "range" from 10:00 bar
     # But the 10:00 bar doesn't close until 10:15!
-    assert (
-        aligned.loc[idx_10_00, "label"] == "range"
-    ), ("Without shift, at 10:00 it incorrectly uses the 10:00 bar label "
-        "(lookahead bias)")
-    assert (
-        aligned.loc[idx_10_05, "label"] == "range"
-    ), ("Without shift, at 10:05 it incorrectly uses the 10:00 bar label "
-        "(lookahead bias)")
+    assert aligned.loc[idx_10_00, "label"] == "range", (
+        "Without shift, at 10:00 it incorrectly uses the 10:00 bar label "
+        "(lookahead bias)"
+    )
+    assert aligned.loc[idx_10_05, "label"] == "range", (
+        "Without shift, at 10:05 it incorrectly uses the 10:00 bar label "
+        "(lookahead bias)"
+    )
 
 
 def test_allowed_sides_for_range_after_bug_fix() -> None:
@@ -226,22 +226,20 @@ def test_end_to_end_rmm_no_lookahead_with_actual_backtest_timing() -> None:
     # NOT the 10:00 bar (range) which hasn't closed yet
     idx_10_05 = trading_index[4]  # 10:05 AM
 
-    assert (
-        projected.loc[idx_10_05, "label"] == "trending"
-    ), ("CRITICAL: At 10:05 AM, must use 'trending' from 09:45 bar, "
-        "not 'range' from 10:00 bar")
-    assert (
-        projected.loc[idx_10_05, "adx"] == 30.0
-    ), ("CRITICAL: At 10:05 AM, must use ADX=30 from 09:45 bar, "
-        "not ADX=20 from 10:00 bar")
+    assert projected.loc[idx_10_05, "label"] == "trending", (
+        "CRITICAL: At 10:05 AM, must use 'trending' from 09:45 bar, "
+        "not 'range' from 10:00 bar"
+    )
+    assert projected.loc[idx_10_05, "adx"] == 30.0, (
+        "CRITICAL: At 10:05 AM, must use ADX=30 from 09:45 bar, "
+        "not ADX=20 from 10:00 bar"
+    )
 
     # At 10:15 and after, we can use the 10:00 bar (now closed)
     idx_10_15 = trading_index[6]  # 10:15 AM
-    assert (
-        projected.loc[idx_10_15, "label"] == "range"
-    ), ("At 10:15 AM, can now use 'range' from 10:00 bar "
-        "(closed at 10:15)")
-    assert (
-        projected.loc[idx_10_15, "adx"] == 20.0
-    ), ("At 10:15 AM, can now use ADX=20 "
-        "from 10:00 bar")
+    assert projected.loc[idx_10_15, "label"] == "range", (
+        "At 10:15 AM, can now use 'range' from 10:00 bar " "(closed at 10:15)"
+    )
+    assert projected.loc[idx_10_15, "adx"] == 20.0, (
+        "At 10:15 AM, can now use ADX=20 " "from 10:00 bar"
+    )
