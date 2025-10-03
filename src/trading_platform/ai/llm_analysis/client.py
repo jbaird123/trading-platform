@@ -114,6 +114,10 @@ class LlmApiClient:
         )
 
         if response.content and len(response.content) > 0:
-            return response.content[0].text
+            first_content = response.content[0]
+            if hasattr(first_content, 'text'):
+                return first_content.text
+            else:
+                return f"Error: Unexpected content type: {type(first_content)}"
 
         return "Error: LLM response did not contain text."

@@ -388,6 +388,8 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
 
     # Determine which horizons are available
     first_trade = trades_with_analysis[0]
+    # post_exit_analysis is guaranteed non-None due to filter above
+    assert first_trade.post_exit_analysis is not None
     horizons = sorted([int(h) for h in first_trade.post_exit_analysis.keys()])
 
     def analyze_by_exit_reason(reason: str) -> dict:
@@ -408,6 +410,8 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
             false_exit_count = 0
 
             for t in reason_trades:
+                # post_exit_analysis is guaranteed non-None due to filter
+                assert t.post_exit_analysis is not None
                 post_data = t.post_exit_analysis.get(h_key, {})
                 post_mfe = post_data.get("mfe", 0.0)
                 post_mae = post_data.get("mae", 0.0)
@@ -465,6 +469,8 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
         # We take the better of: actual exit or post_exit_mfe
         hypothetical_pnls = []
         for t in trades_with_analysis:
+            # post_exit_analysis is guaranteed non-None due to filter
+            assert t.post_exit_analysis is not None
             post_data = t.post_exit_analysis.get(h_key, {})
             post_mfe = post_data.get("mfe", 0.0)
             # If we had held longer, we could have captured this extra profit
