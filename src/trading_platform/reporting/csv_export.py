@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+
 from trading_platform.portfolio.trade import Trade
 
 

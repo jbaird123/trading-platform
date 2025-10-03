@@ -12,8 +12,6 @@ import pandas as pd
 import pytest
 
 
-
-
 @pytest.fixture
 def cli_stubs(monkeypatch, tmp_path):
     import trading_platform.cli as cli

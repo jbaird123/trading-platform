@@ -15,7 +15,6 @@ from trading_platform.reporting.brief import compute_data_quality
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
 
-
 # Fields that are dynamic and should be ignored during comparison
 KEYS_TO_IGNORE = {
     "timestamp",
