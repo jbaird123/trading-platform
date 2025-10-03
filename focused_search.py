@@ -14,7 +14,7 @@ import yaml
 INSTRUMENT = "USD_JPY"
 TIMEFRAME = "5min"
 
-STRATEGIES = [
+STRATEGIES: list[tuple[str, str, dict]] = [
     ("config/strategy/rsi_mean_reversion.yaml", "RSI", {}),
     ("config/strategy/bb_mean_reversion.yaml", "BB", {}),
 ]
@@ -40,7 +40,8 @@ def run_backtest(config_path: Path, timeout: int = 180) -> dict | None:
                 run_dir = line.split("Run created at:")[1].strip()
                 brief_path = Path(run_dir) / "brief.json"
                 if brief_path.exists():
-                    return json.loads(brief_path.read_text())
+                    brief_data: dict = json.loads(brief_path.read_text())
+                    return brief_data
         return None
     except Exception as e:
         print(f"Error: {e}")

@@ -90,7 +90,7 @@ def main():
         print(f"{'=' * 70}\n")
 
         # Group by directory
-        by_dir = {}
+        by_dir: dict[str, list[Path]] = {}
         for file in orphaned_files:
             rel_path = file.relative_to(test_dir)
             dir_name = rel_path.parts[0] if len(rel_path.parts) > 1 else "root"
@@ -119,7 +119,7 @@ def main():
     print("Coverage by Category:")
     print(f"{'=' * 70}\n")
 
-    category_stats = {}
+    category_stats: dict[str, set[str]] = {}
     for file_path, req_ids in validated_files:
         for req_id in req_ids:
             category = req_id.split('-')[0] if '-' in req_id else 'OTHER'
