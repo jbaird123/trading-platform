@@ -31,7 +31,12 @@ from trading_platform.reporting.analytics import (
 )
 
 # Path to the JSON Schema for brief field documentation
-SCHEMA_PATH = Path("docs/schemas/brief.schema.json")
+SCHEMA_PATH = (
+    Path(__file__).resolve().parents[3]
+    / "docs"
+    / "schemas"
+    / "brief.schema.json"
+)
 
 
 def _extract_rmm_policy(config_snapshot: dict[str, Any] | None) -> dict[str, Any]:
@@ -167,6 +172,19 @@ def _round_price(value: float | None) -> float | None:
     return float(
         Decimal(str(value)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
     )
+
+
+def _normalize_cost_breakdown(
+    data: dict[str, Any] | None,
+) -> dict[str, float]:
+    base = {"spread": 0.0, "commission": 0.0, "slippage": 0.0}
+    if not isinstance(data, dict):
+        return base
+    normalized: dict[str, float] = {}
+    for key, default in base.items():
+        raw = float(data.get(key, default) or 0.0)
+        normalized[key] = _round_currency(raw)
+    return normalized
 
 
 def _round_feature(name: str, value: Any) -> float | None:
@@ -323,6 +341,10 @@ def _serialize_trade(t: Trade) -> dict[str, Any]:
             for horizon, data in post_exit.items()
         }
 
+    cost_breakdown = _normalize_cost_breakdown(
+        getattr(t, "cost_breakdown", None)
+    )
+
     return {
         "symbol": t.symbol,
         "side": t.side,
@@ -340,7 +362,7 @@ def _serialize_trade(t: Trade) -> dict[str, Any]:
         "bars_held": getattr(t, "bars_held", None),
         "context_at_entry": context_at_entry,
         "context_at_exit": context_at_exit,
-        "cost_breakdown": getattr(t, "cost_breakdown", None),
+        "cost_breakdown": cost_breakdown,
         "post_exit_analysis": post_exit,
     }
 
@@ -620,13 +642,9 @@ def generate_brief(
     trades_json = []
     for t in trades:
         item = _serialize_trade(t)
-        # Attach cost breakdown if available
-        if getattr(t, "cost_breakdown", None) is not None:
-            assert t.cost_breakdown is not None  # Mypy type narrowing
-            cost_breakdown_data = t.cost_breakdown
-            item["cost_breakdown"] = {
-                k: _round_currency(v) for k, v in cost_breakdown_data.items()
-            }
+        item["cost_breakdown"] = _normalize_cost_breakdown(
+            getattr(t, "cost_breakdown", None)
+        )
         trades_json.append(item)
     # Compute provenance/environment
     prov = _compute_provenance(trades, meta)
@@ -953,6 +971,7 @@ def save_run_brief(
     processed_data_path: str | None = None,
     validate_schema: bool = False,
     recommendations: list[dict[str, Any]] | None = None,
+    field_definitions: dict[str, Any] | None = None,
 ) -> Path:
     """Generate and save a brief to `run_path/brief.json`.
 
@@ -980,6 +999,7 @@ def save_run_brief(
         rmm_spans_path=rmm_spans_path,
         processed_data_path=processed_data_path,
         recommendations=recommendations,
+        field_definitions=field_definitions,
     )
     if validate_schema:
         try:

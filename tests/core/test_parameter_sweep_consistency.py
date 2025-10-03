@@ -8,12 +8,30 @@ baseline compilation.
 
 import json
 from argparse import Namespace
+from datetime import datetime
 
 import pandas as pd
 import pytest
 from trading_platform.cli import cmd_run_backtest
 
 
+@pytest.fixture(autouse=True)
+def mock_load_instrument_data(monkeypatch):
+    def _mock_load_instrument_data(symbol, data_root):
+        num_rows = 100
+        dates = pd.to_datetime(pd.date_range(start="2024-01-01", periods=num_rows, freq="h"), utc=True)
+        df = pd.DataFrame({
+            "timestamp": dates,
+            "open": [1.1 + i * 0.01 for i in range(num_rows)],
+            "high": [1.1 + i * 0.01 for i in range(num_rows)],
+            "low": [1.1 + i * 0.01 for i in range(num_rows)],
+            "close": [1.1 + i * 0.01 for i in range(num_rows)],
+            "volume": [100] * num_rows
+        })
+        df = df.set_index("timestamp")
+        return df, []
+
+    monkeypatch.setattr("trading_platform.data.handler.load_instrument_data", _mock_load_instrument_data)
 
 
 def test_parameter_sweep_matches_standalone(tmp_path, monkeypatch):
@@ -156,13 +174,11 @@ def test_parameter_sweep_matches_standalone(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
     # Run sweep in demo mode (generates synthetic data)
-    ns_sweep = Namespace(demo=True, user="test", config=str(sweep_config_path))
+    ns_sweep = Namespace(demo=False, user="test", config=str(sweep_config_path))
     cmd_run_backtest(ns_sweep)
 
     # Run standalone in demo mode
-    ns_standalone = Namespace(
-        demo=True, user="test", config=str(standalone_config_path)
-    )
+    ns_standalone = Namespace(demo=False, user="test", config=str(standalone_config_path))
     cmd_run_backtest(ns_standalone)
 
     # Load results
@@ -303,7 +319,7 @@ def test_strategy_params_override_file_defaults(tmp_path, monkeypatch):
 
     monkeypatch.chdir(tmp_path)
 
-    ns = Namespace(demo=True, user="test", config=str(config_path))
+    ns = Namespace(demo=False, user="test", config=str(config_path))
     cmd_run_backtest(ns)
 
     # Check that features were computed with 20/80, not 12/26

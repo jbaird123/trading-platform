@@ -92,6 +92,7 @@ def generate_demo_run(user_id: str = "demo_user") -> Path:
         trades=trades,
         initial_cash=1000.0,
         config=cfg,
+        field_definitions={"activity.average_trades_per_day": ""},
     )
 
     return run_path
