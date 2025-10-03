@@ -41,7 +41,7 @@ def test_regime_transition_hysteresis_prevents_flipping(tmp_path):
     for _, row in data.iterrows():
         # Mock regime classification based on volatility
         # Threshold at 0.05, with hysteresis band
-        regime = classify_regime(row, threshold=0.05, hysteresis=0.005)
+        regime = classify_regime(row, threshold=0.05, hysteresis=0.005)  # type: ignore[call-arg,arg-type]
         regimes.append(regime)
 
     # Count regime changes

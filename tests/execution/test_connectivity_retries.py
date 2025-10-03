@@ -18,7 +18,7 @@ def test_api_connection_retry_on_network_error():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import execute_with_retry
+    from trading_platform.execution.controller import execute_with_retry  # type: ignore[attr-defined]
 
     mock_api = Mock()
     # Fail twice, then succeed
@@ -39,7 +39,7 @@ def test_api_connection_exponential_backoff():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import execute_with_retry
+    from trading_platform.execution.controller import execute_with_retry  # type: ignore[attr-defined]
 
     mock_api = Mock()
     mock_api.get_account.side_effect = [
@@ -67,7 +67,7 @@ def test_api_connection_max_retries_exceeded():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import execute_with_retry
+    from trading_platform.execution.controller import execute_with_retry  # type: ignore[attr-defined]
 
     mock_api = Mock()
     mock_api.get_account.side_effect = ConnectionError("Persistent error")
@@ -83,7 +83,7 @@ def test_api_connection_timeout_handling():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import execute_with_retry
+    from trading_platform.execution.controller import execute_with_retry  # type: ignore[attr-defined]
 
     mock_api = Mock()
     mock_api.get_account.side_effect = [
@@ -102,7 +102,7 @@ def test_api_connection_different_error_types():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import execute_with_retry
+    from trading_platform.execution.controller import execute_with_retry  # type: ignore[attr-defined]
 
     mock_api = Mock()
 
@@ -127,7 +127,7 @@ def test_api_connection_circuit_breaker():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import CircuitBreaker
+    from trading_platform.execution.controller import CircuitBreaker  # type: ignore[attr-defined]
 
     cb = CircuitBreaker(failure_threshold=3, timeout=1.0)
     mock_api = Mock()
@@ -153,7 +153,7 @@ def test_api_connection_health_check():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import check_api_health
+    from trading_platform.execution.controller import check_api_health  # type: ignore[attr-defined]
 
     mock_api = Mock()
     mock_api.ping.return_value = {"status": "ok", "latency_ms": 50}
@@ -169,7 +169,7 @@ def test_api_connection_fallback_endpoint():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import execute_with_fallback
+    from trading_platform.execution.controller import execute_with_fallback  # type: ignore[attr-defined]
 
     primary_api = Mock()
     fallback_api = Mock()

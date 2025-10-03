@@ -69,7 +69,7 @@ def test_strategy_base_is_public():
 
     Validates: [SYS-1.2.2]
     """
-    from trading_platform.strategy import Strategy
+    from trading_platform.strategy import Strategy  # type: ignore[attr-defined]
 
     assert Strategy is not None
     assert hasattr(Strategy, "generate_signal")
@@ -80,7 +80,7 @@ def test_backtester_is_public():
 
     Validates: [SYS-1.2.2]
     """
-    from trading_platform.backtester import Backtester
+    from trading_platform.backtester import Backtester  # type: ignore[attr-defined]
 
     assert Backtester is not None
     assert hasattr(Backtester, "run")
@@ -91,7 +91,7 @@ def test_portfolio_manager_is_public():
 
     Validates: [SYS-1.2.2]
     """
-    from trading_platform.portfolio import PortfolioManager
+    from trading_platform.portfolio import PortfolioManager  # type: ignore[attr-defined]
 
     assert PortfolioManager is not None
     assert hasattr(PortfolioManager, "process_command")
@@ -102,7 +102,7 @@ def test_data_loader_is_public():
 
     Validates: [SYS-1.2.2]
     """
-    from trading_platform.data import load_data
+    from trading_platform.data import load_data  # type: ignore[attr-defined]
 
     assert load_data is not None
 
@@ -112,7 +112,7 @@ def test_brief_generation_is_public():
 
     Validates: [SYS-1.2.2]
     """
-    from trading_platform.reporting import generate_brief
+    from trading_platform.reporting import generate_brief  # type: ignore[attr-defined]
 
     assert generate_brief is not None
 
@@ -122,7 +122,7 @@ def test_rmm_is_public():
 
     Validates: [SYS-1.2.2]
     """
-    from trading_platform.regime_market_manager import RegimeMarketManager
+    from trading_platform.regime_market_manager import RegimeMarketManager  # type: ignore[attr-defined]
 
     assert RegimeMarketManager is not None
 
@@ -132,7 +132,7 @@ def test_rem_is_public():
 
     Validates: [SYS-1.2.2]
     """
-    from trading_platform.risk_manager import RiskExitManager
+    from trading_platform.risk_manager import RiskExitManager  # type: ignore[attr-defined]
 
     assert RiskExitManager is not None
 
@@ -142,7 +142,7 @@ def test_yaml_strategy_is_public():
 
     Validates: [SYS-1.2.2]
     """
-    from trading_platform.strategy import YamlStrategy
+    from trading_platform.strategy import YamlStrategy  # type: ignore[attr-defined]
 
     assert YamlStrategy is not None
 
@@ -184,7 +184,7 @@ def test_typing_imports_available():
     # Type hints should be importable for users
     try:
         from trading_platform.portfolio.trade import Trade
-        from trading_platform.strategy.base import Strategy
+        from trading_platform.strategy.base import Strategy  # type: ignore[attr-defined]
 
         assert Trade is not None
         assert Strategy is not None

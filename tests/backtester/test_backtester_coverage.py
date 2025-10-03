@@ -645,6 +645,7 @@ def test_enrich_trades_with_post_exit_analysis_empty_slice_edge():
 
     # Should have data for horizon 1 (one bar after exit)
     assert hasattr(trade, "post_exit_analysis")
+    assert trade.post_exit_analysis is not None, "post_exit_analysis should not be None"
     assert "1" in trade.post_exit_analysis
     assert "2" in trade.post_exit_analysis
 
@@ -691,7 +692,7 @@ def test_skipped_entry_index_invalid_conversion():
     )
     rem = RiskExitManager(config={})
 
-    trades, _, skipped = run_backtest(
+    result = run_backtest(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -701,8 +702,10 @@ def test_skipped_entry_index_invalid_conversion():
         return_exposure=False,
         return_skips=True,
     )
+    trades, _, skipped = result  # type: ignore[misc]
 
     # Should have skipped trade with counterfactual analysis
+    assert isinstance(skipped, list), "skipped should be a list"
     assert len(skipped) == 1
     assert skipped[0]["skip_reason"] == "rmm_block"
     # Exact mode should provide detailed counterfactual info
@@ -859,7 +862,7 @@ def test_counterfactual_with_manual_invalid_entry_index():
     with patch(
         "trading_platform.backtester.core.run_backtest", wraps=run_backtest
     ) as mock_bt:
-        trades, _, skipped = run_backtest(
+        result = run_backtest(
             market_data=df,
             signals=signals,
             strategy=strategy,
@@ -869,8 +872,10 @@ def test_counterfactual_with_manual_invalid_entry_index():
             return_exposure=False,
             return_skips=True,
         )
+        trades, _, skipped = result  # type: ignore[misc]
 
     # Should have skipped trades
+    assert isinstance(skipped, list), "skipped should be a list"
     assert len(skipped) >= 1
 
     # Now manually inject invalid entry_index and reprocess
