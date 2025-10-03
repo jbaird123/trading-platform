@@ -800,7 +800,7 @@ def generate_brief(
     rmm_policy = placeholders.get("rmm_policy", {})
     regimes = rmm_policy.get("regimes", [])
     allowed_labels = rmm_policy.get("allowed_labels", [])
-    regime_counts = {}
+    regime_counts: dict[str, int] = {}
     for trade in placeholders.get("trades", []):
         # Defensive: context_at_entry may be None (schema allows null). Accept
         # either a flat 'regime_label' or a nested 'regime': {"label": ...}.

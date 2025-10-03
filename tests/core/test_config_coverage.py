@@ -17,6 +17,7 @@ def test_data_request_without_symbol() -> None:
             log_level="ERROR",
             initial_cash=10000,
             position_size=1000,
+            allow_flip_on_bar=False,
             data_request={"timeframe": "1H"},  # No 'symbol' key
         )
 
@@ -32,6 +33,7 @@ def test_data_request_with_symbol_auto_populates_instrument() -> None:
         log_level="ERROR",
         initial_cash=10000,
         position_size=1000,
+        allow_flip_on_bar=False,
         data_request={"symbol": "EUR_USD", "timeframe": "1H"},
     )
 

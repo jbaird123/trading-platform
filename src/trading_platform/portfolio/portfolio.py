@@ -263,9 +263,9 @@ class PortfolioManager:
             # Default fallback: assume 1:1 conversion
             return 1.0
 
-        static_point_value = self.instrument.get("point_value", 1.0)
-        asset_class = self.instrument.get("asset_class", "Unknown")
-        symbol = self.instrument.get("symbol", "")
+        static_point_value: float = self.instrument.get("point_value", 1.0)
+        asset_class: str = self.instrument.get("asset_class", "Unknown")
+        symbol: str = self.instrument.get("symbol", "")
 
         # For Forex USD/XXX pairs, use dynamic conversion
         if asset_class == "Forex" and symbol.startswith("USD"):

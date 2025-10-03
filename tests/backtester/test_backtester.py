@@ -708,8 +708,10 @@ def test_entry_window_allows_delayed_entry():
     config = RunConfig(
         user_id="test_user",
         run_seed=42,
+        log_level="INFO",
         initial_cash=10000.0,
         position_size=100.0,
+        allow_flip_on_bar=False,
         instrument=_instrument(),
         entry_window_bars=3,  # Allow 3 bars for entry after signal transition
     )
@@ -773,8 +775,10 @@ def test_entry_window_expires():
     config = RunConfig(
         user_id="test_user",
         run_seed=42,
+        log_level="INFO",
         initial_cash=10000.0,
         position_size=100.0,
+        allow_flip_on_bar=False,
         instrument=_instrument(),
         entry_window_bars=1,  # Only allow 1 bar after transition (bars 0-1)
     )
@@ -833,8 +837,10 @@ def test_entry_window_prevents_reentry_after_rem_exit():
     config = RunConfig(
         user_id="test_user",
         run_seed=42,
+        log_level="INFO",
         initial_cash=10000.0,
         position_size=100.0,
+        allow_flip_on_bar=False,
         instrument=_instrument(),
         entry_window_bars=5,  # Large window
     )

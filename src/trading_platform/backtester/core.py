@@ -73,18 +73,22 @@ def _enrich_trades_with_post_exit_analysis(
 
             # Calculate MFE and MAE based on trade side
             entry_price = trade.exit_price  # Start from exit price
-            highs = post_bars["high"].values
-            lows = post_bars["low"].values
+            highs = post_bars["high"].to_numpy()
+            lows = post_bars["low"].to_numpy()
             size = trade.size
 
             if trade.side == "long":
                 # For long: favorable = price went up, adverse = price went down
-                mfe = float(max(highs - entry_price) * size) if len(highs) > 0 else 0.0
-                mae = float(min(lows - entry_price) * size) if len(lows) > 0 else 0.0
+                price_diffs_high = highs - entry_price
+                price_diffs_low = lows - entry_price
+                mfe = float(max(price_diffs_high) * size) if len(highs) > 0 else 0.0
+                mae = float(min(price_diffs_low) * size) if len(lows) > 0 else 0.0
             else:
                 # For short: favorable = price went down, adverse = price went up
-                mfe = float(max(entry_price - lows) * size) if len(lows) > 0 else 0.0
-                mae = float(min(entry_price - highs) * size) if len(highs) > 0 else 0.0
+                price_diffs_low = entry_price - lows
+                price_diffs_high = entry_price - highs
+                mfe = float(max(price_diffs_low) * size) if len(lows) > 0 else 0.0
+                mae = float(min(price_diffs_high) * size) if len(highs) > 0 else 0.0
 
             post_exit_data[str(horizon)] = {
                 "mfe": mfe,  # Keep full precision - rounding happens in brief.py

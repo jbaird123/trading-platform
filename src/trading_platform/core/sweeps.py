@@ -45,7 +45,7 @@ def _rmm_context(
     if data_handler is not None:
         cached_context = data_handler.get_rmm_context(rmm_cfg, regime_timeframe)
         if cached_context is not None:
-            return cached_context
+            return dict(cached_context)
 
     # Not cached - compute regime classification
     eng = RMMEngine(config=rmm_cfg)
@@ -166,11 +166,12 @@ def run_parameter_sweep(
 
     results: list[dict[str, Any]] = []
     log_file: Path | None = None
+    debug_path: Path | None = None
     if debug_dir is not None:
         try:
-            d = Path(str(debug_dir))
-            d.mkdir(parents=True, exist_ok=True)
-            log_file = d / "sweep_debug.log"
+            debug_path = Path(str(debug_dir))
+            debug_path.mkdir(parents=True, exist_ok=True)
+            log_file = debug_path / "sweep_debug.log"
             with log_file.open("a") as f:
                 f.write("# sweep start\n")
         except Exception:
@@ -244,21 +245,22 @@ def run_parameter_sweep(
                             f.write(f"  ema_fast non-NaN count={non_nan_fast}\n")
                             f.write(f"  ema_slow non-NaN count={non_nan_slow}\n")
                     # Save signals and features for analysis
-                    import pandas as pd
+                    if debug_path is not None:
+                        import pandas as pd
 
-                    sig_df = pd.DataFrame({"signal": sig})
-                    sig_path = (
-                        debug_dir
-                        / f"sweep_signals_{cand['ema_fast_length']}_{cand['ema_slow_length']}.parquet"
-                    )
-                    sig_df.to_parquet(str(sig_path))
-                    # Save feature dataframe
-                    if feat_df is not None:
-                        feat_path = (
-                            debug_dir
-                            / f"sweep_features_{cand['ema_fast_length']}_{cand['ema_slow_length']}.parquet"
+                        sig_df = pd.DataFrame({"signal": sig})
+                        sig_path = (
+                            debug_path
+                            / f"sweep_signals_{cand['ema_fast_length']}_{cand['ema_slow_length']}.parquet"
                         )
-                        feat_df.to_parquet(str(feat_path))
+                        sig_df.to_parquet(str(sig_path))
+                        # Save feature dataframe
+                        if feat_df is not None:
+                            feat_path = (
+                                debug_path
+                                / f"sweep_features_{cand['ema_fast_length']}_{cand['ema_slow_length']}.parquet"
+                            )
+                            feat_df.to_parquet(str(feat_path))
             except Exception as e:
                 with log_file.open("a") as f:
                     f.write(f"  DEBUG ERROR: {e}\n")
