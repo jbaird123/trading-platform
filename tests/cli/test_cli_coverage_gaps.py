@@ -45,9 +45,7 @@ def test_cli_data_request_with_all_filters():
         "trading_platform.cli.RunConfig.model_validate", return_value=Mock()
     ), patch(
         "trading_platform.cli.initialize_run", return_value=Path("test_run")
-    ), patch("trading_platform.cli.load_instrument_data") as mock_load_data, patch(
-        "trading_platform.cli.resample_ohlc"
-    ) as mock_resample, patch(
+    ), patch("trading_platform.cli.DataHandler", autospec=True) as mock_data_handler, patch(
         "trading_platform.cli.run_backtest"
     ) as mock_run_backtest, patch("trading_platform.cli.finalize_run"), patch(
         "builtins.print"
@@ -56,16 +54,19 @@ def test_cli_data_request_with_all_filters():
             {"close": [1.0, 2.0, 3.0]},
             index=pd.to_datetime(["2023-01-01", "2023-01-02", "2023-01-03"], utc=True),
         )
-        mock_load_data.return_value = (mock_df, [])
-        mock_resample.return_value = mock_df
+        # Simulate the filtered DataFrame that the DataHandler would return
+        filtered_df_mock = mock_df.loc[mock_df.index == "2023-01-02"]
+        mock_instance = mock_data_handler.return_value
+        mock_instance.get_data.return_value = filtered_df_mock
+        mock_instance.data_quality_flags = []
 
         cmd_run_backtest(args)
 
         mock_run_backtest.assert_called_once()
-        filtered_df = mock_run_backtest.call_args.kwargs["market_data"]
+        filtered_df_result = mock_run_backtest.call_args.kwargs["market_data"]
 
-        assert len(filtered_df) == 1
-        assert filtered_df.index[0] == pd.to_datetime("2023-01-02", utc=True)
+        assert len(filtered_df_result) == 1
+        assert filtered_df_result.index[0] == pd.to_datetime("2023-01-02", utc=True)
 
 
 def test_cli_no_data_request_uses_toy_data():
@@ -97,9 +98,9 @@ def test_cli_no_data_request_uses_toy_data():
         "trading_platform.cli.RunConfig.model_validate", return_value=Mock()
     ), patch(
         "trading_platform.cli.initialize_run", return_value=Path("test_run")
-    ), patch("trading_platform.cli.load_instrument_data") as mock_load_data, patch(
+    ), patch("trading_platform.cli.DataHandler") as mock_data_handler, patch(
         "trading_platform.cli.run_backtest", return_value=(Mock(), Mock(), Mock())
     ), patch("trading_platform.cli.finalize_run"), patch("builtins.print"):
         result = cmd_run_backtest(args)
         assert result == 0
-        mock_load_data.assert_not_called()
+        mock_data_handler.assert_not_called()

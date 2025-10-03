@@ -66,7 +66,7 @@ def _load_config(path: Path) -> dict[str, Any]:
 
 
 def cmd_run_backtest(args: argparse.Namespace) -> int:
-    if args.demo:
+    if args.demo and not args.config:
         run_path = generate_demo_run(user_id=args.user)
         print(f"Run created at: {run_path}")
         print(f"- Brief: {run_path / 'brief.json'}")
@@ -261,7 +261,16 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             raise SystemExit(f"RMM config validation failed: {exc}") from exc
         rmm_engine = RMMEngine(config=rmm_cfg)
         regime_timeframe = rmm_cfg.get("timeframe", "1D")
-        regimes = rmm_engine.classify_regime(df, timeframe=regime_timeframe)
+        classify_regime = getattr(rmm_engine, "classify_regime", None)
+        if callable(classify_regime):
+            regimes = classify_regime(df, timeframe=regime_timeframe)
+        else:
+            classify_daily = getattr(rmm_engine, "classify_daily", None)
+            if not callable(classify_daily):
+                raise SystemExit(
+                    "RMM engine must implement classify_regime or classify_daily"
+                )
+            regimes = classify_daily(df)
         rmm_policy = rmm_cfg.get("policy") or {}
         per_bar = rmm_engine.project_to_index(
             regimes, cast(pd.DatetimeIndex, df.index), policy=rmm_policy
@@ -302,30 +311,30 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
 
             spans: list[dict[str, object]] = []
             prev_mode: str | None = None
-            start_ts: datetime | None = None
+            span_start: datetime | None = None
             prev_ts: datetime | None = None
             for ts, row in per_bar.iterrows():
                 ts_dt = cast(datetime, ts)
                 mode = _mode(list(row["allowed_sides"] or []))
                 if prev_mode is None:
                     prev_mode = mode
-                    start_ts = ts_dt
+                    span_start = ts_dt
                 elif mode != prev_mode:
-                    if start_ts is not None and prev_ts is not None:
+                    if span_start is not None and prev_ts is not None:
                         spans.append(
                             {
-                                "start": start_ts.isoformat(),
+                                "start": span_start.isoformat(),
                                 "end": prev_ts.isoformat(),
                                 "mode": prev_mode,
                             }
                         )
                     prev_mode = mode
-                    start_ts = ts_dt
+                    span_start = ts_dt
                 prev_ts = ts_dt
-            if prev_mode is not None and start_ts is not None and prev_ts is not None:
+            if prev_mode is not None and span_start is not None and prev_ts is not None:
                 spans.append(
                     {
-                        "start": start_ts.isoformat(),
+                        "start": span_start.isoformat(),
                         "end": prev_ts.isoformat(),
                         "mode": prev_mode,
                     }

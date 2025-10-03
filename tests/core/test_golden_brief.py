@@ -16,7 +16,6 @@ from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
 
 
-
 # Fields that are dynamic and should be ignored during comparison
 KEYS_TO_IGNORE = {
     "timestamp",
@@ -80,7 +79,7 @@ def assert_briefs_equal(actual: dict[str, Any], golden: dict[str, Any], path: st
             assert actual_val == golden_val, f"Value differs at '{new_path}'"
 
 
-def test_brief_matches_golden_master(tmp_path: Path):
+def test_brief_matches_golden_master(tmp_path: Path, request):
     """
     Runs a backtest with a fixed configuration and compares the output brief
     against a 'golden master' version to detect any regressions.
@@ -178,6 +177,16 @@ def test_brief_matches_golden_master(tmp_path: Path):
     assert generated_brief_path.exists()
 
     actual_brief = json.loads(generated_brief_path.read_text())
+
+    try:
+        update_golden = request.config.getoption("--update-golden")
+    except ValueError:
+        update_golden = False
+
+    if update_golden:
+        golden_brief_path.write_text(json.dumps(actual_brief, indent=2))
+        pytest.skip("Golden master file updated.")
+
     golden_brief = json.loads(golden_brief_path.read_text())
 
     # Validate skipped_trades structure
