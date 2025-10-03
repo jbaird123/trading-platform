@@ -215,7 +215,9 @@ class PortfolioManager:
 
         return {"action": "ignored", "reason": "no_active_command", "side": None}
 
-    def can_attempt_entry(self, side: str, bar_index: int, entry_window_bars: int) -> bool:
+    def can_attempt_entry(
+        self, side: str, bar_index: int, entry_window_bars: int
+    ) -> bool:
         """
         Check if we can attempt entry for this side (used by backtester).
 
@@ -238,6 +240,41 @@ class PortfolioManager:
             return True  # Infinite window
 
         return bars_since_start <= entry_window_bars
+
+    def _get_point_value(self, entry_price: float, exit_price: float) -> float:
+        """
+        Calculate the point value for PnL conversion to base currency.
+
+        Implements instrument-agnostic PnL calculation per [SYS-1.3.1].
+
+        For forex pairs where USD is the quote currency (EUR/USD, GBP/USD):
+            - point_value = 1.0 (1 pip ≈ $1 per 10k units)
+        For forex pairs where USD is the base currency (USD/JPY, USD/CHF):
+            - point_value = 1.0 / avg_price (dynamic conversion)
+        For stocks:
+            - point_value = 1.0 (per share)
+        For futures:
+            - point_value = contract_multiplier
+
+        Returns:
+            float: The conversion factor from price units to base currency
+        """
+        if not self.instrument:
+            # Default fallback: assume 1:1 conversion
+            return 1.0
+
+        static_point_value = self.instrument.get("point_value", 1.0)
+        asset_class = self.instrument.get("asset_class", "Unknown")
+        symbol = self.instrument.get("symbol", "")
+
+        # For Forex USD/XXX pairs, use dynamic conversion
+        if asset_class == "Forex" and symbol.startswith("USD"):
+            # Use average price for conversion
+            avg_price = (entry_price + exit_price) / 2.0
+            return static_point_value / avg_price
+
+        # For all other instruments, use static point_value
+        return static_point_value
 
     def hit_daily_loss_cap(self, ts: datetime, cap: float) -> bool:
         """Return True if realized PnL for ts.date() is <= -cap."""
@@ -301,12 +338,17 @@ class PortfolioManager:
         entry = pos.entry_price
         high = float(current_bar["high"]) if "high" in current_bar else entry
         low = float(current_bar["low"]) if "low" in current_bar else entry
+
+        # Get point_value for MFE/MAE calculation
+        pv_high = self._get_point_value(entry, high)
+        pv_low = self._get_point_value(entry, low)
+
         if pos.side == "long":
-            favorable = max(0.0, (high - entry) * size)
-            adverse = max(0.0, (entry - low) * size)
+            favorable = max(0.0, (high - entry) * size * pv_high)
+            adverse = max(0.0, (entry - low) * size * pv_low)
         else:
-            favorable = max(0.0, (entry - low) * size)
-            adverse = max(0.0, (high - entry) * size)
+            favorable = max(0.0, (entry - low) * size * pv_low)
+            adverse = max(0.0, (high - entry) * size * pv_high)
 
         self._open_position = Position(
             symbol=pos.symbol,
@@ -336,8 +378,15 @@ class PortfolioManager:
             diff = self._engine.sub(exit_price, self._open_position.entry_price)
         else:
             diff = self._engine.sub(self._open_position.entry_price, exit_price)
+
+        # Get point_value from instrument definition for canonical PnL calc
+        point_value = self._get_point_value(self._open_position.entry_price, exit_price)
+
+        # Canonical PnL: (price_change * size * point_value)
         pnl_gross = self._engine.to_float(
-            self._engine.mul(diff, self._open_position.size)
+            self._engine.mul(
+                self._engine.mul(diff, self._open_position.size), point_value
+            )
         )
         cost_entry, breakdown_entry = self._cost_model.compute_entry_cost(
             self._open_position.size,
