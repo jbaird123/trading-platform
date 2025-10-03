@@ -72,13 +72,16 @@ class PortfolioManager:
         if instrument is not None:
             self.instrument = instrument
 
+        # Get the realistic fill price including spread
+        fill_price = self._cost_model.get_entry_price(entry_price, side)
+
         # Ensure context_at_entry is a dict (not None) to keep downstream
         # code simpler and avoid AttributeError when accessing keys.
         ctx = context_at_entry or {}
         self._open_position = Position(
             symbol=symbol,
             side=side,
-            entry_price=entry_price,
+            entry_price=fill_price,
             size=size,
             entry_time=entry_time,
             context_at_entry=ctx,
@@ -377,13 +380,18 @@ class PortfolioManager:
         if not self._open_position:
             return
 
+        # Get realistic exit price including spread
+        fill_price = self._cost_model.get_exit_price(
+            exit_price, self._open_position.side
+        )
+
         if self._open_position.side == "long":
-            diff = self._engine.sub(exit_price, self._open_position.entry_price)
+            diff = self._engine.sub(fill_price, self._open_position.entry_price)
         else:
-            diff = self._engine.sub(self._open_position.entry_price, exit_price)
+            diff = self._engine.sub(self._open_position.entry_price, fill_price)
 
         # Get point_value from instrument definition for canonical PnL calc
-        point_value = self._get_point_value(self._open_position.entry_price, exit_price)
+        point_value = self._get_point_value(self._open_position.entry_price, fill_price)
 
         # Canonical PnL: (price_change * size * point_value)
         pnl_gross = self._engine.to_float(
@@ -391,24 +399,31 @@ class PortfolioManager:
                 self._engine.mul(diff, self._open_position.size), point_value
             )
         )
+
+        # Calculate costs (commission and slippage only, spread is in pnl_gross)
         cost_entry, breakdown_entry = self._cost_model.compute_entry_cost(
             self._open_position.size,
             price=self._open_position.entry_price,
             instrument=self.instrument,
         )
         cost_exit, breakdown_exit = self._cost_model.compute_exit_cost(
-            self._open_position.size, price=exit_price, instrument=self.instrument
+            self._open_position.size, price=fill_price, instrument=self.instrument
         )
-        total_cost = cost_entry + cost_exit
+        # For reporting, calculate the spread cost that is now embedded in PnL
+        spread_cost = self._cost_model.compute_spread_cost(
+            self._open_position.size, instrument=self.instrument
+        )
+        commission_and_slippage_cost = cost_entry + cost_exit
+        total_cost = commission_and_slippage_cost + spread_cost
+
         cost_breakdown = {
-            "spread": breakdown_entry.get("spread", 0.0)
-            + breakdown_exit.get("spread", 0.0),
+            "spread": spread_cost,
             "commission": breakdown_entry.get("commission", 0.0)
             + breakdown_exit.get("commission", 0.0),
             "slippage": breakdown_entry.get("slippage", 0.0)
             + breakdown_exit.get("slippage", 0.0),
         }
-        pnl = pnl_gross - total_cost
+        pnl = pnl_gross - commission_and_slippage_cost
 
         initial_risk_ccy = self._open_position.initial_risk_ccy
         r_multiple = None
@@ -422,7 +437,7 @@ class PortfolioManager:
         pos_dict["context_at_entry"] = pos_dict.get("context_at_entry") or {}
         trade = Trade(
             **pos_dict,
-            exit_price=exit_price,
+            exit_price=fill_price,
             exit_time=exit_time,
             pnl=pnl,
             pnl_gross=pnl_gross,

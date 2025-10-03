@@ -16,14 +16,14 @@ class CostModel:
         * Our BT examples: unit = whatever numeric size you pass (e.g., 10k)
 
     Fields
-    - spread_per_unit: bid-ask spread cost applied once at entry only
+    - spread_per_unit: full bid-ask spread, applied to mid-price for fills.
     - slippage_per_unit: applied per side (entry and exit), base-currency
     - commission: supports multiple modes:
         * per_unit: value is base-currency per unit (e.g., $0.005/share)
         * per_trade_flat: value is base-currency per side (e.g., $1.00 per order)
         * bps_notional: value is basis points of notional (price*size*bps/10_000)
 
-    Spread is applied only at entry. Commission and slippage are applied per side.
+    Commission and slippage are applied per side. Spread is embedded in fill price.
     """
 
     spread_per_unit: float = 0.0
@@ -62,6 +62,20 @@ class CostModel:
             commission_value=float(c_val),
         )
 
+    def get_entry_price(self, mid_price: float, side: str) -> float:
+        """Calculates the fill price for an entry order including spread."""
+        if side == "long":
+            return mid_price + (self.spread_per_unit / 2)
+        else:  # short
+            return mid_price - (self.spread_per_unit / 2)
+
+    def get_exit_price(self, mid_price: float, side: str) -> float:
+        """Calculates the fill price for an exit order including spread."""
+        if side == "long":  # Closing a long means selling
+            return mid_price - (self.spread_per_unit / 2)
+        else:  # Closing a short means buying
+            return mid_price + (self.spread_per_unit / 2)
+
     def _commission_cost(
         self, *, units: float, size: float, price: float | None
     ) -> float:
@@ -76,6 +90,15 @@ class CostModel:
         # Unknown type fallback to zero
         return 0.0
 
+    def compute_spread_cost(
+        self,
+        size: float,
+        instrument: dict[str, Any] | None = None,
+    ) -> float:
+        """Computes the total spread cost for a round-trip trade."""
+        units = effective_units(size, instrument)
+        return self.spread_per_unit * units
+
     def compute_entry_cost(
         self,
         size: float,
@@ -84,14 +107,13 @@ class CostModel:
     ) -> tuple[float, dict[str, float]]:
         """Cost charged at entry.
 
-        Apply spread + commission + slippage at entry.
+        Apply commission + slippage at entry. Spread is handled in fill price.
         """
         units = effective_units(size, instrument)
-        spread = self.spread_per_unit * units
         commission = self._commission_cost(units=units, size=size, price=price)
         slippage = self.slippage_per_unit * units
-        total = spread + commission + slippage
-        return total, {"spread": spread, "commission": commission, "slippage": slippage}
+        total = commission + slippage
+        return total, {"spread": 0.0, "commission": commission, "slippage": slippage}
 
     def compute_exit_cost(
         self,
