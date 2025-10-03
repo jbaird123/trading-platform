@@ -19,14 +19,12 @@ cost_model:
 data_request:
   symbol: "USD_JPY"
   timeframe: "5min"
-  start: "2020-01-01"
+  start: "2025-08-01"
   end: "2025-09-26"
 
-# For fast mode, add: fast_mode: {limit_bars: 10000}
 # fast | exact; default is fast
 counterfactual_mode: fast
-fast_mode:
-  limit_bars: 10000  
+
 
 # Post-exit price tracking for exit efficiency analysis
 post_exit_analysis:
