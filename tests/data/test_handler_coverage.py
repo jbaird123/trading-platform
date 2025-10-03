@@ -71,17 +71,13 @@ def test_get_data_cache_hit(tmp_path: Path) -> None:
         handler = DataHandler(symbol="TEST", data_root=tmp_path)
 
         # First request - will resample and cache
-        with patch(
-            "trading_platform.data.handler.resample_ohlc"
-        ) as mock_resample:
+        with patch("trading_platform.data.handler.resample_ohlc") as mock_resample:
             mock_resample.return_value = raw_data.copy()
             result1 = handler.get_data(timeframe="4H")
             assert mock_resample.call_count == 1
 
         # Second request - should hit cache, no resampling
-        with patch(
-            "trading_platform.data.handler.resample_ohlc"
-        ) as mock_resample:
+        with patch("trading_platform.data.handler.resample_ohlc") as mock_resample:
             result2 = handler.get_data(timeframe="4H")
             # Branch 145→153: timeframe in cache, skip resampling
             assert mock_resample.call_count == 0

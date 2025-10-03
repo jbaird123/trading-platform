@@ -366,7 +366,6 @@ def compute_stop_tp_candidates(trades: list[Trade]) -> dict:
         return {}
 
 
-
 def compute_exit_efficiency(trades: list[Trade]) -> dict:
     """
     Analyze exit efficiency by comparing actual exits to post-exit price movement.
@@ -414,7 +413,7 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
                 assert t.post_exit_analysis is not None
                 post_data = t.post_exit_analysis.get(h_key, {})
                 post_mfe = post_data.get("mfe", 0.0)
-                post_mae = post_data.get("mae", 0.0)
+                post_data.get("mae", 0.0)
 
                 # Opportunity cost = what we left on the table
                 opp_cost = post_mfe  # Positive if price continued favorably
@@ -443,11 +442,15 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
             # Only include rates on the longest horizon to avoid clutter
             if horizon == horizons[-1]:
                 if reason in ["take_profit", "tp"]:
-                    analysis["premature_exit_rate"] = round(premature_count / n_trades, 3)
+                    analysis["premature_exit_rate"] = round(
+                        premature_count / n_trades, 3
+                    )
                 elif reason in ["stop_loss", "sl", "stop"]:
                     analysis["false_stop_rate"] = round(false_exit_count / n_trades, 3)
                 else:
-                    analysis["suboptimal_exit_rate"] = round(premature_count / n_trades, 3)
+                    analysis["suboptimal_exit_rate"] = round(
+                        premature_count / n_trades, 3
+                    )
 
         return analysis
 
@@ -457,10 +460,15 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
     for reason in exit_reasons:
         reason_analysis = analyze_by_exit_reason(reason)
         if reason_analysis:  # pragma: no cover
-            by_exit_reason[reason] = reason_analysis  # pragma: no cover - Always true when exit_reasons from trades
+            by_exit_reason[reason] = (
+                reason_analysis  # pragma: no cover - Always true when
+                # exit_reasons from trades
+            )
 
     # Optimal hold duration analysis: what if we held for N bars instead?
-    current_avg_pnl = sum(t.pnl for t in trades_with_analysis) / len(trades_with_analysis)
+    current_avg_pnl = sum(t.pnl for t in trades_with_analysis) / len(
+        trades_with_analysis
+    )
     optimal_hold: dict[str, Any] = {"current_avg_pnl": round(current_avg_pnl, 2)}
 
     for horizon in horizons:
@@ -478,11 +486,14 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
             hypothetical_pnl = t.pnl + post_mfe
             hypothetical_pnls.append(hypothetical_pnl)
 
-        avg_hypothetical = sum(hypothetical_pnls) / len(hypothetical_pnls) if hypothetical_pnls else 0.0
+        avg_hypothetical = (
+            sum(hypothetical_pnls) / len(hypothetical_pnls)
+            if hypothetical_pnls
+            else 0.0
+        )
         optimal_hold[f"if_held_{h_key}_bars"] = round(avg_hypothetical, 2)
 
     return {
         "by_exit_reason": by_exit_reason,
         "optimal_hold_analysis": optimal_hold,
     }
-

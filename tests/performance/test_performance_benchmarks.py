@@ -36,25 +36,39 @@ def test_sys_1_9_1_vectorized_indicator_computation():
 
     # Realistic OHLC data
     close = 1.1000 + (pd.Series(range(periods)) * 0.0001 % 0.01)
-    df = pd.DataFrame({
-        "open": close,
-        "high": close + 0.0005,
-        "low": close - 0.0005,
-        "close": close,
-        "volume": 1000
-    }, index=index)
+    df = pd.DataFrame(
+        {
+            "open": close,
+            "high": close + 0.0005,
+            "low": close - 0.0005,
+            "close": close,
+            "volume": 1000,
+        },
+        index=index,
+    )
 
     # Define feature computation
     features_config = [
-        {"name": "ema_fast", "type": "EMA", "params": {"length": 12},
-         "source": "close"},
-        {"name": "ema_slow", "type": "EMA", "params": {"length": 26},
-         "source": "close"},
-        {"name": "rsi", "type": "RSI", "params": {"length": 14},
-         "source": "close"},
+        {
+            "name": "ema_fast",
+            "type": "EMA",
+            "params": {"length": 12},
+            "source": "close",
+        },
+        {
+            "name": "ema_slow",
+            "type": "EMA",
+            "params": {"length": 26},
+            "source": "close",
+        },
+        {"name": "rsi", "type": "RSI", "params": {"length": 14}, "source": "close"},
         {"name": "adx", "type": "ADX", "params": {"length": 14}},
-        {"name": "bb", "type": "BB", "params": {"length": 20, "ndev": 2},
-         "source": "close"},
+        {
+            "name": "bb",
+            "type": "BB",
+            "params": {"length": 20, "ndev": 2},
+            "source": "close",
+        },
     ]
 
     # Benchmark indicator computation
@@ -73,12 +87,13 @@ def test_sys_1_9_1_vectorized_indicator_computation():
     # Performance assertion: Should compute 5 indicators on 525K bars
     # in under 5 seconds on a modern laptop
     assert elapsed < 5.0, (
-        f"Indicator computation too slow: {elapsed:.2f}s "
-        f"for {periods:,} bars"
+        f"Indicator computation too slow: {elapsed:.2f}s " f"for {periods:,} bars"
     )
 
-    print(f"\n✅ Vectorized indicator computation: {elapsed:.2f}s "
-          f"for {periods:,} bars ({periods/elapsed:,.0f} bars/sec)")
+    print(
+        f"\n✅ Vectorized indicator computation: {elapsed:.2f}s "
+        f"for {periods:,} bars ({periods/elapsed:,.0f} bars/sec)"
+    )
 
 
 @pytest.mark.slow
@@ -93,25 +108,24 @@ def test_sys_1_9_1_batch_io_performance():
     index = pd.date_range("2022-01-01", periods=periods, freq="1min")
 
     close = 100.0 + (pd.Series(range(periods)) * 0.01 % 10)
-    df = pd.DataFrame({
-        "open": close,
-        "high": close + 0.5,
-        "low": close - 0.5,
-        "close": close,
-        "volume": 1000
-    }, index=index)
+    df = pd.DataFrame(
+        {
+            "open": close,
+            "high": close + 0.5,
+            "low": close - 0.5,
+            "close": close,
+            "volume": 1000,
+        },
+        index=index,
+    )
 
     # Benchmark batch operations
     start_time = time.time()
 
     # Resample to hourly (batch operation)
-    hourly = df.resample("1H").agg({
-        "open": "first",
-        "high": "max",
-        "low": "min",
-        "close": "last",
-        "volume": "sum"
-    })
+    hourly = df.resample("1H").agg(
+        {"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"}
+    )
 
     # Batch calculation
     hourly["returns"] = hourly["close"].pct_change()
@@ -147,17 +161,18 @@ def test_sys_1_9_2_multi_year_backtest_performance():
 
     # Realistic price action
     base = 1.1000
-    noise = pd.Series(range(periods)).apply(
-        lambda x: (x % 100 - 50) * 0.00001
-    )
+    noise = pd.Series(range(periods)).apply(lambda x: (x % 100 - 50) * 0.00001)
     close = base + noise
-    df = pd.DataFrame({
-        "open": close,
-        "high": close + 0.0002,
-        "low": close - 0.0002,
-        "close": close,
-        "volume": 1000
-    }, index=index)
+    df = pd.DataFrame(
+        {
+            "open": close,
+            "high": close + 0.0002,
+            "low": close - 0.0002,
+            "close": close,
+            "volume": 1000,
+        },
+        index=index,
+    )
 
     # Simple EMA crossover strategy config
     config = RunConfig(  # type: ignore[call-arg]
@@ -188,15 +203,17 @@ def test_sys_1_9_2_multi_year_backtest_performance():
         f"({bars_per_second:,.0f} bars/sec)"
     )
 
-    print(f"\n✅ Backtest performance: {elapsed:.2f}s for "
-          f"{periods:,} bars ({bars_per_second:,.0f} bars/sec)")
+    print(
+        f"\n✅ Backtest performance: {elapsed:.2f}s for "
+        f"{periods:,} bars ({bars_per_second:,.0f} bars/sec)"
+    )
     print(f"   Estimated 1M bars: {1_000_000/bars_per_second:.1f}s")
 
 
 @pytest.mark.slow
 @pytest.mark.skipif(
     not pytest.importorskip("psutil", reason="psutil not available"),
-    reason="psutil required for memory profiling"
+    reason="psutil required for memory profiling",
 )
 def test_sys_1_9_2_memory_efficiency():
     """
@@ -216,22 +233,23 @@ def test_sys_1_9_2_memory_efficiency():
     index = pd.date_range("2020-01-01", periods=periods, freq="1min")
     close = 1.1000 + (pd.Series(range(periods)) * 0.0001 % 0.01)
 
-    df = pd.DataFrame({
-        "open": close,
-        "high": close + 0.0005,
-        "low": close - 0.0005,
-        "close": close,
-        "volume": 1000
-    }, index=index)
+    df = pd.DataFrame(
+        {
+            "open": close,
+            "high": close + 0.0005,
+            "low": close - 0.0005,
+            "close": close,
+            "volume": 1000,
+        },
+        index=index,
+    )
 
     # Add indicators
     features = [
-        {"name": "ema20", "type": "EMA", "params": {"length": 20},
-         "source": "close"},
-        {"name": "ema50", "type": "EMA", "params": {"length": 50},
-         "source": "close"},
+        {"name": "ema20", "type": "EMA", "params": {"length": 20}, "source": "close"},
+        {"name": "ema50", "type": "EMA", "params": {"length": 50}, "source": "close"},
     ]
-    df_with_features = compute_features(df, features)
+    compute_features(df, features)
 
     final_memory = process.memory_info().rss / 1024 / 1024  # MB
     memory_used = final_memory - initial_memory
@@ -239,12 +257,10 @@ def test_sys_1_9_2_memory_efficiency():
     # Memory should be reasonable for 500K bars + indicators
     # Expect < 200MB for this dataset
     assert memory_used < 200, (
-        f"Memory usage too high: {memory_used:.1f}MB for "
-        f"{periods:,} bars"
+        f"Memory usage too high: {memory_used:.1f}MB for " f"{periods:,} bars"
     )
 
-    print(f"\n✅ Memory efficiency: {memory_used:.1f}MB for "
-          f"{periods:,} bars")
+    print(f"\n✅ Memory efficiency: {memory_used:.1f}MB for " f"{periods:,} bars")
 
 
 def test_indicator_computation_speed():
@@ -258,13 +274,16 @@ def test_indicator_computation_speed():
     index = pd.date_range("2023-01-01", periods=periods, freq="1min")
     close = 1.1000 + (pd.Series(range(periods)) * 0.0001 % 0.01)
 
-    df = pd.DataFrame({
-        "open": close,
-        "high": close + 0.0005,
-        "low": close - 0.0005,
-        "close": close,
-        "volume": 1000
-    }, index=index)
+    df = pd.DataFrame(
+        {
+            "open": close,
+            "high": close + 0.0005,
+            "low": close - 0.0005,
+            "close": close,
+            "volume": 1000,
+        },
+        index=index,
+    )
 
     indicators = [
         ("EMA", {"length": 20}),
@@ -276,25 +295,25 @@ def test_indicator_computation_speed():
     ]
 
     for ind_type, params in indicators:
-        features = [{
-            "name": f"{ind_type.lower()}",
-            "type": ind_type,
-            "params": params,
-            "source": "close" if ind_type in ["EMA", "SMA", "RSI", "BB"]
-            else None
-        }]
+        features = [
+            {
+                "name": f"{ind_type.lower()}",
+                "type": ind_type,
+                "params": params,
+                "source": "close" if ind_type in ["EMA", "SMA", "RSI", "BB"] else None,
+            }
+        ]
 
         start = time.time()
-        result = compute_features(df, features)
+        compute_features(df, features)
         elapsed = time.time() - start
 
         # Each indicator should compute in under 1 second for 100K bars
-        assert elapsed < 1.0, (
-            f"{ind_type} too slow: {elapsed:.3f}s"
-        )
+        assert elapsed < 1.0, f"{ind_type} too slow: {elapsed:.3f}s"
 
-        print(f"  {ind_type:6s}: {elapsed:.3f}s "
-              f"({periods/elapsed:>10,.0f} bars/sec)")
+        print(
+            f"  {ind_type:6s}: {elapsed:.3f}s " f"({periods/elapsed:>10,.0f} bars/sec)"
+        )
 
 
 @pytest.mark.slow
@@ -309,13 +328,16 @@ def test_backtest_execution_time_1m_bars():
     index = pd.date_range("2020-01-01", periods=periods, freq="5min")
 
     close = 100.0 + (pd.Series(range(periods)) * 0.01 % 10)
-    df = pd.DataFrame({
-        "open": close,
-        "high": close + 0.5,
-        "low": close - 0.5,
-        "close": close,
-        "volume": 1000
-    }, index=index)
+    df = pd.DataFrame(
+        {
+            "open": close,
+            "high": close + 0.5,
+            "low": close - 0.5,
+            "close": close,
+            "volume": 1000,
+        },
+        index=index,
+    )
 
     config = RunConfig(  # type: ignore[call-arg]
         symbol="EURUSD",
@@ -351,7 +373,7 @@ def test_backtest_execution_time_1m_bars():
 
 @pytest.mark.skipif(
     not pytest.importorskip("psutil", reason="psutil not available"),
-    reason="psutil required for memory profiling"
+    reason="psutil required for memory profiling",
 )
 def test_memory_usage_profiling():
     """
@@ -368,51 +390,41 @@ def test_memory_usage_profiling():
     # Track memory at different stages
     memory_profile = {}
 
-    memory_profile["start"] = (
-        process.memory_info().rss / 1024 / 1024
-    )
+    memory_profile["start"] = process.memory_info().rss / 1024 / 1024
 
     # Generate data
     periods = 100_000
     index = pd.date_range("2023-01-01", periods=periods, freq="1min")
     close = 1.1 + (pd.Series(range(periods)) * 0.0001 % 0.01)
-    df = pd.DataFrame({
-        "open": close,
-        "high": close + 0.0005,
-        "low": close - 0.0005,
-        "close": close,
-        "volume": 1000
-    }, index=index)
-
-    memory_profile["after_data"] = (
-        process.memory_info().rss / 1024 / 1024
+    df = pd.DataFrame(
+        {
+            "open": close,
+            "high": close + 0.0005,
+            "low": close - 0.0005,
+            "close": close,
+            "volume": 1000,
+        },
+        index=index,
     )
+
+    memory_profile["after_data"] = process.memory_info().rss / 1024 / 1024
 
     # Add indicators
     features = [
-        {"name": "ema", "type": "EMA", "params": {"length": 20},
-         "source": "close"},
+        {"name": "ema", "type": "EMA", "params": {"length": 20}, "source": "close"},
     ]
-    df_feat = compute_features(df, features)
+    compute_features(df, features)
 
-    memory_profile["after_features"] = (
-        process.memory_info().rss / 1024 / 1024
-    )
+    memory_profile["after_features"] = process.memory_info().rss / 1024 / 1024
 
     # Calculate deltas
-    data_memory = (
-        memory_profile["after_data"] - memory_profile["start"]
-    )
-    feature_memory = (
-        memory_profile["after_features"] -
-        memory_profile["after_data"]
-    )
+    data_memory = memory_profile["after_data"] - memory_profile["start"]
+    feature_memory = memory_profile["after_features"] - memory_profile["after_data"]
 
     print("\n📊 Memory Profile (100K bars):")
     print(f"   Data loading:    {data_memory:>6.1f} MB")
     print(f"   Feature compute: {feature_memory:>6.1f} MB")
-    print(f"   Total:          "
-          f"{memory_profile['after_features']:>6.1f} MB")
+    print(f"   Total:          " f"{memory_profile['after_features']:>6.1f} MB")
 
     # Sanity checks
     assert data_memory < 50, "Data memory too high"

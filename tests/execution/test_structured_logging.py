@@ -17,9 +17,11 @@ def test_structured_log_format():
 
     Validates: [EL-8.7]
     """
-    from trading_platform.execution.logging_config import StructuredLogger  # type: ignore[import-untyped]
+    from trading_platform.execution.logging_config import (
+        StructuredLogger,  # type: ignore[import-untyped]
+    )
 
-    logger = StructuredLogger("test")
+    StructuredLogger("test")
 
     # Create log entry
     log_entry = {
@@ -29,7 +31,7 @@ def test_structured_log_format():
         "order_id": "12345",
         "symbol": "EURUSD",
         "side": "buy",
-        "quantity": 10000
+        "quantity": 10000,
     }
 
     # Verify it's valid JSON
@@ -47,17 +49,10 @@ def test_structured_log_includes_context():
     """
     from trading_platform.execution.logging_config import log_execution
 
-    context = {
-        "strategy": "SMA_Crossover",
-        "account_id": "A12345",
-        "broker": "OANDA"
-    }
+    context = {"strategy": "SMA_Crossover", "account_id": "A12345", "broker": "OANDA"}
 
     log_entry = log_execution(
-        action="place_order",
-        order_type="market",
-        symbol="EURUSD",
-        context=context
+        action="place_order", order_type="market", symbol="EURUSD", context=context
     )
 
     assert "strategy" in log_entry
@@ -75,8 +70,12 @@ def test_structured_log_trade_lifecycle():
     logger = TradeLogger()
 
     # Log trade events
-    logger.log_order_placed(order_id="O123", symbol="EURUSD", side="buy", quantity=10000)
-    logger.log_order_filled(order_id="O123", fill_price=1.1000, fill_time="2024-01-01T00:00:00Z")
+    logger.log_order_placed(
+        order_id="O123", symbol="EURUSD", side="buy", quantity=10000
+    )
+    logger.log_order_filled(
+        order_id="O123", fill_price=1.1000, fill_time="2024-01-01T00:00:00Z"
+    )
     logger.log_order_closed(order_id="O123", close_price=1.1050, pnl=500.0)
 
     logs = logger.get_logs()
@@ -101,11 +100,7 @@ def test_structured_log_error_tracking():
     except Exception as e:
         log_entry = log_error(
             error=e,
-            context={
-                "operation": "connect_api",
-                "broker": "OANDA",
-                "retry_count": 3
-            }
+            context={"operation": "connect_api", "broker": "OANDA", "retry_count": 3},
         )
 
         assert log_entry["level"] == "ERROR"
@@ -123,7 +118,7 @@ def test_structured_log_performance_metrics():
     metrics = {
         "order_latency_ms": 45.2,
         "api_response_time_ms": 120.5,
-        "processing_time_ms": 5.3
+        "processing_time_ms": 5.3,
     }
 
     log_entry = log_performance("order_execution", metrics)
@@ -143,7 +138,7 @@ def test_structured_log_sanitizes_sensitive_data():
         "api_key": "secret_key_12345",
         "password": "my_password",
         "account_number": "1234567890",
-        "symbol": "EURUSD"  # Not sensitive
+        "symbol": "EURUSD",  # Not sensitive
     }
 
     sanitized = sanitize_log(sensitive_data)
@@ -166,9 +161,15 @@ def test_structured_log_correlation_id():
     correlation_id = str(uuid.uuid4())
 
     log_entries = []
-    log_entries.append(logger.log("Order request received", correlation_id=correlation_id))
-    log_entries.append(logger.log("Order validation passed", correlation_id=correlation_id))
-    log_entries.append(logger.log("Order sent to broker", correlation_id=correlation_id))
+    log_entries.append(
+        logger.log("Order request received", correlation_id=correlation_id)
+    )
+    log_entries.append(
+        logger.log("Order validation passed", correlation_id=correlation_id)
+    )
+    log_entries.append(
+        logger.log("Order sent to broker", correlation_id=correlation_id)
+    )
 
     # All logs should have same correlation ID
     assert all(entry["correlation_id"] == correlation_id for entry in log_entries)
@@ -204,11 +205,7 @@ class StructuredLogger:
         self.name = name
 
     def log(self, message, **kwargs):
-        entry = {
-            "logger": self.name,
-            "message": message,
-            **kwargs
-        }
+        entry = {"logger": self.name, "message": message, **kwargs}
         return entry
 
 
@@ -242,7 +239,7 @@ def log_error(error, context):
         "level": "ERROR",
         "error_type": type(error).__name__,
         "error_message": str(error),
-        **context
+        **context,
     }
 
 

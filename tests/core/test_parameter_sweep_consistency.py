@@ -2,7 +2,8 @@
 Test to ensure parameter sweep produces consistent results with standalone backtests.
 
 This test addresses a critical bug where parameter sweeps produced different results
-than standalone runs due to strategy_params not being applied before baseline compilation.
+than standalone runs due to strategy_params not being applied before
+baseline compilation.
 """
 
 import json
@@ -188,20 +189,22 @@ def test_parameter_sweep_matches_standalone(tmp_path, monkeypatch):
     standalone_trades = standalone_brief["overall_performance"]["n_trades"]
 
     # Results should be identical
-    assert abs(sweep_pnl - standalone_pnl) < 0.01, (
-        f"Sweep result ({sweep_pnl}) differs from standalone ({standalone_pnl})"
-    )
-    assert abs(sweep_baseline_pnl - standalone_pnl) < 0.01, (
-        f"Sweep baseline ({sweep_baseline_pnl}) differs from standalone ({standalone_pnl})"
-    )
-    assert sweep_trades == standalone_trades, (
-        f"Trade counts differ: sweep={sweep_trades}, standalone={standalone_trades}"
-    )
+    assert (
+        abs(sweep_pnl - standalone_pnl) < 0.01
+    ), f"Sweep result ({sweep_pnl}) differs from standalone ({standalone_pnl})"
+    assert (
+        abs(sweep_baseline_pnl - standalone_pnl) < 0.01
+    ), (f"Sweep baseline ({sweep_baseline_pnl}) differs from standalone "
+        f"({standalone_pnl})")
+    assert (
+        sweep_trades == standalone_trades
+    ), f"Trade counts differ: sweep={sweep_trades}, standalone={standalone_trades}"
 
 
 def test_strategy_params_override_file_defaults(tmp_path, monkeypatch):
     """
-    Test that strategy_params in the config override the strategy file's default parameters.
+    Test that strategy_params in the config override the strategy file's
+    default parameters.
 
     This test ensures parameter substitution works correctly when strategy_params
     are specified in the run config.
@@ -225,16 +228,48 @@ def test_strategy_params_override_file_defaults(tmp_path, monkeypatch):
             },
         ],
         "long_entry_rules": [
-            {"all_of": [{"condition": "cross_above", "left": {"ref": "ema_fast"}, "right": {"ref": "ema_slow"}}]}
+            {
+                "all_of": [
+                    {
+                        "condition": "cross_above",
+                        "left": {"ref": "ema_fast"},
+                        "right": {"ref": "ema_slow"},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "cross_below", "left": {"ref": "ema_fast"}, "right": {"ref": "ema_slow"}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "cross_below",
+                        "left": {"ref": "ema_fast"},
+                        "right": {"ref": "ema_slow"},
+                    }
+                ]
+            }
         ],
         "short_entry_rules": [
-            {"all_of": [{"condition": "cross_below", "left": {"ref": "ema_fast"}, "right": {"ref": "ema_slow"}}]}
+            {
+                "all_of": [
+                    {
+                        "condition": "cross_below",
+                        "left": {"ref": "ema_fast"},
+                        "right": {"ref": "ema_slow"},
+                    }
+                ]
+            }
         ],
         "short_exit_rules": [
-            {"any_of": [{"condition": "cross_above", "left": {"ref": "ema_fast"}, "right": {"ref": "ema_slow"}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "cross_above",
+                        "left": {"ref": "ema_fast"},
+                        "right": {"ref": "ema_slow"},
+                    }
+                ]
+            }
         ],
     }
 
@@ -307,9 +342,9 @@ def test_strategy_params_override_file_defaults(tmp_path, monkeypatch):
     expected_slow_1 = (price_1 * k_80) + (ema_slow_0 * (1 - k_80))
 
     # Verify (allow small floating point tolerance)
-    assert abs(ema_fast_1 - expected_fast_1) < 1e-6, (
-        f"EMA fast not using length=20: expected {expected_fast_1}, got {ema_fast_1}"
-    )
-    assert abs(ema_slow_1 - expected_slow_1) < 1e-6, (
-        f"EMA slow not using length=80: expected {expected_slow_1}, got {ema_slow_1}"
-    )
+    assert (
+        abs(ema_fast_1 - expected_fast_1) < 1e-6
+    ), f"EMA fast not using length=20: expected {expected_fast_1}, got {ema_fast_1}"
+    assert (
+        abs(ema_slow_1 - expected_slow_1) < 1e-6
+    ), f"EMA slow not using length=80: expected {expected_slow_1}, got {ema_slow_1}"

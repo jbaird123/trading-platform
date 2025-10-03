@@ -90,12 +90,22 @@ def create_database(db_path: Path):
     """)
 
     # Create indexes for better query performance
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_req_category ON requirements(category)")
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_req_category ON requirements(category)"
+    )
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_test_file ON test_cases(file_id)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_req_test_req ON requirement_tests(req_id)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_req_test_test ON requirement_tests(test_id)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_exec_test ON test_executions(test_id)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_exec_time ON test_executions(executed_at)")
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_req_test_req ON requirement_tests(req_id)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_req_test_test ON requirement_tests(test_id)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_exec_test ON test_executions(test_id)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_exec_time ON test_executions(executed_at)"
+    )
 
     conn.commit()
     conn.close()
@@ -108,20 +118,22 @@ def populate_from_test_files(db_path: Path, test_dir: Path):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
-    req_pattern = r'#\s*Validates:\s*\[([^\]]+)\]'
+    req_pattern = r"#\s*Validates:\s*\[([^\]]+)\]"
 
     for test_file in test_dir.rglob("test_*.py"):
         rel_path = test_file.relative_to(test_dir.parent)
 
         # Insert test file
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT OR IGNORE INTO test_files (file_path, module_name)
             VALUES (?, ?)
-        """, (str(rel_path), test_file.stem))
+        """,
+            (str(rel_path), test_file.stem),
+        )
 
         file_id = cursor.execute(
-            "SELECT file_id FROM test_files WHERE file_path = ?",
-            (str(rel_path),)
+            "SELECT file_id FROM test_files WHERE file_path = ?", (str(rel_path),)
         ).fetchone()[0]
 
         # Parse file for requirements and test functions
@@ -132,42 +144,55 @@ def populate_from_test_files(db_path: Path, test_dir: Path):
             req_matches = re.findall(req_pattern, content)
             requirements = set()
             for match in req_matches:
-                for req_id in match.split(','):
+                for req_id in match.split(","):
                     req_id = req_id.strip()
                     requirements.add(req_id)
 
                     # Insert requirement
-                    category = req_id.split('-')[0] if '-' in req_id else 'OTHER'
-                    cursor.execute("""
+                    category = req_id.split("-")[0] if "-" in req_id else "OTHER"
+                    cursor.execute(
+                        """
                         INSERT OR IGNORE INTO requirements (req_id, category)
                         VALUES (?, ?)
-                    """, (req_id, category))
+                    """,
+                        (req_id, category),
+                    )
 
             # Extract test functions
-            test_func_pattern = r'^def (test_\w+)\('
-            for line_num, line in enumerate(content.split('\n'), 1):
+            test_func_pattern = r"^def (test_\w+)\("
+            for line_num, line in enumerate(content.split("\n"), 1):
                 match = re.match(test_func_pattern, line)
                 if match:
                     test_name = match.group(1)
 
                     # Insert test case
-                    cursor.execute("""
-                        INSERT OR IGNORE INTO test_cases (file_id, test_name, line_number)
+                    cursor.execute(
+                        """
+                        INSERT OR IGNORE INTO test_cases
+                        (file_id, test_name, line_number)
                         VALUES (?, ?, ?)
-                    """, (file_id, test_name, line_num))
+                    """,
+                        (file_id, test_name, line_num),
+                    )
 
                     # Get test_id
-                    test_id = cursor.execute("""
+                    test_id = cursor.execute(
+                        """
                         SELECT test_id FROM test_cases
                         WHERE file_id = ? AND test_name = ?
-                    """, (file_id, test_name)).fetchone()[0]
+                    """,
+                        (file_id, test_name),
+                    ).fetchone()[0]
 
                     # Link to requirements (associate with all reqs in file)
                     for req_id in requirements:
-                        cursor.execute("""
+                        cursor.execute(
+                            """
                             INSERT OR IGNORE INTO requirement_tests (req_id, test_id)
                             VALUES (?, ?)
-                        """, (req_id, test_id))
+                        """,
+                            (req_id, test_id),
+                        )
 
         except Exception as e:
             print(f"Warning: Could not parse {test_file}: {e}")
@@ -206,7 +231,11 @@ def main():
 
     print(f"\n✅ Test registry ready at: {db_path}")
     print("\nQuery examples:")
-    print(f"  sqlite3 {db_path} \"SELECT req_id, COUNT(*) as test_count FROM requirement_tests GROUP BY req_id ORDER BY test_count DESC LIMIT 10\"")
+    query = (
+        "SELECT req_id, COUNT(*) as test_count FROM requirement_tests "
+        "GROUP BY req_id ORDER BY test_count DESC LIMIT 10"
+    )
+    print(f'  sqlite3 {db_path} "{query}"')
 
     return 0
 

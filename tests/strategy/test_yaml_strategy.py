@@ -493,7 +493,13 @@ class TestSignalStateMachine:
             assert len(signals) == len(df)
 
             # All commands should be valid
-            valid_commands = {"enter_long", "enter_short", "exit_long", "exit_short", None}
+            valid_commands = {
+                "enter_long",
+                "enter_short",
+                "exit_long",
+                "exit_short",
+                None,
+            }
             assert all(cmd in valid_commands for cmd in signals.values)
 
     def test_get_context_method(self):
@@ -1145,7 +1151,9 @@ def test_compiled_strategy_slope_and_ai_filter(monkeypatch):
     values = list(sig)
     assert ai_client.calls == 1
     assert len(values) == 4
-    assert set(values).issubset({"enter_long", "enter_short", "exit_long", "exit_short", None})
+    assert set(values).issubset(
+        {"enter_long", "enter_short", "exit_long", "exit_short", None}
+    )
 
 
 def test_compiled_strategy_slope_filter_missing_column(monkeypatch):
@@ -1573,7 +1581,8 @@ def test_same_bar_exit_and_opposite_entry():
     }
     strat = compile_strategy(cfg)
 
-    # Create data where we cross above (enter long), then cross below (exit long + enter short)
+    # Create data where we cross above (enter long), then cross below
+    # (exit long + enter short)
     df = pd.DataFrame(
         {
             "open": [9, 11, 9, 11],  # Below, Above, Below, Above
@@ -1591,7 +1600,14 @@ def test_same_bar_exit_and_opposite_entry():
     # Expected:
     # Bar 0: close=9 (below 10), no cross yet -> None
     # Bar 1: close=11 (above 10), cross_above from 9->11 -> enter_long
-    # Bar 2: close=9 (below 10), cross_below from 11->9 -> exit_long then enter_short (entry overwrites)
-    # Bar 3: close=11 (above 10), cross_above from 9->11 -> exit_short then enter_long (entry overwrites)
+    # Bar 2: close=9 (below 10), cross_below from 11->9 -> exit_long then
+    #         enter_short (entry overwrites)
+    # Bar 3: close=11 (above 10), cross_above from 9->11 -> exit_short then
+    #         enter_long (entry overwrites)
 
-    assert signals == [None, "enter_long", "enter_short", "enter_long"], f"Got {signals}"
+    assert signals == [
+        None,
+        "enter_long",
+        "enter_short",
+        "enter_long",
+    ], f"Got {signals}"

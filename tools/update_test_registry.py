@@ -185,7 +185,8 @@ def update_registry(
         # Check for duplicate configs
         if metadata["config_hash"] in existing_hashes:
             print(
-                f"⚠️  Duplicate config: {run.name} (hash: {metadata['config_hash'][:8]}...)"
+                f"⚠️  Duplicate config: {run.name} "
+                f"(hash: {metadata['config_hash'][:8]}...)"
             )
             duplicate_configs += 1
             # Still add it but mark as duplicate
@@ -238,8 +239,10 @@ def check_if_tested(
         for match in matches:
             print(f"   Test ID: {match['test_id']}")
             print(f"   Date: {match['date']}")
+            results = match["results"]
             print(
-                f"   Results: {match['results']['pnl']:.2f} PnL, {match['results']['trades']} trades, {match['results']['win_rate']:.1%} WR"
+                f"   Results: {results['pnl']:.2f} PnL, "
+                f"{results['trades']} trades, {results['win_rate']:.1%} WR"
             )
             print(f"   Run: {match['run_path']}")
             print()

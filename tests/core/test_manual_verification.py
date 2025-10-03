@@ -145,9 +145,9 @@ def test_core_calculations_match_manual_csv():
     # Validate blackout occurred within blackout window (08:00-10:00)
     # After fixing same-bar exit/entry, there may be multiple blackout skips
     blackout_times = [skip["entry_time"] for skip in blackout_skips]
-    assert any("08:00:00" in t or "09:00:00" in t for t in blackout_times), (
-        f"Expected blackout skip between 08:00-10:00, got {blackout_times}"
-    )
+    assert any(
+        "08:00:00" in t or "09:00:00" in t for t in blackout_times
+    ), f"Expected blackout skip between 08:00-10:00, got {blackout_times}"
     print(
         f"✅ Blackout rule functionality: {len(blackout_skips)} skip(s) "
         f"detected at correct time"

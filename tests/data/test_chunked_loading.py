@@ -24,14 +24,16 @@ def test_chunked_loading_processes_large_datasets(tmp_path: Path):
     rows = []
     for i in range(10000):  # 10k rows as test sample
         timestamp = start_time + timedelta(minutes=i)
-        rows.append({
-            "timestamp": timestamp.isoformat(),
-            "open": 1.1000 + i * 0.0001,
-            "high": 1.1010 + i * 0.0001,
-            "low": 1.0990 + i * 0.0001,
-            "close": 1.1005 + i * 0.0001,
-            "volume": 1000 + i
-        })
+        rows.append(
+            {
+                "timestamp": timestamp.isoformat(),
+                "open": 1.1000 + i * 0.0001,
+                "high": 1.1010 + i * 0.0001,
+                "low": 1.0990 + i * 0.0001,
+                "close": 1.1005 + i * 0.0001,
+                "volume": 1000 + i,
+            }
+        )
 
     df = pd.DataFrame(rows)
     df.to_csv(data_file, index=False)
@@ -62,11 +64,13 @@ def test_chunked_loading_maintains_data_integrity(tmp_path: Path):
     data_file = tmp_path / "test_data.csv"
 
     # Create test data with known values
-    data = pd.DataFrame({
-        "timestamp": [f"2024-01-01T{i:02d}:00:00" for i in range(24)],
-        "close": [1.1000 + i * 0.0001 for i in range(24)],
-        "volume": [1000 + i * 10 for i in range(24)]
-    })
+    data = pd.DataFrame(
+        {
+            "timestamp": [f"2024-01-01T{i:02d}:00:00" for i in range(24)],
+            "close": [1.1000 + i * 0.0001 for i in range(24)],
+            "volume": [1000 + i * 10 for i in range(24)],
+        }
+    )
     data.to_csv(data_file, index=False)
 
     # Read in chunks
@@ -93,11 +97,13 @@ def test_chunked_loading_handles_memory_efficiently(tmp_path: Path):
 
     # Create moderately sized dataset
     rows = 5000
-    data = pd.DataFrame({
-        "timestamp": [f"2024-01-01T{i:02d}:{i%60:02d}:00" for i in range(rows)],
-        "close": [1.1000 + i * 0.0001 for i in range(rows)],
-        "volume": [1000 + i for i in range(rows)]
-    })
+    data = pd.DataFrame(
+        {
+            "timestamp": [f"2024-01-01T{i:02d}:{i%60:02d}:00" for i in range(rows)],
+            "close": [1.1000 + i * 0.0001 for i in range(rows)],
+            "volume": [1000 + i for i in range(rows)],
+        }
+    )
     data.to_csv(data_file, index=False)
 
     # Chunked processing should work without loading entire file
@@ -120,11 +126,13 @@ def test_chunked_loading_with_filtering(tmp_path: Path):
     data_file = tmp_path / "test_data.csv"
 
     # Create test data
-    data = pd.DataFrame({
-        "timestamp": [f"2024-01-01T{i:02d}:00:00" for i in range(100)],
-        "close": [1.1000 + (i % 10) * 0.0001 for i in range(100)],
-        "volume": [1000 + i for i in range(100)]
-    })
+    data = pd.DataFrame(
+        {
+            "timestamp": [f"2024-01-01T{i:02d}:00:00" for i in range(100)],
+            "close": [1.1000 + (i % 10) * 0.0001 for i in range(100)],
+            "volume": [1000 + i for i in range(100)],
+        }
+    )
     data.to_csv(data_file, index=False)
 
     # Read in chunks and filter
@@ -149,11 +157,13 @@ def test_chunked_loading_preserves_dtypes(tmp_path: Path):
     data_file = tmp_path / "typed_data.csv"
 
     # Create data with specific types
-    data = pd.DataFrame({
-        "timestamp": pd.date_range("2024-01-01", periods=50, freq="1h"),
-        "close": [1.1000 + i * 0.0001 for i in range(50)],
-        "volume": [1000 + i for i in range(50)]
-    })
+    data = pd.DataFrame(
+        {
+            "timestamp": pd.date_range("2024-01-01", periods=50, freq="1h"),
+            "close": [1.1000 + i * 0.0001 for i in range(50)],
+            "volume": [1000 + i for i in range(50)],
+        }
+    )
     data.to_csv(data_file, index=False)
 
     # Read in chunks

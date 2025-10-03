@@ -52,13 +52,16 @@ def test_parse_timeframe_invalid() -> None:
 def test_get_cached_timeframes(tmp_path: Path) -> None:
     """Test get_cached_timeframes returns list of cached timeframes."""
     # Validates: [REQ-DATA-006] Return list of cached timeframes
-    raw_data = pd.DataFrame({
-        "open": [1.0, 2.0],
-        "high": [1.1, 2.1],
-        "low": [0.9, 1.9],
-        "close": [1.05, 2.05],
-        "volume": [100, 200],
-    }, index=pd.date_range("2024-01-01", periods=2, freq="min", tz="UTC"))
+    raw_data = pd.DataFrame(
+        {
+            "open": [1.0, 2.0],
+            "high": [1.1, 2.1],
+            "low": [0.9, 1.9],
+            "close": [1.05, 2.05],
+            "volume": [100, 200],
+        },
+        index=pd.date_range("2024-01-01", periods=2, freq="min", tz="UTC"),
+    )
 
     with patch("trading_platform.data.handler.load_instrument_data") as mock_load:
         mock_load.return_value = (raw_data, [])
@@ -81,13 +84,16 @@ def test_get_cached_timeframes(tmp_path: Path) -> None:
 def test_clear_cache_keep_base(tmp_path: Path) -> None:
     """Test clear_cache with keep_base=True preserves raw data."""
     # Validates: [REQ-DATA-007] clear_cache keeps base when requested
-    raw_data = pd.DataFrame({
-        "open": [1.0, 2.0],
-        "high": [1.1, 2.1],
-        "low": [0.9, 1.9],
-        "close": [1.05, 2.05],
-        "volume": [100, 200],
-    }, index=pd.date_range("2024-01-01", periods=2, freq="min", tz="UTC"))
+    raw_data = pd.DataFrame(
+        {
+            "open": [1.0, 2.0],
+            "high": [1.1, 2.1],
+            "low": [0.9, 1.9],
+            "close": [1.05, 2.05],
+            "volume": [100, 200],
+        },
+        index=pd.date_range("2024-01-01", periods=2, freq="min", tz="UTC"),
+    )
 
     with patch("trading_platform.data.handler.load_instrument_data") as mock_load:
         mock_load.return_value = (raw_data, [])
@@ -110,13 +116,16 @@ def test_clear_cache_keep_base(tmp_path: Path) -> None:
 def test_clear_cache_full(tmp_path: Path) -> None:
     """Test clear_cache with keep_base=False clears everything."""
     # Validates: [REQ-DATA-008] clear_cache removes all when requested
-    raw_data = pd.DataFrame({
-        "open": [1.0, 2.0],
-        "high": [1.1, 2.1],
-        "low": [0.9, 1.9],
-        "close": [1.05, 2.05],
-        "volume": [100, 200],
-    }, index=pd.date_range("2024-01-01", periods=2, freq="min", tz="UTC"))
+    raw_data = pd.DataFrame(
+        {
+            "open": [1.0, 2.0],
+            "high": [1.1, 2.1],
+            "low": [0.9, 1.9],
+            "close": [1.05, 2.05],
+            "volume": [100, 200],
+        },
+        index=pd.date_range("2024-01-01", periods=2, freq="min", tz="UTC"),
+    )
 
     with patch("trading_platform.data.handler.load_instrument_data") as mock_load:
         mock_load.return_value = (raw_data, [])
@@ -132,13 +141,16 @@ def test_clear_cache_full(tmp_path: Path) -> None:
 def test_rmm_context_caching(tmp_path: Path) -> None:
     """Test get_rmm_context and set_rmm_context cache RMM results."""
     # Validates: [REQ-DATA-009] RMM context caching
-    raw_data = pd.DataFrame({
-        "open": [1.0, 2.0],
-        "high": [1.1, 2.1],
-        "low": [0.9, 1.9],
-        "close": [1.05, 2.05],
-        "volume": [100, 200],
-    }, index=pd.date_range("2024-01-01", periods=2, freq="min", tz="UTC"))
+    raw_data = pd.DataFrame(
+        {
+            "open": [1.0, 2.0],
+            "high": [1.1, 2.1],
+            "low": [0.9, 1.9],
+            "close": [1.05, 2.05],
+            "volume": [100, 200],
+        },
+        index=pd.date_range("2024-01-01", periods=2, freq="min", tz="UTC"),
+    )
 
     with patch("trading_platform.data.handler.load_instrument_data") as mock_load:
         mock_load.return_value = (raw_data, [])
@@ -167,18 +179,22 @@ def test_find_best_resample_source_fallback_edge_case(tmp_path: Path) -> None:
 
     import pandas as pd
 
-    raw_data = pd.DataFrame({
-        "open": [1.0, 2.0],
-        "high": [1.1, 2.1],
-        "low": [0.9, 1.9],
-        "close": [1.05, 2.05],
-        "volume": [100, 200],
-    }, index=pd.date_range("2024-01-01", periods=2, freq="min", tz="UTC"))
+    raw_data = pd.DataFrame(
+        {
+            "open": [1.0, 2.0],
+            "high": [1.1, 2.1],
+            "low": [0.9, 1.9],
+            "close": [1.05, 2.05],
+            "volume": [100, 200],
+        },
+        index=pd.date_range("2024-01-01", periods=2, freq="min", tz="UTC"),
+    )
 
     with patch("trading_platform.data.handler.load_instrument_data") as mock_load:
         mock_load.return_value = (raw_data, [])
 
         from trading_platform.data.handler import DataHandler
+
         handler = DataHandler(symbol="TEST", data_root=tmp_path)
 
         # Manually add invalid cached timeframe to trigger ValueError path
@@ -196,18 +212,22 @@ def test_get_data_with_date_filtering(tmp_path: Path) -> None:
 
     import pandas as pd
 
-    raw_data = pd.DataFrame({
-        "open": [1.0] * 10,
-        "high": [1.1] * 10,
-        "low": [0.9] * 10,
-        "close": [1.05] * 10,
-        "volume": [100] * 10,
-    }, index=pd.date_range("2024-01-01", periods=10, freq="D", tz="UTC"))
+    raw_data = pd.DataFrame(
+        {
+            "open": [1.0] * 10,
+            "high": [1.1] * 10,
+            "low": [0.9] * 10,
+            "close": [1.05] * 10,
+            "volume": [100] * 10,
+        },
+        index=pd.date_range("2024-01-01", periods=10, freq="D", tz="UTC"),
+    )
 
     with patch("trading_platform.data.handler.load_instrument_data") as mock_load:
         mock_load.return_value = (raw_data, [])
 
         from trading_platform.data.handler import DataHandler
+
         handler = DataHandler(symbol="TEST", data_root=tmp_path)
 
         # Test start filter
@@ -230,18 +250,22 @@ def test_find_best_resample_source_uses_raw_data_fallback(tmp_path: Path) -> Non
 
     import pandas as pd
 
-    raw_data = pd.DataFrame({
-        "open": [1.0, 2.0],
-        "high": [1.1, 2.1],
-        "low": [0.9, 1.9],
-        "close": [1.05, 2.05],
-        "volume": [100, 200],
-    }, index=pd.date_range("2024-01-01", periods=2, freq="min", tz="UTC"))
+    raw_data = pd.DataFrame(
+        {
+            "open": [1.0, 2.0],
+            "high": [1.1, 2.1],
+            "low": [0.9, 1.9],
+            "close": [1.05, 2.05],
+            "volume": [100, 200],
+        },
+        index=pd.date_range("2024-01-01", periods=2, freq="min", tz="UTC"),
+    )
 
     with patch("trading_platform.data.handler.load_instrument_data") as mock_load:
         mock_load.return_value = (raw_data, [])
 
         from trading_platform.data.handler import DataHandler
+
         handler = DataHandler(symbol="TEST", data_root=tmp_path)
 
         # Request timeframe with no suitable cached source (e.g., 7min from 1min base)

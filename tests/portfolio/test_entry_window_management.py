@@ -31,9 +31,7 @@ def test_pm_5_8_1_tracks_bar_index_when_entry_command_received():
         warmup_threshold=0,
         entry_window_bars=3,
         allow_flip=False,
-        current_bar=pd.Series(
-            {"close": 1.0}, name=datetime(2024, 1, 1)
-        ),
+        current_bar=pd.Series({"close": 1.0}, name=datetime(2024, 1, 1)),
         context=None,
     )
 
@@ -48,9 +46,7 @@ def test_pm_5_8_1_tracks_bar_index_when_entry_command_received():
         warmup_threshold=0,
         entry_window_bars=3,
         allow_flip=False,
-        current_bar=pd.Series(
-            {"close": 1.0}, name=datetime(2024, 1, 1, 5)
-        ),
+        current_bar=pd.Series({"close": 1.0}, name=datetime(2024, 1, 1, 5)),
         context=None,
     )
 
@@ -69,15 +65,25 @@ def test_pm_5_8_1_updates_bar_index_on_new_entry_command():
 
     # First long command at bar 5
     pm.process_command(
-        "enter_long", 5, 0, 3, False,
-        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1)), None
+        "enter_long",
+        5,
+        0,
+        3,
+        False,
+        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1)),
+        None,
     )
     assert pm._entry_windows["long"][0] == 5
 
     # Second long command at bar 8 (new window)
     pm.process_command(
-        "enter_long", 8, 0, 3, False,
-        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1, 3)), None
+        "enter_long",
+        8,
+        0,
+        3,
+        False,
+        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1, 3)),
+        None,
     )
     assert pm._entry_windows["long"][0] == 8, "Should update to bar 8"
 
@@ -95,8 +101,13 @@ def test_pm_5_8_2_tracks_entry_occurrence():
 
     # Open entry window
     pm.process_command(
-        "enter_long", 0, 0, 3, False,
-        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1)), None
+        "enter_long",
+        0,
+        0,
+        3,
+        False,
+        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1)),
+        None,
     )
 
     # Initially, last_entered should be None (not entered yet)
@@ -105,8 +116,11 @@ def test_pm_5_8_2_tracks_entry_occurrence():
 
     # Simulate entry (would be done by backtester)
     pm.create_new_position(
-        symbol="EURUSD", side="long", entry_price=1.0,
-        size=100, entry_time=datetime(2024, 1, 1)
+        symbol="EURUSD",
+        side="long",
+        entry_price=1.0,
+        size=100,
+        entry_time=datetime(2024, 1, 1),
     )
 
     # Mark entry as having occurred (backtester responsibility)
@@ -207,15 +221,22 @@ def test_pm_5_8_3_entry_commands_only():
 
     # Create position
     pm.create_new_position(
-        symbol="EURUSD", side="long", entry_price=1.0,
-        size=100, entry_time=datetime(2024, 1, 1)
+        symbol="EURUSD",
+        side="long",
+        entry_price=1.0,
+        size=100,
+        entry_time=datetime(2024, 1, 1),
     )
 
     # Exit command should execute immediately (no window)
     result = pm.process_command(
-        "exit_long", 5, 0, 3, False,
+        "exit_long",
+        5,
+        0,
+        3,
+        False,
         pd.Series({"close": 1.01}, name=datetime(2024, 1, 1, 5)),
-        None
+        None,
     )
 
     assert result["action"] == "exited", "Exit should execute immediately"
@@ -235,19 +256,26 @@ def test_pm_5_8_4_window_persists_across_none_commands():
 
     # Bar 0: Open long entry window
     result = pm.process_command(
-        "enter_long", 0, 0, 5, False,
-        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1)), None
+        "enter_long",
+        0,
+        0,
+        5,
+        False,
+        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1)),
+        None,
     )
     assert result["action"] == "window_opened"
 
     # Bars 1-4: None commands, window should stay active
     for bar_idx in range(1, 5):
         result = pm.process_command(
-            None, bar_idx, 0, 5, False,
-            pd.Series(
-                {"close": 1.0}, name=datetime(2024, 1, 1, bar_idx)
-            ),
-            None
+            None,
+            bar_idx,
+            0,
+            5,
+            False,
+            pd.Series({"close": 1.0}, name=datetime(2024, 1, 1, bar_idx)),
+            None,
         )
         assert result["action"] == "window_active"
         assert result["side"] == "long"
@@ -264,21 +292,36 @@ def test_pm_5_8_4_window_expires_per_policy():
 
     # Open window at bar 0 with 2-bar window
     pm.process_command(
-        "enter_long", 0, 0, 2, False,
-        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1)), None
+        "enter_long",
+        0,
+        0,
+        2,
+        False,
+        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1)),
+        None,
     )
 
     # Bar 2: Still active (bars_since_start=2, window=2)
     result = pm.process_command(
-        None, 2, 0, 2, False,
-        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1, 2)), None
+        None,
+        2,
+        0,
+        2,
+        False,
+        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1, 2)),
+        None,
     )
     assert result["action"] == "window_active"
 
     # Bar 3: Expired (bars_since_start=3, window=2)
     result = pm.process_command(
-        None, 3, 0, 2, False,
-        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1, 3)), None
+        None,
+        3,
+        0,
+        2,
+        False,
+        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1, 3)),
+        None,
     )
     assert result["action"] == "ignored"
     assert result["reason"] == "no_active_command"
@@ -294,15 +337,25 @@ def test_pm_5_8_4_opposite_entry_closes_window():
 
     # Open long window at bar 0
     pm.process_command(
-        "enter_long", 0, 0, 5, False,
-        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1)), None
+        "enter_long",
+        0,
+        0,
+        5,
+        False,
+        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1)),
+        None,
     )
     assert pm._entry_windows["long"][0] == 0
 
     # Bar 2: Short command (opposite side)
     pm.process_command(
-        "enter_short", 2, 0, 5, False,
-        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1, 2)), None
+        "enter_short",
+        2,
+        0,
+        5,
+        False,
+        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1, 2)),
+        None,
     )
 
     # Both windows should exist
@@ -311,8 +364,13 @@ def test_pm_5_8_4_opposite_entry_closes_window():
 
     # Bar 3: None command - checks long first (deterministic order)
     result = pm.process_command(
-        None, 3, 0, 5, False,
-        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1, 3)), None
+        None,
+        3,
+        0,
+        5,
+        False,
+        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1, 3)),
+        None,
     )
     assert result["action"] == "window_active"
     # Returns first active window found (long checked before short)
@@ -348,15 +406,12 @@ def test_pm_5_8_5_entry_window_state_is_serializable():
 
     # Simulate serialization/deserialization
     import json
-    serialized = json.dumps({
-        side: [ws, le] for side, (ws, le) in state.items()
-    })
+
+    serialized = json.dumps({side: [ws, le] for side, (ws, le) in state.items()})
     deserialized = json.loads(serialized)
 
     # Restore state
-    restored_state = {
-        side: tuple(vals) for side, vals in deserialized.items()
-    }
+    restored_state = {side: tuple(vals) for side, vals in deserialized.items()}
 
     assert restored_state["long"] == (5, None)
     assert restored_state["short"] == (10, 8)
@@ -371,8 +426,13 @@ def test_pm_5_8_5_entry_window_state_survives_restart():
     # Original PM with active window
     pm1 = PortfolioManager(initial_cash=100000)
     pm1.process_command(
-        "enter_long", 5, 0, 10, False,
-        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1)), None
+        "enter_long",
+        5,
+        0,
+        10,
+        False,
+        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1)),
+        None,
     )
 
     # Save state
@@ -401,24 +461,37 @@ def test_pm_5_8_full_entry_window_lifecycle():
 
     # Bar 0: enter_long command (PM-5.8.1: track bar index)
     result = pm.process_command(
-        "enter_long", 0, 0, 3, False,
-        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1)), None
+        "enter_long",
+        0,
+        0,
+        3,
+        False,
+        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1)),
+        None,
     )
     assert result["action"] == "window_opened"
     assert pm._entry_windows["long"] == (0, None)  # PM-5.8.1
 
     # Bar 1: None command (PM-5.8.4: window persists)
     result = pm.process_command(
-        None, 1, 0, 3, False,
-        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1, 1)), None
+        None,
+        1,
+        0,
+        3,
+        False,
+        pd.Series({"close": 1.0}, name=datetime(2024, 1, 1, 1)),
+        None,
     )
     assert result["action"] == "window_active"
     assert pm.can_attempt_entry("long", 1, 3) is True  # PM-5.8.3
 
     # Simulate entry at bar 1 (PM-5.8.2: track occurrence)
     pm.create_new_position(
-        symbol="EURUSD", side="long", entry_price=1.0,
-        size=100, entry_time=datetime(2024, 1, 1, 1)
+        symbol="EURUSD",
+        side="long",
+        entry_price=1.0,
+        size=100,
+        entry_time=datetime(2024, 1, 1, 1),
     )
     pm._entry_windows["long"] = (0, 1)  # Mark as entered at bar 1
 

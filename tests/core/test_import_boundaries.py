@@ -91,7 +91,9 @@ def test_portfolio_manager_is_public():
 
     Validates: [SYS-1.2.2]
     """
-    from trading_platform.portfolio import PortfolioManager  # type: ignore[attr-defined]
+    from trading_platform.portfolio import (
+        PortfolioManager,  # type: ignore[attr-defined]
+    )
 
     assert PortfolioManager is not None
     assert hasattr(PortfolioManager, "process_command")
@@ -122,7 +124,9 @@ def test_rmm_is_public():
 
     Validates: [SYS-1.2.2]
     """
-    from trading_platform.regime_market_manager import RegimeMarketManager  # type: ignore[attr-defined]
+    from trading_platform.regime_market_manager import (
+        RegimeMarketManager,  # type: ignore[attr-defined]
+    )
 
     assert RegimeMarketManager is not None
 
@@ -132,7 +136,9 @@ def test_rem_is_public():
 
     Validates: [SYS-1.2.2]
     """
-    from trading_platform.risk_manager import RiskExitManager  # type: ignore[attr-defined]
+    from trading_platform.risk_manager import (
+        RiskExitManager,  # type: ignore[attr-defined]
+    )
 
     assert RiskExitManager is not None
 
@@ -184,7 +190,9 @@ def test_typing_imports_available():
     # Type hints should be importable for users
     try:
         from trading_platform.portfolio.trade import Trade
-        from trading_platform.strategy.base import Strategy  # type: ignore[attr-defined]
+        from trading_platform.strategy.base import (
+            Strategy,  # type: ignore[attr-defined]
+        )
 
         assert Trade is not None
         assert Strategy is not None

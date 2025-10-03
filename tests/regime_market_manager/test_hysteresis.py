@@ -23,15 +23,32 @@ def test_regime_transition_hysteresis_prevents_flipping(tmp_path):
     timestamps = pd.date_range("2024-01-01", periods=20, freq="1h")
 
     # Oscillating volatility around a threshold
-    volatility = [0.048, 0.052, 0.049, 0.051, 0.050, 0.049, 0.052, 0.048,
-                  0.051, 0.050, 0.049, 0.052, 0.048, 0.051, 0.050, 0.049,
-                  0.052, 0.048, 0.051, 0.050]
+    volatility = [
+        0.048,
+        0.052,
+        0.049,
+        0.051,
+        0.050,
+        0.049,
+        0.052,
+        0.048,
+        0.051,
+        0.050,
+        0.049,
+        0.052,
+        0.048,
+        0.051,
+        0.050,
+        0.049,
+        0.052,
+        0.048,
+        0.051,
+        0.050,
+    ]
 
-    data = pd.DataFrame({
-        "timestamp": timestamps,
-        "close": [1.1000] * 20,
-        "volatility": volatility
-    })
+    data = pd.DataFrame(
+        {"timestamp": timestamps, "close": [1.1000] * 20, "volatility": volatility}
+    )
 
     # Without hysteresis, this would flip constantly
     # With hysteresis (e.g., require 0.005 change to switch),
@@ -45,7 +62,7 @@ def test_regime_transition_hysteresis_prevents_flipping(tmp_path):
         regimes.append(regime)
 
     # Count regime changes
-    changes = sum(1 for i in range(1, len(regimes)) if regimes[i] != regimes[i-1])
+    changes = sum(1 for i in range(1, len(regimes)) if regimes[i] != regimes[i - 1])
 
     # With hysteresis, should have fewer changes than data points
     # Without hysteresis on this oscillating data, would change ~10 times
@@ -60,17 +77,18 @@ def test_confidence_threshold_hysteresis(tmp_path):
     """
 
     # Create data with confidence oscillating around threshold
-    data = pd.DataFrame({
-        "timestamp": pd.date_range("2024-01-01", periods=10, freq="1h"),
-        "confidence": [0.49, 0.51, 0.50, 0.52, 0.48, 0.51, 0.49, 0.52, 0.50, 0.51]
-    })
+    data = pd.DataFrame(
+        {
+            "timestamp": pd.date_range("2024-01-01", periods=10, freq="1h"),
+            "confidence": [0.49, 0.51, 0.50, 0.52, 0.48, 0.51, 0.49, 0.52, 0.50, 0.51],
+        }
+    )
 
     # With hysteresis, once a regime is established at confidence > 0.5,
     # it should require dropping below (0.5 - hysteresis) to change
 
     classifications = []
     current_regime = "trending"  # Initial state
-    hysteresis = 0.05
 
     for _, row in data.iterrows():
         confidence = row["confidence"]
@@ -97,8 +115,18 @@ def test_regime_smoothing_window(tmp_path):
     Validates: [RMM-4.7]
     """
     # Create regime labels with some noise
-    raw_regimes = ["trending", "trending", "ranging", "trending", "trending",
-                   "trending", "ranging", "trending", "trending", "trending"]
+    raw_regimes = [
+        "trending",
+        "trending",
+        "ranging",
+        "trending",
+        "trending",
+        "trending",
+        "ranging",
+        "trending",
+        "trending",
+        "trending",
+    ]
 
     # Apply smoothing: require N consecutive labels to change regime
     smoothing_window = 2
@@ -121,8 +149,12 @@ def test_regime_smoothing_window(tmp_path):
     smoothed = [raw_regimes[0]] + smoothed
 
     # Smoothed output should have fewer transitions
-    raw_changes = sum(1 for i in range(1, len(raw_regimes)) if raw_regimes[i] != raw_regimes[i-1])
-    smoothed_changes = sum(1 for i in range(1, len(smoothed)) if smoothed[i] != smoothed[i-1])
+    raw_changes = sum(
+        1 for i in range(1, len(raw_regimes)) if raw_regimes[i] != raw_regimes[i - 1]
+    )
+    smoothed_changes = sum(
+        1 for i in range(1, len(smoothed)) if smoothed[i] != smoothed[i - 1]
+    )
 
     assert smoothed_changes <= raw_changes
 
@@ -174,7 +206,7 @@ def test_hysteresis_prevents_noise_induced_transitions(tmp_path):
         states.append(current_state)
 
     # Count transitions
-    transitions = sum(1 for i in range(1, len(states)) if states[i] != states[i-1])
+    transitions = sum(1 for i in range(1, len(states)) if states[i] != states[i - 1])
 
     # Should have few transitions despite noise
     assert transitions <= 4, f"Expected at most 4 transitions, got {transitions}"
@@ -210,10 +242,12 @@ def test_configurable_hysteresis_parameter(tmp_path):
         states_large.append(current)
 
     # Count transitions
-    transitions_small = sum(1 for i in range(1, len(states_small))
-                           if states_small[i] != states_small[i-1])
-    transitions_large = sum(1 for i in range(1, len(states_large))
-                           if states_large[i] != states_large[i-1])
+    transitions_small = sum(
+        1 for i in range(1, len(states_small)) if states_small[i] != states_small[i - 1]
+    )
+    transitions_large = sum(
+        1 for i in range(1, len(states_large)) if states_large[i] != states_large[i - 1]
+    )
 
     # Larger hysteresis should result in fewer or equal transitions
     assert transitions_large <= transitions_small

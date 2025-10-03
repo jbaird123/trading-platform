@@ -41,14 +41,8 @@ def test_run_backtest_returns_trades_and_exposure_only() -> None:
     rem = RiskExitManager(config={})
 
     result = run_backtest(
-
-
         market_data=df,
-
-
         signals=signals,
-
-
         strategy=strategy,
         config=config,
         rem=rem,

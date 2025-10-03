@@ -18,14 +18,16 @@ def test_api_connection_retry_on_network_error():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import execute_with_retry  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (
+        execute_with_retry,  # type: ignore[attr-defined]
+    )
 
     mock_api = Mock()
     # Fail twice, then succeed
     mock_api.get_account.side_effect = [
         ConnectionError("Network error"),
         ConnectionError("Network error"),
-        {"balance": 10000, "positions": []}
+        {"balance": 10000, "positions": []},
     ]
 
     result = execute_with_retry(mock_api.get_account, max_retries=3, retry_delay=0.01)
@@ -39,21 +41,20 @@ def test_api_connection_exponential_backoff():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import execute_with_retry  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (
+        execute_with_retry,  # type: ignore[attr-defined]
+    )
 
     mock_api = Mock()
     mock_api.get_account.side_effect = [
         ConnectionError("Error 1"),
         ConnectionError("Error 2"),
-        {"balance": 10000}
+        {"balance": 10000},
     ]
 
     start = time.perf_counter()
     execute_with_retry(
-        mock_api.get_account,
-        max_retries=3,
-        retry_delay=0.01,
-        backoff_factor=2
+        mock_api.get_account, max_retries=3, retry_delay=0.01, backoff_factor=2
     )
     elapsed = time.perf_counter() - start
 
@@ -67,7 +68,9 @@ def test_api_connection_max_retries_exceeded():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import execute_with_retry  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (
+        execute_with_retry,  # type: ignore[attr-defined]
+    )
 
     mock_api = Mock()
     mock_api.get_account.side_effect = ConnectionError("Persistent error")
@@ -83,12 +86,14 @@ def test_api_connection_timeout_handling():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import execute_with_retry  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (
+        execute_with_retry,  # type: ignore[attr-defined]
+    )
 
     mock_api = Mock()
     mock_api.get_account.side_effect = [
         TimeoutError("Request timeout"),
-        {"balance": 10000}
+        {"balance": 10000},
     ]
 
     result = execute_with_retry(mock_api.get_account, max_retries=3, retry_delay=0.01)
@@ -102,7 +107,9 @@ def test_api_connection_different_error_types():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import execute_with_retry  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (
+        execute_with_retry,  # type: ignore[attr-defined]
+    )
 
     mock_api = Mock()
 
@@ -115,7 +122,7 @@ def test_api_connection_different_error_types():
             mock_api.authenticate,
             max_retries=3,
             retry_delay=0.01,
-            retryable_errors=(ConnectionError, TimeoutError)
+            retryable_errors=(ConnectionError, TimeoutError),
         )
 
     # Should fail immediately
@@ -127,7 +134,9 @@ def test_api_connection_circuit_breaker():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import CircuitBreaker  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (
+        CircuitBreaker,  # type: ignore[attr-defined]
+    )
 
     cb = CircuitBreaker(failure_threshold=3, timeout=1.0)
     mock_api = Mock()
@@ -153,7 +162,9 @@ def test_api_connection_health_check():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import check_api_health  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (
+        check_api_health,  # type: ignore[attr-defined]
+    )
 
     mock_api = Mock()
     mock_api.ping.return_value = {"status": "ok", "latency_ms": 50}
@@ -169,7 +180,9 @@ def test_api_connection_fallback_endpoint():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import execute_with_fallback  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (
+        execute_with_fallback,  # type: ignore[attr-defined]
+    )
 
     primary_api = Mock()
     fallback_api = Mock()
@@ -178,8 +191,7 @@ def test_api_connection_fallback_endpoint():
     fallback_api.get_account.return_value = {"balance": 10000}
 
     result = execute_with_fallback(
-        lambda: primary_api.get_account(),
-        lambda: fallback_api.get_account()
+        lambda: primary_api.get_account(), lambda: fallback_api.get_account()
     )
 
     assert result == {"balance": 10000}
@@ -188,7 +200,9 @@ def test_api_connection_fallback_endpoint():
 
 
 # Mock implementations for testing
-def execute_with_retry(func, max_retries=3, retry_delay=0.1, backoff_factor=1, retryable_errors=None):
+def execute_with_retry(
+    func, max_retries=3, retry_delay=0.1, backoff_factor=1, retryable_errors=None
+):
     """Mock retry logic."""
     if retryable_errors is None:
         retryable_errors = (ConnectionError, TimeoutError)
@@ -201,7 +215,7 @@ def execute_with_retry(func, max_retries=3, retry_delay=0.1, backoff_factor=1, r
                 raise
             if attempt == max_retries - 1:
                 raise
-            time.sleep(retry_delay * (backoff_factor ** attempt))
+            time.sleep(retry_delay * (backoff_factor**attempt))
 
 
 class CircuitBreaker:

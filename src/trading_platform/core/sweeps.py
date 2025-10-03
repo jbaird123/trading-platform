@@ -50,7 +50,8 @@ def _rmm_context(
     # Not cached - compute regime classification
     eng = RMMEngine(config=rmm_cfg)
 
-    # Use DataHandler for resampling if available (cached), otherwise fallback to direct resample
+    # Use DataHandler for resampling if available (cached), otherwise
+    # fallback to direct resample
     if data_handler is not None:
         df_resampled = data_handler.get_data(timeframe=regime_timeframe)
         already_resampled = True
@@ -194,7 +195,8 @@ def run_parameter_sweep(
                         fparams = feat.get("params", {})
                         f.write(f"  feature '{fname}': params={fparams}\n")
             except Exception:  # pragma: no cover
-                pass  # pragma: no cover - Defensive: debug logging should not crash sweep
+                pass  # pragma: no cover - Defensive: debug logging
+                # should not crash sweep
 
         strat = compile_strategy(scfg)
 
@@ -204,15 +206,22 @@ def run_parameter_sweep(
                 with log_file.open("a") as f:
                     f.write("COMPILED strategy:\n")
                     f.write(f"  strat.features type={type(strat.features)}\n")
-                    f.write(
-                        f"  strat.features len={len(strat.features) if hasattr(strat.features, '__len__') else 'N/A'}\n"
+                    features_len = (
+                        len(strat.features)
+                        if hasattr(strat.features, "__len__")
+                        else "N/A"
                     )
+                    f.write(f"  strat.features len={features_len}\n")
                     if hasattr(strat, "features") and strat.features:
                         for i, feat in enumerate(strat.features):
                             f.write(f"  feature[{i}]: {feat}\n")
-                    f.write(
-                        f"  strat._feature_df cols={list(strat._feature_df.columns) if hasattr(strat, '_feature_df') and strat._feature_df is not None else 'N/A'}\n"
+                    feature_cols = (
+                        list(strat._feature_df.columns)
+                        if (hasattr(strat, "_feature_df")
+                            and strat._feature_df is not None)
+                        else "N/A"
                     )
+                    f.write(f"  strat._feature_df cols={feature_cols}\n")
             except Exception as e:
                 with log_file.open("a") as f:
                     f.write(f"  COMPILE LOG ERROR: {e}\n")
@@ -225,7 +234,8 @@ def run_parameter_sweep(
                 with log_file.open("a") as f:
                     f.write(f"DEBUG params={cand}\n")
                     f.write(
-                        f"  df.shape={df.shape}, df.index[0]={df.index[0]}, df.index[-1]={df.index[-1]}\n"
+                        f"  df.shape={df.shape}, df.index[0]={df.index[0]}, "
+                        f"df.index[-1]={df.index[-1]}\n"
                     )
                     f.write(f"  sig.shape={sig.shape}\n")
                     vc = sig.value_counts()
@@ -251,14 +261,16 @@ def run_parameter_sweep(
                         sig_df = pd.DataFrame({"signal": sig})
                         sig_path = (
                             debug_path
-                            / f"sweep_signals_{cand['ema_fast_length']}_{cand['ema_slow_length']}.parquet"
+                            / f"sweep_signals_{cand['ema_fast_length']}_"
+                            f"{cand['ema_slow_length']}.parquet"
                         )
                         sig_df.to_parquet(str(sig_path))
                         # Save feature dataframe
                         if feat_df is not None:
                             feat_path = (
                                 debug_path
-                                / f"sweep_features_{cand['ema_fast_length']}_{cand['ema_slow_length']}.parquet"
+                                / f"sweep_features_{cand['ema_fast_length']}_"
+                                f"{cand['ema_slow_length']}.parquet"
                             )
                             feat_df.to_parquet(str(feat_path))
             except Exception as e:
@@ -508,12 +520,14 @@ def monte_carlo_resimulation(
     cfg = RunConfig.model_validate(base_cfg)
     rem = RiskExitManager(config=(base_cfg.get("rem_config") or {}))
 
-    # PERFORMANCE FIX: Compute RMM context once before loop instead of per trial
-    # For bar_resimulation mode, the index doesn't change, so we can reuse the same RMM context
-    # For bar_bootstrap mode, the index is preserved (line 441), so RMM context is still valid
+    # PERFORMANCE FIX: Compute RMM context once before loop instead of
+    # per trial. For bar_resimulation mode, the index doesn't change, so we
+    # can reuse the same RMM context. For bar_bootstrap mode, the index is
+    # preserved (line 441), so RMM context is still valid
     rmm_ctx = _rmm_context(df, base_cfg, data_handler)
 
-    # PERFORMANCE FIX: Compile strategy once outside loop (doesn't change between trials)
+    # PERFORMANCE FIX: Compile strategy once outside loop
+    # (doesn't change between trials)
     strat = compile_strategy(
         {**strategy_cfg, "parameters": strategy_cfg.get("parameters", {})}
     )

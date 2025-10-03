@@ -8,8 +8,9 @@ import pytest
 def test_llm_client_default_provider():
     """Test LlmApiClient defaults to claude provider."""
     # Validates: [REQ-LLM-001] Default provider is claude
-    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}, clear=True), \
-         patch("trading_platform.ai.llm_analysis.client.Anthropic"):
+    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}, clear=True), patch(
+        "trading_platform.ai.llm_analysis.client.Anthropic"
+    ):
         from trading_platform.ai.llm_analysis.client import LlmApiClient
 
         client = LlmApiClient()
@@ -19,8 +20,11 @@ def test_llm_client_default_provider():
 def test_llm_client_env_override():
     """Test LlmApiClient respects LLM_PROVIDER env var."""
     # Validates: [REQ-LLM-002] Environment variable override
-    with patch.dict("os.environ", {"LLM_PROVIDER": "gemini", "GEMINI_API_KEY": "test-key"}, clear=True), \
-         patch("trading_platform.ai.llm_analysis.client.genai"):
+    with patch.dict(
+        "os.environ",
+        {"LLM_PROVIDER": "gemini", "GEMINI_API_KEY": "test-key"},
+        clear=True,
+    ), patch("trading_platform.ai.llm_analysis.client.genai"):
         from trading_platform.ai.llm_analysis.client import LlmApiClient
 
         client = LlmApiClient(provider="claude")
@@ -40,9 +44,9 @@ def test_llm_client_invalid_provider():
 def test_init_gemini_success():
     """Test Gemini initialization with valid API key."""
     # Validates: [REQ-LLM-004] Initialize Gemini client
-    with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}, clear=True), \
-         patch("trading_platform.ai.llm_analysis.client.genai") as mock_genai:
-
+    with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}, clear=True), patch(
+        "trading_platform.ai.llm_analysis.client.genai"
+    ) as mock_genai:
         from trading_platform.ai.llm_analysis.client import LlmApiClient
 
         mock_model = MagicMock()
@@ -61,16 +65,18 @@ def test_init_gemini_missing_api_key():
     with patch.dict("os.environ", {}, clear=True):
         from trading_platform.ai.llm_analysis.client import LlmApiClient
 
-        with pytest.raises(ValueError, match="GEMINI_API_KEY environment variable not set"):
+        with pytest.raises(
+            ValueError, match="GEMINI_API_KEY environment variable not set"
+        ):
             LlmApiClient(provider="gemini")
 
 
 def test_init_openai_success():
     """Test OpenAI initialization with valid API key."""
     # Validates: [REQ-LLM-006] Initialize OpenAI client
-    with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}, clear=True), \
-         patch("trading_platform.ai.llm_analysis.client.OpenAI") as mock_openai:
-
+    with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}, clear=True), patch(
+        "trading_platform.ai.llm_analysis.client.OpenAI"
+    ) as mock_openai:
         from trading_platform.ai.llm_analysis.client import LlmApiClient
 
         client = LlmApiClient(provider="openai")
@@ -85,16 +91,18 @@ def test_init_openai_missing_api_key():
     with patch.dict("os.environ", {}, clear=True):
         from trading_platform.ai.llm_analysis.client import LlmApiClient
 
-        with pytest.raises(ValueError, match="OPENAI_API_KEY environment variable not set"):
+        with pytest.raises(
+            ValueError, match="OPENAI_API_KEY environment variable not set"
+        ):
             LlmApiClient(provider="openai")
 
 
 def test_init_claude_success():
     """Test Claude initialization with valid API key."""
     # Validates: [REQ-LLM-008] Initialize Claude client
-    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}, clear=True), \
-         patch("trading_platform.ai.llm_analysis.client.Anthropic") as mock_anthropic:
-
+    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}, clear=True), patch(
+        "trading_platform.ai.llm_analysis.client.Anthropic"
+    ) as mock_anthropic:
         from trading_platform.ai.llm_analysis.client import LlmApiClient
 
         client = LlmApiClient(provider="claude")
@@ -109,16 +117,18 @@ def test_init_claude_missing_api_key():
     with patch.dict("os.environ", {}, clear=True):
         from trading_platform.ai.llm_analysis.client import LlmApiClient
 
-        with pytest.raises(ValueError, match="ANTHROPIC_API_KEY environment variable not set"):
+        with pytest.raises(
+            ValueError, match="ANTHROPIC_API_KEY environment variable not set"
+        ):
             LlmApiClient(provider="claude")
 
 
 def test_get_feedback_gemini():
     """Test get_feedback with Gemini provider."""
     # Validates: [REQ-LLM-010] Get Gemini feedback
-    with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}, clear=True), \
-         patch("trading_platform.ai.llm_analysis.client.genai") as mock_genai:
-
+    with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}, clear=True), patch(
+        "trading_platform.ai.llm_analysis.client.genai"
+    ) as mock_genai:
         from trading_platform.ai.llm_analysis.client import LlmApiClient
 
         # Mock Gemini response
@@ -138,9 +148,9 @@ def test_get_feedback_gemini():
 def test_get_feedback_gemini_no_text():
     """Test get_feedback handles Gemini response without text."""
     # Validates: [REQ-LLM-011] Handle Gemini empty response
-    with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}, clear=True), \
-         patch("trading_platform.ai.llm_analysis.client.genai") as mock_genai:
-
+    with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}, clear=True), patch(
+        "trading_platform.ai.llm_analysis.client.genai"
+    ) as mock_genai:
         from trading_platform.ai.llm_analysis.client import LlmApiClient
 
         # Mock Gemini response without text attribute
@@ -158,9 +168,9 @@ def test_get_feedback_gemini_no_text():
 def test_get_feedback_openai():
     """Test get_feedback with OpenAI provider."""
     # Validates: [REQ-LLM-012] Get OpenAI feedback
-    with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}, clear=True), \
-         patch("trading_platform.ai.llm_analysis.client.OpenAI") as mock_openai_class:
-
+    with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}, clear=True), patch(
+        "trading_platform.ai.llm_analysis.client.OpenAI"
+    ) as mock_openai_class:
         from trading_platform.ai.llm_analysis.client import LlmApiClient
 
         # Mock OpenAI response
@@ -185,9 +195,9 @@ def test_get_feedback_openai():
 def test_get_feedback_openai_empty_content():
     """Test get_feedback handles OpenAI empty content."""
     # Validates: [REQ-LLM-013] Handle OpenAI empty response
-    with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}, clear=True), \
-         patch("trading_platform.ai.llm_analysis.client.OpenAI") as mock_openai_class:
-
+    with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}, clear=True), patch(
+        "trading_platform.ai.llm_analysis.client.OpenAI"
+    ) as mock_openai_class:
         from trading_platform.ai.llm_analysis.client import LlmApiClient
 
         # Mock OpenAI response with None content
@@ -211,9 +221,9 @@ def test_get_feedback_openai_empty_content():
 def test_get_feedback_openai_no_choices():
     """Test get_feedback handles OpenAI response without choices."""
     # Validates: [REQ-LLM-014] Handle OpenAI no choices
-    with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}, clear=True), \
-         patch("trading_platform.ai.llm_analysis.client.OpenAI") as mock_openai_class:
-
+    with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}, clear=True), patch(
+        "trading_platform.ai.llm_analysis.client.OpenAI"
+    ) as mock_openai_class:
         from trading_platform.ai.llm_analysis.client import LlmApiClient
 
         # Mock OpenAI response with empty choices
@@ -233,9 +243,9 @@ def test_get_feedback_openai_no_choices():
 def test_get_feedback_claude():
     """Test get_feedback with Claude provider."""
     # Validates: [REQ-LLM-015] Get Claude feedback
-    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}, clear=True), \
-         patch("trading_platform.ai.llm_analysis.client.Anthropic") as mock_anthropic_class:
-
+    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}, clear=True), patch(
+        "trading_platform.ai.llm_analysis.client.Anthropic"
+    ) as mock_anthropic_class:
         from trading_platform.ai.llm_analysis.client import LlmApiClient
 
         # Mock Claude response
@@ -258,9 +268,9 @@ def test_get_feedback_claude():
 def test_get_feedback_claude_empty_content():
     """Test get_feedback handles Claude empty content."""
     # Validates: [REQ-LLM-016] Handle Claude empty response
-    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}, clear=True), \
-         patch("trading_platform.ai.llm_analysis.client.Anthropic") as mock_anthropic_class:
-
+    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}, clear=True), patch(
+        "trading_platform.ai.llm_analysis.client.Anthropic"
+    ) as mock_anthropic_class:
         from trading_platform.ai.llm_analysis.client import LlmApiClient
 
         # Mock Claude response with empty content
@@ -280,9 +290,9 @@ def test_get_feedback_claude_empty_content():
 def test_get_feedback_exception_handling():
     """Test get_feedback handles exceptions gracefully."""
     # Validates: [REQ-LLM-017] Handle API exceptions
-    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}, clear=True), \
-         patch("trading_platform.ai.llm_analysis.client.Anthropic") as mock_anthropic_class:
-
+    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}, clear=True), patch(
+        "trading_platform.ai.llm_analysis.client.Anthropic"
+    ) as mock_anthropic_class:
         from trading_platform.ai.llm_analysis.client import LlmApiClient
 
         # Mock exception during API call
@@ -299,9 +309,9 @@ def test_get_feedback_exception_handling():
 def test_get_feedback_unknown_provider_fallback():
     """Test get_feedback handles unknown provider in get_feedback path."""
     # Validates: [REQ-LLM-018] Handle unknown provider at runtime
-    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}, clear=True), \
-         patch("trading_platform.ai.llm_analysis.client.Anthropic"):
-
+    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}, clear=True), patch(
+        "trading_platform.ai.llm_analysis.client.Anthropic"
+    ):
         from trading_platform.ai.llm_analysis.client import LlmApiClient
 
         client = LlmApiClient(provider="claude")

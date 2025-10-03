@@ -24,7 +24,7 @@ def test_llm_engine_run():
     prompt = call_args[0][0]
     assert "You are an expert trading strategist" in prompt
     # Check for compact JSON format (used to minimize tokens)
-    assert json.dumps(dummy_brief, separators=(',', ':')) in prompt
+    assert json.dumps(dummy_brief, separators=(",", ":")) in prompt
 
 
 def test_llm_engine_missing_prompt(tmp_path, monkeypatch):

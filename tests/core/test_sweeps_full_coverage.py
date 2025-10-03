@@ -118,7 +118,8 @@ def test_rmm_context_with_data_handler_cache_miss():
 
 
 def test_run_parameter_sweep_with_strategy_path():
-    """Test run_parameter_sweep reloads strategy from file when strategy_path is provided."""
+    """Test run_parameter_sweep reloads strategy from file when
+    strategy_path is provided."""
     # Validates: Lines 115-122 - Strategy reload from file
     df = pd.DataFrame(
         {
@@ -177,11 +178,12 @@ def test_run_parameter_sweep_with_strategy_path():
             mock_trade.pnl = 100.0
             mock_backtest.return_value = [mock_trade]
 
-            result = run_parameter_sweep(df, base_cfg, strategy_cfg_original, grid=grid)
+            run_parameter_sweep(df, base_cfg, strategy_cfg_original, grid=grid)
 
             # Strategy should have been reloaded from YAML file, not using original
             assert mock_compile.called
-            # Check that compiled strategy used reloaded config (name should be test_strategy)
+            # Check that compiled strategy used reloaded config
+            # (name should be test_strategy)
             call_args = mock_compile.call_args_list
             for call in call_args:
                 scfg = call[0][0]
@@ -244,7 +246,7 @@ def test_run_parameter_sweep_with_strategy_path_json():
             mock_trade.pnl = 50.0
             mock_backtest.return_value = [mock_trade]
 
-            result = run_parameter_sweep(df, base_cfg, strategy_cfg_original, grid=grid)
+            run_parameter_sweep(df, base_cfg, strategy_cfg_original, grid=grid)
 
             # Check JSON file was used
             call_args = mock_compile.call_args_list
@@ -323,7 +325,7 @@ def test_run_parameter_sweep_with_debug_dir():
             mock_trade.pnl = 100.0
             mock_backtest.return_value = [mock_trade]
 
-            result = run_parameter_sweep(
+            run_parameter_sweep(
                 df,
                 base_cfg,
                 strategy_cfg,

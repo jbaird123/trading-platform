@@ -16,7 +16,9 @@ class RiskExitManager:
     take-profit rules.
     """
 
-    def __init__(self, config: dict[str, Any] | None = None, instrument: dict | None = None):
+    def __init__(
+        self, config: dict[str, Any] | None = None, instrument: dict | None = None
+    ):
         """
         Initializes the RiskExitManager with a given risk configuration.
 
