@@ -8,6 +8,7 @@ from trading_platform.ai.synthesis.recommendations import (
 from trading_platform.ai.synthesis.rules import (
     get_all_rules,
 )
+from trading_platform.core import paths
 
 logger = logging.getLogger(__name__)
 
@@ -78,8 +79,8 @@ class DiagnosticSynthesisEngine:
             run_dir = Path(analysis_data.get("_brief_path", ""))
             if not run_dir or not run_dir.exists():
                 run_dir = None
-        # Fallback: look for model in current directory
-        model_path = Path("profitability_model.joblib")
+        # Fallback: look for model in artifact directory
+        model_path = paths.ARTIFACTS_DIR / "profitability_model.joblib"
         if run_dir:
             candidate = run_dir / "profitability_model.joblib"
             if candidate.exists():
@@ -246,7 +247,8 @@ if __name__ == "__main__":
     print(json_report)
 
     # Save reports to files
-    with open("diagnostic_report.md", "w") as f:
+    paths.REPORTS_DIR.mkdir(exist_ok=True)
+    with open(paths.REPORTS_DIR / "diagnostic_report.md", "w") as f:
         f.write(markdown_report)
-    with open("diagnostic_report.json", "w") as f:
+    with open(paths.REPORTS_DIR / "diagnostic_report.json", "w") as f:
         f.write(json_report)

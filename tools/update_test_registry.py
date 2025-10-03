@@ -10,10 +10,15 @@ Usage:
 import argparse
 import hashlib
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
 
 import yaml
+
+# Ensure the src directory is in the path
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+from trading_platform.core import paths
 
 
 def hash_config(config: dict) -> str:
@@ -164,7 +169,7 @@ def update_registry(
         runs_to_process = [run_path] if run_path.exists() else []
     else:
         # Scan all runs
-        runs_dir = Path("runs/researcher")
+        runs_dir = paths.RUNS_DIR / "researcher"
         if not runs_dir.exists():
             print(f"⚠️  Runs directory not found: {runs_dir}")
             return

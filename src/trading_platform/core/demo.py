@@ -9,20 +9,22 @@ from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.csv_export import save_prices_csv
 
 
-def generate_demo_run(user_id: str = "demo_user") -> Path:
+def generate_demo_run(
+    user_id: str = "demo_user", runs_dir: Path | None = None
+) -> Path:
     """Create a demo run with synthetic trades and write brief + HTML report.
 
     Returns the run directory path (runs/{user}/{run_id}).
     """
-    cfg = RunConfig(
-        user_id=user_id,
-        run_seed=42,
-        log_level="INFO",
-        initial_cash=100000.0,
-        allow_flip_on_bar=False,
-        position_size=10000.0,
-        instrument={"symbol": "EURUSD"},
-        instrument_definitions={
+    cfg_dict = {
+        "user_id": user_id,
+        "run_seed": 42,
+        "log_level": "INFO",
+        "initial_cash": 100000.0,
+        "allow_flip_on_bar": False,
+        "position_size": 10000.0,
+        "instrument": {"symbol": "EURUSD"},
+        "instrument_definitions": {
             "EURUSD": {
                 "symbol": "EURUSD",
                 "tick_size": 0.0001,
@@ -30,9 +32,13 @@ def generate_demo_run(user_id: str = "demo_user") -> Path:
                 "quote_ccy": "USD",
             }
         },
-        fill_policy={"policy": "market"},
-        tie_break_policy={"rule": "stop_then_tp"},
-    )
+        "fill_policy": {"policy": "market"},
+        "tie_break_policy": {"rule": "stop_then_tp"},
+    }
+    if runs_dir:
+        cfg_dict["runs_dir"] = runs_dir
+
+    cfg = RunConfig.model_validate(cfg_dict)
     run_path = initialize_run(cfg)
 
     # Minimal instrument/policy snapshots are provided via RunConfig

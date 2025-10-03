@@ -22,6 +22,7 @@ from trading_platform.ai.feature_engineering.pipeline import (
     FeatureEngineeringPipeline,
 )
 from trading_platform.ai.synthesis.engine import DiagnosticSynthesisEngine
+from trading_platform.core import paths
 
 # Conditional import for type checking
 # In a real implementation, you would have a more robust way to handle this
@@ -64,7 +65,9 @@ class AITrainingPipeline:
         self.run_id = self.config.get("run_id", "default_run")
 
         # Set up MLflow tracking URI
-        tracking_uri = self.config.get("mlflow_tracking_uri", "./mlruns")
+        tracking_uri = self.config.get(
+            "mlflow_tracking_uri", paths.MLFLOW_DEFAULT_URI
+        )
         mlflow.set_tracking_uri(tracking_uri)
         mlflow.set_experiment(self.config.get("experiment_name", "Default"))
 

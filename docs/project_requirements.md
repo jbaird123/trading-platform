@@ -102,6 +102,10 @@ _Last updated: 2025-09-16_
   - **[SYS-1.13.1]** API keys stored in environment variables / secret manager.
   - **[SYS-1.13.2]** Never commit credentials.
   - **[SYS-1.13.3]** All external inputs (e.g., API responses, config files) must be validated to prevent injection or corruption issues.
+- **[SYS-1.14] Artifact & Workspace Management**:
+  - **[SYS-1.14.1]** All generated files (e.g., logs, reports, run artifacts, caches) must be written to a central `/workspace` directory within the project root.
+  - **[SYS-1.14.2]** A dedicated module, `src/trading_platform/core/paths.py`, is the single source of truth for defining all artifact output paths.
+  - **[SYS-1.14.3]** Hardcoding paths for generated files is forbidden; the `paths.py` module must be used for all artifact-related file I/O.
 
 ### Future Enhancements
 - **[SYS-F.1]** The system must support **cloud-scale CI/CD execution**, enabling distributed parameter sweeps and backtests in CI pipelines.

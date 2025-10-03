@@ -311,6 +311,7 @@ class TestAITrainingPipeline:
     def test_load_config_missing_defaults(self, tmp_path):
         """Test config loading with missing optional fields - covers lines 31-32."""
         from trading_platform.ai.training.pipeline import AITrainingPipeline
+        from trading_platform.core import paths
 
         # Config without run_id and mlflow settings
         config = {"data": {"symbol": "EURUSD"}, "model": {"type": "random_forest"}}
@@ -328,7 +329,7 @@ class TestAITrainingPipeline:
 
             # Test default values - covers lines 31-32
             assert pipeline.run_id == "default_run"
-            mock_set_uri.assert_called_once_with("./mlruns")
+            mock_set_uri.assert_called_once_with(paths.MLFLOW_DEFAULT_URI)
             mock_set_exp.assert_called_once_with("Default")
 
     @patch("trading_platform.ai.training.pipeline.AIDataConnector")
