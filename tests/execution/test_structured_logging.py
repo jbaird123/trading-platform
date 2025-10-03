@@ -17,7 +17,7 @@ def test_structured_log_format():
 
     Validates: [EL-8.7]
     """
-    from trading_platform.execution.logging_config import StructuredLogger
+    from trading_platform.execution.logging_config import StructuredLogger  # type: ignore[import-untyped]
 
     logger = StructuredLogger("test")
 

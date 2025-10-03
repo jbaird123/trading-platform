@@ -160,7 +160,7 @@ def test_sys_1_9_2_multi_year_backtest_performance():
     }, index=index)
 
     # Simple EMA crossover strategy config
-    config = RunConfig(
+    config = RunConfig(  # type: ignore[call-arg]
         symbol="EURUSD",
         strategy_path="configs/strategies/ema_crossover.yaml",
         data=df,
@@ -171,7 +171,7 @@ def test_sys_1_9_2_multi_year_backtest_performance():
 
     # Benchmark backtest execution
     start_time = time.time()
-    result = run_backtest(config)
+    result = run_backtest(config)  # type: ignore[arg-type,call-arg]
     elapsed = time.time() - start_time
 
     # Verify backtest completed
@@ -206,7 +206,7 @@ def test_sys_1_9_2_memory_efficiency():
     """
     import os
 
-    import psutil
+    import psutil  # type: ignore[import-untyped]
 
     process = psutil.Process(os.getpid())
     initial_memory = process.memory_info().rss / 1024 / 1024  # MB
@@ -317,7 +317,7 @@ def test_backtest_execution_time_1m_bars():
         "volume": 1000
     }, index=index)
 
-    config = RunConfig(
+    config = RunConfig(  # type: ignore[call-arg]
         symbol="EURUSD",
         strategy_path="configs/strategies/ema_crossover.yaml",
         data=df,
@@ -327,7 +327,7 @@ def test_backtest_execution_time_1m_bars():
     )
 
     start_time = time.time()
-    result = run_backtest(config)
+    result = run_backtest(config)  # type: ignore[arg-type,call-arg]
     elapsed = time.time() - start_time
 
     bars_per_sec = periods / elapsed
