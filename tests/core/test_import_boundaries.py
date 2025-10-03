@@ -10,7 +10,7 @@ import sys
 
 import pytest
 
-pytestmark = pytest.mark.skip(reason="Public API imports await __init__.py updates")
+
 
 
 def test_public_api_imports():
@@ -72,18 +72,17 @@ def test_strategy_base_is_public():
     from trading_platform.strategy import Strategy  # type: ignore[attr-defined]
 
     assert Strategy is not None
-    assert hasattr(Strategy, "generate_signal")
+    assert hasattr(Strategy, "generate_signals")
 
 
 def test_backtester_is_public():
-    """Test that Backtester class is accessible from public API.
+    """Test that run_backtest function is accessible from public API.
 
     Validates: [SYS-1.2.2]
     """
-    from trading_platform.backtester import Backtester  # type: ignore[attr-defined]
+    from trading_platform.backtester import run_backtest
 
-    assert Backtester is not None
-    assert hasattr(Backtester, "run")
+    assert run_backtest is not None
 
 
 def test_portfolio_manager_is_public():
@@ -190,8 +189,8 @@ def test_typing_imports_available():
     # Type hints should be importable for users
     try:
         from trading_platform.portfolio.trade import Trade
-        from trading_platform.strategy.base import (
-            Strategy,  # type: ignore[attr-defined]
+        from trading_platform.strategy import (
+            Strategy,
         )
 
         assert Trade is not None

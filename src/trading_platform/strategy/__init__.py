@@ -1,5 +1,7 @@
 from __future__ import annotations
 
-from .yaml_strategy import compile_strategy  # re-export public API
+from .base import BaseStrategy as Strategy
+from .yaml_strategy import CompiledStrategy as YamlStrategy
+from .yaml_strategy import compile_strategy
 
-__all__ = ["compile_strategy"]
+__all__ = ["compile_strategy", "Strategy", "YamlStrategy"]

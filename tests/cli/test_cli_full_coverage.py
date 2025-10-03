@@ -11,7 +11,7 @@ from typing import Any, cast
 import pandas as pd
 import pytest
 
-pytestmark = pytest.mark.skip(reason="CLI full coverage tests await refactoring")
+
 
 
 @pytest.fixture
