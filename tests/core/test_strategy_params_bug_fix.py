@@ -87,7 +87,8 @@ def test_strategy_params_applied_before_compilation(tmp_path):
     # Simulate what CLI now does: apply strategy_params before compilation
     strategy_params_from_cfg = {"ema_fast_length": 20, "ema_slow_length": 80}
 
-    base_params = strategy_cfg.get("parameters") or {}
+    existing_params = strategy_cfg.get("parameters", {})
+    base_params: dict[str, int] = dict(existing_params) if isinstance(existing_params, dict) else {}
     base_params.update(strategy_params_from_cfg)
     strategy_cfg["parameters"] = base_params
 
@@ -110,6 +111,7 @@ def test_strategy_params_applied_before_compilation(tmp_path):
 
     # Verify EMAs were calculated with 20/80, not 12/26
     feat_df = strat._feature_df
+    assert feat_df is not None, "Feature DataFrame should not be None after signal generation"
 
     # Calculate expected EMA values manually
     # EMA formula: EMA_t = (Price_t * K) + (EMA_{t-1} * (1 - K))
@@ -234,6 +236,7 @@ def test_strategy_params_not_applied_uses_defaults():
 
     # Verify EMAs were calculated with 12/26 (defaults)
     feat_df = strat._feature_df
+    assert feat_df is not None, "Feature DataFrame should not be None after signal generation"
 
     k_12 = 2 / 13
     k_26 = 2 / 27

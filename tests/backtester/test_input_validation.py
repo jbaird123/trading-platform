@@ -44,7 +44,7 @@ def _mdf(n: int = 3) -> pd.DataFrame:
 
 def _signals(n: int = 3, value=None) -> pd.Series:
     idx = pd.date_range("2023-01-01", periods=n, freq="min")
-    return pd.Series([value] * n, index=idx)
+    return pd.Series([value] * n, index=idx, dtype=object)
 
 
 def test_validation_missing_columns():

@@ -10,13 +10,16 @@ This script parses coverage.json and identifies:
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
+from typing import Any
 
 
-def load_coverage_data(coverage_file: Path) -> dict:
+def load_coverage_data(coverage_file: str) -> dict[Any, Any]:
     """Load coverage data from coverage.json."""
     with open(coverage_file) as f:
-        return json.load(f)
+        data = json.load(f)
+        return dict(data) if data else {}
 
 
 def analyze_gaps(coverage_data: dict):
@@ -103,7 +106,7 @@ def main():
         print("Run: poetry run pytest --cov=trading_platform --cov-report=json")
         return 1
 
-    coverage_data = load_coverage_data(coverage_file)
+    coverage_data = load_coverage_data(str(coverage_file))
     file_stats = analyze_gaps(coverage_data)
 
     output_path = project_root / "COVERAGE_GAPS.md"
