@@ -1,3 +1,5 @@
 from __future__ import annotations
 
-__all__: list[str] = []
+from .loader import load_instrument_data as load_data
+
+__all__ = ["load_data"]
