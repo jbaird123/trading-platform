@@ -690,6 +690,7 @@ def test_compute_exit_efficiency_no_post_exit_data() -> None:
     trade = replace(trade, exit_reason="signal", post_exit_analysis=None)
 
     from trading_platform.reporting.analytics import compute_exit_efficiency
+
     result = compute_exit_efficiency([trade])
     assert result == {}
 
@@ -712,6 +713,7 @@ def test_compute_exit_efficiency_take_profit_premature() -> None:
     )
 
     from trading_platform.reporting.analytics import compute_exit_efficiency
+
     result = compute_exit_efficiency([trade])
 
     assert "by_exit_reason" in result
@@ -741,6 +743,7 @@ def test_compute_exit_efficiency_stop_loss_false() -> None:
     )
 
     from trading_platform.reporting.analytics import compute_exit_efficiency
+
     result = compute_exit_efficiency([trade])
 
     assert "by_exit_reason" in result
@@ -769,6 +772,7 @@ def test_compute_exit_efficiency_signal_suboptimal() -> None:
     )
 
     from trading_platform.reporting.analytics import compute_exit_efficiency
+
     result = compute_exit_efficiency([trade])
 
     assert "by_exit_reason" in result
@@ -805,6 +809,7 @@ def test_compute_exit_efficiency_optimal_hold_duration() -> None:
     )
 
     from trading_platform.reporting.analytics import compute_exit_efficiency
+
     result = compute_exit_efficiency([trade1, trade2])
 
     assert "optimal_hold_analysis" in result
@@ -835,6 +840,7 @@ def test_compute_exit_efficiency_no_matching_exit_reason() -> None:
     )
 
     from trading_platform.reporting.analytics import compute_exit_efficiency
+
     result = compute_exit_efficiency([trade])
 
     # Should have "signal" in by_exit_reason, but not "take_profit" or "stop_loss"
@@ -878,6 +884,7 @@ def test_compute_exit_efficiency_all_trades_different_exit_reasons() -> None:
     )
 
     from trading_platform.reporting.analytics import compute_exit_efficiency
+
     result = compute_exit_efficiency([trade1, trade2, trade3])
 
     # Should have all three exit reasons

@@ -12,7 +12,8 @@ class TestParamsSnapshotBranches:
     """Test params_snapshot branches (lines 377-379)."""
 
     def test_params_from_strategy_defaults(self, tmp_path: Path) -> None:
-        """Test elif branch: no strategy_params, use strategy parameters (line 377-378)."""
+        """Test elif branch: no strategy_params, use strategy parameters
+        (line 377-378)."""
         from trading_platform.cli import cmd_run_backtest
 
         config_path = tmp_path / "config.json"
@@ -23,12 +24,22 @@ class TestParamsSnapshotBranches:
             # NO strategy_params, so it should use strategy.parameters
             "strategy": {
                 "strategy_name": "Test",
-                "parameters": {"my_param": 42},  # This should be used for params_snapshot
+                "parameters": {
+                    "my_param": 42
+                },  # This should be used for params_snapshot
                 "long_entry_rules": [
-                    {"any_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_above", "left": "close", "right": 1.0}
+                        ]
+                    }
                 ],
                 "long_exit_rules": [
-                    {"any_of": [{"condition": "is_below", "left": "close", "right": 1.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_below", "left": "close", "right": 1.0}
+                        ]
+                    }
                 ],
             },
         }
@@ -36,23 +47,27 @@ class TestParamsSnapshotBranches:
 
         args = argparse.Namespace(demo=False, config=str(config_path), user="test")
 
-        with patch("trading_platform.cli.initialize_run") as mock_init, \
-             patch("trading_platform.cli.finalize_run"), \
-             patch("trading_platform.cli.run_backtest") as mock_backtest, \
-             patch("trading_platform.cli.compile_strategy") as mock_compile, \
-             patch("trading_platform.data.loader.load_instrument_data") as mock_load:
-
+        with patch("trading_platform.cli.initialize_run") as mock_init, patch(
+            "trading_platform.cli.finalize_run"
+        ), patch("trading_platform.cli.run_backtest") as mock_backtest, patch(
+            "trading_platform.cli.compile_strategy"
+        ) as mock_compile, patch(
+            "trading_platform.data.loader.load_instrument_data"
+        ) as mock_load:
             run_path = tmp_path / "runs/test"
             run_path.mkdir(parents=True)
             mock_init.return_value = run_path
 
-            df = pd.DataFrame({
-                "open": [1.0],
-                "high": [1.05],
-                "low": [0.95],
-                "close": [1.02],
-                "volume": [100],
-            }, index=pd.date_range("2024-01-01", periods=1, freq="h", tz="UTC"))
+            df = pd.DataFrame(
+                {
+                    "open": [1.0],
+                    "high": [1.05],
+                    "low": [0.95],
+                    "close": [1.02],
+                    "volume": [100],
+                },
+                index=pd.date_range("2024-01-01", periods=1, freq="h", tz="UTC"),
+            )
             mock_load.return_value = (df, [])
 
             mock_strat = MagicMock()
@@ -82,10 +97,18 @@ class TestDataQualityFlagsBranch:
             "strategy": {
                 "strategy_name": "Test",
                 "long_entry_rules": [
-                    {"any_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_above", "left": "close", "right": 1.0}
+                        ]
+                    }
                 ],
                 "long_exit_rules": [
-                    {"any_of": [{"condition": "is_below", "left": "close", "right": 1.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_below", "left": "close", "right": 1.0}
+                        ]
+                    }
                 ],
             },
         }
@@ -93,23 +116,27 @@ class TestDataQualityFlagsBranch:
 
         args = argparse.Namespace(demo=False, config=str(config_path), user="test")
 
-        with patch("trading_platform.cli.initialize_run") as mock_init, \
-             patch("trading_platform.cli.finalize_run"), \
-             patch("trading_platform.cli.run_backtest") as mock_backtest, \
-             patch("trading_platform.cli.compile_strategy") as mock_compile, \
-             patch("trading_platform.data.loader.load_instrument_data") as mock_load:
-
+        with patch("trading_platform.cli.initialize_run") as mock_init, patch(
+            "trading_platform.cli.finalize_run"
+        ), patch("trading_platform.cli.run_backtest") as mock_backtest, patch(
+            "trading_platform.cli.compile_strategy"
+        ) as mock_compile, patch(
+            "trading_platform.data.loader.load_instrument_data"
+        ) as mock_load:
             run_path = tmp_path / "runs/test"
             run_path.mkdir(parents=True)
             mock_init.return_value = run_path
 
-            df = pd.DataFrame({
-                "open": [1.0],
-                "high": [1.05],
-                "low": [0.95],
-                "close": [1.02],
-                "volume": [100],
-            }, index=pd.date_range("2024-01-01", periods=1, freq="h", tz="UTC"))
+            df = pd.DataFrame(
+                {
+                    "open": [1.0],
+                    "high": [1.05],
+                    "low": [0.95],
+                    "close": [1.02],
+                    "volume": [100],
+                },
+                index=pd.date_range("2024-01-01", periods=1, freq="h", tz="UTC"),
+            )
 
             # Return data with flags
             dq_flags = ["missing_data", "price_spike"]

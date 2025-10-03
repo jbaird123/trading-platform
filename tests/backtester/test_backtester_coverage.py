@@ -308,7 +308,9 @@ def test_post_exit_analysis_integration():
 
     assert len(trades) == 1
     assert hasattr(trades[0], "post_exit_analysis")
-    assert trades[0].post_exit_analysis is not None, "post_exit_analysis should not be None"
+    assert (
+        trades[0].post_exit_analysis is not None
+    ), "post_exit_analysis should not be None"
     assert "3" in trades[0].post_exit_analysis
     assert "5" in trades[0].post_exit_analysis
 
@@ -616,7 +618,8 @@ def test_post_exit_analysis_enabled_false():
 
 def test_enrich_trades_with_post_exit_analysis_empty_slice_edge():
     """Test post-exit analysis when slice is exactly at end boundary."""
-    # Validates: [REQ-BT-POST-011] Handle edge case where slice is empty due to end boundary
+    # Validates: [REQ-BT-POST-011] Handle edge case where slice is empty
+    # due to end boundary
     df = pd.DataFrame(
         {
             "open": [1.0, 1.01],
@@ -853,15 +856,9 @@ def test_counterfactual_with_manual_invalid_entry_index():
     rem = RiskExitManager(config={})
 
     # Patch the skipped list to inject invalid entry_index
-    original_run_backtest = (
-        run_backtest.__wrapped__
-        if hasattr(run_backtest, "__wrapped__")
-        else run_backtest
-    )
+    (run_backtest.__wrapped__ if hasattr(run_backtest, "__wrapped__") else run_backtest)
 
-    with patch(
-        "trading_platform.backtester.core.run_backtest", wraps=run_backtest
-    ) as mock_bt:
+    with patch("trading_platform.backtester.core.run_backtest", wraps=run_backtest):
         result = run_backtest(
             market_data=df,
             signals=signals,
@@ -887,7 +884,7 @@ def test_counterfactual_with_manual_invalid_entry_index():
 
         # Try to convert - should handle exception
         try:
-            si = int(str(s["entry_index"]))
+            int(str(s["entry_index"]))
         except Exception:
             # This is the path we want to test (lines 451-454)
             pass

@@ -62,7 +62,8 @@ def _extract_rmm_policy(config_snapshot: dict[str, Any] | None) -> dict[str, Any
 
 
 def _extract_rem_policy(config_snapshot: dict[str, Any] | None) -> dict[str, Any]:
-    """Extract REM (Risk Exit Manager) policy information from config snapshot for AI context."""
+    """Extract REM (Risk Exit Manager) policy information from config snapshot
+    for AI context."""
     if not config_snapshot:
         return {}
 

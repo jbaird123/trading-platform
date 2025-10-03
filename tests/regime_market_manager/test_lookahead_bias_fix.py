@@ -2,8 +2,8 @@
 
 # Validates: RMM lookahead bias prevention (Bug #2 from RMM_BUGS_FIXED.md)
 
-This test validates the critical fix to prevent lookahead bias in RMM regime projection.
-Without the fix, at 10:05 AM on a 5min chart with 15min RMM, the system would use
+This test validates the critical fix to prevent lookahead bias in RMM regime
+projection. Without the fix, on a 5min chart with 15min RMM, the system would use
 the regime from the bar that opened at 10:00 AM (not closed until 10:15 AM).
 With the fix, it correctly uses the regime from the bar that closed at 10:00 AM
 (the 09:45-10:00 bar).
@@ -52,22 +52,22 @@ def test_project_to_index_prevents_lookahead_bias() -> None:
     # At 10:15: range (uses shifted data from 10:00 position) ✅
 
     expected_labels = [
-        None,         # 09:45 (shifted becomes NaN)
-        None,         # 09:50 (ffill can't fill NaN)
-        None,         # 09:55 (ffill can't fill NaN)
-        "trend_up",   # 10:00 (uses 09:45 bar via shift)
-        "trend_up",   # 10:05 (ffill from 10:00) <- CRITICAL TEST POINT
-        "trend_up",   # 10:10 (ffill from 10:00)
-        "range",      # 10:15 (uses 10:00 bar via shift)
+        None,  # 09:45 (shifted becomes NaN)
+        None,  # 09:50 (ffill can't fill NaN)
+        None,  # 09:55 (ffill can't fill NaN)
+        "trend_up",  # 10:00 (uses 09:45 bar via shift)
+        "trend_up",  # 10:05 (ffill from 10:00) <- CRITICAL TEST POINT
+        "trend_up",  # 10:10 (ffill from 10:00)
+        "range",  # 10:15 (uses 10:00 bar via shift)
     ]
 
     expected_sides = [
         ["long", "short"],  # None label gets both sides
         ["long", "short"],  # None label gets both sides
         ["long", "short"],  # None label gets both sides
-        ["long"],       # trend_up
-        ["long"],       # trend_up <- CRITICAL: Should be long, not range
-        ["long"],       # trend_up
+        ["long"],  # trend_up
+        ["long"],  # trend_up <- CRITICAL: Should be long, not range
+        ["long"],  # trend_up
         ["long", "short"],  # range (after Bug #1 fix)
     ]
 
@@ -77,8 +77,10 @@ def test_project_to_index_prevents_lookahead_bias() -> None:
 
     # CRITICAL ASSERTION: At 10:05, must use regime from 09:45 bar
     idx_10_05 = trading_index[4]  # 10:05 AM
-    assert result.loc[idx_10_05, "label"] == "trend_up", \
-        "At 10:05 AM, must use regime from 09:45 bar (closed at 10:00), not 10:00 bar (closes at 10:15)"
+    assert (
+        result.loc[idx_10_05, "label"] == "trend_up"
+    ), ("At 10:05 AM, must use regime from 09:45 bar (closed at 10:00), "
+        "not 10:00 bar (closes at 10:15)")
 
 
 def test_project_to_index_without_shift_would_cause_lookahead() -> None:
@@ -101,9 +103,9 @@ def test_project_to_index_without_shift_would_cause_lookahead() -> None:
     trading_index = pd.date_range("2024-01-01 09:45", periods=7, freq="5min")
 
     # Simulate buggy behavior (no shift)
-    aligned = regime_data.reindex(
-        regime_data.index.union(trading_index)
-    ).sort_index().ffill()
+    aligned = (
+        regime_data.reindex(regime_data.index.union(trading_index)).sort_index().ffill()
+    )
     aligned = aligned.loc[trading_index]
 
     # Without shift, at 10:00-10:15, it would use the 10:00 bar (WRONG!)
@@ -113,10 +115,14 @@ def test_project_to_index_without_shift_would_cause_lookahead() -> None:
 
     # This is the BUG - at 10:05, it uses "range" from 10:00 bar
     # But the 10:00 bar doesn't close until 10:15!
-    assert aligned.loc[idx_10_00, "label"] == "range", \
-        "Without shift, at 10:00 it incorrectly uses the 10:00 bar label (lookahead bias)"
-    assert aligned.loc[idx_10_05, "label"] == "range", \
-        "Without shift, at 10:05 it incorrectly uses the 10:00 bar label (lookahead bias)"
+    assert (
+        aligned.loc[idx_10_00, "label"] == "range"
+    ), ("Without shift, at 10:00 it incorrectly uses the 10:00 bar label "
+        "(lookahead bias)")
+    assert (
+        aligned.loc[idx_10_05, "label"] == "range"
+    ), ("Without shift, at 10:05 it incorrectly uses the 10:00 bar label "
+        "(lookahead bias)")
 
 
 def test_allowed_sides_for_range_after_bug_fix() -> None:
@@ -135,7 +141,9 @@ def test_allowed_sides_for_range_after_bug_fix() -> None:
 
     # Policy checks still work
     assert RMMEngine.allowed_sides_for("range", 0.3, {"min_confidence": 0.5}) == []
-    assert RMMEngine.allowed_sides_for("range", 0.8, {"allow_labels": ["trend_up"]}) == []
+    assert (
+        RMMEngine.allowed_sides_for("range", 0.8, {"allow_labels": ["trend_up"]}) == []
+    )
     assert RMMEngine.allowed_sides_for("range", 0.8, {"block_labels": ["range"]}) == []
 
 
@@ -186,7 +194,7 @@ def test_end_to_end_rmm_no_lookahead_with_actual_backtest_timing() -> None:
     # 10:00 bar: ADX = 20 (range)
     # 10:15 bar: ADX = 35 (trending)
     regime_index = pd.date_range("2024-01-01 09:45", periods=3, freq="15min")
-    regime_ohlc = pd.DataFrame(
+    pd.DataFrame(
         {
             "open": [100.0, 101.0, 102.0],
             "high": [100.5, 101.5, 102.5],
@@ -218,14 +226,22 @@ def test_end_to_end_rmm_no_lookahead_with_actual_backtest_timing() -> None:
     # NOT the 10:00 bar (range) which hasn't closed yet
     idx_10_05 = trading_index[4]  # 10:05 AM
 
-    assert projected.loc[idx_10_05, "label"] == "trending", \
-        "CRITICAL: At 10:05 AM, must use 'trending' from 09:45 bar, not 'range' from 10:00 bar"
-    assert projected.loc[idx_10_05, "adx"] == 30.0, \
-        "CRITICAL: At 10:05 AM, must use ADX=30 from 09:45 bar, not ADX=20 from 10:00 bar"
+    assert (
+        projected.loc[idx_10_05, "label"] == "trending"
+    ), ("CRITICAL: At 10:05 AM, must use 'trending' from 09:45 bar, "
+        "not 'range' from 10:00 bar")
+    assert (
+        projected.loc[idx_10_05, "adx"] == 30.0
+    ), ("CRITICAL: At 10:05 AM, must use ADX=30 from 09:45 bar, "
+        "not ADX=20 from 10:00 bar")
 
     # At 10:15 and after, we can use the 10:00 bar (now closed)
     idx_10_15 = trading_index[6]  # 10:15 AM
-    assert projected.loc[idx_10_15, "label"] == "range", \
-        "At 10:15 AM, can now use 'range' from 10:00 bar (closed at 10:15)"
-    assert projected.loc[idx_10_15, "adx"] == 20.0, \
-        "At 10:15 AM, can now use ADX=20 from 10:00 bar"
+    assert (
+        projected.loc[idx_10_15, "label"] == "range"
+    ), ("At 10:15 AM, can now use 'range' from 10:00 bar "
+        "(closed at 10:15)")
+    assert (
+        projected.loc[idx_10_15, "adx"] == 20.0
+    ), ("At 10:15 AM, can now use ADX=20 "
+        "from 10:00 bar")

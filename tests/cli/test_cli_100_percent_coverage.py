@@ -25,13 +25,13 @@ class TestRMMPathLoading:
                     "label": "trend_up",
                     "confidence": 0.9,
                     "conditions": {
-                        "all_of": [{"condition": "is_above", "left": "close", "right": 50}]
+                        "all_of": [
+                            {"condition": "is_above", "left": "close", "right": 50}
+                        ]
                     },
                 }
             ],
-            "features": [
-                {"name": "rsi", "type": "RSI", "params": {"length": 14}}
-            ]
+            "features": [{"name": "rsi", "type": "RSI", "params": {"length": 14}}],
         }
         rmm_path.write_text(json.dumps(rmm_config))
 
@@ -43,10 +43,18 @@ class TestRMMPathLoading:
             "strategy": {
                 "strategy_name": "Test",
                 "long_entry_rules": [
-                    {"any_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_above", "left": "close", "right": 1.0}
+                        ]
+                    }
                 ],
                 "long_exit_rules": [
-                    {"any_of": [{"condition": "is_below", "left": "close", "right": 1.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_below", "left": "close", "right": 1.0}
+                        ]
+                    }
                 ],
             },
         }
@@ -54,23 +62,27 @@ class TestRMMPathLoading:
 
         args = argparse.Namespace(demo=False, config=str(config_path), user="test")
 
-        with patch("trading_platform.cli.initialize_run") as mock_init, \
-             patch("trading_platform.cli.finalize_run"), \
-             patch("trading_platform.cli.run_backtest") as mock_backtest, \
-             patch("trading_platform.cli.compile_strategy") as mock_compile, \
-             patch("trading_platform.data.loader.load_instrument_data") as mock_load:
-
+        with patch("trading_platform.cli.initialize_run") as mock_init, patch(
+            "trading_platform.cli.finalize_run"
+        ), patch("trading_platform.cli.run_backtest") as mock_backtest, patch(
+            "trading_platform.cli.compile_strategy"
+        ) as mock_compile, patch(
+            "trading_platform.data.loader.load_instrument_data"
+        ) as mock_load:
             run_path = tmp_path / "runs/test"
             run_path.mkdir(parents=True)
             mock_init.return_value = run_path
 
-            df = pd.DataFrame({
-                "open": [1.0],
-                "high": [1.05],
-                "low": [0.95],
-                "close": [1.02],
-                "volume": [100],
-            }, index=pd.date_range("2024-01-01", periods=1, freq="h", tz="UTC"))
+            df = pd.DataFrame(
+                {
+                    "open": [1.0],
+                    "high": [1.05],
+                    "low": [0.95],
+                    "close": [1.02],
+                    "volume": [100],
+                },
+                index=pd.date_range("2024-01-01", periods=1, freq="h", tz="UTC"),
+            )
             mock_load.return_value = (df, [])
 
             mock_strat = MagicMock()
@@ -100,25 +112,43 @@ class TestRMMModeBranches:
                         "label": "range",  # Non-trend label → both sides
                         "confidence": 0.9,
                         "conditions": {
-                            "all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]
+                            "all_of": [
+                                {"condition": "is_above", "left": "close", "right": 1.0}
+                            ]
                         },
                     }
                 ],
-                "features": [{"name": "rsi", "type": "RSI", "params": {"length": 14}}]
+                "features": [{"name": "rsi", "type": "RSI", "params": {"length": 14}}],
             },
             "strategy": {
                 "strategy_name": "Test",
                 "long_entry_rules": [
-                    {"any_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_above", "left": "close", "right": 1.0}
+                        ]
+                    }
                 ],
                 "long_exit_rules": [
-                    {"any_of": [{"condition": "is_below", "left": "close", "right": 1.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_below", "left": "close", "right": 1.0}
+                        ]
+                    }
                 ],
                 "short_entry_rules": [
-                    {"any_of": [{"condition": "is_below", "left": "close", "right": 2.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_below", "left": "close", "right": 2.0}
+                        ]
+                    }
                 ],
                 "short_exit_rules": [
-                    {"any_of": [{"condition": "is_above", "left": "close", "right": 2.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_above", "left": "close", "right": 2.0}
+                        ]
+                    }
                 ],
             },
         }
@@ -126,23 +156,27 @@ class TestRMMModeBranches:
 
         args = argparse.Namespace(demo=False, config=str(config_path), user="test")
 
-        with patch("trading_platform.cli.initialize_run") as mock_init, \
-             patch("trading_platform.cli.finalize_run"), \
-             patch("trading_platform.cli.run_backtest") as mock_backtest, \
-             patch("trading_platform.cli.compile_strategy") as mock_compile, \
-             patch("trading_platform.data.loader.load_instrument_data") as mock_load:
-
+        with patch("trading_platform.cli.initialize_run") as mock_init, patch(
+            "trading_platform.cli.finalize_run"
+        ), patch("trading_platform.cli.run_backtest") as mock_backtest, patch(
+            "trading_platform.cli.compile_strategy"
+        ) as mock_compile, patch(
+            "trading_platform.data.loader.load_instrument_data"
+        ) as mock_load:
             run_path = tmp_path / "runs/test"
             run_path.mkdir(parents=True)
             mock_init.return_value = run_path
 
-            df = pd.DataFrame({
-                "open": [1.0, 1.1, 1.0],
-                "high": [1.05, 1.15, 1.05],
-                "low": [0.95, 1.05, 0.95],
-                "close": [1.02, 1.12, 1.02],
-                "volume": [100, 100, 100],
-            }, index=pd.date_range("2024-01-01", periods=3, freq="h", tz="UTC"))
+            df = pd.DataFrame(
+                {
+                    "open": [1.0, 1.1, 1.0],
+                    "high": [1.05, 1.15, 1.05],
+                    "low": [0.95, 1.05, 0.95],
+                    "close": [1.02, 1.12, 1.02],
+                    "volume": [100, 100, 100],
+                },
+                index=pd.date_range("2024-01-01", periods=3, freq="h", tz="UTC"),
+            )
             mock_load.return_value = (df, [])
 
             mock_strat = MagicMock()
@@ -168,19 +202,29 @@ class TestRMMModeBranches:
                         "label": "trend_up",  # Uses conventional mapping: ["long"]
                         "confidence": 0.9,
                         "conditions": {
-                            "all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]
+                            "all_of": [
+                                {"condition": "is_above", "left": "close", "right": 1.0}
+                            ]
                         },
                     }
                 ],
-                "features": [{"name": "rsi", "type": "RSI", "params": {"length": 14}}]
+                "features": [{"name": "rsi", "type": "RSI", "params": {"length": 14}}],
             },
             "strategy": {
                 "strategy_name": "Test",
                 "long_entry_rules": [
-                    {"any_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_above", "left": "close", "right": 1.0}
+                        ]
+                    }
                 ],
                 "long_exit_rules": [
-                    {"any_of": [{"condition": "is_below", "left": "close", "right": 1.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_below", "left": "close", "right": 1.0}
+                        ]
+                    }
                 ],
             },
         }
@@ -188,23 +232,27 @@ class TestRMMModeBranches:
 
         args = argparse.Namespace(demo=False, config=str(config_path), user="test")
 
-        with patch("trading_platform.cli.initialize_run") as mock_init, \
-             patch("trading_platform.cli.finalize_run"), \
-             patch("trading_platform.cli.run_backtest") as mock_backtest, \
-             patch("trading_platform.cli.compile_strategy") as mock_compile, \
-             patch("trading_platform.data.loader.load_instrument_data") as mock_load:
-
+        with patch("trading_platform.cli.initialize_run") as mock_init, patch(
+            "trading_platform.cli.finalize_run"
+        ), patch("trading_platform.cli.run_backtest") as mock_backtest, patch(
+            "trading_platform.cli.compile_strategy"
+        ) as mock_compile, patch(
+            "trading_platform.data.loader.load_instrument_data"
+        ) as mock_load:
             run_path = tmp_path / "runs/test"
             run_path.mkdir(parents=True)
             mock_init.return_value = run_path
 
-            df = pd.DataFrame({
-                "open": [1.0, 1.1],
-                "high": [1.05, 1.15],
-                "low": [0.95, 1.05],
-                "close": [1.02, 1.12],
-                "volume": [100, 100],
-            }, index=pd.date_range("2024-01-01", periods=2, freq="h", tz="UTC"))
+            df = pd.DataFrame(
+                {
+                    "open": [1.0, 1.1],
+                    "high": [1.05, 1.15],
+                    "low": [0.95, 1.05],
+                    "close": [1.02, 1.12],
+                    "volume": [100, 100],
+                },
+                index=pd.date_range("2024-01-01", periods=2, freq="h", tz="UTC"),
+            )
             mock_load.return_value = (df, [])
 
             mock_strat = MagicMock()
@@ -230,25 +278,43 @@ class TestRMMModeBranches:
                         "label": "trend_down",  # Uses conventional mapping: ["short"]
                         "confidence": 0.9,
                         "conditions": {
-                            "all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]
+                            "all_of": [
+                                {"condition": "is_above", "left": "close", "right": 1.0}
+                            ]
                         },
                     }
                 ],
-                "features": [{"name": "rsi", "type": "RSI", "params": {"length": 14}}]
+                "features": [{"name": "rsi", "type": "RSI", "params": {"length": 14}}],
             },
             "strategy": {
                 "strategy_name": "Test",
                 "long_entry_rules": [
-                    {"any_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_above", "left": "close", "right": 1.0}
+                        ]
+                    }
                 ],
                 "long_exit_rules": [
-                    {"any_of": [{"condition": "is_below", "left": "close", "right": 1.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_below", "left": "close", "right": 1.0}
+                        ]
+                    }
                 ],
                 "short_entry_rules": [
-                    {"any_of": [{"condition": "is_below", "left": "close", "right": 2.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_below", "left": "close", "right": 2.0}
+                        ]
+                    }
                 ],
                 "short_exit_rules": [
-                    {"any_of": [{"condition": "is_above", "left": "close", "right": 2.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_above", "left": "close", "right": 2.0}
+                        ]
+                    }
                 ],
             },
         }
@@ -256,23 +322,27 @@ class TestRMMModeBranches:
 
         args = argparse.Namespace(demo=False, config=str(config_path), user="test")
 
-        with patch("trading_platform.cli.initialize_run") as mock_init, \
-             patch("trading_platform.cli.finalize_run"), \
-             patch("trading_platform.cli.run_backtest") as mock_backtest, \
-             patch("trading_platform.cli.compile_strategy") as mock_compile, \
-             patch("trading_platform.data.loader.load_instrument_data") as mock_load:
-
+        with patch("trading_platform.cli.initialize_run") as mock_init, patch(
+            "trading_platform.cli.finalize_run"
+        ), patch("trading_platform.cli.run_backtest") as mock_backtest, patch(
+            "trading_platform.cli.compile_strategy"
+        ) as mock_compile, patch(
+            "trading_platform.data.loader.load_instrument_data"
+        ) as mock_load:
             run_path = tmp_path / "runs/test"
             run_path.mkdir(parents=True)
             mock_init.return_value = run_path
 
-            df = pd.DataFrame({
-                "open": [1.0, 1.1],
-                "high": [1.05, 1.15],
-                "low": [0.95, 1.05],
-                "close": [1.02, 1.12],
-                "volume": [100, 100],
-            }, index=pd.date_range("2024-01-01", periods=2, freq="h", tz="UTC"))
+            df = pd.DataFrame(
+                {
+                    "open": [1.0, 1.1],
+                    "high": [1.05, 1.15],
+                    "low": [0.95, 1.05],
+                    "close": [1.02, 1.12],
+                    "volume": [100, 100],
+                },
+                index=pd.date_range("2024-01-01", periods=2, freq="h", tz="UTC"),
+            )
             mock_load.return_value = (df, [])
 
             mock_strat = MagicMock()
@@ -298,22 +368,34 @@ class TestRMMModeBranches:
                         "label": "volatile",  # Non-trend label
                         "confidence": 0.9,
                         "conditions": {
-                            "all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]
+                            "all_of": [
+                                {"condition": "is_above", "left": "close", "right": 1.0}
+                            ]
                         },
                     }
                 ],
                 "policy": {
-                    "block_labels": ["volatile"]  # Block this label to get empty allowed_sides
+                    "block_labels": [
+                        "volatile"
+                    ]  # Block this label to get empty allowed_sides
                 },
-                "features": [{"name": "rsi", "type": "RSI", "params": {"length": 14}}]
+                "features": [{"name": "rsi", "type": "RSI", "params": {"length": 14}}],
             },
             "strategy": {
                 "strategy_name": "Test",
                 "long_entry_rules": [
-                    {"any_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_above", "left": "close", "right": 1.0}
+                        ]
+                    }
                 ],
                 "long_exit_rules": [
-                    {"any_of": [{"condition": "is_below", "left": "close", "right": 1.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_below", "left": "close", "right": 1.0}
+                        ]
+                    }
                 ],
             },
         }
@@ -321,23 +403,27 @@ class TestRMMModeBranches:
 
         args = argparse.Namespace(demo=False, config=str(config_path), user="test")
 
-        with patch("trading_platform.cli.initialize_run") as mock_init, \
-             patch("trading_platform.cli.finalize_run"), \
-             patch("trading_platform.cli.run_backtest") as mock_backtest, \
-             patch("trading_platform.cli.compile_strategy") as mock_compile, \
-             patch("trading_platform.data.loader.load_instrument_data") as mock_load:
-
+        with patch("trading_platform.cli.initialize_run") as mock_init, patch(
+            "trading_platform.cli.finalize_run"
+        ), patch("trading_platform.cli.run_backtest") as mock_backtest, patch(
+            "trading_platform.cli.compile_strategy"
+        ) as mock_compile, patch(
+            "trading_platform.data.loader.load_instrument_data"
+        ) as mock_load:
             run_path = tmp_path / "runs/test"
             run_path.mkdir(parents=True)
             mock_init.return_value = run_path
 
-            df = pd.DataFrame({
-                "open": [1.0, 1.1],
-                "high": [1.05, 1.15],
-                "low": [0.95, 1.05],
-                "close": [1.02, 1.12],
-                "volume": [100, 100],
-            }, index=pd.date_range("2024-01-01", periods=2, freq="h", tz="UTC"))
+            df = pd.DataFrame(
+                {
+                    "open": [1.0, 1.1],
+                    "high": [1.05, 1.15],
+                    "low": [0.95, 1.05],
+                    "close": [1.02, 1.12],
+                    "volume": [100, 100],
+                },
+                index=pd.date_range("2024-01-01", periods=2, freq="h", tz="UTC"),
+            )
             mock_load.return_value = (df, [])
 
             mock_strat = MagicMock()
@@ -363,32 +449,60 @@ class TestRMMModeBranches:
                         "label": "trend_up",  # Long only
                         "confidence": 0.9,
                         "conditions": {
-                            "all_of": [{"condition": "is_above", "left": "close", "right": 1.05}]
+                            "all_of": [
+                                {
+                                    "condition": "is_above",
+                                    "left": "close",
+                                    "right": 1.05,
+                                }
+                            ]
                         },
                     },
                     {
                         "label": "trend_down",  # Short only
                         "confidence": 0.9,
                         "conditions": {
-                            "all_of": [{"condition": "is_below", "left": "close", "right": 1.05}]
+                            "all_of": [
+                                {
+                                    "condition": "is_below",
+                                    "left": "close",
+                                    "right": 1.05,
+                                }
+                            ]
                         },
-                    }
-                ]
+                    },
+                ],
                 # No features - regimes only based on close price conditions
             },
             "strategy": {
                 "strategy_name": "Test",
                 "long_entry_rules": [
-                    {"any_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_above", "left": "close", "right": 1.0}
+                        ]
+                    }
                 ],
                 "long_exit_rules": [
-                    {"any_of": [{"condition": "is_below", "left": "close", "right": 1.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_below", "left": "close", "right": 1.0}
+                        ]
+                    }
                 ],
                 "short_entry_rules": [
-                    {"any_of": [{"condition": "is_below", "left": "close", "right": 2.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_below", "left": "close", "right": 2.0}
+                        ]
+                    }
                 ],
                 "short_exit_rules": [
-                    {"any_of": [{"condition": "is_above", "left": "close", "right": 2.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_above", "left": "close", "right": 2.0}
+                        ]
+                    }
                 ],
             },
         }
@@ -396,12 +510,13 @@ class TestRMMModeBranches:
 
         args = argparse.Namespace(demo=False, config=str(config_path), user="test")
 
-        with patch("trading_platform.cli.initialize_run") as mock_init, \
-             patch("trading_platform.cli.finalize_run"), \
-             patch("trading_platform.cli.run_backtest") as mock_backtest, \
-             patch("trading_platform.cli.compile_strategy") as mock_compile, \
-             patch("trading_platform.data.loader.load_instrument_data") as mock_load:
-
+        with patch("trading_platform.cli.initialize_run") as mock_init, patch(
+            "trading_platform.cli.finalize_run"
+        ), patch("trading_platform.cli.run_backtest") as mock_backtest, patch(
+            "trading_platform.cli.compile_strategy"
+        ) as mock_compile, patch(
+            "trading_platform.data.loader.load_instrument_data"
+        ) as mock_load:
             run_path = tmp_path / "runs/test"
             run_path.mkdir(parents=True)
             mock_init.return_value = run_path
@@ -410,13 +525,23 @@ class TestRMMModeBranches:
             # close < 1.05 → trend_down (short_only)
             # close > 1.05 → trend_up (long_only)
             # Need at least 3 transitions to hit lines 315-321
-            df = pd.DataFrame({
-                "open": [1.0, 1.1, 1.0, 1.1, 1.0, 1.1],
-                "high": [1.05, 1.15, 1.05, 1.15, 1.05, 1.15],
-                "low": [0.95, 1.05, 0.95, 1.05, 0.95, 1.05],
-                "close": [1.02, 1.10, 1.03, 1.11, 1.02, 1.10],  # down→up→down→up→down→up
-                "volume": [100, 100, 100, 100, 100, 100],
-            }, index=pd.date_range("2024-01-01", periods=6, freq="h", tz="UTC"))
+            df = pd.DataFrame(
+                {
+                    "open": [1.0, 1.1, 1.0, 1.1, 1.0, 1.1],
+                    "high": [1.05, 1.15, 1.05, 1.15, 1.05, 1.15],
+                    "low": [0.95, 1.05, 0.95, 1.05, 0.95, 1.05],
+                    "close": [
+                        1.02,
+                        1.10,
+                        1.03,
+                        1.11,
+                        1.02,
+                        1.10,
+                    ],  # down→up→down→up→down→up
+                    "volume": [100, 100, 100, 100, 100, 100],
+                },
+                index=pd.date_range("2024-01-01", periods=6, freq="h", tz="UTC"),
+            )
             mock_load.return_value = (df, [])
 
             mock_strat = MagicMock()
@@ -430,7 +555,9 @@ class TestRMMModeBranches:
 class TestParamsSnapshotElif:
     """Test params_snapshot elif branch (lines 377-379)."""
 
-    def test_params_from_strategy_parameters_no_strategy_params(self, tmp_path: Path) -> None:
+    def test_params_from_strategy_parameters_no_strategy_params(
+        self, tmp_path: Path
+    ) -> None:
         """Test when NO strategy_params in config, use strategy.parameters."""
         from trading_platform.cli import cmd_run_backtest
 
@@ -444,10 +571,18 @@ class TestParamsSnapshotElif:
                 "strategy_name": "Test",
                 "parameters": {"my_param": 99},  # This triggers lines 377-379
                 "long_entry_rules": [
-                    {"any_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_above", "left": "close", "right": 1.0}
+                        ]
+                    }
                 ],
                 "long_exit_rules": [
-                    {"any_of": [{"condition": "is_below", "left": "close", "right": 1.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_below", "left": "close", "right": 1.0}
+                        ]
+                    }
                 ],
             },
         }
@@ -455,23 +590,27 @@ class TestParamsSnapshotElif:
 
         args = argparse.Namespace(demo=False, config=str(config_path), user="test")
 
-        with patch("trading_platform.cli.initialize_run") as mock_init, \
-             patch("trading_platform.cli.finalize_run"), \
-             patch("trading_platform.cli.run_backtest") as mock_backtest, \
-             patch("trading_platform.cli.compile_strategy") as mock_compile, \
-             patch("trading_platform.data.loader.load_instrument_data") as mock_load:
-
+        with patch("trading_platform.cli.initialize_run") as mock_init, patch(
+            "trading_platform.cli.finalize_run"
+        ), patch("trading_platform.cli.run_backtest") as mock_backtest, patch(
+            "trading_platform.cli.compile_strategy"
+        ) as mock_compile, patch(
+            "trading_platform.data.loader.load_instrument_data"
+        ) as mock_load:
             run_path = tmp_path / "runs/test"
             run_path.mkdir(parents=True)
             mock_init.return_value = run_path
 
-            df = pd.DataFrame({
-                "open": [1.0],
-                "high": [1.05],
-                "low": [0.95],
-                "close": [1.02],
-                "volume": [100],
-            }, index=pd.date_range("2024-01-01", periods=1, freq="h", tz="UTC"))
+            df = pd.DataFrame(
+                {
+                    "open": [1.0],
+                    "high": [1.05],
+                    "low": [0.95],
+                    "close": [1.02],
+                    "volume": [100],
+                },
+                index=pd.date_range("2024-01-01", periods=1, freq="h", tz="UTC"),
+            )
             mock_load.return_value = (df, [])
 
             mock_strat = MagicMock()
@@ -501,10 +640,18 @@ class TestDataQualityFlags:
             "strategy": {
                 "strategy_name": "Test",
                 "long_entry_rules": [
-                    {"any_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_above", "left": "close", "right": 1.0}
+                        ]
+                    }
                 ],
                 "long_exit_rules": [
-                    {"any_of": [{"condition": "is_below", "left": "close", "right": 1.0}]}
+                    {
+                        "any_of": [
+                            {"condition": "is_below", "left": "close", "right": 1.0}
+                        ]
+                    }
                 ],
             },
         }
@@ -512,23 +659,27 @@ class TestDataQualityFlags:
 
         args = argparse.Namespace(demo=False, config=str(config_path), user="test")
 
-        with patch("trading_platform.cli.initialize_run") as mock_init, \
-             patch("trading_platform.cli.finalize_run"), \
-             patch("trading_platform.cli.run_backtest") as mock_backtest, \
-             patch("trading_platform.cli.compile_strategy") as mock_compile, \
-             patch("trading_platform.data.loader.load_instrument_data") as mock_load:
-
+        with patch("trading_platform.cli.initialize_run") as mock_init, patch(
+            "trading_platform.cli.finalize_run"
+        ), patch("trading_platform.cli.run_backtest") as mock_backtest, patch(
+            "trading_platform.cli.compile_strategy"
+        ) as mock_compile, patch(
+            "trading_platform.data.loader.load_instrument_data"
+        ) as mock_load:
             run_path = tmp_path / "runs/test"
             run_path.mkdir(parents=True)
             mock_init.return_value = run_path
 
-            df = pd.DataFrame({
-                "open": [1.0],
-                "high": [1.05],
-                "low": [0.95],
-                "close": [1.02],
-                "volume": [100],
-            }, index=pd.date_range("2024-01-01", periods=1, freq="h", tz="UTC"))
+            df = pd.DataFrame(
+                {
+                    "open": [1.0],
+                    "high": [1.05],
+                    "low": [0.95],
+                    "close": [1.02],
+                    "volume": [100],
+                },
+                index=pd.date_range("2024-01-01", periods=1, freq="h", tz="UTC"),
+            )
 
             # Return with flags - triggers line 381
             flags = ["gap_detected", "low_volume"]
@@ -581,10 +732,13 @@ class TestTrainModelFlag:
             train_model=True,  # This is the correct attribute name
         )
 
-        with patch("trading_platform.cli.DiagnosticSynthesisEngine") as mock_engine_cls, \
-             patch("trading_platform.ai.lab.trainer.train_profitability_model") as mock_train, \
-             patch("trading_platform.ai.lab.trainer.save_model") as mock_save:
-
+        with patch(
+            "trading_platform.cli.DiagnosticSynthesisEngine"
+        ) as mock_engine_cls, patch(
+            "trading_platform.ai.lab.trainer.train_profitability_model"
+        ) as mock_train, patch(
+            "trading_platform.ai.lab.trainer.save_model"
+        ) as mock_save:
             mock_engine = MagicMock()
             mock_engine_cls.return_value = mock_engine
             mock_engine.generate_report_markdown.return_value = "# Report"
@@ -602,4 +756,3 @@ class TestTrainModelFlag:
             # Verify train was called
             mock_train.assert_called_once_with(brief_data)
             assert mock_save.call_count == 1
-

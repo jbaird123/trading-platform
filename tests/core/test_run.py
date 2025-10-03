@@ -1330,7 +1330,22 @@ def test_finalize_run_signal_quality_analysis(tmp_path):
     signals_path = run_path / "signals.parquet"
     # Simulate a command signal series: 14 bars with 5 commands total
     sigs = pd.Series(
-        ["enter_long", None, None, "exit_long", None, "enter_short", "exit_short", None, None, None, "enter_long", None, None, "exit_long"],
+        [
+            "enter_long",
+            None,
+            None,
+            "exit_long",
+            None,
+            "enter_short",
+            "exit_short",
+            None,
+            None,
+            None,
+            "enter_long",
+            None,
+            None,
+            "exit_long",
+        ],
         name="signal",
     )
     sigs.to_frame().to_parquet(signals_path)

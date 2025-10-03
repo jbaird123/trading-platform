@@ -88,7 +88,9 @@ def test_strategy_params_applied_before_compilation(tmp_path):
     strategy_params_from_cfg = {"ema_fast_length": 20, "ema_slow_length": 80}
 
     existing_params = strategy_cfg.get("parameters", {})
-    base_params: dict[str, int] = dict(existing_params) if isinstance(existing_params, dict) else {}
+    base_params: dict[str, int] = (
+        dict(existing_params) if isinstance(existing_params, dict) else {}
+    )
     base_params.update(strategy_params_from_cfg)
     strategy_cfg["parameters"] = base_params
 
@@ -107,11 +109,13 @@ def test_strategy_params_applied_before_compilation(tmp_path):
         index=pd.date_range("2024-01-01", periods=100, freq="h"),
     )
 
-    signals = strat.generate_signals(df)
+    strat.generate_signals(df)
 
     # Verify EMAs were calculated with 20/80, not 12/26
     feat_df = strat._feature_df
-    assert feat_df is not None, "Feature DataFrame should not be None after signal generation"
+    assert (
+        feat_df is not None
+    ), "Feature DataFrame should not be None after signal generation"
 
     # Calculate expected EMA values manually
     # EMA formula: EMA_t = (Price_t * K) + (EMA_{t-1} * (1 - K))
@@ -134,10 +138,12 @@ def test_strategy_params_applied_before_compilation(tmp_path):
 
     assert (
         abs(feat_df.iloc[1]["ema_fast"] - expected_fast_1) < 1e-10
-    ), f"EMA fast not using length=20: expected {expected_fast_1}, got {feat_df.iloc[1]['ema_fast']}"
+    ), (f"EMA fast not using length=20: expected {expected_fast_1}, "
+        f"got {feat_df.iloc[1]['ema_fast']}")
     assert (
         abs(feat_df.iloc[1]["ema_slow"] - expected_slow_1) < 1e-10
-    ), f"EMA slow not using length=80: expected {expected_slow_1}, got {feat_df.iloc[1]['ema_slow']}"
+    ), (f"EMA slow not using length=80: expected {expected_slow_1}, "
+        f"got {feat_df.iloc[1]['ema_slow']}")
 
 
 def test_strategy_params_not_applied_uses_defaults():
@@ -232,11 +238,13 @@ def test_strategy_params_not_applied_uses_defaults():
         index=pd.date_range("2024-01-01", periods=100, freq="h"),
     )
 
-    signals = strat.generate_signals(df)
+    strat.generate_signals(df)
 
     # Verify EMAs were calculated with 12/26 (defaults)
     feat_df = strat._feature_df
-    assert feat_df is not None, "Feature DataFrame should not be None after signal generation"
+    assert (
+        feat_df is not None
+    ), "Feature DataFrame should not be None after signal generation"
 
     k_12 = 2 / 13
     k_26 = 2 / 27

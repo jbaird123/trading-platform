@@ -48,11 +48,8 @@ def test_tie_break_stop_then_tp_for_long():
     )
     rem = RiskExitManager(config=config.rem_config or {})
     result = run_backtest(
-
         market_data=df,
-
         signals=sig,
-
         strategy=strategy,
         config=config,
         rem=rem,

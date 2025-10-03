@@ -96,7 +96,8 @@ def test_compute_exit_efficiency_no_trades_for_exit_reason() -> None:
     # This can't happen naturally since exit_reasons is built from the trades
 
     # UNLESS the exit_reason field is None or empty for some trades!
-    # Line 451: exit_reasons = set(t.exit_reason for t in trades_with_analysis if t.exit_reason)
+    # Line 451: exit_reasons = set(t.exit_reason for t in trades_with_analysis
+    #                           if t.exit_reason)
     # The "if t.exit_reason" filters out None/empty
     # But then line 453 iterates over those reasons
     # So it should always find trades...
@@ -147,20 +148,22 @@ def test_compute_exit_efficiency_empty_reason_analysis() -> None:
     # Wait - I see it now!
     # The nested function analyze_by_exit_reason is defined inside
     # compute_exit_efficiency
-    # It filters: reason_trades = [t for t in trades_with_analysis if t.exit_reason == reason]
+    # It filters: reason_trades = [t for t in trades_with_analysis
+    #                           if t.exit_reason == reason]
 
-    # The outer code builds: exit_reasons = set(t.exit_reason for t in trades_with_analysis if t.exit_reason)
+    # The outer code builds: exit_reasons = set(t.exit_reason for t in
+    # trades_with_analysis if t.exit_reason)
 
-    # So if exit_reasons has "take_profit", then at least ONE trade in trades_with_analysis
-    # has exit_reason == "take_profit"
-    # So reason_trades will have at least one trade
+    # So if exit_reasons has "take_profit", then at least ONE trade in
+    # trades_with_analysis
+    # has exit_reason == "take_profit" - so reason_trades will have
+    # at least one trade
     # So line 396→397 can never be True naturally
 
     # CONCLUSION: Lines 397 and branch 455→453 are defensive/unreachable code
 
     # However, to get 100% coverage, we might need to test them anyway
     # Let's use mocking to force the condition
-
 
     # Create normal trade data
     trade = _mock_trade(50.0, datetime(2024, 1, 1))

@@ -120,11 +120,15 @@ class RunConfig(BaseModel):
     # Data request for fetching market data
     data_request: dict[str, Any] = Field(
         default_factory=dict,
-        description="Data request specification (symbol, timeframe, start, end)."
+        description="Data request specification (symbol, timeframe, start, end).",
     )
     # Component configurations
     instrument: dict[str, Any] | None = Field(
-        default=None, description="Instrument definition for the run (auto-populated from data_request if omitted)."
+        default=None,
+        description=(
+            "Instrument definition for the run "
+            "(auto-populated from data_request if omitted)."
+        ),
     )
     pm_limits: dict[str, int] | None = Field(
         default=None, description="Position manager limits (e.g., max_open_long)."
@@ -158,14 +162,17 @@ class RunConfig(BaseModel):
         """
         # Auto-populate instrument from data_request if not provided
         if not self.instrument and self.data_request:
-            if 'symbol' in self.data_request:
+            if "symbol" in self.data_request:
                 self.instrument = {
-                    'symbol': self.data_request['symbol'],
-                    'timeframe': self.data_request.get('timeframe'),
+                    "symbol": self.data_request["symbol"],
+                    "timeframe": self.data_request.get("timeframe"),
                 }
 
         if not isinstance(self.instrument, dict):
-            raise ValueError("instrument symbol is required (provide instrument or data_request with symbol)")
+            raise ValueError(
+                "instrument symbol is required "
+                "(provide instrument or data_request with symbol)"
+            )
 
         symbol = self.instrument.get("symbol", "")
         if not symbol or not symbol.strip():

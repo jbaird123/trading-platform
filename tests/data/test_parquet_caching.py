@@ -18,11 +18,13 @@ def test_parquet_cache_creates_cache_file(tmp_path: Path):
     """
     # Create source CSV
     csv_file = tmp_path / "data.csv"
-    data = pd.DataFrame({
-        "timestamp": [f"2024-01-01T{i:02d}:00:00" for i in range(24)],
-        "close": [1.1000 + i * 0.0001 for i in range(24)],
-        "volume": [1000 + i for i in range(24)]
-    })
+    data = pd.DataFrame(
+        {
+            "timestamp": [f"2024-01-01T{i:02d}:00:00" for i in range(24)],
+            "close": [1.1000 + i * 0.0001 for i in range(24)],
+            "volume": [1000 + i for i in range(24)],
+        }
+    )
     data.to_csv(csv_file, index=False)
 
     # Create Parquet cache
@@ -45,14 +47,18 @@ def test_parquet_cache_faster_than_csv(tmp_path: Path):
     """
     # Create larger dataset
     rows = 10000
-    data = pd.DataFrame({
-        "timestamp": [f"2024-01-01T{i:02d}:{i%60:02d}:{i%60:02d}" for i in range(rows)],
-        "open": [1.1000 + i * 0.0001 for i in range(rows)],
-        "high": [1.1010 + i * 0.0001 for i in range(rows)],
-        "low": [1.0990 + i * 0.0001 for i in range(rows)],
-        "close": [1.1005 + i * 0.0001 for i in range(rows)],
-        "volume": [1000 + i for i in range(rows)]
-    })
+    data = pd.DataFrame(
+        {
+            "timestamp": [
+                f"2024-01-01T{i:02d}:{i%60:02d}:{i%60:02d}" for i in range(rows)
+            ],
+            "open": [1.1000 + i * 0.0001 for i in range(rows)],
+            "high": [1.1010 + i * 0.0001 for i in range(rows)],
+            "low": [1.0990 + i * 0.0001 for i in range(rows)],
+            "close": [1.1005 + i * 0.0001 for i in range(rows)],
+            "volume": [1000 + i for i in range(rows)],
+        }
+    )
 
     csv_file = tmp_path / "large_data.csv"
     parquet_file = tmp_path / "large_data.parquet"
@@ -62,12 +68,12 @@ def test_parquet_cache_faster_than_csv(tmp_path: Path):
 
     # Time CSV reading
     start = time.perf_counter()
-    df_csv = pd.read_csv(csv_file)
+    pd.read_csv(csv_file)
     csv_time = time.perf_counter() - start
 
     # Time Parquet reading
     start = time.perf_counter()
-    df_parquet = pd.read_parquet(parquet_file)
+    pd.read_parquet(parquet_file)
     parquet_time = time.perf_counter() - start
 
     # Parquet should be faster (typically 2-10x)
@@ -84,26 +90,34 @@ def test_parquet_cache_invalidation_on_source_change(tmp_path: Path):
     parquet_file = tmp_path / "data.parquet"
 
     # Create initial data
-    data_v1 = pd.DataFrame({
-        "timestamp": ["2024-01-01T00:00:00", "2024-01-01T01:00:00"],
-        "close": [1.1000, 1.1001],
-        "volume": [1000, 1001]
-    })
+    data_v1 = pd.DataFrame(
+        {
+            "timestamp": ["2024-01-01T00:00:00", "2024-01-01T01:00:00"],
+            "close": [1.1000, 1.1001],
+            "volume": [1000, 1001],
+        }
+    )
     data_v1.to_csv(csv_file, index=False)
     data_v1.to_parquet(parquet_file, index=False)
 
-    csv_mtime_v1 = csv_file.stat().st_mtime
+    csv_file.stat().st_mtime
     parquet_mtime_v1 = parquet_file.stat().st_mtime
 
     # Wait to ensure different timestamps
     time.sleep(0.1)
 
     # Modify CSV
-    data_v2 = pd.DataFrame({
-        "timestamp": ["2024-01-01T00:00:00", "2024-01-01T01:00:00", "2024-01-01T02:00:00"],
-        "close": [1.1000, 1.1001, 1.1002],
-        "volume": [1000, 1001, 1002]
-    })
+    data_v2 = pd.DataFrame(
+        {
+            "timestamp": [
+                "2024-01-01T00:00:00",
+                "2024-01-01T01:00:00",
+                "2024-01-01T02:00:00",
+            ],
+            "close": [1.1000, 1.1001, 1.1002],
+            "volume": [1000, 1001, 1002],
+        }
+    )
     data_v2.to_csv(csv_file, index=False)
 
     csv_mtime_v2 = csv_file.stat().st_mtime
@@ -121,12 +135,14 @@ def test_parquet_cache_preserves_schema(tmp_path: Path):
     parquet_file = tmp_path / "typed_data.parquet"
 
     # Create data with specific types
-    data = pd.DataFrame({
-        "timestamp": pd.to_datetime(["2024-01-01T00:00:00", "2024-01-01T01:00:00"]),
-        "close": [1.1000, 1.1001],
-        "volume": [1000, 1001],
-        "symbol": ["EURUSD", "EURUSD"]
-    })
+    data = pd.DataFrame(
+        {
+            "timestamp": pd.to_datetime(["2024-01-01T00:00:00", "2024-01-01T01:00:00"]),
+            "close": [1.1000, 1.1001],
+            "volume": [1000, 1001],
+            "symbol": ["EURUSD", "EURUSD"],
+        }
+    )
 
     # Save to CSV and Parquet
     data.to_csv(csv_file, index=False)
@@ -148,12 +164,14 @@ def test_parquet_cache_compression_reduces_size(tmp_path: Path):
     """
     # Create data with repetitive patterns (compressible)
     rows = 5000
-    data = pd.DataFrame({
-        "timestamp": [f"2024-01-01T{i%24:02d}:00:00" for i in range(rows)],
-        "symbol": ["EURUSD"] * rows,  # Highly compressible
-        "close": [1.1000 + (i % 100) * 0.0001 for i in range(rows)],
-        "volume": [1000] * rows  # Highly compressible
-    })
+    data = pd.DataFrame(
+        {
+            "timestamp": [f"2024-01-01T{i%24:02d}:00:00" for i in range(rows)],
+            "symbol": ["EURUSD"] * rows,  # Highly compressible
+            "close": [1.1000 + (i % 100) * 0.0001 for i in range(rows)],
+            "volume": [1000] * rows,  # Highly compressible
+        }
+    )
 
     csv_file = tmp_path / "compressible.csv"
     parquet_file = tmp_path / "compressible.parquet"
@@ -177,11 +195,17 @@ def test_parquet_cache_handles_missing_values(tmp_path: Path):
     parquet_file = tmp_path / "sparse_data.parquet"
 
     # Create data with NaN values
-    data = pd.DataFrame({
-        "timestamp": ["2024-01-01T00:00:00", "2024-01-01T01:00:00", "2024-01-01T02:00:00"],
-        "close": [1.1000, None, 1.1002],
-        "volume": [1000, 1001, None]
-    })
+    data = pd.DataFrame(
+        {
+            "timestamp": [
+                "2024-01-01T00:00:00",
+                "2024-01-01T01:00:00",
+                "2024-01-01T02:00:00",
+            ],
+            "close": [1.1000, None, 1.1002],
+            "volume": [1000, 1001, None],
+        }
+    )
 
     data.to_csv(csv_file, index=False)
     data.to_parquet(parquet_file, index=False)
@@ -203,14 +227,16 @@ def test_parquet_cache_supports_column_selection(tmp_path: Path):
     parquet_file = tmp_path / "multi_column.parquet"
 
     # Create data with many columns
-    data = pd.DataFrame({
-        "timestamp": ["2024-01-01T00:00:00", "2024-01-01T01:00:00"],
-        "open": [1.1000, 1.1001],
-        "high": [1.1010, 1.1011],
-        "low": [1.0990, 1.0991],
-        "close": [1.1005, 1.1006],
-        "volume": [1000, 1001]
-    })
+    data = pd.DataFrame(
+        {
+            "timestamp": ["2024-01-01T00:00:00", "2024-01-01T01:00:00"],
+            "open": [1.1000, 1.1001],
+            "high": [1.1010, 1.1011],
+            "low": [1.0990, 1.0991],
+            "close": [1.1005, 1.1006],
+            "volume": [1000, 1001],
+        }
+    )
 
     data.to_parquet(parquet_file, index=False)
 

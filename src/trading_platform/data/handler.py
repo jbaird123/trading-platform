@@ -1,5 +1,6 @@
 """
-DataHandler: Centralized data access with intelligent caching and hierarchical resampling.
+DataHandler: Centralized data access with intelligent caching
+and hierarchical resampling.
 
 The DataHandler loads raw data once and maintains a cache of resampled timeframes.
 When a new timeframe is requested, it intelligently resamples from the largest
@@ -44,26 +45,26 @@ def _parse_timeframe_to_minutes(timeframe: str) -> int:
     tf = timeframe.strip().upper()
 
     # Handle minute formats
-    if tf.endswith('MIN') or tf.endswith('T'):
-        match = re.match(r'^(\d+)(MIN|T)$', tf)
+    if tf.endswith("MIN") or tf.endswith("T"):
+        match = re.match(r"^(\d+)(MIN|T)$", tf)
         if match:
             return int(match.group(1))
 
     # Handle hour formats
-    if tf.endswith('H'):
-        match = re.match(r'^(\d+)H$', tf)
+    if tf.endswith("H"):
+        match = re.match(r"^(\d+)H$", tf)
         if match:
             return int(match.group(1)) * 60
 
     # Handle day formats
-    if tf.endswith('D'):
-        match = re.match(r'^(\d+)D$', tf)
+    if tf.endswith("D"):
+        match = re.match(r"^(\d+)D$", tf)
         if match:
             return int(match.group(1)) * 1440
 
     # Handle week formats
-    if tf.endswith('W'):
-        match = re.match(r'^(\d+)W$', tf)
+    if tf.endswith("W"):
+        match = re.match(r"^(\d+)W$", tf)
         if match:
             return int(match.group(1)) * 10080
 
@@ -99,7 +100,9 @@ class DataHandler:
         self.instrument = instrument
 
         # Load raw data once
-        self._raw_data, self.data_quality_flags = load_instrument_data(symbol, data_root)
+        self._raw_data, self.data_quality_flags = load_instrument_data(
+            symbol, data_root
+        )
 
         # Cache: timeframe_str -> full_dataframe
         # All cached data contains the complete dataset
@@ -127,7 +130,8 @@ class DataHandler:
         different date range requests.
 
         Args:
-            timeframe: Target timeframe (e.g., "1H", "4H", "1D"). If None, returns base data.
+            timeframe: Target timeframe (e.g., "1H", "4H", "1D").
+                If None, returns base data.
             start: Start date/time for filtering. If None, returns from beginning.
             end: End date/time for filtering. If None, returns to end.
 
@@ -192,7 +196,10 @@ class DataHandler:
 
         # Find largest cached timeframe that evenly divides into target
         for cached_minutes, cached_tf in cached_options:
-            if cached_minutes <= target_minutes and target_minutes % cached_minutes == 0:
+            if (
+                cached_minutes <= target_minutes
+                and target_minutes % cached_minutes == 0
+            ):
                 return self._cache[cached_tf]
 
         # Fallback to raw data (should always work since base is 1min)
@@ -257,7 +264,8 @@ class DataHandler:
         """Clear the timeframe cache.
 
         Args:
-            keep_base: If True, keeps the base raw data in cache. If False, clears everything.
+            keep_base: If True, keeps the base raw data in cache.
+                If False, clears everything.
         """
         if keep_base:
             self._cache = {self._base_timeframe: self._raw_data}

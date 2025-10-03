@@ -20,12 +20,12 @@ def extract_validates_comments(file_path: Path) -> list[str]:
         content = file_path.read_text()
 
         # Find all "# Validates:" comments
-        pattern = r'#\s*Validates:\s*\[([^\]]+)\]'
+        pattern = r"#\s*Validates:\s*\[([^\]]+)\]"
         matches = re.findall(pattern, content)
 
         for match in matches:
             # Split by commas and clean up each requirement ID
-            ids = [req_id.strip() for req_id in match.split(',')]
+            ids = [req_id.strip() for req_id in match.split(",")]
             req_ids.extend(ids)
 
     except Exception as e:
@@ -58,7 +58,7 @@ def generate_markdown_report(requirement_map: dict[str, list[Path]], output_path
 
     for req_id in sorted(requirement_map.keys()):
         # Extract category (e.g., "SYS", "DH", "PM")
-        category = req_id.split('-')[0] if '-' in req_id else "OTHER"
+        category = req_id.split("-")[0] if "-" in req_id else "OTHER"
         categories[category].append(req_id)
 
     # Generate markdown
@@ -71,36 +71,40 @@ def generate_markdown_report(requirement_map: dict[str, list[Path]], output_path
         "## Summary",
         "",
         f"- **Total Requirements Covered**: {len(requirement_map)}",
-        f"- **Total Test Files**: {sum(len(files) for files in requirement_map.values())}",
+        f"- **Total Test Files**: "
+        f"{sum(len(files) for files in requirement_map.values())}",
         "",
         "## Coverage by Category",
-        ""
+        "",
     ]
 
     # Category summary
-    category_order = ["SYS", "DH", "SE", "RMM", "PM", "REM", "BT", "EL", "AI", "RV", "JSON"]
+    category_order = [
+        "SYS",
+        "DH",
+        "SE",
+        "RMM",
+        "PM",
+        "REM",
+        "BT",
+        "EL",
+        "AI",
+        "RV",
+        "JSON",
+    ]
     for category in category_order:
         if category in categories:
             count = len(categories[category])
             lines.append(f"- **{category}**: {count} requirements")
 
-    lines.extend([
-        "",
-        "---",
-        "",
-        "## Detailed Mapping",
-        ""
-    ])
+    lines.extend(["", "---", "", "## Detailed Mapping", ""])
 
     # Detailed listing by category
     for category in category_order:
         if category not in categories:
             continue
 
-        lines.extend([
-            f"### {category} Requirements",
-            ""
-        ])
+        lines.extend([f"### {category} Requirements", ""])
 
         for req_id in sorted(categories[category]):
             test_files = requirement_map[req_id]
@@ -155,9 +159,7 @@ def main():
 
     # Find requirements with most tests
     most_tested = sorted(
-        requirement_map.items(),
-        key=lambda x: len(x[1]),
-        reverse=True
+        requirement_map.items(), key=lambda x: len(x[1]), reverse=True
     )[:5]
 
     print("\nTop 5 most-tested requirements:")

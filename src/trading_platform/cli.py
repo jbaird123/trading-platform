@@ -177,7 +177,8 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             last_days = int(fast_mode.get("last_days", 0) or 0)
             limit_bars = int(fast_mode.get("limit_bars", 0) or 0)
         except Exception:  # pragma: no cover
-            last_days = 0  # pragma: no cover - Defensive: fallback if fast_mode has invalid values
+            last_days = 0  # pragma: no cover - Defensive: fallback if
+            # fast_mode has invalid values
             limit_bars = 0  # pragma: no cover
         if last_days > 0 and isinstance(df.index, pd.DatetimeIndex):
             cutoff = df.index.max() - timedelta(days=last_days)
@@ -333,7 +334,9 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             rmm_spans_path.write_text(json.dumps(spans))
             print(f"- RMM spans: {rmm_spans_path}")
         except Exception:  # pragma: no cover
-            rmm_spans_path = None  # pragma: no cover - Defensive: RMM span save might fail
+            rmm_spans_path = (
+                None  # pragma: no cover - Defensive: RMM span save might fail
+            )
 
     # Output toggles; default to no exposure unless explicitly requested
     ret_exp = bool(cfg_raw.get("return_exposure", False))
@@ -425,7 +428,8 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             )
         else:
             # Otherwise, just do walk-forward ANALYSIS on existing trades
-            # (splits trades by time into train/test windows and computes OOS performance)
+            # (splits trades by time into train/test windows and computes
+            # OOS performance)
             wf_results = walk_forward_summary(
                 trades,
                 window=int(wf_cfg.get("window", 0)),
@@ -546,7 +550,9 @@ def cmd_ai_diagnose(args: argparse.Namespace) -> int:
             report_path.write_text(feedback)
             print(f"Qualitative report saved to {report_path}")
         except Exception as e:  # pragma: no cover
-            print(f"Could not generate qualitative report: {e}", file=sys.stderr)  # pragma: no cover - Defensive: LLM report generation might fail
+            print(
+                f"Could not generate qualitative report: {e}", file=sys.stderr
+            )  # pragma: no cover - Defensive: LLM report generation might fail
 
     print(f"AI diagnostic reports saved to {output_dir}")
     return 0

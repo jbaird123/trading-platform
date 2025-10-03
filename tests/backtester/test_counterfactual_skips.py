@@ -58,11 +58,8 @@ def test_counterfactual_for_blackout_skip_with_tp():
     )
     rem = RiskExitManager(config={})
     result = run_backtest(
-
         market_data=df,
-
         signals=sig,
-
         strategy=strategy,
         config=config,
         rem=rem,
@@ -99,11 +96,8 @@ def test_rmm_skip_records_policy_snapshot() -> None:
         }
     }
     result = run_backtest(
-
         market_data=df,
-
         signals=sig,
-
         strategy=strategy,
         config=config,
         rem=rem,
@@ -136,11 +130,8 @@ def test_run_backtest_returns_exposure_without_skips() -> None:
     )
     rem = RiskExitManager(config={})
     result = run_backtest(
-
         market_data=df,
-
         signals=sig,
-
         strategy=strategy,
         config=config,
         rem=rem,

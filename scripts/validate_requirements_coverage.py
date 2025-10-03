@@ -25,7 +25,7 @@ def load_requirements_from_docs(req_file: Path) -> set[str]:
     content = req_file.read_text()
 
     # Pattern to match requirement IDs like [SYS-1.2.3], [DH-2.1], etc.
-    pattern = r'\[([A-Z]+-[0-9.]+)\]'
+    pattern = r"\[([A-Z]+-[0-9.]+)\]"
     req_ids = set(re.findall(pattern, content))
 
     return req_ids
@@ -100,18 +100,23 @@ def main():
 
     categories = {}
     for req_id in documented_reqs:
-        category = req_id.split('-')[0] if '-' in req_id else 'OTHER'
+        category = req_id.split("-")[0] if "-" in req_id else "OTHER"
         if category not in categories:
-            categories[category] = {'total': 0, 'covered': 0}
-        categories[category]['total'] += 1
+            categories[category] = {"total": 0, "covered": 0}
+        categories[category]["total"] += 1
         if req_id in covered_reqs:
-            categories[category]['covered'] += 1
+            categories[category]["covered"] += 1
 
     for category in sorted(categories.keys()):
         stats = categories[category]
-        cat_coverage = (stats['covered'] / stats['total'] * 100) if stats['total'] > 0 else 0
+        cat_coverage = (
+            (stats["covered"] / stats["total"] * 100) if stats["total"] > 0 else 0
+        )
         status = "✅" if cat_coverage >= 90 else "🟡" if cat_coverage >= 70 else "🔴"
-        print(f"{status} {category:10s}: {stats['covered']:3d}/{stats['total']:3d} ({cat_coverage:5.1f}%)")
+        print(
+            f"{status} {category:10s}: {stats['covered']:3d}/"
+            f"{stats['total']:3d} ({cat_coverage:5.1f}%)"
+        )
 
     # Determine exit code
     print("\n" + "=" * 60)

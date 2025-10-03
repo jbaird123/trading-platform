@@ -17,7 +17,7 @@ def check_file_has_validates(file_path: Path) -> tuple[bool, list[str]]:
     """Check if file has Validates comments and return all requirement IDs."""
     try:
         content = file_path.read_text()
-        pattern = r'#\s*Validates:\s*\[([^\]]+)\]'
+        pattern = r"#\s*Validates:\s*\[([^\]]+)\]"
         matches = re.findall(pattern, content)
 
         if not matches:
@@ -26,7 +26,7 @@ def check_file_has_validates(file_path: Path) -> tuple[bool, list[str]]:
         # Extract all requirement IDs
         req_ids = []
         for match in matches:
-            for req_id in match.split(','):
+            for req_id in match.split(","):
                 req_ids.append(req_id.strip())
 
         return True, req_ids
@@ -39,13 +39,13 @@ def check_file_has_validates(file_path: Path) -> tuple[bool, list[str]]:
 def is_utility_test(file_path: Path) -> bool:
     """Check if test file appears to be a utility/infrastructure test."""
     utility_patterns = [
-        'conftest',
-        '__init__',
-        'fixture',
-        'helper',
-        'utils',
-        'common',
-        'base',
+        "conftest",
+        "__init__",
+        "fixture",
+        "helper",
+        "utils",
+        "common",
+        "base",
     ]
 
     name_lower = file_path.name.lower()
@@ -122,7 +122,7 @@ def main():
     category_stats: dict[str, set[str]] = {}
     for file_path, req_ids in validated_files:
         for req_id in req_ids:
-            category = req_id.split('-')[0] if '-' in req_id else 'OTHER'
+            category = req_id.split("-")[0] if "-" in req_id else "OTHER"
             if category not in category_stats:
                 category_stats[category] = set()
             category_stats[category].add(req_id)
@@ -144,7 +144,9 @@ def main():
 
     if len(validated_files) < len(all_test_files) * 0.9:
         print("\n2. Target 90%+ traceability")
-        current_pct = (len(validated_files) / len(all_test_files) * 100) if all_test_files else 0
+        current_pct = (
+            (len(validated_files) / len(all_test_files) * 100) if all_test_files else 0
+        )
         print(f"   Current: {current_pct:.1f}%")
         print(f"   Gap: {90 - current_pct:.1f}%")
 
@@ -153,7 +155,7 @@ def main():
 
     # Save report
     report_path = project_root / "ORPHANED_TESTS.md"
-    with open(report_path, 'w') as f:
+    with open(report_path, "w") as f:
         f.write("# Orphaned Tests Report\n\n")
         f.write(f"**Generated**: {Path.cwd()}\n\n")
 

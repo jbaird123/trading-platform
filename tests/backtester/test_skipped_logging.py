@@ -53,11 +53,8 @@ def test_skip_logged_for_blackout():
     )
     rem = RiskExitManager(config={})
     result = run_backtest(
-
         market_data=df,
-
         signals=sig,
-
         strategy=strategy,
         config=config,
         rem=rem,
@@ -90,11 +87,8 @@ def test_skip_logged_for_position_cap():
     )
     rem = RiskExitManager(config={})
     result = run_backtest(
-
         market_data=df,
-
         signals=sig,
-
         strategy=strategy,
         config=config,
         rem=rem,
@@ -104,5 +98,7 @@ def test_skip_logged_for_position_cap():
     trades, _exp, skips = result  # type: ignore[misc]
     # One entry, second long should be skipped due to cap
     assert skips is not None
-    # TODO: Fix this test for command-based signals - position cap logic needs review
-    # assert any(s.get("skip_reason") == "position_cap" for s in skips)  # type: ignore[union-attr]
+    # TODO: Fix this test for command-based signals - position cap logic
+    # needs review
+    # assert any(s.get("skip_reason") == "position_cap" for s in skips)
+    # type: ignore[union-attr]

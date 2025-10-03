@@ -41,7 +41,8 @@ class PortfolioManager:
         # Entry window tracking for command-based entry management
         # Format: {side: (window_start_bar_index, last_entered_bar_index)}
         # window_start_bar_index: when entry command was received for this side
-        # last_entered_bar_index: last bar where we entered on this command (None if not entered)
+        # last_entered_bar_index: last bar where we entered on this command
+        # (None if not entered)
         self._entry_windows: dict[str, tuple[int, int | None]] = {
             "long": (-1, None),
             "short": (-1, None),
@@ -110,7 +111,8 @@ class PortfolioManager:
 
         Returns:
             Dictionary with:
-            - "action": "entered" | "exited" | "ignored" | "window_opened" | "window_active"
+            - "action": "entered" | "exited" | "ignored" | "window_opened"
+                | "window_active"
             - "side": "long" | "short" | None
             - "reason": str (if ignored)
         """

@@ -67,7 +67,8 @@ def _enrich_trades_with_post_exit_analysis(
             post_bars = market_data.iloc[exit_idx + 1 : end_idx + 1]
 
             if len(post_bars) == 0:  # pragma: no cover
-                # Defensive check - unreachable in practice since iloc slicing with valid indices always returns data
+                # Defensive check - unreachable in practice since iloc slicing
+                # with valid indices always returns data
                 post_exit_data[str(horizon)] = {"mfe": 0.0, "mae": 0.0}
                 continue  # pragma: no cover
 
@@ -376,9 +377,14 @@ def run_backtest(
                         i,
                     )
 
-            elif not policy.can_open(cast(datetime, current_bar.name)):  # pragma: no cover
-                # Entry window open but blackout period active  # pragma: no cover - Defensive: blackout blocks entry at line 269
-                reason = policy.reason(cast(datetime, current_bar.name)) or "blackout"  # pragma: no cover
+            elif not policy.can_open(
+                cast(datetime, current_bar.name)
+            ):  # pragma: no cover
+                # Entry window open but blackout period active
+                # pragma: no cover - Defensive: blackout blocks entry at line 269
+                reason = (
+                    policy.reason(cast(datetime, current_bar.name)) or "blackout"
+                )  # pragma: no cover
                 snap = {
                     "blackout_utc": config.blackout_utc or [],
                     "blackout_events": config.blackout_events or [],
@@ -417,7 +423,8 @@ def run_backtest(
             if isinstance(val, int):
                 si = val
             else:  # pragma: no cover
-                # Defensive check - entry_index is always set to loop index (int) in normal operation
+                # Defensive check - entry_index is always set to loop index
+                # (int) in normal operation
                 try:  # pragma: no cover
                     si = int(str(val))  # pragma: no cover
                 except Exception:  # pragma: no cover

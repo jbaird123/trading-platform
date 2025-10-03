@@ -10,7 +10,6 @@ This script parses coverage.json and identifies:
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -24,30 +23,32 @@ def load_coverage_data(coverage_file: str) -> dict[Any, Any]:
 
 def analyze_gaps(coverage_data: dict):
     """Analyze coverage gaps and generate report."""
-    files = coverage_data.get('files', {})
+    files = coverage_data.get("files", {})
 
     # Collect file statistics
     file_stats = []
     for file_path, data in files.items():
-        if not file_path.startswith('trading_platform/'):
+        if not file_path.startswith("trading_platform/"):
             continue
 
-        summary = data.get('summary', {})
-        covered = summary.get('covered_lines', 0)
-        total = summary.get('num_statements', 0)
+        summary = data.get("summary", {})
+        covered = summary.get("covered_lines", 0)
+        total = summary.get("num_statements", 0)
 
         if total > 0:
             pct = (covered / total) * 100
-            file_stats.append({
-                'file': file_path,
-                'covered': covered,
-                'total': total,
-                'percent': pct,
-                'missing': total - covered
-            })
+            file_stats.append(
+                {
+                    "file": file_path,
+                    "covered": covered,
+                    "total": total,
+                    "percent": pct,
+                    "missing": total - covered,
+                }
+            )
 
     # Sort by coverage percentage
-    file_stats.sort(key=lambda x: x['percent'])
+    file_stats.sort(key=lambda x: x["percent"])
 
     return file_stats
 
@@ -62,10 +63,13 @@ def generate_report(file_stats: list[dict], output_path: Path):
     print("\n📉 Files with Lowest Coverage (Top 20):\n")
     for stat in file_stats[:20]:
         print(f"  {stat['percent']:5.1f}%  {stat['file']}")
-        print(f"         ({stat['covered']}/{stat['total']} lines, {stat['missing']} missing)")
+        print(
+            f"         ({stat['covered']}/{stat['total']} lines, "
+            f"{stat['missing']} missing)"
+        )
 
     # Files with 0% coverage
-    zero_coverage = [s for s in file_stats if s['percent'] == 0.0]
+    zero_coverage = [s for s in file_stats if s["percent"] == 0.0]
     if zero_coverage:
         print(f"\n❌ Files with 0% Coverage ({len(zero_coverage)} files):\n")
         for stat in zero_coverage[:10]:
@@ -74,15 +78,17 @@ def generate_report(file_stats: list[dict], output_path: Path):
             print(f"  ... and {len(zero_coverage) - 10} more")
 
     # Save detailed report
-    with open(output_path, 'w') as f:
+    with open(output_path, "w") as f:
         f.write("# Coverage Gaps Report\n\n")
         f.write("## Files with Lowest Coverage\n\n")
         f.write("| File | Coverage | Lines Covered | Lines Total | Missing |\n")
         f.write("|------|----------|---------------|-------------|----------|\n")
 
         for stat in file_stats[:30]:
-            f.write(f"| `{stat['file']}` | {stat['percent']:.1f}% | "
-                   f"{stat['covered']} | {stat['total']} | {stat['missing']} |\n")
+            f.write(
+                f"| `{stat['file']}` | {stat['percent']:.1f}% | "
+                f"{stat['covered']} | {stat['total']} | {stat['missing']} |\n"
+            )
 
         f.write("\n## Files with 0% Coverage\n\n")
         for stat in zero_coverage:

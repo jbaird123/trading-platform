@@ -56,7 +56,9 @@ def when_backtest_is_run(shared_context: dict) -> None:
     else:
         strategy = _dummy_strategy_cfg()
 
-    strategy.generate_signals(shared_context["market_data"])  # Populate _feature_df for context lookups
+    strategy.generate_signals(
+        shared_context["market_data"]
+    )  # Populate _feature_df for context lookups
 
     config = RunConfig(
         user_id="test_user",

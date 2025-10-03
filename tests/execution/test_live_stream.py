@@ -19,7 +19,9 @@ def test_live_stream_connection_established():
 
     Validates: [EL-8.6]
     """
-    from trading_platform.execution.stream import LiveDataStream  # type: ignore[import-untyped]
+    from trading_platform.execution.stream import (
+        LiveDataStream,  # type: ignore[import-untyped]
+    )
 
     mock_api = Mock()
     mock_api.connect_stream.return_value = True
@@ -43,14 +45,24 @@ def test_live_stream_receives_price_updates():
 
     # Simulate incoming prices
     mock_prices = [
-        {"symbol": "EURUSD", "bid": 1.1000, "ask": 1.1002, "timestamp": "2024-01-01T00:00:00"},
-        {"symbol": "EURUSD", "bid": 1.1001, "ask": 1.1003, "timestamp": "2024-01-01T00:00:01"},
+        {
+            "symbol": "EURUSD",
+            "bid": 1.1000,
+            "ask": 1.1002,
+            "timestamp": "2024-01-01T00:00:00",
+        },
+        {
+            "symbol": "EURUSD",
+            "bid": 1.1001,
+            "ask": 1.1003,
+            "timestamp": "2024-01-01T00:00:01",
+        },
     ]
 
     for price in mock_prices:
         price_queue.put(price)
 
-    stream = LiveDataStream(mock_api, price_queue=price_queue)
+    LiveDataStream(mock_api, price_queue=price_queue)
     received_prices = []
 
     # Process prices from queue
@@ -120,7 +132,7 @@ def test_live_stream_heartbeat_monitoring():
     from trading_platform.execution.stream import LiveDataStream
 
     mock_api = Mock()
-    stream = LiveDataStream(mock_api, heartbeat_interval=1.0, heartbeat_timeout=2.0)
+    LiveDataStream(mock_api, heartbeat_interval=1.0, heartbeat_timeout=2.0)
 
     # Simulate heartbeat timestamps
     last_heartbeat = time.time()
@@ -158,7 +170,7 @@ def test_live_stream_handles_rate_limiting():
 
     # Verify requests are spaced appropriately
     for i in range(1, len(request_times)):
-        interval = request_times[i] - request_times[i-1]
+        interval = request_times[i] - request_times[i - 1]
         assert interval >= 0.1  # At least 0.1s between requests
 
 
@@ -176,11 +188,13 @@ def test_live_stream_buffering():
 
     # Fill buffer with tick data
     for i in range(buffer_size):
-        stream.buffer.append({
-            "symbol": "EURUSD",
-            "price": 1.1000 + i * 0.0001,
-            "timestamp": f"2024-01-01T00:{i:02d}:00"
-        })
+        stream.buffer.append(
+            {
+                "symbol": "EURUSD",
+                "price": 1.1000 + i * 0.0001,
+                "timestamp": f"2024-01-01T00:{i:02d}:00",
+            }
+        )
 
     assert len(stream.buffer) == buffer_size
 
@@ -239,9 +253,16 @@ def test_live_stream_error_handling():
 class LiveDataStream:
     """Mock live data stream."""
 
-    def __init__(self, api, buffer_size=1000, rate_limit=100,
-                 heartbeat_interval=5.0, heartbeat_timeout=30.0,
-                 auto_reconnect=False, price_queue=None):
+    def __init__(
+        self,
+        api,
+        buffer_size=1000,
+        rate_limit=100,
+        heartbeat_interval=5.0,
+        heartbeat_timeout=30.0,
+        auto_reconnect=False,
+        price_queue=None,
+    ):
         self.api = api
         self.buffer = []
         self.buffer_size = buffer_size
