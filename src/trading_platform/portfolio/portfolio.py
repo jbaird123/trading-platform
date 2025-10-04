@@ -447,9 +447,21 @@ class PortfolioManager:
         cost_exit, breakdown_exit = self._cost_model.compute_exit_cost(
             self._open_position.size, price=exit_mid, instrument=self.instrument
         )
-        spread_cost = self._cost_model.compute_spread_cost(
+        spread_cost_in_quote_ccy = self._cost_model.compute_spread_cost(
             self._open_position.size, instrument=self.instrument
         )
+
+        # Convert spread cost to base currency if necessary. For pairs like
+        # USD/JPY, the cost is in JPY and must be divided by the exit rate.
+        spread_cost = spread_cost_in_quote_ccy
+        if (
+            self.instrument
+            and self.instrument.get("asset_class") == "Forex"
+            and self.instrument.get("symbol", "").startswith(self.base_currency)
+            and exit_mid > 0
+        ):
+            spread_cost = spread_cost_in_quote_ccy / exit_mid
+
         commission_and_slippage_cost = cost_entry + cost_exit
         total_cost = commission_and_slippage_cost + spread_cost
 
