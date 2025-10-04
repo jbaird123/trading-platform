@@ -1,0 +1,29 @@
+user_id: "researcher"
+initial_cash: 100000
+position_size: 50000
+warmup_bars: 100
+entry_window_bars: 3
+tie_break_policy:
+  rule: "stop_then_tp"
+
+cost_model:
+  spread_per_unit: 0.00015
+  slippage_per_unit: 0.0
+  commission:
+    type: "per_unit"
+    value: 0.0
+
+data_request:
+  symbol: "EUR_USD"
+  timeframe: "1H"
+  start: "2024-01-01"
+  end: "2024-12-31"
+
+strategy_path: "config/strategy/ema_crossover.yaml"
+rem_path: "config/rem/trailing_stops.yaml"
+
+# Test 16/60 EMAs - using parameters, not overrides
+strategy_params:
+  ema_fast_length: 16
+  ema_slow_length: 60
+  slope_filter: false

@@ -1,0 +1,38 @@
+user_id: "researcher"
+initial_cash: 100000
+position_size: 50000
+warmup_bars: 100
+entry_window_bars: 3
+tie_break_policy:
+  rule: "stop_then_tp"
+
+# Transaction costs
+cost_model:
+  spread_per_unit: 0.00015
+  slippage_per_unit: 0.0
+  commission:
+    type: "per_unit"
+    value: 0.0
+
+# Data - Full 12 years
+data_request:
+  symbol: "EUR_USD"
+  timeframe: "1H"
+  start: "2013-01-01"
+  end: "2025-09-26"
+
+strategy_path: "config/strategy/ema_crossover.yaml"
+rem_path: "config/rem/trailing_stops.yaml"
+rmm_path: "config/rmm/4h_trend.yaml"
+
+# Walk-forward only (window/step in trade counts, not bars)
+# 186 total trades, use window=60 trades train, step=30 trades test
+walk_forward:
+  window: 60
+  step: 30
+
+# Winner params
+strategy_params:
+  ema_fast_length: 20
+  ema_slow_length: 80
+  slope_filter: false

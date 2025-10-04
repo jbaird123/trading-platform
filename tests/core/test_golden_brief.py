@@ -78,7 +78,7 @@ def assert_briefs_equal(actual: dict[str, Any], golden: dict[str, Any], path: st
             assert actual_val == golden_val, f"Value differs at '{new_path}'"
 
 
-def test_brief_matches_golden_master(tmp_path: Path):
+def test_brief_matches_golden_master(tmp_path: Path, request):
     """
     Runs a backtest with a fixed configuration and compares the output brief
     against a 'golden master' version to detect any regressions.
@@ -111,6 +111,16 @@ def test_brief_matches_golden_master(tmp_path: Path):
     cfg_for_validation["rem_config"] = rem_cfg
     cfg_for_validation["run_id"] = "golden_run_test"  # Use a different run_id
     cfg_for_validation["initial_cash"] = initial_cash
+    # Provide complete instrument definition for test symbol
+    cfg_for_validation["instrument"] = {
+        "symbol": "GOLDEN_TICKER",
+        "asset_class": "Stock",
+        "point_value": 1.0,
+        "tick_size": 0.01,
+        "pip_location": None,
+        "commission_model": {"type": "fixed"},
+        "sessions": [],
+    }
     run_config = RunConfig.model_validate(cfg_for_validation)
 
     # 4. Run the backtest
@@ -176,6 +186,16 @@ def test_brief_matches_golden_master(tmp_path: Path):
     assert generated_brief_path.exists()
 
     actual_brief = json.loads(generated_brief_path.read_text())
+
+    try:
+        update_golden = request.config.getoption("--update-golden")
+    except ValueError:
+        update_golden = False
+
+    if update_golden:
+        golden_brief_path.write_text(json.dumps(actual_brief, indent=2))
+        pytest.skip("Golden master file updated.")
+
     golden_brief = json.loads(golden_brief_path.read_text())
 
     # Validate skipped_trades structure

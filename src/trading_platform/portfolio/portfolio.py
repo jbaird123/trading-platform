@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any, cast
 
 import pandas as pd
+
 from trading_platform.core.costs import CostModel
 from trading_platform.core.precision import FloatEngine, PrecisionEngine
 from trading_platform.core.types import SignalCommand
@@ -22,11 +23,16 @@ class PortfolioManager:
 
     def __init__(
         self,
+        base_currency: str,
         initial_cash: float = 100000.0,
         instrument: dict | None = None,
         cost_model: dict | None = None,
         precision_engine: PrecisionEngine | None = None,
     ):
+        self.base_currency = base_currency
+        assert (
+            self.base_currency == "USD"
+        ), "MVP only supports USD as the base currency."
         self.initial_cash = initial_cash
         self.cash = initial_cash
         self._open_position: Position | None = None
@@ -41,7 +47,8 @@ class PortfolioManager:
         # Entry window tracking for command-based entry management
         # Format: {side: (window_start_bar_index, last_entered_bar_index)}
         # window_start_bar_index: when entry command was received for this side
-        # last_entered_bar_index: last bar where we entered on this command (None if not entered)
+        # last_entered_bar_index: last bar where we entered on this command
+        # (None if not entered)
         self._entry_windows: dict[str, tuple[int, int | None]] = {
             "long": (-1, None),
             "short": (-1, None),
@@ -70,13 +77,17 @@ class PortfolioManager:
         if instrument is not None:
             self.instrument = instrument
 
+        # Get the realistic fill price including spread
+        fill_price = self._cost_model.get_entry_price(entry_price, side)
+
         # Ensure context_at_entry is a dict (not None) to keep downstream
         # code simpler and avoid AttributeError when accessing keys.
         ctx = context_at_entry or {}
         self._open_position = Position(
             symbol=symbol,
             side=side,
-            entry_price=entry_price,
+            entry_price=fill_price,
+            entry_mid_price=entry_price,
             size=size,
             entry_time=entry_time,
             context_at_entry=ctx,
@@ -110,7 +121,8 @@ class PortfolioManager:
 
         Returns:
             Dictionary with:
-            - "action": "entered" | "exited" | "ignored" | "window_opened" | "window_active"
+            - "action": "entered" | "exited" | "ignored" | "window_opened"
+                | "window_active"
             - "side": "long" | "short" | None
             - "reason": str (if ignored)
         """
@@ -215,7 +227,9 @@ class PortfolioManager:
 
         return {"action": "ignored", "reason": "no_active_command", "side": None}
 
-    def can_attempt_entry(self, side: str, bar_index: int, entry_window_bars: int) -> bool:
+    def can_attempt_entry(
+        self, side: str, bar_index: int, entry_window_bars: int
+    ) -> bool:
         """
         Check if we can attempt entry for this side (used by backtester).
 
@@ -238,6 +252,58 @@ class PortfolioManager:
             return True  # Infinite window
 
         return bars_since_start <= entry_window_bars
+
+    def _get_point_value(self, entry_price: float, exit_price: float) -> float:
+        """
+        Calculate the point value for PnL conversion to base currency.
+
+        Implements instrument-agnostic PnL calculation per [SYS-1.3.1].
+
+        For forex pairs where USD is the quote currency (EUR/USD, GBP/USD):
+            - point_value = 1.0 (1 pip ≈ $1 per 10k units)
+        For forex pairs where USD is the base currency (USD/JPY, USD/CHF):
+            - point_value = 1.0 / avg_price (dynamic conversion)
+        For stocks:
+            - point_value = 1.0 (per share)
+        For futures:
+            - point_value = contract_multiplier
+
+        Returns:
+            float: The conversion factor from price units to base currency
+        """
+        # Fail loudly if instrument metadata is missing
+        if not self.instrument:
+            raise ValueError(
+                "Instrument metadata is required for PnL calculation. "
+                "Portfolio must be initialized with complete instrument definition."
+            )
+
+        # Fail loudly if required fields are missing
+        if "point_value" not in self.instrument:
+            raise ValueError(
+                f"Instrument missing required 'point_value' field: {self.instrument}"
+            )
+        if "asset_class" not in self.instrument:
+            raise ValueError(
+                f"Instrument missing required 'asset_class' field: {self.instrument}"
+            )
+        if "symbol" not in self.instrument:
+            raise ValueError(
+                f"Instrument missing required 'symbol' field: {self.instrument}"
+            )
+
+        static_point_value: float = self.instrument["point_value"]
+        asset_class: str = self.instrument["asset_class"]
+        symbol: str = self.instrument["symbol"]
+
+        # For Forex USD/XXX pairs, use dynamic conversion
+        if asset_class == "Forex" and symbol.startswith("USD"):
+            # Use average price for conversion
+            avg_price = (entry_price + exit_price) / 2.0
+            return static_point_value / avg_price
+
+        # For all other instruments, use static point_value
+        return static_point_value
 
     def hit_daily_loss_cap(self, ts: datetime, cap: float) -> bool:
         """Return True if realized PnL for ts.date() is <= -cap."""
@@ -294,29 +360,50 @@ class PortfolioManager:
             return  # pragma: no cover
 
     def _update_position_metrics(self, current_bar: pd.Series) -> None:
-        """Increment bars_held and update MFE/MAE using bar extremes."""
+        """
+        Increment bars_held and update MFE/MAE using bar extremes.
+        Also calculate unrealized PnL using realistic exit price.
+        """
         pos = self._open_position
         assert pos is not None
         size = pos.size
         entry = pos.entry_price
         high = float(current_bar["high"]) if "high" in current_bar else entry
         low = float(current_bar["low"]) if "low" in current_bar else entry
+        close = float(current_bar["close"])
+
+        # Get point_value for MFE/MAE calculation
+        pv_high = self._get_point_value(entry, high)
+        pv_low = self._get_point_value(entry, low)
+
         if pos.side == "long":
-            favorable = max(0.0, (high - entry) * size)
-            adverse = max(0.0, (entry - low) * size)
+            favorable = max(0.0, (high - entry) * size * pv_high)
+            adverse = max(0.0, (entry - low) * size * pv_low)
         else:
-            favorable = max(0.0, (entry - low) * size)
-            adverse = max(0.0, (high - entry) * size)
+            favorable = max(0.0, (entry - low) * size * pv_low)
+            adverse = max(0.0, (high - entry) * size * pv_high)
+
+        # Calculate unrealized PnL using realistic exit price
+        # This mirrors live broker behavior: includes full spread cost
+        exit_price = self._cost_model.get_exit_price(close, pos.side)
+        pv_close = self._get_point_value(entry, close)
+
+        if pos.side == "long":
+            unrealized = (exit_price - entry) * size * pv_close
+        else:
+            unrealized = (entry - exit_price) * size * pv_close
 
         self._open_position = Position(
             symbol=pos.symbol,
             side=pos.side,
             entry_price=pos.entry_price,
+            entry_mid_price=pos.entry_mid_price,
             size=pos.size,
             entry_time=pos.entry_time,
             bars_held=pos.bars_held + 1,
             mfe_currency=max(pos.mfe_currency, favorable),
             mae_currency=max(pos.mae_currency, adverse),
+            unrealized_pnl=unrealized,
             initial_risk_ccy=pos.initial_risk_ccy,
             context_at_entry=pos.context_at_entry,  # Preserve the context!
         )
@@ -332,31 +419,56 @@ class PortfolioManager:
         if not self._open_position:
             return
 
+        # Calculate pnl_movement: pure mid-to-mid price movement
+        entry_mid = self._open_position.entry_mid_price
+        exit_mid = exit_price  # exit_price parameter is the mid-price
+
         if self._open_position.side == "long":
-            diff = self._engine.sub(exit_price, self._open_position.entry_price)
+            mid_diff = self._engine.sub(exit_mid, entry_mid)
         else:
-            diff = self._engine.sub(self._open_position.entry_price, exit_price)
-        pnl_gross = self._engine.to_float(
-            self._engine.mul(diff, self._open_position.size)
+            mid_diff = self._engine.sub(entry_mid, exit_mid)
+
+        # Get point_value for canonical PnL calculation
+        point_value = self._get_point_value(entry_mid, exit_mid)
+
+        # PnL from pure price movement (mid-to-mid)
+        pnl_movement = self._engine.to_float(
+            self._engine.mul(
+                self._engine.mul(mid_diff, self._open_position.size), point_value
+            )
         )
+
+        # Calculate all costs
         cost_entry, breakdown_entry = self._cost_model.compute_entry_cost(
             self._open_position.size,
-            price=self._open_position.entry_price,
+            price=entry_mid,
             instrument=self.instrument,
         )
         cost_exit, breakdown_exit = self._cost_model.compute_exit_cost(
-            self._open_position.size, price=exit_price, instrument=self.instrument
+            self._open_position.size, price=exit_mid, instrument=self.instrument
         )
-        total_cost = cost_entry + cost_exit
+        spread_cost = self._cost_model.compute_spread_cost(
+            self._open_position.size, instrument=self.instrument
+        )
+        commission_and_slippage_cost = cost_entry + cost_exit
+        total_cost = commission_and_slippage_cost + spread_cost
+
         cost_breakdown = {
-            "spread": breakdown_entry.get("spread", 0.0)
-            + breakdown_exit.get("spread", 0.0),
+            "spread": spread_cost,
             "commission": breakdown_entry.get("commission", 0.0)
             + breakdown_exit.get("commission", 0.0),
             "slippage": breakdown_entry.get("slippage", 0.0)
             + breakdown_exit.get("slippage", 0.0),
         }
-        pnl = pnl_gross - total_cost
+
+        # Final PnL = movement - all costs
+        pnl = pnl_movement - total_cost
+
+        # Get realistic fill prices for recording (including spread)
+        entry_fill = self._cost_model.get_entry_price(
+            entry_mid, self._open_position.side
+        )
+        exit_fill = self._cost_model.get_exit_price(exit_mid, self._open_position.side)
 
         initial_risk_ccy = self._open_position.initial_risk_ccy
         r_multiple = None
@@ -368,12 +480,20 @@ class PortfolioManager:
         # was coerced to a dict at creation, but be defensive here as well.
         pos_dict = dict(self._open_position.__dict__)
         pos_dict["context_at_entry"] = pos_dict.get("context_at_entry") or {}
+
+        # Update entry_price to fill price for Trade record
+        pos_dict["entry_price"] = entry_fill
+
+        # Remove Position-only fields (not needed in Trade)
+        pos_dict.pop("entry_mid_price", None)
+        pos_dict.pop("unrealized_pnl", None)
+
         trade = Trade(
             **pos_dict,
-            exit_price=exit_price,
+            exit_price=exit_fill,
             exit_time=exit_time,
             pnl=pnl,
-            pnl_gross=pnl_gross,
+            pnl_movement=pnl_movement,
             exit_reason=exit_reason,
             context_at_exit=context_at_exit,
             cost_currency=total_cost,

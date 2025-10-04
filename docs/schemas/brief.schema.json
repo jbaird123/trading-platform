@@ -30,7 +30,7 @@
       "properties": {
         "n_trades": { "type": "integer", "description": "Total number of trades executed." },
         "total_pnl": { "type": "number", "description": "Sum of all trade profits and losses (net, after costs)." },
-        "total_pnl_gross": { "type": "number", "description": "Sum of all trade profits and losses before transaction costs." },
+        "total_pnl_movement": { "type": "number", "description": "Sum of all trade profits and losses from pure mid-to-mid price movement, excluding all transaction costs." },
         "total_costs": { "type": "number", "description": "Sum of all transaction costs across all trades." },
         "cost_breakdown": {
           "type": "object",
@@ -57,7 +57,7 @@
         "initial_equity": { "type": "number", "description": "Starting equity of the portfolio." },
         "final_equity": { "type": "number", "description": "Ending equity of the portfolio after all trades." }
       },
-      "required": ["n_trades", "total_pnl", "total_pnl_gross", "total_costs", "cost_breakdown", "mean_pnl", "median_pnl", "by_side_total_pnl", "win_rate", "initial_equity", "final_equity"]
+      "required": ["n_trades", "total_pnl", "total_pnl_movement", "total_costs", "cost_breakdown", "mean_pnl", "median_pnl", "by_side_total_pnl", "win_rate", "initial_equity", "final_equity"]
     },
     "risk_snapshot": {
       "type": "object",
@@ -66,12 +66,12 @@
         "win_rate": { "type": "number", "description": "Percentage of trades with PnL > 0." },
         "avg_win": { "type": "number", "description": "Average net PnL of winning trades (after costs)." },
         "avg_loss": { "type": "number", "description": "Average net PnL of losing trades (after costs)." },
-        "avg_win_gross": { "type": "number", "description": "Average gross PnL of winning trades (before costs)." },
-        "avg_loss_gross": { "type": "number", "description": "Average gross PnL of losing trades (before costs)." },
+        "avg_win_movement": { "type": "number", "description": "Average PnL movement of winning trades (mid-to-mid, excluding costs)." },
+        "avg_loss_movement": { "type": "number", "description": "Average PnL movement of losing trades (mid-to-mid, excluding costs)." },
         "max_win": { "type": "number", "description": "Largest single winning trade." },
         "max_loss": { "type": "number", "description": "Largest single losing trade (most negative PnL)." }
       },
-      "required": ["win_rate", "avg_win", "avg_loss", "avg_win_gross", "avg_loss_gross", "max_win", "max_loss"]
+      "required": ["win_rate", "avg_win", "avg_loss", "avg_win_movement", "avg_loss_movement", "max_win", "max_loss"]
     },
     "equity_stats": {
       "type": "object",
@@ -290,7 +290,8 @@
           "exit_time": { "type": "string", "format": "date-time", "description": "Timestamp when the trade was exited." },
           "entry_price": { "type": "number", "description": "Price at which the trade was entered." },
           "exit_price": { "type": "number", "description": "Price at which the trade was exited." },
-          "pnl": { "type": "number", "description": "Profit or Loss of the trade in the portfolio's base currency." },
+          "pnl": { "type": "number", "description": "Net profit or loss of the trade in the portfolio's base currency (after all costs)." },
+          "pnl_movement": { "type": "number", "description": "The theoretical profit or loss from pure price movement, calculated from the mid-price at entry to the mid-price at exit, excluding all transaction costs." },
           "exit_reason": { "type": ["string", "null"], "description": "Reason for exiting the trade (e.g., 'stop_loss', 'take_profit', 'strategy_flat')." },
           "r_multiple": { "type": ["number", "null"], "description": "Risk multiple (PnL / initial risk) for the trade." },
           "mfe_currency": { "type": ["number", "null"], "description": "Maximum Favorable Excursion in currency units." },
@@ -680,16 +681,16 @@
               "type": "number",
               "description": "Average net PnL of losing long trades (after costs)."
             },
-            "avg_win_gross": {
+            "avg_win_movement": {
               "type": "number",
-              "description": "Average gross PnL of winning long trades (before costs)."
+              "description": "Average PnL movement of winning long trades (mid-to-mid, excluding costs)."
             },
-            "avg_loss_gross": {
+            "avg_loss_movement": {
               "type": "number",
-              "description": "Average gross PnL of losing long trades (before costs)."
+              "description": "Average PnL movement of losing long trades (mid-to-mid, excluding costs)."
             }
           },
-          "required": ["n_trades", "total_pnl", "win_rate", "avg_pnl", "avg_win", "avg_loss", "avg_win_gross", "avg_loss_gross"]
+          "required": ["n_trades", "total_pnl", "win_rate", "avg_pnl", "avg_win", "avg_loss", "avg_win_movement", "avg_loss_movement"]
         },
         "short_trades": {
           "type": "object",
@@ -728,7 +729,7 @@
               "description": "Average gross PnL of losing short trades (before costs)."
             }
           },
-          "required": ["n_trades", "total_pnl", "win_rate", "avg_pnl", "avg_win", "avg_loss", "avg_win_gross", "avg_loss_gross"]
+          "required": ["n_trades", "total_pnl", "win_rate", "avg_pnl", "avg_win", "avg_loss", "avg_win_movement", "avg_loss_movement"]
         }
       }
     },

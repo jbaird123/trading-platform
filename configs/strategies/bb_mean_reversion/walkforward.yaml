@@ -1,0 +1,40 @@
+user_id: "bb_wf_validation"
+initial_cash: 100000
+warmup_bars: 100
+entry_window_bars: 3
+tie_break_policy:
+  rule: "stop_then_tp"
+position_size: 50000
+
+# Transaction costs
+cost_model:
+  spread_per_unit: 0.00015  # 1.5 pips for USD/JPY
+  slippage_per_unit: 0.0
+  commission:
+    type: "per_unit"
+    value: 0.0
+
+# Data source - USD/JPY 5min
+data_request:
+  symbol: "USD_JPY"
+  timeframe: "5min"
+  start: "2020-01-01"
+  end: "2025-09-26"
+
+counterfactual_mode: exact
+
+# Risk/Exit Manager
+rem_path: "config/rem/trailing_stops.yaml"
+
+# Strategy
+strategy_path: "config/strategy/bb_mean_reversion.yaml"
+
+strategy_params:
+  bb_length: 20
+  bb_std_dev: 2.0
+
+# Walk-forward validation (60 trades train, 30 trades test)
+# This produces 520 windows with mean OOS PnL of $6,214.76
+walk_forward:
+  window: 60
+  step: 30

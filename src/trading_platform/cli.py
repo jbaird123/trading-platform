@@ -13,17 +13,18 @@ import pandas as pd
 
 from trading_platform.ai.synthesis.engine import DiagnosticSynthesisEngine
 from trading_platform.backtester.core import run_backtest
+from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
 from trading_platform.core.demo import generate_demo_run
 from trading_platform.core.policy import TradingWindowPolicy
+from trading_platform.core.robustness import walk_forward_summary
 from trading_platform.core.run import finalize_run, initialize_run
 from trading_platform.core.sweeps import (
     run_parameter_sweep,
     walk_forward_optimize_and_test,
 )
+from trading_platform.data.handler import DataHandler
 from trading_platform.data.instrument import get_instrument_definition
-from trading_platform.data.loader import load_instrument_data
-from trading_platform.data.schema import resample_ohlc
 from trading_platform.execution.oanda_stub import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
@@ -66,7 +67,7 @@ def _load_config(path: Path) -> dict[str, Any]:
 
 
 def cmd_run_backtest(args: argparse.Namespace) -> int:
-    if args.demo:
+    if args.demo and not args.config:
         run_path = generate_demo_run(user_id=args.user)
         print(f"Run created at: {run_path}")
         print(f"- Brief: {run_path / 'brief.json'}")
@@ -79,40 +80,44 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         return 2
     cfg_path = Path(args.config)
     cfg_raw = _load_config(cfg_path)
-    
+
     # Load REM and RMM configs and include them in cfg_raw for proper config snapshot
     rem_path = cfg_raw.get("rem_path")
     if rem_path:
-        rem_cfg = _load_config(Path(str(rem_path)))
-        cfg_raw["rem_config"] = rem_cfg
-    
-    rmm_path = cfg_raw.get("rmm_path")  
+        loaded_rem_cfg = _load_config(Path(str(rem_path)))
+        cfg_raw["rem_config"] = loaded_rem_cfg
+
+    rmm_path = cfg_raw.get("rmm_path")
     if rmm_path:
-        rmm_cfg = _load_config(Path(str(rmm_path)))
-        cfg_raw["rmm_config"] = rmm_cfg
-    
+        loaded_rmm_cfg = _load_config(Path(str(rmm_path)))
+        cfg_raw["rmm_config"] = loaded_rmm_cfg
+
     cfg = RunConfig.model_validate(cfg_raw)
     run_path = initialize_run(cfg)
 
-    # Minimal pipeline: toy data unless provided, simple strategy compile.
+    # Initialize DataHandler for centralized data access with caching
+    data_handler: DataHandler | None = None
     df: pd.DataFrame
     dq_flags: list[str] = []
+    instrument_def = None  # Will be set if data_request present
     data_req = cfg_raw.get("data_request")
     if isinstance(data_req, dict):
-        # Delegate sourcing to Data Handler using convention-based approach
+        # Create DataHandler - loads raw data once, handles all resampling/caching
         instrument_def = get_instrument_definition(data_req["symbol"])
-        df, dq_flags = load_instrument_data(data_req["symbol"], Path("data"))
+        data_handler = DataHandler(
+            symbol=data_req["symbol"],
+            data_root=paths.PROJECT_ROOT / "data",
+            instrument=instrument_def,
+        )
+        dq_flags = data_handler.data_quality_flags
 
-        tf = data_req.get("timeframe")
-        if tf:
-            df = resample_ohlc(df, str(tf), instrument_def)
-
-        start = data_req.get("start")
-        end = data_req.get("end")
-        if start:
-            df = df.loc[pd.to_datetime(start, utc=True) :]
-        if end:
-            df = df.loc[: pd.to_datetime(end, utc=True)]
+        # Get data for requested timeframe and date range
+        # DataHandler caches complete datasets and applies filtering
+        df = data_handler.get_data(
+            timeframe=data_req.get("timeframe"),
+            start=data_req.get("start"),
+            end=data_req.get("end"),
+        )
     else:
         idx = pd.date_range("2024-01-01", periods=5, freq="h")
         vals = [1.0, 2.0, 3.0, 2.0, 1.0]
@@ -173,9 +178,10 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
 
             last_days = int(fast_mode.get("last_days", 0) or 0)
             limit_bars = int(fast_mode.get("limit_bars", 0) or 0)
-        except Exception:
-            last_days = 0
-            limit_bars = 0
+        except Exception:  # pragma: no cover
+            last_days = 0  # pragma: no cover - Defensive: fallback if
+            # fast_mode has invalid values
+            limit_bars = 0  # pragma: no cover
         if last_days > 0 and isinstance(df.index, pd.DatetimeIndex):
             cutoff = df.index.max() - timedelta(days=last_days)
             df = df.loc[cutoff:]
@@ -185,6 +191,16 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     strat_path = cfg_raw.get("strategy_path")
     if strat_path:
         strat_cfg = _load_config(Path(str(strat_path)))
+
+    # Apply strategy_params from config (used for parameter sweeps)
+    # This allows the config to override strategy defaults
+    strategy_params_from_cfg = cfg_raw.get("strategy_params")
+    if isinstance(strategy_params_from_cfg, dict):
+        base_params = strat_cfg.get("parameters") or {}
+        if isinstance(base_params, dict):
+            base_params.update({k: v for k, v in strategy_params_from_cfg.items()})
+            strat_cfg["parameters"] = base_params
+
     # Apply optional per-run overrides for strategy tunables
     overrides = cfg_raw.get("strategy_overrides") or {}
     if isinstance(overrides, dict):
@@ -210,32 +226,39 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
 
     # Persist raw signals for AI Lab analysis
     try:
+        from trading_platform.core.signal import Signal
+
         signals_path = run_path / "signals.parquet"
         # Ensure signals are saved with proper column name
         if isinstance(signals, pd.Series):
-            signals_df = pd.DataFrame({"signal": signals})
+            # Extract command strings from Signal objects for serialization
+            signal_values = signals.apply(
+                lambda x: x.command if isinstance(x, Signal) else x
+            )
+            signals_df = pd.DataFrame({"signal": signal_values})
         else:
             signals_df = pd.DataFrame(signals)
         signals_df.to_parquet(signals_path)
-    except Exception:
-        signals_path = None
+    except Exception:  # pragma: no cover
+        signals_path = None  # pragma: no cover - Defensive: file save might fail
 
     # Persist prices and features for charts before finalize_run
     try:
         save_prices_csv(run_path / "prices.csv", df)
-    except Exception:
-        pass
+    except Exception:  # pragma: no cover
+        pass  # pragma: no cover - Defensive: price save might fail
     try:
         fdf = getattr(strat, "_feature_df", None)
         if fdf is not None:
             save_features_for_chart(run_path, fdf, strat.features)
-    except Exception:
-        pass
+    except Exception:  # pragma: no cover
+        pass  # pragma: no cover - Defensive: feature save might fail
 
     # REM can be embedded or referenced via a separate file
-    rem_cfg = cfg_raw.get("rem_config") or {}
-    rem_cfg = cfg_raw.get("rem_config")
-    rem = RiskExitManager(config=rem_cfg)
+    rem_cfg: dict[str, Any] | None = cfg_raw.get("rem_config")
+    # Pass complete instrument definition with all metadata (asset_class, etc.)
+    instrument_dict = instrument_def.model_dump() if instrument_def else None
+    rem = RiskExitManager(config=rem_cfg or {}, instrument=instrument_dict)
 
     # RMM optional for legacy configs; if present, build per-bar context
     rmm_context: dict[datetime, dict[str, Any]] | None = None
@@ -248,7 +271,16 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             raise SystemExit(f"RMM config validation failed: {exc}") from exc
         rmm_engine = RMMEngine(config=rmm_cfg)
         regime_timeframe = rmm_cfg.get("timeframe", "1D")
-        regimes = rmm_engine.classify_regime(df, timeframe=regime_timeframe)
+        classify_regime = getattr(rmm_engine, "classify_regime", None)
+        if callable(classify_regime):
+            regimes = classify_regime(df, timeframe=regime_timeframe)
+        else:
+            classify_daily = getattr(rmm_engine, "classify_daily", None)
+            if not callable(classify_daily):
+                raise SystemExit(
+                    "RMM engine must implement classify_regime or classify_daily"
+                )
+            regimes = classify_daily(df)
         rmm_policy = rmm_cfg.get("policy") or {}
         per_bar = rmm_engine.project_to_index(
             regimes, cast(pd.DatetimeIndex, df.index), policy=rmm_policy
@@ -258,50 +290,15 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             f.get("name") for f in rmm_cfg.get("features", []) if f.get("name")
         ]
 
-        import math
-
-        def _round_feature(name: str, val: Any) -> float | None:
-            """Round feature value based on its type, returning None for NaN/inf."""
-            if val is None:
-                return None
-            try:
-                f = float(val)
-                if math.isnan(f) or math.isinf(f):
-                    return None
-
-                # Determine precision based on feature name/type
-                name_lower = name.lower()
-
-                # ADX, ATR: 2 decimals (percentage-like)
-                if any(x in name_lower for x in ['adx', 'atr']):
-                    return round(f, 2)
-                # RSI, Stochastic, CCI: 2 decimals (bounded indicators)
-                elif any(x in name_lower for x in ['rsi', 'stoch', 'cci']):
-                    return round(f, 2)
-                # Volume: whole numbers
-                elif 'volume' in name_lower or 'vol' in name_lower:
-                    return round(f, 0)
-                # EMA, SMA, prices: 4 decimals (forex precision)
-                elif any(x in name_lower for x in ['ema', 'sma', 'price', 'close', 'open', 'high', 'low']):
-                    return round(f, 4)
-                # MACD, momentum: 4 decimals
-                elif any(x in name_lower for x in ['macd', 'mom', 'roc']):
-                    return round(f, 4)
-                # Default: 4 decimals
-                else:
-                    return round(f, 4)
-            except (ValueError, TypeError):
-                return None
-
+        # Build RMM context with full precision - rounding happens in brief.py
         rmm_context = {
             cast(datetime, ts): {
                 "label": str(row["label"]),
                 "confidence": float(row["confidence"]),
                 "allowed_sides": list(row["allowed_sides"] or []),
                 "policy": rmm_policy,
-                # Include regime feature values with appropriate rounding
                 "features": {
-                    fname: _round_feature(fname, row.get(fname))
+                    fname: row.get(fname)
                     for fname in feature_names
                     if fname in row.index
                 },
@@ -324,30 +321,30 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
 
             spans: list[dict[str, object]] = []
             prev_mode: str | None = None
-            start_ts: datetime | None = None
+            span_start: datetime | None = None
             prev_ts: datetime | None = None
             for ts, row in per_bar.iterrows():
                 ts_dt = cast(datetime, ts)
                 mode = _mode(list(row["allowed_sides"] or []))
                 if prev_mode is None:
                     prev_mode = mode
-                    start_ts = ts_dt
+                    span_start = ts_dt
                 elif mode != prev_mode:
-                    if start_ts is not None and prev_ts is not None:
+                    if span_start is not None and prev_ts is not None:
                         spans.append(
                             {
-                                "start": start_ts.isoformat(),
+                                "start": span_start.isoformat(),
                                 "end": prev_ts.isoformat(),
                                 "mode": prev_mode,
                             }
                         )
                     prev_mode = mode
-                    start_ts = ts_dt
+                    span_start = ts_dt
                 prev_ts = ts_dt
-            if prev_mode is not None and start_ts is not None and prev_ts is not None:
+            if prev_mode is not None and span_start is not None and prev_ts is not None:
                 spans.append(
                     {
-                        "start": start_ts.isoformat(),
+                        "start": span_start.isoformat(),
                         "end": prev_ts.isoformat(),
                         "mode": prev_mode,
                     }
@@ -355,8 +352,10 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             rmm_spans_path = run_path / "rmm_spans.json"
             rmm_spans_path.write_text(json.dumps(spans))
             print(f"- RMM spans: {rmm_spans_path}")
-        except Exception:
-            rmm_spans_path = None
+        except Exception:  # pragma: no cover
+            rmm_spans_path = (
+                None  # pragma: no cover - Defensive: RMM span save might fail
+            )
 
     # Output toggles; default to no exposure unless explicitly requested
     ret_exp = bool(cfg_raw.get("return_exposure", False))
@@ -418,32 +417,43 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             dd_penalty=ps_cfg.get("dd_penalty"),
             vol_penalty=ps_cfg.get("vol_penalty"),
             debug_dir=run_path / "debug",
+            data_handler=data_handler,
         )
 
-    # Optional walk-forward optimize→test (requires grid)
+    # Optional walk-forward analysis
     wf_cfg = cfg_raw.get("walk_forward") or {}
     wf_results = None
     if (
         isinstance(wf_cfg, dict)
         and int(wf_cfg.get("window", 0)) > 0
         and int(wf_cfg.get("step", 0)) > 0
-        and isinstance(ps_cfg, dict)
-        and ps_cfg.get("grid")
     ):
-        grid_cfg = ps_cfg.get("grid")
-        grid_typed = cast(dict[str, list[Any]], grid_cfg)
-        wf_results = walk_forward_optimize_and_test(
-            df,
-            cfg_raw,
-            strat_cfg,
-            window=int(wf_cfg.get("window", 0)),
-            step=int(wf_cfg.get("step", 0)),
-            grid=grid_typed,
-            seed=ps_cfg.get("seed"),
-            objective=str(ps_cfg.get("objective", "total_pnl")),
-            dd_penalty=ps_cfg.get("dd_penalty"),
-            vol_penalty=ps_cfg.get("vol_penalty"),
-        )
+        # If parameter_search grid is provided, do walk-forward OPTIMIZATION
+        if isinstance(ps_cfg, dict) and ps_cfg.get("grid"):
+            grid_cfg = ps_cfg.get("grid")
+            grid_typed = cast(dict[str, list[Any]], grid_cfg)
+            wf_results = walk_forward_optimize_and_test(
+                df,
+                cfg_raw,
+                strat_cfg,
+                window=int(wf_cfg.get("window", 0)),
+                step=int(wf_cfg.get("step", 0)),
+                grid=grid_typed,
+                seed=ps_cfg.get("seed"),
+                objective=str(ps_cfg.get("objective", "total_pnl")),
+                dd_penalty=ps_cfg.get("dd_penalty"),
+                vol_penalty=ps_cfg.get("vol_penalty"),
+                data_handler=data_handler,
+            )
+        else:
+            # Otherwise, just do walk-forward ANALYSIS on existing trades
+            # (splits trades by time into train/test windows and computes
+            # OOS performance)
+            wf_results = walk_forward_summary(
+                trades,
+                window=int(wf_cfg.get("window", 0)),
+                step=int(wf_cfg.get("step", 0)),
+            )
 
     # Optional Monte Carlo (bar-level resimulation)
     mc_cfg = cfg_raw.get("monte_carlo") or {}
@@ -463,6 +473,7 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             mode=str(mc_cfg.get("mode")),
             cost_jitter=mc_cfg.get("cost_jitter"),
             perturbation=mc_cfg.get("perturbation"),
+            data_handler=data_handler,
         )
 
     finalize_run(
@@ -538,8 +549,11 @@ def cmd_ai_diagnose(args: argparse.Namespace) -> int:
             with open(brief_path, "w") as f:
                 json.dump(brief_data, f, indent=2)
             print(f"Updated {brief_path} with {len(recommendations)} recommendations")
-    except Exception as e:
-        print(f"Warning: Could not update brief with recommendations: {e}", file=sys.stderr)
+    except Exception as e:  # pragma: no cover
+        print(  # pragma: no cover - Defensive: brief recommendation update might fail
+            f"Warning: Could not update brief with recommendations: {e}",
+            file=sys.stderr,
+        )
 
     # Task 4: Qualitative LLM report generation
     if getattr(args, "qualitative_report", False):
@@ -554,8 +568,10 @@ def cmd_ai_diagnose(args: argparse.Namespace) -> int:
             report_path = output_dir / "ai_qualitative_report.md"
             report_path.write_text(feedback)
             print(f"Qualitative report saved to {report_path}")
-        except Exception as e:
-            print(f"Could not generate qualitative report: {e}", file=sys.stderr)
+        except Exception as e:  # pragma: no cover
+            print(
+                f"Could not generate qualitative report: {e}", file=sys.stderr
+            )  # pragma: no cover - Defensive: LLM report generation might fail
 
     print(f"AI diagnostic reports saved to {output_dir}")
     return 0
@@ -573,7 +589,10 @@ def cmd_run_live(args: argparse.Namespace) -> int:
     policy = TradingWindowPolicy.from_config(
         blackout_utc=cfg.blackout_utc, blackout_events=cfg.blackout_events
     )
-    pm = PortfolioManager(initial_cash=float(cfg_raw.get("initial_cash", 100000.0)))
+    pm = PortfolioManager(
+        base_currency="USD",
+        initial_cash=float(cfg_raw.get("initial_cash", 100000.0)),
+    )
     adapter = OandaStubAdapter(pm=pm, policy=policy, pm_limits=cfg_raw.get("pm_limits"))
     adapter.connect()
     print("Live controller stub connected (adapter: OandaStubAdapter)")
@@ -596,12 +615,14 @@ def _find_last_briefs(runs_dir: Path, user: str | None, n: int) -> list[Path]:
 
 
 def cmd_compare(args: argparse.Namespace) -> int:
+    from trading_platform.core import paths
+
     last = int(getattr(args, "last", 0) or 0)
     if last >= 2:
-        runs_dir = Path(str(getattr(args, "runs_dir", "runs")))
+        runs_dir = Path(str(getattr(args, "runs_dir", paths.RUNS_DIR)))
         user = getattr(args, "user", None)
-        paths = _find_last_briefs(runs_dir, user, last)
-        if len(paths) < 2:
+        brief_paths = _find_last_briefs(runs_dir, user, last)
+        if len(brief_paths) < 2:
             print("Not enough briefs found for --last.", file=sys.stderr)
             return 2
         # Generate pairwise consecutive comparisons: [0..1], [1..2], ...
@@ -609,8 +630,8 @@ def cmd_compare(args: argparse.Namespace) -> int:
         out_dir = runs_dir / (user or "") / "comparisons"
         out_dir.mkdir(parents=True, exist_ok=True)
         written: list[Path] = []
-        for i in range(len(paths) - 1):
-            a, b = paths[i + 1], paths[i]
+        for i in range(len(brief_paths) - 1):
+            a, b = brief_paths[i + 1], brief_paths[i]
             aid = json.loads(a.read_text()).get("meta", {}).get("run_id", a.parent.name)
             bid = json.loads(b.read_text()).get("meta", {}).get("run_id", b.parent.name)
             out = out_dir / f"compare_{aid}_vs_{bid}.html"
@@ -633,13 +654,15 @@ def cmd_compare(args: argparse.Namespace) -> int:
 
 
 def cmd_open_chart(args: argparse.Namespace) -> int:
-    runs_dir = Path(str(getattr(args, "runs_dir", "runs")))
+    from trading_platform.core import paths
+
+    runs_dir = Path(str(getattr(args, "runs_dir", paths.RUNS_DIR)))
     user = getattr(args, "user", None)
-    paths = _find_last_briefs(runs_dir, user, int(getattr(args, "last", 1)))
-    if not paths:
+    brief_paths = _find_last_briefs(runs_dir, user, int(getattr(args, "last", 1)))
+    if not brief_paths:
         print("No runs found.", file=sys.stderr)
         return 2
-    brief = paths[0]
+    brief = brief_paths[0]
     run_path = brief.parent
     out = run_path / "chart.html"
     if not out.exists():
@@ -685,7 +708,7 @@ def main() -> int:
         help="Compare the last N runs (pairwise); ignores a/b when set",
     )
     pc.add_argument(
-        "--runs-dir", default="runs", help="Root runs directory (for --last)"
+        "--runs-dir", default=paths.RUNS_DIR, help="Root runs directory (for --last)"
     )
     pc.add_argument(
         "--user", default=None, help="User id under runs/ to search (for --last)"
@@ -693,7 +716,7 @@ def main() -> int:
     pc.set_defaults(func=cmd_compare)
 
     po = sub.add_parser("open-chart", help="Open latest run chart")
-    po.add_argument("--runs-dir", default="runs", help="Root runs directory")
+    po.add_argument("--runs-dir", default=paths.RUNS_DIR, help="Root runs directory")
     po.add_argument("--user", default=None, help="User id under runs/")
     po.add_argument("--last", type=int, default=1, help="Pick Nth latest run")
     po.add_argument("--open", action="store_true", help="Open in browser")

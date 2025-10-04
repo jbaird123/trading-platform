@@ -15,6 +15,7 @@ from typing import Any
 import jsonschema
 import pandas as pd
 from pyarrow import ArrowInvalid
+
 from trading_platform.portfolio.metrics import (
     calculate_equity_curve,
     calculate_win_rate,
@@ -31,56 +32,76 @@ from trading_platform.reporting.analytics import (
 )
 
 # Path to the JSON Schema for brief field documentation
-SCHEMA_PATH = Path("docs/schemas/brief.schema.json")
+SCHEMA_PATH = (
+    Path(__file__).resolve().parents[3] / "docs" / "schemas" / "brief.schema.json"
+)
 
 
 def _extract_rmm_policy(config_snapshot: dict[str, Any] | None) -> dict[str, Any]:
     """Extract RMM policy information from config snapshot for AI context."""
     if not config_snapshot:
         return {}
-    
+
     rmm_config = config_snapshot.get("rmm_config", {})
     if not rmm_config:
         return {}
-    
+
     policy = {
         "name": rmm_config.get("name", "Unknown"),
         "version": rmm_config.get("version", "Unknown"),
         "policy": rmm_config.get("policy", {}),
         "regimes": rmm_config.get("regimes", []),
-        "features_used": [f.get("name") for f in rmm_config.get("features", []) if f.get("name")],
-        "regime_labels": [r.get("label") for r in rmm_config.get("regimes", []) if r.get("label")],
+        "features_used": [
+            f.get("name") for f in rmm_config.get("features", []) if f.get("name")
+        ],
+        "regime_labels": [
+            r.get("label") for r in rmm_config.get("regimes", []) if r.get("label")
+        ],
         "min_confidence": rmm_config.get("policy", {}).get("min_confidence", None),
         "allowed_labels": rmm_config.get("policy", {}).get("allow_labels", []),
     }
-    
+
     return policy
 
 
 def _extract_rem_policy(config_snapshot: dict[str, Any] | None) -> dict[str, Any]:
-    """Extract REM (Risk Exit Manager) policy information from config snapshot for AI context."""
+    """Extract REM (Risk Exit Manager) policy information from config snapshot
+    for AI context."""
     if not config_snapshot:
         return {}
-    
+
     rem_config = config_snapshot.get("rem_config", {})
     if not rem_config:
         return {}
-    
+
     policy = {
         "stop_loss": rem_config.get("stop_loss", {}),
         "take_profit": rem_config.get("take_profit", {}),
         "trailing_stop": rem_config.get("trailing_stop", {}),
         "time_exit": rem_config.get("time_exit", {}),
     }
-    
-    # Add human-readable interpretations
-    stop_loss = rem_config.get("stop_loss", {})
-    take_profit = rem_config.get("take_profit", {})
 
-    if stop_loss.get("price_offset"):  # pragma: no branch
-        policy["stop_loss_pips"] = f"{stop_loss['price_offset'] * 10000:.0f} pips"
-    if take_profit.get("price_offset"):  # pragma: no branch
-        policy["take_profit_pips"] = f"{take_profit['price_offset'] * 10000:.0f} pips"
+    # Add human-readable interpretations, handling both dict and list-of-dict
+    stop_loss_config = rem_config.get("stop_loss")
+    take_profit_config = rem_config.get("take_profit")
+
+    # Get the first rule if it's a list
+    stop_loss_rule = stop_loss_config
+    if isinstance(stop_loss_config, list) and stop_loss_config:
+        stop_loss_rule = stop_loss_config[0]
+
+    take_profit_rule = take_profit_config
+    if isinstance(take_profit_config, list) and take_profit_config:
+        take_profit_rule = take_profit_config[0]
+
+    # Now check the rule if it's a dict
+    if isinstance(stop_loss_rule, dict) and stop_loss_rule.get("price_offset"):
+        policy["stop_loss_pips"] = f"{stop_loss_rule['price_offset'] * 10000:.0f} pips"
+
+    if isinstance(take_profit_rule, dict) and take_profit_rule.get("price_offset"):
+        policy["take_profit_pips"] = (
+            f"{take_profit_rule['price_offset'] * 10000:.0f} pips"
+        )
 
     return policy
 
@@ -164,11 +185,92 @@ def _round_price(value: float | None) -> float | None:
     )
 
 
+def _normalize_cost_breakdown(
+    data: dict[str, Any] | None,
+) -> dict[str, float]:
+    base = {"spread": 0.0, "commission": 0.0, "slippage": 0.0}
+    if not isinstance(data, dict):
+        return base
+    normalized: dict[str, float] = {}
+    for key, default in base.items():
+        raw = float(data.get(key, default) or 0.0)
+        normalized[key] = _round_currency(raw)
+    return normalized
+
+
+def _round_feature(name: str, value: Any) -> float | None:
+    """Round feature/indicator values based on their type.
+
+    Centralized rounding logic for all technical indicators and features.
+    This is the ONLY place where feature rounding should occur - all other
+    modules should store full precision floats.
+    """
+    import math
+
+    if value is None:
+        return None
+
+    try:
+        f = float(value)
+        if math.isnan(f) or math.isinf(f):
+            return None
+
+        name_lower = name.lower()
+
+        # ADX, ATR: 2 decimals (percentage-like indicators)
+        if any(x in name_lower for x in ["adx", "atr"]):
+            return float(
+                Decimal(str(f)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            )
+
+        # RSI, Stochastic, CCI: 2 decimals (bounded oscillators)
+        if any(x in name_lower for x in ["rsi", "stoch", "cci"]):
+            return float(
+                Decimal(str(f)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            )
+
+        # Volume: whole numbers
+        if "volume" in name_lower or "vol" in name_lower:
+            return float(Decimal(str(f)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
+        # EMA, SMA, prices: 4 decimals (for FX precision)
+        if any(
+            x in name_lower
+            for x in ["ema", "sma", "price", "close", "open", "high", "low"]
+        ):
+            return float(
+                Decimal(str(f)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+            )
+
+        # MACD, momentum, ROC: 4 decimals
+        if any(x in name_lower for x in ["macd", "mom", "roc"]):
+            return float(
+                Decimal(str(f)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+            )
+
+        # Default: 4 decimals
+        return float(
+            Decimal(str(f)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+        )
+
+    except (ValueError, TypeError):
+        return None
+
+
+def _round_dict_features(d: dict[str, Any]) -> dict[str, Any]:
+    """Round all numeric values in a dictionary using feature-based rounding."""
+    return {
+        k: _round_feature(k, v) if isinstance(v, (int, float)) else v
+        for k, v in d.items()
+    }
+
+
 def _to_jsonable(obj: Any) -> Any:
     """Convert objects (dataclasses, datetimes) to JSON-serializable forms."""
     # Handle NaN values - convert to null for valid JSON
     if isinstance(obj, float):
         import math
+
         if math.isnan(obj):
             return None
         if math.isinf(obj):
@@ -215,6 +317,43 @@ def _empty_sections() -> dict[str, Any]:
 
 
 def _serialize_trade(t: Trade) -> dict[str, Any]:
+    """Serialize trade with proper rounding for brief output."""
+    # Round context features if present
+    context_at_entry = getattr(t, "context_at_entry", None)
+    if context_at_entry and isinstance(context_at_entry, dict):
+        context_at_entry = {
+            k: _round_dict_features(v)
+            if isinstance(v, dict) and k == "strategy_features"
+            else v
+            for k, v in context_at_entry.items()
+        }
+
+    context_at_exit = getattr(t, "context_at_exit", None)
+    if context_at_exit and isinstance(context_at_exit, dict):
+        context_at_exit = {
+            k: _round_dict_features(v)
+            if isinstance(v, dict) and k == "strategy_features"
+            else v
+            for k, v in context_at_exit.items()
+        }
+
+    # Round post-exit analysis MFE/MAE
+    post_exit = getattr(t, "post_exit_analysis", None)
+    if post_exit and isinstance(post_exit, dict):
+        post_exit = {
+            horizon: {
+                "mfe": _round_currency(data.get("mfe"))
+                if isinstance(data, dict)
+                else data,
+                "mae": _round_currency(data.get("mae"))
+                if isinstance(data, dict)
+                else data,
+            }
+            for horizon, data in post_exit.items()
+        }
+
+    cost_breakdown = _normalize_cost_breakdown(getattr(t, "cost_breakdown", None))
+
     return {
         "symbol": t.symbol,
         "side": t.side,
@@ -224,16 +363,16 @@ def _serialize_trade(t: Trade) -> dict[str, Any]:
         "entry_price": _round_price(t.entry_price),
         "exit_price": _round_price(t.exit_price),
         "pnl": _round_currency(t.pnl),
-        "pnl_gross": _round_currency(getattr(t, "pnl_gross", None)),
+        "pnl_movement": _round_currency(getattr(t, "pnl_movement", None)),
         "exit_reason": t.exit_reason,
         "r_multiple": getattr(t, "r_multiple", None),
         "mfe_currency": _round_currency(getattr(t, "mfe_currency", None)),
         "mae_currency": _round_currency(getattr(t, "mae_currency", None)),
         "bars_held": getattr(t, "bars_held", None),
-        "context_at_entry": getattr(t, "context_at_entry", None),
-        "context_at_exit": getattr(t, "context_at_exit", None),
-        "cost_breakdown": getattr(t, "cost_breakdown", None),
-        "post_exit_analysis": getattr(t, "post_exit_analysis", None),
+        "context_at_entry": context_at_entry,
+        "context_at_exit": context_at_exit,
+        "cost_breakdown": cost_breakdown,
+        "post_exit_analysis": post_exit,
     }
 
 
@@ -247,12 +386,18 @@ def compute_overall_performance(
     mean_pnl = (total_pnl / len(trades)) if trades else 0.0
     median_pnl = median(pnls) if pnls else 0.0
 
-    # Gross PnL and cost breakdown
-    total_pnl_gross = sum(t.pnl_gross for t in trades)
+    # Movement PnL and cost breakdown
+    total_pnl_movement = sum(t.pnl_movement for t in trades)
     total_costs = sum(t.cost_currency for t in trades)
-    total_spread = sum(t.cost_breakdown.get("spread", 0.0) for t in trades if t.cost_breakdown)
-    total_commission = sum(t.cost_breakdown.get("commission", 0.0) for t in trades if t.cost_breakdown)
-    total_slippage = sum(t.cost_breakdown.get("slippage", 0.0) for t in trades if t.cost_breakdown)
+    total_spread = sum(
+        t.cost_breakdown.get("spread", 0.0) for t in trades if t.cost_breakdown
+    )
+    total_commission = sum(
+        t.cost_breakdown.get("commission", 0.0) for t in trades if t.cost_breakdown
+    )
+    total_slippage = sum(
+        t.cost_breakdown.get("slippage", 0.0) for t in trades if t.cost_breakdown
+    )
 
     by_side_total_pnl = {
         "long": sum(t.pnl for t in trades if t.side == "long"),
@@ -261,7 +406,7 @@ def compute_overall_performance(
     return {
         "n_trades": len(trades),
         "total_pnl": _round_currency(total_pnl),
-        "total_pnl_gross": _round_currency(total_pnl_gross),
+        "total_pnl_movement": _round_currency(total_pnl_movement),
         "total_costs": _round_currency(total_costs),
         "cost_breakdown": {
             "spread": _round_currency(total_spread),
@@ -283,14 +428,18 @@ def compute_overall_performance(
 def compute_risk_snapshot(trades: list[Trade]) -> dict[str, Any]:
     wins = [t.pnl for t in trades if t.pnl > 0]
     losses = [t.pnl for t in trades if t.pnl < 0]
-    wins_gross = [t.pnl_gross for t in trades if t.pnl > 0]
-    losses_gross = [t.pnl_gross for t in trades if t.pnl < 0]
+    wins_movement = [t.pnl_movement for t in trades if t.pnl > 0]
+    losses_movement = [t.pnl_movement for t in trades if t.pnl < 0]
     return {
         "win_rate": _round_percentage(calculate_win_rate(trades)),
         "avg_win": _round_currency((sum(wins) / len(wins)) if wins else 0.0),
         "avg_loss": _round_currency((sum(losses) / len(losses)) if losses else 0.0),
-        "avg_win_gross": _round_currency((sum(wins_gross) / len(wins_gross)) if wins_gross else 0.0),
-        "avg_loss_gross": _round_currency((sum(losses_gross) / len(losses_gross)) if losses_gross else 0.0),
+        "avg_win_movement": _round_currency(
+            (sum(wins_movement) / len(wins_movement)) if wins_movement else 0.0
+        ),
+        "avg_loss_movement": _round_currency(
+            (sum(losses_movement) / len(losses_movement)) if losses_movement else 0.0
+        ),
         "max_win": _round_currency(max(wins) if wins else 0.0),
         "max_loss": _round_currency(min(losses) if losses else 0.0),
     }
@@ -502,13 +651,9 @@ def generate_brief(
     trades_json = []
     for t in trades:
         item = _serialize_trade(t)
-        # Attach cost breakdown if available
-        if getattr(t, "cost_breakdown", None) is not None:
-            assert t.cost_breakdown is not None  # Mypy type narrowing
-            cost_breakdown_data = t.cost_breakdown
-            item["cost_breakdown"] = {
-                k: _round_currency(v) for k, v in cost_breakdown_data.items()
-            }
+        item["cost_breakdown"] = _normalize_cost_breakdown(
+            getattr(t, "cost_breakdown", None)
+        )
         trades_json.append(item)
     # Compute provenance/environment
     prov = _compute_provenance(trades, meta)
@@ -551,8 +696,6 @@ def generate_brief(
     # --- Signal quality analysis section (placeholder logic) ---
     # If signals_path is provided and file exists, try to load signals; else use empty
     import os
-
-    import numpy as np
 
     signal_quality_analysis = {
         "signal_persistence_pct": 0.0,
@@ -669,23 +812,23 @@ def generate_brief(
         "trades": trades_json,
         "recommendations": _to_jsonable(recommendations or []),
     }
-    
+
     # Add policy information if available (these are not in schema yet)
     rmm_policy = _extract_rmm_policy(config_snapshot)
     if rmm_policy:
         base["rmm_policy"] = rmm_policy
-        
-    rem_policy = _extract_rem_policy(config_snapshot)  
+
+    rem_policy = _extract_rem_policy(config_snapshot)
     if rem_policy:
         base["rem_policy"] = rem_policy
-    
+
     placeholders = _empty_sections()
     placeholders.update(base)
     # --- Regime Summary Augmentation ---
     rmm_policy = placeholders.get("rmm_policy", {})
     regimes = rmm_policy.get("regimes", [])
     allowed_labels = rmm_policy.get("allowed_labels", [])
-    regime_counts = {}
+    regime_counts: dict[str, int] = {}
     for trade in placeholders.get("trades", []):
         # Defensive: context_at_entry may be None (schema allows null). Accept
         # either a flat 'regime_label' or a nested 'regime': {"label": ...}.
@@ -695,7 +838,7 @@ def generate_brief(
             regime = ctx.get("regime_label") or (ctx.get("regime") or {}).get("label")
         if regime:  # pragma: no branch
             regime_counts[regime] = regime_counts.get(regime, 0) + 1
-    for skip in (skipped_trades or []):
+    for skip in skipped_trades or []:
         regime = skip.get("regime", {}).get("label")
         if regime:
             regime_counts[regime] = regime_counts.get(regime, 0) + 1
@@ -707,8 +850,12 @@ def generate_brief(
         "regime_counts": regime_counts,
         "n_trades": len(placeholders.get("trades", [])),
         "n_skipped_trades": len(skipped_list),
-        "n_long": sum(1 for t in placeholders.get("trades", []) if t.get("side") == "long"),
-        "n_short": sum(1 for t in placeholders.get("trades", []) if t.get("side") == "short"),
+        "n_long": sum(
+            1 for t in placeholders.get("trades", []) if t.get("side") == "long"
+        ),
+        "n_short": sum(
+            1 for t in placeholders.get("trades", []) if t.get("side") == "short"
+        ),
         "n_long_skipped": sum(1 for s in skipped_list if s.get("side") == "long"),
         "n_short_skipped": sum(1 for s in skipped_list if s.get("side") == "short"),
         "n_allowed_regimes": len(allowed_labels),
@@ -720,7 +867,9 @@ def generate_brief(
             regime_counts.get(label, 0)
             for label in regime_labels
             if label not in allowed_labels
-        ) if regimes else 0,
+        )
+        if regimes
+        else 0,
         # 'narrative' intentionally omitted; scenario-specific explanations should
         # be generated dynamically in reporting, not hardcoded in the brief.
     }
@@ -767,7 +916,7 @@ def generate_brief(
     checks = placeholders.get("checksums")
     if isinstance(checks, dict) and not checks:
         placeholders.pop("checksums", None)
-    
+
     if skipped_trades:
         # Aggregate impact metrics by skip_reason
         agg: dict[str, Any] = {}
@@ -831,6 +980,7 @@ def save_run_brief(
     processed_data_path: str | None = None,
     validate_schema: bool = False,
     recommendations: list[dict[str, Any]] | None = None,
+    field_definitions: dict[str, Any] | None = None,
 ) -> Path:
     """Generate and save a brief to `run_path/brief.json`.
 
@@ -858,6 +1008,7 @@ def save_run_brief(
         rmm_spans_path=rmm_spans_path,
         processed_data_path=processed_data_path,
         recommendations=recommendations,
+        field_definitions=field_definitions,
     )
     if validate_schema:
         try:

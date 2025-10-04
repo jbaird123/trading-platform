@@ -30,6 +30,9 @@ def compute_stationarity(trades: list[Trade]) -> dict:
     pnl_series = [trade.pnl for trade in trades]
 
     try:
+        import warnings
+
+        from statsmodels.tools.sm_exceptions import InterpolationWarning
         from statsmodels.tsa.stattools import adfuller, kpss
 
         # Run ADF test (null hypothesis: unit root/non-stationary)
@@ -37,8 +40,11 @@ def compute_stationarity(trades: list[Trade]) -> dict:
         adf_p_value = float(adf_result[1])
 
         # Run KPSS test (null hypothesis: stationary)
-        kpss_result = kpss(pnl_series)
-        kpss_p_value = float(kpss_result[1])
+        # Suppress InterpolationWarning when test statistic is outside p-value range
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=InterpolationWarning)
+            kpss_result = kpss(pnl_series)
+            kpss_p_value = float(kpss_result[1])
 
         return {
             "adf_p_value": adf_p_value,
@@ -243,6 +249,8 @@ def compute_contrasts(trades: list[Trade]) -> dict:
                     "total_pnl": 0.0,
                     "avg_win": 0.0,
                     "avg_loss": 0.0,
+                    "avg_win_movement": 0.0,
+                    "avg_loss_movement": 0.0,
                 }
 
             n_trades = len(side_trades)
@@ -263,13 +271,13 @@ def compute_contrasts(trades: list[Trade]) -> dict:
                 if losing_trades
                 else 0.0
             )
-            avg_win_gross = (
-                sum(t.pnl_gross for t in winning_trades) / len(winning_trades)
+            avg_win_movement = (
+                sum(t.pnl_movement for t in winning_trades) / len(winning_trades)
                 if winning_trades
                 else 0.0
             )
-            avg_loss_gross = (
-                sum(t.pnl_gross for t in losing_trades) / len(losing_trades)
+            avg_loss_movement = (
+                sum(t.pnl_movement for t in losing_trades) / len(losing_trades)
                 if losing_trades
                 else 0.0
             )
@@ -281,8 +289,8 @@ def compute_contrasts(trades: list[Trade]) -> dict:
                 "total_pnl": round(total_pnl, 2),
                 "avg_win": round(avg_win, 2),
                 "avg_loss": round(avg_loss, 2),
-                "avg_win_gross": round(avg_win_gross, 2),
-                "avg_loss_gross": round(avg_loss_gross, 2),
+                "avg_win_movement": round(avg_win_movement, 2),
+                "avg_loss_movement": round(avg_loss_movement, 2),
             }
 
         return {
@@ -360,7 +368,6 @@ def compute_stop_tp_candidates(trades: list[Trade]) -> dict:
         return {}
 
 
-
 def compute_exit_efficiency(trades: list[Trade]) -> dict:
     """
     Analyze exit efficiency by comparing actual exits to post-exit price movement.
@@ -382,13 +389,15 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
 
     # Determine which horizons are available
     first_trade = trades_with_analysis[0]
+    # post_exit_analysis is guaranteed non-None due to filter above
+    assert first_trade.post_exit_analysis is not None
     horizons = sorted([int(h) for h in first_trade.post_exit_analysis.keys()])
 
     def analyze_by_exit_reason(reason: str) -> dict:
         """Analyze trades that exited for a specific reason."""
         reason_trades = [t for t in trades_with_analysis if t.exit_reason == reason]
-        if not reason_trades:
-            return {}
+        if not reason_trades:  # pragma: no cover
+            return {}  # pragma: no cover - Defensive: exit_reasons built from trades
 
         n_trades = len(reason_trades)
         analysis: dict[str, Any] = {"n_trades": n_trades}
@@ -402,9 +411,11 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
             false_exit_count = 0
 
             for t in reason_trades:
+                # post_exit_analysis is guaranteed non-None due to filter
+                assert t.post_exit_analysis is not None
                 post_data = t.post_exit_analysis.get(h_key, {})
                 post_mfe = post_data.get("mfe", 0.0)
-                post_mae = post_data.get("mae", 0.0)
+                post_data.get("mae", 0.0)
 
                 # Opportunity cost = what we left on the table
                 opp_cost = post_mfe  # Positive if price continued favorably
@@ -413,7 +424,7 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
                 # Classify based on exit reason
                 if reason in ["take_profit", "tp"]:
                     # Premature TP: price continued significantly after we closed
-                    if post_mfe > abs(t.pnl_gross) * 2:  # 2x our profit
+                    if post_mfe > abs(t.pnl_movement) * 2:  # 2x our profit
                         premature_count += 1
 
                 elif reason in ["stop_loss", "sl", "stop"]:
@@ -424,7 +435,8 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
                 else:  # Signal exits or other
                     # Good exit if price went against us (post_mae got worse)
                     # Bad exit if price continued favorably (high post_mfe)
-                    if post_mfe > abs(t.pnl_gross) * 1.5:  # Left >1.5x profit on table
+                    # Left >1.5x profit on table
+                    if post_mfe > abs(t.pnl_movement) * 1.5:
                         premature_count += 1
 
             avg_opp_cost = sum(opp_costs) / len(opp_costs) if opp_costs else 0.0
@@ -433,11 +445,15 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
             # Only include rates on the longest horizon to avoid clutter
             if horizon == horizons[-1]:
                 if reason in ["take_profit", "tp"]:
-                    analysis["premature_exit_rate"] = round(premature_count / n_trades, 3)
+                    analysis["premature_exit_rate"] = round(
+                        premature_count / n_trades, 3
+                    )
                 elif reason in ["stop_loss", "sl", "stop"]:
                     analysis["false_stop_rate"] = round(false_exit_count / n_trades, 3)
                 else:
-                    analysis["suboptimal_exit_rate"] = round(premature_count / n_trades, 3)
+                    analysis["suboptimal_exit_rate"] = round(
+                        premature_count / n_trades, 3
+                    )
 
         return analysis
 
@@ -446,11 +462,16 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
     by_exit_reason = {}
     for reason in exit_reasons:
         reason_analysis = analyze_by_exit_reason(reason)
-        if reason_analysis:
-            by_exit_reason[reason] = reason_analysis
+        if reason_analysis:  # pragma: no cover
+            by_exit_reason[reason] = (
+                reason_analysis  # pragma: no cover - Always true when
+                # exit_reasons from trades
+            )
 
     # Optimal hold duration analysis: what if we held for N bars instead?
-    current_avg_pnl = sum(t.pnl for t in trades_with_analysis) / len(trades_with_analysis)
+    current_avg_pnl = sum(t.pnl for t in trades_with_analysis) / len(
+        trades_with_analysis
+    )
     optimal_hold: dict[str, Any] = {"current_avg_pnl": round(current_avg_pnl, 2)}
 
     for horizon in horizons:
@@ -459,6 +480,8 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
         # We take the better of: actual exit or post_exit_mfe
         hypothetical_pnls = []
         for t in trades_with_analysis:
+            # post_exit_analysis is guaranteed non-None due to filter
+            assert t.post_exit_analysis is not None
             post_data = t.post_exit_analysis.get(h_key, {})
             post_mfe = post_data.get("mfe", 0.0)
             # If we had held longer, we could have captured this extra profit
@@ -466,11 +489,14 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
             hypothetical_pnl = t.pnl + post_mfe
             hypothetical_pnls.append(hypothetical_pnl)
 
-        avg_hypothetical = sum(hypothetical_pnls) / len(hypothetical_pnls) if hypothetical_pnls else 0.0
+        avg_hypothetical = (
+            sum(hypothetical_pnls) / len(hypothetical_pnls)
+            if hypothetical_pnls
+            else 0.0
+        )
         optimal_hold[f"if_held_{h_key}_bars"] = round(avg_hypothetical, 2)
 
     return {
         "by_exit_reason": by_exit_reason,
         "optimal_hold_analysis": optimal_hold,
     }
-

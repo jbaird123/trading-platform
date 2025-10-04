@@ -15,7 +15,11 @@ from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
 
 
-def _rmm_context(df: pd.DataFrame, cfg_raw: dict[str, Any]) -> dict | None:
+def _rmm_context(
+    df: pd.DataFrame,
+    cfg_raw: dict[str, Any],
+    data_handler: Any | None = None,
+) -> dict | None:
     rmm_cfg = cfg_raw.get("rmm_config") or {}
     rmm_path = cfg_raw.get("rmm_path")
     if rmm_path:
@@ -31,68 +35,64 @@ def _rmm_context(df: pd.DataFrame, cfg_raw: dict[str, Any]) -> dict | None:
         )
     if not isinstance(rmm_cfg, dict) or not rmm_cfg:
         return None
-    eng = RMMEngine(config=rmm_cfg)
+
+    # SAFETY: Validate RMM config schema before use
+    RMMEngine.validate_config(rmm_cfg)
+
     regime_timeframe = rmm_cfg.get("timeframe", "1D")
-    regimes = eng.classify_regime(df, timeframe=regime_timeframe)
+
+    # PERFORMANCE: Check cache first if DataHandler is available
+    if data_handler is not None:
+        cached_context = data_handler.get_rmm_context(rmm_cfg, regime_timeframe)
+        if cached_context is not None:
+            return dict(cached_context)
+
+    # Not cached - compute regime classification
+    eng = RMMEngine(config=rmm_cfg)
+
+    # Use DataHandler for resampling if available (cached), otherwise
+    # fallback to direct resample
+    if data_handler is not None:
+        df_resampled = data_handler.get_data(timeframe=regime_timeframe)
+        already_resampled = True
+    else:
+        # Fallback for legacy code paths without DataHandler
+        df_resampled = df
+        already_resampled = False
+
+    regimes = eng.classify_regime(
+        df_resampled, timeframe=regime_timeframe, already_resampled=already_resampled
+    )
     pol = rmm_cfg.get("policy") or {}
     from typing import cast as _cast
 
     proj = eng.project_to_index(regimes, _cast(pd.DatetimeIndex, df.index), policy=pol)
 
     # Extract regime feature names from config
-    feature_names = [f.get("name") for f in rmm_cfg.get("features", []) if f.get("name")]
+    feature_names = [
+        f.get("name") for f in rmm_cfg.get("features", []) if f.get("name")
+    ]
 
-    import math
-
-    def _round_feature(name: str, val: Any) -> float | None:
-        """Round feature value based on its type, returning None for NaN/inf."""
-        if val is None:
-            return None
-        try:
-            f = float(val)
-            if math.isnan(f) or math.isinf(f):
-                return None
-
-            # Determine precision based on feature name/type
-            name_lower = name.lower()
-
-            # ADX, ATR: 2 decimals (percentage-like)
-            if any(x in name_lower for x in ['adx', 'atr']):
-                return round(f, 2)
-            # RSI, Stochastic, CCI: 2 decimals (bounded indicators)
-            elif any(x in name_lower for x in ['rsi', 'stoch', 'cci']):
-                return round(f, 2)
-            # Volume: whole numbers
-            elif 'volume' in name_lower or 'vol' in name_lower:
-                return round(f, 0)
-            # EMA, SMA, prices: 4 decimals (forex precision)
-            elif any(x in name_lower for x in ['ema', 'sma', 'price', 'close', 'open', 'high', 'low']):
-                return round(f, 4)
-            # MACD, momentum: 4 decimals
-            elif any(x in name_lower for x in ['macd', 'mom', 'roc']):
-                return round(f, 4)
-            # Default: 4 decimals
-            else:
-                return round(f, 4)
-        except (ValueError, TypeError):
-            return None
-
-    return {
+    # Build RMM context with full precision - rounding happens in brief.py
+    rmm_context = {
         ts: {
             "label": str(row["label"]),
             "confidence": float(row["confidence"]),
             "allowed_sides": list(row.get("allowed_sides") or []),
             "policy": pol,
-            # Include regime feature values with appropriate rounding
             "features": {
-                fname: _round_feature(fname, row.get(fname))
-                for fname in feature_names
-                if fname in row.index
+                fname: row.get(fname) for fname in feature_names if fname in row.index
             },
             "timeframe": regime_timeframe,
         }
         for ts, row in proj.iterrows()
     }
+
+    # Cache the result if DataHandler is available
+    if data_handler is not None:
+        data_handler.set_rmm_context(rmm_cfg, regime_timeframe, rmm_context)
+
+    return rmm_context
 
 
 def run_parameter_sweep(
@@ -106,9 +106,25 @@ def run_parameter_sweep(
     seed: int | None = None,
     objective: str = "total_pnl",
     dd_penalty: float | None = None,
+    data_handler: Any | None = None,
     vol_penalty: float | None = None,
     debug_dir: str | Path | None = None,
 ) -> dict[str, Any]:
+    # BUGFIX: Reload strategy from file to avoid mutations from baseline compile
+    # If strategy_path is specified, reload it fresh
+    if "strategy_path" in base_cfg:
+        import json
+        from pathlib import Path as PathLib
+
+        import yaml
+
+        strat_path = PathLib(str(base_cfg["strategy_path"]))
+        txt = strat_path.read_text()
+        strategy_cfg = (
+            yaml.safe_load(txt)
+            if str(strat_path).endswith((".yaml", ".yml"))
+            else json.loads(txt)
+        )
     if seed is not None:
         random.seed(seed)
     # Build candidates
@@ -133,7 +149,7 @@ def run_parameter_sweep(
             cands.append({k: random.choice(random_space[k]) for k in keys})
 
     cfg = RunConfig.model_validate(base_cfg)
-    rmm_ctx = _rmm_context(df, base_cfg)
+    rmm_ctx = _rmm_context(df, base_cfg, data_handler)
     rem_cfg = base_cfg.get("rem_config") or {}
     rem_path = base_cfg.get("rem_path")
     if rem_path:
@@ -151,11 +167,12 @@ def run_parameter_sweep(
 
     results: list[dict[str, Any]] = []
     log_file: Path | None = None
+    debug_path: Path | None = None
     if debug_dir is not None:
         try:
-            d = Path(str(debug_dir))
-            d.mkdir(parents=True, exist_ok=True)
-            log_file = d / "sweep_debug.log"
+            debug_path = Path(str(debug_dir))
+            debug_path.mkdir(parents=True, exist_ok=True)
+            log_file = debug_path / "sweep_debug.log"
             with log_file.open("a") as f:
                 f.write("# sweep start\n")
         except Exception:
@@ -165,8 +182,102 @@ def run_parameter_sweep(
         params = dict(scfg.get("parameters") or {})
         params.update(cand)
         scfg["parameters"] = params
+
+        # DEBUG: Log the config being compiled
+        if log_file is not None:
+            try:
+                with log_file.open("a") as f:
+                    f.write(f"COMPILE params={cand}\n")
+                    f.write(f"  scfg['parameters']={scfg.get('parameters')}\n")
+                    # Check feature params
+                    for feat in scfg.get("features", []):
+                        fname = feat.get("name")
+                        fparams = feat.get("params", {})
+                        f.write(f"  feature '{fname}': params={fparams}\n")
+            except Exception:  # pragma: no cover
+                pass  # pragma: no cover - Defensive: debug logging
+                # should not crash sweep
+
         strat = compile_strategy(scfg)
+
+        # DEBUG: Log compiled feature params
+        if log_file is not None:
+            try:
+                with log_file.open("a") as f:
+                    f.write("COMPILED strategy:\n")
+                    f.write(f"  strat.features type={type(strat.features)}\n")
+                    features_len = (
+                        len(strat.features)
+                        if hasattr(strat.features, "__len__")
+                        else "N/A"
+                    )
+                    f.write(f"  strat.features len={features_len}\n")
+                    if hasattr(strat, "features") and strat.features:
+                        for i, feat in enumerate(strat.features):
+                            f.write(f"  feature[{i}]: {feat}\n")
+                    feature_cols = (
+                        list(strat._feature_df.columns)
+                        if (
+                            hasattr(strat, "_feature_df")
+                            and strat._feature_df is not None
+                        )
+                        else "N/A"
+                    )
+                    f.write(f"  strat._feature_df cols={feature_cols}\n")
+            except Exception as e:
+                with log_file.open("a") as f:
+                    f.write(f"  COMPILE LOG ERROR: {e}\n")
+
         sig = strat.generate_signals(df)
+
+        # DEBUG: Log detailed info
+        if log_file is not None:
+            try:
+                with log_file.open("a") as f:
+                    f.write(f"DEBUG params={cand}\n")
+                    f.write(
+                        f"  df.shape={df.shape}, df.index[0]={df.index[0]}, "
+                        f"df.index[-1]={df.index[-1]}\n"
+                    )
+                    f.write(f"  sig.shape={sig.shape}\n")
+                    vc = sig.value_counts()
+                    f.write(f"  sig.value_counts()={dict(vc)}\n")
+                    f.write(f"  rmm_ctx keys count={len(rmm_ctx) if rmm_ctx else 0}\n")
+                    # Log feature dataframe if available
+                    feat_df = getattr(strat, "_feature_df", None)
+                    if feat_df is not None:
+                        f.write(f"  feat_df.shape={feat_df.shape}\n")
+                        # Check EMA values
+                        if (
+                            "ema_fast" in feat_df.columns
+                            and "ema_slow" in feat_df.columns
+                        ):
+                            non_nan_fast = feat_df["ema_fast"].notna().sum()
+                            non_nan_slow = feat_df["ema_slow"].notna().sum()
+                            f.write(f"  ema_fast non-NaN count={non_nan_fast}\n")
+                            f.write(f"  ema_slow non-NaN count={non_nan_slow}\n")
+                    # Save signals and features for analysis
+                    if debug_path is not None:
+                        import pandas as pd
+
+                        sig_df = pd.DataFrame({"signal": sig})
+                        sig_path = (
+                            debug_path / f"sweep_signals_{cand['ema_fast_length']}_"
+                            f"{cand['ema_slow_length']}.parquet"
+                        )
+                        sig_df.to_parquet(str(sig_path))
+                        # Save feature dataframe
+                        if feat_df is not None:
+                            feat_path = (
+                                debug_path
+                                / f"sweep_features_{cand['ema_fast_length']}_"
+                                f"{cand['ema_slow_length']}.parquet"
+                            )
+                            feat_df.to_parquet(str(feat_path))
+            except Exception as e:
+                with log_file.open("a") as f:
+                    f.write(f"  DEBUG ERROR: {e}\n")
+
         _res = run_backtest(
             market_data=df,
             signals=sig,
@@ -240,6 +351,7 @@ def walk_forward_optimize_and_test(
     seed: int | None = None,
     objective: str = "total_pnl",
     dd_penalty: float | None = None,
+    data_handler: Any | None = None,
     vol_penalty: float | None = None,
 ) -> dict[str, Any]:
     splits = walk_forward_splits(df.index, window=window, step=step)
@@ -274,7 +386,7 @@ def walk_forward_optimize_and_test(
             strategy=strat,
             config=cfg,
             rem=rem,
-            rmm_context=_rmm_context(test, base_cfg),
+            rmm_context=_rmm_context(test, base_cfg, data_handler),
         )
         trades2: list[Trade]
         if isinstance(_res2, tuple):
@@ -324,6 +436,7 @@ def monte_carlo_resimulation(
     mode: str = "bar_bootstrap",
     cost_jitter: dict[str, Any] | None = None,
     perturbation: dict[str, Any] | None = None,
+    data_handler: Any | None = None,
 ) -> dict[str, Any]:
     """Monte Carlo by resimulating price paths and re-running the engine.
 
@@ -349,28 +462,47 @@ def monte_carlo_resimulation(
             return data
         out = data.copy()
         if mode_p == "block":
-            bl = int(perturbation.get("block_len", 5) or 5)  # pragma: no cover
-            bl = max(1, bl)  # pragma: no cover
-            for start in range(0, len(out), bl):  # pragma: no cover
-                z = random.gauss(0.0, std_pct)  # pragma: no cover
-                factor = 1.0 + z  # pragma: no cover
-                end = min(len(out), start + bl)  # pragma: no cover
-                rows = out.index[start:end]  # pragma: no cover
-                for col in ("open", "high", "low", "close"):  # pragma: no cover
-                    ser = out.loc[rows, col].astype(float) * factor  # pragma: no cover
-                    out.loc[rows, col] = ser  # pragma: no cover
+            # PERFORMANCE: Vectorized block perturbation
+            import numpy as np
+
+            bl = int(perturbation.get("block_len", 5) or 5)
+            bl = max(1, bl)
+            n = len(out)
+            num_blocks = (n + bl - 1) // bl  # ceiling division
+
+            # Generate one random factor per block
+            block_factors = np.array(
+                [1.0 + random.gauss(0.0, std_pct) for _ in range(num_blocks)]
+            )
+
+            # Expand block factors to per-bar factors (repeat each factor bl times)
+            factors = np.repeat(block_factors, bl)[:n]  # Trim to exact length
+
+            # Apply to all OHLC columns at once
+            ohlc_cols = [
+                c for c in ("open", "high", "low", "close") if c in out.columns
+            ]
+            if ohlc_cols:
+                out[ohlc_cols] = out[ohlc_cols].astype(float)
+                for col in ohlc_cols:
+                    out[col] = out[col] * factors
         else:
-            # Apply same multiplicative noise per bar to preserve OHLC order
-            for i in range(len(out)):
-                z = random.gauss(0.0, std_pct)
-                factor = 1.0 + z
-                for col in ("open", "high", "low", "close"):
-                    j = out.columns.get_loc(col)
-                    try:
-                        base_val = float(out.iat[i, j])  # type: ignore[arg-type,index]
-                    except Exception:  # pragma: no cover
-                        base_val = 0.0  # pragma: no cover
-                    out.iat[i, j] = base_val * factor  # type: ignore[index]
+            # PERFORMANCE: Vectorized perturbation instead of slow Python loop
+            # Generate random factors for each bar (same factor per bar across OHLC)
+            import numpy as np
+
+            n = len(out)
+            noise = np.random.normal(0.0, std_pct, n)
+            factors = 1.0 + noise
+
+            # Apply multiplicative noise to all OHLC columns at once
+            ohlc_cols = [
+                c for c in ("open", "high", "low", "close") if c in out.columns
+            ]
+            if ohlc_cols:
+                out[ohlc_cols] = out[ohlc_cols].astype(float)
+                for col in ohlc_cols:
+                    out[col] = out[col] * factors
         return out
 
     def _percentile(values: list[float], pct: float) -> float:
@@ -389,6 +521,18 @@ def monte_carlo_resimulation(
     cfg = RunConfig.model_validate(base_cfg)
     rem = RiskExitManager(config=(base_cfg.get("rem_config") or {}))
 
+    # PERFORMANCE FIX: Compute RMM context once before loop instead of
+    # per trial. For bar_resimulation mode, the index doesn't change, so we
+    # can reuse the same RMM context. For bar_bootstrap mode, the index is
+    # preserved (line 441), so RMM context is still valid
+    rmm_ctx = _rmm_context(df, base_cfg, data_handler)
+
+    # PERFORMANCE FIX: Compile strategy once outside loop
+    # (doesn't change between trials)
+    strat = compile_strategy(
+        {**strategy_cfg, "parameters": strategy_cfg.get("parameters", {})}
+    )
+
     finals: list[float] = []
     finals_pnl: list[float] = []
     dd_vals: list[float] = []
@@ -396,7 +540,7 @@ def monte_carlo_resimulation(
     tuw_ratios: list[float] = []
     curves: list[tuple[float, list[float]]] = []  # (final_eq, curve)
 
-    for _ in range(max(1, int(trials))):
+    for trial_idx in range(max(1, int(trials))):
         sim_df = _sample_bars(df) if mode == "bar_bootstrap" else df.copy()
         sim_df = _perturb_bars(sim_df)
         # Optionally jitter cost model per trial
@@ -417,9 +561,7 @@ def monte_carlo_resimulation(
             cm["spread_per_unit"] = _j(base_sp, sp)
             cm["slippage_per_unit"] = _j(base_sl, sl)
             cfg_trial = cfg.model_copy(update={"cost_model": cm})
-        strat = compile_strategy(
-            {**strategy_cfg, "parameters": strategy_cfg.get("parameters", {})}
-        )
+        # Generate signals on perturbed data (must be per-trial since prices changed)
         sig = strat.generate_signals(sim_df)
         _res3 = run_backtest(
             market_data=sim_df,
@@ -427,7 +569,7 @@ def monte_carlo_resimulation(
             strategy=strat,
             config=cfg_trial,
             rem=rem,
-            rmm_context=_rmm_context(sim_df, base_cfg),
+            rmm_context=rmm_ctx,
         )
         trades3: list[Trade]
         if isinstance(_res3, tuple):

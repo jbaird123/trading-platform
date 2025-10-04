@@ -6,9 +6,20 @@ from datetime import datetime
 from trading_platform.execution import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
 
+# Minimal instrument for testing
+TEST_INSTRUMENT = {
+    "symbol": "EURUSD",
+    "asset_class": "Forex",
+    "point_value": 1.0,
+    "tick_size": 0.00001,
+    "pip_location": 0.0001,
+}
+
 
 def test_oanda_stub_logs_and_updates_pm():
-    pm = PortfolioManager(initial_cash=1000.0)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT
+    )
     adapter = OandaStubAdapter(pm=pm)
     adapter.connect()
 
@@ -36,7 +47,9 @@ def test_oanda_stub_logs_and_updates_pm():
 
 
 def test_oanda_stub_flip_long_to_short_opens_new_position():
-    pm = PortfolioManager(initial_cash=1000.0)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT
+    )
     adapter = OandaStubAdapter(pm=pm)
     adapter.connect()
     adapter.place_order(
@@ -71,7 +84,9 @@ def test_oanda_stub_without_pm_only_logs_events():
 
 
 def test_oanda_stub_same_side_noop_flat_noop_and_shutdown():
-    pm = PortfolioManager(initial_cash=0.0)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=0.0, instrument=TEST_INSTRUMENT
+    )
     adapter = OandaStubAdapter(pm=pm)
     adapter.connect()
     # Open long, then send another long at a new price (should not close/reopen)
@@ -122,7 +137,9 @@ def test_oanda_stub_same_side_noop_flat_noop_and_shutdown():
 
 def test_oanda_stub_place_order_flat_with_position():
     """side='flat' should close an existing position."""
-    pm = PortfolioManager(initial_cash=1000.0)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT
+    )
     pm.create_new_position("EURUSD", "long", 1.1000, 1.0, datetime(2024, 1, 1, 10))
     assert pm.current_position is not None
 
@@ -142,7 +159,9 @@ def test_oanda_stub_place_order_flat_with_position():
 
 def test_oanda_stub_place_order_flat_without_position():
     """Test place_order with side='flat' when no current position exists."""
-    pm = PortfolioManager(initial_cash=1000.0)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT
+    )
     assert pm.current_position is None
 
     adapter = OandaStubAdapter(pm)
@@ -160,7 +179,9 @@ def test_oanda_stub_place_order_flat_without_position():
 
 def test_same_side_order_with_existing_position():
     """Test placing same-side order when position already exists."""
-    pm = PortfolioManager(initial_cash=1000.0)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT
+    )
     adapter = OandaStubAdapter(
         pm=pm, pm_limits={"max_open_long": 2, "max_open_short": 2}
     )

@@ -67,6 +67,7 @@ def finalize_run(
     rmm_spans_path: Path | None = None,
     processed_data_path: Path | None = None,
     recommendations: list[dict[str, Any]] | None = None,
+    field_definitions: dict[str, Any] | None = None,
 ) -> Path:
     """Generate and save a brief for this run under the run_path.
 
@@ -184,6 +185,7 @@ def finalize_run(
         rmm_spans_path=str(rmm_spans_path) if rmm_spans_path else None,
         processed_data_path=str(processed_data_path) if processed_data_path else None,
         recommendations=recommendations,
+        field_definitions=field_definitions,
     )
     # Export parameter search results, if available
     try:

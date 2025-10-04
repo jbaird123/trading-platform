@@ -7,6 +7,14 @@ import pandas as pd
 from pytest import approx
 from trading_platform.portfolio.portfolio import PortfolioManager
 
+# Minimal instrument for testing
+TEST_INSTRUMENT = {
+    "symbol": "TEST",
+    "asset_class": "Stock",
+    "point_value": 1.0,
+    "tick_size": 0.01,
+}
+
 
 def _bar(ts: str, o: float, h: float, lo: float, c: float) -> pd.Series:
     s = pd.Series({"open": o, "high": h, "low": lo, "close": c})
@@ -15,7 +23,9 @@ def _bar(ts: str, o: float, h: float, lo: float, c: float) -> pd.Series:
 
 
 def test_mfe_mae_and_bars_held_long():
-    pm = PortfolioManager(initial_cash=0.0)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=0.0, instrument=TEST_INSTRUMENT
+    )
     pm.create_new_position(
         symbol="X",
         side="long",
@@ -43,7 +53,9 @@ def test_mfe_mae_and_bars_held_long():
 
 
 def test_mfe_mae_and_bars_held_short():
-    pm = PortfolioManager(initial_cash=0.0)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=0.0, instrument=TEST_INSTRUMENT
+    )
     pm.create_new_position(
         symbol="X",
         side="short",

@@ -22,6 +22,7 @@ from trading_platform.ai.feature_engineering.pipeline import (
     FeatureEngineeringPipeline,
 )
 from trading_platform.ai.synthesis.engine import DiagnosticSynthesisEngine
+from trading_platform.core import paths
 
 # Conditional import for type checking
 # In a real implementation, you would have a more robust way to handle this
@@ -64,7 +65,7 @@ class AITrainingPipeline:
         self.run_id = self.config.get("run_id", "default_run")
 
         # Set up MLflow tracking URI
-        tracking_uri = self.config.get("mlflow_tracking_uri", "./mlruns")
+        tracking_uri = self.config.get("mlflow_tracking_uri", paths.MLFLOW_DEFAULT_URI)
         mlflow.set_tracking_uri(tracking_uri)
         mlflow.set_experiment(self.config.get("experiment_name", "Default"))
 
@@ -179,15 +180,21 @@ class AITrainingPipeline:
         initial_type = [("float_input", FloatTensorType([None, X.shape[1]]))]
         onnx_model = convert_sklearn(model, initial_types=initial_type)
 
-        # Save ONNX model to a temporary file
-        onnx_path = "model.onnx"
+        # Save ONNX model to a temporary file using tempfile
+        import shutil
+        import tempfile
+
+        # Create temp directory and use consistent filename for MLflow
+        temp_dir = tempfile.mkdtemp()
+        onnx_path = os.path.join(temp_dir, "model.onnx")
         with open(onnx_path, "wb") as f:
             f.write(onnx_model.SerializeToString())
 
         # Log ONNX model as an MLflow artifact
         mlflow.log_artifact(onnx_path, "onnx_model")
         print(f"ONNX model saved to MLflow: {onnx_path}")
-        os.remove(onnx_path)  # Clean up temporary file
+        # Clean up temporary directory and all contents
+        shutil.rmtree(temp_dir)
 
         # 4. Run Diagnostic Synthesis Engine
         print("Running Diagnostic Synthesis Engine...")

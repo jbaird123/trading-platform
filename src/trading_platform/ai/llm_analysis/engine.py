@@ -39,7 +39,7 @@ class LLMAnalysisEngine:
         brief_copy.pop("field_definitions", None)
 
         # Use compact JSON format to minimize token usage for AI
-        return json.dumps(brief_copy, separators=(',', ':'))
+        return json.dumps(brief_copy, separators=(",", ":"))
 
     def run(self) -> str:
         """Generates and returns the qualitative feedback from the LLM."""

@@ -1,0 +1,44 @@
+user_id: "researcher"
+initial_cash: 100000
+position_size: 50000
+warmup_bars: 100
+entry_window_bars: 3
+tie_break_policy:
+  rule: "stop_then_tp"
+
+# Transaction costs configuration
+cost_model:
+  spread_per_unit: 0.00015  # 1.5 pips for EUR/USD
+  slippage_per_unit: 0.0
+  commission:
+    type: "per_unit"
+    value: 0.0
+
+# Data source - Full 12 years for comprehensive parameter search
+data_request:
+  symbol: "EUR_USD"
+  timeframe: "1H"
+  start: "2013-01-01"
+  end: "2025-09-26"
+
+strategy_path: "config/strategy/ema_crossover.yaml"
+rem_path: "config/rem/trailing_stops.yaml"  # 20-pip trailing from iteration 9
+# NO RMM - find raw edge first, validate with RMM after
+
+# === PARAMETER SEARCH ONLY ===
+# Find best EMA combinations based on raw signal quality
+# 6 × 5 = 30 parameter combinations
+parameter_search:
+  objective: "total_pnl"
+  seed: 42
+  grid:
+    # Fast EMA: Test around winning value of 12
+    ema_fast_length: [8, 10, 12, 14, 16, 20]
+    # Slow EMA: Test around winning value of 50
+    ema_slow_length: [40, 50, 60, 80, 100]
+
+# Strategy parameters baseline
+strategy_params:
+  ema_fast_length: 12
+  ema_slow_length: 50
+  slope_filter: false

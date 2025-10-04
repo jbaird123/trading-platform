@@ -49,9 +49,11 @@ def _trade(
         side="long" if pnl >= 0 else "short",
         size=1.0,
         pnl=pnl,
+        pnl_movement=pnl,  # Assume no costs for test trades
         exit_reason=exit_reason,
         mfe_currency=mfe,
         mae_currency=mae,
+        cost_breakdown={"spread": 0.0, "commission": 0.0, "slippage": 0.0},
     )
 
 
@@ -299,6 +301,7 @@ def test_brief_includes_instrument_snapshot_when_provided():
     instr = InstrumentDefinition(
         symbol="EURUSD",
         tick_size=0.0001,
+        pip_location=0.0001,
         base_ccy="EUR",
         quote_ccy="USD",
         asset_class="Forex",
@@ -581,6 +584,9 @@ def test_brief_schema_accepts_mc_wf_ps_enumerated_fields():
         "overall_performance": {
             "n_trades": 0,
             "total_pnl": 0.0,
+            "total_pnl_movement": 0.0,
+            "total_costs": 0.0,
+            "cost_breakdown": {"spread": 0.0, "commission": 0.0, "slippage": 0.0},
             "mean_pnl": 0.0,
             "median_pnl": 0.0,
             "by_side_total_pnl": {"long": 0.0, "short": 0.0},
@@ -592,6 +598,8 @@ def test_brief_schema_accepts_mc_wf_ps_enumerated_fields():
             "win_rate": 0.0,
             "avg_win": 0.0,
             "avg_loss": 0.0,
+            "avg_win_movement": 0.0,
+            "avg_loss_movement": 0.0,
             "max_win": 0.0,
             "max_loss": 0.0,
         },

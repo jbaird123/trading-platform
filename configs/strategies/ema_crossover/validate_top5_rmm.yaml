@@ -1,0 +1,41 @@
+user_id: "researcher"
+initial_cash: 100000
+position_size: 50000
+warmup_bars: 100
+entry_window_bars: 3
+tie_break_policy:
+  rule: "stop_then_tp"
+
+# Transaction costs configuration
+cost_model:
+  spread_per_unit: 0.00015  # 1.5 pips for EUR/USD
+  slippage_per_unit: 0.0
+  commission:
+    type: "per_unit"
+    value: 0.0
+
+# Data source - Full 12 years
+data_request:
+  symbol: "EUR_USD"
+  timeframe: "1H"
+  start: "2013-01-01"
+  end: "2025-09-26"
+
+strategy_path: "config/strategy/ema_crossover.yaml"
+rem_path: "config/rem/trailing_stops.yaml"
+rmm_path: "config/rmm/4h_trend.yaml"  # NOW WITH RMM
+
+# === PARAMETER SEARCH (TOP 5 FROM NO-RMM RUN) ===
+# Validate how top 5 raw performers work with RMM filtering
+parameter_search:
+  objective: "total_pnl"
+  seed: 42
+  grid:
+    ema_fast_length: [20, 20, 20, 16, 14]
+    ema_slow_length: [100, 60, 80, 100, 100]
+
+# Strategy parameters baseline
+strategy_params:
+  ema_fast_length: 20
+  ema_slow_length: 100
+  slope_filter: false

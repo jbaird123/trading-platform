@@ -13,6 +13,15 @@ from trading_platform.risk_manager.core import RiskExitManager
 
 from tests.backtester.dummy_objects import _dummy_strategy_cfg
 
+# Minimal instrument for testing
+TEST_INSTRUMENT = {
+    "symbol": "EURUSD",
+    "asset_class": "Forex",
+    "point_value": 1.0,
+    "tick_size": 0.00001,
+    "pip_location": 0.0001,
+}
+
 
 def test_run_backtest_returns_trades_and_exposure_only() -> None:
     idx = pd.date_range("2024-01-01", periods=4, freq="h")
@@ -41,14 +50,8 @@ def test_run_backtest_returns_trades_and_exposure_only() -> None:
     rem = RiskExitManager(config={})
 
     result = run_backtest(
-
-
         market_data=df,
-
-
         signals=signals,
-
-
         strategy=strategy,
         config=config,
         rem=rem,
@@ -89,7 +92,7 @@ def test_counterfactual_exact_exit_kind_end() -> None:
         side="short",
         entry_price=entry_price,
         size=1.0,
-        instrument={"symbol": "EURUSD"},
+        instrument=TEST_INSTRUMENT,
         cost_model={},
         rem=_NeverExitREM(),  # type: ignore[arg-type]
         symbol="EURUSD",

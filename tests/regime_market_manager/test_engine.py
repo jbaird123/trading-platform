@@ -79,13 +79,12 @@ def test_eval_pred_unknown_condition_defaults_false() -> None:
         index=pd.date_range("2024-01-01", periods=2),
     )
     pred = {"condition": "unknown_condition", "left": "price", "right": "threshold"}
-    pd.testing.assert_series_equal(
-        _eval_pred(df, pred), pd.Series([False, False], index=df.index)
-    )
-    pd.testing.assert_series_equal(
-        _eval_pred(df, {"left": "price", "right": "threshold"}),
-        pd.Series([False, False], index=df.index),
-    )
+    # Implementation raises ValueError for safety (fail loudly)
+    with pytest.raises(ValueError, match="Unrecognized RMM condition"):
+        _eval_pred(df, pred)
+    # Missing condition key also raises
+    with pytest.raises(ValueError, match="Unrecognized RMM condition"):
+        _eval_pred(df, {"left": "price", "right": "threshold"})
 
 
 def test_eval_block_any_of() -> None:
@@ -230,7 +229,8 @@ def test_rmm_engine_allowed_sides_for() -> None:
     )
     assert RMMEngine.allowed_sides_for("trend_up", 0.8, {}) == ["long"]
     assert RMMEngine.allowed_sides_for("trend_down", 0.8, {}) == ["short"]
-    assert RMMEngine.allowed_sides_for("range", 0.8, {}) == []
+    # Bug #1 fix: range now returns ["long", "short"] instead of []
+    assert RMMEngine.allowed_sides_for("range", 0.8, {}) == ["long", "short"]
 
 
 def test_rmm_engine_project_to_index_empty_daily() -> None:
@@ -253,15 +253,19 @@ def test_rmm_engine_project_to_index_empty_daily() -> None:
 
 def test_rmm_engine_project_to_index_with_daily_data() -> None:
     engine = RMMEngine(config={})
-    target_index = pd.date_range("2024-01-01 00:00", periods=6, freq="h")
+    # Target index on 2024-01-02 (second day)
+    target_index = pd.date_range("2024-01-02 00:00", periods=6, freq="h")
+    # Daily data for 2024-01-01 and 2024-01-02
+    # project_to_index shifts by 1 to prevent lookahead bias
     daily = pd.DataFrame(
-        {"label": ["trend_up"], "confidence": [0.8]},
-        index=pd.date_range("2024-01-01", periods=1, freq="D"),
+        {"label": ["trend_up", "trend_up"], "confidence": [0.8, 0.8]},
+        index=pd.date_range("2024-01-01", periods=2, freq="D"),
     )
     result = engine.project_to_index(
         daily, target_index, policy={"min_confidence": 0.5}
     )
     assert len(result) == 6
+    # After shift(1), day 2024-01-02 uses label from 2024-01-01
     assert all(result["label"] == "trend_up")
     assert all(result["confidence"] == 0.8)
     assert all(sides == ["long"] for sides in result["allowed_sides"])
@@ -332,6 +336,75 @@ def test_rmm_engine_classify_daily_end_to_end() -> None:
     )
 
     daily = engine.classify_daily(hourly)
-    assert set(daily.columns) == {"label", "confidence"}
+    # classify_daily returns label, confidence, and intermediate calculations
+    assert "label" in daily.columns
+    assert "confidence" in daily.columns
     assert not daily.empty
     assert (daily["confidence"] >= 0).all() and (daily["confidence"] <= 1).all()
+
+
+def test_classify_regime_with_already_resampled_data() -> None:
+    """Test classify_regime when data is already resampled."""
+    # Validates: [REQ-RMM-001] Handle pre-resampled data
+    import pandas as pd
+    from trading_platform.regime_market_manager.engine import RMMEngine
+
+    config = {
+        "features": [],
+        "regimes": [
+            {"label": "default", "conditions": [], "allowed_sides": ["long", "short"]}
+        ],
+        "timeframe": "1D",
+    }
+
+    engine = RMMEngine(config=config)
+
+    # Already resampled daily data
+    df = pd.DataFrame(
+        {
+            "open": [1.0, 1.1],
+            "high": [1.05, 1.15],
+            "low": [0.95, 1.05],
+            "close": [1.02, 1.12],
+            "volume": [1000, 1100],
+        },
+        index=pd.date_range("2024-01-01", periods=2, freq="D", tz="UTC"),
+    )
+
+    result = engine.classify_regime(df, timeframe="1D", already_resampled=True)
+
+    assert "label" in result.columns
+    assert "confidence" in result.columns
+    assert len(result) == 2
+
+
+def test_classify_regime_without_explicit_timeframe() -> None:
+    """Test classify_regime uses config timeframe when not provided."""
+    # Validates: [REQ-RMM-002] Use config timeframe as default
+    import pandas as pd
+    from trading_platform.regime_market_manager.engine import RMMEngine
+
+    config = {
+        "features": [],
+        "regimes": [
+            {"label": "default", "conditions": [], "allowed_sides": ["long", "short"]}
+        ],
+        "timeframe": "1H",
+    }
+
+    engine = RMMEngine(config=config)
+
+    df = pd.DataFrame(
+        {
+            "open": [1.0] * 60,
+            "high": [1.05] * 60,
+            "low": [0.95] * 60,
+            "close": [1.02] * 60,
+            "volume": [1000] * 60,
+        },
+        index=pd.date_range("2024-01-01", periods=60, freq="min", tz="UTC"),
+    )
+
+    result = engine.classify_regime(df, timeframe=None)  # Should use "1H" from config
+
+    assert "label" in result.columns

@@ -45,6 +45,7 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
+coverage.json
 *.cover
 *.py.cover
 .hypothesis/
@@ -232,11 +233,6 @@ __marimo__/
 .DS_Store
 
 # Trading Platform specific
-# Run outputs & comparisons
+workspace/
 runs/
-mlruns/
-mlruns_test/
-mlruns_integration_test/
-test_mlruns/
-temp/
-test_run/
+model.onnx

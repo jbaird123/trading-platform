@@ -1,3 +1,8 @@
+"""Tests for AI diagnostic CLI command.
+
+# Validates: [AI-10.1], [AI-10.6.1]
+"""
+
 from __future__ import annotations
 
 import json

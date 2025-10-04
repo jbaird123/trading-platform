@@ -1,0 +1,77 @@
+user_id: "researcher"
+initial_cash: 100000
+position_size: 50000  # Use winning size from iteration 9
+warmup_bars: 100
+entry_window_bars: 3
+tie_break_policy:
+  rule: "stop_then_tp"
+
+# Transaction costs configuration
+cost_model:
+  spread_per_unit: 0.00015  # 1.5 pips for EUR/USD
+  slippage_per_unit: 0.0
+  commission:
+    type: "per_unit"
+    value: 0.0
+
+# Data source - TEST RUN: 1 year of recent data (2024)
+data_request:
+  symbol: "EUR_USD"
+  timeframe: "1H"
+  start: "2024-01-01"
+  end: "2024-12-31"
+
+strategy_path: "config/strategy/ema_crossover.yaml"
+rem_path: "config/rem/trailing_stops.yaml"  # 20-pip trailing from iteration 9
+# RMM disabled during parameter search - will validate best params with RMM after
+# rmm_path: "config/rmm/4h_trend.yaml"
+
+# Post-exit price tracking for exit efficiency analysis
+post_exit_analysis:
+  enabled: true
+  horizons: [10, 20, 50]
+
+# Counterfactual analysis for regime filtering effectiveness
+counterfactual_mode: exact
+
+# === PARAMETER SEARCH (REDUCED FOR TEST) ===
+# Test smaller grid to estimate runtime
+# 4 × 3 = 12 backtests total
+parameter_search:
+  objective: "total_pnl"  # sharpe_ratio not implemented in sweep code
+  seed: 42
+  grid:
+    # Test around winning value of 12
+    ema_fast_length: [10, 12, 14, 16]
+    # Test around winning value of 50
+    ema_slow_length: [40, 50, 60]
+
+# === WALK-FORWARD ANALYSIS (REDUCED FOR TEST) ===
+# 1 year = ~8,760 hours
+walk_forward:
+  window: 4000   # ~6 months training
+  step: 2000     # ~3 months forward step
+  # Should give us ~2 windows for testing
+
+# === MONTE CARLO SIMULATION (REDUCED FOR TEST) ===
+# Reduced trials for speed test
+monte_carlo:
+  mode: "bar_resimulation"
+  trials: 100  # Reduced from 300 for test run
+  seed: 42
+  cost_jitter:
+    spread_jitter_pct: 0.25
+    slippage_jitter_pct: 0.1
+    per_trade_cost_jitter_pct: 0.05
+  perturbation:
+    mode: "block"
+    block_len: 12
+    std_pct: 0.0015
+
+# === STRATEGY PARAMETERS ===
+# Set baseline parameters - these will be swept by parameter_search
+# DO NOT use strategy_overrides.features - that bypasses parameter substitution!
+strategy_params:
+  ema_fast_length: 12
+  ema_slow_length: 50
+  slope_filter: false

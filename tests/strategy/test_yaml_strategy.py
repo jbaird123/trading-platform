@@ -1,6 +1,8 @@
 """
 Consolidated tests for trading_platform.strategy.yaml_strategy.
 
+# Validates: [SE-3.4], [SE-3.5], [SE-3.5.3]
+
 Combined 100% coverage suite, gap fillers, full coverage, and parser smoke tests.
 """
 
@@ -17,6 +19,7 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
 from trading_platform.ai.inference_client import AIInferenceClient
+from trading_platform.core.signal import Signal
 from trading_platform.strategy import yaml_strategy as ys
 from trading_platform.strategy.yaml_strategy import (
     CompiledStrategy,
@@ -27,6 +30,12 @@ from trading_platform.strategy.yaml_strategy import (
     load_strategy_config,
     validate_strategy_config,
 )
+
+
+def _extract_commands(signals: pd.Series) -> list[str | None]:
+    """Helper to extract command strings from Signal objects."""
+    return [sig.command if isinstance(sig, Signal) else sig for sig in signals]
+
 
 # --- test_yaml_strategy_100_coverage.py ---
 
@@ -440,8 +449,8 @@ class TestSignalStateMachine:
             signals = compiled_strategy.generate_signals(df)
 
             # Should generate: enter_short -> None -> exit_short
-            assert signals.iloc[0] == "enter_short"  # Enter short
-            assert signals.iloc[2] == "exit_short"  # Exit short
+            assert signals.iloc[0].command == "enter_short"  # Enter short
+            assert signals.iloc[2].command == "exit_short"  # Exit short
 
     def test_signal_state_transitions_all_states(self):
         """Test command generation for multiple entries and exits."""
@@ -491,8 +500,17 @@ class TestSignalStateMachine:
             assert len(signals) == len(df)
 
             # All commands should be valid
-            valid_commands = {"enter_long", "enter_short", "exit_long", "exit_short", None}
-            assert all(cmd in valid_commands for cmd in signals.values)
+            valid_commands = {
+                "enter_long",
+                "enter_short",
+                "exit_long",
+                "exit_short",
+                None,
+            }
+            commands = [
+                sig.command if sig is not None else None for sig in signals.values
+            ]
+            assert all(cmd in valid_commands for cmd in commands)
 
     def test_get_context_method(self):
         """Test get_context method - covers lines 223-228."""
@@ -1029,7 +1047,7 @@ def test_compiled_strategy_generate_signals_basic(monkeypatch):
         parameters={},
     )
     sig = strat.generate_signals(base)
-    assert list(sig) == [None, "enter_long", "exit_long"]
+    assert _extract_commands(sig) == [None, "enter_long", "exit_long"]
     assert strat.get_context(1) == {"feat": 1}
     with pytest.raises(IndexError):
         strat.get_context(10)
@@ -1069,7 +1087,7 @@ def test_compiled_strategy_short_exit_branch(monkeypatch):
         parameters={},
     )
     sig = strat.generate_signals(base)
-    assert list(sig) == [None, "enter_short", None, "exit_short"]
+    assert _extract_commands(sig) == [None, "enter_short", None, "exit_short"]
 
 
 def test_compiled_strategy_short_exit_never_triggers(monkeypatch):
@@ -1096,7 +1114,7 @@ def test_compiled_strategy_short_exit_never_triggers(monkeypatch):
         parameters={},
     )
     sig = strat.generate_signals(base)
-    assert list(sig) == [None, "enter_short", None, None]
+    assert _extract_commands(sig) == [None, "enter_short", None, None]
 
 
 def test_compiled_strategy_slope_and_ai_filter(monkeypatch):
@@ -1143,7 +1161,9 @@ def test_compiled_strategy_slope_and_ai_filter(monkeypatch):
     values = list(sig)
     assert ai_client.calls == 1
     assert len(values) == 4
-    assert set(values).issubset({"enter_long", "enter_short", "exit_long", "exit_short", None})
+    assert set(values).issubset(
+        {"enter_long", "enter_short", "exit_long", "exit_short", None}
+    )
 
 
 def test_compiled_strategy_slope_filter_missing_column(monkeypatch):
@@ -1170,7 +1190,7 @@ def test_compiled_strategy_slope_filter_missing_column(monkeypatch):
     # long_entry (close > 0) is also always true, so enters every bar
     # With command model: both fire same bar, entry command overwrites exit
     # Result: enter_long command on every bar
-    assert list(sig) == ["enter_long", "enter_long", "enter_long"]
+    assert _extract_commands(sig) == ["enter_long", "enter_long", "enter_long"]
 
 
 def test_compiled_strategy_ai_filter_missing_features(monkeypatch, caplog):
@@ -1193,7 +1213,7 @@ def test_compiled_strategy_ai_filter_missing_features(monkeypatch, caplog):
         ai_input_features=["missing"],
     )
     sig = strat.generate_signals(base)
-    assert list(sig) == ["enter_long", None]
+    assert _extract_commands(sig) == ["enter_long", None]
     assert "Missing AI input features" in caplog.text
 
 
@@ -1216,7 +1236,7 @@ def test_compiled_strategy_ai_filter_exception(monkeypatch, caplog):
         ai_confidence_threshold=0.5,
     )
     sig = strat.generate_signals(base)
-    assert list(sig) == ["enter_long", None]
+    assert _extract_commands(sig) == ["enter_long", None]
     assert "Error during AI inference" in caplog.text
 
 
@@ -1256,7 +1276,7 @@ def test_compiled_strategy_ai_filter_with_inputs(monkeypatch):
     )
     sig = strat.generate_signals(base)
     assert ai_client.calls == 1
-    assert list(sig) == ["enter_long", None]
+    assert _extract_commands(sig) == ["enter_long", None]
 
 
 def test_compile_strategy_ai_enabled(monkeypatch):
@@ -1462,7 +1482,7 @@ def test_yaml_strategy_compile_and_signals_is_above_below():
     )
     sig = strat.generate_signals(df)
     # Expect: None at 1.0, enter_long at 2.0, None at 3.0 and 2.0, exit_long at 1.0
-    assert list(sig) == [None, "enter_long", None, None, "exit_long"]
+    assert _extract_commands(sig) == [None, "enter_long", None, None, "exit_long"]
 
 
 def test_yaml_strategy_cross_above_below():
@@ -1509,7 +1529,8 @@ def test_yaml_strategy_cross_above_below():
     )
     sig = strat.generate_signals(df)
     # Signals will be None until indicators fire, or exit commands
-    assert sig.iloc[-1] in [None, "enter_short", "exit_long"]
+    last_cmd = sig.iloc[-1].command if sig.iloc[-1] is not None else None
+    assert last_cmd in [None, "enter_short", "exit_long"]
 
 
 def test_yaml_strategy_all_of_and_short_side():
@@ -1541,7 +1562,7 @@ def test_yaml_strategy_all_of_and_short_side():
     )
     sig = strat.generate_signals(df)
     # enter_short, exit_short, enter_short
-    assert list(sig) == ["enter_short", "exit_short", "enter_short"]
+    assert _extract_commands(sig) == ["enter_short", "exit_short", "enter_short"]
 
 
 def test_same_bar_exit_and_opposite_entry():
@@ -1571,7 +1592,8 @@ def test_same_bar_exit_and_opposite_entry():
     }
     strat = compile_strategy(cfg)
 
-    # Create data where we cross above (enter long), then cross below (exit long + enter short)
+    # Create data where we cross above (enter long), then cross below
+    # (exit long + enter short)
     df = pd.DataFrame(
         {
             "open": [9, 11, 9, 11],  # Below, Above, Below, Above
@@ -1584,12 +1606,117 @@ def test_same_bar_exit_and_opposite_entry():
     )
 
     sig = strat.generate_signals(df)
-    signals = list(sig)
+    signals = _extract_commands(sig)
 
     # Expected:
     # Bar 0: close=9 (below 10), no cross yet -> None
     # Bar 1: close=11 (above 10), cross_above from 9->11 -> enter_long
-    # Bar 2: close=9 (below 10), cross_below from 11->9 -> exit_long then enter_short (entry overwrites)
-    # Bar 3: close=11 (above 10), cross_above from 9->11 -> exit_short then enter_long (entry overwrites)
+    # Bar 2: close=9 (below 10), cross_below from 11->9 -> exit_long then
+    #         enter_short (entry overwrites)
+    # Bar 3: close=11 (above 10), cross_above from 9->11 -> exit_short then
+    #         enter_long (entry overwrites)
 
-    assert signals == [None, "enter_long", "enter_short", "enter_long"], f"Got {signals}"
+    assert signals == [
+        None,
+        "enter_long",
+        "enter_short",
+        "enter_long",
+    ], f"Got {signals}"
+
+
+def test_yaml_strategy_context_parsing():
+    """Test that YAMLStrategy correctly parses context block from YAML.
+
+    Task 1.2: Validates context parsing from strategy YAML.
+    """
+    cfg = {
+        "strategy_name": "ContextTest",
+        "features": [
+            {
+                "name": "order_block_low",
+                "type": "LLV",
+                "params": {"length": 20},
+                "source": "low",
+            }
+        ],
+        "long_entry_rules": [
+            {
+                "all_of": [{"condition": "is_above", "left": "close", "right": 1.0}],
+                "context": {"order_block_low": {"ref": "order_block_low"}},
+            }
+        ],
+        "long_exit_rules": [],
+    }
+
+    with patch("trading_platform.strategy.yaml_strategy.validate_strategy_config"):
+        strat = compile_strategy(cfg)
+
+        # Verify context mapping was parsed
+        assert hasattr(strat, "long_entry_blocks")
+        assert len(strat.long_entry_blocks) == 1
+        assert "context" in strat.long_entry_blocks[0]
+        assert strat.long_entry_blocks[0]["context"] == {
+            "order_block_low": {"ref": "order_block_low"}
+        }
+
+
+def test_yaml_strategy_signal_object_generation():
+    """Test that generate_signals returns Signal objects with context.
+
+    Task 1.4: Validates Signal object generation with populated context.
+    """
+    from trading_platform.core.signal import Signal
+
+    cfg = {
+        "strategy_name": "SignalObjectTest",
+        "features": [
+            {
+                "name": "order_block_low",
+                "type": "LLV",
+                "params": {"length": 2},
+                "source": "low",
+            }
+        ],
+        "long_entry_rules": [
+            {
+                "all_of": [{"condition": "is_above", "left": "close", "right": 1.0}],
+                "context": {"order_block_low": {"ref": "order_block_low"}},
+            }
+        ],
+        "long_exit_rules": [],
+    }
+
+    with patch("trading_platform.strategy.yaml_strategy.validate_strategy_config"):
+        strat = compile_strategy(cfg)
+
+        # Create test data
+        df = pd.DataFrame(
+            {
+                "open": [0.9, 1.1, 1.2],
+                "high": [1.0, 1.2, 1.3],
+                "low": [0.8, 1.0, 1.1],
+                "close": [0.9, 1.1, 1.2],
+                "volume": [100, 200, 300],
+            },
+            index=pd.date_range("2024-01-01", periods=3),
+        )
+
+        with patch(
+            "trading_platform.strategy.features.compute_features"
+        ) as mock_compute:
+            # Mock features with order_block_low values
+            feature_df = df.copy()
+            feature_df["order_block_low"] = [0.8, 0.8, 1.0]
+            mock_compute.return_value = feature_df
+
+            signals = strat.generate_signals(df)
+
+            # Verify signals is dtype=object
+            assert signals.dtype == object
+
+            # Check second bar (close=1.1 > 1.0, triggers entry)
+            signal = signals.iloc[1]
+            assert isinstance(signal, Signal)
+            assert signal.command == "enter_long"
+            assert "order_block_low" in signal.context
+            assert signal.context["order_block_low"] == 0.8

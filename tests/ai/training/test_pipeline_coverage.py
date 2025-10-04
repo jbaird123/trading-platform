@@ -261,10 +261,12 @@ class TestAITrainingPipeline:
     @pytest.fixture
     def mock_config(self, tmp_path):
         """Create a mock configuration file."""
+        from trading_platform.core import paths
+
         config = {
             "run_id": "test_run",
             "experiment_name": "Test Experiment",
-            "mlflow_tracking_uri": "./test_mlruns",
+            "mlflow_tracking_uri": paths.MLFLOW_TEST_URI,
             "data": {
                 "symbol": "EURUSD",
                 "timeframe": "1D",
@@ -305,12 +307,15 @@ class TestAITrainingPipeline:
             assert "data" in pipeline.config
 
             # Test MLflow setup calls
-            mock_set_uri.assert_called_once_with("./test_mlruns")
+            from trading_platform.core import paths
+
+            mock_set_uri.assert_called_once_with(paths.MLFLOW_TEST_URI)
             mock_set_exp.assert_called_once_with("Test Experiment")
 
     def test_load_config_missing_defaults(self, tmp_path):
         """Test config loading with missing optional fields - covers lines 31-32."""
         from trading_platform.ai.training.pipeline import AITrainingPipeline
+        from trading_platform.core import paths
 
         # Config without run_id and mlflow settings
         config = {"data": {"symbol": "EURUSD"}, "model": {"type": "random_forest"}}
@@ -328,7 +333,7 @@ class TestAITrainingPipeline:
 
             # Test default values - covers lines 31-32
             assert pipeline.run_id == "default_run"
-            mock_set_uri.assert_called_once_with("./mlruns")
+            mock_set_uri.assert_called_once_with(paths.MLFLOW_DEFAULT_URI)
             mock_set_exp.assert_called_once_with("Default")
 
     @patch("trading_platform.ai.training.pipeline.AIDataConnector")
@@ -580,7 +585,7 @@ class TestAITrainingPipeline:
             "mlflow.log_dict"
         ) as mock_log_dict, patch(
             "builtins.open", mock.mock_open(read_data=config_text)
-        ) as mock_file, patch("os.remove") as mock_remove:
+        ) as mock_file, patch("shutil.rmtree"):
             pipeline = AITrainingPipeline(mock_config)
             pipeline._evaluate_and_log_artifacts(mock_model, X, y)
 
@@ -595,8 +600,11 @@ class TestAITrainingPipeline:
 
             # Verify ONNX conversion and logging - covers line 262
             mock_convert.assert_called_once()
-            mock_log_artifact.assert_called_once_with("model.onnx", "onnx_model")
-            mock_remove.assert_called_once_with("model.onnx")
+            # Verify log_artifact was called with a temp file path ending in .onnx
+            assert mock_log_artifact.call_count == 1
+            onnx_path_arg = mock_log_artifact.call_args[0][0]
+            assert onnx_path_arg.endswith(".onnx")
+            assert mock_log_artifact.call_args[0][1] == "onnx_model"
 
             # Verify synthesis engine
             mock_synthesis.run.assert_called_once()
@@ -634,7 +642,10 @@ class TestAITrainingPipeline:
 
         mock_log_metrics.assert_called_once()
         mock_log_model.assert_called_once()
-        mock_log_artifact.assert_called_once_with("model.onnx", "onnx_model")
+        # Verify log_artifact was called with a temp file path ending in .onnx
+        assert mock_log_artifact.call_count == 1
+        assert mock_log_artifact.call_args[0][0].endswith(".onnx")
+        assert mock_log_artifact.call_args[0][1] == "onnx_model"
         mock_log_dict.assert_called_once()
 
     def test_evaluate_artifacts_without_eval_config(self, mock_config):
@@ -655,7 +666,7 @@ class TestAITrainingPipeline:
             "trading_platform.ai.training.pipeline.DiagnosticSynthesisEngine"
         ) as mock_synth, patch("mlflow.log_metrics") as mock_log_metrics, patch(
             "builtins.open", mock.mock_open()
-        ), patch("os.remove"):
+        ), patch("shutil.rmtree"):
             mock_convert.return_value = SimpleNamespace(SerializeToString=lambda: b"")
             synth_instance = MagicMock()
             synth_instance.generate_report_json.return_value = "{}"
@@ -665,7 +676,10 @@ class TestAITrainingPipeline:
 
         mock_log_metrics.assert_not_called()
         mock_log_model.assert_called_once_with(dummy_model, "model")
-        mock_log_artifact.assert_called_once_with("model.onnx", "onnx_model")
+        # Verify log_artifact was called with a temp file path ending in .onnx
+        assert mock_log_artifact.call_count == 1
+        assert mock_log_artifact.call_args[0][0].endswith(".onnx")
+        assert mock_log_artifact.call_args[0][1] == "onnx_model"
         mock_log_dict.assert_called_once_with({}, "diagnostic_synthesis_results.json")
 
     @patch("trading_platform.ai.training.pipeline.AIDataConnector")
@@ -742,7 +756,7 @@ class TestAITrainingPipeline:
             return_value=mock_onnx_model,
         ), patch("mlflow.log_artifact"), patch("mlflow.log_dict"), patch(
             "builtins.open", mock.mock_open(read_data=config_text)
-        ), patch("os.remove"):
+        ), patch("shutil.rmtree"):
             mock_run_context = MagicMock()
             mock_run_context.info.run_id = "test_run_123"
             mock_start_run.return_value.__enter__.return_value = mock_run_context
@@ -818,10 +832,12 @@ class TestAITrainingPipeline:
         module_name = "trading_platform.ai.training.pipeline"
         monkeypatch.delitem(sys.modules, module_name, raising=False)
 
+        from trading_platform.core import paths
+
         config = {
             "run_id": "guard_run",
             "experiment_name": "Guard",
-            "mlflow_tracking_uri": "./mlruns",
+            "mlflow_tracking_uri": paths.MLFLOW_DEFAULT_URI,
             "data": {"symbol": "EURUSD"},
             "features": [],
             "labeling": {},

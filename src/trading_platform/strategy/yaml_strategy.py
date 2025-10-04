@@ -14,6 +14,7 @@ except ImportError:
     jsonschema = None  # type: ignore[assignment]
 
 from trading_platform.ai.inference_client import AIInferenceClient
+from trading_platform.core.signal import Signal
 
 from .features import compute_features
 
@@ -123,23 +124,55 @@ class CompiledStrategy:
     # Internal state populated during signal generation
     _feature_df: pd.DataFrame | None = None
 
+    def _extract_context(
+        self, df: pd.DataFrame, block: dict[str, Any], index: int
+    ) -> dict[str, Any]:
+        """Extract context values from a rule block for a specific bar."""
+        context: dict[str, Any] = {}
+        if "context" not in block:
+            return context
+
+        context_mapping = block["context"]
+        for context_key, operand in context_mapping.items():
+            if isinstance(operand, dict) and "ref" in operand:
+                feature_name = operand["ref"]
+                if feature_name in df.columns:
+                    context[context_key] = df[feature_name].iloc[index]
+        return context
+
     def generate_signals(self, df: pd.DataFrame) -> pd.Series:
         df2 = compute_features(df, self.features, self.parameters)
         # Persist the feature dataframe for context lookups
         super().__setattr__("_feature_df", df2)
 
-        le = pd.Series([False] * len(df2), index=df2.index)
+        # Evaluate rules and track which blocks triggered
+        le_blocks: list[tuple[pd.Series, dict]] = []
         for b in self.long_entry_blocks:
-            le = le | _eval_rule_block(df2, b)
-        lx = pd.Series([False] * len(df2), index=df2.index)
+            le_blocks.append((_eval_rule_block(df2, b), b))
+        le = pd.Series([False] * len(df2), index=df2.index)
+        for eval_result, _ in le_blocks:
+            le = le | eval_result
+
+        lx_blocks: list[tuple[pd.Series, dict]] = []
         for b in self.long_exit_blocks:
-            lx = lx | _eval_rule_block(df2, b)
-        se = pd.Series([False] * len(df2), index=df2.index)
+            lx_blocks.append((_eval_rule_block(df2, b), b))
+        lx = pd.Series([False] * len(df2), index=df2.index)
+        for eval_result, _ in lx_blocks:
+            lx = lx | eval_result
+
+        se_blocks: list[tuple[pd.Series, dict]] = []
         for b in self.short_entry_blocks:
-            se = se | _eval_rule_block(df2, b)
-        sx = pd.Series([False] * len(df2), index=df2.index)
+            se_blocks.append((_eval_rule_block(df2, b), b))
+        se = pd.Series([False] * len(df2), index=df2.index)
+        for eval_result, _ in se_blocks:
+            se = se | eval_result
+
+        sx_blocks: list[tuple[pd.Series, dict]] = []
         for b in self.short_exit_blocks:
-            sx = sx | _eval_rule_block(df2, b)
+            sx_blocks.append((_eval_rule_block(df2, b), b))
+        sx = pd.Series([False] * len(df2), index=df2.index)
+        for eval_result, _ in sx_blocks:
+            sx = sx | eval_result
 
         # Optional slope gating
         slope_up = pd.Series([True] * len(df2), index=df2.index)
@@ -197,21 +230,42 @@ class CompiledStrategy:
             except Exception as e:
                 logger.error(f"Error during AI inference: {e}. Skipping AI filter.")
 
+        # Helper to find first triggered block at a given bar index
+        def _find_triggered_block(
+            blocks: list[tuple[pd.Series, dict]], bar_idx: int
+        ) -> dict[str, Any] | None:
+            for eval_result, block in blocks:
+                if bool(eval_result.iloc[bar_idx]):
+                    return block
+            return None
+
         # Generate commands based on entry/exit rules
         # Strategy maintains internal state to detect transitions,
         # but this state is not exposed to the caller.
-        commands: list[str | None] = []
+        signals: list[Signal | None] = []
         internal_state = "flat"  # For command generation, not position tracking
 
         for i in range(len(df2)):
-            cmd = None
+            signal: Signal | None = None
 
             # Check exits first (if we think we're in a position internally)
             if internal_state == "long" and bool(lx.iloc[i]):
-                cmd = "exit_long"
+                triggered_block = _find_triggered_block(lx_blocks, i)
+                context = (
+                    self._extract_context(df2, triggered_block, i)
+                    if triggered_block
+                    else {}
+                )
+                signal = Signal(command="exit_long", context=context)
                 internal_state = "flat"
             elif internal_state == "short" and bool(sx.iloc[i]):
-                cmd = "exit_short"
+                triggered_block = _find_triggered_block(sx_blocks, i)
+                context = (
+                    self._extract_context(df2, triggered_block, i)
+                    if triggered_block
+                    else {}
+                )
+                signal = Signal(command="exit_short", context=context)
                 internal_state = "flat"
 
             # Check entries (only if we think we're flat internally)
@@ -219,17 +273,29 @@ class CompiledStrategy:
                 if bool(le.iloc[i]) and (
                     not self.slope_filter or bool(slope_up.iloc[i])
                 ):
-                    cmd = "enter_long"
+                    triggered_block = _find_triggered_block(le_blocks, i)
+                    context = (
+                        self._extract_context(df2, triggered_block, i)
+                        if triggered_block
+                        else {}
+                    )
+                    signal = Signal(command="enter_long", context=context)
                     internal_state = "long"
                 elif bool(se.iloc[i]) and (
                     not self.slope_filter or bool(slope_down.iloc[i])
                 ):
-                    cmd = "enter_short"
+                    triggered_block = _find_triggered_block(se_blocks, i)
+                    context = (
+                        self._extract_context(df2, triggered_block, i)
+                        if triggered_block
+                        else {}
+                    )
+                    signal = Signal(command="enter_short", context=context)
                     internal_state = "short"
 
-            commands.append(cmd)
+            signals.append(signal)
 
-        return pd.Series(commands, index=df2.index, dtype=object)
+        return pd.Series(signals, index=df2.index, dtype=object)
 
     def get_context(self, index: int) -> dict[str, Any]:
         """Return a dict of feature values at a specific integer index.

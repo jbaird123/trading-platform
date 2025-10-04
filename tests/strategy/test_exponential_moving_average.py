@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import pandas as pd
+from trading_platform.core.signal import Signal
 from trading_platform.strategy.yaml_strategy import compile_strategy
 
 # A single, schema-compliant config for a long/short crossover strategy.
@@ -73,7 +74,8 @@ def test_generate_long_signal_on_crossover():
     signals = compile_strategy(CROSSOVER_CFG).generate_signals(data)
 
     # Assert: Check for 'enter_long' command on the current (last) bar
-    assert signals.iloc[-1] == "enter_long"
+    assert isinstance(signals.iloc[-1], Signal)
+    assert signals.iloc[-1].command == "enter_long"
 
 
 def test_generate_short_signal_on_crossunder():
@@ -93,7 +95,8 @@ def test_generate_short_signal_on_crossunder():
     signals = compile_strategy(CROSSOVER_CFG).generate_signals(data)
 
     # Assert: Check for 'enter_short' command on the current (last) bar
-    assert signals.iloc[-1] == "enter_short"
+    assert isinstance(signals.iloc[-1], Signal)
+    assert signals.iloc[-1].command == "enter_short"
 
 
 def test_generate_flat_signal_when_no_crossover():

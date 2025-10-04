@@ -1,0 +1,84 @@
+user_id: "researcher"
+initial_cash: 100000
+position_size: 50000  # Use winning size from iteration 9
+warmup_bars: 100  # Increased for longer data period
+entry_window_bars: 3
+tie_break_policy:
+  rule: "stop_then_tp"
+
+# Transaction costs configuration
+cost_model:
+  spread_per_unit: 0.00015  # 1.5 pips for EUR/USD
+  slippage_per_unit: 0.0
+  commission:
+    type: "per_unit"
+    value: 0.0
+
+# Data source - USE ALL AVAILABLE DATA (2013-present = ~12 years!)
+data_request:
+  symbol: "EUR_USD"
+  timeframe: "1H"
+  start: "2013-01-01"  # Full historical data
+  end: "2025-09-26"
+
+strategy_path: "config/strategy/ema_crossover.yaml"
+rem_path: "config/rem/trailing_stops.yaml"  # 20-pip trailing from iteration 9
+rmm_path: "config/rmm/4h_trend.yaml"        # 4H trend filter from iteration 9
+
+# Post-exit price tracking for exit efficiency analysis
+post_exit_analysis:
+  enabled: true
+  horizons: [10, 20, 50]
+
+# Counterfactual analysis for regime filtering effectiveness
+counterfactual_mode: exact
+
+# === PARAMETER SEARCH ===
+# Tests all combinations to find optimal EMA settings objectively
+# Total backtests: 6 × 5 × 2 = 60 variants
+parameter_search:
+  objective: "sharpe_ratio"  # Options: total_pnl | sharpe_ratio | pnl_dd_vol
+  dd_penalty: 0.5   # Used if objective = pnl_dd_vol
+  vol_penalty: 0.1  # Used if objective = pnl_dd_vol
+  seed: 42
+  grid:
+    # Fast EMA: Test around winning value of 12
+    ema_fast_length: [8, 10, 12, 14, 16, 20]
+    # Slow EMA: Test around winning value of 50
+    ema_slow_length: [40, 50, 60, 80, 100]
+    # Trailing stop distance (in price offset)
+    # Current best: 0.0020 (20 pips), test slightly wider/tighter
+    # Note: This requires REM config to support parameterization
+    # For now, we'll test EMA params only and can add REM sweeps later
+
+# === WALK-FORWARD ANALYSIS ===
+# Validates strategy performance across different time periods
+# With 12 years of data, we can do proper train/test splits
+walk_forward:
+  window: 8000   # ~12 months of hourly data for training
+  step: 2000     # ~3 months forward step for testing
+  # With 12 years (~105,000 hours), this gives us ~50 walk-forward windows
+  # Ensures strategy isn't just optimized for one market regime
+
+# === MONTE CARLO SIMULATION ===
+# Tests robustness to price noise and cost variations
+monte_carlo:
+  mode: "bar_resimulation"  # Perturb price data and re-run
+  trials: 300  # 300 simulations for statistical significance
+  seed: 42
+  cost_jitter:
+    spread_jitter_pct: 0.25    # Test ±25% spread variation (1.125-1.875 pips)
+    slippage_jitter_pct: 0.1
+    per_trade_cost_jitter_pct: 0.05
+  perturbation:
+    mode: "block"       # Block bootstrap preserves autocorrelation
+    block_len: 12       # 12-hour blocks for intraday patterns
+    std_pct: 0.0015     # ±0.15% price noise per bar
+
+# === STRATEGY PARAMETERS ===
+# Set baseline parameters - these will be swept by parameter_search
+# DO NOT use strategy_overrides.features - that bypasses parameter substitution!
+strategy_params:
+  ema_fast_length: 12
+  ema_slow_length: 50
+  slope_filter: false

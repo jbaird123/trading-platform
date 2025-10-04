@@ -663,13 +663,17 @@ Targets specific missing lines in core/run.py to improve coverage.
 """
 
 
-def test_initialize_run_creates_directory_and_config():
+def test_initialize_run_creates_directory_and_config(monkeypatch):
     """Test initialize_run function. Covers lines 27-32."""
     with tempfile.TemporaryDirectory() as temp_dir:
+        # Mock the centralized RUNS_DIR to use our temp directory
+        monkeypatch.setattr(
+            "trading_platform.core.paths.RUNS_DIR", Path(temp_dir) / "runs"
+        )
+
         config = RunConfig(
             user_id="test_user",
             run_id="test_run_123",
-            runs_dir=Path(temp_dir) / "runs",
             run_seed=42,
             allow_flip_on_bar=False,
             instrument=_instrument(),
@@ -1330,7 +1334,22 @@ def test_finalize_run_signal_quality_analysis(tmp_path):
     signals_path = run_path / "signals.parquet"
     # Simulate a command signal series: 14 bars with 5 commands total
     sigs = pd.Series(
-        ["enter_long", None, None, "exit_long", None, "enter_short", "exit_short", None, None, None, "enter_long", None, None, "exit_long"],
+        [
+            "enter_long",
+            None,
+            None,
+            "exit_long",
+            None,
+            "enter_short",
+            "exit_short",
+            None,
+            None,
+            None,
+            "enter_long",
+            None,
+            None,
+            "exit_long",
+        ],
         name="signal",
     )
     sigs.to_frame().to_parquet(signals_path)

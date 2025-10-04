@@ -1,5 +1,6 @@
-"""
-Tests for analytics functions.
+"""Tests for analytics functions.
+
+# Validates: [JSON-11.5], [JSON-11.6], [JSON-11.7], [JSON-11.8]
 """
 
 from __future__ import annotations
@@ -668,3 +669,231 @@ def test_stop_tp_percentiles_empty_list_path():
     )
 
     assert helper([]) == {"25th": 0.0, "50th": 0.0, "75th": 0.0}
+
+
+def test_compute_exit_efficiency_empty_trades() -> None:
+    """Test exit efficiency with empty trades list."""
+    # Validates: [REQ-ANALYTICS-EXIT-001] Handle empty trades
+    from trading_platform.reporting.analytics import compute_exit_efficiency
+
+    result = compute_exit_efficiency([])
+    assert result == {}
+
+
+def test_compute_exit_efficiency_no_post_exit_data() -> None:
+    """Test exit efficiency with trades lacking post_exit_analysis."""
+    # Validates: [REQ-ANALYTICS-EXIT-002] Handle no post-exit data
+    from dataclasses import replace
+    from datetime import datetime
+
+    trade = _mock_trade(100.0, datetime(2024, 1, 1))
+    trade = replace(trade, exit_reason="signal", post_exit_analysis=None)
+
+    from trading_platform.reporting.analytics import compute_exit_efficiency
+
+    result = compute_exit_efficiency([trade])
+    assert result == {}
+
+
+def test_compute_exit_efficiency_take_profit_premature() -> None:
+    """Test premature take-profit detection."""
+    # Validates: [REQ-ANALYTICS-EXIT-003] Detect premature take-profits
+    from dataclasses import replace
+    from datetime import datetime
+
+    trade = _mock_trade(100.0, datetime(2024, 1, 1))
+    trade = replace(
+        trade,
+        exit_reason="take_profit",
+        pnl_movement=100.0,
+        post_exit_analysis={
+            "5": {"mfe": 250.0, "mae": -10.0},  # MFE > 2x profit = premature
+            "10": {"mfe": 300.0, "mae": -20.0},
+        },
+    )
+
+    from trading_platform.reporting.analytics import compute_exit_efficiency
+
+    result = compute_exit_efficiency([trade])
+
+    assert "by_exit_reason" in result
+    assert "take_profit" in result["by_exit_reason"]
+    tp_analysis = result["by_exit_reason"]["take_profit"]
+    assert tp_analysis["n_trades"] == 1
+    assert "premature_exit_rate" in tp_analysis
+    assert tp_analysis["premature_exit_rate"] == 1.0
+
+
+def test_compute_exit_efficiency_stop_loss_false() -> None:
+    """Test false stop-loss detection."""
+    # Validates: [REQ-ANALYTICS-EXIT-004] Detect false stop-losses
+    from dataclasses import replace
+    from datetime import datetime
+
+    trade = _mock_trade(-50.0, datetime(2024, 1, 1))
+    trade = replace(
+        trade,
+        exit_reason="stop_loss",
+        pnl_movement=-50.0,
+        initial_risk_ccy=50.0,
+        post_exit_analysis={
+            "5": {"mfe": 60.0, "mae": -10.0},  # MFE > initial_risk = false
+            "10": {"mfe": 80.0, "mae": -15.0},
+        },
+    )
+
+    from trading_platform.reporting.analytics import compute_exit_efficiency
+
+    result = compute_exit_efficiency([trade])
+
+    assert "by_exit_reason" in result
+    assert "stop_loss" in result["by_exit_reason"]
+    sl_analysis = result["by_exit_reason"]["stop_loss"]
+    assert sl_analysis["n_trades"] == 1
+    assert "false_stop_rate" in sl_analysis
+    assert sl_analysis["false_stop_rate"] == 1.0
+
+
+def test_compute_exit_efficiency_signal_suboptimal() -> None:
+    """Test suboptimal signal exit detection."""
+    # Validates: [REQ-ANALYTICS-EXIT-005] Detect suboptimal signal exits
+    from dataclasses import replace
+    from datetime import datetime
+
+    trade = _mock_trade(50.0, datetime(2024, 1, 1))
+    trade = replace(
+        trade,
+        exit_reason="signal",
+        pnl_movement=50.0,
+        post_exit_analysis={
+            "5": {"mfe": 80.0, "mae": -5.0},  # MFE > 1.5x profit = suboptimal
+            "10": {"mfe": 100.0, "mae": -10.0},
+        },
+    )
+
+    from trading_platform.reporting.analytics import compute_exit_efficiency
+
+    result = compute_exit_efficiency([trade])
+
+    assert "by_exit_reason" in result
+    assert "signal" in result["by_exit_reason"]
+    sig_analysis = result["by_exit_reason"]["signal"]
+    assert sig_analysis["n_trades"] == 1
+    assert "suboptimal_exit_rate" in sig_analysis
+
+
+def test_compute_exit_efficiency_optimal_hold_duration() -> None:
+    """Test optimal hold duration analysis."""
+    # Validates: [REQ-ANALYTICS-EXIT-006] Calculate optimal hold
+    from dataclasses import replace
+    from datetime import datetime
+
+    trade1 = _mock_trade(50.0, datetime(2024, 1, 1))
+    trade1 = replace(
+        trade1,
+        exit_reason="signal",
+        post_exit_analysis={
+            "5": {"mfe": 20.0, "mae": -5.0},
+            "10": {"mfe": 40.0, "mae": -10.0},
+        },
+    )
+
+    trade2 = _mock_trade(30.0, datetime(2024, 1, 3))
+    trade2 = replace(
+        trade2,
+        exit_reason="signal",
+        post_exit_analysis={
+            "5": {"mfe": 10.0, "mae": -3.0},
+            "10": {"mfe": 20.0, "mae": -5.0},
+        },
+    )
+
+    from trading_platform.reporting.analytics import compute_exit_efficiency
+
+    result = compute_exit_efficiency([trade1, trade2])
+
+    assert "optimal_hold_analysis" in result
+    opt_hold = result["optimal_hold_analysis"]
+    assert "current_avg_pnl" in opt_hold
+    assert opt_hold["current_avg_pnl"] == 40.0  # (50 + 30) / 2
+    assert "if_held_5_bars" in opt_hold
+    assert opt_hold["if_held_5_bars"] == 55.0  # (50+20 + 30+10) / 2
+    assert "if_held_10_bars" in opt_hold
+    assert opt_hold["if_held_10_bars"] == 70.0  # (50+40 + 30+20) / 2
+
+
+def test_compute_exit_efficiency_no_matching_exit_reason() -> None:
+    """Test exit efficiency when no trades match a specific exit reason."""
+    # Validates: [REQ-ANALYTICS-EXIT-007] Handle no matching trades
+    from dataclasses import replace
+    from datetime import datetime
+
+    # Create trade with "signal" exit
+    trade = _mock_trade(50.0, datetime(2024, 1, 1))
+    trade = replace(
+        trade,
+        exit_reason="signal",
+        pnl_movement=50.0,
+        post_exit_analysis={
+            "5": {"mfe": 10.0, "mae": -5.0},
+        },
+    )
+
+    from trading_platform.reporting.analytics import compute_exit_efficiency
+
+    result = compute_exit_efficiency([trade])
+
+    # Should have "signal" in by_exit_reason, but not "take_profit" or "stop_loss"
+    assert "by_exit_reason" in result
+    assert "signal" in result["by_exit_reason"]
+    # No take_profit trades, so shouldn't appear (or should be empty)
+    if "take_profit" in result["by_exit_reason"]:
+        assert result["by_exit_reason"]["take_profit"] == {}
+
+
+def test_compute_exit_efficiency_all_trades_different_exit_reasons() -> None:
+    """Test exit efficiency when all trades have different exit reasons."""
+    # Validates: [REQ-ANALYTICS-EXIT-008] Handle trades with no common exit reason
+    from dataclasses import replace
+    from datetime import datetime
+
+    # Create 3 trades with 3 different exit reasons
+    trade1 = _mock_trade(50.0, datetime(2024, 1, 1))
+    trade1 = replace(
+        trade1,
+        exit_reason="take_profit",
+        pnl_movement=50.0,
+        post_exit_analysis={"5": {"mfe": 10.0, "mae": -5.0}},
+    )
+
+    trade2 = _mock_trade(-30.0, datetime(2024, 1, 2))
+    trade2 = replace(
+        trade2,
+        exit_reason="stop_loss",
+        pnl_movement=-30.0,
+        initial_risk_ccy=30.0,
+        post_exit_analysis={"5": {"mfe": 5.0, "mae": -10.0}},
+    )
+
+    trade3 = _mock_trade(20.0, datetime(2024, 1, 3))
+    trade3 = replace(
+        trade3,
+        exit_reason="time_exit",
+        pnl_movement=20.0,
+        post_exit_analysis={"5": {"mfe": 8.0, "mae": -3.0}},
+    )
+
+    from trading_platform.reporting.analytics import compute_exit_efficiency
+
+    result = compute_exit_efficiency([trade1, trade2, trade3])
+
+    # Should have all three exit reasons
+    assert "by_exit_reason" in result
+    assert "take_profit" in result["by_exit_reason"]
+    assert "stop_loss" in result["by_exit_reason"]
+    assert "time_exit" in result["by_exit_reason"]
+
+    # Each should have n_trades = 1, triggering the empty return path line 397
+    assert result["by_exit_reason"]["take_profit"]["n_trades"] == 1
+    assert result["by_exit_reason"]["stop_loss"]["n_trades"] == 1
+    assert result["by_exit_reason"]["time_exit"]["n_trades"] == 1

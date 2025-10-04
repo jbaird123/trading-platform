@@ -1,0 +1,42 @@
+strategy_name: "RSI Mean Reversion"
+description: "Buy oversold, sell overbought with RSI indicator"
+
+parameters:
+  rsi_length: 14
+  oversold_level: 30
+  overbought_level: 70
+
+features:
+  - name: rsi
+    type: RSI
+    params:
+      length: 14
+    source: close
+
+long_entry_rules:
+  - all_of:
+      - condition: is_below
+        left:
+          ref: rsi
+        right: 30
+
+long_exit_rules:
+  - any_of:
+      - condition: is_above
+        left:
+          ref: rsi
+        right: 50
+
+short_entry_rules:
+  - all_of:
+      - condition: is_above
+        left:
+          ref: rsi
+        right: 70
+
+short_exit_rules:
+  - any_of:
+      - condition: is_below
+        left:
+          ref: rsi
+        right: 50

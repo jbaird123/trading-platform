@@ -1,3 +1,8 @@
+"""Backtester core tests.
+
+# Validates: [BT-7.1], [BT-7.2], [BT-7.3], [BT-7.5], [BT-7.9]
+"""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -20,6 +25,15 @@ BacktestTriple = tuple[
     list[tuple[datetime, float]],
     list[dict[str, Any]],
 ]
+
+# Minimal instrument for testing
+TEST_INSTRUMENT = {
+    "symbol": "EURUSD",
+    "asset_class": "Forex",
+    "point_value": 1.0,
+    "tick_size": 0.00001,
+    "pip_location": 0.0001,
+}
 
 
 def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
@@ -92,7 +106,8 @@ def test_rmm_blocks_signal_not_in_allowed_sides():
     )
 
     assert not trades_list
-    # With event-based entries, only the first signal transition triggers an entry attempt
+    # With event-based entries, only the first signal transition triggers
+    # an entry attempt
     assert len(skipped_list) == 1
     assert skipped_list[0]["skip_reason"] == "rmm_block"
 
@@ -297,7 +312,7 @@ def test_counterfactual_exact_rem_exit_breaks_loop() -> None:
         side="long",
         entry_price=100.0,
         size=1.0,
-        instrument={},
+        instrument=TEST_INSTRUMENT,
         cost_model={},
         rem=StubREM(),  # type: ignore[arg-type]
         symbol="EURUSD",
@@ -339,7 +354,7 @@ def test_counterfactual_exact_returns_empty_when_position_not_created(
         side="long",
         entry_price=100.0,
         size=1.0,
-        instrument={},
+        instrument=TEST_INSTRUMENT,
         cost_model={},
         rem=NoExitREM(),  # type: ignore[arg-type]
         symbol="EURUSD",
@@ -360,7 +375,7 @@ def test_backtester_with_rem_pips_stop_loss():
         rem_config={"stop_loss": {"pips": 50}},
         instrument={"symbol": "EURUSD", "pip_location": 0.0001},
     )
-    rem = RiskExitManager(config=config.rem_config or {})
+    rem = RiskExitManager(config=config.rem_config or {}, instrument=config.instrument)
     entry_price = 1.20000
     stop_price = entry_price - (50 * 0.0001)
     market_data = pd.DataFrame(
@@ -419,7 +434,9 @@ class TestBacktesterCoreCoverage:
 
     @pytest.fixture
     def sample_signals(self):
-        return pd.Series([None, "enter_long", "exit_long", "enter_short"] * 2 + [None] * 2)
+        return pd.Series(
+            [None, "enter_long", "exit_long", "enter_short"] * 2 + [None] * 2
+        )
 
     @pytest.fixture
     def mock_config(self):
@@ -513,7 +530,7 @@ class TestBacktesterCoreCoverage:
             side="long",
             entry_price=1.12,
             size=1.0,
-            instrument={"symbol": "EURUSD", "multiplier": 1.0, "min_size": 0.01},
+            instrument=TEST_INSTRUMENT,
             cost_model={"type": "percentage", "rate": 0.001},
             rem=mock_rem,
             symbol="EURUSD",
@@ -523,9 +540,9 @@ class TestBacktesterCoreCoverage:
 
 def test_rmm_context_enrichment_in_trades_and_skips():
     """
-    Test that RMM context (regime_label) is properly enriched in both executed trades 
+    Test that RMM context (regime_label) is properly enriched in both executed trades
     and skipped trades when running a backtest with RMM enabled.
-    
+
     This test is expected to fail until the implementation is complete.
     """
     # Create test data with enough bars for meaningful regime detection
@@ -540,15 +557,26 @@ def test_rmm_context_enrichment_in_trades_and_skips():
         },
         index=idx,
     )
-    
+
     # Generate mixed command signals
     signals = pd.Series(
-        ["enter_long", None, "enter_short", "exit_short", "enter_long", "enter_short", "exit_short", "enter_long", "enter_short", "exit_short"],
-        index=df.index
+        [
+            "enter_long",
+            None,
+            "enter_short",
+            "exit_short",
+            "enter_long",
+            "enter_short",
+            "exit_short",
+            "enter_long",
+            "enter_short",
+            "exit_short",
+        ],
+        index=df.index,
     )
-    
+
     # Create RMM context that will:
-    # 1. Allow some trades (when regime matches signal direction)  
+    # 1. Allow some trades (when regime matches signal direction)
     # 2. Block some trades (when regime doesn't match signal direction)
     rmm_context = {}
     for i, timestamp in enumerate(df.index):
@@ -559,10 +587,10 @@ def test_rmm_context_enrichment_in_trades_and_skips():
                 "confidence": 0.8,
                 "policy": {"min_confidence": 0.6},
             }
-        elif i < 7:  # Next 4 bars: trend_down regime, allows short only  
+        elif i < 7:  # Next 4 bars: trend_down regime, allows short only
             rmm_context[timestamp] = {
                 "allowed_sides": ["short"],
-                "label": "trend_down", 
+                "label": "trend_down",
                 "confidence": 0.9,
                 "policy": {"min_confidence": 0.6},
             }
@@ -607,66 +635,86 @@ def test_rmm_context_enrichment_in_trades_and_skips():
 
     # Expected results based on our RMM setup:
     # Bar 0: long signal, trend_up regime (allows long) -> should execute
-    # Bar 1: long signal, trend_up regime (allows long) -> should execute 
+    # Bar 1: long signal, trend_up regime (allows long) -> should execute
     # Bar 2: short signal, trend_up regime (allows long) -> should skip
     # Bar 3: flat signal -> no trade attempt
     # Bar 4: long signal, trend_down regime (allows short) -> should skip
     # Bar 5: short signal, trend_down regime (allows short) -> should execute
-    # Bar 6: flat signal -> no trade attempt  
+    # Bar 6: flat signal -> no trade attempt
     # Bar 7: long signal, range regime (allows both) -> should execute
     # Bar 8: short signal, range regime (allows both) -> should execute
     # Bar 9: flat signal -> no trade attempt
 
     # Acceptance Criteria 1: At least one trade was skipped due to RMM policy
     rmm_skipped = [s for s in skipped_list if s.get("skip_reason") == "rmm_block"]
-    assert len(rmm_skipped) >= 1, f"Expected at least 1 RMM-blocked trade, got {len(rmm_skipped)}"
+    assert (
+        len(rmm_skipped) >= 1
+    ), f"Expected at least 1 RMM-blocked trade, got {len(rmm_skipped)}"
 
     # Acceptance Criteria 2: Skipped trades contain regime context
     for skip in rmm_skipped:
         # Check that the skipped trade has regime information in its context
         # This may be in different places depending on implementation
         regime_found = False
-        
+
         # Check if regime info is directly in the skip dict
         if "regime" in skip and "label" in skip["regime"]:
             regime_label = skip["regime"]["label"]
             regime_found = True
-        
+
         # Check if there's a context field with regime info
-        elif "context" in skip and skip["context"] and "regime_label" in skip["context"]:
+        elif (
+            "context" in skip and skip["context"] and "regime_label" in skip["context"]
+        ):
             regime_label = skip["context"]["regime_label"]
             regime_found = True
-            
-        # Check if there's a context field with nested regime info    
+
+        # Check if there's a context field with nested regime info
         elif "context" in skip and skip["context"] and "regime" in skip["context"]:
             regime_info = skip["context"]["regime"]
             if isinstance(regime_info, dict) and "label" in regime_info:
-                regime_label = regime_info["label"] 
+                regime_label = regime_info["label"]
                 regime_found = True
 
         assert regime_found, f"Skipped trade missing regime context: {skip}"
-        assert regime_label in ["trend_up", "trend_down", "range"], f"Invalid regime label: {regime_label}"
+        assert regime_label in [
+            "trend_up",
+            "trend_down",
+            "range",
+        ], f"Invalid regime label: {regime_label}"
 
     # Acceptance Criteria 3: Executed trades contain regime context in context_at_entry
-    assert len(trades_list) >= 1, f"Expected at least 1 executed trade, got {len(trades_list)}"
-    
+    assert (
+        len(trades_list) >= 1
+    ), f"Expected at least 1 executed trade, got {len(trades_list)}"
+
     for trade in trades_list:
         context_at_entry = getattr(trade, "context_at_entry", None)
         assert context_at_entry is not None, f"Trade missing context_at_entry: {trade}"
-        assert isinstance(context_at_entry, dict), f"context_at_entry should be dict, got {type(context_at_entry)}"
-        
+        assert isinstance(
+            context_at_entry, dict
+        ), f"context_at_entry should be dict, got {type(context_at_entry)}"
+
         # Check for regime_label in context_at_entry
         regime_found = False
         if "regime_label" in context_at_entry:
             regime_label = context_at_entry["regime_label"]
             regime_found = True
-        elif "regime" in context_at_entry and isinstance(context_at_entry["regime"], dict):
+        elif "regime" in context_at_entry and isinstance(
+            context_at_entry["regime"], dict
+        ):
             if "label" in context_at_entry["regime"]:
                 regime_label = context_at_entry["regime"]["label"]
                 regime_found = True
-                
-        assert regime_found, f"Trade context_at_entry missing regime info: {context_at_entry}"
-        assert regime_label in ["trend_up", "trend_down", "range"], f"Invalid regime label in trade: {regime_label}"
+
+        assert (
+            regime_found
+        ), f"Trade context_at_entry missing regime info: {context_at_entry}"
+        assert regime_label in [
+            "trend_up",
+            "trend_down",
+            "range",
+        ], f"Invalid regime label in trade: {regime_label}"
 
 
 def test_entry_window_allows_delayed_entry():
@@ -693,18 +741,45 @@ def test_entry_window_allows_delayed_entry():
 
     # Block for first 2 bars, then allow
     rmm_context = {
-        idx[0]: {"allowed_sides": ["short"], "label": "bearish", "confidence": 0.8, "policy": {}},
-        idx[1]: {"allowed_sides": ["short"], "label": "bearish", "confidence": 0.8, "policy": {}},
-        idx[2]: {"allowed_sides": ["long"], "label": "bullish", "confidence": 0.8, "policy": {}},
-        idx[3]: {"allowed_sides": ["long"], "label": "bullish", "confidence": 0.8, "policy": {}},
-        idx[4]: {"allowed_sides": ["long"], "label": "bullish", "confidence": 0.8, "policy": {}},
+        idx[0]: {
+            "allowed_sides": ["short"],
+            "label": "bearish",
+            "confidence": 0.8,
+            "policy": {},
+        },
+        idx[1]: {
+            "allowed_sides": ["short"],
+            "label": "bearish",
+            "confidence": 0.8,
+            "policy": {},
+        },
+        idx[2]: {
+            "allowed_sides": ["long"],
+            "label": "bullish",
+            "confidence": 0.8,
+            "policy": {},
+        },
+        idx[3]: {
+            "allowed_sides": ["long"],
+            "label": "bullish",
+            "confidence": 0.8,
+            "policy": {},
+        },
+        idx[4]: {
+            "allowed_sides": ["long"],
+            "label": "bullish",
+            "confidence": 0.8,
+            "policy": {},
+        },
     }
 
     config = RunConfig(
         user_id="test_user",
         run_seed=42,
+        log_level="INFO",
         initial_cash=10000.0,
         position_size=100.0,
+        allow_flip_on_bar=False,
         instrument=_instrument(),
         entry_window_bars=3,  # Allow 3 bars for entry after signal transition
     )
@@ -758,18 +833,45 @@ def test_entry_window_expires():
 
     # Block for first 3 bars, then allow
     rmm_context = {
-        idx[0]: {"allowed_sides": ["short"], "label": "bearish", "confidence": 0.8, "policy": {}},
-        idx[1]: {"allowed_sides": ["short"], "label": "bearish", "confidence": 0.8, "policy": {}},
-        idx[2]: {"allowed_sides": ["short"], "label": "bearish", "confidence": 0.8, "policy": {}},
-        idx[3]: {"allowed_sides": ["long"], "label": "bullish", "confidence": 0.8, "policy": {}},
-        idx[4]: {"allowed_sides": ["long"], "label": "bullish", "confidence": 0.8, "policy": {}},
+        idx[0]: {
+            "allowed_sides": ["short"],
+            "label": "bearish",
+            "confidence": 0.8,
+            "policy": {},
+        },
+        idx[1]: {
+            "allowed_sides": ["short"],
+            "label": "bearish",
+            "confidence": 0.8,
+            "policy": {},
+        },
+        idx[2]: {
+            "allowed_sides": ["short"],
+            "label": "bearish",
+            "confidence": 0.8,
+            "policy": {},
+        },
+        idx[3]: {
+            "allowed_sides": ["long"],
+            "label": "bullish",
+            "confidence": 0.8,
+            "policy": {},
+        },
+        idx[4]: {
+            "allowed_sides": ["long"],
+            "label": "bullish",
+            "confidence": 0.8,
+            "policy": {},
+        },
     }
 
     config = RunConfig(
         user_id="test_user",
         run_seed=42,
+        log_level="INFO",
         initial_cash=10000.0,
         position_size=100.0,
+        allow_flip_on_bar=False,
         instrument=_instrument(),
         entry_window_bars=1,  # Only allow 1 bar after transition (bars 0-1)
     )
@@ -797,7 +899,8 @@ def test_entry_window_expires():
 
 
 def test_entry_window_prevents_reentry_after_rem_exit():
-    """Test that we only enter once per signal transition (no re-entry on same signal)."""
+    """Test that we only enter once per signal transition
+    (no re-entry on same signal)."""
     # Bar 0: signal transitions to "long", enter
     # Bar 1: signal still "long", position still open
     # Bar 2: signal transitions to "flat", exit
@@ -817,19 +920,28 @@ def test_entry_window_prevents_reentry_after_rem_exit():
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)
     # Signal: enter_long -> None -> exit_long -> enter_long -> exit_long
-    signals = pd.Series(["enter_long", None, "exit_long", "enter_long", "exit_long"], index=df.index)
+    signals = pd.Series(
+        ["enter_long", None, "exit_long", "enter_long", "exit_long"], index=df.index
+    )
 
     # Allow all bars
     rmm_context = {
-        ts: {"allowed_sides": ["long", "short"], "label": "neutral", "confidence": 0.8, "policy": {}}
+        ts: {
+            "allowed_sides": ["long", "short"],
+            "label": "neutral",
+            "confidence": 0.8,
+            "policy": {},
+        }
         for ts in idx
     }
 
     config = RunConfig(
         user_id="test_user",
         run_seed=42,
+        log_level="INFO",
         initial_cash=10000.0,
         position_size=100.0,
+        allow_flip_on_bar=False,
         instrument=_instrument(),
         entry_window_bars=5,  # Large window
     )

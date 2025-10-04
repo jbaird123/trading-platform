@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from . import paths
 from .utils import gen_run_id, normalize_symbol
+
+logger = logging.getLogger(__name__)
 
 
 class RunConfig(BaseModel):
@@ -22,7 +26,7 @@ class RunConfig(BaseModel):
     )
     run_seed: int = Field(42, description="Seed for all random number generators.")
     runs_dir: Path = Field(
-        default=Path("runs"),
+        default=paths.RUNS_DIR,
         description="The root directory where run artifacts are stored.",
     )
     log_level: str = Field("INFO", description="The logging level for the run.")
@@ -120,11 +124,15 @@ class RunConfig(BaseModel):
     # Data request for fetching market data
     data_request: dict[str, Any] = Field(
         default_factory=dict,
-        description="Data request specification (symbol, timeframe, start, end)."
+        description="Data request specification (symbol, timeframe, start, end).",
     )
     # Component configurations
     instrument: dict[str, Any] | None = Field(
-        default=None, description="Instrument definition for the run (auto-populated from data_request if omitted)."
+        default=None,
+        description=(
+            "Instrument definition for the run "
+            "(auto-populated from data_request if omitted)."
+        ),
     )
     pm_limits: dict[str, int] | None = Field(
         default=None, description="Position manager limits (e.g., max_open_long)."
@@ -151,6 +159,20 @@ class RunConfig(BaseModel):
     )
 
     @model_validator(mode="after")
+    def enforce_workspace_runs_dir(self) -> RunConfig:
+        """Ensure runs_dir is always inside the workspace, ignoring user config."""
+        expected_runs_dir = paths.RUNS_DIR
+        if self.runs_dir.resolve() != expected_runs_dir.resolve():
+            logger.warning(
+                "Ignoring configured `runs_dir` (%s). "
+                "All runs are stored in the workspace: %s",
+                self.runs_dir,
+                expected_runs_dir,
+            )
+            self.runs_dir = expected_runs_dir
+        return self
+
+    @model_validator(mode="after")
     def validate_instrument_symbol(self) -> RunConfig:
         """Ensure instrument contains a valid, normalized symbol.
 
@@ -158,19 +180,50 @@ class RunConfig(BaseModel):
         """
         # Auto-populate instrument from data_request if not provided
         if not self.instrument and self.data_request:
-            if 'symbol' in self.data_request:
+            if "symbol" in self.data_request:
                 self.instrument = {
-                    'symbol': self.data_request['symbol'],
-                    'timeframe': self.data_request.get('timeframe'),
+                    "symbol": self.data_request["symbol"],
+                    "timeframe": self.data_request.get("timeframe"),
                 }
 
         if not isinstance(self.instrument, dict):
-            raise ValueError("instrument symbol is required (provide instrument or data_request with symbol)")
+            raise ValueError(
+                "instrument symbol is required "
+                "(provide instrument or data_request with symbol)"
+            )
 
         symbol = self.instrument.get("symbol", "")
         if not symbol or not symbol.strip():
             raise ValueError("instrument symbol is required")
 
-        # Normalize the symbol and store it back
-        self.instrument["symbol"] = normalize_symbol(symbol)
+        # Check if instrument already has all required fields (for testing)
+        has_all_required = all(
+            key in self.instrument
+            for key in ["asset_class", "point_value", "tick_size"]
+        )
+
+        # Only enrich from instrument definitions if incomplete
+        if not has_all_required:
+            # Normalize the symbol and enrich with full instrument definition
+            from trading_platform.data.instrument import get_instrument_definition
+
+            normalized_symbol = normalize_symbol(symbol)
+            instrument_def = get_instrument_definition(normalized_symbol)
+
+            # Replace the minimal dict with complete instrument metadata
+            # Use mode='json' to serialize datetime objects properly
+            self.instrument = instrument_def.model_dump(mode="json")
+
+        # Preserve timeframe if it was in the original dict
+        if "timeframe" in self.instrument or (
+            hasattr(self, "data_request")
+            and self.data_request
+            and "timeframe" in self.data_request
+        ):
+            timeframe = self.instrument.get("timeframe") or (
+                self.data_request.get("timeframe") if self.data_request else None
+            )
+            if timeframe:
+                self.instrument["timeframe"] = timeframe
+
         return self

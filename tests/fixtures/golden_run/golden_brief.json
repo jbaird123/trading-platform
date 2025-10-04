@@ -16,6 +16,7 @@
   },
   "contrasts": {},
   "stop_tp_candidates": {},
+  "exit_efficiency": {},
   "parameter_search": {
     "top": {
       "params": {
@@ -36,18 +37,25 @@
   "feature_analysis": {},
   "checksums": {
     "instrument_defs_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-    "config_snapshot_hash": "d63828f1c7519829523d84b80c89b3dff087df2d56c6414cfb0ec0c442ed3133"
+    "config_snapshot_hash": "aa4388017252d5b14403eca436bff238c2fdde8e1c5feb903c27e482d02f3b5c"
   },
   "meta": {
     "strategy_name": "Golden_EMA_Crossover",
     "run_id": "golden_run_test",
-    "git_commit": "e67652a",
+    "git_commit": "f4593ef",
     "run_seed": 42
   },
   "strategy_params": {},
   "overall_performance": {
     "n_trades": 0,
     "total_pnl": 0.0,
+    "total_pnl_movement": 0.0,
+    "total_costs": 0.0,
+    "cost_breakdown": {
+      "spread": 0.0,
+      "commission": 0.0,
+      "slippage": 0.0
+    },
     "mean_pnl": 0.0,
     "median_pnl": 0.0,
     "by_side_total_pnl": {
@@ -62,6 +70,8 @@
     "win_rate": 0.0,
     "avg_win": 0.0,
     "avg_loss": 0.0,
+    "avg_win_movement": 0.0,
+    "avg_loss_movement": 0.0,
     "max_win": 0.0,
     "max_loss": 0.0
   },
@@ -156,7 +166,7 @@
   },
   "environment": {
     "python_version": "3.12.11",
-    "platform": "macOS-26.0-arm64-arm-64bit",
+    "platform": "macOS-26.0.1-arm64-arm-64bit",
     "timezone": "EDT",
     "dependency_versions": {
       "pandas": "2.3.2",
@@ -170,7 +180,7 @@
     "data_end": null,
     "symbols": [],
     "app_version": "0.0.1",
-    "git_commit": "e67652a",
+    "git_commit": "f4593ef",
     "run_seed": 42
   },
   "artifacts": {},
@@ -192,7 +202,12 @@
     "meta.git_commit": "The git commit hash at the time of the run.",
     "meta.run_seed": "Seed used for all random number generators.",
     "overall_performance.n_trades": "Total number of trades executed.",
-    "overall_performance.total_pnl": "Sum of all trade profits and losses.",
+    "overall_performance.total_pnl": "Sum of all trade profits and losses (net, after costs).",
+    "overall_performance.total_pnl_movement": "Sum of all trade profits and losses from pure mid-to-mid price movement, excluding all transaction costs.",
+    "overall_performance.total_costs": "Sum of all transaction costs across all trades.",
+    "overall_performance.cost_breakdown.spread": "Total bid-ask spread costs (entry only).",
+    "overall_performance.cost_breakdown.commission": "Total commission costs (entry and exit).",
+    "overall_performance.cost_breakdown.slippage": "Total slippage costs (entry and exit).",
     "overall_performance.mean_pnl": "Average PnL per trade.",
     "overall_performance.median_pnl": "Median PnL per trade.",
     "overall_performance.by_side_total_pnl.long": "Total PnL for long trades.",
@@ -201,8 +216,10 @@
     "overall_performance.initial_equity": "Starting equity of the portfolio.",
     "overall_performance.final_equity": "Ending equity of the portfolio after all trades.",
     "risk_snapshot.win_rate": "Percentage of trades with PnL > 0.",
-    "risk_snapshot.avg_win": "Average PnL of winning trades.",
-    "risk_snapshot.avg_loss": "Average PnL of losing trades.",
+    "risk_snapshot.avg_win": "Average net PnL of winning trades (after costs).",
+    "risk_snapshot.avg_loss": "Average net PnL of losing trades (after costs).",
+    "risk_snapshot.avg_win_movement": "Average PnL movement of winning trades (mid-to-mid, excluding costs).",
+    "risk_snapshot.avg_loss_movement": "Average PnL movement of losing trades (mid-to-mid, excluding costs).",
     "risk_snapshot.max_win": "Largest single winning trade.",
     "risk_snapshot.max_loss": "Largest single losing trade (most negative PnL).",
     "equity_stats.equity_curve": "Time series of portfolio equity (timestamp, value) pairs.",

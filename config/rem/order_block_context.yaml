@@ -1,0 +1,19 @@
+
+name: "Order Block Contextual Risk"
+description: >
+  A risk model designed to work with strategies that pass order block
+  boundaries in their signal context.
+
+stop_loss:
+  - type: reference_price
+    # Reads 'order_block_low' from the signal's context object
+    reference_point: context.order_block_low
+    offset:
+      pips: -5 # Sets the stop 5 pips below the contextual price
+
+take_profit:
+  - type: reference_price
+    # Reads 'order_block_high' from the signal's context object
+    reference_point: context.order_block_high
+    offset:
+      pips: 50 # Sets the take profit 50 pips above the contextual price

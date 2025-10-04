@@ -1,3 +1,8 @@
+"""Data normalization and quality tests.
+
+# Validates: [DH-2.3], [DH-2.6], [DH-2.7]
+"""
+
 from pathlib import Path
 
 import numpy as np

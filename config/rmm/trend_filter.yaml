@@ -1,0 +1,33 @@
+name: "Trend Filter"
+version: "1.0"
+timeframe: "15M"
+
+features:
+  - name: adx
+    type: ADX
+    params:
+      length: 14
+    source: close
+
+regimes:
+  - label: trending
+    confidence: 0.9
+    conditions:
+      all_of:
+        - condition: is_above
+          left:
+            ref: adx
+          right: 25
+
+  - label: range
+    confidence: 0.8
+    conditions:
+      all_of:
+        - condition: is_below
+          left:
+            ref: adx
+          right: 25
+
+policy:
+  min_confidence: 0.5
+  allow_labels: [trending]

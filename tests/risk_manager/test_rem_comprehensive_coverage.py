@@ -29,23 +29,25 @@ def trailing_rem() -> RiskExitManager:
 
 
 def test_pip_size_none_metadata(basic_rem):
-    """Test _pip_size when instrument metadata is None (line 51)."""
-    # Create REM without instrument metadata to trigger line 51
+    """Test _pip_size fails loudly when instrument metadata is None."""
+    # Create REM without instrument metadata - should fail when using pips
     rem_no_instrument = RiskExitManager({"stop_loss": {"pips": 50}}, instrument=None)
 
     position = Position(
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
     )
-    # Use bar that doesn't trigger stop loss to test _pip_size without exit
     current_bar = pd.Series({"high": 1.1030, "low": 1.0970})
 
-    result = rem_no_instrument.check_exits(position, current_bar)
-    # Should not exit since current low (1.0970) > stop loss (1.0950)
-    assert result is None
+    # Should raise ValueError when trying to calculate pip-based offsets
+    with pytest.raises(
+        ValueError, match="pip_location missing from instrument definition"
+    ):
+        rem_no_instrument.check_exits(position, current_bar)
 
 
 def test_atr_value_none_metadata():
@@ -58,6 +60,7 @@ def test_atr_value_none_metadata():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
     )
@@ -78,6 +81,7 @@ def test_distance_none_rule_and_invalid_types():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
     )
@@ -99,6 +103,7 @@ def test_distance_atr_multiple_none_atr():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
     )
@@ -119,6 +124,7 @@ def test_level_price_none_rule():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
     )
@@ -132,13 +138,14 @@ def test_level_price_none_rule():
 def test_trailing_stop_logic_long_position():
     """Test trailing stop calculation for long positions (lines 82-95)."""
     config = {"stop_loss": {"pips": 50}, "trailing_stop": {"pips": 30}}
-    rem = RiskExitManager(config)
+    rem = RiskExitManager(config, instrument={"pip_location": 0.0001})
 
     # Create position with positive MFE (profit)
     position = Position(
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
         mfe_currency=500.0,  # $500 profit on 100k position = 50 pips
@@ -155,13 +162,14 @@ def test_trailing_stop_logic_long_position():
 def test_trailing_stop_logic_short_position():
     """Test trailing stop calculation for short positions (lines 90-95)."""
     config = {"stop_loss": {"pips": 50}, "trailing_stop": {"pips": 30}}
-    rem = RiskExitManager(config)
+    rem = RiskExitManager(config, instrument={"pip_location": 0.0001})
 
     # Create position with positive MFE (profit for short)
     position = Position(
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="short",
         size=100000.0,
         mfe_currency=500.0,  # $500 profit on 100k position = 50 pips lower
@@ -178,12 +186,13 @@ def test_trailing_stop_logic_short_position():
 def test_long_position_stop_loss_exit():
     """Test long position stop loss exit (line 107)."""
     config = {"stop_loss": {"pips": 50}}
-    rem = RiskExitManager(config)
+    rem = RiskExitManager(config, instrument={"pip_location": 0.0001})
 
     position = Position(
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
     )
@@ -206,6 +215,7 @@ def test_long_position_take_profit_exit():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
     )
@@ -222,12 +232,13 @@ def test_long_position_take_profit_exit():
 def test_short_position_stop_loss_exit():
     """Test short position stop loss exit (line 120)."""
     config = {"stop_loss": {"pips": 50}}
-    rem = RiskExitManager(config)
+    rem = RiskExitManager(config, instrument={"pip_location": 0.0001})
 
     position = Position(
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="short",
         size=100000.0,
     )
@@ -250,6 +261,7 @@ def test_short_position_take_profit_exit():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="short",
         size=100000.0,
     )
@@ -269,12 +281,13 @@ def test_no_exit_conditions_met():
         "stop_loss": {"pips": 100},  # Very wide stop
         "take_profit": {"price_offset": 0.0100},  # Very wide target
     }
-    rem = RiskExitManager(config)
+    rem = RiskExitManager(config, instrument={"pip_location": 0.0001})
 
     position = Position(
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
     )
@@ -289,13 +302,14 @@ def test_no_exit_conditions_met():
 def test_effective_stop_loss_multiple_values_long():
     """Test effective stop loss calculation with multiple values for long positions."""
     config = {"stop_loss": {"pips": 50}, "trailing_stop": {"pips": 30}}
-    rem = RiskExitManager(config)
+    rem = RiskExitManager(config, instrument={"pip_location": 0.0001})
 
     # Create position where trailing stop is tighter than regular stop
     position = Position(
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
         mfe_currency=300.0,  # Some profit to activate trailing
@@ -313,13 +327,14 @@ def test_effective_stop_loss_multiple_values_long():
 def test_effective_stop_loss_multiple_values_short():
     """Test effective stop loss calculation with multiple values for short positions."""
     config = {"stop_loss": {"pips": 50}, "trailing_stop": {"pips": 30}}
-    rem = RiskExitManager(config)
+    rem = RiskExitManager(config, instrument={"pip_location": 0.0001})
 
     # Create position where trailing stop is tighter than regular stop
     position = Position(
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="short",
         size=100000.0,
         mfe_currency=300.0,  # Some profit to activate trailing
@@ -337,13 +352,14 @@ def test_effective_stop_loss_multiple_values_short():
 def test_position_size_zero():
     """Test when position size is 0, defaults to 1.0 (line 84)."""
     config = {"trailing_stop": {"pips": 30}}
-    rem = RiskExitManager(config)
+    rem = RiskExitManager(config, instrument={"pip_location": 0.0001})
 
     # Position class requires size, but we can test with size=0 to trigger line 84
     position = Position(
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=0.0,  # This will trigger the `else 1.0` branch on line 84
         mfe_currency=100.0,
@@ -360,13 +376,14 @@ def test_position_size_zero():
 def test_position_size_none():
     """Test when position size is truthy, uses actual size."""
     config = {"trailing_stop": {"pips": 30}}
-    rem = RiskExitManager(config)
+    rem = RiskExitManager(config, instrument={"pip_location": 0.0001})
 
     # Test with normal positive size to cover the `if position.size` branch
     position = Position(
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,  # This will trigger the `if position.size` branch on line 84
         mfe_currency=100.0,
@@ -392,6 +409,7 @@ def test_trailing_stop_distance_none():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
         mfe_currency=100.0,  # Some MFE to make sure we enter the trailing logic
@@ -407,13 +425,14 @@ def test_trailing_stop_distance_none():
 def test_mfe_currency_none():
     """Test when mfe_currency is None."""
     config = {"trailing_stop": {"pips": 30}}
-    rem = RiskExitManager(config)
+    rem = RiskExitManager(config, instrument={"pip_location": 0.0001})
 
     # Position defaults mfe_currency to 0.0, but we can test the logic
     position = Position(
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
         mfe_currency=0.0,  # Test with 0.0 MFE
@@ -435,6 +454,7 @@ def test_absolute_price_rule():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
     )

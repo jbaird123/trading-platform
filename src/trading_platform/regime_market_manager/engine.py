@@ -37,10 +37,30 @@ def _eval_pred(df: pd.DataFrame, pred: dict[str, Any]) -> pd.Series:
     if cond == "is_below":
         return left < right
     if cond == "cross_above":
-        return (left.shift(1) <= right.shift(1)) & (left > right)
+        # True when left crosses from below to above right
+        above_now = left > right
+        above_shifted = (left > right).shift(1)
+        # Fill with True to avoid downcasting warning, then convert to bool
+        above_prev = above_shifted.fillna(value=True).astype(bool)
+        # First bar can't be a cross (no previous to compare)
+        result = above_now & ~above_prev
+        result.iloc[0] = False
+        return result
     if cond == "cross_below":
-        return (left.shift(1) >= right.shift(1)) & (left < right)
-    return pd.Series([False] * len(df), index=df.index)
+        # True when left crosses from above to below right
+        below_now = left < right
+        below_shifted = (left < right).shift(1)
+        # Fill with True to avoid downcasting warning, then convert to bool
+        below_prev = below_shifted.fillna(value=True).astype(bool)
+        # First bar can't be a cross (no previous to compare)
+        result = below_now & ~below_prev
+        result.iloc[0] = False
+        return result
+    # SAFETY: Fail loudly on unrecognized conditions
+    raise ValueError(
+        f"Unrecognized RMM condition: '{cond}'. "
+        f"Supported: is_above, is_below, cross_above, cross_below"
+    )
 
 
 def _eval_block(df: pd.DataFrame, block: dict[str, Any]) -> pd.Series:
@@ -78,13 +98,22 @@ class RMMEngine:
             where = f" at '{path}'" if path else ""
             raise ValueError(f"rmm schema validation error{where}: {e.message}") from e
 
-    def classify_regime(self, df_data: pd.DataFrame, timeframe: str | None = None) -> pd.DataFrame:
+    def classify_regime(
+        self,
+        df_data: pd.DataFrame,
+        timeframe: str | None = None,
+        already_resampled: bool = False,
+    ) -> pd.DataFrame:
         """Return regime labels/confidence based on RMM config rules.
 
         Args:
             df_data: Input OHLCV data (any timeframe)
             timeframe: Regime classification timeframe (e.g., "1D", "4H", "1H").
-                      If None, uses timeframe from config. Defaults to "1D" if not specified.
+                If None, uses timeframe from config. Defaults to "1D" if not
+                specified.
+            already_resampled: If True, assumes df_data is already at the target
+                timeframe. Used when DataHandler provides pre-resampled data for
+                performance.
 
         Returns:
             DataFrame with: label, confidence, and all computed regime features.
@@ -97,24 +126,33 @@ class RMMEngine:
         if timeframe is None:
             timeframe = cfg.get("timeframe", "1D")
 
-        # Resample to regime timeframe
-        resampled = resample_ohlc(df_data, timeframe.lower())
+        # Resample to regime timeframe (unless caller already resampled via DataHandler)
+        if already_resampled:
+            resampled = df_data
+        else:
+            resampled = resample_ohlc(df_data, timeframe.lower())
+
+        # PERFORMANCE: Compute features once on full DataFrame (vectorized)
         df = compute_features(resampled, feats)
-        labels = []
-        confs = []
-        for i in range(len(df)):
-            row = df.iloc[: i + 1]  # predicates can use shift
-            chosen = None
-            for r in regimes:
-                conds = r.get("conditions") or {}
-                mask = _eval_block(row, conds)
-                if bool(mask.iloc[-1]):
-                    chosen = (str(r.get("label")), float(r.get("confidence", 0.0)))
-                    break
-            if chosen is None:
-                chosen = ("unknown", 0.0)
-            labels.append(chosen[0])
-            confs.append(chosen[1])
+
+        # PERFORMANCE: Evaluate regime conditions vectorized (no per-bar loop)
+        # Initialize with unknown regime
+        labels = pd.Series(["unknown"] * len(df), index=df.index)
+        confs = pd.Series([0.0] * len(df), index=df.index)
+
+        # Evaluate each regime's conditions as vectorized boolean masks
+        for r in regimes:
+            conds = r.get("conditions") or {}
+            mask = _eval_block(df, conds)  # Returns boolean Series for all bars
+            label = str(r.get("label"))
+            confidence = float(r.get("confidence", 0.0))
+
+            # Update labels/confidence where this regime's conditions are true
+            # and no higher-priority regime has already been assigned
+            # (regimes are checked in order, first match wins)
+            update_mask = mask & (labels == "unknown")
+            labels.loc[update_mask] = label
+            confs.loc[update_mask] = confidence
 
         # Include computed features alongside label and confidence
         out = df.copy()
@@ -144,7 +182,7 @@ class RMMEngine:
         Conventional mapping:
         - trend_up -> ["long"]
         - trend_down -> ["short"]
-        - range/unknown -> []
+        - range/other -> ["long", "short"] (if label passes policy checks)
         """
         min_c = (
             float(policy.get("min_confidence", 0.0))
@@ -163,7 +201,9 @@ class RMMEngine:
             return ["long"]
         if label == "trend_down":
             return ["short"]
-        return []
+        # For non-directional labels (range, unknown, etc.) that pass policy checks,
+        # allow both sides. This enables range-based or neutral regime strategies.
+        return ["long", "short"]
 
     def project_to_index(
         self, daily: pd.DataFrame, target_index: pd.DatetimeIndex, policy: dict | None
@@ -172,6 +212,10 @@ class RMMEngine:
 
         Returns DataFrame with all columns from daily (including regime features)
         plus allowed_sides, indexed by target_index.
+
+        IMPORTANT: Shifts regime data by 1 bar to prevent lookahead bias.
+        At time T, we use the regime from the previous completed bar, not the
+        bar that's currently in progress.
         """
         if daily.empty:
             df = pd.DataFrame(index=target_index)
@@ -179,9 +223,21 @@ class RMMEngine:
             df["confidence"] = 0.0
             df["allowed_sides"] = [[] for _ in range(len(target_index))]  # pyright: ignore
             return df
+
+        # CRITICAL: Shift regime data by 1 bar to prevent lookahead bias
+        # This ensures we only use regime information from COMPLETED bars.
+        # Example: At 10:05 on a 5min chart with 15min RMM:
+        #   - Without shift: would use regime from 10:00 bar (not closed until 10:15) ❌
+        #   - With shift: uses regime from 09:45 bar (closed at 10:00) ✅
+        daily_shifted = daily.shift(1)
+
         # Reindex with forward-fill to align to target_index boundaries
         # This preserves all columns including regime features
-        aligned = daily.reindex(daily.index.union(target_index)).sort_index().ffill()
+        aligned = (
+            daily_shifted.reindex(daily_shifted.index.union(target_index))
+            .sort_index()
+            .ffill()
+        )
         aligned = aligned.loc[target_index]
         allowed = [
             self.allowed_sides_for(

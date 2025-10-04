@@ -1,11 +1,10 @@
 user_id: "researcher"
-runs_dir: "runs"
 initial_cash: 100000
 warmup_bars: 50
 entry_window_bars: 3  # Allow entry within 3 bars of signal transition
 tie_break_policy:
   rule: "stop_then_tp"
-position_size: 25000
+position_size: 50000  # Iteration 9: 2x size to amplify edge
 
 # Transaction costs configuration
 cost_model:
@@ -20,7 +19,7 @@ cost_model:
 data_request:
   symbol: "EUR_USD"
   timeframe: "1H"
-  start: "2024-03-01"
+  start: "2013-01-01"
   end: "2025-09-26"
 
 counterfactual_mode: exact   # fast | exact; default is fast
@@ -31,12 +30,13 @@ post_exit_analysis:
   enabled: true
   horizons: [10, 20, 50]  # Track price movement for N bars after each exit
 
-rem_path: "config/rem/basic_price_exits.yaml"
+rem_path: "config/rem/trailing_stops.yaml"
 strategy_path: "config/strategy/ema_crossover.yaml"
 
 # Strategy parameters for this run (for brief reporting)
+# Iteration 8: Widen EMA separation to reduce whipsaw
 strategy_params:
-  ema_fast_length: 16
+  ema_fast_length: 12
   ema_slow_length: 50
   slope_filter: false
 
@@ -44,9 +44,9 @@ strategy_params:
 strategy_overrides:
   features:
     ema_fast:
-      length: 16
+      length: 12
     ema_slow:
       length: 50
 
-# Regime Market Manager (mandatory)
-rmm_path: "config/rmm/daily_trend.yaml"
+# Regime Market Manager - Iteration 10: Disable to test trade frequency
+rmm_path: "config/rmm/4h_trend.yaml"

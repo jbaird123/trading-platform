@@ -1,12 +1,11 @@
 """Tests to achieve 100% coverage for cli.py line 96."""
 
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 from trading_platform.cli import cmd_run_backtest
 
 
-def test_cli_data_request_with_start_end_filtering():
+def test_cli_data_request_with_start_end_filtering(tmp_path):
     """Test CLI with data_request that has start/end filtering - covers line 96."""
 
     # Create mock args
@@ -45,7 +44,7 @@ def test_cli_data_request_with_start_end_filtering():
     with patch("trading_platform.cli._load_config", return_value=mock_config), patch(
         "trading_platform.cli.RunConfig.model_validate", return_value=Mock()
     ), patch(
-        "trading_platform.cli.initialize_run", return_value=Path("test_run")
+        "trading_platform.cli.initialize_run", return_value=tmp_path / "test_run"
     ), patch(
         "trading_platform.cli.run_backtest", return_value=(Mock(), Mock(), Mock())
     ), patch("trading_platform.cli.finalize_run"), patch("builtins.print"), patch(
