@@ -8,6 +8,7 @@ import pandas as pd
 
 from trading_platform.core.config import RunConfig
 from trading_platform.core.policy import TradingWindowPolicy
+from trading_platform.core.signal import Signal
 from trading_platform.core.utils import normalize_symbol
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
@@ -175,8 +176,16 @@ def run_backtest(
         )
         raise ValueError(msg)
 
+    # Extract commands from Signal objects for validation
+    commands = []
+    for sig in signals:
+        if isinstance(sig, Signal):
+            commands.append(sig.command)
+        else:
+            commands.append(sig)
+
     allowed = {"enter_long", "enter_short", "exit_long", "exit_short", "None", "nan"}
-    invalid_values = set(pd.Series(signals).astype(str).unique()) - allowed
+    invalid_values = set(pd.Series(commands).astype(str).unique()) - allowed
     if invalid_values:
         raise ValueError(
             f"signals contain invalid command values: {sorted(invalid_values)}"
@@ -209,9 +218,19 @@ def run_backtest(
     warmup_threshold = max(0, config.warmup_bars)
 
     for i in range(len(market_data)):
-        command = signals.iloc[i]
+        signal = signals.iloc[i]
         current_bar = market_data.iloc[i]
-        context = strategy.get_context(i)
+
+        # Extract command and context from Signal object (or use legacy format)
+        if isinstance(signal, Signal):
+            command = signal.command
+            # Merge signal context with strategy context
+            strategy_context = strategy.get_context(i)
+            context = {**strategy_context, **signal.context}
+        else:
+            # Legacy format: signal is just a command string
+            command = signal
+            context = strategy.get_context(i)
 
         # Enrich context with regime information from RMM if available
         if rmm_context is not None:
@@ -234,7 +253,9 @@ def run_backtest(
         # Evaluate risk-based exits using the Risk & Exit Manager (REM)
         # This is evaluated before processing strategy commands
         if portfolio.current_position:
-            exit_details = rem.check_exits(portfolio.current_position, current_bar)
+            exit_details = rem.check_exits(
+                portfolio.current_position, current_bar, signal=signal
+            )
 
             if exit_details:
                 portfolio.close_position(

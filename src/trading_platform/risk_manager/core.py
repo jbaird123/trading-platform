@@ -4,6 +4,7 @@ from typing import Any
 
 import pandas as pd
 
+from trading_platform.core.signal import Signal
 from trading_platform.portfolio.position import Position
 
 
@@ -31,10 +32,15 @@ class RiskExitManager:
         self.instrument = instrument or {}
 
     def check_exits(
-        self, position: Position, current_bar: pd.Series
+        self, position: Position, current_bar: pd.Series, signal: Any = None
     ) -> dict[str, Any] | None:
         """
         Checks if any exit conditions are met for the given position.
+
+        Args:
+            position: The current position to check exits for
+            current_bar: The current market bar data
+            signal: Optional Signal object with context data
 
         Returns:
             A dictionary with the exit details if an exit is triggered,
@@ -43,6 +49,14 @@ class RiskExitManager:
         stop_loss = self.config.get("stop_loss", {}) or {}
         take_profit = self.config.get("take_profit", {}) or {}
         trailing = self.config.get("trailing_stop", {}) or {}
+
+        # Extract signal context if available
+        # Prefer position's entry context (persisted), fallback to current signal
+        signal_context = {}
+        if position.context_at_entry:
+            signal_context = position.context_at_entry
+        elif signal is not None and isinstance(signal, Signal):
+            signal_context = signal.context or {}
 
         def _pip_size() -> float:
             # Use pip_location from the instrument definition.
@@ -63,11 +77,37 @@ class RiskExitManager:
                 return float(rule["atr_multiple"]) * float(atr) if atr else None
             return None
 
+        def _get_context_value(reference_point: str) -> float | None:
+            """Extract value from signal context using dot notation."""
+            if not reference_point.startswith("context."):
+                return None
+            key = reference_point.replace("context.", "")
+            return signal_context.get(key)
+
         def _level_price(
             side: str, entry: float, rule: dict, is_stop: bool
         ) -> float | None:
+            # Handle reference_price type (contextual rules)
+            if rule.get("type") == "reference_price":
+                ref_point = rule.get("reference_point", "")
+                base_price = _get_context_value(ref_point)
+                if base_price is None:
+                    return None
+
+                # Get offset from the rule
+                offset_config = rule.get("offset", {})
+                offset = _distance(offset_config)
+                if offset is None:
+                    return float(base_price)
+
+                # Apply offset (negative offset for stop below, positive for TP above)
+                return float(base_price) + offset
+
+            # Legacy absolute_price rules
             if "absolute_price" in rule:
                 return float(rule["absolute_price"])
+
+            # Legacy distance-based rules
             dist = _distance(rule)
             if dist is None:
                 return None
@@ -75,8 +115,22 @@ class RiskExitManager:
                 return entry - dist if is_stop else entry + dist
             return entry + dist if is_stop else entry - dist
 
-        sl_price = _level_price(position.side, position.entry_price, stop_loss, True)
-        tp_price = _level_price(position.side, position.entry_price, take_profit, False)
+        def _process_rule_list(rules: Any, is_stop: bool) -> float | None:
+            """Process a rule or list of rules, return first valid price."""
+            if isinstance(rules, list):
+                for rule in rules:
+                    price = _level_price(
+                        position.side, position.entry_price, rule, is_stop
+                    )
+                    if price is not None:
+                        return price
+                return None
+            return _level_price(
+                position.side, position.entry_price, rules, is_stop
+            )
+
+        sl_price = _process_rule_list(stop_loss, True)
+        tp_price = _process_rule_list(take_profit, False)
 
         # Trailing stop based on MFE; derived from Position.mfe_currency and size
         trail_price: float | None = None
