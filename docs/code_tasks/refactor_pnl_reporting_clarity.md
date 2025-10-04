@@ -49,19 +49,19 @@
 
 **Goal:** Ensure the real-time, unrealized PnL of an open position correctly reflects the full spread cost, mimicking a live broker.
 
-8.  **[ ] Update `Position` Dataclass for Unrealized PnL.**
+8.  **[X] Update `Position` Dataclass for Unrealized PnL.**
     *   **File:** `src/trading_platform/portfolio/position.py`
     *   **Action:** Add a new field: `unrealized_pnl: float = 0.0`.
 
-9.  **[ ] Create Test for Unrealized PnL.**
+9.  **[X] Create Test for Unrealized PnL.**
     *   **File:** `tests/portfolio/test_pnl_realism.py` (create this new file).
     *   **Action:** Add a test function `test_unrealized_pnl_reflects_full_spread`.
     *   **Logic:** Create a `PortfolioManager` and an open `Position`. Call the method that updates the position on a new bar. Assert that `portfolio.current_position.unrealized_pnl` is calculated using the `cost_model.get_exit_price()`, correctly reflecting the full spread.
 
-10. **[ ] Implement Unrealized PnL Calculation.**
+10. **[X] Implement Unrealized PnL Calculation.**
     *   **File:** `src/trading_platform/portfolio/portfolio.py`
     *   **Action:** Locate the `_update_position_metrics` method, which is called on every bar for an open position.
     *   **Logic:** Inside this method, add the logic to calculate the `unrealized_pnl` using `self._cost_model.get_exit_price(current_bar['close'], position.side)` and update the `position.unrealized_pnl` field.
 
-11. **[ ] Final Verification.**
+11. **[X] Final Verification.**
     *   **Action:** Run `poetry run pytest` one last time to ensure all new and existing tests pass.

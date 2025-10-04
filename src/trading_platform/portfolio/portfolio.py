@@ -355,13 +355,17 @@ class PortfolioManager:
             return  # pragma: no cover
 
     def _update_position_metrics(self, current_bar: pd.Series) -> None:
-        """Increment bars_held and update MFE/MAE using bar extremes."""
+        """
+        Increment bars_held and update MFE/MAE using bar extremes.
+        Also calculate unrealized PnL using realistic exit price.
+        """
         pos = self._open_position
         assert pos is not None
         size = pos.size
         entry = pos.entry_price
         high = float(current_bar["high"]) if "high" in current_bar else entry
         low = float(current_bar["low"]) if "low" in current_bar else entry
+        close = float(current_bar["close"])
 
         # Get point_value for MFE/MAE calculation
         pv_high = self._get_point_value(entry, high)
@@ -374,6 +378,16 @@ class PortfolioManager:
             favorable = max(0.0, (entry - low) * size * pv_low)
             adverse = max(0.0, (high - entry) * size * pv_high)
 
+        # Calculate unrealized PnL using realistic exit price
+        # This mirrors live broker behavior: includes full spread cost
+        exit_price = self._cost_model.get_exit_price(close, pos.side)
+        pv_close = self._get_point_value(entry, close)
+
+        if pos.side == "long":
+            unrealized = (exit_price - entry) * size * pv_close
+        else:
+            unrealized = (entry - exit_price) * size * pv_close
+
         self._open_position = Position(
             symbol=pos.symbol,
             side=pos.side,
@@ -384,6 +398,7 @@ class PortfolioManager:
             bars_held=pos.bars_held + 1,
             mfe_currency=max(pos.mfe_currency, favorable),
             mae_currency=max(pos.mae_currency, adverse),
+            unrealized_pnl=unrealized,
             initial_risk_ccy=pos.initial_risk_ccy,
             context_at_entry=pos.context_at_entry,  # Preserve the context!
         )
@@ -464,8 +479,9 @@ class PortfolioManager:
         # Update entry_price to fill price for Trade record
         pos_dict["entry_price"] = entry_fill
 
-        # Remove entry_mid_price (not needed in Trade, only in Position)
+        # Remove Position-only fields (not needed in Trade)
         pos_dict.pop("entry_mid_price", None)
+        pos_dict.pop("unrealized_pnl", None)
 
         trade = Trade(
             **pos_dict,
