@@ -7,7 +7,7 @@ import pandas as pd
 from trading_platform.cli import cmd_run_backtest
 
 
-def test_cli_data_request_with_all_filters():
+def test_cli_data_request_with_all_filters(tmp_path):
     """Test CLI with data_request that has timeframe, start, and end filtering."""
     args = Mock(
         config="test_config.yaml",
@@ -41,7 +41,7 @@ def test_cli_data_request_with_all_filters():
     ), patch(
         "trading_platform.cli.RunConfig.model_validate", return_value=Mock()
     ), patch(
-        "trading_platform.cli.initialize_run", return_value=Path("test_run")
+        "trading_platform.cli.initialize_run", return_value=tmp_path / "test_run"
     ), patch("trading_platform.cli.DataHandler", autospec=True) as mock_data_handler, patch(
         "trading_platform.cli.run_backtest"
     ) as mock_run_backtest, patch("trading_platform.cli.finalize_run"), patch(
@@ -66,7 +66,7 @@ def test_cli_data_request_with_all_filters():
         assert filtered_df_result.index[0] == pd.to_datetime("2023-01-02", utc=True)
 
 
-def test_cli_no_data_request_uses_toy_data():
+def test_cli_no_data_request_uses_toy_data(tmp_path):
     """Test CLI when no data_request is provided - should use toy data."""
     args = Mock(
         config="test_config.yaml",
@@ -94,7 +94,7 @@ def test_cli_no_data_request_uses_toy_data():
     ), patch(
         "trading_platform.cli.RunConfig.model_validate", return_value=Mock()
     ), patch(
-        "trading_platform.cli.initialize_run", return_value=Path("test_run")
+        "trading_platform.cli.initialize_run", return_value=tmp_path / "test_run"
     ), patch("trading_platform.cli.DataHandler") as mock_data_handler, patch(
         "trading_platform.cli.run_backtest", return_value=(Mock(), Mock(), Mock())
     ), patch("trading_platform.cli.finalize_run"), patch("builtins.print"):
