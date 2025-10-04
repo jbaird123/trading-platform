@@ -1,0 +1,22 @@
+
+name: "Backtest of Institutional Order Block Strategy"
+description: "Binds the IOB strategy with its contextual REM for a backtest run on EUR/USD."
+
+# --- Data Request ---
+# The system uses this block to fetch data and auto-populate the instrument definition.
+data_request:
+  symbol: 'EUR_USD'
+  timeframe: '1H'
+  start: '2022-01-01'
+  end: '2023-01-01'
+  data_source: 'dukascopy' # Placeholder for the data source identifier
+
+# --- Component Configurations ---
+# Path to the strategy definition file
+strategy_path: 'config/strategy/institutional_order_block.yaml'
+
+# Path to the Risk and Exit Manager (REM) definition file
+rem_path: 'config/rem/order_block_context.yaml'
+
+# Optional: Specify a Regime Market Manager (RMM) as a filter
+# rmm_path: 'config/rmm/trend_filter.yaml'

@@ -1,0 +1,42 @@
+
+strategy_name: "Institutional Order Block (YAML Example)"
+description: >
+  A simplified example of an order block strategy. It identifies a recent
+  swing low as a proxy for a bullish order block and enters when price is
+  above it. It passes the swing low and high prices as context to the REM.
+
+features:
+  - name: ob_low
+    type: LLV
+    params: { length: 5 }
+    source: low
+  - name: ob_high
+    type: HHV
+    params: { length: 5 }
+    source: high
+  - name: exit_ma
+    type: EMA
+    params: { length: 20 }
+    source: close
+
+long_entry_rules:
+  - all_of:
+      - condition: is_above
+        left: { ref: close }
+        right: { ref: ob_low }
+    # --- Proposed Syntax ---
+    # This block passes dynamic values from the strategy's features
+    # into a 'context' object that accompanies the entry signal.
+    context:
+      order_block_low: { ref: ob_low }
+      order_block_high: { ref: ob_high }
+
+long_exit_rules:
+  - any_of:
+      - condition: cross_below
+        left: { ref: close }
+        right: { ref: exit_ma }
+
+# Short side would be defined similarly
+# short_entry_rules: ...
+# short_exit_rules: ...
