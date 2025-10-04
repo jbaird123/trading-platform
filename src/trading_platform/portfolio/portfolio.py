@@ -30,9 +30,9 @@ class PortfolioManager:
         precision_engine: PrecisionEngine | None = None,
     ):
         self.base_currency = base_currency
-        assert self.base_currency == "USD", (
-            "MVP only supports USD as the base currency."
-        )
+        assert (
+            self.base_currency == "USD"
+        ), "MVP only supports USD as the base currency."
         self.initial_cash = initial_cash
         self.cash = initial_cash
         self._open_position: Position | None = None

@@ -23,7 +23,9 @@ def _bar(ts: str, o: float, h: float, lo: float, c: float) -> pd.Series:
 
 
 def test_mfe_mae_and_bars_held_long():
-    pm = PortfolioManager(base_currency="USD", initial_cash=0.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=0.0, instrument=TEST_INSTRUMENT
+    )
     pm.create_new_position(
         symbol="X",
         side="long",
@@ -51,7 +53,9 @@ def test_mfe_mae_and_bars_held_long():
 
 
 def test_mfe_mae_and_bars_held_short():
-    pm = PortfolioManager(base_currency="USD", initial_cash=0.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=0.0, instrument=TEST_INSTRUMENT
+    )
     pm.create_new_position(
         symbol="X",
         side="short",

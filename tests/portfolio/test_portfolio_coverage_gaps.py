@@ -18,7 +18,9 @@ TEST_INSTRUMENT = {
 
 def test_portfolio_hit_daily_loss_cap_none_cap():
     """Test hit_daily_loss_cap when cap is None (lines 75-76)."""
-    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT
+    )
     ts = datetime(2024, 1, 1, 10)
 
     # Test with None cap - should return False (line 76)
@@ -28,7 +30,9 @@ def test_portfolio_hit_daily_loss_cap_none_cap():
 
 def test_portfolio_hit_daily_loss_cap_zero_cap():
     """Test hit_daily_loss_cap when cap is <= 0 (lines 76-77)."""
-    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT
+    )
     ts = datetime(2024, 1, 1, 10)
 
     # Test with zero cap - should return False (line 76)
@@ -42,7 +46,9 @@ def test_portfolio_hit_daily_loss_cap_zero_cap():
 
 def test_portfolio_hit_daily_loss_cap_with_loss():
     """Test hit_daily_loss_cap when daily loss exceeds cap (lines 78-79)."""
-    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT
+    )
 
     # Create and close a losing position to generate daily PnL
     pm.create_new_position(
@@ -64,7 +70,9 @@ def test_portfolio_hit_daily_loss_cap_with_loss():
 
 def test_portfolio_on_bar_no_position():
     """Test on_bar when no position exists (avoids line 92-93)."""
-    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT
+    )
 
     # Create bar data
     bar = pd.Series(
@@ -87,7 +95,9 @@ def test_portfolio_on_bar_no_position():
 
 def test_portfolio_check_stop_loss_no_position():
     """Test check_stop_loss when no position exists (lines 98-100)."""
-    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT
+    )
 
     # Create bar data
     bar = pd.Series(
@@ -101,7 +111,9 @@ def test_portfolio_check_stop_loss_no_position():
 
 def test_portfolio_check_stop_loss_invalid_price():
     """Test check_stop_loss when stop_price <= 0 (lines 98-100)."""
-    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT
+    )
 
     # Create a position
     pm.create_new_position("EURUSD", "long", 1.1000, 1.0, datetime(2024, 1, 1, 9))
@@ -121,7 +133,9 @@ def test_portfolio_check_stop_loss_invalid_price():
 
 def test_portfolio_check_stop_loss_long_position():
     """Test check_stop_loss for long position (lines 101-102)."""
-    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT
+    )
 
     # Create a long position
     pm.create_new_position("EURUSD", "long", 1.1000, 1.0, datetime(2024, 1, 1, 9))
@@ -144,7 +158,9 @@ def test_portfolio_check_stop_loss_long_position():
 
 def test_portfolio_check_stop_loss_short_position():
     """Test check_stop_loss for short position (lines 103-104)."""
-    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT
+    )
 
     # Create a short position
     pm.create_new_position("EURUSD", "short", 1.1000, 1.0, datetime(2024, 1, 1, 9))
@@ -167,7 +183,9 @@ def test_portfolio_check_stop_loss_short_position():
 
 def test_portfolio_check_take_profit_no_position():
     """Test check_take_profit when no position exists (lines 107-109)."""
-    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT
+    )
 
     # Create bar data
     bar = pd.Series(
@@ -181,7 +199,9 @@ def test_portfolio_check_take_profit_no_position():
 
 def test_portfolio_check_take_profit_invalid_price():
     """Test check_take_profit when profit_price <= 0 (lines 107-109)."""
-    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT
+    )
 
     # Create a position
     pm.create_new_position("EURUSD", "long", 1.1000, 1.0, datetime(2024, 1, 1, 9))
@@ -198,7 +218,9 @@ def test_portfolio_check_take_profit_invalid_price():
 
 def test_portfolio_check_take_profit_long_position():
     """Test check_take_profit for long position (lines 111-112)."""
-    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT
+    )
 
     # Create a long position
     pm.create_new_position("EURUSD", "long", 1.1000, 1.0, datetime(2024, 1, 1, 9))
@@ -221,7 +243,9 @@ def test_portfolio_check_take_profit_long_position():
 
 def test_portfolio_check_take_profit_short_position():
     """Test check_take_profit for short position (lines 113-114)."""
-    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT
+    )
 
     # Create a short position
     pm.create_new_position("EURUSD", "short", 1.1000, 1.0, datetime(2024, 1, 1, 9))
@@ -244,7 +268,9 @@ def test_portfolio_check_take_profit_short_position():
 
 def test_portfolio_handle_signal_change_no_flip():
     """Test _handle_signal_change when allow_flip_on_bar is False (lines 118-124)."""
-    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT
+    )
 
     # Create a long position
     pm.create_new_position("EURUSD", "long", 1.1000, 1.0, datetime(2024, 1, 1, 9))

@@ -48,7 +48,9 @@ def _strat():
 
 def test_live_controller_happy_path_with_stub_adapter():
     df = _df()
-    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT
+    )
     adapter = OandaStubAdapter(pm=pm)
     res = run_live_controller(
         market_data=df, strategy_cfg=_strat(), adapter=adapter, pm=pm
@@ -63,7 +65,9 @@ def test_live_controller_happy_path_with_stub_adapter():
 
 def test_live_controller_dry_run_and_kill_switch():
     df = _df()
-    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT
+    )
     adapter = OandaStubAdapter(pm=pm)
     # Dry run emits logs and no orders
     res = run_live_controller(
@@ -74,7 +78,9 @@ def test_live_controller_dry_run_and_kill_switch():
 
     # Kill switch after a single order
     adapter2 = OandaStubAdapter(
-        pm=PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+        pm=PortfolioManager(
+            base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT
+        )
     )
     res2 = run_live_controller(
         market_data=df,
@@ -93,7 +99,9 @@ def test_live_controller_dry_run_and_kill_switch():
 
 def test_live_controller_reconciliation_detects_diff(monkeypatch):
     df = _df()
-    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT
+    )
     adapter = OandaStubAdapter(pm=pm)
 
     # Monkeypatch the adapter snapshot to force a mismatch

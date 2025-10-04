@@ -435,7 +435,8 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
                 else:  # Signal exits or other
                     # Good exit if price went against us (post_mae got worse)
                     # Bad exit if price continued favorably (high post_mfe)
-                    if post_mfe > abs(t.pnl_movement) * 1.5:  # Left >1.5x profit on table
+                    # Left >1.5x profit on table
+                    if post_mfe > abs(t.pnl_movement) * 1.5:
                         premature_count += 1
 
             avg_opp_cost = sum(opp_costs) / len(opp_costs) if opp_costs else 0.0

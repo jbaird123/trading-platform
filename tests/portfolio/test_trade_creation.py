@@ -7,9 +7,6 @@ This module validates the clear, auditable waterfall from ideal PnL
 
 from datetime import UTC, datetime
 
-import pandas as pd
-
-from trading_platform.core.costs import CostModel
 from trading_platform.portfolio.portfolio import PortfolioManager
 
 
@@ -33,7 +30,9 @@ def test_pnl_calculation_waterfall():
         "pip_location": 0.0001,
     }
 
-    pm = PortfolioManager(base_currency="USD", initial_cash=100000.0,
+    pm = PortfolioManager(
+        base_currency="USD",
+        initial_cash=100000.0,
         instrument=instrument,
         cost_model=cost_model_config,
     )
@@ -72,6 +71,7 @@ def test_pnl_calculation_waterfall():
 
     # Step 2: Verify spread cost (2 pips on 10k units)
     expected_spread = 0.0002 * size  # $2.00
+    assert trade.cost_breakdown is not None
     assert trade.cost_breakdown["spread"] == expected_spread
 
     # Step 3: Verify total costs
@@ -97,7 +97,9 @@ def test_pnl_waterfall_with_loss():
         "pip_location": 0.0001,
     }
 
-    pm = PortfolioManager(base_currency="USD", initial_cash=100000.0,
+    pm = PortfolioManager(
+        base_currency="USD",
+        initial_cash=100000.0,
         instrument=instrument,
         cost_model=cost_model_config,
     )
@@ -134,6 +136,7 @@ def test_pnl_waterfall_with_loss():
     commission_cost = 0.5 * size * 2  # $5000 entry + $5000 exit = $10000
     total_cost = spread_cost + slippage_cost + commission_cost  # $10,004.00
 
+    assert trade.cost_breakdown is not None
     assert trade.cost_breakdown["spread"] == spread_cost
     assert trade.cost_breakdown["slippage"] == slippage_cost
     assert trade.cost_breakdown["commission"] == commission_cost
