@@ -188,9 +188,10 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         elif limit_bars > 0:
             df = df.tail(limit_bars)
 
-    strat_path = cfg_raw.get("strategy_path")
-    if strat_path:
-        strat_cfg = _load_config(Path(str(strat_path)))
+    if isinstance(strat_cfg, dict) and "file_path" in strat_cfg:
+        # Resolve file_path relative to the main config file
+        p = Path(cfg_path.parent, strat_cfg["file_path"])
+        strat_cfg = _load_config(p)
 
     # Apply strategy_params from config (used for parameter sweeps)
     # This allows the config to override strategy defaults
