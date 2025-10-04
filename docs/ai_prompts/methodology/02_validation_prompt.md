@@ -34,6 +34,23 @@ This is a critical test for robustness against changing market conditions.
     -   Is the performance consistent across different time periods?
     -   Does the strategy's performance degrade significantly on out-of-sample data?
 
+### Phase 1a: The Validation Gauntlet Checklist
+
+Before analyzing the results, you **MUST** create the following checklist in your `run_summary.md` and fill it out. This is non-negotiable.
+
+```markdown
+**Validation Gauntlet Checklist**
+
+- [ ] **Walk-Forward Evaluation (WFE):**
+  - **Command Run:** `...`
+  - **Result:** PASS/FAIL/SKIPPED
+  - **Reason (if SKIPPED):** `...`
+- [ ] **Monte Carlo (MC) Simulation:**
+  - **Command Run:** `...`
+  - **Result:** PASS/FAIL/SKIPPED
+  - **Reason (if SKIPPED):** `...`
+```
+
 ### Phase 2: Monte Carlo (MC) Simulation
 
 This tests for sensitivity to the sequence of trades (luck).
@@ -46,9 +63,9 @@ This tests for sensitivity to the sequence of trades (luck).
 ### Phase 3: Final Verdict
 
 1.  **Synthesize Findings:** Based on your analysis of the WFE and MC results, come to a final conclusion for this validation step.
-2.  **Log Verdict:** In your `run_summary.md`, record a final verdict:
-    -   **Robust:** The strategy passed WFE and MC tests, and its maximum drawdown period did not exceed two weeks. It is a candidate for `PROMOTION`.
-    -   **Brittle:** The strategy failed WFE or MC tests, or it endured an unacceptably long drawdown. Its performance is likely a result of curve-fitting. It should be rejected or returned to a new `Discovery` step for refinement.
+2.  **Log Verdict:** In your `run_summary.md`, record a final verdict based on the following **strict rule**:
+    -   **Robust:** The strategy is a candidate for `PROMOTION`. This verdict is **only possible if ALL checklist items above are marked `PASS`**.
+    -   **Brittle:** The strategy should be rejected or returned to a new `Discovery` step for refinement. This is the **automatic verdict if ANY checklist item is marked `FAIL` or `SKIPPED`**. If a step was skipped due to a platform or data limitation, you must state this clearly as the reason for the `Brittle` verdict and recommend the user resolve the limitation.
 
 ---
 
