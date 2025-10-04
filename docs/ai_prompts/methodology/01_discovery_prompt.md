@@ -20,6 +20,9 @@ These rules are absolute and must be followed at all times.
 -   **Meticulous Logging:**
     -   Each step's timestamped directory **MUST** contain a `run_summary.md` file detailing the hypothesis, actions taken, and results for that specific step.
     -   The root of the campaign directory **MUST** contain a master `campaign_log.md` that provides a high-level summary and links to each step's `run_summary.md`.
+-   **Use Standard Timeframes:** You **MUST** restrict your analysis and strategy definitions to a conventional set of timeframes. You should prefer timeframes that are standard across most trading platforms.
+    -   **Allowed Timeframes:** `1M`, `5M`, `15M`, `30M`, `1H`, `4H`, `1D`.
+    -   Avoid arbitrary or unusual timeframes (e.g., `13M`, `3H`, `7H`) unless specifically instructed by the user for a research purpose.
 
 ---
 
