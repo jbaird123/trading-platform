@@ -25,14 +25,13 @@ Your mission is to take a "candidate" trading strategy that was identified durin
 
 ### Phase 1: Walk-Forward Evaluation (WFE)
 
-This is the most critical test for robustness against changing market conditions.
+This is the most critical test for robustness against changing market conditions. The goal is to determine if the strategy's performance is consistent across different time periods using a **post-hoc analysis**.
 
-1.  **Configure WFE:** Create a new run configuration file. Enable the walk-forward evaluation feature. Use sensible parameters, for example:
-    -   `training_period`: 12 months
-    -   `testing_period`: 3 months
-    -   `step_size`: 3 months
-2.  **Execute WFE:** Run the backtester with the WFE configuration.
-3.  **Analyze WFE Results:** In your log, analyze the `walk_forward` section of the resulting `brief.json`.
+1.  **Execute Baseline Backtest:** First, run a standard backtest using the candidate strategy's static parameters. This run will generate the full history of trades needed for the analysis.
+2.  **Perform Post-Hoc WFA:** After the backtest is complete, use the `walk_forward_summary` function (from `src/trading_platform/core/robustness.py`) on the list of generated trades. Configure this analysis with appropriate time-based windows, for example:
+    -   `window`: 12 months
+    -   `step`: 3 months
+3.  **Analyze WFE Results:** In your log, analyze the output from the `walk_forward_summary` function.
     -   How many of the walk-forward windows were profitable?
     -   Is the performance consistent across different time periods?
     -   Does the strategy's performance degrade significantly on out-of-sample data?
