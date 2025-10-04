@@ -235,3 +235,4 @@ __marimo__/
 # Trading Platform specific
 workspace/
 runs/
+model.onnx

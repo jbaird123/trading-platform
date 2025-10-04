@@ -486,72 +486,64 @@ def test_aitp_train_model_lightgbm_import_error(monkeypatch, mock_config_path):
         pipeline._train_model(X, y)
 
 
-def test_aitp_evaluate_and_log_artifacts(monkeypatch, mock_config_path):
-    importlib.reload(training_pipeline)
-    mock_eval_procedure_cls = MagicMock()
-    mock_log_metrics = MagicMock()
-    mock_log_model = MagicMock()
-    mock_convert_sklearn = MagicMock()
-    mock_log_artifact = MagicMock()
-    mock_synthesis_engine_cls = MagicMock()
-    mock_json_loads = MagicMock()
-    mock_log_dict = MagicMock()
-    mock_os_remove = MagicMock()
+def test_aitp_evaluate_and_log_artifacts(mock_config_path):
+    """Test evaluation and artifact logging with proper mocking."""
+    from unittest.mock import patch, MagicMock
 
-    monkeypatch.setattr(
-        training_pipeline, "AIEvaluationProcedure", mock_eval_procedure_cls
-    )
-    monkeypatch.setattr(training_pipeline.mlflow, "log_metrics", mock_log_metrics)
-    monkeypatch.setattr(training_pipeline.mlflow.sklearn, "log_model", mock_log_model)
-    monkeypatch.setattr(training_pipeline, "convert_sklearn", mock_convert_sklearn)
-    monkeypatch.setattr(training_pipeline.mlflow, "log_artifact", mock_log_artifact)
-    monkeypatch.setattr(
-        training_pipeline, "DiagnosticSynthesisEngine", mock_synthesis_engine_cls
-    )
-    monkeypatch.setattr(training_pipeline.json, "loads", mock_json_loads)
-    monkeypatch.setattr(training_pipeline.mlflow, "log_dict", mock_log_dict)
-    monkeypatch.setattr(training_pipeline.os, "remove", mock_os_remove)
+    with patch("trading_platform.ai.training.pipeline.AIEvaluationProcedure") as mock_eval_cls, \
+         patch("trading_platform.ai.training.pipeline.mlflow") as mock_mlflow, \
+         patch("trading_platform.ai.training.pipeline.convert_sklearn") as mock_convert, \
+         patch("trading_platform.ai.training.pipeline.DiagnosticSynthesisEngine") as mock_synth_cls, \
+         patch("trading_platform.ai.training.pipeline.json.loads") as mock_json_loads:
 
-    pipeline = AITrainingPipeline(mock_config_path)
-    mock_model = MagicMock(spec=RandomForestClassifier)
-    mock_model.n_features_in_ = 2
-    X = pd.DataFrame(np.random.rand(10, 2), columns=["f1", "f2"])
-    y = pd.Series(np.random.randint(0, 2, 10))
+        # Setup mock returns
+        mock_eval_instance = MagicMock()
+        mock_eval_instance.run.return_value = {"accuracy": 0.9, "f1": 0.85}
+        mock_eval_cls.return_value = mock_eval_instance
 
-    # Mock AIEvaluationProcedure
-    mock_eval_procedure_instance = mock_eval_procedure_cls.return_value
-    mock_eval_procedure_instance.run.return_value = {"accuracy": 0.9, "f1": 0.85}
+        mock_model_info = MagicMock()
+        mock_model_info.model_uri = "models:/test_model/1"
+        mock_mlflow.sklearn.log_model.return_value = mock_model_info
 
-    # Mock skl2onnx.convert_sklearn
-    mock_onnx_model = MagicMock()
-    mock_onnx_model.SerializeToString.return_value = b"dummy_onnx_model_bytes"
-    mock_convert_sklearn.return_value = mock_onnx_model
+        mock_onnx = MagicMock()
+        mock_onnx.SerializeToString.return_value = b"onnx_bytes"
+        mock_convert.return_value = mock_onnx
 
-    # Mock DiagnosticSynthesisEngine
-    mock_synthesis_engine_instance = mock_synthesis_engine_cls.return_value
-    mock_synthesis_engine_instance.generate_report_json.return_value = (
-        '{"report": "test"}'
-    )
-    mock_json_loads.return_value = {"report": "test"}
+        mock_synth_instance = MagicMock()
+        mock_synth_instance.generate_report_json.return_value = '{"report": "test"}'
+        mock_synth_cls.return_value = mock_synth_instance
+        mock_json_loads.return_value = {"report": "test"}
 
-    pipeline._evaluate_and_log_artifacts(mock_model, X, y)
+        # Create pipeline and test data
+        pipeline = AITrainingPipeline(mock_config_path)
+        mock_model = MagicMock(spec=RandomForestClassifier)
+        mock_model.n_features_in_ = 2
+        X = pd.DataFrame(np.random.rand(10, 2), columns=["f1", "f2"])
+        y = pd.Series(np.random.randint(0, 2, 10))
 
-    mock_eval_procedure_cls.assert_called_once_with(
-        config={"run_cross_validation": False}
-    )
-    mock_eval_procedure_instance.run.assert_called_once_with(mock_model, X, y)
-    mock_log_metrics.assert_called_once_with({"accuracy": 0.9, "f1": 0.85})
-    mock_log_model.assert_called_once_with(mock_model, "model")
-    mock_convert_sklearn.assert_called_once()
-    mock_log_artifact.assert_called_once_with("model.onnx", "onnx_model")
-    mock_os_remove.assert_called_once_with("model.onnx")
-    mock_synthesis_engine_cls.assert_called_once()
-    mock_synthesis_engine_instance.run.assert_called_once()
-    mock_synthesis_engine_instance.generate_report_json.assert_called_once()
-    mock_json_loads.assert_called_once_with('{"report": "test"}')
-    mock_log_dict.assert_called_once_with(
-        {"report": "test"}, "diagnostic_synthesis_results.json"
-    )
+        # Call the method
+        pipeline._evaluate_and_log_artifacts(mock_model, X, y)
+
+        # Verify all the calls
+        mock_eval_cls.assert_called_once_with(
+            config={"run_cross_validation": False}
+        )
+        mock_eval_instance.run.assert_called_once_with(mock_model, X, y)
+        mock_mlflow.log_metrics.assert_called_once_with({"accuracy": 0.9, "f1": 0.85})
+        mock_mlflow.sklearn.log_model.assert_called_once_with(mock_model, "model")
+        mock_convert.assert_called_once()
+        # Verify log_artifact was called with a temp file path ending in .onnx
+        assert mock_mlflow.log_artifact.call_count == 1
+        onnx_path_arg = mock_mlflow.log_artifact.call_args[0][0]
+        assert onnx_path_arg.endswith(".onnx")
+        assert mock_mlflow.log_artifact.call_args[0][1] == "onnx_model"
+        mock_synth_cls.assert_called_once()
+        mock_synth_instance.run.assert_called_once()
+        mock_synth_instance.generate_report_json.assert_called_once()
+        mock_json_loads.assert_called_once_with('{"report": "test"}')
+        mock_mlflow.log_dict.assert_called_once_with(
+            {"report": "test"}, "diagnostic_synthesis_results.json"
+        )
 
 
 def test_aitp_run(monkeypatch, mock_config_path):

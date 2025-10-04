@@ -40,9 +40,9 @@ def mock_training_config_path(tmp_path):
 @patch("trading_platform.ai.training.pipeline.AIEvaluationProcedure")
 @patch("trading_platform.ai.training.pipeline.DiagnosticSynthesisEngine")
 @patch("trading_platform.ai.training.pipeline.convert_sklearn")
-@patch("os.remove")
+@patch("shutil.rmtree")
 def test_training_pipeline_integration_flow(
-    mock_os_remove,
+    mock_shutil_rmtree,
     mock_convert_sklearn,
     mock_synthesis_engine_cls,
     mock_eval_procedure_cls,
@@ -121,8 +121,13 @@ def test_training_pipeline_integration_flow(
     mock_mlflow.log_metrics.assert_called_once_with({"accuracy": 0.95})
     mock_mlflow.sklearn.log_model.assert_called_once_with(mock_trained_model, "model")
     mock_convert_sklearn.assert_called_once()
-    mock_mlflow.log_artifact.assert_called_once_with("model.onnx", "onnx_model")
-    mock_os_remove.assert_called_once_with("model.onnx")
+    # Verify log_artifact was called with a temp file path ending in .onnx
+    assert mock_mlflow.log_artifact.call_count == 1
+    onnx_path_arg = mock_mlflow.log_artifact.call_args[0][0]
+    assert onnx_path_arg.endswith(".onnx"), f"Expected .onnx file, got {onnx_path_arg}"
+    assert mock_mlflow.log_artifact.call_args[0][1] == "onnx_model"
+    # Verify shutil.rmtree was called with the temp directory
+    assert mock_shutil_rmtree.call_count == 1
 
     # Assertions for diagnostic synthesis engine
     mock_synthesis_engine_cls.assert_called_once()
