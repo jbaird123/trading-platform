@@ -75,6 +75,7 @@ A strategy is considered "winning" or "successful" when it meets a combination o
 
 -   **Consistent Profitability:** `total_pnl` is positive.
 -   **Acceptable Risk:** `max_drawdown` is less than 20% of the total PnL.
+-   **Short Drawdown Period:** The strategy should not have a drawdown period lasting longer than two weeks.
 -   **Good Risk/Reward:** Sharpe Ratio > 1.0.
 -   **Robustness:** The strategy passes the validation criteria (e.g., WFE and MC tests).
 

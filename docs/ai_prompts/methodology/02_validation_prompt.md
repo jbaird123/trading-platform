@@ -47,8 +47,8 @@ This tests for sensitivity to the sequence of trades (luck).
 
 1.  **Synthesize Findings:** Based on your analysis of the WFE and MC results, come to a final conclusion for this validation step.
 2.  **Log Verdict:** In your `run_summary.md`, record a final verdict:
-    -   **Robust:** The strategy passed WFE and MC tests. It is a candidate for `PROMOTION`.
-    -   **Brittle:** The strategy failed WFE or MC tests. Its performance is likely a result of curve-fitting. It should be rejected or returned to a new `Discovery` step for refinement.
+    -   **Robust:** The strategy passed WFE and MC tests, and its maximum drawdown period did not exceed two weeks. It is a candidate for `PROMOTION`.
+    -   **Brittle:** The strategy failed WFE or MC tests, or it endured an unacceptably long drawdown. Its performance is likely a result of curve-fitting. It should be rejected or returned to a new `Discovery` step for refinement.
 
 ---
 
