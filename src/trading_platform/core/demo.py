@@ -19,7 +19,7 @@ def generate_demo_run(user_id: str = "demo_user", runs_dir: Path | None = None) 
         "run_seed": 42,
         "log_level": "INFO",
         "initial_cash": 100000.0,
-        "allow_flip_on_bar": False,
+        "allow_flip_on_bar": True,
         "position_size": 10000.0,
         "instrument": {"symbol": "EURUSD"},
         "instrument_definitions": {

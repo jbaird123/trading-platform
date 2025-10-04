@@ -112,7 +112,7 @@ class RunConfig(BaseModel):
         ),
     )
     allow_flip_on_bar: bool = Field(
-        False,
+        True,
         description=(
             "If True, allows closing a position and opening a new one on the "
             "same bar."
