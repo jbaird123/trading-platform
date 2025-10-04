@@ -20,6 +20,9 @@ These rules are absolute and must be followed at all times.
 -   **Meticulous Logging:**
     -   Each step's timestamped directory **MUST** contain a `run_summary.md` file detailing the hypothesis, actions taken, and results for that specific step.
     -   The root of the campaign directory **MUST** contain a master `campaign_log.md` that provides a high-level summary and links to each step's `run_summary.md`.
+-   **Log Technical Debt:**
+    -   If any step fails due to a technical error (e.g., a script crash, configuration error, or unexpected validation failure), you **MUST** document the error in detail in that step's `run_summary.md`.
+    -   You **MUST** also add an entry to a master `technical_debt.log` file in the root of the campaign workspace. This log should contain the timestamped directory of the failed step and a one-line summary of the error. This ensures platform issues are not forgotten.
 -   **Use Standard Timeframes:** You **MUST** restrict your analysis and strategy definitions to a conventional set of timeframes. You should prefer timeframes that are standard across most trading platforms.
     -   **Allowed Timeframes:** `1M`, `5M`, `15M`, `30M`, `1H`, `4H`, `1D`.
     -   Avoid arbitrary or unusual timeframes (e.g., `13M`, `3H`, `7H`) unless specifically instructed by the user for a research purpose.
@@ -60,23 +63,25 @@ When you have a "winning" candidate from Phase 1, you must subject it to rigorou
 
 If a strategy successfully passes validation, it can be promoted.
 
-1.  **Create Promotion Step Directory:** Create a final timestamped directory (e.g., `.../20251005_151540_999_PROMOTION/`).
-2.  **Consolidate Artifacts:** Copy the final, "golden" artifacts into this directory:
+1.  **Final Promotion Scorecard:** Before proceeding, you **MUST** create a final scorecard in the `final_report.md` that explicitly checks every criterion from Section 4 against the final validation run's `brief.json`. If any single criterion is not met, you **MUST HALT** the promotion, report the deficiency, and suggest returning to the Discovery phase.
+2.  **Create Promotion Step Directory:** Create a final timestamped directory (e.g., `.../20251005_151540_999_PROMOTION/`).
+3.  **Consolidate Artifacts:** Copy the final, "golden" artifacts into this directory:
     -   The final strategy `.yaml` file.
     -   The definitive `brief.json` from the validation run.
     -   A `final_report.md` summarizing the entire campaign journey from initial idea to final validated parameters.
-3.  **Propose Next Action:** Ask the user if you should formally add the promoted strategy to the main `config/strategy/` directory.
+4.  **Propose Next Action:** Ask the user if you should formally add the promoted strategy to the main `config/strategy/` directory.
 
 ---
 
 ## 4. Success Criteria
 
-A strategy is considered "winning" or "successful" when it meets a combination of these criteria over a significant backtest period. You should aim for:
+A strategy is considered "winning" or "successful" when it meets **all** of the following criteria over a significant backtest period. You must verify every one of these before promotion:
 
 -   **Consistent Profitability:** `total_pnl` is positive.
 -   **Acceptable Risk:** `max_drawdown` is less than 20% of the total PnL.
 -   **Short Drawdown Period:** The strategy should not have a drawdown period lasting longer than two weeks.
 -   **Good Risk/Reward:** Sharpe Ratio > 1.0.
+-   **Positive Risk/Reward:** Reward/Risk Ratio (Avg Win / Avg Loss) > 1.0.
 -   **Robustness:** The strategy passes the validation criteria (e.g., WFE and MC tests).
 
 ---
