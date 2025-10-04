@@ -23,11 +23,16 @@ class PortfolioManager:
 
     def __init__(
         self,
+        base_currency: str,
         initial_cash: float = 100000.0,
         instrument: dict | None = None,
         cost_model: dict | None = None,
         precision_engine: PrecisionEngine | None = None,
     ):
+        self.base_currency = base_currency
+        assert self.base_currency == "USD", (
+            "MVP only supports USD as the base currency."
+        )
         self.initial_cash = initial_cash
         self.cash = initial_cash
         self._open_position: Position | None = None

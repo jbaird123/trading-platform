@@ -589,7 +589,10 @@ def cmd_run_live(args: argparse.Namespace) -> int:
     policy = TradingWindowPolicy.from_config(
         blackout_utc=cfg.blackout_utc, blackout_events=cfg.blackout_events
     )
-    pm = PortfolioManager(initial_cash=float(cfg_raw.get("initial_cash", 100000.0)))
+    pm = PortfolioManager(
+        base_currency="USD",
+        initial_cash=float(cfg_raw.get("initial_cash", 100000.0)),
+    )
     adapter = OandaStubAdapter(pm=pm, policy=policy, pm_limits=cfg_raw.get("pm_limits"))
     adapter.connect()
     print("Live controller stub connected (adapter: OandaStubAdapter)")

@@ -203,6 +203,7 @@ def run_backtest(
     instrument_dict = config.instrument
 
     portfolio = PortfolioManager(
+        base_currency="USD",
         initial_cash=config.initial_cash,
         instrument=instrument_dict,
         cost_model=config.cost_model,
@@ -583,7 +584,10 @@ def _simulate_counterfactual_exact(
         return {}
 
     pm = PortfolioManager(
-        initial_cash=0.0, instrument=instrument, cost_model=cost_model
+        base_currency="USD",
+        initial_cash=0.0,
+        instrument=instrument,
+        cost_model=cost_model,
     )
     entry_time = cast(datetime, market_data.index[start_index])
     pm.create_new_position(

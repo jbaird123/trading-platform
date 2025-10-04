@@ -35,8 +35,7 @@ def test_unrealized_pnl_reflects_full_spread():
     }
 
     # Create portfolio manager
-    pm = PortfolioManager(
-        initial_cash=10000.0,
+    pm = PortfolioManager(base_currency="USD", initial_cash=10000.0,
         cost_model=cost_model_config,
         instrument=instrument,
     )
@@ -117,8 +116,7 @@ def test_unrealized_pnl_for_short_position():
         "pip_location": 0.0001,
     }
 
-    pm = PortfolioManager(
-        initial_cash=10000.0,
+    pm = PortfolioManager(base_currency="USD", initial_cash=10000.0,
         cost_model=cost_model_config,
         instrument=instrument,
     )
@@ -197,8 +195,7 @@ def test_unrealized_pnl_negative_when_losing():
         "pip_location": 0.0001,
     }
 
-    pm = PortfolioManager(
-        initial_cash=10000.0,
+    pm = PortfolioManager(base_currency="USD", initial_cash=10000.0,
         cost_model=cost_model_config,
         instrument=instrument,
     )

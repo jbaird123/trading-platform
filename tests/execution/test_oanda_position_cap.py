@@ -31,7 +31,7 @@ def _dummy_strategy() -> CompiledStrategy:
 
 
 def test_oanda_stub_rejects_same_direction_over_cap():
-    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     adapter = OandaStubAdapter(
         pm=pm, pm_limits={"max_open_long": 1, "max_open_short": 1}
     )

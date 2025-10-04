@@ -19,7 +19,7 @@ TEST_INSTRUMENT = {
 
 def test_adapter_rejects_inside_blackout_window():
     policy = TradingWindowPolicy.from_config(blackout_utc=[("00:00", "23:00")])
-    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     adapter = OandaStubAdapter(pm=pm, policy=policy)
     adapter.connect()
     res = adapter.place_order(
@@ -33,7 +33,7 @@ def test_adapter_rejects_inside_blackout_window():
 
 def test_adapter_accepts_outside_blackout_window():
     policy = TradingWindowPolicy.from_config(blackout_utc=[("00:00", "23:00")])
-    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     adapter = OandaStubAdapter(pm=pm, policy=policy)
     adapter.connect()
     res = adapter.place_order(
