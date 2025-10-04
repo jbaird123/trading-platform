@@ -182,6 +182,7 @@ _Last updated: 2025-09-16_
   - **[SE-3.5.1]** Support defining strategies using a declarative **YAML format**.
   - **[SE-3.5.2]** The YAML files will follow a defined schema for rules, conditions, and indicators.
   - **[SE-3.5.3]** The Strategy Engine will include a parser that loads and executes a strategy from a YAML file.
+  - **[SE-3.5.4]** For a complete guide on the philosophy, structure, and interaction of these YAML files, see the **[Declarative Strategy Guide](./declarative_strategy_guide.md)**.
 - **[SE-3.6]** Use indicators from established libraries (e.g., `pandas-ta`) where possible.
 - **[SE-3.7]** Strategy metadata must declare required overlays for automatic plotting in the RV module.
 - **[SE-3.9]** **YAML Schema Validation**: Strategy YAML files must be validated against `docs/schemas/strategy.schema.json` at load time with actionable error messages.

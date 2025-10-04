@@ -84,14 +84,29 @@ def _extract_rem_policy(config_snapshot: dict[str, Any] | None) -> dict[str, Any
         "time_exit": rem_config.get("time_exit", {}),
     }
 
-    # Add human-readable interpretations
-    stop_loss = rem_config.get("stop_loss", {})
-    take_profit = rem_config.get("take_profit", {})
+    # Add human-readable interpretations, handling both dict and list-of-dict
+    stop_loss_config = rem_config.get("stop_loss")
+    take_profit_config = rem_config.get("take_profit")
 
-    if stop_loss.get("price_offset"):  # pragma: no branch
-        policy["stop_loss_pips"] = f"{stop_loss['price_offset'] * 10000:.0f} pips"
-    if take_profit.get("price_offset"):  # pragma: no branch
-        policy["take_profit_pips"] = f"{take_profit['price_offset'] * 10000:.0f} pips"
+    # Get the first rule if it's a list
+    stop_loss_rule = stop_loss_config
+    if isinstance(stop_loss_config, list) and stop_loss_config:
+        stop_loss_rule = stop_loss_config[0]
+
+    take_profit_rule = take_profit_config
+    if isinstance(take_profit_config, list) and take_profit_config:
+        take_profit_rule = take_profit_config[0]
+
+    # Now check the rule if it's a dict
+    if isinstance(stop_loss_rule, dict) and stop_loss_rule.get("price_offset"):
+        policy["stop_loss_pips"] = (
+            f"{stop_loss_rule['price_offset'] * 10000:.0f} pips"
+        )
+
+    if isinstance(take_profit_rule, dict) and take_profit_rule.get("price_offset"):
+        policy["take_profit_pips"] = (
+            f"{take_profit_rule['price_offset'] * 10000:.0f} pips"
+        )
 
     return policy
 
