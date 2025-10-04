@@ -10,7 +10,13 @@ from trading_platform.reporting.brief import compute_costs_aggregate
 
 def test_portfolio_cost_breakdown_and_aggregate_with_lot_scaling():
     # Instrument with lot_size so per-unit costs scale by effective units
-    instrument = {"symbol": "FX", "lot_size": 100_000}
+    instrument = {
+        "symbol": "FX",
+        "lot_size": 100_000,
+        "asset_class": "Forex",
+        "point_value": 1.0,
+        "tick_size": 0.00001,
+    }
     cost_model = {
         "spread_per_unit": 0.5,  # per side
         "slippage_per_unit": 0.2,  # per side
@@ -63,7 +69,12 @@ def test_portfolio_cost_breakdown_and_aggregate_with_lot_scaling():
 
 def test_spread_impacts_pnl_via_fill_price():
     """Verify that spread correctly impacts PnL via adjusted fill prices."""
-    instrument = {"symbol": "EURUSD", "point_value": 1.0}
+    instrument = {
+        "symbol": "EURUSD",
+        "point_value": 1.0,
+        "asset_class": "Forex",
+        "tick_size": 0.00001,
+    }
     cost_model = {
         "spread_per_unit": 0.0002,
         "slippage_per_unit": 0.0,

@@ -256,8 +256,8 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
 
     # REM can be embedded or referenced via a separate file
     rem_cfg: dict[str, Any] | None = cfg_raw.get("rem_config")
-    # Pass instrument as dict for compatibility with REM's current implementation
-    instrument_dict = instrument_def.to_dict() if instrument_def else None
+    # Pass complete instrument definition with all metadata (asset_class, etc.)
+    instrument_dict = instrument_def.model_dump() if instrument_def else None
     rem = RiskExitManager(config=rem_cfg or {}, instrument=instrument_dict)
 
     # RMM optional for legacy configs; if present, build per-bar context

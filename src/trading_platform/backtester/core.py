@@ -198,9 +198,13 @@ def run_backtest(
 
     symbol = resolve_instrument_symbol(config.instrument)
 
+    # Use the complete instrument definition from config
+    # (RunConfig validator ensures it has all required fields)
+    instrument_dict = config.instrument
+
     portfolio = PortfolioManager(
         initial_cash=config.initial_cash,
-        instrument=config.instrument,
+        instrument=instrument_dict,
         cost_model=config.cost_model,
     )
 
@@ -389,7 +393,7 @@ def run_backtest(
                         entry_price=entry_price,
                         size=size,
                         entry_time=cast(datetime, current_bar.name),
-                        instrument=config.instrument,
+                        instrument=instrument_dict,
                         context_at_entry=context,
                         initial_risk_ccy=None,  # This is now handled by REM
                     )
@@ -461,7 +465,7 @@ def run_backtest(
                     side=side,
                     entry_price=entry_px,
                     size=float(config.position_size),
-                    instrument=config.instrument,
+                    instrument=instrument_dict,
                     cost_model=config.cost_model,
                 )
             else:
@@ -472,7 +476,7 @@ def run_backtest(
                     side=side,
                     entry_price=entry_px,
                     size=float(config.position_size),
-                    instrument=config.instrument,
+                    instrument=instrument_dict,
                     cost_model=config.cost_model,
                     rem=rem,
                     symbol=symbol,

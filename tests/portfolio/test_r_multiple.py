@@ -6,9 +6,17 @@ from datetime import datetime
 from pytest import approx
 from trading_platform.portfolio.portfolio import PortfolioManager
 
+# Minimal instrument for testing (Stock with point_value=1.0)
+TEST_INSTRUMENT = {
+    "symbol": "TEST",
+    "asset_class": "Stock",
+    "point_value": 1.0,
+    "tick_size": 0.01,
+}
+
 
 def test_r_multiple_long_with_stop():
-    pm = PortfolioManager(initial_cash=0.0)
+    pm = PortfolioManager(initial_cash=0.0, instrument=TEST_INSTRUMENT)
     pm.create_new_position(
         symbol="X",
         side="long",
@@ -26,7 +34,7 @@ def test_r_multiple_long_with_stop():
 
 
 def test_r_multiple_short_with_stop():
-    pm = PortfolioManager(initial_cash=0.0)
+    pm = PortfolioManager(initial_cash=0.0, instrument=TEST_INSTRUMENT)
     pm.create_new_position(
         symbol="X",
         side="short",
@@ -44,7 +52,7 @@ def test_r_multiple_short_with_stop():
 
 
 def test_r_multiple_none_without_stop():
-    pm = PortfolioManager(initial_cash=0.0)
+    pm = PortfolioManager(initial_cash=0.0, instrument=TEST_INSTRUMENT)
     pm.create_new_position(
         symbol="X",
         side="long",

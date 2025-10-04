@@ -265,13 +265,30 @@ class PortfolioManager:
         Returns:
             float: The conversion factor from price units to base currency
         """
+        # Fail loudly if instrument metadata is missing
         if not self.instrument:
-            # Default fallback: assume 1:1 conversion
-            return 1.0
+            raise ValueError(
+                "Instrument metadata is required for PnL calculation. "
+                "Portfolio must be initialized with complete instrument definition."
+            )
 
-        static_point_value: float = self.instrument.get("point_value", 1.0)
-        asset_class: str = self.instrument.get("asset_class", "Unknown")
-        symbol: str = self.instrument.get("symbol", "")
+        # Fail loudly if required fields are missing
+        if "point_value" not in self.instrument:
+            raise ValueError(
+                f"Instrument missing required 'point_value' field: {self.instrument}"
+            )
+        if "asset_class" not in self.instrument:
+            raise ValueError(
+                f"Instrument missing required 'asset_class' field: {self.instrument}"
+            )
+        if "symbol" not in self.instrument:
+            raise ValueError(
+                f"Instrument missing required 'symbol' field: {self.instrument}"
+            )
+
+        static_point_value: float = self.instrument["point_value"]
+        asset_class: str = self.instrument["asset_class"]
+        symbol: str = self.instrument["symbol"]
 
         # For Forex USD/XXX pairs, use dynamic conversion
         if asset_class == "Forex" and symbol.startswith("USD"):

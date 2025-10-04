@@ -8,6 +8,15 @@ from trading_platform.execution import OandaStubAdapter
 from trading_platform.execution.controller import run_live_controller
 from trading_platform.portfolio.portfolio import PortfolioManager
 
+# Minimal instrument for testing
+TEST_INSTRUMENT = {
+    "symbol": "EURUSD",
+    "asset_class": "Forex",
+    "point_value": 1.0,
+    "tick_size": 0.00001,
+    "pip_location": 0.0001,
+}
+
 
 def _df():
     idx = [datetime(2024, 1, 1, h) for h in range(5)]
@@ -39,7 +48,7 @@ def _strat():
 
 def test_live_controller_happy_path_with_stub_adapter():
     df = _df()
-    pm = PortfolioManager(initial_cash=1000.0)
+    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     adapter = OandaStubAdapter(pm=pm)
     res = run_live_controller(
         market_data=df, strategy_cfg=_strat(), adapter=adapter, pm=pm
@@ -54,7 +63,7 @@ def test_live_controller_happy_path_with_stub_adapter():
 
 def test_live_controller_dry_run_and_kill_switch():
     df = _df()
-    pm = PortfolioManager(initial_cash=1000.0)
+    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     adapter = OandaStubAdapter(pm=pm)
     # Dry run emits logs and no orders
     res = run_live_controller(
@@ -64,7 +73,9 @@ def test_live_controller_dry_run_and_kill_switch():
     assert any(e.get("event") == "dry_run" for e in res.logs)
 
     # Kill switch after a single order
-    adapter2 = OandaStubAdapter(pm=PortfolioManager(initial_cash=1000.0))
+    adapter2 = OandaStubAdapter(
+        pm=PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    )
     res2 = run_live_controller(
         market_data=df,
         strategy_cfg=_strat(),
@@ -82,7 +93,7 @@ def test_live_controller_dry_run_and_kill_switch():
 
 def test_live_controller_reconciliation_detects_diff(monkeypatch):
     df = _df()
-    pm = PortfolioManager(initial_cash=1000.0)
+    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     adapter = OandaStubAdapter(pm=pm)
 
     # Monkeypatch the adapter snapshot to force a mismatch
