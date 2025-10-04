@@ -7,6 +7,15 @@ from trading_platform.execution import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
+# Minimal instrument for testing
+TEST_INSTRUMENT = {
+    "symbol": "EURUSD",
+    "asset_class": "Forex",
+    "point_value": 1.0,
+    "tick_size": 0.00001,
+    "pip_location": 0.0001,
+}
+
 
 def _dummy_strategy() -> CompiledStrategy:
     return CompiledStrategy(
@@ -22,7 +31,7 @@ def _dummy_strategy() -> CompiledStrategy:
 
 
 def test_oanda_stub_rejects_same_direction_over_cap():
-    pm = PortfolioManager(initial_cash=1000.0)
+    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     adapter = OandaStubAdapter(
         pm=pm, pm_limits={"max_open_long": 1, "max_open_short": 1}
     )

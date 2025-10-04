@@ -26,6 +26,15 @@ BacktestTriple = tuple[
     list[dict[str, Any]],
 ]
 
+# Minimal instrument for testing
+TEST_INSTRUMENT = {
+    "symbol": "EURUSD",
+    "asset_class": "Forex",
+    "point_value": 1.0,
+    "tick_size": 0.00001,
+    "pip_location": 0.0001,
+}
+
 
 def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
     """Helper to create instrument dict for RunConfig."""
@@ -303,7 +312,7 @@ def test_counterfactual_exact_rem_exit_breaks_loop() -> None:
         side="long",
         entry_price=100.0,
         size=1.0,
-        instrument={},
+        instrument=TEST_INSTRUMENT,
         cost_model={},
         rem=StubREM(),  # type: ignore[arg-type]
         symbol="EURUSD",
@@ -345,7 +354,7 @@ def test_counterfactual_exact_returns_empty_when_position_not_created(
         side="long",
         entry_price=100.0,
         size=1.0,
-        instrument={},
+        instrument=TEST_INSTRUMENT,
         cost_model={},
         rem=NoExitREM(),  # type: ignore[arg-type]
         symbol="EURUSD",
@@ -521,7 +530,7 @@ class TestBacktesterCoreCoverage:
             side="long",
             entry_price=1.12,
             size=1.0,
-            instrument={"symbol": "EURUSD", "multiplier": 1.0, "min_size": 0.01},
+            instrument=TEST_INSTRUMENT,
             cost_model={"type": "percentage", "rate": 0.001},
             rem=mock_rem,
             symbol="EURUSD",

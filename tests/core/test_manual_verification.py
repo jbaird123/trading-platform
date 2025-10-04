@@ -61,9 +61,12 @@ def test_core_calculations_match_manual_csv():
         position_size=1.0,
         instrument={
             "symbol": "TESTPAIR",
-            "pip_value": 1.0,
-            "min_size": 1.0,
-            "max_size": 1000000.0,
+            "asset_class": "Stock",
+            "point_value": 1.0,
+            "tick_size": 0.01,
+            "pip_location": None,
+            "commission_model": {"type": "fixed"},
+            "sessions": [],
         },
         # Critical: Add blackout rule for 08:00-10:00 UTC
         blackout_utc=[("08:00", "10:00")],

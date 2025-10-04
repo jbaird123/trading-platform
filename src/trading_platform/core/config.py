@@ -196,6 +196,34 @@ class RunConfig(BaseModel):
         if not symbol or not symbol.strip():
             raise ValueError("instrument symbol is required")
 
-        # Normalize the symbol and store it back
-        self.instrument["symbol"] = normalize_symbol(symbol)
+        # Check if instrument already has all required fields (for testing)
+        has_all_required = all(
+            key in self.instrument
+            for key in ["asset_class", "point_value", "tick_size"]
+        )
+
+        # Only enrich from instrument definitions if incomplete
+        if not has_all_required:
+            # Normalize the symbol and enrich with full instrument definition
+            from trading_platform.data.instrument import get_instrument_definition
+
+            normalized_symbol = normalize_symbol(symbol)
+            instrument_def = get_instrument_definition(normalized_symbol)
+
+            # Replace the minimal dict with complete instrument metadata
+            # Use mode='json' to serialize datetime objects properly
+            self.instrument = instrument_def.model_dump(mode="json")
+
+        # Preserve timeframe if it was in the original dict
+        if "timeframe" in self.instrument or (
+            hasattr(self, "data_request")
+            and self.data_request
+            and "timeframe" in self.data_request
+        ):
+            timeframe = self.instrument.get("timeframe") or (
+                self.data_request.get("timeframe") if self.data_request else None
+            )
+            if timeframe:
+                self.instrument["timeframe"] = timeframe
+
         return self

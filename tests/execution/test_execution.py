@@ -13,10 +13,19 @@ from trading_platform.execution.controller import reconcile, run_live_controller
 from trading_platform.execution.oanda_stub import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
 
+# Minimal instrument for testing
+TEST_INSTRUMENT = {
+    "symbol": "EURUSD",
+    "asset_class": "Forex",
+    "point_value": 1.0,
+    "tick_size": 0.00001,
+    "pip_location": 0.0001,
+}
+
 
 def test_reconcile_function_side_mismatch():
     """Test reconcile function side mismatch."""
-    pm = PortfolioManager(initial_cash=1000.0)
+    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     pm.create_new_position("EURUSD", "long", 1.1000, 1.0, datetime(2024, 1, 1))
     adapter = Mock()
     adapter.account_snapshot.return_value = {"open_side": "short", "size": 1.0}
@@ -26,7 +35,7 @@ def test_reconcile_function_side_mismatch():
 
 def test_reconcile_function_size_mismatch():
     """Test reconcile function size mismatch."""
-    pm = PortfolioManager(initial_cash=1000.0)
+    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     pm.create_new_position("EURUSD", "long", 1.1000, 1.0, datetime(2024, 1, 1))
     adapter = Mock()
     adapter.account_snapshot.return_value = {"open_side": "long", "size": 2.0}
@@ -36,7 +45,7 @@ def test_reconcile_function_size_mismatch():
 
 def test_reconcile_function_no_mismatches():
     """Test reconcile function when everything matches."""
-    pm = PortfolioManager(initial_cash=1000.0)
+    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     pm.create_new_position("EURUSD", "long", 1.1000, 1.0, datetime(2024, 1, 1))
     adapter = Mock()
     adapter.account_snapshot.return_value = {"open_side": "long", "size": 1.0}
@@ -46,7 +55,7 @@ def test_reconcile_function_no_mismatches():
 
 def test_reconcile_function_both_mismatches():
     """Test reconcile function with both side and size mismatches."""
-    pm = PortfolioManager(initial_cash=1000.0)
+    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     pm.create_new_position("EURUSD", "long", 1.1000, 1.0, datetime(2024, 1, 1))
     adapter = Mock()
     adapter.account_snapshot.return_value = {"open_side": "short", "size": 2.0}
@@ -57,7 +66,7 @@ def test_reconcile_function_both_mismatches():
 
 def test_reconcile_function_no_position_vs_adapter_position():
     """Test reconcile when portfolio is flat but adapter has a position."""
-    pm = PortfolioManager(initial_cash=1000.0)
+    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     adapter = Mock()
     adapter.account_snapshot.return_value = {"open_side": "long", "size": 1.0}
     diffs = reconcile(pm, adapter)
@@ -87,7 +96,7 @@ def test_live_controller_flat_continue():
             {"any_of": [{"condition": "is_below", "left": "close", "right": 0.5}]}
         ],
     }
-    pm = PortfolioManager(initial_cash=1000.0)
+    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     adapter = OandaStubAdapter(pm=pm)
     result = run_live_controller(
         market_data=market_data, strategy_cfg=strategy_cfg, pm=pm, adapter=adapter
@@ -117,7 +126,7 @@ def test_live_controller_kill_switch():
             {"any_of": [{"condition": "is_below", "left": "close", "right": 0.5}]}
         ],
     }
-    pm = PortfolioManager(initial_cash=1000.0)
+    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     adapter = OandaStubAdapter(pm=pm)
     result = run_live_controller(
         market_data=market_data,
@@ -132,7 +141,7 @@ def test_live_controller_kill_switch():
 
 def test_oanda_stub_flat_with_position():
     """Test OandaStubAdapter flat order with an existing position."""
-    pm = PortfolioManager(initial_cash=1000.0)
+    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     pm.create_new_position("EURUSD", "long", 1.1000, 1.0, datetime(2024, 1, 1, 10))
     adapter = OandaStubAdapter(pm)
     result = adapter.place_order(
@@ -148,7 +157,7 @@ def test_oanda_stub_flat_with_position():
 
 def test_oanda_stub_flat_without_position():
     """Test OandaStubAdapter flat order without an existing position."""
-    pm = PortfolioManager(initial_cash=1000.0)
+    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     adapter = OandaStubAdapter(pm)
     result = adapter.place_order(
         symbol="EURUSD",
@@ -183,7 +192,7 @@ def test_controller_precise_continue_with_rejected_order():
             {"any_of": [{"condition": "is_below", "left": "close", "right": 2.0}]}
         ],
     }
-    pm = PortfolioManager(initial_cash=1000.0)
+    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
 
     class RejectLongAdapter(OandaStubAdapter):
         def place_order(self, *, symbol, side, size, meta=None):

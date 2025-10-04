@@ -13,6 +13,14 @@ from datetime import datetime
 import pandas as pd
 from trading_platform.portfolio.portfolio import PortfolioManager
 
+# Minimal instrument for testing
+TEST_INSTRUMENT = {
+    "symbol": "TEST",
+    "asset_class": "Stock",
+    "point_value": 1.0,
+    "tick_size": 0.01,
+}
+
 # PM-5.8.1: Track bar index when entry command received
 
 
@@ -22,7 +30,7 @@ def test_pm_5_8_1_tracks_bar_index_when_entry_command_received():
 
     Verify PM tracks the bar index when each entry command is received.
     """
-    pm = PortfolioManager(initial_cash=100000)
+    pm = PortfolioManager(initial_cash=100000, instrument=TEST_INSTRUMENT)
 
     # Enter long at bar 5
     pm.process_command(
@@ -61,7 +69,7 @@ def test_pm_5_8_1_updates_bar_index_on_new_entry_command():
 
     Verify bar index is updated when a new entry command is received.
     """
-    pm = PortfolioManager(initial_cash=100000)
+    pm = PortfolioManager(initial_cash=100000, instrument=TEST_INSTRUMENT)
 
     # First long command at bar 5
     pm.process_command(
@@ -97,7 +105,7 @@ def test_pm_5_8_2_tracks_entry_occurrence():
 
     Verify PM tracks whether entry has occurred on current command.
     """
-    pm = PortfolioManager(initial_cash=100000)
+    pm = PortfolioManager(initial_cash=100000, instrument=TEST_INSTRUMENT)
 
     # Open entry window
     pm.process_command(
@@ -136,7 +144,7 @@ def test_pm_5_8_2_prevents_duplicate_entry_on_same_command():
 
     Verify can_attempt_entry prevents duplicate entries on same command.
     """
-    pm = PortfolioManager(initial_cash=100000)
+    pm = PortfolioManager(initial_cash=100000, instrument=TEST_INSTRUMENT)
 
     # Open window at bar 0
     pm._entry_windows["long"] = (0, None)
@@ -160,7 +168,7 @@ def test_pm_5_8_3_1_entry_window_bars_0_exact_bar_only():
 
     Verify entry_window_bars=0 allows entry on exact bar only.
     """
-    pm = PortfolioManager(initial_cash=100000)
+    pm = PortfolioManager(initial_cash=100000, instrument=TEST_INSTRUMENT)
 
     # Open window at bar 5 with window=0
     pm._entry_windows["long"] = (5, None)
@@ -178,7 +186,7 @@ def test_pm_5_8_3_2_entry_window_bars_n_allows_n_bar_window():
 
     Verify entry_window_bars=N keeps window open for N bars.
     """
-    pm = PortfolioManager(initial_cash=100000)
+    pm = PortfolioManager(initial_cash=100000, instrument=TEST_INSTRUMENT)
 
     # Open window at bar 10 with window=3
     pm._entry_windows["long"] = (10, None)
@@ -199,7 +207,7 @@ def test_pm_5_8_3_3_entry_window_bars_minus_1_infinite_window():
 
     Verify entry_window_bars=-1 keeps window open indefinitely.
     """
-    pm = PortfolioManager(initial_cash=100000)
+    pm = PortfolioManager(initial_cash=100000, instrument=TEST_INSTRUMENT)
 
     # Open window at bar 0 with infinite window
     pm._entry_windows["long"] = (0, None)
@@ -217,7 +225,7 @@ def test_pm_5_8_3_entry_commands_only():
 
     Verify entry windows apply only to entry commands, not exits.
     """
-    pm = PortfolioManager(initial_cash=100000)
+    pm = PortfolioManager(initial_cash=100000, instrument=TEST_INSTRUMENT)
 
     # Create position
     pm.create_new_position(
@@ -252,7 +260,7 @@ def test_pm_5_8_4_window_persists_across_none_commands():
 
     Verify entry window remains open across bars with None commands.
     """
-    pm = PortfolioManager(initial_cash=100000)
+    pm = PortfolioManager(initial_cash=100000, instrument=TEST_INSTRUMENT)
 
     # Bar 0: Open long entry window
     result = pm.process_command(
@@ -288,7 +296,7 @@ def test_pm_5_8_4_window_expires_per_policy():
 
     Verify window expires per entry_window_bars policy.
     """
-    pm = PortfolioManager(initial_cash=100000)
+    pm = PortfolioManager(initial_cash=100000, instrument=TEST_INSTRUMENT)
 
     # Open window at bar 0 with 2-bar window
     pm.process_command(
@@ -333,7 +341,7 @@ def test_pm_5_8_4_opposite_entry_closes_window():
 
     Verify both windows can be active simultaneously.
     """
-    pm = PortfolioManager(initial_cash=100000)
+    pm = PortfolioManager(initial_cash=100000, instrument=TEST_INSTRUMENT)
 
     # Open long window at bar 0
     pm.process_command(
@@ -386,7 +394,7 @@ def test_pm_5_8_5_entry_window_state_is_serializable():
 
     Verify entry window state can be serialized for live trading.
     """
-    pm = PortfolioManager(initial_cash=100000)
+    pm = PortfolioManager(initial_cash=100000, instrument=TEST_INSTRUMENT)
 
     # Set up entry window state
     pm._entry_windows["long"] = (5, None)
@@ -424,7 +432,7 @@ def test_pm_5_8_5_entry_window_state_survives_restart():
     Verify entry window state can be restored after restart.
     """
     # Original PM with active window
-    pm1 = PortfolioManager(initial_cash=100000)
+    pm1 = PortfolioManager(initial_cash=100000, instrument=TEST_INSTRUMENT)
     pm1.process_command(
         "enter_long",
         5,
@@ -439,7 +447,7 @@ def test_pm_5_8_5_entry_window_state_survives_restart():
     saved_state = dict(pm1._entry_windows)
 
     # New PM instance (simulating restart)
-    pm2 = PortfolioManager(initial_cash=100000)
+    pm2 = PortfolioManager(initial_cash=100000, instrument=TEST_INSTRUMENT)
     pm2._entry_windows = saved_state
 
     # Verify restored state works correctly
@@ -457,7 +465,7 @@ def test_pm_5_8_full_entry_window_lifecycle():
 
     Full lifecycle test of entry window management.
     """
-    pm = PortfolioManager(initial_cash=100000)
+    pm = PortfolioManager(initial_cash=100000, instrument=TEST_INSTRUMENT)
 
     # Bar 0: enter_long command (PM-5.8.1: track bar index)
     result = pm.process_command(

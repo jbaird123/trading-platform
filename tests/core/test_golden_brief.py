@@ -111,6 +111,16 @@ def test_brief_matches_golden_master(tmp_path: Path, request):
     cfg_for_validation["rem_config"] = rem_cfg
     cfg_for_validation["run_id"] = "golden_run_test"  # Use a different run_id
     cfg_for_validation["initial_cash"] = initial_cash
+    # Provide complete instrument definition for test symbol
+    cfg_for_validation["instrument"] = {
+        "symbol": "GOLDEN_TICKER",
+        "asset_class": "Stock",
+        "point_value": 1.0,
+        "tick_size": 0.01,
+        "pip_location": None,
+        "commission_model": {"type": "fixed"},
+        "sessions": [],
+    }
     run_config = RunConfig.model_validate(cfg_for_validation)
 
     # 4. Run the backtest
