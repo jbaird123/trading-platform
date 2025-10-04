@@ -21,6 +21,7 @@ class InstrumentDefinition(BaseModel):
     asset_class: str
     point_value: float
     tick_size: float
+    pip_location: float  # Decimal place where 1 pip occurs (e.g., 0.0001 for EUR/USD, 0.01 for USD/JPY)
     commission_model: dict
     sessions: list[SessionDefinition]
     symbol: str | None = None
@@ -41,6 +42,7 @@ _ASSET_CLASS_DEFAULTS: dict[str, dict[str, Any]] = {
     "Forex": {
         "asset_class": "Forex",
         "point_value": 1.0,
+        "pip_location": 0.0001,  # Default for most forex pairs (4 decimal places)
         "commission_model": {"type": "spread"},
         "sessions": _FOREX_SESSION,
     }
@@ -49,16 +51,16 @@ _ASSET_CLASS_DEFAULTS: dict[str, dict[str, Any]] = {
 # Define instrument-specific overrides and properties.
 # Keys use canonical normalized format (e.g., "EURUSD" not "EUR/USD" or "EUR_USD")
 _INSTRUMENT_DEFINITIONS: dict[str, dict[str, Any]] = {
-    "AUDUSD": {"tick_size": 0.00001},
-    "EURGBP": {"tick_size": 0.00001},
-    "EURJPY": {"tick_size": 0.001},
-    "EURUSD": {"tick_size": 0.00001},
-    "GBPJPY": {"tick_size": 0.001},
-    "GBPUSD": {"tick_size": 0.00001},
-    "NZDUSD": {"tick_size": 0.00001},
-    "USDCAD": {"tick_size": 0.00001},
-    "USDCHF": {"tick_size": 0.00001},
-    "USDJPY": {"tick_size": 0.001},
+    "AUDUSD": {"tick_size": 0.00001, "pip_location": 0.0001},
+    "EURGBP": {"tick_size": 0.00001, "pip_location": 0.0001},
+    "EURJPY": {"tick_size": 0.001, "pip_location": 0.01},  # JPY pairs: 2 decimal places
+    "EURUSD": {"tick_size": 0.00001, "pip_location": 0.0001},
+    "GBPJPY": {"tick_size": 0.001, "pip_location": 0.01},  # JPY pairs: 2 decimal places
+    "GBPUSD": {"tick_size": 0.00001, "pip_location": 0.0001},
+    "NZDUSD": {"tick_size": 0.00001, "pip_location": 0.0001},
+    "USDCAD": {"tick_size": 0.00001, "pip_location": 0.0001},
+    "USDCHF": {"tick_size": 0.00001, "pip_location": 0.0001},
+    "USDJPY": {"tick_size": 0.001, "pip_location": 0.01},  # JPY pairs: 2 decimal places
 }
 
 

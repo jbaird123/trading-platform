@@ -99,6 +99,7 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     data_handler: DataHandler | None = None
     df: pd.DataFrame
     dq_flags: list[str] = []
+    instrument_def = None  # Will be set if data_request present
     data_req = cfg_raw.get("data_request")
     if isinstance(data_req, dict):
         # Create DataHandler - loads raw data once, handles all resampling/caching
@@ -249,7 +250,9 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
 
     # REM can be embedded or referenced via a separate file
     rem_cfg: dict[str, Any] | None = cfg_raw.get("rem_config")
-    rem = RiskExitManager(config=rem_cfg or {})
+    # Pass instrument as dict for compatibility with REM's current implementation
+    instrument_dict = instrument_def.to_dict() if instrument_def else None
+    rem = RiskExitManager(config=rem_cfg or {}, instrument=instrument_dict)
 
     # RMM optional for legacy configs; if present, build per-bar context
     rmm_context: dict[datetime, dict[str, Any]] | None = None

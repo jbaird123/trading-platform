@@ -2,4 +2,4 @@
 # Back to optimal 20-pip trail
 
 trailing_stop:
-  price_offset: 0.0020  # Trail by 20 pips from peak
+  pips: 20  # Trail by 20 pips from peak (instrument-agnostic)
