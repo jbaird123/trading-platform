@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import time
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from trading_platform.core.utils import normalize_symbol
 
@@ -21,12 +21,28 @@ class InstrumentDefinition(BaseModel):
     asset_class: str
     point_value: float
     tick_size: float
-    pip_location: float  # Decimal place where 1 pip occurs (e.g., 0.0001 for EUR/USD, 0.01 for USD/JPY)
+    pip_location: float | None = None  # Required for Forex, forbidden for others
     commission_model: dict
     sessions: list[SessionDefinition]
     symbol: str | None = None
     base_ccy: str | None = None
     quote_ccy: str | None = None
+
+    @model_validator(mode="after")
+    def validate_pip_location_by_asset_class(self) -> InstrumentDefinition:
+        """Enforce pip_location rules based on asset class."""
+        if self.asset_class == "Forex":
+            if self.pip_location is None:
+                raise ValueError(
+                    f"Forex instrument {self.symbol} MUST have pip_location"
+                )
+        else:
+            if self.pip_location is not None:
+                raise ValueError(
+                    f"{self.asset_class} instrument {self.symbol} MUST NOT "
+                    f"have pip_location (pips are Forex-only)"
+                )
+        return self
 
     def to_dict(self) -> dict:
         return self.model_dump()
@@ -51,16 +67,56 @@ _ASSET_CLASS_DEFAULTS: dict[str, dict[str, Any]] = {
 # Define instrument-specific overrides and properties.
 # Keys use canonical normalized format (e.g., "EURUSD" not "EUR/USD" or "EUR_USD")
 _INSTRUMENT_DEFINITIONS: dict[str, dict[str, Any]] = {
-    "AUDUSD": {"tick_size": 0.00001, "pip_location": 0.0001},
-    "EURGBP": {"tick_size": 0.00001, "pip_location": 0.0001},
-    "EURJPY": {"tick_size": 0.001, "pip_location": 0.01},  # JPY pairs: 2 decimal places
-    "EURUSD": {"tick_size": 0.00001, "pip_location": 0.0001},
-    "GBPJPY": {"tick_size": 0.001, "pip_location": 0.01},  # JPY pairs: 2 decimal places
-    "GBPUSD": {"tick_size": 0.00001, "pip_location": 0.0001},
-    "NZDUSD": {"tick_size": 0.00001, "pip_location": 0.0001},
-    "USDCAD": {"tick_size": 0.00001, "pip_location": 0.0001},
-    "USDCHF": {"tick_size": 0.00001, "pip_location": 0.0001},
-    "USDJPY": {"tick_size": 0.001, "pip_location": 0.01},  # JPY pairs: 2 decimal places
+    "AUDUSD": {
+        "asset_class": "Forex",
+        "tick_size": 0.00001,
+        "pip_location": 0.0001,
+    },
+    "EURGBP": {
+        "asset_class": "Forex",
+        "tick_size": 0.00001,
+        "pip_location": 0.0001,
+    },
+    "EURJPY": {
+        "asset_class": "Forex",
+        "tick_size": 0.001,
+        "pip_location": 0.01,  # JPY pairs: 2 decimal places
+    },
+    "EURUSD": {
+        "asset_class": "Forex",
+        "tick_size": 0.00001,
+        "pip_location": 0.0001,
+    },
+    "GBPJPY": {
+        "asset_class": "Forex",
+        "tick_size": 0.001,
+        "pip_location": 0.01,  # JPY pairs: 2 decimal places
+    },
+    "GBPUSD": {
+        "asset_class": "Forex",
+        "tick_size": 0.00001,
+        "pip_location": 0.0001,
+    },
+    "NZDUSD": {
+        "asset_class": "Forex",
+        "tick_size": 0.00001,
+        "pip_location": 0.0001,
+    },
+    "USDCAD": {
+        "asset_class": "Forex",
+        "tick_size": 0.00001,
+        "pip_location": 0.0001,
+    },
+    "USDCHF": {
+        "asset_class": "Forex",
+        "tick_size": 0.00001,
+        "pip_location": 0.0001,
+    },
+    "USDJPY": {
+        "asset_class": "Forex",
+        "tick_size": 0.001,
+        "pip_location": 0.01,  # JPY pairs: 2 decimal places
+    },
 }
 
 
@@ -73,8 +129,11 @@ def get_instrument_definition(symbol: str) -> InstrumentDefinition:
     if not instrument_overrides:
         raise ValueError(f"No instrument definition found for symbol: {symbol}")
 
-    # For now, all defined instruments are Forex. This can be expanded later.
-    asset_class = "Forex"
+    # Get asset class from the instrument definition (not hardcoded)
+    asset_class = instrument_overrides.get("asset_class")
+    if not asset_class:
+        raise ValueError(f"Instrument {symbol} missing required 'asset_class' field")
+
     defaults = _ASSET_CLASS_DEFAULTS.get(asset_class, {})
 
     # Merge defaults with instrument-specific overrides.

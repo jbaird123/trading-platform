@@ -29,8 +29,8 @@ def trailing_rem() -> RiskExitManager:
 
 
 def test_pip_size_none_metadata(basic_rem):
-    """Test _pip_size when instrument metadata is None (line 51)."""
-    # Create REM without instrument metadata to trigger line 51
+    """Test _pip_size fails loudly when instrument metadata is None."""
+    # Create REM without instrument metadata - should fail when using pips
     rem_no_instrument = RiskExitManager({"stop_loss": {"pips": 50}}, instrument=None)
 
     position = Position(
@@ -40,12 +40,13 @@ def test_pip_size_none_metadata(basic_rem):
         side="long",
         size=100000.0,
     )
-    # Use bar that doesn't trigger stop loss to test _pip_size without exit
     current_bar = pd.Series({"high": 1.1030, "low": 1.0970})
 
-    result = rem_no_instrument.check_exits(position, current_bar)
-    # Should not exit since current low (1.0970) > stop loss (1.0950)
-    assert result is None
+    # Should raise ValueError when trying to calculate pip-based offsets
+    with pytest.raises(
+        ValueError, match="pip_location missing from instrument definition"
+    ):
+        rem_no_instrument.check_exits(position, current_bar)
 
 
 def test_atr_value_none_metadata():
@@ -132,7 +133,7 @@ def test_level_price_none_rule():
 def test_trailing_stop_logic_long_position():
     """Test trailing stop calculation for long positions (lines 82-95)."""
     config = {"stop_loss": {"pips": 50}, "trailing_stop": {"pips": 30}}
-    rem = RiskExitManager(config)
+    rem = RiskExitManager(config, instrument={"pip_location": 0.0001})
 
     # Create position with positive MFE (profit)
     position = Position(
@@ -155,7 +156,7 @@ def test_trailing_stop_logic_long_position():
 def test_trailing_stop_logic_short_position():
     """Test trailing stop calculation for short positions (lines 90-95)."""
     config = {"stop_loss": {"pips": 50}, "trailing_stop": {"pips": 30}}
-    rem = RiskExitManager(config)
+    rem = RiskExitManager(config, instrument={"pip_location": 0.0001})
 
     # Create position with positive MFE (profit for short)
     position = Position(
@@ -178,7 +179,7 @@ def test_trailing_stop_logic_short_position():
 def test_long_position_stop_loss_exit():
     """Test long position stop loss exit (line 107)."""
     config = {"stop_loss": {"pips": 50}}
-    rem = RiskExitManager(config)
+    rem = RiskExitManager(config, instrument={"pip_location": 0.0001})
 
     position = Position(
         symbol="EURUSD",
@@ -222,7 +223,7 @@ def test_long_position_take_profit_exit():
 def test_short_position_stop_loss_exit():
     """Test short position stop loss exit (line 120)."""
     config = {"stop_loss": {"pips": 50}}
-    rem = RiskExitManager(config)
+    rem = RiskExitManager(config, instrument={"pip_location": 0.0001})
 
     position = Position(
         symbol="EURUSD",
@@ -269,7 +270,7 @@ def test_no_exit_conditions_met():
         "stop_loss": {"pips": 100},  # Very wide stop
         "take_profit": {"price_offset": 0.0100},  # Very wide target
     }
-    rem = RiskExitManager(config)
+    rem = RiskExitManager(config, instrument={"pip_location": 0.0001})
 
     position = Position(
         symbol="EURUSD",
@@ -289,7 +290,7 @@ def test_no_exit_conditions_met():
 def test_effective_stop_loss_multiple_values_long():
     """Test effective stop loss calculation with multiple values for long positions."""
     config = {"stop_loss": {"pips": 50}, "trailing_stop": {"pips": 30}}
-    rem = RiskExitManager(config)
+    rem = RiskExitManager(config, instrument={"pip_location": 0.0001})
 
     # Create position where trailing stop is tighter than regular stop
     position = Position(
@@ -313,7 +314,7 @@ def test_effective_stop_loss_multiple_values_long():
 def test_effective_stop_loss_multiple_values_short():
     """Test effective stop loss calculation with multiple values for short positions."""
     config = {"stop_loss": {"pips": 50}, "trailing_stop": {"pips": 30}}
-    rem = RiskExitManager(config)
+    rem = RiskExitManager(config, instrument={"pip_location": 0.0001})
 
     # Create position where trailing stop is tighter than regular stop
     position = Position(
@@ -337,7 +338,7 @@ def test_effective_stop_loss_multiple_values_short():
 def test_position_size_zero():
     """Test when position size is 0, defaults to 1.0 (line 84)."""
     config = {"trailing_stop": {"pips": 30}}
-    rem = RiskExitManager(config)
+    rem = RiskExitManager(config, instrument={"pip_location": 0.0001})
 
     # Position class requires size, but we can test with size=0 to trigger line 84
     position = Position(
@@ -360,7 +361,7 @@ def test_position_size_zero():
 def test_position_size_none():
     """Test when position size is truthy, uses actual size."""
     config = {"trailing_stop": {"pips": 30}}
-    rem = RiskExitManager(config)
+    rem = RiskExitManager(config, instrument={"pip_location": 0.0001})
 
     # Test with normal positive size to cover the `if position.size` branch
     position = Position(
@@ -407,7 +408,7 @@ def test_trailing_stop_distance_none():
 def test_mfe_currency_none():
     """Test when mfe_currency is None."""
     config = {"trailing_stop": {"pips": 30}}
-    rem = RiskExitManager(config)
+    rem = RiskExitManager(config, instrument={"pip_location": 0.0001})
 
     # Position defaults mfe_currency to 0.0, but we can test the logic
     position = Position(

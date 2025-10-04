@@ -226,10 +226,16 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
 
     # Persist raw signals for AI Lab analysis
     try:
+        from trading_platform.core.signal import Signal
+
         signals_path = run_path / "signals.parquet"
         # Ensure signals are saved with proper column name
         if isinstance(signals, pd.Series):
-            signals_df = pd.DataFrame({"signal": signals})
+            # Extract command strings from Signal objects for serialization
+            signal_values = signals.apply(
+                lambda x: x.command if isinstance(x, Signal) else x
+            )
+            signals_df = pd.DataFrame({"signal": signal_values})
         else:
             signals_df = pd.DataFrame(signals)
         signals_df.to_parquet(signals_path)
@@ -612,8 +618,8 @@ def cmd_compare(args: argparse.Namespace) -> int:
     if last >= 2:
         runs_dir = Path(str(getattr(args, "runs_dir", paths.RUNS_DIR)))
         user = getattr(args, "user", None)
-        paths = _find_last_briefs(runs_dir, user, last)
-        if len(paths) < 2:
+        brief_paths = _find_last_briefs(runs_dir, user, last)
+        if len(brief_paths) < 2:
             print("Not enough briefs found for --last.", file=sys.stderr)
             return 2
         # Generate pairwise consecutive comparisons: [0..1], [1..2], ...
@@ -621,8 +627,8 @@ def cmd_compare(args: argparse.Namespace) -> int:
         out_dir = runs_dir / (user or "") / "comparisons"
         out_dir.mkdir(parents=True, exist_ok=True)
         written: list[Path] = []
-        for i in range(len(paths) - 1):
-            a, b = paths[i + 1], paths[i]
+        for i in range(len(brief_paths) - 1):
+            a, b = brief_paths[i + 1], brief_paths[i]
             aid = json.loads(a.read_text()).get("meta", {}).get("run_id", a.parent.name)
             bid = json.loads(b.read_text()).get("meta", {}).get("run_id", b.parent.name)
             out = out_dir / f"compare_{aid}_vs_{bid}.html"
@@ -649,11 +655,11 @@ def cmd_open_chart(args: argparse.Namespace) -> int:
 
     runs_dir = Path(str(getattr(args, "runs_dir", paths.RUNS_DIR)))
     user = getattr(args, "user", None)
-    paths = _find_last_briefs(runs_dir, user, int(getattr(args, "last", 1)))
-    if not paths:
+    brief_paths = _find_last_briefs(runs_dir, user, int(getattr(args, "last", 1)))
+    if not brief_paths:
         print("No runs found.", file=sys.stderr)
         return 2
-    brief = paths[0]
+    brief = brief_paths[0]
     run_path = brief.parent
     out = run_path / "chart.html"
     if not out.exists():

@@ -301,6 +301,7 @@ def test_brief_includes_instrument_snapshot_when_provided():
     instr = InstrumentDefinition(
         symbol="EURUSD",
         tick_size=0.0001,
+        pip_location=0.0001,
         base_ccy="EUR",
         quote_ccy="USD",
         asset_class="Forex",
@@ -362,7 +363,6 @@ def test_generate_brief_omits_empty_optional_sections():
     )
     assert "data_quality" not in b
     assert "checksums" not in b or b["checksums"]
-
 
 
 def test_save_run_brief_schema_validation_enabled(tmp_path):
@@ -573,7 +573,6 @@ def test_streaks_regimes_and_exposure_cover_branches() -> None:
     metrics = brief._compute_exposure_metrics(exposures)
     assert metrics["peak_gross_exposure"] == brief._round_currency(2.5)
     assert brief._compute_exposure_metrics(None) == {}
-
 
 
 def test_brief_schema_accepts_mc_wf_ps_enumerated_fields():

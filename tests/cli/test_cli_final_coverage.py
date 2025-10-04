@@ -1,6 +1,5 @@
 """Tests to achieve 100% coverage for cli.py line 96."""
 
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 from trading_platform.cli import cmd_run_backtest

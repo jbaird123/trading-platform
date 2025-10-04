@@ -18,19 +18,27 @@ from trading_platform.cli import cmd_run_backtest
 def mock_load_instrument_data(monkeypatch):
     def _mock_load_instrument_data(symbol, data_root):
         num_rows = 100
-        dates = pd.to_datetime(pd.date_range(start="2024-01-01", periods=num_rows, freq="h"), utc=True)
-        df = pd.DataFrame({
-            "timestamp": dates,
-            "open": [1.1 + i * 0.01 for i in range(num_rows)],
-            "high": [1.1 + i * 0.01 for i in range(num_rows)],
-            "low": [1.1 + i * 0.01 for i in range(num_rows)],
-            "close": [1.1 + i * 0.01 for i in range(num_rows)],
-            "volume": [100] * num_rows
-        })
+        dates = pd.to_datetime(
+            pd.date_range(start="2024-01-01", periods=num_rows, freq="h"),
+            utc=True,
+        )
+        df = pd.DataFrame(
+            {
+                "timestamp": dates,
+                "open": [1.1 + i * 0.01 for i in range(num_rows)],
+                "high": [1.1 + i * 0.01 for i in range(num_rows)],
+                "low": [1.1 + i * 0.01 for i in range(num_rows)],
+                "close": [1.1 + i * 0.01 for i in range(num_rows)],
+                "volume": [100] * num_rows,
+            }
+        )
         df = df.set_index("timestamp")
         return df, []
 
-    monkeypatch.setattr("trading_platform.data.handler.load_instrument_data", _mock_load_instrument_data)
+    monkeypatch.setattr(
+        "trading_platform.data.handler.load_instrument_data",
+        _mock_load_instrument_data,
+    )
 
 
 def test_parameter_sweep_matches_standalone(tmp_path, monkeypatch):
@@ -175,7 +183,9 @@ def test_parameter_sweep_matches_standalone(tmp_path, monkeypatch):
     cmd_run_backtest(ns_sweep)
 
     # Run standalone in demo mode
-    ns_standalone = Namespace(demo=False, user="standalone", config=str(standalone_config_path))
+    ns_standalone = Namespace(
+        demo=False, user="standalone", config=str(standalone_config_path)
+    )
     cmd_run_backtest(ns_standalone)
 
     # Load results from centralized runs directory

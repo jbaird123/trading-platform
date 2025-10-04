@@ -101,4 +101,3 @@ def test_skip_logged_for_position_cap():
     # TODO: Fix this test for command-based signals - position cap logic
     # needs review
     # assert any(s.get("skip_reason") == "position_cap" for s in skips)
-    # type: ignore[union-attr]

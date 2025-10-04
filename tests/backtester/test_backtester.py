@@ -366,7 +366,7 @@ def test_backtester_with_rem_pips_stop_loss():
         rem_config={"stop_loss": {"pips": 50}},
         instrument={"symbol": "EURUSD", "pip_location": 0.0001},
     )
-    rem = RiskExitManager(config=config.rem_config or {})
+    rem = RiskExitManager(config=config.rem_config or {}, instrument=config.instrument)
     entry_price = 1.20000
     stop_price = entry_price - (50 * 0.0001)
     market_data = pd.DataFrame(

@@ -90,6 +90,7 @@ ignore_missing_imports = true
 
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
 # Ignore the benign "usefixtures" warning from pytest-bdd's scenario generator
 filterwarnings = [
     "ignore:usefixtures.*has no effect:pytest.PytestWarning",

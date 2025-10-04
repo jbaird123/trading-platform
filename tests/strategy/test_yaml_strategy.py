@@ -36,6 +36,7 @@ def _extract_commands(signals: pd.Series) -> list[str | None]:
     """Helper to extract command strings from Signal objects."""
     return [sig.command if isinstance(sig, Signal) else sig for sig in signals]
 
+
 # --- test_yaml_strategy_100_coverage.py ---
 
 """
@@ -1640,18 +1641,14 @@ def test_yaml_strategy_context_parsing():
         ],
         "long_entry_rules": [
             {
-                "all_of": [
-                    {"condition": "is_above", "left": "close", "right": 1.0}
-                ],
+                "all_of": [{"condition": "is_above", "left": "close", "right": 1.0}],
                 "context": {"order_block_low": {"ref": "order_block_low"}},
             }
         ],
         "long_exit_rules": [],
     }
 
-    with patch(
-        "trading_platform.strategy.yaml_strategy.validate_strategy_config"
-    ):
+    with patch("trading_platform.strategy.yaml_strategy.validate_strategy_config"):
         strat = compile_strategy(cfg)
 
         # Verify context mapping was parsed
@@ -1682,18 +1679,14 @@ def test_yaml_strategy_signal_object_generation():
         ],
         "long_entry_rules": [
             {
-                "all_of": [
-                    {"condition": "is_above", "left": "close", "right": 1.0}
-                ],
+                "all_of": [{"condition": "is_above", "left": "close", "right": 1.0}],
                 "context": {"order_block_low": {"ref": "order_block_low"}},
             }
         ],
         "long_exit_rules": [],
     }
 
-    with patch(
-        "trading_platform.strategy.yaml_strategy.validate_strategy_config"
-    ):
+    with patch("trading_platform.strategy.yaml_strategy.validate_strategy_config"):
         strat = compile_strategy(cfg)
 
         # Create test data

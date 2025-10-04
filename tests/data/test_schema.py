@@ -181,6 +181,7 @@ def test_resample_ohlc_with_daily_session_offset() -> None:
         asset_class="Forex",
         point_value=1.0,
         tick_size=0.00001,
+        pip_location=0.0001,
         commission_model={"type": "spread"},
         sessions=[
             SessionDefinition(close_time=time(17, 0), close_timezone="America/New_York")
@@ -245,6 +246,7 @@ def test_resample_ohlc_with_non_daily_rule_and_instrument() -> None:
         asset_class="Forex",
         point_value=1.0,
         tick_size=0.00001,
+        pip_location=0.0001,
         commission_model={"type": "spread"},
         sessions=[
             SessionDefinition(close_time=time(17, 0), close_timezone="America/New_York")
@@ -282,6 +284,7 @@ def test_resample_ohlc_daily_with_multiple_days_edge_case() -> None:
         asset_class="Forex",
         point_value=1.0,
         tick_size=0.00001,
+        pip_location=0.0001,
         commission_model={"type": "spread"},
         sessions=[
             SessionDefinition(close_time=time(17, 0), close_timezone="America/New_York")
@@ -355,6 +358,7 @@ def test_resample_ohlc_direct_timestamp_normalization_branches() -> None:
         asset_class="Forex",
         point_value=1.0,
         tick_size=0.00001,
+        pip_location=0.0001,
         commission_model={"type": "spread"},
         sessions=[
             SessionDefinition(close_time=time(17, 0), close_timezone="America/New_York")
@@ -397,6 +401,7 @@ def test_resample_ohlc_timestamp_normalization_edge_case() -> None:
         asset_class="Forex",
         point_value=1.0,
         tick_size=0.00001,
+        pip_location=0.0001,
         commission_model={"type": "spread"},
         sessions=[
             SessionDefinition(close_time=time(17, 0), close_timezone="America/New_York")

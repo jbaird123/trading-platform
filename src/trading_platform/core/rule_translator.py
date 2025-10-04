@@ -10,7 +10,7 @@ from trading_platform.data.instrument import InstrumentDefinition
 
 
 class RuleTranslator:
-    """Translates native trading terms to canonical price offsets based on instrument characteristics."""
+    """Translates native terms to canonical price offsets."""
 
     def __init__(self, instrument: InstrumentDefinition):
         """Initialize the translator with instrument metadata.
@@ -40,6 +40,7 @@ class RuleTranslator:
             >>> translator.pips_to_price_offset(20)  # 20 pips
             0.20
         """
+        assert self.instrument.pip_location is not None
         return pips * self.instrument.pip_location
 
     def price_offset_to_pips(self, price_offset: float) -> float:
@@ -62,6 +63,7 @@ class RuleTranslator:
             >>> translator.price_offset_to_pips(0.20)
             20.0
         """
+        assert self.instrument.pip_location is not None
         return price_offset / self.instrument.pip_location
 
     def points_to_price_offset(self, points: float) -> float:

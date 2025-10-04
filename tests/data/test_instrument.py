@@ -65,6 +65,7 @@ def test_instrument_and_session_models():
         asset_class="Forex",
         point_value=1.0,
         tick_size=0.00001,
+        pip_location=0.0001,
         commission_model={"type": "spread"},
         sessions=valid_sessions,
         symbol="TEST/USD",

@@ -34,9 +34,7 @@ def test_contextual_stop_loss_rule():
     rem = RiskExitManager(config=config, instrument=instrument)
 
     # Create a mock Signal with context
-    signal = Signal(
-        command="enter_long", context={"order_block_low": 1.2000}
-    )
+    signal = Signal(command="enter_long", context={"order_block_low": 1.2000})
 
     # Create a mock position
     position = Position(
@@ -49,9 +47,7 @@ def test_contextual_stop_loss_rule():
 
     # Create current bar where price hits the stop
     # Stop should be at 1.2000 - 5 pips = 1.2000 - 0.0005 = 1.1995
-    current_bar = pd.Series(
-        {"high": 1.2040, "low": 1.1990, "close": 1.2000}
-    )
+    current_bar = pd.Series({"high": 1.2040, "low": 1.1990, "close": 1.2000})
 
     # Check exits with signal context
     exit_details = rem.check_exits(position, current_bar, signal=signal)
