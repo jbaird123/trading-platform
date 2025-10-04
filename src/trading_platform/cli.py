@@ -141,35 +141,17 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         processed_data_path = None
 
     # Strategy can be embedded or referenced via a separate YAML/JSON file
-    strat_cfg = cfg_raw.get("strategy") or {
-        "strategy_name": "CLI_Default",
-        # Minimal long-only example matching strategy.schema.json
-        "long_entry_rules": [
-            {
-                "any_of": [
-                    {
-                        "condition": "is_above",
-                        "left": "close",
-                        "right": 1.5,
-                    }
-                ]
-            }
-        ],
-        "long_exit_rules": [
-            {
-                "any_of": [
-                    {
-                        "condition": "is_below",
-                        "left": "close",
-                        "right": 1.5,
-                    }
-                ]
-            }
-        ],
-        # Keep shorts empty for the default; schema accepts long-only
-        "short_entry_rules": [],
-        "short_exit_rules": [],
-    }
+    strat_cfg = cfg_raw.get("strategy")
+    if not strat_cfg:
+        # Try loading from strategy_path if provided
+        strategy_path = cfg_raw.get("strategy_path")
+        if strategy_path:
+            strat_cfg = _load_config(Path(strategy_path))
+        else:
+            raise ValueError(
+                "No strategy provided. Specify 'strategy_path' in config "
+                "or embed 'strategy' definition."
+            )
     # Optional fast-mode: limit dataset for quicker iterations
     fast_mode = cfg_raw.get("fast_mode") or {}
     if isinstance(fast_mode, dict):

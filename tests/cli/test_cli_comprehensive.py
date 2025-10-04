@@ -390,6 +390,23 @@ class TestAdditionalCoverage:
             "run_id": "test",
             "instrument": {"symbol": "EURUSD"},
             "initial_cash": 100000,
+            "strategy": {
+                "strategy_name": "test",
+                "long_entry_rules": [
+                    {
+                        "all_of": [
+                            {"condition": "is_above", "left": "close", "right": 1}
+                        ]
+                    }
+                ],
+                "long_exit_rules": [
+                    {
+                        "all_of": [
+                            {"condition": "is_below", "left": "close", "right": 1}
+                        ]
+                    }
+                ],
+            },
         }
         config_path.write_text(json.dumps(config))
 
@@ -421,6 +438,23 @@ class TestAdditionalCoverage:
             "run_id": "test",
             "instrument": {"symbol": "EURUSD"},
             "initial_cash": 100000,
+            "strategy": {
+                "strategy_name": "test",
+                "long_entry_rules": [
+                    {
+                        "all_of": [
+                            {"condition": "is_above", "left": "close", "right": 1}
+                        ]
+                    }
+                ],
+                "long_exit_rules": [
+                    {
+                        "all_of": [
+                            {"condition": "is_below", "left": "close", "right": 1}
+                        ]
+                    }
+                ],
+            },
         }
         config_path.write_text(json.dumps(config))
 
@@ -456,6 +490,23 @@ class TestAdditionalCoverage:
             "run_id": "test",
             "instrument": {"symbol": "EURUSD"},
             "initial_cash": 100000,
+            "strategy": {
+                "strategy_name": "test",
+                "long_entry_rules": [
+                    {
+                        "all_of": [
+                            {"condition": "is_above", "left": "close", "right": 1}
+                        ]
+                    }
+                ],
+                "long_exit_rules": [
+                    {
+                        "all_of": [
+                            {"condition": "is_below", "left": "close", "right": 1}
+                        ]
+                    }
+                ],
+            },
         }
         config_path.write_text(json.dumps(config))
 
@@ -490,6 +541,23 @@ class TestAdditionalCoverage:
             "instrument": {"symbol": "EURUSD"},
             "initial_cash": 100000,
             "monte_carlo": {"mode": "bar_resimulation", "trials": 100},
+            "strategy": {
+                "strategy_name": "test",
+                "long_entry_rules": [
+                    {
+                        "all_of": [
+                            {"condition": "is_above", "left": "close", "right": 1}
+                        ]
+                    }
+                ],
+                "long_exit_rules": [
+                    {
+                        "all_of": [
+                            {"condition": "is_below", "left": "close", "right": 1}
+                        ]
+                    }
+                ],
+            },
         }
         config_path.write_text(json.dumps(config))
 
