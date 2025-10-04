@@ -37,19 +37,19 @@
   "feature_analysis": {},
   "checksums": {
     "instrument_defs_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-    "config_snapshot_hash": "094230839186629441bfc3fa01f5cdd550ea26ecafdf25a42ad57f07015bf809"
+    "config_snapshot_hash": "aa4388017252d5b14403eca436bff238c2fdde8e1c5feb903c27e482d02f3b5c"
   },
   "meta": {
     "strategy_name": "Golden_EMA_Crossover",
     "run_id": "golden_run_test",
-    "git_commit": "43b4011",
+    "git_commit": "f4593ef",
     "run_seed": 42
   },
   "strategy_params": {},
   "overall_performance": {
     "n_trades": 0,
     "total_pnl": 0.0,
-    "total_pnl_gross": 0.0,
+    "total_pnl_movement": 0.0,
     "total_costs": 0.0,
     "cost_breakdown": {
       "spread": 0.0,
@@ -70,8 +70,8 @@
     "win_rate": 0.0,
     "avg_win": 0.0,
     "avg_loss": 0.0,
-    "avg_win_gross": 0.0,
-    "avg_loss_gross": 0.0,
+    "avg_win_movement": 0.0,
+    "avg_loss_movement": 0.0,
     "max_win": 0.0,
     "max_loss": 0.0
   },
@@ -180,7 +180,7 @@
     "data_end": null,
     "symbols": [],
     "app_version": "0.0.1",
-    "git_commit": "43b4011",
+    "git_commit": "f4593ef",
     "run_seed": 42
   },
   "artifacts": {},
@@ -203,7 +203,7 @@
     "meta.run_seed": "Seed used for all random number generators.",
     "overall_performance.n_trades": "Total number of trades executed.",
     "overall_performance.total_pnl": "Sum of all trade profits and losses (net, after costs).",
-    "overall_performance.total_pnl_gross": "Sum of all trade profits and losses before transaction costs.",
+    "overall_performance.total_pnl_movement": "Sum of all trade profits and losses from pure mid-to-mid price movement, excluding all transaction costs.",
     "overall_performance.total_costs": "Sum of all transaction costs across all trades.",
     "overall_performance.cost_breakdown.spread": "Total bid-ask spread costs (entry only).",
     "overall_performance.cost_breakdown.commission": "Total commission costs (entry and exit).",
@@ -218,8 +218,8 @@
     "risk_snapshot.win_rate": "Percentage of trades with PnL > 0.",
     "risk_snapshot.avg_win": "Average net PnL of winning trades (after costs).",
     "risk_snapshot.avg_loss": "Average net PnL of losing trades (after costs).",
-    "risk_snapshot.avg_win_gross": "Average gross PnL of winning trades (before costs).",
-    "risk_snapshot.avg_loss_gross": "Average gross PnL of losing trades (before costs).",
+    "risk_snapshot.avg_win_movement": "Average PnL movement of winning trades (mid-to-mid, excluding costs).",
+    "risk_snapshot.avg_loss_movement": "Average PnL movement of losing trades (mid-to-mid, excluding costs).",
     "risk_snapshot.max_win": "Largest single winning trade.",
     "risk_snapshot.max_loss": "Largest single losing trade (most negative PnL).",
     "equity_stats.equity_curve": "Time series of portfolio equity (timestamp, value) pairs.",

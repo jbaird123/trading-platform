@@ -705,7 +705,7 @@ def test_compute_exit_efficiency_take_profit_premature() -> None:
     trade = replace(
         trade,
         exit_reason="take_profit",
-        pnl_gross=100.0,
+        pnl_movement=100.0,
         post_exit_analysis={
             "5": {"mfe": 250.0, "mae": -10.0},  # MFE > 2x profit = premature
             "10": {"mfe": 300.0, "mae": -20.0},
@@ -734,7 +734,7 @@ def test_compute_exit_efficiency_stop_loss_false() -> None:
     trade = replace(
         trade,
         exit_reason="stop_loss",
-        pnl_gross=-50.0,
+        pnl_movement=-50.0,
         initial_risk_ccy=50.0,
         post_exit_analysis={
             "5": {"mfe": 60.0, "mae": -10.0},  # MFE > initial_risk = false
@@ -764,7 +764,7 @@ def test_compute_exit_efficiency_signal_suboptimal() -> None:
     trade = replace(
         trade,
         exit_reason="signal",
-        pnl_gross=50.0,
+        pnl_movement=50.0,
         post_exit_analysis={
             "5": {"mfe": 80.0, "mae": -5.0},  # MFE > 1.5x profit = suboptimal
             "10": {"mfe": 100.0, "mae": -10.0},
@@ -833,7 +833,7 @@ def test_compute_exit_efficiency_no_matching_exit_reason() -> None:
     trade = replace(
         trade,
         exit_reason="signal",
-        pnl_gross=50.0,
+        pnl_movement=50.0,
         post_exit_analysis={
             "5": {"mfe": 10.0, "mae": -5.0},
         },
@@ -862,7 +862,7 @@ def test_compute_exit_efficiency_all_trades_different_exit_reasons() -> None:
     trade1 = replace(
         trade1,
         exit_reason="take_profit",
-        pnl_gross=50.0,
+        pnl_movement=50.0,
         post_exit_analysis={"5": {"mfe": 10.0, "mae": -5.0}},
     )
 
@@ -870,7 +870,7 @@ def test_compute_exit_efficiency_all_trades_different_exit_reasons() -> None:
     trade2 = replace(
         trade2,
         exit_reason="stop_loss",
-        pnl_gross=-30.0,
+        pnl_movement=-30.0,
         initial_risk_ccy=30.0,
         post_exit_analysis={"5": {"mfe": 5.0, "mae": -10.0}},
     )
@@ -879,7 +879,7 @@ def test_compute_exit_efficiency_all_trades_different_exit_reasons() -> None:
     trade3 = replace(
         trade3,
         exit_reason="time_exit",
-        pnl_gross=20.0,
+        pnl_movement=20.0,
         post_exit_analysis={"5": {"mfe": 8.0, "mae": -3.0}},
     )
 

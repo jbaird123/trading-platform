@@ -112,11 +112,12 @@ def test_spread_impacts_pnl_via_fill_price():
     assert trade.exit_price == approx(1.1009)  # 1.1010 - 0.0002/2
 
     # 3. Verify PnL
-    # Gross PnL is based on actual fill prices
-    # (1.1009 - 1.1001) * 10_000 = 0.0008 * 10_000 = 8.0
-    assert trade.pnl_gross == approx(8.0)
+    # Movement PnL is based on mid-to-mid prices
+    # (1.1010 - 1.1000) * 10_000 = 0.0010 * 10_000 = 10.0
+    assert trade.pnl_movement == approx(10.0)
 
-    # Net PnL (no other costs in this test)
+    # Net PnL after spread cost
+    # 10.0 - 2.0 (spread) = 8.0
     assert trade.pnl == approx(8.0)
 
     # 4. Verify Cost Reporting

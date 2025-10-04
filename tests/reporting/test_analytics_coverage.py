@@ -35,7 +35,7 @@ def test_compute_exit_efficiency_no_trades_for_exit_reason() -> None:
     trade = replace(
         trade,
         exit_reason="take_profit",
-        pnl_gross=50.0,
+        pnl_movement=50.0,
         post_exit_analysis={
             "5": {"mfe": 10.0, "mae": -5.0},
         },
@@ -170,7 +170,7 @@ def test_compute_exit_efficiency_empty_reason_analysis() -> None:
     trade = replace(
         trade,
         exit_reason="take_profit",
-        pnl_gross=50.0,
+        pnl_movement=50.0,
         post_exit_analysis={
             "5": {"mfe": 10.0, "mae": -5.0},
         },
@@ -190,7 +190,7 @@ def test_compute_exit_efficiency_empty_reason_analysis() -> None:
     trade_empty_reason = replace(
         trade_empty_reason,
         exit_reason="",  # Empty string
-        pnl_gross=50.0,
+        pnl_movement=50.0,
         post_exit_analysis={
             "5": {"mfe": 10.0, "mae": -5.0},
         },

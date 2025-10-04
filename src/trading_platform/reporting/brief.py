@@ -363,7 +363,7 @@ def _serialize_trade(t: Trade) -> dict[str, Any]:
         "entry_price": _round_price(t.entry_price),
         "exit_price": _round_price(t.exit_price),
         "pnl": _round_currency(t.pnl),
-        "pnl_gross": _round_currency(getattr(t, "pnl_gross", None)),
+        "pnl_movement": _round_currency(getattr(t, "pnl_movement", None)),
         "exit_reason": t.exit_reason,
         "r_multiple": getattr(t, "r_multiple", None),
         "mfe_currency": _round_currency(getattr(t, "mfe_currency", None)),
@@ -386,8 +386,8 @@ def compute_overall_performance(
     mean_pnl = (total_pnl / len(trades)) if trades else 0.0
     median_pnl = median(pnls) if pnls else 0.0
 
-    # Gross PnL and cost breakdown
-    total_pnl_gross = sum(t.pnl_gross for t in trades)
+    # Movement PnL and cost breakdown
+    total_pnl_movement = sum(t.pnl_movement for t in trades)
     total_costs = sum(t.cost_currency for t in trades)
     total_spread = sum(
         t.cost_breakdown.get("spread", 0.0) for t in trades if t.cost_breakdown
@@ -406,7 +406,7 @@ def compute_overall_performance(
     return {
         "n_trades": len(trades),
         "total_pnl": _round_currency(total_pnl),
-        "total_pnl_gross": _round_currency(total_pnl_gross),
+        "total_pnl_movement": _round_currency(total_pnl_movement),
         "total_costs": _round_currency(total_costs),
         "cost_breakdown": {
             "spread": _round_currency(total_spread),
@@ -428,17 +428,17 @@ def compute_overall_performance(
 def compute_risk_snapshot(trades: list[Trade]) -> dict[str, Any]:
     wins = [t.pnl for t in trades if t.pnl > 0]
     losses = [t.pnl for t in trades if t.pnl < 0]
-    wins_gross = [t.pnl_gross for t in trades if t.pnl > 0]
-    losses_gross = [t.pnl_gross for t in trades if t.pnl < 0]
+    wins_movement = [t.pnl_movement for t in trades if t.pnl > 0]
+    losses_movement = [t.pnl_movement for t in trades if t.pnl < 0]
     return {
         "win_rate": _round_percentage(calculate_win_rate(trades)),
         "avg_win": _round_currency((sum(wins) / len(wins)) if wins else 0.0),
         "avg_loss": _round_currency((sum(losses) / len(losses)) if losses else 0.0),
-        "avg_win_gross": _round_currency(
-            (sum(wins_gross) / len(wins_gross)) if wins_gross else 0.0
+        "avg_win_movement": _round_currency(
+            (sum(wins_movement) / len(wins_movement)) if wins_movement else 0.0
         ),
-        "avg_loss_gross": _round_currency(
-            (sum(losses_gross) / len(losses_gross)) if losses_gross else 0.0
+        "avg_loss_movement": _round_currency(
+            (sum(losses_movement) / len(losses_movement)) if losses_movement else 0.0
         ),
         "max_win": _round_currency(max(wins) if wins else 0.0),
         "max_loss": _round_currency(min(losses) if losses else 0.0),

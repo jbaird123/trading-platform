@@ -16,6 +16,7 @@ class Position:
     symbol: str
     entry_time: datetime
     entry_price: float
+    entry_mid_price: float
     side: str  # "long" or "short"
     size: float
     initial_risk_ccy: float | None = None

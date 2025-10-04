@@ -10,21 +10,21 @@
 
 **Goal:** Refactor the `Trade` object and reporting to provide a clear, auditable waterfall from ideal PnL to net PnL.
 
-1.  **[ ] Modify the `Trade` Dataclass.**
+1.  **[X] Modify the `Trade` Dataclass.**
     *   **File:** `src/trading_platform/portfolio/trade.py`
     *   **Action:**
         1.  Remove the line: `pnl_gross: float = 0.0  # Gross PnL before costs`
         2.  Add a new line: `pnl_movement: float = 0.0  # PnL from mid-price movement`
 
-2.  **[ ] Update the `Position` Dataclass.**
+2.  **[X] Update the `Position` Dataclass.**
     *   **File:** `src/trading_platform/portfolio/position.py`
     *   **Action:** Add a new field `entry_mid_price: float` to the `Position` dataclass.
 
-3.  **[ ] Update `PortfolioManager` to Store `entry_mid_price`.**
+3.  **[X] Update `PortfolioManager` to Store `entry_mid_price`.**
     *   **File:** `src/trading_platform/portfolio/portfolio.py`
     *   **Action:** Modify the `create_new_position` method to pass the `entry_price` (which is the mid-price) to the new `entry_mid_price` field of the `Position` object.
 
-4.  **[ ] Create a New Test for the PnL Waterfall.**
+4.  **[X] Create a New Test for the PnL Waterfall.**
     *   **File:** `tests/portfolio/test_trade_creation.py` (create this new file).
     *   **Action:** Add a new test function, `test_pnl_calculation_waterfall`.
     *   **Logic:** For a sample closed trade, assert that:
@@ -32,15 +32,15 @@
         2.  `trade.cost_breakdown['spread']` equals the total spread cost.
         3.  `trade.pnl` equals `pnl_movement - total_costs`.
 
-5.  **[ ] Refactor `PortfolioManager.close_position` Method.**
+5.  **[X] Refactor `PortfolioManager.close_position` Method.**
     *   **File:** `src/trading_platform/portfolio/portfolio.py`
     *   **Action:** Rewrite the PnL calculation logic inside the `close_position` method to use the new `pnl_movement` field and correctly calculate the final `pnl` by subtracting all costs.
 
-6.  **[ ] Update JSON Schema for the Brief.**
+6.  **[X] Update JSON Schema for the Brief.**
     *   **File:** `docs/schemas/brief.schema.json`
     *   **Action:** In the `definitions.trade.properties` section, delete the `pnl_gross` property and add the `pnl_movement` property with the description: "The theoretical profit or loss from pure price movement, calculated from the mid-price at entry to the mid-price at exit, excluding all transaction costs."
 
-7.  **[ ] Update All Failing Tests for Closed Trades.**
+7.  **[X] Update All Failing Tests for Closed Trades.**
     *   **Action:** Run `poetry run pytest`. Many tests will fail due to the removal of `pnl_gross`. Update each failing test to use the new, clearer fields (`pnl`, `pnl_movement`).
 
 ---
