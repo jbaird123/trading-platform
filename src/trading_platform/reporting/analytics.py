@@ -249,8 +249,8 @@ def compute_contrasts(trades: list[Trade]) -> dict:
                     "total_pnl": 0.0,
                     "avg_win": 0.0,
                     "avg_loss": 0.0,
-                    "avg_win_gross": 0.0,
-                    "avg_loss_gross": 0.0,
+                    "avg_win_movement": 0.0,
+                    "avg_loss_movement": 0.0,
                 }
 
             n_trades = len(side_trades)
@@ -271,13 +271,13 @@ def compute_contrasts(trades: list[Trade]) -> dict:
                 if losing_trades
                 else 0.0
             )
-            avg_win_gross = (
-                sum(t.pnl_gross for t in winning_trades) / len(winning_trades)
+            avg_win_movement = (
+                sum(t.pnl_movement for t in winning_trades) / len(winning_trades)
                 if winning_trades
                 else 0.0
             )
-            avg_loss_gross = (
-                sum(t.pnl_gross for t in losing_trades) / len(losing_trades)
+            avg_loss_movement = (
+                sum(t.pnl_movement for t in losing_trades) / len(losing_trades)
                 if losing_trades
                 else 0.0
             )
@@ -289,8 +289,8 @@ def compute_contrasts(trades: list[Trade]) -> dict:
                 "total_pnl": round(total_pnl, 2),
                 "avg_win": round(avg_win, 2),
                 "avg_loss": round(avg_loss, 2),
-                "avg_win_gross": round(avg_win_gross, 2),
-                "avg_loss_gross": round(avg_loss_gross, 2),
+                "avg_win_movement": round(avg_win_movement, 2),
+                "avg_loss_movement": round(avg_loss_movement, 2),
             }
 
         return {
@@ -424,7 +424,7 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
                 # Classify based on exit reason
                 if reason in ["take_profit", "tp"]:
                     # Premature TP: price continued significantly after we closed
-                    if post_mfe > abs(t.pnl_gross) * 2:  # 2x our profit
+                    if post_mfe > abs(t.pnl_movement) * 2:  # 2x our profit
                         premature_count += 1
 
                 elif reason in ["stop_loss", "sl", "stop"]:
@@ -435,7 +435,7 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
                 else:  # Signal exits or other
                     # Good exit if price went against us (post_mae got worse)
                     # Bad exit if price continued favorably (high post_mfe)
-                    if post_mfe > abs(t.pnl_gross) * 1.5:  # Left >1.5x profit on table
+                    if post_mfe > abs(t.pnl_movement) * 1.5:  # Left >1.5x profit on table
                         premature_count += 1
 
             avg_opp_cost = sum(opp_costs) / len(opp_costs) if opp_costs else 0.0

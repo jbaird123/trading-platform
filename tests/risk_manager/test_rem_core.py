@@ -42,6 +42,7 @@ def test_contextual_stop_loss_rule():
         side="long",
         size=10000,
         entry_price=1.2050,
+        entry_mid_price=1.2050,
         entry_time=pd.Timestamp("2024-01-01"),
     )
 

@@ -24,7 +24,7 @@ class Trade:
     exit_reason: str | None = None
     stop_loss: float | None = None
     take_profit: float | None = None
-    pnl_gross: float = 0.0  # Gross PnL before costs
+    pnl_movement: float = 0.0  # PnL from mid-price movement
     cost_currency: float = 0.0  # Total costs (spread + commission + slippage)
     cost_breakdown: dict | None = None  # {"spread": X, "commission": Y, "slippage": Z}
     r_multiple: float | None = None

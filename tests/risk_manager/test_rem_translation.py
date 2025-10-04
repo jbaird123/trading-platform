@@ -20,6 +20,7 @@ def test_rem_translates_pips_rule_for_long_position():
         symbol="EUR_USD",
         side="long",
         entry_price=1.20000,
+        entry_mid_price=1.20000,
         size=10000,
         entry_time=datetime.now(UTC),
     )
@@ -59,6 +60,7 @@ def test_rem_translates_pips_rule_for_short_position():
         symbol="USD_JPY",
         side="short",
         entry_price=110.00,
+        entry_mid_price=110.00,
         size=10000,
         entry_time=datetime.now(UTC),
     )

@@ -37,6 +37,7 @@ def test_pip_size_none_metadata(basic_rem):
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
     )
@@ -59,6 +60,7 @@ def test_atr_value_none_metadata():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
     )
@@ -79,6 +81,7 @@ def test_distance_none_rule_and_invalid_types():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
     )
@@ -100,6 +103,7 @@ def test_distance_atr_multiple_none_atr():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
     )
@@ -120,6 +124,7 @@ def test_level_price_none_rule():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
     )
@@ -140,6 +145,7 @@ def test_trailing_stop_logic_long_position():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
         mfe_currency=500.0,  # $500 profit on 100k position = 50 pips
@@ -163,6 +169,7 @@ def test_trailing_stop_logic_short_position():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="short",
         size=100000.0,
         mfe_currency=500.0,  # $500 profit on 100k position = 50 pips lower
@@ -185,6 +192,7 @@ def test_long_position_stop_loss_exit():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
     )
@@ -207,6 +215,7 @@ def test_long_position_take_profit_exit():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
     )
@@ -229,6 +238,7 @@ def test_short_position_stop_loss_exit():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="short",
         size=100000.0,
     )
@@ -251,6 +261,7 @@ def test_short_position_take_profit_exit():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="short",
         size=100000.0,
     )
@@ -276,6 +287,7 @@ def test_no_exit_conditions_met():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
     )
@@ -297,6 +309,7 @@ def test_effective_stop_loss_multiple_values_long():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
         mfe_currency=300.0,  # Some profit to activate trailing
@@ -321,6 +334,7 @@ def test_effective_stop_loss_multiple_values_short():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="short",
         size=100000.0,
         mfe_currency=300.0,  # Some profit to activate trailing
@@ -345,6 +359,7 @@ def test_position_size_zero():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=0.0,  # This will trigger the `else 1.0` branch on line 84
         mfe_currency=100.0,
@@ -368,6 +383,7 @@ def test_position_size_none():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,  # This will trigger the `if position.size` branch on line 84
         mfe_currency=100.0,
@@ -393,6 +409,7 @@ def test_trailing_stop_distance_none():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
         mfe_currency=100.0,  # Some MFE to make sure we enter the trailing logic
@@ -415,6 +432,7 @@ def test_mfe_currency_none():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
         mfe_currency=0.0,  # Test with 0.0 MFE
@@ -436,6 +454,7 @@ def test_absolute_price_rule():
         symbol="EURUSD",
         entry_time=datetime.now(),
         entry_price=1.1000,
+        entry_mid_price=1.1000,
         side="long",
         size=100000.0,
     )

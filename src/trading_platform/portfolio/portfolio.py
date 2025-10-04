@@ -82,6 +82,7 @@ class PortfolioManager:
             symbol=symbol,
             side=side,
             entry_price=fill_price,
+            entry_mid_price=entry_price,
             size=size,
             entry_time=entry_time,
             context_at_entry=ctx,
@@ -377,6 +378,7 @@ class PortfolioManager:
             symbol=pos.symbol,
             side=pos.side,
             entry_price=pos.entry_price,
+            entry_mid_price=pos.entry_mid_price,
             size=pos.size,
             entry_time=pos.entry_time,
             bars_held=pos.bars_held + 1,
@@ -397,36 +399,34 @@ class PortfolioManager:
         if not self._open_position:
             return
 
-        # Get realistic exit price including spread
-        fill_price = self._cost_model.get_exit_price(
-            exit_price, self._open_position.side
-        )
+        # Calculate pnl_movement: pure mid-to-mid price movement
+        entry_mid = self._open_position.entry_mid_price
+        exit_mid = exit_price  # exit_price parameter is the mid-price
 
         if self._open_position.side == "long":
-            diff = self._engine.sub(fill_price, self._open_position.entry_price)
+            mid_diff = self._engine.sub(exit_mid, entry_mid)
         else:
-            diff = self._engine.sub(self._open_position.entry_price, fill_price)
+            mid_diff = self._engine.sub(entry_mid, exit_mid)
 
-        # Get point_value from instrument definition for canonical PnL calc
-        point_value = self._get_point_value(self._open_position.entry_price, fill_price)
+        # Get point_value for canonical PnL calculation
+        point_value = self._get_point_value(entry_mid, exit_mid)
 
-        # Canonical PnL: (price_change * size * point_value)
-        pnl_gross = self._engine.to_float(
+        # PnL from pure price movement (mid-to-mid)
+        pnl_movement = self._engine.to_float(
             self._engine.mul(
-                self._engine.mul(diff, self._open_position.size), point_value
+                self._engine.mul(mid_diff, self._open_position.size), point_value
             )
         )
 
-        # Calculate costs (commission and slippage only, spread is in pnl_gross)
+        # Calculate all costs
         cost_entry, breakdown_entry = self._cost_model.compute_entry_cost(
             self._open_position.size,
-            price=self._open_position.entry_price,
+            price=entry_mid,
             instrument=self.instrument,
         )
         cost_exit, breakdown_exit = self._cost_model.compute_exit_cost(
-            self._open_position.size, price=fill_price, instrument=self.instrument
+            self._open_position.size, price=exit_mid, instrument=self.instrument
         )
-        # For reporting, calculate the spread cost that is now embedded in PnL
         spread_cost = self._cost_model.compute_spread_cost(
             self._open_position.size, instrument=self.instrument
         )
@@ -440,7 +440,15 @@ class PortfolioManager:
             "slippage": breakdown_entry.get("slippage", 0.0)
             + breakdown_exit.get("slippage", 0.0),
         }
-        pnl = pnl_gross - commission_and_slippage_cost
+
+        # Final PnL = movement - all costs
+        pnl = pnl_movement - total_cost
+
+        # Get realistic fill prices for recording (including spread)
+        entry_fill = self._cost_model.get_entry_price(
+            entry_mid, self._open_position.side
+        )
+        exit_fill = self._cost_model.get_exit_price(exit_mid, self._open_position.side)
 
         initial_risk_ccy = self._open_position.initial_risk_ccy
         r_multiple = None
@@ -452,12 +460,19 @@ class PortfolioManager:
         # was coerced to a dict at creation, but be defensive here as well.
         pos_dict = dict(self._open_position.__dict__)
         pos_dict["context_at_entry"] = pos_dict.get("context_at_entry") or {}
+
+        # Update entry_price to fill price for Trade record
+        pos_dict["entry_price"] = entry_fill
+
+        # Remove entry_mid_price (not needed in Trade, only in Position)
+        pos_dict.pop("entry_mid_price", None)
+
         trade = Trade(
             **pos_dict,
-            exit_price=fill_price,
+            exit_price=exit_fill,
             exit_time=exit_time,
             pnl=pnl,
-            pnl_gross=pnl_gross,
+            pnl_movement=pnl_movement,
             exit_reason=exit_reason,
             context_at_exit=context_at_exit,
             cost_currency=total_cost,
