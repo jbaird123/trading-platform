@@ -488,14 +488,19 @@ def test_aitp_train_model_lightgbm_import_error(monkeypatch, mock_config_path):
 
 def test_aitp_evaluate_and_log_artifacts(mock_config_path):
     """Test evaluation and artifact logging with proper mocking."""
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import MagicMock, patch
 
-    with patch("trading_platform.ai.training.pipeline.AIEvaluationProcedure") as mock_eval_cls, \
-         patch("trading_platform.ai.training.pipeline.mlflow") as mock_mlflow, \
-         patch("trading_platform.ai.training.pipeline.convert_sklearn") as mock_convert, \
-         patch("trading_platform.ai.training.pipeline.DiagnosticSynthesisEngine") as mock_synth_cls, \
-         patch("trading_platform.ai.training.pipeline.json.loads") as mock_json_loads:
-
+    with (
+        patch(
+            "trading_platform.ai.training.pipeline.AIEvaluationProcedure"
+        ) as mock_eval_cls,
+        patch("trading_platform.ai.training.pipeline.mlflow") as mock_mlflow,
+        patch("trading_platform.ai.training.pipeline.convert_sklearn") as mock_convert,
+        patch(
+            "trading_platform.ai.training.pipeline.DiagnosticSynthesisEngine"
+        ) as mock_synth_cls,
+        patch("trading_platform.ai.training.pipeline.json.loads") as mock_json_loads,
+    ):
         # Setup mock returns
         mock_eval_instance = MagicMock()
         mock_eval_instance.run.return_value = {"accuracy": 0.9, "f1": 0.85}
@@ -525,9 +530,7 @@ def test_aitp_evaluate_and_log_artifacts(mock_config_path):
         pipeline._evaluate_and_log_artifacts(mock_model, X, y)
 
         # Verify all the calls
-        mock_eval_cls.assert_called_once_with(
-            config={"run_cross_validation": False}
-        )
+        mock_eval_cls.assert_called_once_with(config={"run_cross_validation": False})
         mock_eval_instance.run.assert_called_once_with(mock_model, X, y)
         mock_mlflow.log_metrics.assert_called_once_with({"accuracy": 0.9, "f1": 0.85})
         mock_mlflow.sklearn.log_model.assert_called_once_with(mock_model, "model")

@@ -122,10 +122,18 @@ def run_live_controller(
     signals = strat.generate_signals(market_data)
     placed = 0
     for i in range(len(market_data)):
-        command = signals.iloc[i]
+        signal = signals.iloc[i]
         # Skip None commands (no action)
-        if command is None or (isinstance(command, float) and pd.isna(command)):
+        if signal is None or (isinstance(signal, float) and pd.isna(signal)):
             continue
+
+        # Extract command from Signal object or use as-is if string
+        from trading_platform.core.signal import Signal
+
+        if isinstance(signal, Signal):
+            command = signal.command
+        else:
+            command = signal
 
         ts = market_data.index[i]
         px = float(market_data.iloc[i]["close"])

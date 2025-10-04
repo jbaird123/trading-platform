@@ -62,6 +62,7 @@ def cli_stubs(monkeypatch, tmp_path):
             asset_class="Forex",
             point_value=1.0,
             tick_size=0.00001,
+            pip_location=0.0001,
             commission_model={"type": "spread"},
             sessions=[
                 SessionDefinition(
@@ -100,7 +101,7 @@ def cli_stubs(monkeypatch, tmp_path):
     monkeypatch.setattr(
         cli,
         "RiskExitManager",
-        lambda config=None: SimpleNamespace(config=config),
+        lambda config=None, instrument=None: SimpleNamespace(config=config),
     )
 
     class DummyRMMEngine:
@@ -577,7 +578,7 @@ def test_cmd_run_backtest_with_paths_and_failures(tmp_path, monkeypatch):
     monkeypatch.setattr(
         cli,
         "RiskExitManager",
-        lambda config=None: SimpleNamespace(config=config),
+        lambda config=None, instrument=None: SimpleNamespace(config=config),
     )
 
     class SpanRMM:

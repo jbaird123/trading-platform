@@ -59,8 +59,14 @@ class RiskExitManager:
             signal_context = signal.context or {}
 
         def _pip_size() -> float:
-            # Use pip_location from the instrument definition.
-            return float(self.instrument.get("pip_location", 0.0001))
+            """Get pip size from instrument. Fail loudly if missing."""
+            pip_location = self.instrument.get("pip_location")
+            if pip_location is None:
+                raise ValueError(
+                    "pip_location missing from instrument definition. "
+                    "Cannot calculate pip-based offsets for non-Forex instruments."
+                )
+            return float(pip_location)
 
         def _atr_value(length: int | None) -> float | None:
             # ATR not present in current_bar; placeholder for integration.
@@ -125,9 +131,7 @@ class RiskExitManager:
                     if price is not None:
                         return price
                 return None
-            return _level_price(
-                position.side, position.entry_price, rules, is_stop
-            )
+            return _level_price(position.side, position.entry_price, rules, is_stop)
 
         sl_price = _process_rule_list(stop_loss, True)
         tp_price = _process_rule_list(take_profit, False)

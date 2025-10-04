@@ -6,7 +6,6 @@ from argparse import Namespace
 from pathlib import Path
 
 from pytest import MonkeyPatch
-
 from trading_platform.cli import cmd_run_backtest, cmd_run_live
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
@@ -31,7 +30,9 @@ def test_cmd_run_backtest_demo(tmp_path: Path, monkeypatch: MonkeyPatch) -> None
     assert rc == 0
 
 
-def test_cmd_run_backtest_config_minimal(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+def test_cmd_run_backtest_config_minimal(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
     monkeypatch.setattr("trading_platform.core.paths.RUNS_DIR", tmp_path)
     cfg_path = tmp_path / "cfg.json"
     cfg_obj = {
@@ -187,7 +188,9 @@ def test_cmd_run_live_dry_run() -> None:
     assert cmd_run_live(ns) == 0
 
 
-def test_cmd_run_live_stub_with_config(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+def test_cmd_run_live_stub_with_config(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
     monkeypatch.setattr("trading_platform.core.paths.RUNS_DIR", tmp_path)
     cfg = tmp_path / "live.json"
     live_cfg = {

@@ -33,10 +33,7 @@ from trading_platform.reporting.analytics import (
 
 # Path to the JSON Schema for brief field documentation
 SCHEMA_PATH = (
-    Path(__file__).resolve().parents[3]
-    / "docs"
-    / "schemas"
-    / "brief.schema.json"
+    Path(__file__).resolve().parents[3] / "docs" / "schemas" / "brief.schema.json"
 )
 
 
@@ -99,9 +96,7 @@ def _extract_rem_policy(config_snapshot: dict[str, Any] | None) -> dict[str, Any
 
     # Now check the rule if it's a dict
     if isinstance(stop_loss_rule, dict) and stop_loss_rule.get("price_offset"):
-        policy["stop_loss_pips"] = (
-            f"{stop_loss_rule['price_offset'] * 10000:.0f} pips"
-        )
+        policy["stop_loss_pips"] = f"{stop_loss_rule['price_offset'] * 10000:.0f} pips"
 
     if isinstance(take_profit_rule, dict) and take_profit_rule.get("price_offset"):
         policy["take_profit_pips"] = (
@@ -357,9 +352,7 @@ def _serialize_trade(t: Trade) -> dict[str, Any]:
             for horizon, data in post_exit.items()
         }
 
-    cost_breakdown = _normalize_cost_breakdown(
-        getattr(t, "cost_breakdown", None)
-    )
+    cost_breakdown = _normalize_cost_breakdown(getattr(t, "cost_breakdown", None))
 
     return {
         "symbol": t.symbol,

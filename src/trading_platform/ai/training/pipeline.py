@@ -65,9 +65,7 @@ class AITrainingPipeline:
         self.run_id = self.config.get("run_id", "default_run")
 
         # Set up MLflow tracking URI
-        tracking_uri = self.config.get(
-            "mlflow_tracking_uri", paths.MLFLOW_DEFAULT_URI
-        )
+        tracking_uri = self.config.get("mlflow_tracking_uri", paths.MLFLOW_DEFAULT_URI)
         mlflow.set_tracking_uri(tracking_uri)
         mlflow.set_experiment(self.config.get("experiment_name", "Default"))
 
@@ -185,6 +183,7 @@ class AITrainingPipeline:
         # Save ONNX model to a temporary file using tempfile
         import shutil
         import tempfile
+
         # Create temp directory and use consistent filename for MLflow
         temp_dir = tempfile.mkdtemp()
         onnx_path = os.path.join(temp_dir, "model.onnx")

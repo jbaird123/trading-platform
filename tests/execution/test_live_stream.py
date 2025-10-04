@@ -19,8 +19,8 @@ def test_live_stream_connection_established():
 
     Validates: [EL-8.6]
     """
-    from trading_platform.execution.stream import (
-        LiveDataStream,  # type: ignore[import-untyped]
+    from trading_platform.execution.stream import (  # type: ignore[import-untyped]
+        LiveDataStream,
     )
 
     mock_api = Mock()

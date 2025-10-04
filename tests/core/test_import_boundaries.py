@@ -67,7 +67,7 @@ def test_strategy_base_is_public():
 
     Validates: [SYS-1.2.2]
     """
-    from trading_platform.strategy import Strategy  # type: ignore[attr-defined]
+    from trading_platform.strategy import Strategy
 
     assert Strategy is not None
     assert hasattr(Strategy, "generate_signals")
@@ -89,7 +89,7 @@ def test_portfolio_manager_is_public():
     Validates: [SYS-1.2.2]
     """
     from trading_platform.portfolio import (
-        PortfolioManager,  # type: ignore[attr-defined]
+        PortfolioManager,
     )
 
     assert PortfolioManager is not None
@@ -101,7 +101,7 @@ def test_data_loader_is_public():
 
     Validates: [SYS-1.2.2]
     """
-    from trading_platform.data import load_data  # type: ignore[attr-defined]
+    from trading_platform.data import load_data
 
     assert load_data is not None
 
@@ -111,7 +111,7 @@ def test_brief_generation_is_public():
 
     Validates: [SYS-1.2.2]
     """
-    from trading_platform.reporting import generate_brief  # type: ignore[attr-defined]
+    from trading_platform.reporting import generate_brief
 
     assert generate_brief is not None
 
@@ -122,7 +122,7 @@ def test_rmm_is_public():
     Validates: [SYS-1.2.2]
     """
     from trading_platform.regime_market_manager import (
-        RegimeMarketManager,  # type: ignore[attr-defined]
+        RegimeMarketManager,
     )
 
     assert RegimeMarketManager is not None
@@ -134,7 +134,7 @@ def test_rem_is_public():
     Validates: [SYS-1.2.2]
     """
     from trading_platform.risk_manager import (
-        RiskExitManager,  # type: ignore[attr-defined]
+        RiskExitManager,
     )
 
     assert RiskExitManager is not None
@@ -145,7 +145,7 @@ def test_yaml_strategy_is_public():
 
     Validates: [SYS-1.2.2]
     """
-    from trading_platform.strategy import YamlStrategy  # type: ignore[attr-defined]
+    from trading_platform.strategy import YamlStrategy
 
     assert YamlStrategy is not None
 

@@ -159,7 +159,7 @@ class RunConfig(BaseModel):
     )
 
     @model_validator(mode="after")
-    def enforce_workspace_runs_dir(self) -> "RunConfig":
+    def enforce_workspace_runs_dir(self) -> RunConfig:
         """Ensure runs_dir is always inside the workspace, ignoring user config."""
         expected_runs_dir = paths.RUNS_DIR
         if self.runs_dir.resolve() != expected_runs_dir.resolve():

@@ -30,9 +30,7 @@ def test_contextual_rem_with_order_block_strategy():
         ],
         "long_entry_rules": [
             {
-                "all_of": [
-                    {"condition": "is_above", "left": "close", "right": 1.0}
-                ],
+                "all_of": [{"condition": "is_above", "left": "close", "right": 1.0}],
                 "context": {"order_block_low": {"ref": "ob_low"}},
             }
         ],
@@ -86,7 +84,11 @@ def test_contextual_rem_with_order_block_strategy():
     )
 
     run_config = RunConfig(
-        strategy_name="Order Block Test",
+        user_id="test",
+        run_id="ob_test",
+        run_seed=42,
+        log_level="INFO",
+        allow_flip_on_bar=False,
         instrument=instrument,
         initial_cash=10000,
         position_size=1000,
@@ -95,7 +97,8 @@ def test_contextual_rem_with_order_block_strategy():
     # Generate signals from strategy
     signals = strategy.generate_signals(market_data)
 
-    trades, _ = run_backtest(
+    # run_backtest with return_exposure=True returns (trades, exposure)
+    result = run_backtest(
         config=run_config,
         market_data=market_data,
         signals=signals,
@@ -103,6 +106,10 @@ def test_contextual_rem_with_order_block_strategy():
         rem=rem,
         return_exposure=True,
     )
+
+    # Type check: should be tuple of (trades, exposure)
+    assert isinstance(result, tuple), "Expected tuple return"
+    trades, _ = result  # type: ignore[misc]
 
     # Assertions
     assert len(trades) >= 1, "At least one trade should be generated"

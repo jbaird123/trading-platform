@@ -667,7 +667,9 @@ def test_initialize_run_creates_directory_and_config(monkeypatch):
     """Test initialize_run function. Covers lines 27-32."""
     with tempfile.TemporaryDirectory() as temp_dir:
         # Mock the centralized RUNS_DIR to use our temp directory
-        monkeypatch.setattr("trading_platform.core.paths.RUNS_DIR", Path(temp_dir) / "runs")
+        monkeypatch.setattr(
+            "trading_platform.core.paths.RUNS_DIR", Path(temp_dir) / "runs"
+        )
 
         config = RunConfig(
             user_id="test_user",

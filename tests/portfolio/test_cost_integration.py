@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from pytest import approx
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.reporting.brief import compute_costs_aggregate
-from pytest import approx
 
 
 def test_portfolio_cost_breakdown_and_aggregate_with_lot_scaling():

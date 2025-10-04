@@ -9,6 +9,7 @@ import pandas as pd
 from trading_platform.core.config import RunConfig
 from trading_platform.core.policy import TradingWindowPolicy
 from trading_platform.core.signal import Signal
+from trading_platform.core.types import SignalCommand
 from trading_platform.core.utils import normalize_symbol
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
@@ -271,7 +272,7 @@ def run_backtest(
 
         # Process command through Portfolio Manager
         result = portfolio.process_command(
-            command=command,
+            command=cast(SignalCommand, command),
             bar_index=i,
             warmup_threshold=warmup_threshold,
             entry_window_bars=config.entry_window_bars,

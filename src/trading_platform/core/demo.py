@@ -9,9 +9,7 @@ from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.csv_export import save_prices_csv
 
 
-def generate_demo_run(
-    user_id: str = "demo_user", runs_dir: Path | None = None
-) -> Path:
+def generate_demo_run(user_id: str = "demo_user", runs_dir: Path | None = None) -> Path:
     """Create a demo run with synthetic trades and write brief + HTML report.
 
     Returns the run directory path (runs/{user}/{run_id}).

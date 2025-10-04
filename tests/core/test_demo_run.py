@@ -21,4 +21,3 @@ def test_generate_demo_run_includes_instrument(tmp_path):
     assert "instrument" in config_data
     assert "symbol" in config_data["instrument"]
     assert config_data["instrument"]["symbol"] == "EURUSD"
-

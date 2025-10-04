@@ -18,8 +18,8 @@ def test_api_connection_retry_on_network_error():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import (
-        execute_with_retry,  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (  # type: ignore[attr-defined]
+        execute_with_retry,
     )
 
     mock_api = Mock()
@@ -41,8 +41,8 @@ def test_api_connection_exponential_backoff():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import (
-        execute_with_retry,  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (  # type: ignore[attr-defined]
+        execute_with_retry,
     )
 
     mock_api = Mock()
@@ -68,8 +68,8 @@ def test_api_connection_max_retries_exceeded():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import (
-        execute_with_retry,  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (  # type: ignore[attr-defined]
+        execute_with_retry,
     )
 
     mock_api = Mock()
@@ -86,8 +86,8 @@ def test_api_connection_timeout_handling():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import (
-        execute_with_retry,  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (  # type: ignore[attr-defined]
+        execute_with_retry,
     )
 
     mock_api = Mock()
@@ -107,8 +107,8 @@ def test_api_connection_different_error_types():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import (
-        execute_with_retry,  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (  # type: ignore[attr-defined]
+        execute_with_retry,
     )
 
     mock_api = Mock()
@@ -134,8 +134,8 @@ def test_api_connection_circuit_breaker():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import (
-        CircuitBreaker,  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (  # type: ignore[attr-defined]
+        CircuitBreaker,
     )
 
     cb = CircuitBreaker(failure_threshold=3, timeout=1.0)
@@ -162,8 +162,8 @@ def test_api_connection_health_check():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import (
-        check_api_health,  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (  # type: ignore[attr-defined]
+        check_api_health,
     )
 
     mock_api = Mock()
@@ -180,8 +180,8 @@ def test_api_connection_fallback_endpoint():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import (
-        execute_with_fallback,  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (  # type: ignore[attr-defined]
+        execute_with_fallback,
     )
 
     primary_api = Mock()

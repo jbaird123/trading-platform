@@ -1,6 +1,5 @@
 """Tests to achieve 100% coverage for cli.py."""
 
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pandas as pd
@@ -42,7 +41,9 @@ def test_cli_data_request_with_all_filters(tmp_path):
         "trading_platform.cli.RunConfig.model_validate", return_value=Mock()
     ), patch(
         "trading_platform.cli.initialize_run", return_value=tmp_path / "test_run"
-    ), patch("trading_platform.cli.DataHandler", autospec=True) as mock_data_handler, patch(
+    ), patch(
+        "trading_platform.cli.DataHandler", autospec=True
+    ) as mock_data_handler, patch(
         "trading_platform.cli.run_backtest"
     ) as mock_run_backtest, patch("trading_platform.cli.finalize_run"), patch(
         "builtins.print"

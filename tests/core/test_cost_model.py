@@ -1,8 +1,8 @@
 # Validates: [BT-7.4], [NOTE-14.9]
 from __future__ import annotations
 
-from trading_platform.core.costs import CostModel
 from pytest import approx
+from trading_platform.core.costs import CostModel
 
 
 def test_get_entry_and_exit_prices():

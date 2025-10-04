@@ -6,6 +6,7 @@ from argparse import Namespace
 from pathlib import Path
 
 import pandas as pd
+from pytest import MonkeyPatch
 from trading_platform.cli import cmd_compare, cmd_run_backtest, cmd_run_live
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
@@ -55,7 +56,9 @@ def test_cmd_compare_missing_inputs(tmp_path: Path) -> None:
     assert rc == 2
 
 
-def test_cmd_run_backtest_reads_csv_path(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+def test_cmd_run_backtest_reads_csv_path(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
     monkeypatch.setattr("trading_platform.core.paths.RUNS_DIR", tmp_path)
     # Prepare a tiny OHLCV CSV
     csv = tmp_path / "data.csv"

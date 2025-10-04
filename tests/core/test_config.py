@@ -1,8 +1,8 @@
 import logging
-from pathlib import Path
 
 from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
+
 
 def test_run_config_auto_populate_instrument_from_data_request() -> None:
     """Test instrument auto-populated from data_request."""
@@ -19,6 +19,7 @@ def test_run_config_auto_populate_instrument_from_data_request() -> None:
     assert config.instrument is not None
     assert config.instrument["symbol"] == "EURUSD"
     assert config.instrument["timeframe"] == "1H"
+
 
 def test_run_config_enforces_workspace_runs_dir(caplog) -> None:
     """Test that RunConfig overrides a user-provided runs_dir."""
