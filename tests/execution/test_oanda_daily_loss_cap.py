@@ -18,7 +18,7 @@ TEST_INSTRUMENT = {
 
 
 def test_adapter_rejects_after_daily_loss_cap_hit():
-    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     adapter = OandaStubAdapter(pm=pm, daily_loss_cap=5.0)
     adapter.connect()
     # Open and close a losing trade to breach cap
@@ -48,7 +48,7 @@ def test_adapter_rejects_after_daily_loss_cap_hit():
 
 def test_adapter_blackout_has_priority_over_risk_cap():
     policy = TradingWindowPolicy.from_config(blackout_utc=[("00:00", "23:59")])
-    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     adapter = OandaStubAdapter(pm=pm, policy=policy, daily_loss_cap=5.0)
     adapter.connect()
     # Even without any trades, blackout should reject first

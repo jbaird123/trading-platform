@@ -886,7 +886,10 @@ def test_cmd_run_live_full(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "TradingWindowPolicy", DummyPolicy)
 
     class DummyPM:
-        def __init__(self, initial_cash: float) -> None:
+        def __init__(
+            self, base_currency: str, initial_cash: float
+        ) -> None:
+            self.base_currency = base_currency
             self.initial_cash = initial_cash
 
     monkeypatch.setattr(cli, "PortfolioManager", DummyPM)

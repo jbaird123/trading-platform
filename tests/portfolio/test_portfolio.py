@@ -20,7 +20,7 @@ TEST_INSTRUMENT = {
 @requires("PM-5.1", "PM-5.2")
 def test_portfolio_initialization():
     """Verify the portfolio initializes with correct default values."""
-    portfolio = PortfolioManager(initial_cash=50000, instrument=TEST_INSTRUMENT)
+    portfolio = PortfolioManager(base_currency="USD", initial_cash=50000, instrument=TEST_INSTRUMENT)
     assert portfolio.initial_cash == 50000
     assert portfolio.cash == 50000
     assert portfolio._open_position is None
@@ -30,7 +30,7 @@ def test_portfolio_initialization():
 @requires("PM-5.1", "PM-5.2", "PM-5.7")
 def test_open_and_close_long_position():
     """Verify opening and closing a long position creates a correct trade record."""
-    portfolio = PortfolioManager(initial_cash=100000, instrument=TEST_INSTRUMENT)
+    portfolio = PortfolioManager(base_currency="USD", initial_cash=100000, instrument=TEST_INSTRUMENT)
     entry_time = datetime(2023, 1, 1, 10, 0)
     exit_time = datetime(2023, 1, 1, 11, 0)
 
@@ -85,7 +85,7 @@ def test_open_and_close_short_position_with_loss():
         "tick_size": 0.001,
     }
 
-    portfolio = PortfolioManager(initial_cash=100000, instrument=usdjpy_instrument)
+    portfolio = PortfolioManager(base_currency="USD", initial_cash=100000, instrument=usdjpy_instrument)
     entry_time = datetime(2023, 1, 1, 12, 0)
     exit_time = datetime(2023, 1, 1, 13, 0)
 
@@ -120,7 +120,7 @@ def test_open_and_close_short_position_with_loss():
 @requires("PM-5.1")
 def test_cannot_open_position_if_one_is_already_open():
     """Verify that a new position cannot be opened if one is active."""
-    portfolio = PortfolioManager(instrument=TEST_INSTRUMENT)
+    portfolio = PortfolioManager(base_currency="USD", instrument=TEST_INSTRUMENT)
     portfolio.create_new_position(
         symbol="EURUSD",
         entry_time=datetime.now(),
@@ -150,7 +150,7 @@ def test_cannot_open_position_if_one_is_already_open():
 @requires("PM-5.1", "PM-5.2")
 def test_close_position_does_nothing_if_no_position_is_open():
     """Verify that closing a position does nothing when the portfolio is flat."""
-    portfolio = PortfolioManager(initial_cash=100000, instrument=TEST_INSTRUMENT)
+    portfolio = PortfolioManager(base_currency="USD", initial_cash=100000, instrument=TEST_INSTRUMENT)
     assert portfolio._open_position is None
 
     # Attempt to close a non-existent position
@@ -169,7 +169,7 @@ def test_close_position_does_nothing_if_no_position_is_open():
 @requires("PM-5.8")
 def test_process_enter_long_command():
     """Test processing enter_long command opens entry window."""
-    pm = PortfolioManager(initial_cash=100000, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=100000, instrument=TEST_INSTRUMENT)
 
     result = pm.process_command(
         command="enter_long",
@@ -189,7 +189,7 @@ def test_process_enter_long_command():
 @requires("PM-5.8")
 def test_process_exit_when_no_position():
     """Test exit command is ignored when no position exists."""
-    pm = PortfolioManager(initial_cash=100000, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=100000, instrument=TEST_INSTRUMENT)
 
     result = pm.process_command(
         command="exit_long",
@@ -208,7 +208,7 @@ def test_process_exit_when_no_position():
 @requires("PM-5.8")
 def test_process_enter_when_already_in_position():
     """Test enter command is ignored when already in same position."""
-    pm = PortfolioManager(initial_cash=100000, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=100000, instrument=TEST_INSTRUMENT)
 
     # Enter long
     pm.process_command(
@@ -246,7 +246,7 @@ def test_process_enter_when_already_in_position():
 @requires("PM-5.8")
 def test_process_flip_position():
     """Test entering opposite position with allow_flip=True."""
-    pm = PortfolioManager(initial_cash=100000, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=100000, instrument=TEST_INSTRUMENT)
 
     # Enter long
     pm.create_new_position(
@@ -277,7 +277,7 @@ def test_process_flip_position():
 @requires("PM-5.8")
 def test_entry_window_remains_open_with_none_commands():
     """Test entry window stays open across bars with None commands."""
-    pm = PortfolioManager(initial_cash=100000, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=100000, instrument=TEST_INSTRUMENT)
 
     # Bar 0: enter_long command
     result = pm.process_command(

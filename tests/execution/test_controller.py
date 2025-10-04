@@ -102,7 +102,7 @@ class StubStrategy:
 
 def test_realized_pnl_on_filters_by_exit_date():
     day = datetime(2024, 2, 1).date()
-    pm = PortfolioManager(initial_cash=0.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=0.0, instrument=TEST_INSTRUMENT)
     pm.trades = cast(
         list[Any],
         [
@@ -114,7 +114,7 @@ def test_realized_pnl_on_filters_by_exit_date():
 
 
 def test_reconcile_report_with_long_position_warns_on_cash_delta():
-    pm = PortfolioManager(initial_cash=1_000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=1_000.0, instrument=TEST_INSTRUMENT)
     pm.create_new_position("EURUSD", "long", 1.10, 2.0, datetime(2024, 1, 1))
     mark = 1.20
 
@@ -141,7 +141,7 @@ def test_reconcile_report_with_long_position_warns_on_cash_delta():
 
 
 def test_reconcile_report_with_short_position_info():
-    pm = PortfolioManager(initial_cash=1_000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=1_000.0, instrument=TEST_INSTRUMENT)
     pm.create_new_position("EURUSD", "short", 1.10, 1.0, datetime(2024, 1, 1))
 
     class LocalStubAdapter:
@@ -164,7 +164,7 @@ def test_reconcile_report_with_short_position_info():
 
 
 def test_reconcile_report_error_when_tolerances_exceeded():
-    pm = PortfolioManager(initial_cash=500.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=500.0, instrument=TEST_INSTRUMENT)
     pm.create_new_position("EURUSD", "long", 1.0, 1.0, datetime(2024, 1, 1))
 
     class LocalStubAdapter:
@@ -187,7 +187,7 @@ def test_reconcile_report_error_when_tolerances_exceeded():
 
 
 def test_reconcile_no_differences_returns_empty_list():
-    pm = PortfolioManager(initial_cash=700.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=700.0, instrument=TEST_INSTRUMENT)
     pm.create_new_position("EURUSD", "long", 1.0, 1.0, datetime(2024, 1, 1))
 
     class LocalStubAdapter:
@@ -204,7 +204,7 @@ def test_reconcile_no_differences_returns_empty_list():
 
 
 def test_reconcile_report_with_size_tolerance():
-    pm = PortfolioManager(initial_cash=800.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=800.0, instrument=TEST_INSTRUMENT)
     pm.create_new_position("EURUSD", "long", 1.0, 1.0, datetime(2024, 1, 1))
 
     class LocalStubAdapter:
@@ -228,7 +228,7 @@ def test_reconcile_report_with_size_tolerance():
 
 def test_run_live_controller_dry_run(monkeypatch):
     adapter = StubAdapter([], {"open_side": None, "size": 0.0})
-    pm = PortfolioManager(initial_cash=500.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=500.0, instrument=TEST_INSTRUMENT)
     market = _make_market([1.0, 1.1])
 
     result = controller.run_live_controller(
@@ -247,7 +247,7 @@ def test_run_live_controller_with_orders_and_kill_switch(monkeypatch):
     signals = ["enter_long", "exit_long", "enter_long", "exit_long"]
     strategy = StubStrategy(signals)
     monkeypatch.setattr(controller, "compile_strategy", lambda cfg: strategy)
-    pm = PortfolioManager(initial_cash=1_000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=1_000.0, instrument=TEST_INSTRUMENT)
     pm.create_new_position("EURUSD", "long", 1.0, 1.0, datetime(2024, 1, 1))
 
     results = [StubOrder("accepted"), StubOrder("accepted"), StubOrder("accepted")]
@@ -283,7 +283,7 @@ def test_run_live_controller_rejected_order_and_empty_prices(monkeypatch):
     signals = ["long", "short"]
     strategy = StubStrategy(signals)
     monkeypatch.setattr(controller, "compile_strategy", lambda cfg: strategy)
-    pm = PortfolioManager(initial_cash=1_000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=1_000.0, instrument=TEST_INSTRUMENT)
 
     results = [StubOrder("rejected", "no"), StubOrder("accepted")]
     snapshot = {"open_side": None, "size": 0.0, "cash_balance": 1_000.0}
@@ -313,7 +313,7 @@ def test_run_live_controller_skips_flat_when_no_position(monkeypatch):
     signals = ["enter_long", "flat"]
     strategy = StubStrategy(signals)
     monkeypatch.setattr(controller, "compile_strategy", lambda cfg: strategy)
-    pm = PortfolioManager(initial_cash=500.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=500.0, instrument=TEST_INSTRUMENT)
 
     results = [StubOrder("accepted")]
     snapshot = {"open_side": None, "size": 0.0, "cash_balance": 500.0}
@@ -340,7 +340,7 @@ def test_run_live_controller_skips_flat_when_no_position(monkeypatch):
 def test_run_live_controller_handles_empty_market(monkeypatch):
     strategy = StubStrategy([])
     monkeypatch.setattr(controller, "compile_strategy", lambda cfg: strategy)
-    pm = PortfolioManager(initial_cash=1_000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=1_000.0, instrument=TEST_INSTRUMENT)
 
     adapter = StubAdapter([], {"open_side": None, "size": 0.0})
     monkeypatch.setattr(
@@ -363,7 +363,7 @@ def test_run_live_controller_handles_empty_market(monkeypatch):
 
 def test_controller_reconcile_report_side_mismatch():
     """Adapter/portfolio side mismatch triggers reconcile error (line 95)."""
-    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     pm.create_new_position("EURUSD", "long", 1.1000, 1.0, datetime(2024, 1, 1))
 
     adapter = Mock()
@@ -381,7 +381,7 @@ def test_controller_reconcile_report_side_mismatch():
 
 def test_controller_reconcile_report_size_mismatch():
     """Adapter/portfolio size mismatch triggers reconcile error (line 99)."""
-    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     pm.create_new_position("EURUSD", "long", 1.1000, 1.0, datetime(2024, 1, 1))
 
     adapter = Mock()
@@ -399,7 +399,7 @@ def test_controller_reconcile_report_size_mismatch():
 
 def test_controller_reconcile_report_size_none_handling():
     """Test reconcile_report when adapter returns None for size (line 98)."""
-    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     pm.create_new_position("EURUSD", "long", 1.1000, 1.0, datetime(2024, 1, 1))
 
     adapter = Mock()
@@ -434,7 +434,7 @@ def test_live_controller_flat_with_no_position():
         ],
     }
 
-    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     adapter = Mock()
     adapter.connect.return_value = None
     adapter.shutdown.return_value = None
@@ -475,7 +475,7 @@ def test_live_controller_max_orders_kill_switch():
         ],
     }
 
-    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     pm.create_new_position("EURUSD", "long", 1.0, 1.0, datetime(2024, 1, 1))
 
     adapter = Mock()
@@ -520,7 +520,7 @@ def test_live_controller_empty_market_data():
             {"any_of": [{"condition": "is_below", "left": "close", "right": 10.0}]}
         ],
     }
-    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     adapter = Mock()
     adapter.connect.return_value = None
     adapter.shutdown.return_value = None
@@ -540,7 +540,7 @@ def test_live_controller_empty_market_data():
 
 
 def test_reconcile_error_on_position_mismatch():
-    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     adapter = OandaStubAdapter(pm=pm)
 
     def mock_account_snapshot() -> dict[str, float | str | None]:
@@ -579,7 +579,7 @@ def test_controller_flat_desired_continues_loop():
             {"any_of": [{"condition": "is_below", "left": "close", "right": 0.5}]}
         ],
     }
-    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     adapter = OandaStubAdapter(pm=pm)
     res = run_live_controller(market_data=df, strategy_cfg=cfg, adapter=adapter, pm=pm)
     assert res.orders == 0
@@ -587,7 +587,7 @@ def test_controller_flat_desired_continues_loop():
 
 
 def test_reconcile_warn_on_cash_delta():
-    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     adapter = OandaStubAdapter(pm=pm)
 
     def mock_account_snapshot() -> dict[str, float | str | None]:
@@ -616,7 +616,7 @@ def test_controller_mark_price_equity_path():
         },
         index=idx,
     )
-    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     adapter = OandaStubAdapter(pm=pm)
     cfg = {
         "strategy_name": "S",
@@ -634,7 +634,7 @@ def test_controller_mark_price_equity_path():
 
 
 def test_reconcile_short_equity_and_legacy_reconcile():
-    pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)
     adapter = OandaStubAdapter(pm=pm)
     adapter.connect()
     adapter.place_order(

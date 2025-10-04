@@ -33,8 +33,7 @@ def test_pnl_calculation_waterfall():
         "pip_location": 0.0001,
     }
 
-    pm = PortfolioManager(
-        initial_cash=100000.0,
+    pm = PortfolioManager(base_currency="USD", initial_cash=100000.0,
         instrument=instrument,
         cost_model=cost_model_config,
     )
@@ -98,8 +97,7 @@ def test_pnl_waterfall_with_loss():
         "pip_location": 0.0001,
     }
 
-    pm = PortfolioManager(
-        initial_cash=100000.0,
+    pm = PortfolioManager(base_currency="USD", initial_cash=100000.0,
         instrument=instrument,
         cost_model=cost_model_config,
     )

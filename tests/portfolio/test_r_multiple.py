@@ -16,7 +16,7 @@ TEST_INSTRUMENT = {
 
 
 def test_r_multiple_long_with_stop():
-    pm = PortfolioManager(initial_cash=0.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=0.0, instrument=TEST_INSTRUMENT)
     pm.create_new_position(
         symbol="X",
         side="long",
@@ -34,7 +34,7 @@ def test_r_multiple_long_with_stop():
 
 
 def test_r_multiple_short_with_stop():
-    pm = PortfolioManager(initial_cash=0.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=0.0, instrument=TEST_INSTRUMENT)
     pm.create_new_position(
         symbol="X",
         side="short",
@@ -52,7 +52,7 @@ def test_r_multiple_short_with_stop():
 
 
 def test_r_multiple_none_without_stop():
-    pm = PortfolioManager(initial_cash=0.0, instrument=TEST_INSTRUMENT)
+    pm = PortfolioManager(base_currency="USD", initial_cash=0.0, instrument=TEST_INSTRUMENT)
     pm.create_new_position(
         symbol="X",
         side="long",

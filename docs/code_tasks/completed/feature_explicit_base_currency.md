@@ -6,7 +6,7 @@
 
 ### Implementation Steps
 
-1.  **[ ] Modify `PortfolioManager` to Require `base_currency`.**
+1.  **[X] Modify `PortfolioManager` to Require `base_currency`.**
     *   **File:** `src/trading_platform/portfolio/portfolio.py`
     *   **Action:**
         1.  Modify the `__init__` method signature to accept a new, non-optional string parameter: `base_currency: str`.
@@ -19,17 +19,17 @@
             ```
     *   **Reason:** This is the breaking change that makes the `base_currency` requirement explicit throughout the system. All tests that instantiate a `PortfolioManager` will now fail, guiding the refactoring.
 
-2.  **[ ] Run Pytest to Catalog All Failing Tests.**
+2.  **[X] Run Pytest to Catalog All Failing Tests.**
     *   **Action:** From the terminal, run the command `poetry run pytest`.
     *   **Expected Outcome:** You will see a large number of `TypeError` failures (estimated at 94) across approximately 14 test files. This is expected and confirms the full scope of the necessary updates.
 
-3.  **[ ] Update All Failing `PortfolioManager` Instantiations.**
+3.  **[X] Update All Failing `PortfolioManager` Instantiations.**
     *   **Action:** Go through each of the test files that failed in the previous step.
     *   **Logic:** For every line where a `PortfolioManager(...)` is created, add the new required `base_currency="USD"` argument.
     *   **Example:**
         *   **Old Code:** `pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT)`
-        *   **New Code:** `pm = PortfolioManager(initial_cash=1000.0, instrument=TEST_INSTRUMENT, base_currency="USD")`
+        *   **New Code:** `pm = PortfolioManager(base_currency="USD", initial_cash=1000.0, instrument=TEST_INSTRUMENT)`
 
-4.  **[ ] Final Verification.**
+4.  **[X] Final Verification.**
     *   **Action:** Execute `poetry run pytest` one last time.
     *   **Expected Outcome:** All tests should now pass, confirming that the refactoring is complete and no regressions were introduced.
