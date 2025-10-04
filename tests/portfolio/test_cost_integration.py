@@ -22,7 +22,11 @@ def test_portfolio_cost_breakdown_and_aggregate_with_lot_scaling():
         "slippage_per_unit": 0.2,  # per side
         "commission": {"type": "per_unit", "value": 2.0},  # per side
     }
-    pm = PortfolioManager(base_currency="USD", initial_cash=0.0, instrument=instrument, cost_model=cost_model
+    pm = PortfolioManager(
+        base_currency="USD",
+        initial_cash=0.0,
+        instrument=instrument,
+        cost_model=cost_model,
     )
 
     # Open position: size 10k units with lot 100k => 0.1 units
@@ -79,7 +83,11 @@ def test_spread_impacts_pnl_via_fill_price():
         "slippage_per_unit": 0.0,
         "commission": {"type": "per_unit", "value": 0.0},
     }
-    pm = PortfolioManager(base_currency="USD", initial_cash=100_000.0, instrument=instrument, cost_model=cost_model
+    pm = PortfolioManager(
+        base_currency="USD",
+        initial_cash=100_000.0,
+        instrument=instrument,
+        cost_model=cost_model,
     )
 
     # 1. Create Position

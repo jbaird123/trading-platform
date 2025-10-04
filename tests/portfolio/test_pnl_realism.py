@@ -35,25 +35,15 @@ def test_unrealized_pnl_reflects_full_spread():
     }
 
     # Create portfolio manager
-    pm = PortfolioManager(base_currency="USD", initial_cash=10000.0,
+    pm = PortfolioManager(
+        base_currency="USD",
+        initial_cash=10000.0,
         cost_model=cost_model_config,
         instrument=instrument,
     )
 
-    # Entry bar
-    entry_time = datetime(2025, 1, 1, 10, 0)
-    entry_bar = pd.Series(
-        {
-            "open": 1.1000,
-            "high": 1.1010,
-            "low": 1.0990,
-            "close": 1.1005,
-            "volume": 1000,
-        },
-        name=entry_time,
-    )
-
     # Open a long position at mid-price 1.1005
+    entry_time = datetime(2025, 1, 1, 10, 0)
     # Entry price for long = 1.1005 + spread/2 = 1.10055
     pm.create_new_position(
         symbol="EURUSD",
@@ -116,25 +106,15 @@ def test_unrealized_pnl_for_short_position():
         "pip_location": 0.0001,
     }
 
-    pm = PortfolioManager(base_currency="USD", initial_cash=10000.0,
+    pm = PortfolioManager(
+        base_currency="USD",
+        initial_cash=10000.0,
         cost_model=cost_model_config,
         instrument=instrument,
     )
 
-    # Entry bar
-    entry_time = datetime(2025, 1, 1, 10, 0)
-    entry_bar = pd.Series(
-        {
-            "open": 1.1000,
-            "high": 1.1010,
-            "low": 1.0990,
-            "close": 1.1005,
-            "volume": 1000,
-        },
-        name=entry_time,
-    )
-
     # Open a short position at mid-price 1.1005
+    entry_time = datetime(2025, 1, 1, 10, 0)
     # Entry price for short = 1.1005 - spread/2 = 1.10045
     pm.create_new_position(
         symbol="EURUSD",
@@ -195,25 +175,15 @@ def test_unrealized_pnl_negative_when_losing():
         "pip_location": 0.0001,
     }
 
-    pm = PortfolioManager(base_currency="USD", initial_cash=10000.0,
+    pm = PortfolioManager(
+        base_currency="USD",
+        initial_cash=10000.0,
         cost_model=cost_model_config,
         instrument=instrument,
     )
 
-    # Entry bar
-    entry_time = datetime(2025, 1, 1, 10, 0)
-    entry_bar = pd.Series(
-        {
-            "open": 1.1000,
-            "high": 1.1010,
-            "low": 1.0990,
-            "close": 1.1005,
-            "volume": 1000,
-        },
-        name=entry_time,
-    )
-
     # Open a long position
+    entry_time = datetime(2025, 1, 1, 10, 0)
     pm.create_new_position(
         symbol="EURUSD",
         side="long",
@@ -239,4 +209,5 @@ def test_unrealized_pnl_negative_when_losing():
     pm._update_position_metrics(update_bar)
 
     # Should be negative since price moved down
+    assert pm.current_position is not None
     assert pm.current_position.unrealized_pnl < 0
