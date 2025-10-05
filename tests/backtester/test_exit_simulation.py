@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 
 import pandas as pd
 import pytest
-
 from trading_platform.backtester.analysis.exit_simulation import (
     run_single_trade_simulation,
 )
@@ -132,9 +131,7 @@ def price_data_no_trigger():
 class TestExitSimulation:
     """Test run_single_trade_simulation function."""
 
-    def test_simulation_hits_stop_loss(
-        self, long_trade, price_data_hits_stop_loss
-    ):
+    def test_simulation_hits_stop_loss(self, long_trade, price_data_hits_stop_loss):
         """Test simulation where position hits stop-loss."""
         result = run_single_trade_simulation(
             trade=long_trade,
@@ -155,9 +152,7 @@ class TestExitSimulation:
         # MAE should be negative (went against position)
         assert result.mae_during_hold < 0
 
-    def test_simulation_hits_take_profit(
-        self, long_trade, price_data_hits_take_profit
-    ):
+    def test_simulation_hits_take_profit(self, long_trade, price_data_hits_take_profit):
         """Test simulation where position hits take-profit."""
         result = run_single_trade_simulation(
             trade=long_trade,
@@ -176,9 +171,7 @@ class TestExitSimulation:
         # MFE should be positive
         assert result.mfe_during_hold > 0
 
-    def test_simulation_held_full_period(
-        self, long_trade, price_data_no_trigger
-    ):
+    def test_simulation_held_full_period(self, long_trade, price_data_no_trigger):
         """Test simulation where position is held for full period."""
         result = run_single_trade_simulation(
             trade=long_trade,
