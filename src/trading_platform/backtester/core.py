@@ -82,9 +82,7 @@ def _enrich_trades_with_post_exit_analysis(
             simulated_holds.append(simulation)
 
         # Create PostExitAnalysis object
-        post_exit_analysis = PostExitAnalysis(
-            simulated_holds=simulated_holds
-        )
+        post_exit_analysis = PostExitAnalysis(simulated_holds=simulated_holds)
 
         # Mutate the trade object by creating a new one with updated data
         # Since Trade is frozen, we need to use object.__setattr__
@@ -245,8 +243,8 @@ def run_backtest(
                 context = {"strategy_features": context or {}, "regime": regime_data}
 
         # Evaluate risk-based exits using the Risk & Exit Manager (REM)
-        # REM exits (stop-loss, take-profit) are ALWAYS allowed regardless of min_hold_bars
-        # because they are protective risk management
+        # REM exits (stop-loss, take-profit) are ALWAYS allowed
+        # regardless of min_hold_bars (protective risk management)
         if portfolio.current_position:
             exit_details = rem.check_exits(
                 portfolio.current_position, current_bar, signal=signal
@@ -437,15 +435,14 @@ def run_backtest(
 
         for s in skipped:
             val = s.get("entry_index")
-            if isinstance(val, int):
-                si = val
-            else:  # pragma: no cover
-                # Defensive check - entry_index is always set to loop index
-                # (int) in normal operation
-                try:  # pragma: no cover
-                    si = int(str(val))  # pragma: no cover
-                except Exception:  # pragma: no cover
-                    continue  # pragma: no cover
+            if not isinstance(val, int):
+                # entry_index is always set to loop index (int)
+                # Non-int here means corrupted data structure - fail fast
+                raise ValueError(
+                    f"Corrupted skipped entry: entry_index must be int, "
+                    f"got {type(val).__name__}: {val}"
+                )
+            si = val
             side = str(s.get("side", "long"))
             entry_px = float(s.get("entry_price", market_data.iloc[si]["close"]))
             if use_fast:
