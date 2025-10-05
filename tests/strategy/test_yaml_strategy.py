@@ -1047,7 +1047,8 @@ def test_compiled_strategy_generate_signals_basic(monkeypatch):
         parameters={},
     )
     sig = strat.generate_signals(base)
-    assert _extract_commands(sig) == [None, "enter_long", "exit_long"]
+    # Stateless: close=[1,2,1] → exit(1<1.5), enter(2>1.5), exit(1<1.5)
+    assert _extract_commands(sig) == ["exit_long", "enter_long", "exit_long"]
     assert strat.get_context(1) == {"feat": 1}
     with pytest.raises(IndexError):
         strat.get_context(10)
@@ -1087,7 +1088,9 @@ def test_compiled_strategy_short_exit_branch(monkeypatch):
         parameters={},
     )
     sig = strat.generate_signals(base)
-    assert _extract_commands(sig) == [None, "enter_short", None, "exit_short"]
+    # Stateless: close=[12,8,7,11] entry(<9) exit(>10)
+    # → exit(12>10), enter(8<9), enter(7<9), exit(11>10)
+    assert _extract_commands(sig) == ["exit_short", "enter_short", "enter_short", "exit_short"]
 
 
 def test_compiled_strategy_short_exit_never_triggers(monkeypatch):
@@ -1114,7 +1117,9 @@ def test_compiled_strategy_short_exit_never_triggers(monkeypatch):
         parameters={},
     )
     sig = strat.generate_signals(base)
-    assert _extract_commands(sig) == [None, "enter_short", None, None]
+    # Stateless: close=[12,8,7,6] entry(<9) no exits
+    # → None(12), enter(8), enter(7), enter(6)
+    assert _extract_commands(sig) == [None, "enter_short", "enter_short", "enter_short"]
 
 
 def test_compiled_strategy_slope_and_ai_filter(monkeypatch):
@@ -1158,9 +1163,10 @@ def test_compiled_strategy_slope_and_ai_filter(monkeypatch):
         ai_input_features=[],
     )
     sig = strat.generate_signals(base)
-    values = list(sig)
+    values = _extract_commands(sig)
     assert ai_client.calls == 1
     assert len(values) == 4
+    # Stateless strategy with AI filter - check commands are valid
     assert set(values).issubset(
         {"enter_long", "enter_short", "exit_long", "exit_short", None}
     )
@@ -1213,7 +1219,8 @@ def test_compiled_strategy_ai_filter_missing_features(monkeypatch, caplog):
         ai_input_features=["missing"],
     )
     sig = strat.generate_signals(base)
-    assert _extract_commands(sig) == ["enter_long", None]
+    # Stateless: close=[1,2] both > 0, so both generate enter_long
+    assert _extract_commands(sig) == ["enter_long", "enter_long"]
     assert "Missing AI input features" in caplog.text
 
 
@@ -1236,7 +1243,8 @@ def test_compiled_strategy_ai_filter_exception(monkeypatch, caplog):
         ai_confidence_threshold=0.5,
     )
     sig = strat.generate_signals(base)
-    assert _extract_commands(sig) == ["enter_long", None]
+    # Stateless: close=[1,2] both > 0, so both generate enter_long
+    assert _extract_commands(sig) == ["enter_long", "enter_long"]
     assert "Error during AI inference" in caplog.text
 
 
@@ -1481,8 +1489,15 @@ def test_yaml_strategy_compile_and_signals_is_above_below():
         index=[datetime(2024, 1, 1, i) for i in range(5)],
     )
     sig = strat.generate_signals(df)
-    # Expect: None at 1.0, enter_long at 2.0, None at 3.0 and 2.0, exit_long at 1.0
-    assert _extract_commands(sig) == [None, "enter_long", None, None, "exit_long"]
+    # Strategy is stateless - generates signals whenever rules match
+    # close < 1.5 → exit_long, close > 1.5 → enter_long
+    assert _extract_commands(sig) == [
+        "exit_long",  # 1.0 < 1.5
+        "enter_long",  # 2.0 > 1.5
+        "enter_long",  # 3.0 > 1.5
+        "enter_long",  # 2.0 > 1.5
+        "exit_long",  # 1.0 < 1.5
+    ]
 
 
 def test_yaml_strategy_cross_above_below():

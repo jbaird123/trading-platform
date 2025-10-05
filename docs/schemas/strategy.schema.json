@@ -58,8 +58,8 @@
   },
   "required": ["strategy_name"],
   "anyOf": [
-    { "required": ["long_entry_rules", "long_exit_rules"] },
-    { "required": ["short_entry_rules", "short_exit_rules"] }
+    { "required": ["long_entry_rules"] },
+    { "required": ["short_entry_rules"] }
   ],
   "$defs": {
     "feature": {
@@ -119,7 +119,7 @@
       "type": "array",
       "description": "Ordered list of rule blocks; each must evaluate true.",
       "items": { "$ref": "#/$defs/rule_block" },
-      "minItems": 1
+      "minItems": 0
     },
     "rule_block": {
       "type": "object",
