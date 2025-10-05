@@ -120,29 +120,27 @@ def test_strategy_params_applied_before_compilation(tmp_path):
     # Calculate expected EMA values manually
     # EMA formula: EMA_t = (Price_t * K) + (EMA_{t-1} * (1 - K))
     # where K = 2 / (length + 1)
+    # pandas-ta needs warm-up period, so check bar 85 (after 80-period EMA)
 
     k_20 = 2 / 21
     k_80 = 2 / 81
 
-    # First bar initializes to price
-    assert feat_df.iloc[0]["ema_fast"] == df.iloc[0]["close"]
-    assert feat_df.iloc[0]["ema_slow"] == df.iloc[0]["close"]
-
-    # Second bar should use the formula
-    expected_fast_1 = (df.iloc[1]["close"] * k_20) + (
-        feat_df.iloc[0]["ema_fast"] * (1 - k_20)
+    # Check a bar well past warm-up (bar 85)
+    idx = 85
+    expected_fast = (df.iloc[idx]["close"] * k_20) + (
+        feat_df.iloc[idx - 1]["ema_fast"] * (1 - k_20)
     )
-    expected_slow_1 = (df.iloc[1]["close"] * k_80) + (
-        feat_df.iloc[0]["ema_slow"] * (1 - k_80)
+    expected_slow = (df.iloc[idx]["close"] * k_80) + (
+        feat_df.iloc[idx - 1]["ema_slow"] * (1 - k_80)
     )
 
-    assert abs(feat_df.iloc[1]["ema_fast"] - expected_fast_1) < 1e-10, (
-        f"EMA fast not using length=20: expected {expected_fast_1}, "
-        f"got {feat_df.iloc[1]['ema_fast']}"
+    assert abs(feat_df.iloc[idx]["ema_fast"] - expected_fast) < 1e-10, (
+        f"EMA fast not using length=20: expected {expected_fast}, "
+        f"got {feat_df.iloc[idx]['ema_fast']}"
     )
-    assert abs(feat_df.iloc[1]["ema_slow"] - expected_slow_1) < 1e-10, (
-        f"EMA slow not using length=80: expected {expected_slow_1}, "
-        f"got {feat_df.iloc[1]['ema_slow']}"
+    assert abs(feat_df.iloc[idx]["ema_slow"] - expected_slow) < 1e-10, (
+        f"EMA slow not using length=80: expected {expected_slow}, "
+        f"got {feat_df.iloc[idx]['ema_slow']}"
     )
 
 
@@ -249,17 +247,18 @@ def test_strategy_params_not_applied_uses_defaults():
     k_12 = 2 / 13
     k_26 = 2 / 27
 
-    # Second bar should use the formula with default lengths
-    expected_fast_1 = (df.iloc[1]["close"] * k_12) + (
-        feat_df.iloc[0]["ema_fast"] * (1 - k_12)
+    # Check bar 30 (well past warm-up for 26-period EMA)
+    idx = 30
+    expected_fast = (df.iloc[idx]["close"] * k_12) + (
+        feat_df.iloc[idx - 1]["ema_fast"] * (1 - k_12)
     )
-    expected_slow_1 = (df.iloc[1]["close"] * k_26) + (
-        feat_df.iloc[0]["ema_slow"] * (1 - k_26)
+    expected_slow = (df.iloc[idx]["close"] * k_26) + (
+        feat_df.iloc[idx - 1]["ema_slow"] * (1 - k_26)
     )
 
     assert (
-        abs(feat_df.iloc[1]["ema_fast"] - expected_fast_1) < 1e-10
+        abs(feat_df.iloc[idx]["ema_fast"] - expected_fast) < 1e-10
     ), "EMA fast not using default length=12"
     assert (
-        abs(feat_df.iloc[1]["ema_slow"] - expected_slow_1) < 1e-10
+        abs(feat_df.iloc[idx]["ema_slow"] - expected_slow) < 1e-10
     ), "EMA slow not using default length=26"

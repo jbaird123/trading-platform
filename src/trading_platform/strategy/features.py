@@ -2,39 +2,9 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+import numpy as np
 import pandas as pd
 import pandas_ta as ta
-
-try:
-    from ta.momentum import (
-        ROCIndicator,
-        RSIIndicator,
-        StochasticOscillator,
-    )
-    from ta.trend import (
-        MACD,
-        ADXIndicator,
-        CCIIndicator,
-        EMAIndicator,
-        PSARIndicator,
-        SMAIndicator,
-        WMAIndicator,
-    )
-    from ta.volatility import (
-        AverageTrueRange,
-        BollingerBands,
-        KeltnerChannel,
-    )
-    from ta.volume import (
-        ChaikinMoneyFlowIndicator,
-        OnBalanceVolumeIndicator,
-        VolumeWeightedAveragePrice,
-    )
-except Exception as exc:  # pragma: no cover
-    raise ImportError(
-        "The 'ta' library is required for indicator computations. Please "
-        "install it (poetry add ta) and re-run."
-    ) from exc
 
 
 def _price_series(df: pd.DataFrame, source: str) -> pd.Series:
@@ -55,63 +25,66 @@ def _price_series(df: pd.DataFrame, source: str) -> pd.Series:
 def ema(series: pd.Series, length: int) -> pd.Series:
     n = len(series)
     length = max(1, min(int(length), n))
-    return cast(
-        pd.Series,
-        EMAIndicator(close=series, window=length, fillna=True).ema_indicator(),
-    )
+    result = ta.ema(close=series, length=length)
+    if result is None:
+        return pd.Series([np.nan] * n, index=series.index, dtype="float64")
+    return cast(pd.Series, result)
 
 
 def rsi(series: pd.Series, length: int) -> pd.Series:
     length = max(1, int(length))
-    return cast(pd.Series, RSIIndicator(close=series, window=length, fillna=True).rsi())
+    result = ta.rsi(close=series, length=length)
+    if result is None:
+        return pd.Series(
+            [np.nan] * len(series), index=series.index, dtype="float64"
+        )
+    return cast(pd.Series, result)
 
 
 def atr(df: pd.DataFrame, length: int) -> pd.Series:
     n = len(df)
     length = max(1, min(int(length), n))
-    return cast(
-        pd.Series,
-        AverageTrueRange(
-            high=df["high"],
-            low=df["low"],
-            close=df["close"],
-            window=length,
-            fillna=True,
-        ).average_true_range(),
+    result = ta.atr(
+        high=df["high"], low=df["low"], close=df["close"], length=length
     )
+    if result is None:
+        return pd.Series([np.nan] * n, index=df.index, dtype="float64")
+    return cast(pd.Series, result)
 
 
 def adx(df: pd.DataFrame, length: int) -> pd.Series:
     n = len(df)
-    # ADX needs at least 3 bars; for very short windows, return zeros safely
     if n < 3:
-        return pd.Series([0.0] * n, index=df.index, dtype="float64")
-    # Clamp window to available length to avoid internal indexing errors
+        return pd.Series([np.nan] * n, index=df.index, dtype="float64")
     length = max(3, min(int(length), n))
 
     try:
-        return cast(
-            pd.Series,
-            ADXIndicator(
-                high=df["high"],
-                low=df["low"],
-                close=df["close"],
-                window=length,
-                fillna=True,
-            ).adx(),
+        result = ta.adx(
+            high=df["high"], low=df["low"], close=df["close"], length=length
         )
+        if result is None:
+            return pd.Series([np.nan] * n, index=df.index, dtype="float64")
+        # pandas_ta returns DataFrame with ADX, DMP, DMN columns
+        # We want the ADX column (first one)
+        if isinstance(result, pd.DataFrame):
+            return cast(pd.Series, result.iloc[:, 0])
+        return cast(pd.Series, result)
     except (IndexError, ValueError):
-        # If ADX calculation fails with the given data, return zeros
-        return pd.Series([0.0] * n, index=df.index, dtype="float64")
+        return pd.Series([np.nan] * n, index=df.index, dtype="float64")
 
 
 def bb_width(series: pd.Series, length: int, ndev: float) -> pd.Series:
     length = max(1, int(length))
     ndev = float(ndev)
-    bb = BollingerBands(close=series, window=length, window_dev=ndev, fillna=True)
-    hband = cast(pd.Series, bb.bollinger_hband())
-    lband = cast(pd.Series, bb.bollinger_lband())
-    mavg = cast(pd.Series, bb.bollinger_mavg()).replace(0, 1.0)
+    bb = ta.bbands(close=series, length=length, std=ndev)
+    if bb is None or bb.empty:
+        return pd.Series(
+            [np.nan] * len(series), index=series.index, dtype="float64"
+        )
+    # pandas_ta returns DataFrame with columns: BBL_length_std, BBM_, BBU_
+    hband = bb.iloc[:, 2]  # Upper band
+    lband = bb.iloc[:, 0]  # Lower band
+    mavg = bb.iloc[:, 1].replace(0, 1.0)  # Middle band
     return cast(pd.Series, (hband - lband) / mavg)
 
 
@@ -131,15 +104,19 @@ def llv(series: pd.Series, length: int) -> pd.Series:
     return series.rolling(window=length, min_periods=1).min()
 
 
-def donchian_channels(df: pd.DataFrame, length: int) -> tuple[pd.Series, pd.Series]:
+def donchian_channels(
+    df: pd.DataFrame, length: int
+) -> tuple[pd.Series, pd.Series]:
     length = max(1, int(length))
     upper = pd.Series(df["high"]).rolling(length, min_periods=1).max()
     lower = pd.Series(df["low"]).rolling(length, min_periods=1).min()
     return upper, lower
 
 
-def _resolve_parameter(param_value: Any, strategy_parameters: dict) -> Any:
-    """Resolves a parameter value, substituting placeholders like ${param_name}."""
+def _resolve_parameter(
+    param_value: Any, strategy_parameters: dict
+) -> Any:
+    """Resolves parameter, substituting placeholders like ${param_name}."""
     if not isinstance(param_value, str):
         return param_value
     if param_value.startswith("${") and param_value.endswith("}"):
@@ -148,7 +125,8 @@ def _resolve_parameter(param_value: Any, strategy_parameters: dict) -> Any:
             return strategy_parameters[param_name]
         else:
             raise ValueError(
-                f"Parameter '{param_name}' not found in strategy parameters."
+                f"Parameter '{param_name}' not found in strategy "
+                f"parameters."
             )
     return param_value
 
@@ -159,7 +137,11 @@ def compute_features(
     """Compute features as configured in specs.
 
     Each spec: {name, type, params, source}
-    Returns a DataFrame including original df plus new feature columns by name.
+    Returns DataFrame with original df plus new feature columns by name.
+
+    Note: Returns NaN values naturally where indicators need warm-up period.
+    The backtester will skip bars with NaN in required features.
+    The AI pipeline should call .dropna() explicitly if needed.
     """
     if strategy_parameters is None:
         strategy_parameters = {}
@@ -180,7 +162,8 @@ def compute_features(
 
         # Resolve parameters for the current feature
         resolved_params = {
-            k: _resolve_parameter(v, strategy_parameters) for k, v in params.items()
+            k: _resolve_parameter(v, strategy_parameters)
+            for k, v in params.items()
         }
 
         if typ == "EMA":
@@ -188,19 +171,23 @@ def compute_features(
             out[name] = ema(_price_series(df, source), length)
         elif typ == "SMA":
             length = int(resolved_params.get("length", 14))
-            out[name] = cast(
-                pd.Series,
-                SMAIndicator(
-                    close=_price_series(df, source), window=length, fillna=True
-                ).sma_indicator(),
+            result = ta.sma(close=_price_series(df, source), length=length)
+            out[name] = (
+                cast(pd.Series, result)
+                if result is not None
+                else pd.Series(
+                    [np.nan] * len(df), index=df.index, dtype="float64"
+                )
             )
         elif typ == "WMA":
             length = int(resolved_params.get("length", 14))
-            out[name] = cast(
-                pd.Series,
-                WMAIndicator(
-                    close=_price_series(df, source), window=length, fillna=True
-                ).wma(),
+            result = ta.wma(close=_price_series(df, source), length=length)
+            out[name] = (
+                cast(pd.Series, result)
+                if result is not None
+                else pd.Series(
+                    [np.nan] * len(df), index=df.index, dtype="float64"
+                )
             )
         elif typ == "RSI":
             length = int(resolved_params.get("length", 14))
@@ -211,15 +198,19 @@ def compute_features(
         elif typ == "ADX":
             out[name] = adx(df, int(resolved_params.get("length", 14)))
         elif typ == "BB":
-            bb = BollingerBands(
-                close=_price_series(df, source),
-                window=int(resolved_params.get("length", 20)),
-                window_dev=float(resolved_params.get("ndev", 2.0)),
-                fillna=True,
+            length = int(resolved_params.get("length", 20))
+            ndev = float(resolved_params.get("ndev", 2.0))
+            bb = ta.bbands(
+                close=_price_series(df, source), length=length, std=ndev
             )
-            out[f"{name}_upper"] = cast(pd.Series, bb.bollinger_hband())
-            out[f"{name}_lower"] = cast(pd.Series, bb.bollinger_lband())
-            out[f"{name}_middle"] = cast(pd.Series, bb.bollinger_mavg())
+            if bb is not None and not bb.empty:
+                out[f"{name}_upper"] = bb.iloc[:, 2]
+                out[f"{name}_lower"] = bb.iloc[:, 0]
+                out[f"{name}_middle"] = bb.iloc[:, 1]
+            else:
+                out[f"{name}_upper"] = np.nan
+                out[f"{name}_lower"] = np.nan
+                out[f"{name}_middle"] = np.nan
         elif typ == "BBWidth":
             out[name] = bb_width(
                 _price_series(df, source),
@@ -227,57 +218,86 @@ def compute_features(
                 float(resolved_params.get("ndev", 2.0)),
             )
         elif typ == "MACD":
-            macd = MACD(
+            slow = int(resolved_params.get("slow", 26))
+            fast = int(resolved_params.get("fast", 12))
+            signal = int(resolved_params.get("signal", 9))
+            macd = ta.macd(
                 close=_price_series(df, source),
-                window_slow=int(resolved_params.get("slow", 26)),
-                window_fast=int(resolved_params.get("fast", 12)),
-                window_sign=int(resolved_params.get("signal", 9)),
-                fillna=True,
+                fast=fast,
+                slow=slow,
+                signal=signal,
             )
-            out[f"{name}_macd"] = cast(pd.Series, macd.macd())
-            out[f"{name}_signal"] = cast(pd.Series, macd.macd_signal())
-            out[f"{name}_diff"] = cast(pd.Series, macd.macd_diff())
+            if macd is not None and not macd.empty:
+                # pandas_ta returns: MACD_f_s, MACDh_f_s, MACDs_f_s
+                out[f"{name}_macd"] = macd.iloc[:, 0]
+                out[f"{name}_signal"] = macd.iloc[:, 2]
+                out[f"{name}_diff"] = macd.iloc[:, 1]
+            else:
+                out[f"{name}_macd"] = np.nan
+                out[f"{name}_signal"] = np.nan
+                out[f"{name}_diff"] = np.nan
         elif typ == "PSAR":
-            psar = PSARIndicator(
+            step = float(resolved_params.get("step", 0.02))
+            max_step = float(resolved_params.get("max", 0.2))
+            psar = ta.psar(
                 high=df["high"],
                 low=df["low"],
                 close=df["close"],
-                step=float(resolved_params.get("step", 0.02)),
-                max_step=float(resolved_params.get("max", 0.2)),
-                fillna=True,
+                af0=step,
+                af=step,
+                max_af=max_step,
             )
-            out[f"{name}"] = cast(pd.Series, psar.psar())
-            out[f"{name}_up"] = cast(pd.Series, psar.psar_up())
-            out[f"{name}_down"] = cast(pd.Series, psar.psar_down())
+            if psar is not None and not psar.empty:
+                # pandas_ta returns multiple columns
+                out[f"{name}"] = psar.iloc[:, 3]  # PSARl/s
+                out[f"{name}_up"] = psar.iloc[:, 0]  # PSARl
+                out[f"{name}_down"] = psar.iloc[:, 1]  # PSARs
+            else:
+                out[f"{name}"] = np.nan
+                out[f"{name}_up"] = np.nan
+                out[f"{name}_down"] = np.nan
         elif typ == "STOCH":
-            st = StochasticOscillator(
+            length = int(resolved_params.get("length", 14))
+            k = int(resolved_params.get("k", 3))
+            d = int(resolved_params.get("d", 3))
+            stoch = ta.stoch(
                 high=df["high"],
                 low=df["low"],
                 close=df["close"],
-                window=int(resolved_params.get("length", 14)),
-                fillna=True,
+                k=length,
+                d=d,
+                smooth_k=k,
             )
-            out[f"{name}"] = cast(pd.Series, st.stoch())
-            out[f"{name}_signal"] = cast(pd.Series, st.stoch_signal())
+            if stoch is not None and not stoch.empty:
+                out[f"{name}"] = stoch.iloc[:, 0]  # STOCHk
+                out[f"{name}_signal"] = stoch.iloc[:, 1]  # STOCHd
+            else:
+                out[f"{name}"] = np.nan
+                out[f"{name}_signal"] = np.nan
         elif typ == "CCI":
-            out[name] = cast(
-                pd.Series,
-                CCIIndicator(
-                    high=df["high"],
-                    low=df["low"],
-                    close=df["close"],
-                    window=int(resolved_params.get("length", 20)),
-                    fillna=True,
-                ).cci(),
+            length = int(resolved_params.get("length", 20))
+            result = ta.cci(
+                high=df["high"],
+                low=df["low"],
+                close=df["close"],
+                length=length,
+            )
+            out[name] = (
+                cast(pd.Series, result)
+                if result is not None
+                else pd.Series(
+                    [np.nan] * len(df), index=df.index, dtype="float64"
+                )
             )
         elif typ == "ROC":
-            out[name] = cast(
-                pd.Series,
-                ROCIndicator(
-                    close=_price_series(df, source),
-                    window=int(resolved_params.get("length", 12)),
-                    fillna=True,
-                ).roc(),
+            length = int(resolved_params.get("length", 12))
+            result = ta.roc(close=_price_series(df, source), length=length)
+            out[name] = (
+                cast(pd.Series, result)
+                if result is not None
+                else pd.Series(
+                    [np.nan] * len(df), index=df.index, dtype="float64"
+                )
             )
         elif typ == "HHV":
             series_in = (
@@ -294,51 +314,69 @@ def compute_features(
             )
             out[name] = llv(series_in, int(resolved_params.get("length", 20)))
         elif typ == "DC":
-            up, lo = donchian_channels(df, int(resolved_params.get("length", 20)))
+            up, lo = donchian_channels(
+                df, int(resolved_params.get("length", 20))
+            )
             out[f"{name}_upper"] = up
             out[f"{name}_lower"] = lo
         elif typ == "KC":
-            kc = KeltnerChannel(
+            length = int(resolved_params.get("length", 20))
+            mult = float(resolved_params.get("mult", 2.0))
+            kc = ta.kc(
                 high=df["high"],
                 low=df["low"],
                 close=df["close"],
-                window=int(resolved_params.get("length", 20)),
-                window_atr=int(resolved_params.get("length", 20)),
-                original_version=False,
-                fillna=True,
+                length=length,
+                scalar=mult,
             )
-            out[f"{name}_upper"] = cast(pd.Series, kc.keltner_channel_hband())
-            out[f"{name}_lower"] = cast(pd.Series, kc.keltner_channel_lband())
-            out[f"{name}_middle"] = cast(pd.Series, kc.keltner_channel_mband())
+            if kc is not None and not kc.empty:
+                out[f"{name}_upper"] = kc.iloc[:, 2]
+                out[f"{name}_lower"] = kc.iloc[:, 0]
+                out[f"{name}_middle"] = kc.iloc[:, 1]
+            else:
+                out[f"{name}_upper"] = np.nan
+                out[f"{name}_lower"] = np.nan
+                out[f"{name}_middle"] = np.nan
         elif typ == "OBV":
-            out[name] = cast(
-                pd.Series,
-                OnBalanceVolumeIndicator(
-                    close=_price_series(df, source), volume=df["volume"], fillna=True
-                ).on_balance_volume(),
+            result = ta.obv(
+                close=_price_series(df, source), volume=df["volume"]
+            )
+            out[name] = (
+                cast(pd.Series, result)
+                if result is not None
+                else pd.Series(
+                    [np.nan] * len(df), index=df.index, dtype="float64"
+                )
             )
         elif typ == "CMF":
-            out[name] = cast(
-                pd.Series,
-                ChaikinMoneyFlowIndicator(
-                    high=df["high"],
-                    low=df["low"],
-                    close=df["close"],
-                    volume=df["volume"],
-                    window=int(resolved_params.get("length", 20)),
-                    fillna=True,
-                ).chaikin_money_flow(),
+            length = int(resolved_params.get("length", 20))
+            result = ta.cmf(
+                high=df["high"],
+                low=df["low"],
+                close=df["close"],
+                volume=df["volume"],
+                length=length,
+            )
+            out[name] = (
+                cast(pd.Series, result)
+                if result is not None
+                else pd.Series(
+                    [np.nan] * len(df), index=df.index, dtype="float64"
+                )
             )
         elif typ == "VWAP":
-            out[name] = cast(
-                pd.Series,
-                VolumeWeightedAveragePrice(
-                    high=df["high"],
-                    low=df["low"],
-                    close=df["close"],
-                    volume=df["volume"],
-                    fillna=True,
-                ).vwap,
+            result = ta.vwap(
+                high=df["high"],
+                low=df["low"],
+                close=df["close"],
+                volume=df["volume"],
+            )
+            out[name] = (
+                cast(pd.Series, result)
+                if result is not None
+                else pd.Series(
+                    [np.nan] * len(df), index=df.index, dtype="float64"
+                )
             )
         elif typ == "CHOP":
             chop = ta.chop(
@@ -348,9 +386,14 @@ def compute_features(
                 length=int(resolved_params.get("length", 14)),
                 atr_length=int(resolved_params.get("atr_length", 1)),
                 scalar=float(resolved_params.get("scalar", 100.0)),
-                fillna=True,
             )
-            out[name] = cast(pd.Series, chop)
+            out[name] = (
+                cast(pd.Series, chop)
+                if chop is not None
+                else pd.Series(
+                    [np.nan] * len(df), index=df.index, dtype="float64"
+                )
+            )
         elif typ == "ICHIMOKU":
             ichimoku_df, _ = ta.ichimoku(
                 high=df["high"],
@@ -359,14 +402,19 @@ def compute_features(
                 tenkan=int(resolved_params.get("tenkan", 9)),
                 kijun=int(resolved_params.get("kijun", 26)),
                 senkou=int(resolved_params.get("senkou", 52)),
-                fillna=True,
             )
-            # pandas-ta names columns like 'ISA_9', 'ISB_26'. We'll map them.
-            out[f"{name}_tenkan"] = ichimoku_df.iloc[:, 0]  # Tenkan-sen
-            out[f"{name}_kijun"] = ichimoku_df.iloc[:, 1]  # Kijun-sen
-            out[f"{name}_senkou_a"] = ichimoku_df.iloc[:, 2]  # Senkou Span A
-            out[f"{name}_senkou_b"] = ichimoku_df.iloc[:, 3]  # Senkou Span B
-            out[f"{name}_chikou"] = ichimoku_df.iloc[:, 4]  # Chikou Span
+            if ichimoku_df is not None and not ichimoku_df.empty:
+                out[f"{name}_tenkan"] = ichimoku_df.iloc[:, 0]
+                out[f"{name}_kijun"] = ichimoku_df.iloc[:, 1]
+                out[f"{name}_senkou_a"] = ichimoku_df.iloc[:, 2]
+                out[f"{name}_senkou_b"] = ichimoku_df.iloc[:, 3]
+                out[f"{name}_chikou"] = ichimoku_df.iloc[:, 4]
+            else:
+                out[f"{name}_tenkan"] = np.nan
+                out[f"{name}_kijun"] = np.nan
+                out[f"{name}_senkou_a"] = np.nan
+                out[f"{name}_senkou_b"] = np.nan
+                out[f"{name}_chikou"] = np.nan
         elif typ == "SUPERTREND":
             st = ta.supertrend(
                 high=df["high"],
@@ -376,14 +424,37 @@ def compute_features(
                 multiplier=float(resolved_params.get("multiplier", 3.0)),
             )
             if st is not None and not st.empty:
-                # pandas-ta names columns like 'SUPERT_7_3.0'. We'll map them.
-                out[f"{name}"] = st.iloc[:, 0]  # The SuperTrend line
-                out[f"{name}_direction"] = st.iloc[:, 1]  # Direction (-1 or 1)
-                out[f"{name}_long"] = st.iloc[:, 2]  # Long stop
-                out[f"{name}_short"] = st.iloc[:, 3]  # Short stop
+                out[f"{name}"] = st.iloc[:, 0]
+                out[f"{name}_direction"] = st.iloc[:, 1]
+                out[f"{name}_long"] = st.iloc[:, 2]
+                out[f"{name}_short"] = st.iloc[:, 3]
             else:
-                # Handle case where supertrend returns None or empty
-                out[name] = pd.NA
+                out[name] = np.nan
+                out[f"{name}_direction"] = np.nan
+                out[f"{name}_long"] = np.nan
+                out[f"{name}_short"] = np.nan
+        elif typ.startswith("CDL_"):
+            # Candlestick patterns
+            pattern_name = typ[4:].lower()  # Remove CDL_ prefix
+            if hasattr(ta, f"cdl_{pattern_name}"):
+                pattern_func = getattr(ta, f"cdl_{pattern_name}")
+                result = pattern_func(
+                    open_=df["open"],
+                    high=df["high"],
+                    low=df["low"],
+                    close=df["close"],
+                )
+                out[name] = (
+                    cast(pd.Series, result)
+                    if result is not None
+                    else pd.Series(
+                        [np.nan] * len(df), index=df.index, dtype="float64"
+                    )
+                )
+            else:
+                out[name] = np.nan
         else:
-            out[name] = pd.NA
+            out[name] = np.nan
+
+    # Return with natural NaN values - consuming code handles them
     return out

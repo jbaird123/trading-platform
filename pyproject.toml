@@ -67,7 +67,7 @@ show_error_codes = true
 module = [
     "scipy.*",
     "sklearn.*",
-    "ta.*",
+    "pandas_ta.*",
     "yaml",
     "skl2onnx.*",
     "lightgbm.*",
@@ -94,9 +94,6 @@ testpaths = ["tests"]
 # Ignore the benign "usefixtures" warning from pytest-bdd's scenario generator
 filterwarnings = [
     "ignore:usefixtures.*has no effect:pytest.PytestWarning",
-    # Third-party ta library emits a FutureWarning inside PSAR when assigning
-    # float into an int-typed Series; harmless for our tests, ignore it.
-    "ignore:Setting an item of incompatible dtype is deprecated:FutureWarning:ta.trend",
     # Third-party onnx library emits a DeprecationWarning from skl2onnx; harmless for our tests, ignore it.
     "ignore:Field onnx.AttributeProto.ints:DeprecationWarning:onnx.helper",
     # Third-party starlette library emits a PendingDeprecationWarning; harmless for our tests, ignore it.
