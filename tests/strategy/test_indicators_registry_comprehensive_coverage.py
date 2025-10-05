@@ -198,12 +198,17 @@ def test_level_indicators_category():
 def test_pattern_indicators_category():
     """Test pattern indicators are properly categorized."""
     pattern_indicators = [
-        "CDL_DOJI", "CDL_HAMMER", "CDL_ENGULFING", "CDL_MORNINGSTAR",
-        "CDL_EVENINGSTAR", "CDL_HARAMI"
+        "CDL_DOJI",
+        "CDL_HAMMER",
+        "CDL_ENGULFING",
+        "CDL_MORNINGSTAR",
+        "CDL_EVENINGSTAR",
+        "CDL_HARAMI",
     ]
     for indicator in pattern_indicators:
         if indicator in INDICATORS:
             assert INDICATORS[indicator]["category"] == "pattern"
+
 
 def test_indicator_display_names():
     """Test that all indicators have meaningful display names."""
