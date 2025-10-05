@@ -3,6 +3,7 @@ from __future__ import annotations
 #! ruff: noqa: I001
 import argparse
 import json
+import logging
 import subprocess
 import sys
 from datetime import datetime
@@ -17,7 +18,6 @@ from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
 from trading_platform.core.demo import generate_demo_run
 from trading_platform.core.policy import TradingWindowPolicy
-from trading_platform.core.robustness import walk_forward_summary
 from trading_platform.core.run import finalize_run, initialize_run
 from trading_platform.core.sweeps import (
     run_parameter_sweep,
@@ -39,6 +39,8 @@ from trading_platform.reporting.csv_export import save_prices_csv
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
 
+logger = logging.getLogger(__name__)
+
 
 def _get_git_commit() -> str | None:
     """Return the short git commit hash, or None if git fails."""
@@ -48,7 +50,10 @@ def _get_git_commit() -> str | None:
             .decode("ascii")
             .strip()
         )
-    except Exception:
+    except Exception as e:
+        # Safe to continue: git commit hash is metadata only
+        # System works fine without it
+        logger.debug(f"Failed to get git commit hash: {e}")
         return None
 
 
@@ -137,7 +142,10 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     try:
         processed_data_path = run_path / "processed_data.parquet"
         df.to_parquet(processed_data_path)
-    except Exception:
+    except Exception as e:
+        # Safe to continue: processed_data.parquet is for AI Lab analysis
+        # Not required for backtest results
+        logger.warning(f"Failed to save processed data parquet: {e}")
         processed_data_path = None
 
     # Strategy can be embedded or referenced via a separate YAML/JSON file
@@ -213,8 +221,9 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     feature_enriched_df = strat._feature_df if strat._feature_df is not None else df
     if feature_enriched_df is not None:
         # Defensive checks: feature_df must match input df's length and index type
-        if (len(feature_enriched_df) != len(df) or
-            type(feature_enriched_df.index) != type(df.index)):
+        if len(feature_enriched_df) != len(df) or not isinstance(
+            feature_enriched_df.index, type(df.index)
+        ):
             # Fall back to raw df if mismatched (can happen in tests with mocks)
             feature_enriched_df = df
 
@@ -233,20 +242,29 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         else:
             signals_df = pd.DataFrame(signals)
         signals_df.to_parquet(signals_path)
-    except Exception:  # pragma: no cover
-        signals_path = None  # pragma: no cover - Defensive: file save might fail
+    except Exception as e:  # pragma: no cover
+        # Safe to continue: signals.parquet is for AI Lab post-analysis
+        # Not required for backtest results
+        logger.warning(
+            f"Failed to save signals.parquet for AI Lab: {e}"
+        )  # pragma: no cover
+        signals_path = None  # pragma: no cover
 
     # Persist prices and features for charts before finalize_run
     try:
         save_prices_csv(run_path / "prices.csv", df)
-    except Exception:  # pragma: no cover
-        pass  # pragma: no cover - Defensive: price save might fail
+    except Exception as e:  # pragma: no cover
+        # Safe to continue: prices.csv is only for interactive charts
+        # brief.json contains all data needed for analysis
+        logger.warning(f"Failed to save prices.csv: {e}")  # pragma: no cover
     try:
         fdf = getattr(strat, "_feature_df", None)
         if fdf is not None:
             save_features_for_chart(run_path, fdf, strat.features)
-    except Exception:  # pragma: no cover
-        pass  # pragma: no cover - Defensive: feature save might fail
+    except Exception as e:  # pragma: no cover
+        # Safe to continue: features.json is for charts/debugging only
+        # Not required for backtest analysis
+        logger.warning(f"Failed to save features: {e}")  # pragma: no cover
 
     # REM can be embedded or referenced via a separate file
     rem_cfg: dict[str, Any] | None = cfg_raw.get("rem_config")
@@ -346,10 +364,13 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             rmm_spans_path = run_path / "rmm_spans.json"
             rmm_spans_path.write_text(json.dumps(spans))
             print(f"- RMM spans: {rmm_spans_path}")
-        except Exception:  # pragma: no cover
-            rmm_spans_path = (
-                None  # pragma: no cover - Defensive: RMM span save might fail
-            )
+        except Exception as e:  # pragma: no cover
+            # Safe to continue: rmm_spans.json is for chart shading only
+            # Not required for backtest analysis
+            logger.warning(
+                f"Failed to save RMM spans for chart: {e}"
+            )  # pragma: no cover
+            rmm_spans_path = None  # pragma: no cover
 
     # Output toggles; default to no exposure unless explicitly requested
     ret_exp = bool(cfg_raw.get("return_exposure", False))

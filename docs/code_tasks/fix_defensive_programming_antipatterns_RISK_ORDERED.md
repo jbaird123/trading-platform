@@ -106,7 +106,7 @@ If the answer to #1 is "uncertain" or #2 is "yes" or #3 is "yes" → **FAIL FAST
 
 ## Sprint 2: Silent Failures - Quick Wins (Days 3-4)
 
-### 5. [ ] Fix cli.py - Save prices.csv failure (line ~450)
+### 5. [X] Fix cli.py - Save prices.csv failure (line ~450)
 - **Priority:** MEDIUM - Silent failure, easy fix
 - **Estimated Time:** 15 minutes
 - **Current:** Silent `except Exception: pass`
@@ -120,7 +120,7 @@ If the answer to #1 is "uncertain" or #2 is "yes" or #3 is "yes" → **FAIL FAST
   - Verify CLI still returns success (0)
 - **Acceptance:** Test passes, warning appears in logs
 
-### 6. [ ] Fix cli.py - Save features failure (line ~455)
+### 6. [X] Fix cli.py - Save features failure (line ~455)
 - **Priority:** MEDIUM - Silent failure, easy fix
 - **Estimated Time:** 15 minutes
 - **Current:** Silent `except Exception: pass`
@@ -131,7 +131,7 @@ If the answer to #1 is "uncertain" or #2 is "yes" or #3 is "yes" → **FAIL FAST
   - Verify warning logged
 - **Acceptance:** Test passes, warning appears in logs
 
-### 7. [ ] Fix cli.py - Signals parquet save failure (line ~470)
+### 7. [X] Fix cli.py - Signals parquet save failure (line ~470)
 - **Priority:** MEDIUM - Silent failure, easy fix
 - **Estimated Time:** 15 minutes
 - **Current:** Silent `except Exception: pass` with pragma comment
@@ -142,7 +142,7 @@ If the answer to #1 is "uncertain" or #2 is "yes" or #3 is "yes" → **FAIL FAST
 - **Test:** `tests/cli/test_cli_error_handling.py::test_signals_save_failure_logged`
 - **Acceptance:** Test passes, warning logged
 
-### 8. [ ] Fix cli.py - RMM spans save failure (line ~690)
+### 8. [X] Fix cli.py - RMM spans save failure (line ~690)
 - **Priority:** MEDIUM - Silent failure, easy fix
 - **Estimated Time:** 15 minutes
 - **Current:** Silent `except Exception: pass` with pragma comment
@@ -151,7 +151,7 @@ If the answer to #1 is "uncertain" or #2 is "yes" or #3 is "yes" → **FAIL FAST
 - **Test:** `tests/cli/test_cli_error_handling.py::test_rmm_spans_save_failure_logged`
 - **Acceptance:** Test passes, warning logged
 
-### 9. [ ] Fix cli.py - Processed data parquet save failure (line ~250)
+### 9. [X] Fix cli.py - Processed data parquet save failure (line ~250)
 - **Priority:** MEDIUM - Silent failure, easy fix
 - **Estimated Time:** 15 minutes
 - **Current:** Silent `except Exception: pass`
@@ -160,7 +160,7 @@ If the answer to #1 is "uncertain" or #2 is "yes" or #3 is "yes" → **FAIL FAST
 - **Test:** `tests/cli/test_cli_error_handling.py::test_processed_data_save_failure_logged`
 - **Acceptance:** Test passes, warning logged
 
-### 10. [ ] Fix core/run.py - CSV export failure (parameter_search_results.csv)
+### 10. [X] Fix core/run.py - CSV export failure (parameter_search_results.csv)
 - **Priority:** MEDIUM - Silent failure, easy fix
 - **Estimated Time:** 15 minutes
 - **Current:** `except Exception: pass` (silent)
@@ -169,7 +169,7 @@ If the answer to #1 is "uncertain" or #2 is "yes" or #3 is "yes" → **FAIL FAST
 - **Test:** `tests/core/test_run_error_handling.py::test_param_search_csv_export_logged`
 - **Acceptance:** Test passes, warning logged
 
-### 11. [ ] Fix cli.py - Git commit hash failure handling
+### 11. [X] Fix cli.py - Git commit hash failure handling
 - **Priority:** LOW - Metadata only, but should log
 - **Estimated Time:** 15 minutes
 - **Current:** `except Exception: return None` (silent)

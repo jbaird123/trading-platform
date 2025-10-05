@@ -218,6 +218,8 @@ def finalize_run(
     # Export trades CSV for convenience
     try:
         save_trades_csv(run_path / "trades.csv", trades)
-    except Exception:  # pragma: no cover
-        pass
+    except Exception as e:  # pragma: no cover
+        # Safe to continue: trades.csv is for convenience only
+        # brief.json contains all trade data
+        logging.warning(f"Failed to save trades.csv: {e}")  # pragma: no cover
     return brief_path
