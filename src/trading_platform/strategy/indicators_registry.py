@@ -215,7 +215,9 @@ INDICATORS: dict[str, dict] = {
     "SUPERTREND": {
         "display": "SuperTrend",
         "category": "trend",
-        "description": "Popular trend-following indicator used for trend direction and stops.",
+        "description": (
+            "Popular trend-following indicator used for " "trend direction and stops."
+        ),
         "params": [
             {"name": "length", "type": "int", "default": 7},
             {"name": "multiplier", "type": "float", "default": 3.0},

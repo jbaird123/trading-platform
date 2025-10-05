@@ -1090,7 +1090,12 @@ def test_compiled_strategy_short_exit_branch(monkeypatch):
     sig = strat.generate_signals(base)
     # Stateless: close=[12,8,7,11] entry(<9) exit(>10)
     # → exit(12>10), enter(8<9), enter(7<9), exit(11>10)
-    assert _extract_commands(sig) == ["exit_short", "enter_short", "enter_short", "exit_short"]
+    assert _extract_commands(sig) == [
+        "exit_short",
+        "enter_short",
+        "enter_short",
+        "exit_short",
+    ]
 
 
 def test_compiled_strategy_short_exit_never_triggers(monkeypatch):

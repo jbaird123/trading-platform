@@ -250,11 +250,10 @@ class CompiledStrategy:
         for i in range(len(df2)):
             signal: Signal | None = None
 
-            # Check entry signals first - they take precedence to enable position flipping
-            # When both entry and exit trigger on same bar (e.g. EMA crossover), entry wins
-            if bool(le.iloc[i]) and (
-                not self.slope_filter or bool(slope_up.iloc[i])
-            ):
+            # Check entry signals first - they take precedence to
+            # enable position flipping. When both entry and exit
+            # trigger on same bar (e.g. EMA crossover), entry wins
+            if bool(le.iloc[i]) and (not self.slope_filter or bool(slope_up.iloc[i])):
                 triggered_block = _find_triggered_block(le_blocks, i)
                 context = (
                     self._extract_context(df2, triggered_block, i)
