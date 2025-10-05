@@ -88,6 +88,13 @@ class RunConfig(BaseModel):
             "-1 = infinite (always try when signal is active, state-based)."
         ),
     )
+    min_hold_bars: int = Field(
+        default=0,
+        description=(
+            "Minimum number of bars a position must be held before any exit "
+            "(REM or signal-based) is allowed. Prevents premature exits."
+        ),
+    )
     # Trading window / blackout policy
     blackout_utc: list[tuple[str, str]] = Field(
         default_factory=list,

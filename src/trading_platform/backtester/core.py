@@ -31,16 +31,25 @@ def _enrich_trades_with_post_exit_analysis(
     horizons: list[int],
 ) -> None:
     """
-    Enrich trades with post-exit price movement analysis.
+    Enrich trades with realistic post-exit simulations.
 
-    For each trade, tracks the maximum favorable and adverse price excursions
-    for N bars after the exit, where N is each horizon in the horizons list.
+    For each trade, simulates holding the position for N additional bars
+    after exit, accounting for stop-loss and take-profit triggers.
+    This provides realistic "what-if" analysis instead of misleading
+    raw MFE/MAE values.
 
     Args:
         trades: List of Trade objects to enrich (modified in-place)
         market_data: DataFrame with OHLCV data indexed by datetime
-        horizons: List of bar counts to track (e.g., [10, 20, 50])
+        horizons: List of bar counts to simulate (e.g., [10, 20, 50])
     """
+    from trading_platform.backtester.analysis.exit_simulation import (
+        run_single_trade_simulation,
+    )
+    from trading_platform.reporting.models.exit_analysis import (
+        PostExitAnalysis,
+    )
+
     if not trades or not horizons:
         return
 
@@ -55,52 +64,31 @@ def _enrich_trades_with_post_exit_analysis(
             # Exit time not found in data - skip this trade
             continue
 
-        post_exit_data: dict[str, dict[str, float]] = {}
+        # Get the slice of data after exit for simulations
+        post_exit_data = market_data.iloc[exit_idx + 1 :]
 
+        if len(post_exit_data) == 0:
+            # No data available after exit - create empty PostExitAnalysis
+            post_exit_analysis = PostExitAnalysis(simulated_holds=[])
+            object.__setattr__(trade, "post_exit_analysis", post_exit_analysis)
+            continue
+
+        # Run simulations for each horizon
+        simulated_holds = []
         for horizon in horizons:
-            end_idx = min(exit_idx + horizon, len(market_data) - 1)
+            simulation = run_single_trade_simulation(
+                trade=trade, price_data=post_exit_data, hold_bars=horizon
+            )
+            simulated_holds.append(simulation)
 
-            if end_idx <= exit_idx:
-                # No data available after exit
-                post_exit_data[str(horizon)] = {"mfe": 0.0, "mae": 0.0}
-                continue
-
-            # Get the slice of data after exit
-            post_bars = market_data.iloc[exit_idx + 1 : end_idx + 1]
-
-            if len(post_bars) == 0:  # pragma: no cover
-                # Defensive check - unreachable in practice since iloc slicing
-                # with valid indices always returns data
-                post_exit_data[str(horizon)] = {"mfe": 0.0, "mae": 0.0}
-                continue  # pragma: no cover
-
-            # Calculate MFE and MAE based on trade side
-            entry_price = trade.exit_price  # Start from exit price
-            highs = post_bars["high"].to_numpy()
-            lows = post_bars["low"].to_numpy()
-            size = trade.size
-
-            if trade.side == "long":
-                # For long: favorable = price went up, adverse = price went down
-                price_diffs_high = highs - entry_price
-                price_diffs_low = lows - entry_price
-                mfe = float(max(price_diffs_high) * size) if len(highs) > 0 else 0.0
-                mae = float(min(price_diffs_low) * size) if len(lows) > 0 else 0.0
-            else:
-                # For short: favorable = price went down, adverse = price went up
-                price_diffs_low = entry_price - lows
-                price_diffs_high = entry_price - highs
-                mfe = float(max(price_diffs_low) * size) if len(lows) > 0 else 0.0
-                mae = float(min(price_diffs_high) * size) if len(highs) > 0 else 0.0
-
-            post_exit_data[str(horizon)] = {
-                "mfe": mfe,  # Keep full precision - rounding happens in brief.py
-                "mae": mae,
-            }
+        # Create PostExitAnalysis object
+        post_exit_analysis = PostExitAnalysis(
+            simulated_holds=simulated_holds
+        )
 
         # Mutate the trade object by creating a new one with updated data
         # Since Trade is frozen, we need to use object.__setattr__
-        object.__setattr__(trade, "post_exit_analysis", post_exit_data)
+        object.__setattr__(trade, "post_exit_analysis", post_exit_analysis)
 
 
 def resolve_instrument_symbol(instrument: Any) -> str:
@@ -257,7 +245,8 @@ def run_backtest(
                 context = {"strategy_features": context or {}, "regime": regime_data}
 
         # Evaluate risk-based exits using the Risk & Exit Manager (REM)
-        # This is evaluated before processing strategy commands
+        # REM exits (stop-loss, take-profit) are ALWAYS allowed regardless of min_hold_bars
+        # because they are protective risk management
         if portfolio.current_position:
             exit_details = rem.check_exits(
                 portfolio.current_position, current_bar, signal=signal
@@ -282,6 +271,7 @@ def run_backtest(
             warmup_threshold=warmup_threshold,
             entry_window_bars=config.entry_window_bars,
             allow_flip=config.allow_flip_on_bar,
+            min_hold_bars=config.min_hold_bars,
             current_bar=current_bar,
             context=context,
         )

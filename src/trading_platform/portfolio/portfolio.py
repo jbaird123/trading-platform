@@ -103,6 +103,7 @@ class PortfolioManager:
         allow_flip: bool,
         current_bar: pd.Series,
         context: dict | None = None,
+        min_hold_bars: int = 0,
     ) -> dict[str, Any]:
         """
         Process a strategy command and manage portfolio state.
@@ -118,6 +119,7 @@ class PortfolioManager:
             allow_flip: Whether to allow flipping positions
             current_bar: Current market data bar
             context: Strategy context (regime, indicators, etc.)
+            min_hold_bars: Minimum bars to hold before allowing exits
 
         Returns:
             Dictionary with:
@@ -140,13 +142,13 @@ class PortfolioManager:
         if command in ["enter_long", "enter_short"]:
             side = "long" if command == "enter_long" else "short"
             return self._handle_entry_command(
-                side, bar_index, entry_window_bars, allow_flip, current_bar, context
+                side, bar_index, entry_window_bars, allow_flip, current_bar, context, min_hold_bars
             )
 
         # Exit commands
         elif command in ["exit_long", "exit_short"]:
             side = "long" if command == "exit_long" else "short"
-            return self._handle_exit_command(side, current_bar, context)
+            return self._handle_exit_command(side, current_bar, context, min_hold_bars)
 
         return {"action": "ignored", "reason": "unknown_command", "side": None}
 
@@ -158,6 +160,7 @@ class PortfolioManager:
         allow_flip: bool,
         current_bar: pd.Series,
         context: dict | None,
+        min_hold_bars: int = 0,
     ) -> dict[str, Any]:
         """Handle enter_long or enter_short command."""
 
@@ -165,8 +168,16 @@ class PortfolioManager:
         if self.current_position and self.current_position.side == side:
             return {"action": "ignored", "reason": "already_in_position", "side": side}
 
-        # In opposite position - always close per Decision 1
+        # In opposite position - check min_hold before closing
         if self.current_position and self.current_position.side != side:
+            # Check minimum hold time before allowing opposite_signal exit
+            if self.current_position.bars_held < min_hold_bars:
+                return {
+                    "action": "ignored",
+                    "reason": "min_hold_time_not_met",
+                    "side": side,
+                }
+
             self.close_position(
                 exit_price=current_bar["close"],
                 exit_time=cast(datetime, current_bar.name),
@@ -185,11 +196,19 @@ class PortfolioManager:
         return {"action": "window_opened", "side": side}
 
     def _handle_exit_command(
-        self, side: str, current_bar: pd.Series, context: dict | None
+        self, side: str, current_bar: pd.Series, context: dict | None, min_hold_bars: int = 0
     ) -> dict[str, Any]:
         """Handle exit_long or exit_short command."""
 
         if self.current_position and self.current_position.side == side:
+            # Check minimum hold time before allowing signal exits
+            if self.current_position.bars_held < min_hold_bars:
+                return {
+                    "action": "ignored",
+                    "reason": "min_hold_time_not_met",
+                    "side": side,
+                }
+
             self.close_position(
                 exit_price=current_bar["close"],
                 exit_time=cast(datetime, current_bar.name),
