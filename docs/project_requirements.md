@@ -63,12 +63,15 @@ _Last updated: 2025-09-16_
   - **[SYS-1.4.2]** This includes comparing a baseline strategy against a version with modified parameters, different risk models, or additional signal layers (e.g., with and without an AI-driven event filter).
   - **[SYS-1.4.3]** The results must be presented in a comparative format, highlighting differences in key performance metrics.
 - **[SYS-1.5] Trading Sessions & Blackout Periods**:
-  - **[SYS-1.5.1]** The system must support the definition of trading blackout periods, during which no new positions can be opened.
-  - **[SYS-1.5.2]** These periods can be defined as:
-    - **Static Rules**: e.g., "do not trade between 23:00 and 01:00 UTC daily".
-    - **Event-Based**: e.g., "pause trading 10 minutes before and 30 minutes after any event with `impact: high`".
-  - **[SYS-1.5.3]** This functionality will be managed centrally and applied by the Backtester (BT) and Execution Layer (EL) to ensure consistent behavior. Strategies may choose to override or ignore these blackouts via configuration.
-  - **[SYS-1.5.4]** A centralized trading window policy in the core module (TradingWindowPolicy) will enforce blackout rules. Both BT and EL must consult this policy before opening new positions.
+  - **[SYS-1.5.1]** The system must support the definition of trading blackout periods and time-based trading windows, during which no new positions can be opened.
+  - **[SYS-1.5.2]** These periods are defined directly within the Regime Market Manager (RMM) using time-based predicates:
+    - **Time-Based Rules**: Using `hour_is_in`, `hour_is_not_in`, `day_of_week_is_in`, `day_of_week_is_not_in` conditions.
+    - **Examples**:
+      - "Only trade between 09:00 and 16:00 UTC daily" → `hour_is_in: [9, 10, 11, 12, 13, 14, 15, 16]`
+      - "Do not trade on weekends" → `day_of_week_is_not_in: [5, 6]`
+    - **Combined Rules**: Time-based conditions can be combined with indicator-based conditions using `all_of`/`any_of` logic.
+  - **[SYS-1.5.3]** This functionality is managed through RMM regime definitions, providing a unified approach to market regime classification and time-based filtering. The Backtester (BT) and Execution Layer (EL) enforce these rules via the RMM's `allowed_sides` mechanism.
+  - **[SYS-1.5.4]** (Legacy Note: This functionality was previously planned to use a separate `BlackoutPolicy` in the core module, but has been consolidated into the RMM for greater flexibility and consistency with the regime-based architecture.)
 - **[SYS-1.6] Deployment & Operations**:
   - **[SYS-1.6.1]** **Containerization**: The application and its dependencies must be containerizable (e.g., using Docker) to ensure consistent environments from local development to production.
   - **[SYS-1.6.2]** **CI/CD**: A continuous integration pipeline (e.g., GitHub Actions) must be established to automatically run tests, linting, and type-checking on every commit/pull request.
