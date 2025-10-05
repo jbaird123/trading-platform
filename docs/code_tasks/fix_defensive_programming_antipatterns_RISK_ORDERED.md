@@ -214,7 +214,7 @@ If the answer to #1 is "uncertain" or #2 is "yes" or #3 is "yes" → **FAIL FAST
 - **Apply "Fail Fast" principle:** If ANY doubt about data integrity, must fail
 - **Acceptance:** No silent data loading failures
 
-### 15. [ ] Review regime_market_manager/engine.py exception handling
+### 15. [X] Review regime_market_manager/engine.py exception handling
 - **Priority:** HIGH - RMM affects trading decisions
 - **Risk Level:** HIGH - Silent RMM failures could cause wrong trades
 - **Estimated Time:** 1 hour
@@ -223,7 +223,7 @@ If the answer to #1 is "uncertain" or #2 is "yes" or #3 is "yes" → **FAIL FAST
 - **Apply "Fail Fast" principle:** Trading decisions require certainty
 - **Acceptance:** RMM errors are surfaced appropriately
 
-### 16. [ ] Review core/sweeps.py exception handling
+### 16. [X] Review core/sweeps.py exception handling
 - **Priority:** MEDIUM - User-requested analysis features
 - **Estimated Time:** 1 hour
 - **Action:** Review Monte Carlo/walk-forward exception handling
