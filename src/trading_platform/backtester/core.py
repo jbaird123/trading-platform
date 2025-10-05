@@ -184,6 +184,26 @@ def run_backtest(
 
     symbol = resolve_instrument_symbol(config.instrument)
 
+    # Compute contextual features if specified in config
+    data_with_context = market_data
+    if config.contextual_features:
+        from trading_platform.strategy.features import compute_features
+
+        # Convert FeatureConfig objects to dict format for compute_features
+        features_list = [
+            {
+                "name": f.name,
+                "type": f.type,
+                "params": f.params or {},
+                "source": f.source,
+                "source_ref": f.source_ref,
+            }
+            for f in config.contextual_features
+        ]
+        data_with_context = compute_features(
+            market_data, features_list, strategy_parameters={}
+        )
+
     # Use the complete instrument definition from config
     # (RunConfig validator ensures it has all required fields)
     instrument_dict = config.instrument
@@ -223,6 +243,13 @@ def run_backtest(
             # Legacy format: signal is just a command string
             command = signal
             context = strategy.get_context(i)
+
+        # Enrich context with contextual features if they were computed
+        if config.contextual_features and data_with_context is not market_data:
+            for feature in config.contextual_features:
+                feature_name = feature.name
+                if feature_name in data_with_context.columns:
+                    context[feature_name] = data_with_context[feature_name].iloc[i]
 
         # Enrich context with regime information from RMM if available
         if rmm_context is not None:
