@@ -120,13 +120,9 @@ def finalize_run(
 
     wf_summary = None
     if walk_forward_param is None:
-        try:
-            window = int(wf_cfg.get("window", 0)) if isinstance(wf_cfg, dict) else 0
-            step = int(wf_cfg.get("step", 0)) if isinstance(wf_cfg, dict) else 0
-            if window > 0 and step > 0:
-                wf_summary = walk_forward_summary(trades, window=window, step=step)
-        except Exception:
-            wf_summary = None  # pragma: no cover
+        # Walk-forward will be handled by new bar-based implementation
+        # Old trade-count based implementation removed
+        wf_summary = None  # TODO: Implement bar-based walk-forward
 
     ps_summary = None
     if parameter_search_param is None:
