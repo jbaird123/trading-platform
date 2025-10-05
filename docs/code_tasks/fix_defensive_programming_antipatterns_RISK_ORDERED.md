@@ -259,7 +259,7 @@ If the answer to #1 is "uncertain" or #2 is "yes" or #3 is "yes" → **FAIL FAST
 
 ## Sprint 4: Infrastructure & Remaining Reviews (Week 2)
 
-### 20. [ ] Add Linting Configuration for Exception Handling
+### 20. [X] Add Linting Configuration for Exception Handling
 - **Priority:** MEDIUM - Prevents future violations
 - **Estimated Time:** 1 hour
 - **File:** `pyproject.toml` (ruff configuration section)
@@ -369,7 +369,7 @@ If the answer to #1 is "uncertain" or #2 is "yes" or #3 is "yes" → **FAIL FAST
 - **Required:** New error handling tests pass
 - **Acceptance:** Full test suite green
 
-### 32. [ ] Run linter with new rules
+### 32. [X] Run linter with new rules
 - **Priority:** HIGH - Validates compliance
 - **Estimated Time:** 30 minutes (runtime + fixes)
 - **Action:** Execute `poetry run ruff check src/`

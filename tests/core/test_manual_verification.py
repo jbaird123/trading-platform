@@ -112,14 +112,14 @@ def test_core_calculations_match_manual_csv():
     # 10. CORE ASSERTIONS: Validate the essential calculations
 
     print("\n=== MANUAL VERIFICATION TEST RESULTS ===")
-    print(f"ACTUAL VALUES (pandas_ta):")
+    print("ACTUAL VALUES (pandas_ta):")
     print(f"  total_pnl: {performance['total_pnl']}")
     print(f"  final_equity: {performance['final_equity']}")
     print(f"  win_rate: {performance['win_rate']}")
     print(f"  n_trades: {performance['n_trades']}")
 
     # Core PnL calculation validation
-    # Updated for pandas_ta: different indicator calculations lead to different crossover bars
+    # Updated for pandas_ta: different indicators -> different crossovers
     assert performance["total_pnl"] == expected_total_pnl, (
         f"CORE PnL FAILED - Expected {expected_total_pnl}, "
         f"got {performance['total_pnl']}"

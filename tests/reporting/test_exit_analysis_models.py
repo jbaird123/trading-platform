@@ -2,7 +2,6 @@
 
 import pytest
 from pydantic import ValidationError
-
 from trading_platform.reporting.models.exit_analysis import (
     PostExitAnalysis,
     SimulatedHold,

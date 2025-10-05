@@ -3,7 +3,6 @@
 from datetime import datetime, timezone
 
 import pytest
-
 from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.aggregators import (
     aggregate_simulated_hold_analysis,
@@ -211,9 +210,7 @@ class TestSimulatedHoldAggregation:
         # Average PnL change across 3 trades:
         # Trade 1: -10.0, Trade 2: +30.0, Trade 3: +2.0
         # Average = 22.0 / 3 = 7.33
-        assert period_10.avg_pnl_change_realistic == pytest.approx(
-            7.33, abs=0.01
-        )
+        assert period_10.avg_pnl_change_realistic == pytest.approx(7.33, abs=0.01)
 
         # Average MFE (unrealistic):
         # Trade 1: 5.0, Trade 2: 35.0, Trade 3: 15.0
@@ -225,9 +222,8 @@ class TestSimulatedHoldAggregation:
         assert period_10.outcome_distribution.stop_loss_hit == pytest.approx(
             33.33, abs=0.01
         )
-        assert (
-            period_10.outcome_distribution.held_full_period
-            == pytest.approx(66.67, abs=0.01)
+        assert period_10.outcome_distribution.held_full_period == pytest.approx(
+            66.67, abs=0.01
         )
 
     def test_aggregation_20_bar_averages(self, trades_with_simulations):
@@ -245,14 +241,11 @@ class TestSimulatedHoldAggregation:
         assert period_20.outcome_distribution.stop_loss_hit == pytest.approx(
             33.33, abs=0.01
         )
-        assert (
-            period_20.outcome_distribution.take_profit_hit
-            == pytest.approx(66.67, abs=0.01)
+        assert period_20.outcome_distribution.take_profit_hit == pytest.approx(
+            66.67, abs=0.01
         )
 
-    def test_aggregation_by_original_exit_reason(
-        self, trades_with_simulations
-    ):
+    def test_aggregation_by_original_exit_reason(self, trades_with_simulations):
         """Test breakdown by original exit reason."""
         result = aggregate_simulated_hold_analysis(trades_with_simulations)
         period_10 = result.by_hold_period["10"]
@@ -261,18 +254,10 @@ class TestSimulatedHoldAggregation:
         # stop-loss (1 trade): +30.0
         # signal (1 trade): +2.0
         assert (
-            period_10.avg_pnl_change_by_original_exit_reason[
-                "opposite_signal"
-            ]
-            == -10.0
+            period_10.avg_pnl_change_by_original_exit_reason["opposite_signal"] == -10.0
         )
-        assert (
-            period_10.avg_pnl_change_by_original_exit_reason["stop-loss"]
-            == 30.0
-        )
-        assert (
-            period_10.avg_pnl_change_by_original_exit_reason["signal"] == 2.0
-        )
+        assert period_10.avg_pnl_change_by_original_exit_reason["stop-loss"] == 30.0
+        assert period_10.avg_pnl_change_by_original_exit_reason["signal"] == 2.0
 
     def test_aggregation_empty_trades_list(self):
         """Test aggregation with no trades."""

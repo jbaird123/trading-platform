@@ -52,7 +52,24 @@ hypothesis = "^6.0"
 line-length = 88
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP"]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "W",    # pycodestyle warnings
+    "I",    # isort
+    "UP",   # pyupgrade
+    "BLE",  # blind except - catches overly broad exception handlers
+    "TRY",  # tryceratops - exception handling anti-patterns
+]
+
+# Exception handling rules - enforce fail-fast principle
+ignore = [
+    "BLE001",  # Do not catch blind exception - we use Exception with logging intentionally for optional features
+    "TRY003",  # Avoid specifying long messages outside exception class (too strict)
+    "TRY004",  # Prefer TypeError - too opinionated, we use ValueError appropriately
+    "TRY300",  # Consider else block - stylistic preference, doesn't affect safety
+    "TRY400",  # Use logging.exception instead of logging.error (we use both appropriately)
+]
 
 [tool.mypy]
 python_version = "3.12"
