@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import importlib.metadata as ilmd
 import json
+import logging
 import platform
 import sys
 from dataclasses import asdict, is_dataclass
@@ -30,6 +31,8 @@ from trading_platform.reporting.analytics import (
     compute_stop_tp_candidates,
     compute_timing_buckets,
 )
+
+logger = logging.getLogger(__name__)
 
 # Path to the JSON Schema for brief field documentation
 SCHEMA_PATH = (
@@ -782,6 +785,7 @@ def generate_brief(
     from trading_platform.reporting.aggregators import (
         aggregate_simulated_hold_analysis,
     )
+
     simulated_hold_analysis = aggregate_simulated_hold_analysis(trades)
     # Add to exit_efficiency dict
     if simulated_hold_analysis.by_hold_period:
@@ -919,7 +923,9 @@ def generate_brief(
     if not field_definitions:
         try:
             schema = json.loads(SCHEMA_PATH.read_text())
-        except Exception:  # pragma: no cover
+        except Exception as e:  # pragma: no cover
+            # Safe to continue: schema is for field definitions metadata only
+            logger.debug(f"Failed to load brief schema: {e}")
             schema = {}
         fdefs: dict[str, Any] = {}
         for p in _leaf_paths(placeholders):
@@ -1108,7 +1114,9 @@ def _compute_environment() -> dict[str, Any]:
     def _ver(pkg: str) -> str | None:
         try:
             return ilmd.version(pkg)
-        except Exception:  # pragma: no cover
+        except Exception as e:  # pragma: no cover
+            # Safe to continue: package version is metadata only
+            logger.debug(f"Failed to get version for {pkg}: {e}")
             return None
 
     return {
@@ -1130,7 +1138,9 @@ def _compute_provenance(trades: list[Trade], meta: dict[str, Any]) -> dict[str, 
     meta = meta or {}
     try:
         app_version = ilmd.version("trading-platform")
-    except Exception:  # pragma: no cover
+    except Exception as e:  # pragma: no cover
+        # Safe to continue: app version is metadata only
+        logger.debug(f"Failed to get trading-platform version: {e}")
         app_version = None
     return {
         "run_id": meta.get("run_id"),
