@@ -13,7 +13,23 @@ This process is guided by a structured, two-stage iterative loop: **"Analyze, Fi
 - **Campaign Workspace:** All work must be contained within a single campaign directory under `workspace/research/`.
 - **Chronological Steps:** Every iteration must be in its own unique, timestamped subdirectory.
 - **Meticulous Logging:** Every decision, hypothesis, and result must be documented in the `run_summary.md` for each step and linked in the master `campaign_log.md`.
-- **Bug Reporting:** You must be vigilant in identifying and logging potential platform bugs in the `technical_debt.log`.
+
+### 2.1 Bug Detection & Reporting
+-   **CRITICAL**: This platform is new and may contain bugs. You **MUST** flag unexpected behavior for investigation:
+    -   Zero trades when trades are expected
+    -   Crashes or validation errors
+    -   Results that don't match the configuration
+    -   Inconsistencies between brief.json and trades.csv
+    -   Any behavior that seems illogical or incorrect
+-   When you encounter unexpected behavior:
+    1.  Document it in detail in the `run_summary.md`
+    2.  Add an entry to `technical_debt.log` with the issue and affected iteration
+    3.  Investigate whether it's a bug or expected behavior
+    4.  If uncertain, flag it for the user to review
+
+### 2.2 Standard Timeframes
+-   Use only standard timeframes: `1M`, `5M`, `15M`, `30M`, `1H`, `4H`, `1D`
+-   Avoid arbitrary timeframes unless there's a specific research reason
 
 ---
 
