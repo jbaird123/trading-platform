@@ -183,7 +183,7 @@ If the answer to #1 is "uncertain" or #2 is "yes" or #3 is "yes" → **FAIL FAST
   - Verify None returned
 - **Acceptance:** Test passes, debug logged
 
-### 12. [ ] Fix reporting/chart_export.py - Silent pass
+### 12. [X] Fix reporting/chart_export.py - Silent pass
 - **Priority:** MEDIUM - Silent failure in reporting
 - **Estimated Time:** 30 minutes
 - **Location:** Find silent `except: pass` in chart export
