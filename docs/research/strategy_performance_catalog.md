@@ -117,7 +117,7 @@
 - **With EMA Blackout:** $419 PnL, 33.6% WR, 8.00x DD/PnL ❌
 - **With Custom Blackout:** $8,199 PnL, 40.0% WR, 0.32x DD/PnL ✅ **BREAKTHROUGH**
 - **Optimization Result:** +292% PnL improvement, +6.4pp WR, -50% DD
-- **Status:** **VALIDATED - Ready for Walk-Forward Evaluation**
+- **Status:** **❌ REJECTED - Failed Walk-Forward Evaluation (Severe Overfitting)**
 
 #### Optimal Market Conditions
 
@@ -156,10 +156,26 @@
 - **Status:** Not yet optimized for SuperTrend
 - **Pending Research:** ATR-based exits, wider stops, dynamic TP
 
-#### Pending Research
-- Volatility filters (if any)
-- Signal quality filters (ADX, RSI, etc.)
-- Walk-Forward Evaluation (WFE) for robustness validation
+#### Walk-Forward Evaluation Results (Iteration 009) ❌
+
+**Test Configuration:** 48 splits, 3-month OOS windows, 12-month training
+**Date:** 2025-10-05
+
+| Metric | Full Backtest | WFE OOS | Degradation |
+|--------|--------------|---------|-------------|
+| **Total PnL** | $8,199 | $3,247 | **-60.4%** ❌ |
+| **Avg PnL/Trade** | $8.91 | $4.24 | **-52.4%** ❌ |
+| **Profitable Windows** | N/A | **52.1%** (25/48) | **Far below 70% target** ❌ |
+| **Worst Window** | N/A | -$2,050 | **25% account DD** ❌ |
+
+**VERDICT:** **SEVERE OVERFITTING DETECTED**
+- Only 52.1% profitable windows (barely above 50% random baseline)
+- 60% performance degradation in out-of-sample testing
+- Custom blackout policy was overfit to full 2013-2025 dataset
+- Hour-specific filtering (16/24 hours blocked) is too granular
+- Fails catastrophically in non-trending regimes
+
+**ROOT CAUSE:** Time-of-day filters optimized on full dataset don't generalize to unseen windows
 
 #### Key Differentiators from EMA
 
@@ -174,36 +190,55 @@
 | **Optimized Win Rate** | 35.6% | **40.0%** |
 | **Optimized DD/PnL** | 0.60x | **0.32x (47% better!)** |
 | **EMA Blackout Effect** | +1626% ✅ | -80% ❌ |
-| **Custom Blackout Effect** | N/A | +292% ✅ |
+| **Custom Blackout Effect** | N/A | +292% ✅ (but overfit!) |
+| **WFE Profitable Windows** | **58.3%** ✅ | 52.1% ❌ |
+| **WFE OOS Consistency** | **95%** ✅ | 40% ❌ |
+| **WFE Worst Window** | **-$665** ✅ | -$2,050 ❌ |
+| **Robustness Verdict** | **Marginal (usable)** ✅ | **Failed (rejected)** ❌ |
+
+**CRITICAL FINDING:** Despite 2.3x higher full-backtest PnL, **SuperTrend FAILS robustness testing** while **EMA PASSES**. Full-backtest performance is misleading - WFE reveals the truth.
 
 #### Multi-Strategy Considerations
-- **Complement With:** EMA crossover (different time-of-day profiles!)
-  - SuperTrend trades Hour 18 (Asian evening) profitably (+$1,623)
-  - EMA trades Hours 13-17 (London/NY overlap) profitably (+$364)
-  - Minimal overlap/competition for the same opportunities
-- **Portfolio Potential:** HIGH (complementary regime preferences)
-- **Current Status:** SuperTrend is **2.3x more profitable** than EMA ($8,199 vs $3,543)
-- **Recommendation:** SuperTrend should be **PRIMARY** strategy; EMA could be complementary
+
+**STATUS:** ❌ **NOT RECOMMENDED FOR PORTFOLIO**
+
+SuperTrend failed WFE robustness testing and should NOT be deployed, even in a multi-strategy portfolio:
+- 52.1% profitable windows is too close to random (50%)
+- Severe overfitting (-60% OOS degradation) indicates unreliable edge
+- High variance (worst window -$2,050) adds unacceptable risk
+- EMA system is more robust despite lower full-backtest PnL
+
+**Original Complementarity Analysis (now invalid due to overfitting):**
+- SuperTrend trades Hour 18 (Asian evening) profitably (+$1,623 in-sample)
+- EMA trades Hours 13-17 (London/NY overlap) profitably (+$364)
+- BUT: SuperTrend's Hour 18 edge doesn't hold in OOS testing
 
 #### Critical Insights
 
-**1. Strategy-Specific Optimization is MANDATORY**
+**1. Full-Backtest Performance is MISLEADING** (Iteration 009 WFE)
+- SuperTrend showed $8,199 PnL in full backtest (looked like breakthrough!)
+- WFE revealed 60% degradation to $3,247 OOS (severe overfitting)
+- **LESSON:** ALWAYS run Walk-Forward Evaluation before declaring success
+- High full-backtest PnL ≠ Robust system
+- OOS consistency matters more than total PnL
+
+**2. Granular Time-of-Day Filters are DANGEROUS** (Iteration 008 → 009)
+- Hour-specific blackout (blocking 16/24 hours) = overfitting to noise
+- Works brilliantly on full dataset, fails on unseen OOS windows
+- **LESSON:** Keep time filters broad (sessions) not granular (hours)
+- Simpler is better for generalization
+
+**3. Strategy-Specific Optimization is MANDATORY**
 - **Cannot** copy regime filters between different strategies
 - EMA blackout (+1626%) vs Same policy on SuperTrend (-80%)
-- Custom SuperTrend blackout (+292%) demonstrates power of tailored optimization
+- Custom SuperTrend blackout (+292% in-sample, but overfit!)
+- Each strategy needs independent regime optimization
 
-**2. SuperTrend OUTPERFORMS EMA Across All Metrics**
-- **PnL:** $8,199 vs $3,543 (2.3x better)
-- **DD/PnL:** 0.32x vs 0.60x (47% better)
-- **Win Rate:** 40.0% vs 35.6% (4.4pp better)
-- **Trade Count:** 920 vs 393 (better statistical significance)
-- **Status:** SuperTrend is the **superior** system
-
-**3. Portfolio Implications**
-While SuperTrend and EMA have complementary time-of-day profiles, SuperTrend's vastly superior performance suggests:
-- **Deploy SuperTrend as PRIMARY strategy** (larger capital allocation)
-- **EMA could be SECONDARY** for diversification (smaller allocation)
-- **OR:** Focus resources on further optimizing SuperTrend instead
+**4. 52% Profitable Windows = NO REAL EDGE** (Iteration 009 WFE)
+- 52.1% is barely above coin flip (50%)
+- 58.3% (EMA) is marginal but statistically significant
+- 70%+ is required for confident deployment
+- **LESSON:** Robustness thresholds exist for a reason
 
 ---
 
@@ -338,13 +373,20 @@ While SuperTrend and EMA have complementary time-of-day profiles, SuperTrend's v
 
 ## Version History
 
-- **2025-10-05 v1.1:** SuperTrend Custom Blackout Breakthrough (Iteration 008)
+- **2025-10-05 v1.2:** SuperTrend WFE FAILURE - Critical Overfitting Discovery (Iteration 009) ❌
+  - **REJECTED SuperTrend system** after Walk-Forward Evaluation revealed severe overfitting
+  - WFE Results: 52.1% profitable windows (vs 70% target), 60% OOS degradation
+  - Documented that $8,199 full-backtest PnL collapsed to $3,247 OOS
+  - **EMA system validated as MORE ROBUST** despite lower full-backtest PnL
+  - Added critical lessons on WFE being MANDATORY before deployment
+  - Added warning about granular time-of-day filters causing overfitting
+  - Updated all sections to reflect SuperTrend rejection and EMA as preferred system
+
+- **2025-10-05 v1.1:** SuperTrend Custom Blackout Breakthrough (Iteration 008) - LATER INVALIDATED
   - Validated SuperTrend custom blackout policy (+292% PnL improvement)
   - Documented strategy-specific optimization mandate (cannot copy filters between strategies)
   - Updated SuperTrend performance profile with optimized metrics
-  - Updated key differentiators table showing SuperTrend superiority over EMA
-  - Updated multi-strategy portfolio recommendations
-  - Added critical insights on strategy-specific regime optimization
+  - **NOTE:** These results were later proven to be overfit in iteration 009 WFE
 
 - **2025-10-05 v1.0:** Initial catalog creation
   - Documented EMA Crossover findings (Iterations 001-006)
