@@ -251,6 +251,9 @@ def run_backtest(
                 if feature_name in data_with_context.columns:
                     context[feature_name] = data_with_context[feature_name].iloc[i]
 
+        # Always include raw volume for analysis
+        context["volume"] = current_bar["volume"]
+
         # Enrich context with regime information from RMM if available
         if rmm_context is not None:
             rmm_ctx = rmm_context.get(cast(datetime, current_bar.name))
