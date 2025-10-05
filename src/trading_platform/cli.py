@@ -207,6 +207,17 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     strat = compile_strategy(strat_cfg)
     signals = strat.generate_signals(df)
 
+    # Get feature-enriched dataframe for REM (includes ATR, etc.)
+    # This allows REM to access strategy-calculated features like ATR
+    # Ensure it's aligned with the (possibly sliced) input df
+    feature_enriched_df = strat._feature_df if strat._feature_df is not None else df
+    if feature_enriched_df is not None:
+        # Defensive checks: feature_df must match input df's length and index type
+        if (len(feature_enriched_df) != len(df) or
+            type(feature_enriched_df.index) != type(df.index)):
+            # Fall back to raw df if mismatched (can happen in tests with mocks)
+            feature_enriched_df = df
+
     # Persist raw signals for AI Lab analysis
     try:
         from trading_platform.core.signal import Signal
@@ -345,7 +356,7 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     ret_skips = bool(cfg_raw.get("return_skips", True))
 
     res = run_backtest(
-        market_data=df,
+        market_data=feature_enriched_df,
         signals=signals,
         strategy=strat,
         config=cfg,
