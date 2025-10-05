@@ -6,6 +6,7 @@ into summary statistics for the final brief.
 """
 
 from collections import defaultdict
+from typing import Any
 
 from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.models.exit_analysis import (
@@ -82,18 +83,15 @@ def aggregate_simulated_hold_analysis(
     for hold_bars, trade_sim_pairs in by_period.items():
         # Extract all simulations for this period
         simulations = [sim for _, sim in trade_sim_pairs]
-        trades_in_period = [trade for trade, _ in trade_sim_pairs]
 
         if not simulations:
             continue
 
         # Calculate averages
-        avg_pnl_change = sum(
-            s.pnl_change_vs_actual for s in simulations
-        ) / len(simulations)
-        avg_mfe = sum(s.mfe_during_hold for s in simulations) / len(
+        avg_pnl_change = sum(s.pnl_change_vs_actual for s in simulations) / len(
             simulations
         )
+        avg_mfe = sum(s.mfe_during_hold for s in simulations) / len(simulations)
 
         # Calculate outcome distribution
         outcome_counts = {
@@ -101,14 +99,10 @@ def aggregate_simulated_hold_analysis(
                 1 for s in simulations if s.simulated_exit_reason == "stop_loss"
             ),
             "take_profit": sum(
-                1
-                for s in simulations
-                if s.simulated_exit_reason == "take_profit"
+                1 for s in simulations if s.simulated_exit_reason == "take_profit"
             ),
             "held_full_period": sum(
-                1
-                for s in simulations
-                if s.simulated_exit_reason == "held_full_period"
+                1 for s in simulations if s.simulated_exit_reason == "held_full_period"
             ),
         }
 
@@ -116,17 +110,14 @@ def aggregate_simulated_hold_analysis(
         outcome_dist = OutcomeDistribution(
             stop_loss_hit=(outcome_counts["stop_loss"] / total) * 100,
             take_profit_hit=(outcome_counts["take_profit"] / total) * 100,
-            held_full_period=(outcome_counts["held_full_period"] / total)
-            * 100,
+            held_full_period=(outcome_counts["held_full_period"] / total) * 100,
         )
 
         # Calculate PnL change by original exit reason
         by_exit_reason: dict[str, list[float]] = defaultdict(list)
         for trade, sim in trade_sim_pairs:
             if trade.exit_reason:
-                by_exit_reason[trade.exit_reason].append(
-                    sim.pnl_change_vs_actual
-                )
+                by_exit_reason[trade.exit_reason].append(sim.pnl_change_vs_actual)
 
         avg_by_exit_reason = {
             reason: sum(values) / len(values)

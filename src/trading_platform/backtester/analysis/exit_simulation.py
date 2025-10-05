@@ -6,6 +6,8 @@ if a trade was held longer after its actual exit, accounting for
 stop-loss and take-profit triggers.
 """
 
+from typing import Literal
+
 import pandas as pd
 
 from trading_platform.portfolio.trade import Trade
@@ -58,11 +60,11 @@ def run_single_trade_simulation(
     mfe_bar_offset = 0
     mae_bar_offset = 0
     simulated_exit_bar_offset = max(0, actual_bars_available - 1)
-    simulated_exit_reason = "held_full_period"
+    simulated_exit_reason: Literal["stop_loss", "take_profit", "held_full_period"] = (
+        "held_full_period"
+    )
     simulated_exit_price = (
-        simulation_data.iloc[-1]["close"]
-        if len(simulation_data) > 0
-        else reentry_price
+        simulation_data.iloc[-1]["close"] if len(simulation_data) > 0 else reentry_price
     )
 
     # Iterate through each bar and check for breaches
@@ -125,13 +127,9 @@ def run_single_trade_simulation(
 
     # Calculate final PnL for the simulated hold
     if trade.side == "long":
-        simulated_pnl_movement = (
-            simulated_exit_price - reentry_price
-        ) * trade.size
+        simulated_pnl_movement = (simulated_exit_price - reentry_price) * trade.size
     else:  # short
-        simulated_pnl_movement = (
-            reentry_price - simulated_exit_price
-        ) * trade.size
+        simulated_pnl_movement = (reentry_price - simulated_exit_price) * trade.size
 
     # For simplicity, assume costs remain same as original trade
     # (we're just extending the hold, not re-entering)

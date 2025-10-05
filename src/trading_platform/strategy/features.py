@@ -35,18 +35,14 @@ def rsi(series: pd.Series, length: int) -> pd.Series:
     length = max(1, int(length))
     result = ta.rsi(close=series, length=length)
     if result is None:
-        return pd.Series(
-            [np.nan] * len(series), index=series.index, dtype="float64"
-        )
+        return pd.Series([np.nan] * len(series), index=series.index, dtype="float64")
     return cast(pd.Series, result)
 
 
 def atr(df: pd.DataFrame, length: int) -> pd.Series:
     n = len(df)
     length = max(1, min(int(length), n))
-    result = ta.atr(
-        high=df["high"], low=df["low"], close=df["close"], length=length
-    )
+    result = ta.atr(high=df["high"], low=df["low"], close=df["close"], length=length)
     if result is None:
         return pd.Series([np.nan] * n, index=df.index, dtype="float64")
     return cast(pd.Series, result)
@@ -76,11 +72,9 @@ def adx(df: pd.DataFrame, length: int) -> pd.Series:
 def bb_width(series: pd.Series, length: int, ndev: float) -> pd.Series:
     length = max(1, int(length))
     ndev = float(ndev)
-    bb = ta.bbands(close=series, length=length, std=ndev)
+    bb = ta.bbands(close=series, length=length, std=ndev)  # type: ignore
     if bb is None or bb.empty:
-        return pd.Series(
-            [np.nan] * len(series), index=series.index, dtype="float64"
-        )
+        return pd.Series([np.nan] * len(series), index=series.index, dtype="float64")
     # pandas_ta returns DataFrame with columns: BBL_length_std, BBM_, BBU_
     hband = bb.iloc[:, 2]  # Upper band
     lband = bb.iloc[:, 0]  # Lower band
@@ -104,18 +98,14 @@ def llv(series: pd.Series, length: int) -> pd.Series:
     return series.rolling(window=length, min_periods=1).min()
 
 
-def donchian_channels(
-    df: pd.DataFrame, length: int
-) -> tuple[pd.Series, pd.Series]:
+def donchian_channels(df: pd.DataFrame, length: int) -> tuple[pd.Series, pd.Series]:
     length = max(1, int(length))
     upper = pd.Series(df["high"]).rolling(length, min_periods=1).max()
     lower = pd.Series(df["low"]).rolling(length, min_periods=1).min()
     return upper, lower
 
 
-def _resolve_parameter(
-    param_value: Any, strategy_parameters: dict
-) -> Any:
+def _resolve_parameter(param_value: Any, strategy_parameters: dict) -> Any:
     """Resolves parameter, substituting placeholders like ${param_name}."""
     if not isinstance(param_value, str):
         return param_value
@@ -125,8 +115,7 @@ def _resolve_parameter(
             return strategy_parameters[param_name]
         else:
             raise ValueError(
-                f"Parameter '{param_name}' not found in strategy "
-                f"parameters."
+                f"Parameter '{param_name}' not found in strategy " f"parameters."
             )
     return param_value
 
@@ -162,8 +151,7 @@ def compute_features(
 
         # Resolve parameters for the current feature
         resolved_params = {
-            k: _resolve_parameter(v, strategy_parameters)
-            for k, v in params.items()
+            k: _resolve_parameter(v, strategy_parameters) for k, v in params.items()
         }
 
         if typ == "EMA":
@@ -175,9 +163,7 @@ def compute_features(
             out[name] = (
                 cast(pd.Series, result)
                 if result is not None
-                else pd.Series(
-                    [np.nan] * len(df), index=df.index, dtype="float64"
-                )
+                else pd.Series([np.nan] * len(df), index=df.index, dtype="float64")
             )
         elif typ == "WMA":
             length = int(resolved_params.get("length", 14))
@@ -185,9 +171,7 @@ def compute_features(
             out[name] = (
                 cast(pd.Series, result)
                 if result is not None
-                else pd.Series(
-                    [np.nan] * len(df), index=df.index, dtype="float64"
-                )
+                else pd.Series([np.nan] * len(df), index=df.index, dtype="float64")
             )
         elif typ == "RSI":
             length = int(resolved_params.get("length", 14))
@@ -201,7 +185,9 @@ def compute_features(
             length = int(resolved_params.get("length", 20))
             ndev = float(resolved_params.get("ndev", 2.0))
             bb = ta.bbands(
-                close=_price_series(df, source), length=length, std=ndev
+                close=_price_series(df, source),
+                length=length,
+                std=ndev,  # type: ignore[arg-type]
             )
             if bb is not None and not bb.empty:
                 out[f"{name}_upper"] = bb.iloc[:, 2]
@@ -285,9 +271,7 @@ def compute_features(
             out[name] = (
                 cast(pd.Series, result)
                 if result is not None
-                else pd.Series(
-                    [np.nan] * len(df), index=df.index, dtype="float64"
-                )
+                else pd.Series([np.nan] * len(df), index=df.index, dtype="float64")
             )
         elif typ == "ROC":
             length = int(resolved_params.get("length", 12))
@@ -295,9 +279,7 @@ def compute_features(
             out[name] = (
                 cast(pd.Series, result)
                 if result is not None
-                else pd.Series(
-                    [np.nan] * len(df), index=df.index, dtype="float64"
-                )
+                else pd.Series([np.nan] * len(df), index=df.index, dtype="float64")
             )
         elif typ == "HHV":
             series_in = (
@@ -314,9 +296,7 @@ def compute_features(
             )
             out[name] = llv(series_in, int(resolved_params.get("length", 20)))
         elif typ == "DC":
-            up, lo = donchian_channels(
-                df, int(resolved_params.get("length", 20))
-            )
+            up, lo = donchian_channels(df, int(resolved_params.get("length", 20)))
             out[f"{name}_upper"] = up
             out[f"{name}_lower"] = lo
         elif typ == "KC":
@@ -338,15 +318,11 @@ def compute_features(
                 out[f"{name}_lower"] = np.nan
                 out[f"{name}_middle"] = np.nan
         elif typ == "OBV":
-            result = ta.obv(
-                close=_price_series(df, source), volume=df["volume"]
-            )
+            result = ta.obv(close=_price_series(df, source), volume=df["volume"])
             out[name] = (
                 cast(pd.Series, result)
                 if result is not None
-                else pd.Series(
-                    [np.nan] * len(df), index=df.index, dtype="float64"
-                )
+                else pd.Series([np.nan] * len(df), index=df.index, dtype="float64")
             )
         elif typ == "CMF":
             length = int(resolved_params.get("length", 20))
@@ -360,9 +336,7 @@ def compute_features(
             out[name] = (
                 cast(pd.Series, result)
                 if result is not None
-                else pd.Series(
-                    [np.nan] * len(df), index=df.index, dtype="float64"
-                )
+                else pd.Series([np.nan] * len(df), index=df.index, dtype="float64")
             )
         elif typ == "VWAP":
             result = ta.vwap(
@@ -374,9 +348,7 @@ def compute_features(
             out[name] = (
                 cast(pd.Series, result)
                 if result is not None
-                else pd.Series(
-                    [np.nan] * len(df), index=df.index, dtype="float64"
-                )
+                else pd.Series([np.nan] * len(df), index=df.index, dtype="float64")
             )
         elif typ == "CHOP":
             chop = ta.chop(
@@ -390,9 +362,7 @@ def compute_features(
             out[name] = (
                 cast(pd.Series, chop)
                 if chop is not None
-                else pd.Series(
-                    [np.nan] * len(df), index=df.index, dtype="float64"
-                )
+                else pd.Series([np.nan] * len(df), index=df.index, dtype="float64")
             )
         elif typ == "ICHIMOKU":
             ichimoku_df, _ = ta.ichimoku(
@@ -447,9 +417,7 @@ def compute_features(
                 out[name] = (
                     cast(pd.Series, result)
                     if result is not None
-                    else pd.Series(
-                        [np.nan] * len(df), index=df.index, dtype="float64"
-                    )
+                    else pd.Series([np.nan] * len(df), index=df.index, dtype="float64")
                 )
             else:
                 out[name] = np.nan

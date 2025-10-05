@@ -36,7 +36,7 @@ def test_compute_exit_efficiency_no_trades_for_exit_reason() -> None:
         trade,
         exit_reason="take_profit",
         pnl_movement=50.0,
-        post_exit_analysis={
+        post_exit_analysis={  # type: ignore[arg-type]
             "5": {"mfe": 10.0, "mae": -5.0},
         },
     )
@@ -171,7 +171,7 @@ def test_compute_exit_efficiency_empty_reason_analysis() -> None:
         trade,
         exit_reason="take_profit",
         pnl_movement=50.0,
-        post_exit_analysis={
+        post_exit_analysis={  # type: ignore[arg-type]
             "5": {"mfe": 10.0, "mae": -5.0},
         },
     )
@@ -191,7 +191,7 @@ def test_compute_exit_efficiency_empty_reason_analysis() -> None:
         trade_empty_reason,
         exit_reason="",  # Empty string
         pnl_movement=50.0,
-        post_exit_analysis={
+        post_exit_analysis={  # type: ignore[arg-type]
             "5": {"mfe": 10.0, "mae": -5.0},
         },
     )
