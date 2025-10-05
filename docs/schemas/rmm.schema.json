@@ -104,7 +104,13 @@
             "OBV",
             "CMF",
             "VWAP",
-            "FIB"
+            "FIB",
+            "CDL_DOJI",
+            "CDL_HAMMER",
+            "CDL_ENGULFING",
+            "CDL_MORNINGSTAR",
+            "CDL_EVENINGSTAR",
+            "CDL_HARAMI"
           ],
           "description": "Indicator type to compute for regime logic."
         },
