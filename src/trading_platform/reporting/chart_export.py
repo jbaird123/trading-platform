@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 HTML_TMPL = r"""<!doctype html>
 <html>
@@ -412,7 +415,9 @@ def _read_prices_csv(run_path: Path) -> list[list[Any]]:
         iso, o, h, lo, c = parts[:5]
         try:
             rows.append([iso, float(o), float(h), float(lo), float(c)])
-        except Exception:
+        except Exception as e:
+            # Safe to skip: malformed price data row, chart degrades gracefully
+            logger.debug(f"Skipping malformed price row: {e}")
             continue
     return rows
 
@@ -436,8 +441,9 @@ def save_chart_from_brief(run_path: Path) -> Path:
         sname = meta.get("strategy_name")
         rid = meta.get("run_id")
         title = f"{sname} – {rid}" if sname and rid else (sname or rid or title)
-    except Exception:
-        pass
+    except Exception as e:
+        # Safe to continue: title generation is cosmetic, defaults to "Run Charts"
+        logger.debug(f"Failed to generate chart title from metadata: {e}")
     html = (
         HTML_TMPL.replace("__TITLE__", title)
         .replace("__EQUITY_JSON__", json.dumps(eq))
@@ -507,7 +513,9 @@ def save_features_for_chart(
             for t, v in zip(times, vals):
                 try:
                     fv = float(v)
-                except Exception:
+                except Exception as e:
+                    # Safe to skip: NaN/invalid feature value, chart degrades gracefully
+                    logger.debug(f"Skipping non-numeric feature value: {e}")
                     continue
                 arr.append([t, fv])
             series[col] = arr
