@@ -50,3 +50,80 @@ def test_run_config_loads_contextual_features() -> None:
     assert second_feature.type == "ADX"
     assert second_feature.params == {"length": 14}
     assert second_feature.source == "close"
+
+
+def test_run_config_default_and_override_contextual_features() -> None:
+    """Test default contextual features and override behavior."""
+    # Scenario 1: Default Case - contextual_features key is missing
+    config_dict_default = {
+        "user_id": "test_user",
+        "run_id": "test_run_default",
+        "instrument": {
+            "symbol": "EURUSD",
+            "asset_class": "Forex",
+            "point_value": 1.0,
+            "tick_size": 0.0001,
+        },
+        # contextual_features key is intentionally missing
+    }
+
+    config_default = RunConfig.model_validate(config_dict_default)
+
+    # Assert that contextual_features is populated with defaults
+    assert config_default.contextual_features is not None
+    assert isinstance(config_default.contextual_features, list)
+    assert len(config_default.contextual_features) > 0
+
+    # Check for specific default indicators
+    feature_names = [f.name for f in config_default.contextual_features]
+    assert "ctx_atr" in feature_names, "Expected ctx_atr in defaults"
+    assert "ctx_rsi" in feature_names, "Expected ctx_rsi in defaults"
+    assert "ctx_ema_slow" in feature_names, "Expected ctx_ema_slow in defaults"
+
+    # Scenario 2: Empty Override Case - explicit empty list
+    config_dict_empty = {
+        "user_id": "test_user",
+        "run_id": "test_run_empty",
+        "instrument": {
+            "symbol": "EURUSD",
+            "asset_class": "Forex",
+            "point_value": 1.0,
+            "tick_size": 0.0001,
+        },
+        "contextual_features": [],  # Explicitly empty
+    }
+
+    config_empty = RunConfig.model_validate(config_dict_empty)
+
+    # Assert that contextual_features is empty (user override)
+    assert config_empty.contextual_features == []
+
+    # Scenario 3: Custom Override Case - custom indicator list
+    config_dict_custom = {
+        "user_id": "test_user",
+        "run_id": "test_run_custom",
+        "instrument": {
+            "symbol": "EURUSD",
+            "asset_class": "Forex",
+            "point_value": 1.0,
+            "tick_size": 0.0001,
+        },
+        "contextual_features": [
+            {"name": "my_custom_feature", "type": "SMA", "params": {"length": 5}}
+        ],
+    }
+
+    config_custom = RunConfig.model_validate(config_dict_custom)
+
+    # Assert that only custom feature is present
+    assert config_custom.contextual_features is not None
+    assert len(config_custom.contextual_features) == 1
+    assert config_custom.contextual_features[0].name == "my_custom_feature"
+    assert config_custom.contextual_features[0].type == "SMA"
+    assert config_custom.contextual_features[0].params == {"length": 5}
+
+    # Ensure defaults are NOT present
+    custom_names = [f.name for f in config_custom.contextual_features]
+    assert "ctx_atr" not in custom_names
+    assert "ctx_rsi" not in custom_names
+    assert "ctx_ema_slow" not in custom_names
