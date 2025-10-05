@@ -142,7 +142,13 @@ class PortfolioManager:
         if command in ["enter_long", "enter_short"]:
             side = "long" if command == "enter_long" else "short"
             return self._handle_entry_command(
-                side, bar_index, entry_window_bars, allow_flip, current_bar, context, min_hold_bars
+                side,
+                bar_index,
+                entry_window_bars,
+                allow_flip,
+                current_bar,
+                context,
+                min_hold_bars,
             )
 
         # Exit commands
@@ -187,7 +193,11 @@ class PortfolioManager:
             # After closing, check if we should open entry window
             if not allow_flip:
                 # Just exit, don't open entry window
-                return {"action": "exited", "side": side, "reason": "opposite_signal"}
+                return {
+                    "action": "exited",
+                    "side": side,
+                    "reason": "opposite_signal",
+                }
             # Fall through to open entry window for flip
 
         # Flat or just closed - open entry window for this side
@@ -196,7 +206,11 @@ class PortfolioManager:
         return {"action": "window_opened", "side": side}
 
     def _handle_exit_command(
-        self, side: str, current_bar: pd.Series, context: dict | None, min_hold_bars: int = 0
+        self,
+        side: str,
+        current_bar: pd.Series,
+        context: dict | None,
+        min_hold_bars: int = 0,
     ) -> dict[str, Any]:
         """Handle exit_long or exit_short command."""
 

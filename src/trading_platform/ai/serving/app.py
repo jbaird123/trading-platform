@@ -117,8 +117,8 @@ async def predict(request: PredictionRequest, api_key: str = Depends(get_api_key
         return PredictionResponse(
             signal=signal, probability=probability, model_version="v1.0"
         )
-    except Exception as e:
-        logger.exception(f"Error during prediction: {e}")
+    except Exception:
+        logger.exception("Error during prediction")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error during prediction.",

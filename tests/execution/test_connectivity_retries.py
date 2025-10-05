@@ -230,7 +230,7 @@ class CircuitBreaker:
 
     def call(self, func):
         if self._open:
-            raise Exception("Circuit breaker is open")
+            raise Exception("Circuit breaker is open")  # noqa: TRY002
 
         try:
             result = func()

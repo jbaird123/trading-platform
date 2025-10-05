@@ -96,7 +96,7 @@ def test_structured_log_error_tracking():
 
     try:
         # Simulate error
-        raise ConnectionError("Failed to connect to broker API")
+        raise ConnectionError("Failed to connect to broker API")  # noqa: TRY301
     except Exception as e:
         log_entry = log_error(
             error=e,
