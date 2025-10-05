@@ -42,7 +42,7 @@
   "meta": {
     "strategy_name": "Golden_EMA_Crossover",
     "run_id": "golden_run_test",
-    "git_commit": "9944851",
+    "git_commit": "aa1eb47",
     "run_seed": 42
   },
   "strategy_params": {},
@@ -89,7 +89,8 @@
       ]
     ],
     "max_drawdown": 0.0,
-    "dd_duration_bars": 0
+    "dd_duration_bars": 0,
+    "sharpe_ratio": 0.0
   },
   "distribution": {
     "pnl_mean": 0.0,
@@ -177,7 +178,7 @@
     "data_end": null,
     "symbols": [],
     "app_version": "0.0.1",
-    "git_commit": "9944851",
+    "git_commit": "aa1eb47",
     "run_seed": 42
   },
   "artifacts": {},
@@ -223,6 +224,7 @@
     "equity_stats.drawdown_curve": "Time series of portfolio drawdown (timestamp, value) pairs.",
     "equity_stats.max_drawdown": "The largest peak-to-trough drop in equity.",
     "equity_stats.dd_duration_bars": "The duration in bars of the longest drawdown period.",
+    "equity_stats.sharpe_ratio": "Statistics related to the portfolio equity curve.",
     "distribution.pnl_mean": "Mean of trade PnL.",
     "distribution.pnl_median": "Median of trade PnL.",
     "distribution.pnl_std": "Standard deviation of trade PnL.",
