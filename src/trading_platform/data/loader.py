@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import pandas as pd
 
 from .schema import load_and_normalize_data
+
+logger = logging.getLogger(__name__)
 
 
 def load_instrument_data(
@@ -61,14 +64,13 @@ def load_instrument_data(
         incremental_files = list(incremental_dir.glob("*.csv"))
 
         for file_path in incremental_files:
-            try:
-                inc_df, inc_flags = load_and_normalize_data(file_path)
-                if not inc_df.empty:
-                    dataframes.append(inc_df)
-                    flags.extend(inc_flags)
-            except Exception:
-                # Skip files that fail to load - they may be incomplete
-                continue
+            # Fail-fast principle: data loading errors must be visible
+            # If incremental data fails to load, we cannot be certain about
+            # data completeness/integrity
+            inc_df, inc_flags = load_and_normalize_data(file_path)
+            if not inc_df.empty:
+                dataframes.append(inc_df)
+                flags.extend(inc_flags)
 
     # Combine all dataframes if we have more than just the base
     if len(dataframes) > 1:
