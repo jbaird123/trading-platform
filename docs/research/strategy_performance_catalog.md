@@ -25,6 +25,42 @@
 
 ---
 
+## Key Research Learnings & Directives
+
+This section summarizes the most critical, cross-strategy principles discovered
+during research. All future analysis **MUST** adhere to these directives.
+
+### 1. Full-Backtest PnL is Misleading. WFE is Mandatory.
+- **Source:** Iteration `009_supertrend_wfe`
+- **Finding:** A SuperTrend strategy showed a **$8,199 PnL** on the full dataset
+  but collapsed to **$3,247 (-60%)** in out-of-sample testing. In contrast, a
+  "weaker" EMA strategy with only **$3,543 PnL** proved highly robust with 95%
+  out-of-sample consistency.
+- **Directive:** A strategy is not considered "successful" or "promising" based
+  on its full-backtest performance alone. **Walk-Forward Evaluation (WFE) is the
+  sole arbiter of robustness.** No system will be considered for production
+  without passing WFE with >70% profitable windows.
+
+### 2. Granular Time Filters Are a Major Overfitting Risk.
+- **Source:** Iteration `008_custom_supertrend_blackout` -> `009_supertrend_wfe`
+- **Finding:** A highly granular blackout policy (blocking 16 of 24 hours)
+  produced a +292% PnL improvement on the SuperTrend strategy *in-sample*. This
+  same filter was the direct cause of the WFE failure.
+- **Directive:** Prefer broad, session-based time filters (e.g., "London
+  Session") over hyper-specific, hour-based rules. Granular filters are more
+  likely to fit historical noise than a persistent market edge.
+
+### 3. Regime Filters Are Not Portable Between Strategies.
+- **Source:** Iteration `007_supertrend_signal`
+- **Finding:** The time-based filter that gave the EMA Crossover a +1626%
+  performance boost resulted in a **-80% PnL collapse** when applied to the
+  SuperTrend strategy.
+- **Directive:** Every strategy has a unique market fingerprint. Never assume a
+  profitable regime filter for one strategy will work for another. Each system
+  requires independent regime optimization.
+
+---
+
 ## Strategy Profiles
 
 ### EMA Crossover (20/80)
