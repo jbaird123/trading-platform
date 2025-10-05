@@ -530,13 +530,14 @@ def compute_equity_stats(trades: list[Trade], initial_cash: float) -> dict[str, 
     temp_duration = 0
 
     # Calculate Sharpe ratio from equity curve
+    # Need at least 2 returns (3 equity points) for meaningful std calculation
     equity_values = [float(eq) for _, eq in ec]
-    if len(equity_values) > 1:
+    if len(equity_values) >= 3:
         returns = np.diff(equity_values) / equity_values[:-1]
         mean_return = np.mean(returns)
         std_return = np.std(returns, ddof=1)
 
-        # Annualize (assume ~2000 trading periods per year for hourly with blackouts)
+        # Annualize (assume ~2000 trading periods/year for hourly + blackouts)
         # This is conservative - adjust based on actual trading frequency
         periods_per_year = 2000
         annualized_return = mean_return * periods_per_year
@@ -544,6 +545,7 @@ def compute_equity_stats(trades: list[Trade], initial_cash: float) -> dict[str, 
 
         sharpe_ratio = annualized_return / annualized_std if annualized_std > 0 else 0.0
     else:
+        # Insufficient data for meaningful Sharpe calculation
         sharpe_ratio = 0.0
 
     for ts, eq in ec:
