@@ -37,12 +37,12 @@
   "feature_analysis": {},
   "checksums": {
     "instrument_defs_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-    "config_snapshot_hash": "aa4388017252d5b14403eca436bff238c2fdde8e1c5feb903c27e482d02f3b5c"
+    "config_snapshot_hash": "17f1de363282aa63189049955af68317f754cec16175c31b0e9ce2ad49d81413"
   },
   "meta": {
     "strategy_name": "Golden_EMA_Crossover",
     "run_id": "golden_run_test",
-    "git_commit": "f4593ef",
+    "git_commit": "6ae9146",
     "run_seed": 42
   },
   "strategy_params": {},
@@ -180,7 +180,7 @@
     "data_end": null,
     "symbols": [],
     "app_version": "0.0.1",
-    "git_commit": "f4593ef",
+    "git_commit": "6ae9146",
     "run_seed": 42
   },
   "artifacts": {},
@@ -291,7 +291,13 @@
     "policy_effects.n_short": "Number of short trades executed.",
     "policy_effects.n_long_skipped": "Number of long trades skipped by policy.",
     "policy_effects.n_short_skipped": "Number of short trades skipped by policy.",
-    "skipped_trades": "A list of potential trades that were not executed due to various filters or policies, along with their simulated counterfactual outcomes."
+    "skipped_trades": "A list of potential trades that were not executed due to various filters or policies, along with their simulated counterfactual outcomes.",
+    "exit_efficiency.simulated_hold_analysis": "Realistic simulation-based post-exit analysis. Simulates holding positions longer after exit, accounting for stop-loss and take-profit triggers. Provides actionable guidance on whether delayed exits would actually improve performance.",
+    "exit_efficiency.simulated_hold_analysis.by_hold_period": "Analysis results grouped by hold period (e.g., '10', '20', '50' bars).",
+    "exit_efficiency.simulated_hold_analysis.by_hold_period.*.avg_pnl_change_realistic": "Average change in PnL if positions were held this many extra bars, accounting for stop-loss and take-profit triggers. Positive means holding longer would have been profitable.",
+    "exit_efficiency.simulated_hold_analysis.by_hold_period.*.avg_mfe_unrealistic": "Average Maximum Favorable Excursion during the hold period (for comparison with old metrics). This is the unrealistic best-case scenario.",
+    "exit_efficiency.simulated_hold_analysis.by_hold_period.*.outcome_distribution": "Breakdown of how simulations ended: stop_loss_hit, take_profit_hit, or held_full_period (percentages).",
+    "exit_efficiency.simulated_hold_analysis.by_hold_period.*.avg_pnl_change_by_original_exit_reason": "Average PnL change broken down by the trade's original exit reason (e.g., 'opposite_signal', 'stop-loss', 'signal')."
   },
   "trades": [],
   "recommendations": [

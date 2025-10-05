@@ -152,11 +152,11 @@ def test_enrich_trades_with_post_exit_analysis_no_data_after_exit():
 
     _enrich_trades_with_post_exit_analysis([trade], df, [10])
 
-    # Should have post_exit_analysis with zero MFE/MAE
+    # Should have post_exit_analysis (new PostExitAnalysis format)
     assert hasattr(trade, "post_exit_analysis")
     assert trade.post_exit_analysis is not None, "post_exit_analysis should not be None"
-    assert trade.post_exit_analysis["10"]["mfe"] == 0.0
-    assert trade.post_exit_analysis["10"]["mae"] == 0.0
+    # New format: PostExitAnalysis with empty simulated_holds list
+    assert len(trade.post_exit_analysis.simulated_holds) == 0
 
 
 def test_enrich_trades_with_post_exit_analysis_empty_post_bars():
@@ -187,11 +187,15 @@ def test_enrich_trades_with_post_exit_analysis_empty_post_bars():
 
     _enrich_trades_with_post_exit_analysis([trade], df, [0])
 
-    # Should have post_exit_analysis with zero MFE/MAE
+    # Should have post_exit_analysis (new PostExitAnalysis format)
     assert hasattr(trade, "post_exit_analysis")
     assert trade.post_exit_analysis is not None, "post_exit_analysis should not be None"
-    assert trade.post_exit_analysis["0"]["mfe"] == 0.0
-    assert trade.post_exit_analysis["0"]["mae"] == 0.0
+    # With 1 bar of data and horizon 0, should have 1 simulation
+    assert len(trade.post_exit_analysis.simulated_holds) == 1
+    sim = trade.post_exit_analysis.simulated_holds[0]
+    assert sim.hold_bars == 0
+    # With no actual hold period, should exit immediately
+    assert sim.simulated_exit_bar_offset == 0
 
 
 def test_enrich_trades_with_post_exit_analysis_long_trade():
@@ -224,8 +228,11 @@ def test_enrich_trades_with_post_exit_analysis_long_trade():
     # Long: MFE = max(high - exit_price) * size, MAE = min(low - exit_price) * size
     assert hasattr(trade, "post_exit_analysis")
     assert trade.post_exit_analysis is not None, "post_exit_analysis should not be None"
-    assert trade.post_exit_analysis["2"]["mfe"] > 0  # Price went up after exit
-    assert trade.post_exit_analysis["2"]["mae"] < 0  # Price also dipped
+    assert len(trade.post_exit_analysis.simulated_holds) == 1
+    sim = trade.post_exit_analysis.simulated_holds[0]
+    assert sim.hold_bars == 2
+    assert sim.mfe_during_hold > 0  # Price went up after exit (favorable for long)
+    assert sim.mae_during_hold < 0  # Price also dipped (adverse for long)
 
 
 def test_enrich_trades_with_post_exit_analysis_short_trade():
@@ -258,9 +265,12 @@ def test_enrich_trades_with_post_exit_analysis_short_trade():
     # Short: MFE = max(exit_price - low) * size, MAE = min(exit_price - high) * size
     assert hasattr(trade, "post_exit_analysis")
     assert trade.post_exit_analysis is not None, "post_exit_analysis should not be None"
-    assert trade.post_exit_analysis["2"]["mfe"] > 0  # Price went down after exit
-    # MAE should be 0.0 if high didn't exceed exit price
-    assert "mae" in trade.post_exit_analysis["2"]
+    assert len(trade.post_exit_analysis.simulated_holds) == 1
+    sim = trade.post_exit_analysis.simulated_holds[0]
+    assert sim.hold_bars == 2
+    assert sim.mfe_during_hold > 0  # Price went down after exit (favorable for short)
+    # MAE tracked during simulation
+    assert sim.mae_during_hold is not None
 
 
 def test_post_exit_analysis_integration():
@@ -311,8 +321,11 @@ def test_post_exit_analysis_integration():
     assert (
         trades[0].post_exit_analysis is not None
     ), "post_exit_analysis should not be None"
-    assert "3" in trades[0].post_exit_analysis
-    assert "5" in trades[0].post_exit_analysis
+    # New format: PostExitAnalysis with simulated_holds for horizons 3 and 5
+    assert len(trades[0].post_exit_analysis.simulated_holds) == 2
+    hold_bars_list = [s.hold_bars for s in trades[0].post_exit_analysis.simulated_holds]
+    assert 3 in hold_bars_list
+    assert 5 in hold_bars_list
 
 
 def test_rmm_context_feature_rounding():
@@ -649,8 +662,11 @@ def test_enrich_trades_with_post_exit_analysis_empty_slice_edge():
     # Should have data for horizon 1 (one bar after exit)
     assert hasattr(trade, "post_exit_analysis")
     assert trade.post_exit_analysis is not None, "post_exit_analysis should not be None"
-    assert "1" in trade.post_exit_analysis
-    assert "2" in trade.post_exit_analysis
+    # New format: PostExitAnalysis with simulated_holds for horizons 1 and 2
+    assert len(trade.post_exit_analysis.simulated_holds) == 2
+    hold_bars_list = [s.hold_bars for s in trade.post_exit_analysis.simulated_holds]
+    assert 1 in hold_bars_list
+    assert 2 in hold_bars_list
 
 
 def test_skipped_entry_index_invalid_conversion():
