@@ -337,20 +337,29 @@ def _serialize_trade(t: Trade) -> dict[str, Any]:
             for k, v in context_at_exit.items()
         }
 
-    # Round post-exit analysis MFE/MAE
+    # Handle post-exit analysis (supports both old dict and new Pydantic model)
     post_exit = getattr(t, "post_exit_analysis", None)
-    if post_exit and isinstance(post_exit, dict):
-        post_exit = {
-            horizon: {
-                "mfe": _round_currency(data.get("mfe"))
-                if isinstance(data, dict)
-                else data,
-                "mae": _round_currency(data.get("mae"))
-                if isinstance(data, dict)
-                else data,
+    if post_exit:
+        from trading_platform.reporting.models.exit_analysis import (
+            PostExitAnalysis,
+        )
+
+        if isinstance(post_exit, PostExitAnalysis):
+            # New format: convert Pydantic model to dict with rounding
+            post_exit = post_exit.model_dump()
+        elif isinstance(post_exit, dict):
+            # Legacy format: round MFE/MAE values
+            post_exit = {
+                horizon: {
+                    "mfe": _round_currency(data.get("mfe"))
+                    if isinstance(data, dict)
+                    else data,
+                    "mae": _round_currency(data.get("mae"))
+                    if isinstance(data, dict)
+                    else data,
+                }
+                for horizon, data in post_exit.items()
             }
-            for horizon, data in post_exit.items()
-        }
 
     cost_breakdown = _normalize_cost_breakdown(getattr(t, "cost_breakdown", None))
 
@@ -769,6 +778,17 @@ def generate_brief(
     # --- Exit efficiency analysis section ---
     exit_efficiency = compute_exit_efficiency(trades)
 
+    # --- Simulated hold analysis (realistic post-exit analysis) ---
+    from trading_platform.reporting.aggregators import (
+        aggregate_simulated_hold_analysis,
+    )
+    simulated_hold_analysis = aggregate_simulated_hold_analysis(trades)
+    # Add to exit_efficiency dict
+    if simulated_hold_analysis.by_hold_period:
+        exit_efficiency["simulated_hold_analysis"] = _to_jsonable(
+            simulated_hold_analysis.model_dump()
+        )
+
     base = {
         "meta": _to_jsonable(meta),
         "strategy_params": _to_jsonable(params),
@@ -909,7 +929,43 @@ def generate_brief(
                 # Strict mode: require schema coverage for every leaf
                 raise ValueError(f"Missing schema description for brief path: {p}")
             fdefs[p] = node["description"]
+        # Add custom field definitions for new simulated hold analysis
+        # (only when auto-generating from schema, not when pre-populated)
+        simulated_hold_field_defs = {
+            "exit_efficiency.simulated_hold_analysis": (
+                "Realistic simulation-based post-exit analysis. Simulates "
+                "holding positions longer after exit, accounting for "
+                "stop-loss and take-profit triggers. Provides actionable "
+                "guidance on whether delayed exits would actually improve "
+                "performance."
+            ),
+            "exit_efficiency.simulated_hold_analysis.by_hold_period": (
+                "Analysis results grouped by hold period (e.g., '10', '20', "
+                "'50' bars)."
+            ),
+            "exit_efficiency.simulated_hold_analysis.by_hold_period.*.avg_pnl_change_realistic": (  # noqa: E501
+                "Average change in PnL if positions were held this many "
+                "extra bars, accounting for stop-loss and take-profit "
+                "triggers. Positive means holding longer would have been "
+                "profitable."
+            ),
+            "exit_efficiency.simulated_hold_analysis.by_hold_period.*.avg_mfe_unrealistic": (  # noqa: E501
+                "Average Maximum Favorable Excursion during the hold period "
+                "(for comparison with old metrics). This is the unrealistic "
+                "best-case scenario."
+            ),
+            "exit_efficiency.simulated_hold_analysis.by_hold_period.*.outcome_distribution": (  # noqa: E501
+                "Breakdown of how simulations ended: stop_loss_hit, "
+                "take_profit_hit, or held_full_period (percentages)."
+            ),
+            "exit_efficiency.simulated_hold_analysis.by_hold_period.*.avg_pnl_change_by_original_exit_reason": (  # noqa: E501
+                "Average PnL change broken down by the trade's original exit "
+                "reason (e.g., 'opposite_signal', 'stop-loss', 'signal')."
+            ),
+        }
+        fdefs.update(simulated_hold_field_defs)
         placeholders["field_definitions"] = fdefs
+
     # Omit optional sections when empty to satisfy schema
     if not data_quality:
         placeholders.pop("data_quality", None)
