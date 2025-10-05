@@ -169,6 +169,47 @@ A trading system is only considered successful and ready for formal validation i
 
 ---
 
-## 6. Final Goal
+## 6. Knowledge Management: Strategy Performance Catalog
+
+### 6.1 Purpose
+
+As you discover how different strategies and indicators perform under various market conditions, you must maintain a **Strategy Performance Catalog** at `docs/research/strategy_performance_catalog.md`. This serves multiple critical purposes:
+
+1. **Avoid Repeating Failed Experiments:** Don't waste time re-testing hypotheses that have already been rejected
+2. **Enable Multi-Strategy Portfolios:** Identify strategies with complementary regime preferences that can work together
+3. **Transfer Knowledge Cautiously:** Learn from previous findings while respecting strategy-specific differences
+4. **Build Institutional Knowledge:** Create a reference for understanding which tools work where
+
+### 6.2 When to Update the Catalog
+
+**After Each Iteration:**
+1. Document validated findings in the relevant strategy profile
+2. Add rejected hypotheses to the "Failed Hypothesis Log"
+3. Update the "Indicator Effectiveness Matrix" with new learnings
+4. Revise "Portfolio Strategy Recommendations" based on new data
+
+**When Pivoting Strategies:**
+1. Create a new strategy profile section
+2. Compare and contrast with existing strategies
+3. Identify complementary vs. redundant characteristics
+4. Update multi-strategy portfolio considerations
+
+### 6.3 Critical Catalog Insights
+
+**LESSON FROM ITERATION 007:** Never assume that filters or regimes transfer between different strategy types. The blackout policy that improved EMA crossover by +1626% **destroyed** SuperTrend performance by -80%. Each strategy has its own optimal conditions.
+
+**USE CATALOG FOR:**
+- Identifying which strategies work in DIFFERENT market conditions (for diversification)
+- Understanding why certain filters succeed or fail
+- Building multi-strategy portfolios with complementary edges
+- Avoiding redundant strategy combinations
+
+**Template Available:** `docs/research/strategy_documentation_template.md`
+
+---
+
+## 7. Final Goal
 
 Your objective is to repeat this workflow until you produce a trading system that meets all the project's success criteria (Sharpe > 1.0, passing WFE, etc.). Once such a system is found, you may proceed to the formal Validation and Promotion phases outlined in the other methodology documents.
+
+Additionally, use the Strategy Performance Catalog to build a **multi-strategy portfolio** where different strategies handle different market regimes, increasing overall system robustness and consistency.
