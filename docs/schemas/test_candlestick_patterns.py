@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 import pytest
-from trading_platform.strategy.yaml_strategy import YAMLStrategy
+from trading_platform.strategy.yaml_strategy import compile_strategy
 
 
 @pytest.fixture
@@ -48,7 +48,7 @@ def test_can_use_candlestick_pattern_in_strategy(doji_candle_data):
         ],
     }
 
-    strategy = YAMLStrategy(config=strategy_config)
+    strategy = compile_strategy(strategy_config)
     signals = strategy.generate_signals(doji_candle_data)
 
     # pandas-ta cdl_doji returns 100 for a doji

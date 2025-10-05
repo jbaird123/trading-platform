@@ -706,7 +706,7 @@ def test_compute_exit_efficiency_take_profit_premature() -> None:
         trade,
         exit_reason="take_profit",
         pnl_movement=100.0,
-        post_exit_analysis={
+        post_exit_analysis={  # type: ignore[arg-type]
             "5": {"mfe": 250.0, "mae": -10.0},  # MFE > 2x profit = premature
             "10": {"mfe": 300.0, "mae": -20.0},
         },
@@ -736,7 +736,7 @@ def test_compute_exit_efficiency_stop_loss_false() -> None:
         exit_reason="stop_loss",
         pnl_movement=-50.0,
         initial_risk_ccy=50.0,
-        post_exit_analysis={
+        post_exit_analysis={  # type: ignore[arg-type]
             "5": {"mfe": 60.0, "mae": -10.0},  # MFE > initial_risk = false
             "10": {"mfe": 80.0, "mae": -15.0},
         },
@@ -765,7 +765,7 @@ def test_compute_exit_efficiency_signal_suboptimal() -> None:
         trade,
         exit_reason="signal",
         pnl_movement=50.0,
-        post_exit_analysis={
+        post_exit_analysis={  # type: ignore[arg-type]
             "5": {"mfe": 80.0, "mae": -5.0},  # MFE > 1.5x profit = suboptimal
             "10": {"mfe": 100.0, "mae": -10.0},
         },
@@ -792,7 +792,7 @@ def test_compute_exit_efficiency_optimal_hold_duration() -> None:
     trade1 = replace(
         trade1,
         exit_reason="signal",
-        post_exit_analysis={
+        post_exit_analysis={  # type: ignore[arg-type]
             "5": {"mfe": 20.0, "mae": -5.0},
             "10": {"mfe": 40.0, "mae": -10.0},
         },
@@ -802,7 +802,7 @@ def test_compute_exit_efficiency_optimal_hold_duration() -> None:
     trade2 = replace(
         trade2,
         exit_reason="signal",
-        post_exit_analysis={
+        post_exit_analysis={  # type: ignore[arg-type]
             "5": {"mfe": 10.0, "mae": -3.0},
             "10": {"mfe": 20.0, "mae": -5.0},
         },
@@ -834,7 +834,7 @@ def test_compute_exit_efficiency_no_matching_exit_reason() -> None:
         trade,
         exit_reason="signal",
         pnl_movement=50.0,
-        post_exit_analysis={
+        post_exit_analysis={  # type: ignore[arg-type]
             "5": {"mfe": 10.0, "mae": -5.0},
         },
     )
@@ -863,7 +863,7 @@ def test_compute_exit_efficiency_all_trades_different_exit_reasons() -> None:
         trade1,
         exit_reason="take_profit",
         pnl_movement=50.0,
-        post_exit_analysis={"5": {"mfe": 10.0, "mae": -5.0}},
+        post_exit_analysis={"5": {"mfe": 10.0, "mae": -5.0}},  # type: ignore[arg-type]
     )
 
     trade2 = _mock_trade(-30.0, datetime(2024, 1, 2))
@@ -872,7 +872,7 @@ def test_compute_exit_efficiency_all_trades_different_exit_reasons() -> None:
         exit_reason="stop_loss",
         pnl_movement=-30.0,
         initial_risk_ccy=30.0,
-        post_exit_analysis={"5": {"mfe": 5.0, "mae": -10.0}},
+        post_exit_analysis={"5": {"mfe": 5.0, "mae": -10.0}},  # type: ignore[arg-type]
     )
 
     trade3 = _mock_trade(20.0, datetime(2024, 1, 3))
@@ -880,7 +880,7 @@ def test_compute_exit_efficiency_all_trades_different_exit_reasons() -> None:
         trade3,
         exit_reason="time_exit",
         pnl_movement=20.0,
-        post_exit_analysis={"5": {"mfe": 8.0, "mae": -3.0}},
+        post_exit_analysis={"5": {"mfe": 8.0, "mae": -3.0}},  # type: ignore[arg-type]
     )
 
     from trading_platform.reporting.analytics import compute_exit_efficiency

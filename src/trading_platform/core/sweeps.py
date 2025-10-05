@@ -499,7 +499,14 @@ def walk_forward_analysis(
     for s in splits:
         # Use test_bars to slice the test window from the split
         # The split already gives us train_end, so test starts after that
-        test_start_idx = df.index.get_loc(s.test_start)
+        loc_result = df.index.get_loc(s.test_start)
+        # get_loc can return int, slice, or boolean array
+        if isinstance(loc_result, int):
+            test_start_idx = loc_result
+        elif isinstance(loc_result, slice):
+            test_start_idx = loc_result.start or 0
+        else:  # boolean array
+            test_start_idx = int(loc_result.argmax())
         test_end_idx = min(test_start_idx + test_bars, len(df))
         test = df.iloc[test_start_idx:test_end_idx]
 
