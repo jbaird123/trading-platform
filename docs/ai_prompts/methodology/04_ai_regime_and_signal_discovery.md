@@ -72,12 +72,12 @@ Your primary goal is now to analyze `baseline/brief.json` to find a path to impr
 
 #### Formulate Hypothesis and Test
 
-1.  **Prioritize & Choose Tool:** Based on your dual-track analysis, decide which path offers the most promising improvement.
-    -   If your hypothesis is based on **dynamic market conditions** (volatility, trend), implement it with an **RMM filter**.
-    -   If your hypothesis is based on **static time windows** (hour-of-day, day-of-week), implement it using the **Blackout Policy** in the run configuration.
-    -   **Parallel Testing:** If you have multiple strong, independent hypotheses, you may test them in parallel. Create `refinement_01_time_filter` and `refinement_02_signal_filter` subdirectories.
-2.  **State Hypothesis:** In your `run_summary.md`, clearly state your hypothesis. For example, "My primary hypothesis is that this strategy is only profitable during the London session. I will test this by creating an RMM filter."
-3.  **Implement:** Create a new subdirectory named `refinement_01`. Inside this directory, place the new configuration files (`rmm.yaml` or an updated `strategy.yaml`).
+1.  **Formulate a Unified Regime Hypothesis:** Your primary goal is to combine insights from your analysis into a single, powerful regime definition using the enhanced RMM.
+    -   **CRITICAL: The RMM now supports both time-based (`hour_is_in`, `day_of_week_is_in`) and indicator-based conditions in the same filter.** You **MUST** leverage this to create more sophisticated, composite regimes. The separate `Blackout Policy` is now deprecated for new research.
+    -   **Good Hypothesis Example:** "The data shows profitability is concentrated during the London session (06:00-15:00 UTC), but only when the market is also trending (ADX > 25). I will create a single RMM filter that combines these time and indicator conditions in an `all_of` block."
+    -   **Bad Hypothesis Example:** "I will test a time filter, and then separately test an ADX filter." (This is inefficient. Combine them!)
+2.  **State Hypothesis:** In your `run_summary.md`, clearly state your composite hypothesis. For example, "My primary hypothesis is that this strategy is only profitable during the London session *and* when trend strength is high. I will test this by creating a single RMM filter with both time and ADX conditions."
+3.  **Implement:** Create a new subdirectory named `refinement_01`. Inside this directory, place the new `rmm.yaml` file that contains the combined logic.
 4.  **Run Refinement Backtest:** Execute the backtest with the new configuration. The output will be `refinement_01/brief.json`.
 
 ### Stage 3: Compare and Conclude
