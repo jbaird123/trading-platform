@@ -52,6 +52,10 @@ Your primary goal is now to analyze `baseline/brief.json` to find a path to impr
 
 -   **Action:** Analyze the `timing_buckets` (hour_of_day, day_of_week), `contrasts` (long vs. short), and volatility metrics within the baseline `brief.json`.
 -   **Task:** Identify the most profitable and unprofitable conditions. Your goal is to form a hypothesis about the ideal **market regime**.
+-   **Think Beyond Time:** A "regime" is more than just time of day. Investigate performance correlations with market dynamics. For example:
+    -   **Volatility:** Does the strategy perform better in high or low volatility? (Consider analyzing ATR or Bollinger Band Width from the context data).
+    -   **Trend Strength:** Does it thrive in strong trends or ranging markets? (Consider ADX).
+    -   **Market Structure:** Does it perform better after a new 20-day high has been made?
 -   **CRITICAL - Justify Your Hypothesis:** You must provide a plausible, market-based explanation for why a proposed filter should work. This is to prevent curve-fitting.
     -   **Good Example:** "The data shows profitability is concentrated between 13:00-16:00 UTC. This corresponds to the London/New York session overlap, which is typically characterized by high liquidity that should benefit this strategy. I will propose an RMM filter for this window."
     -   **Bad Example:** "Trades at 2:00 PM are profitable. I will filter for 2:00 PM."
@@ -61,21 +65,25 @@ Your primary goal is now to analyze `baseline/brief.json` to find a path to impr
 -   **Action:** Analyze the `context_at_entry` and `context_at_exit` fields for all trades in `baseline/brief.json`.
 -   **Task:** Compare the indicator values for winning trades versus losing trades. Your goal is to form a hypothesis about how to **refine the strategy's own logic**.
 -   **Example:** "Winning trades consistently have an ADX value above 30 at entry, while many losing trades have an ADX below 20. This suggests the strategy suffers when the trend is weak. I will propose adding `adx > 30` as a required entry condition."
+-   **Hypothesize About Missing Information:** If your analysis reveals no clear patterns, consider what is **not** being measured. Form a hypothesis about a new indicator that could provide the missing context. Your next step would be to add this indicator to the strategy's feature pipeline and re-run the baseline.
+    -   **Example:** "There is no clear pattern in the existing context. However, I notice many losing trades occur when the price is moving sideways. The current strategy has no way to measure trend strength. My hypothesis is that adding an ADX indicator and filtering for `ADX > 25` will eliminate these poor-quality trades. My next step is to add ADX to the feature set."
 
 #### Formulate Hypothesis and Test
 
 1.  **Prioritize:** Based on your dual-track analysis, decide which path offers the most promising improvement: Regime Filtering or Signal Refinement.
+    -   **Parallel Testing:** If your analysis yields multiple strong, independent hypotheses (e.g., one for Regime and one for Signal), you may test them in parallel. Create `refinement_01_regime_filter` and `refinement_02_signal_filter` subdirectories.
 2.  **State Hypothesis:** In your `run_summary.md`, clearly state your hypothesis. For example, "My primary hypothesis is that this strategy is only profitable during the London session. I will test this by creating an RMM filter."
 3.  **Implement:** Create a new subdirectory named `refinement_01`. Inside this directory, place the new configuration files (`rmm.yaml` or an updated `strategy.yaml`).
 4.  **Run Refinement Backtest:** Execute the backtest with the new configuration. The output will be `refinement_01/brief.json`.
 
 ### Stage 3: Compare and Conclude
 
-1.  **Compare Results:** Your final task for the iteration is to perform a side-by-side comparison of `baseline/brief.json` and `refinement_01/brief.json`.
+1.  **Compare Results:** Your final task for the iteration is to perform a side-by-side comparison of the `baseline` against all `refinement` runs.
 2.  **Document Verdict:** In your `run_summary.md`, answer the following questions:
     -   Did the change improve the target metrics (Sharpe Ratio, PnL, Max Drawdown)?
     -   Was the hypothesis validated?
     -   Based on the result, what is the plan for the next iteration? (e.g., "The RMM filter was highly effective. I will now use this filtered result as the baseline for the next iteration and investigate signal refinement.", or "The RMM filter did not improve performance. I will discard it and test my signal refinement hypothesis next.")
+3.  **Know When to Pivot:** If after 3-5 iterations of filtering and refinement, no significant progress has been made toward the success criteria, you must conclude that the baseline strategy is likely flawed. At this point, you should **pivot**. Discard the current strategy and propose a new, fundamentally different approach for the next baseline (e.g., switch from mean-reversion to trend-following).
 
 This completes one full iteration. The winning configuration from this iteration becomes the baseline for the next.
 
