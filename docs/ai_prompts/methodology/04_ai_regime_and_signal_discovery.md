@@ -31,63 +31,62 @@ This process is guided by a structured, two-stage iterative loop: **"Analyze, Fi
 -   Use only standard timeframes: `1M`, `5M`, `15M`, `30M`, `1H`, `4H`, `1D`
 -   Avoid arbitrary timeframes unless there's a specific research reason
 
+### 2.3 Research Directives from Performance Catalog
+
+**CRITICAL:** Before any analysis, you **MUST** consult the `docs/research/strategy_performance_catalog.md` file for its top-level **"Key Research Learnings & Directives"**. You must adhere to these principles at all times.
+
+1.  **WFE is Mandatory:** Full-backtest PnL is considered misleading. Your primary goal is to optimize out-of-sample robustness, not in-sample PnL.
+2.  **Avoid Granular Filters:** Prefer broad, session-based filters over hyper-specific, hour-based rules, which are a major overfitting risk.
+3.  **Filters Are Not Portable:** Never assume a profitable filter for one strategy will work for another. Every system requires independent optimization.
+
 ---
 
-## 3. The "Analyze, Filter, Compare" Workflow
+## 3. The "Analyze, Validate, Compare" Workflow (WFE-Centric)
 
-Each iteration of your discovery process consists of two primary stages. You will first establish a baseline, then analyze it to form a hypothesis, and finally test that hypothesis against the baseline.
+Your discovery process is a rigorous, three-stage loop designed to find **robust** strategies, not just profitable ones. You must prioritize out-of-sample performance over in-sample performance at all times.
 
-### Stage 1: Establish Baseline
+### Stage 1: Establish Baseline Robustness
 
-1.  **Create Iteration Directory:** Create a new timestamped directory for this full iteration (e.g., `.../001_ema_crossover_iteration/`). All files for this iteration will live here.
-2.  **Run Baseline Backtest:** In a subdirectory named `baseline`, run the strategy with **no RMM filter** (`rmm_config: null`).
-    -   This action establishes the strategy's raw performance across all market conditions.
-    -   The output will be `baseline/brief.json`.
+1.  **Create Iteration Directory:** Create a new timestamped directory for this iteration (e.g., `.../001_ema_crossover_iteration/`).
+2.  **Run Baseline WFE:** In a subdirectory named `baseline`, run the strategy with **no RMM filter** (`rmm_config: null`) and with `walk_forward` validation enabled in the run configuration.
+    -   This establishes the strategy's **raw robustness** and out-of-sample performance.
+    -   The key output is `baseline/brief.json`, specifically the `walk_forward_summary`.
 
-### Stage 2: Dual-Track Analysis and Refinement
+### Stage 2: Dual-Track Analysis and Hypothesis Formulation
 
-Your primary goal is now to analyze `baseline/brief.json` to find a path to improvement. You must investigate two tracks simultaneously.
+Your goal is to analyze the **baseline WFE results** to find a path to **improved robustness**.
 
 #### Track 1: Regime Analysis (The "When")
 
--   **Action:** Analyze the `timing_buckets` (hour_of_day, day_of_week), `contrasts` (long vs. short), and volatility metrics within the baseline `brief.json`.
--   **Task:** Identify the most profitable and unprofitable conditions. Your goal is to form a hypothesis about the ideal **market regime**.
--   **Think Beyond Time:** A "regime" is more than just time of day. Investigate performance correlations with market dynamics. For example:
-    -   **Volatility:** Does the strategy perform better in high or low volatility? (Consider analyzing ATR or Bollinger Band Width from the context data).
-    -   **Trend Strength:** Does it thrive in strong trends or ranging markets? (Consider ADX).
-    -   **Choppiness:** Does the strategy get "whipsawed" in sideways markets? (Consider using the **Chop Index (`CHOP`)** to filter for trending conditions).
-    -   **Market Structure:** Does it perform better after a new 20-day high has been made?
--   **CRITICAL - Justify Your Hypothesis:** You must provide a plausible, market-based explanation for why a proposed filter should work. This is to prevent curve-fitting.
-    -   **Good Example:** "The data shows profitability is concentrated between 13:00-16:00 UTC. This corresponds to the London/New York session overlap, which is typically characterized by high liquidity that should benefit this strategy. I will propose an RMM filter for this window."
-    -   **Bad Example:** "Trades at 2:00 PM are profitable. I will filter for 2:00 PM."
+-   **Action:** Analyze the `timing_buckets`, `contrasts`, and volatility metrics within `baseline/brief.json`. **Crucially, correlate these with the `walk_forward_summary`**. Do failing out-of-sample windows share common characteristics (e.g., low volatility, specific times of day)?
+-   **Task:** Form a hypothesis about a market regime that will improve **out-of-sample performance**.
+-   **CRITICAL - Justify Your Hypothesis:** You must provide a plausible, market-based explanation for why a proposed filter should improve **generalization**, not just in-sample PnL.
+    -   **Good Example:** "The WFE results show that most losing windows occurred during the Asian session. This is a low-liquidity environment prone to whipsaws, which hurts this trend-following strategy. I will propose an RMM filter to exclude these hours, expecting it to improve the percentage of profitable forward windows."
+    -   **Bad Example (Overfitting):** "The single best hour in the full backtest was 18:00. I will create a filter for only 18:00." (This is likely noise and will not generalize).
 
 #### Track 2: Signal Analysis (The "What")
 
--   **Action:** Analyze the `context_at_entry` and `context_at_exit` fields for all trades in `baseline/brief.json`.
--   **Task:** Compare the indicator values for winning trades versus losing trades. Your goal is to form a hypothesis about how to **refine the strategy's own logic**.
--   **Example:** "Winning trades consistently have an ADX value above 30 at entry, while many losing trades have an ADX below 20. This suggests the strategy suffers when the trend is weak. I will propose adding `adx > 30` as a required entry condition."
--   **Hypothesize About Missing Information:** If your analysis reveals no clear patterns, consider what is **not** being measured. Form a hypothesis about a new indicator that could provide the missing context. Your next step would be to add this indicator to the strategy's feature pipeline and re-run the baseline.
-    -   **Example:** "There is no clear pattern in the existing context. However, I notice many losing trades occur when the price is moving sideways. The current strategy has no way to measure trend strength. My hypothesis is that adding an ADX indicator and filtering for `ADX > 25` will eliminate these poor-quality trades. My next step is to add ADX to the feature set."
-    -   **Consider powerful, all-in-one indicators** if the current feature set is weak. For example, if trend is a major factor, hypothesizing the addition of **SuperTrend** or the **Ichimoku Cloud** can provide a much richer context than simple moving averages.
+-   **Action:** Analyze `context_at_entry` in `baseline/brief.json`, again focusing on the differences between trades in profitable vs. unprofitable **out-of-sample windows**.
+-   **Task:** Form a hypothesis about a signal refinement that will make the strategy more robust.
+-   **Example:** "Losing WFE windows are characterized by low ADX values. The strategy is entering trades when the trend is too weak to generalize to new data. I will propose adding `adx > 25` as a required entry condition to improve robustness."
 
-#### Formulate Hypothesis and Test
+#### Formulate Hypothesis and Validate
 
-1.  **Formulate a Unified Regime Hypothesis:** Your primary goal is to combine insights from your analysis into a single, powerful regime definition using the enhanced RMM.
-    -   **CRITICAL: The RMM now supports both time-based (`hour_is_in`, `day_of_week_is_in`) and indicator-based conditions in the same filter.** You **MUST** leverage this to create more sophisticated, composite regimes. The separate `Blackout Policy` is now deprecated for new research.
-    -   **Good Hypothesis Example:** "The data shows profitability is concentrated during the London session (06:00-15:00 UTC), but only when the market is also trending (ADX > 25). I will create a single RMM filter that combines these time and indicator conditions in an `all_of` block."
-    -   **Bad Hypothesis Example:** "I will test a time filter, and then separately test an ADX filter." (This is inefficient. Combine them!)
-2.  **State Hypothesis:** In your `run_summary.md`, clearly state your composite hypothesis. For example, "My primary hypothesis is that this strategy is only profitable during the London session *and* when trend strength is high. I will test this by creating a single RMM filter with both time and ADX conditions."
-3.  **Implement:** Create a new subdirectory named `refinement_01`. Inside this directory, place the new `rmm.yaml` file that contains the combined logic.
-4.  **Run Refinement Backtest:** Execute the backtest with the new configuration. The output will be `refinement_01/brief.json`.
+1.  **Formulate a Unified Regime Hypothesis:** Combine insights into a single, composite regime designed to improve **robustness**.
+    -   **CRITICAL: Adhere to the Research Directives.** Consult `docs/research/strategy_performance_catalog.md`. Avoid granular, hour-specific filters. Prefer broad, session-based filters. Do not assume filters are portable.
+2.  **State Hypothesis:** In your `run_summary.md`, clearly state your hypothesis in terms of **improving robustness**. Example: "My hypothesis is that this strategy's robustness will improve by filtering for the high-liquidity London/NY sessions and requiring ADX > 25. This should increase the percentage of profitable forward windows."
+3.  **Implement:** Create a `refinement_01` subdirectory with the new `rmm.yaml` or modified `strategy.yaml`.
+4.  **Run Refinement WFE:** Execute the backtest with the new configuration, ensuring `walk_forward` validation is enabled. The output will be `refinement_01/brief.json`.
 
-### Stage 3: Compare and Conclude
+### Stage 3: Compare Robustness and Conclude
 
-1.  **Compare Results:** Your final task for the iteration is to perform a side-by-side comparison of the `baseline` against all `refinement` runs.
-2.  **Document Verdict:** In your `run_summary.md`, answer the following questions:
-    -   Did the change improve the target metrics (Sharpe Ratio, PnL, Max Drawdown)?
-    -   Was the hypothesis validated?
-    -   Based on the result, what is the plan for the next iteration? (e.g., "The RMM filter was highly effective. I will now use this filtered result as the baseline for the next iteration and investigate signal refinement.", or "The RMM filter did not improve performance. I will discard it and test my signal refinement hypothesis next.")
-3.  **Know When to Pivot:** If after 3-5 iterations of filtering and refinement, no significant progress has been made toward the success criteria, you must conclude that the baseline strategy is likely flawed. At this point, you should **pivot**. Discard the current strategy and propose a new, fundamentally different approach for the next baseline (e.g., switch from mean-reversion to trend-following).
+1.  **Compare WFE Results:** Your final task is a side-by-side comparison of the `walk_forward_summary` from the `baseline` and `refinement` runs. Full-backtest PnL is a secondary, informational metric.
+2.  **Document Verdict:** In your `run_summary.md`, answer the following based on **out-of-sample metrics**:
+    -   Did the change improve the `% Profitable Windows`?
+    -   Did it reduce the `Performance Degradation` between in-sample and out-of-sample PnL?
+    -   Was the robustness hypothesis validated?
+    -   **Plan for Next Iteration:** "The WFE results confirm the filter improved robustness by +15 percentage points. This will be the new baseline. Next, I will investigate..." or "The filter did not improve out-of-sample performance, despite a higher full-backtest PnL. I will discard it and test my signal refinement hypothesis."
+3.  **Know When to Pivot:** If after 3-5 iterations, no significant progress has been made in improving the **WFE metrics**, the strategy is not robust. Pivot to a new strategy.
 
 This completes one full iteration. The winning configuration from this iteration becomes the baseline for the next.
 
@@ -142,74 +141,22 @@ Use this template for each iteration's `run_summary.md`:
 
 ---
 
-## 5. Success Criteria (ABSOLUTE REQUIREMENTS)
+## 5. Success Criteria (WFE-Based)
 
-A trading system is only considered successful and ready for formal validation if it meets **ALL** of these criteria over a significant backtest period (e.g., from `2013-01-01` to present).
+A trading system is only considered "successful" if its **Walk-Forward Evaluation (WFE)** meets ALL of these criteria. Full-backtest metrics are for informational purposes only.
 
-### 5.1 Profitability
--   `total_pnl` > 0 (must be profitable)
+### 5.1 Primary Criterion: Robustness
 
-### 5.2 Risk Management
--   `max_drawdown` < 20% of total PnL
--   **Maximum Drawdown Period**: The primary target is a maximum drawdown period of **less than 2 weeks**. A slightly longer period (e.g., 3 weeks) may be acceptable only if other metrics are exceptionally strong, but the goal is to avoid prolonged periods of losses.
-    -   **Calculation Note**: The drawdown period calculation **MUST** exclude inactive periods where trading is blocked by a filter (e.g., an RMM policy). The clock "pauses" when the system is intentionally sidelined.
+-   **`% Profitable Windows` > 70%:** This is the most important metric. The strategy must be profitable in at least 7 out of 10 out-of-sample periods.
+-   **`Performance Degradation` < 30%:** The drop-off between the average in-sample PnL and the average out-of-sample PnL must be minimal. A degradation > 50% indicates severe overfitting.
 
-### 5.3 Risk/Reward
--   Sharpe Ratio > 1.0
--   Reward/Risk Ratio (Avg Win / Avg Loss) > 1.0
+### 5.2 Secondary Criteria: Out-of-Sample Performance
 
-### 5.4 Consistency & Reliability
--   **Profit Factor** (Gross Profit / Gross Loss) > 1.5. This demonstrates that winning trades significantly outweigh losing trades.
--   **Low PnL Volatility**: The standard deviation of trade PnL should be low relative to the average PnL, indicating consistent, predictable returns rather than infrequent large windfalls.
+-   **`Out-of-Sample Sharpe Ratio` > 0.8:** The risk-adjusted return in the out-of-sample periods must be positive and reasonable.
+-   **`Out-of-Sample Profit Factor` > 1.3:** Gross profits in out-of-sample periods must significantly exceed gross losses.
+-   **`Worst Window PnL`:** The PnL of the single worst out-of-sample window should not represent an unacceptable risk to the portfolio.
 
-### 5.5 Statistical Significance & Robustness
--   Sufficient number of trades to be statistically meaningful (typically 30+ trades).
--   Performance must be consistent across different time periods and market regimes identified during analysis.
--   The final system must pass a formal Walk-Forward Evaluation (WFE) during the validation phase to prove it is not curve-fit.
+### 5.3 Sanity Check: Full Backtest
 
----
-
-## 6. Knowledge Management: Strategy Performance Catalog
-
-### 6.1 Purpose
-
-As you discover how different strategies and indicators perform under various market conditions, you must maintain a **Strategy Performance Catalog** at `docs/research/strategy_performance_catalog.md`. This serves multiple critical purposes:
-
-1. **Avoid Repeating Failed Experiments:** Don't waste time re-testing hypotheses that have already been rejected
-2. **Enable Multi-Strategy Portfolios:** Identify strategies with complementary regime preferences that can work together
-3. **Transfer Knowledge Cautiously:** Learn from previous findings while respecting strategy-specific differences
-4. **Build Institutional Knowledge:** Create a reference for understanding which tools work where
-
-### 6.2 When to Update the Catalog
-
-**After Each Iteration:**
-1. Document validated findings in the relevant strategy profile
-2. Add rejected hypotheses to the "Failed Hypothesis Log"
-3. Update the "Indicator Effectiveness Matrix" with new learnings
-4. Revise "Portfolio Strategy Recommendations" based on new data
-
-**When Pivoting Strategies:**
-1. Create a new strategy profile section
-2. Compare and contrast with existing strategies
-3. Identify complementary vs. redundant characteristics
-4. Update multi-strategy portfolio considerations
-
-### 6.3 Critical Catalog Insights
-
-**LESSON FROM ITERATION 007:** Never assume that filters or regimes transfer between different strategy types. The blackout policy that improved EMA crossover by +1626% **destroyed** SuperTrend performance by -80%. Each strategy has its own optimal conditions.
-
-**USE CATALOG FOR:**
-- Identifying which strategies work in DIFFERENT market conditions (for diversification)
-- Understanding why certain filters succeed or fail
-- Building multi-strategy portfolios with complementary edges
-- Avoiding redundant strategy combinations
-
-**Template Available:** `docs/research/strategy_documentation_template.md`
-
----
-
-## 7. Final Goal
-
-Your objective is to repeat this workflow until you produce a trading system that meets all the project's success criteria (Sharpe > 1.0, passing WFE, etc.). Once such a system is found, you may proceed to the formal Validation and Promotion phases outlined in the other methodology documents.
-
-Additionally, use the Strategy Performance Catalog to build a **multi-strategy portfolio** where different strategies handle different market regimes, increasing overall system robustness and consistency.
+-   **`Total PnL` > 0:** The strategy should at least be profitable on the full dataset.
+-   **`Max Drawdown` < 25%:** The overall drawdown should remain within reasonable limits.
