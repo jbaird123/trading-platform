@@ -285,7 +285,7 @@ If the answer to #1 is "uncertain" or #2 is "yes" or #3 is "yes" → **FAIL FAST
   - Verify logged messages include feature name and exception details
 - **Acceptance:** All tests pass, decorators ready for use
 
-### 22. [ ] Review core/demo.py exception handling
+### 22. [X] Review core/demo.py exception handling
 - **Priority:** LOW - Developer tool, lower impact
 - **Estimated Time:** 30 minutes
 - **Action:** Review demo generation exception handling
@@ -298,13 +298,13 @@ If the answer to #1 is "uncertain" or #2 is "yes" or #3 is "yes" → **FAIL FAST
 - **Action:** Review all chart export exception handling beyond task 12
 - **Acceptance:** Chart failures degrade gracefully with logging
 
-### 24. [ ] Review reporting/html_export.py exception handling
+### 24. [X] Review reporting/html_export.py exception handling
 - **Priority:** LOW - Reporting feature
 - **Estimated Time:** 30 minutes
 - **Action:** Review HTML report generation exception handling
 - **Acceptance:** HTML generation failures are logged
 
-### 25. [ ] Review core/config.py exception handling
+### 25. [X] Review core/config.py exception handling
 - **Priority:** MEDIUM - Config parsing is important
 - **Estimated Time:** 30 minutes
 - **Action:** Review config parsing exception handling

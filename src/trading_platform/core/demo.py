@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -7,6 +8,8 @@ from trading_platform.core.config import RunConfig
 from trading_platform.core.run import finalize_run, initialize_run
 from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.csv_export import save_prices_csv
+
+logger = logging.getLogger(__name__)
 
 
 def generate_demo_run(user_id: str = "demo_user", runs_dir: Path | None = None) -> Path:
@@ -83,8 +86,9 @@ def generate_demo_run(user_id: str = "demo_user", runs_dir: Path | None = None) 
     )
     try:
         save_prices_csv(run_path / "prices.csv", df)
-    except Exception:
-        pass
+    except Exception as e:
+        # Safe to continue: prices.csv is for demo visualization only
+        logger.debug(f"Failed to save demo prices.csv: {e}")
 
     meta = {"strategy_name": "DemoStrategy", "run_id": cfg.run_id}
     params = {"fast": 10, "slow": 20}
