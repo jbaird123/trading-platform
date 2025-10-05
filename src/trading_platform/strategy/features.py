@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, cast
 
 import pandas as pd
+import pandas_ta as ta
 
 try:
     from ta.momentum import (
@@ -339,6 +340,50 @@ def compute_features(
                     fillna=True,
                 ).vwap,
             )
+        elif typ == "CHOP":
+            chop = ta.chop(
+                high=df["high"],
+                low=df["low"],
+                close=df["close"],
+                length=int(resolved_params.get("length", 14)),
+                atr_length=int(resolved_params.get("atr_length", 1)),
+                scalar=float(resolved_params.get("scalar", 100.0)),
+                fillna=True,
+            )
+            out[name] = cast(pd.Series, chop)
+        elif typ == "ICHIMOKU":
+            ichimoku_df, _ = ta.ichimoku(
+                high=df["high"],
+                low=df["low"],
+                close=df["close"],
+                tenkan=int(resolved_params.get("tenkan", 9)),
+                kijun=int(resolved_params.get("kijun", 26)),
+                senkou=int(resolved_params.get("senkou", 52)),
+                fillna=True,
+            )
+            # pandas-ta names columns like 'ISA_9', 'ISB_26'. We'll map them.
+            out[f"{name}_tenkan"] = ichimoku_df.iloc[:, 0]  # Tenkan-sen
+            out[f"{name}_kijun"] = ichimoku_df.iloc[:, 1]  # Kijun-sen
+            out[f"{name}_senkou_a"] = ichimoku_df.iloc[:, 2]  # Senkou Span A
+            out[f"{name}_senkou_b"] = ichimoku_df.iloc[:, 3]  # Senkou Span B
+            out[f"{name}_chikou"] = ichimoku_df.iloc[:, 4]  # Chikou Span
+        elif typ == "SUPERTREND":
+            st = ta.supertrend(
+                high=df["high"],
+                low=df["low"],
+                close=df["close"],
+                length=int(resolved_params.get("length", 7)),
+                multiplier=float(resolved_params.get("multiplier", 3.0)),
+            )
+            if st is not None and not st.empty:
+                # pandas-ta names columns like 'SUPERT_7_3.0'. We'll map them.
+                out[f"{name}"] = st.iloc[:, 0]  # The SuperTrend line
+                out[f"{name}_direction"] = st.iloc[:, 1]  # Direction (-1 or 1)
+                out[f"{name}_long"] = st.iloc[:, 2]  # Long stop
+                out[f"{name}_short"] = st.iloc[:, 3]  # Short stop
+            else:
+                # Handle case where supertrend returns None or empty
+                out[name] = pd.NA
         else:
             out[name] = pd.NA
     return out

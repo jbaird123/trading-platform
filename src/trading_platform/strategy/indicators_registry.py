@@ -43,7 +43,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "signal", "type": "int", "default": 9},
         ],
         "ta": {
-            "module": "pandas_ta.overlap",
+            "module": "pandas_ta.momentum",
             "function": "macd",
         },
     },
@@ -111,6 +111,20 @@ INDICATORS: dict[str, dict] = {
         "ta": {
             "module": "pandas_ta.momentum",
             "function": "roc",
+        },
+    },
+    "CHOP": {
+        "display": "Chop Index",
+        "category": "momentum",
+        "description": "Determines if the market is choppy (sideways) or trending.",
+        "params": [
+            {"name": "length", "type": "int", "default": 14},
+            {"name": "atr_length", "type": "int", "default": 1},
+            {"name": "scalar", "type": "float", "default": 100},
+        ],
+        "ta": {
+            "module": "pandas_ta.momentum",
+            "function": "chop",
         },
     },
     # Volatility / bands & channels
@@ -182,6 +196,33 @@ INDICATORS: dict[str, dict] = {
         "ta": {
             "module": "pandas_ta.volume",
             "function": "cmf",
+        },
+    },
+    "ICHIMOKU": {
+        "display": "Ichimoku Cloud",
+        "category": "trend",
+        "description": "All-in-one trend indicator with support/resistance levels.",
+        "params": [
+            {"name": "tenkan", "type": "int", "default": 9},
+            {"name": "kijun", "type": "int", "default": 26},
+            {"name": "senkou", "type": "int", "default": 52},
+        ],
+        "ta": {
+            "module": "pandas_ta.trend",
+            "function": "ichimoku",
+        },
+    },
+    "SUPERTREND": {
+        "display": "SuperTrend",
+        "category": "trend",
+        "description": "Popular trend-following indicator used for trend direction and stops.",
+        "params": [
+            {"name": "length", "type": "int", "default": 7},
+            {"name": "multiplier", "type": "float", "default": 3.0},
+        ],
+        "ta": {
+            "module": "pandas_ta.trend",
+            "function": "supertrend",
         },
     },
     "VWAP": {
