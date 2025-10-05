@@ -12,6 +12,23 @@ from .utils import gen_run_id, normalize_symbol
 logger = logging.getLogger(__name__)
 
 
+class FeatureConfig(BaseModel):
+    """Configuration for a single technical indicator/feature."""
+
+    name: str = Field(description="Local identifier for the feature.")
+    type: str = Field(description="Indicator type (e.g., SMA, EMA, ATR).")
+    params: dict[str, Any] | None = Field(
+        default=None, description="Indicator-specific parameters."
+    )
+    source: str | None = Field(
+        default=None,
+        description="Input price series (e.g., open, high, low, close, hl2).",
+    )
+    source_ref: dict[str, Any] | None = Field(
+        default=None, description="Reference another feature as input series."
+    )
+
+
 class RunConfig(BaseModel):
     """
     Defines the configuration for a single run of the trading platform.
@@ -162,6 +179,14 @@ class RunConfig(BaseModel):
         description=(
             "Post-exit price tracking configuration for exit efficiency analysis. "
             "Example: {'enabled': True, 'horizons': [10, 20, 50]}"
+        ),
+    )
+
+    contextual_features: list[FeatureConfig] | None = Field(
+        default=None,
+        description=(
+            "A list of indicators to compute for context, even if not used "
+            "in strategy rules."
         ),
     )
 

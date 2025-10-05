@@ -37,6 +37,21 @@
         "end_date": { "type": "string", "format": "date" }
       },
       "required": ["source", "start_date", "end_date"]
+    },
+    "contextual_features": {
+      "type": "array",
+      "description": "A list of indicators to compute for context, even if not used in strategy rules.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "type": { "type": "string" },
+          "params": { "type": "object" },
+          "source": { "type": "string" },
+          "source_ref": { "type": "object" }
+        },
+        "required": ["name", "type"]
+      }
     }
   },
   "required": ["strategy", "instrument", "data"]
