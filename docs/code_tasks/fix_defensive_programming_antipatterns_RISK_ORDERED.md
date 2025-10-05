@@ -361,7 +361,7 @@ If the answer to #1 is "uncertain" or #2 is "yes" or #3 is "yes" → **FAIL FAST
 - **Test:** Verify strict mode converts warnings to exceptions
 - **Acceptance:** `STRICT_MODE=1` makes all failures visible
 
-### 31. [ ] Run comprehensive test suite
+### 31. [X] Run comprehensive test suite
 - **Priority:** HIGH - Validates all changes
 - **Estimated Time:** 30 minutes (runtime + fixes)
 - **Action:** Execute `poetry run pytest` with all new tests
