@@ -67,8 +67,10 @@ Your goal is to analyze the **baseline WFE results** to find a path to **improve
 #### Track 2: Signal Analysis (The "What")
 
 -   **Action:** Analyze `context_at_entry` in `baseline/brief.json`, again focusing on the differences between trades in profitable vs. unprofitable **out-of-sample windows**.
+-   **Action:** **Prioritize analysis of `contextual_features` if they exist in the `RunConfig`.** These features (e.g., `ATR`, `RSI`, `Volume`) were included specifically for this analysis. Look for patterns where winning or losing trades correlate with these contextual indicators, even if the strategy does not use them in its logic.
 -   **Task:** Form a hypothesis about a signal refinement that will make the strategy more robust.
 -   **Example:** "Losing WFE windows are characterized by low ADX values. The strategy is entering trades when the trend is too weak to generalize to new data. I will propose adding `adx > 25` as a required entry condition to improve robustness."
+-   **Example:** "The `RunConfig` included `ATR(14)` as a contextual feature. Analysis of `context_at_entry` shows that losing trades consistently occur when the normalized ATR is in the bottom 20th percentile. This suggests the strategy fails in low-volatility environments. I will propose adding a new RMM filter to block trades when volatility is low."
 
 #### Formulate Hypothesis and Validate
 

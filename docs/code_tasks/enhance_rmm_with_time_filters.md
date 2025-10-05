@@ -8,14 +8,14 @@ This document outlines the specific, step-by-step tasks required to enhance the 
 
 ### 0. Setup
 
-1.  [ ] **Create a new branch:** Create and check out a new feature branch for this work.
+1.  [x] **Create a new branch:** Create and check out a new feature branch for this work.
     ```bash
     git checkout -b feature/RMM-time-filters
     ```
 
 ### 1. Update the RMM JSON Schema
 
-1.  [ ] **Modify `docs/schemas/rmm.schema.json`:** Add new time-based conditions to the `predicate` definition.
+1.  [x] **Modify `docs/schemas/rmm.schema.json`:** Add new time-based conditions to the `predicate` definition.
     -   **File:** `docs/schemas/rmm.schema.json`
     -   **Action:** Find the `predicate` definition within `$defs`.
     -   Locate the `enum` for the `condition` property.
@@ -63,11 +63,11 @@ This document outlines the specific, step-by-step tasks required to enhance the 
 
 ### 2. Create Tests for Time-Based Conditions
 
-1.  [ ] **Create a new test file:** `tests/regime_market_manager/test_time_based_regimes.py`.
+1.  [x] **Create a new test file:** `tests/regime_market_manager/test_time_based_regimes.py`.
     -   **File:** `tests/regime_market_manager/test_time_based_regimes.py`
     -   **Content:** Add the basic structure for a Pytest file, including necessary imports.
 
-2.  [ ] **Add a test for the `hour_is_in` condition.**
+2.  [x] **Add a test for the `hour_is_in` condition.**
     -   **File:** `tests/regime_market_manager/test_time_based_regimes.py`
     -   **Action:** Write a test function `test_hour_is_in_predicate`.
     -   Inside the test, create a sample DataFrame with a `pd.DatetimeIndex` covering a full day.
@@ -77,7 +77,7 @@ This document outlines the specific, step-by-step tasks required to enhance the 
     -   **Assert** that the returned `label` is correct only for the hours specified (9, 10, 11) and 'unknown' for all other hours.
     -   **Validation:** Run `pytest tests/regime_market_manager/test_time_based_regimes.py`. **Expect this test to fail** with a `ValueError` because `hour_is_in` is not yet implemented in the engine.
 
-3.  [ ] **Add a test for the `day_of_week_is_in` condition.**
+3.  [x] **Add a test for the `day_of_week_is_in` condition.**
     -   **File:** `tests/regime_market_manager/test_time_based_regimes.py`
     -   **Action:** Write a test function `test_day_of_week_is_in_predicate`.
     -   Create a sample DataFrame with a `pd.DatetimeIndex` covering a full week.
@@ -88,7 +88,7 @@ This document outlines the specific, step-by-step tasks required to enhance the 
 
 ### 3. Implement Time-Based Logic in RMM Engine
 
-1.  [ ] **Modify `src/trading_platform/regime_market_manager/engine.py`:** Implement the logic for the new time-based predicates.
+1.  [x] **Modify `src/trading_platform/regime_market_manager/engine.py`:** Implement the logic for the new time-based predicates.
     -   **File:** `src/trading_platform/regime_market_manager/engine.py`
     -   **Action:** Navigate to the `_eval_pred` function.
     -   Add `if/elif` blocks to handle the new conditions. The logic should be similar to this:
@@ -122,7 +122,7 @@ This document outlines the specific, step-by-step tasks required to enhance the 
     ```
     -   **Validation:** Run `pytest tests/regime_market_manager/test_time_based_regimes.py`. **All tests in this file should now pass.**
 
-2.  [ ] **Add a test for combining time and indicator conditions.**
+2.  [x] **Add a test for combining time and indicator conditions.**
     -   **File:** `tests/regime_market_manager/test_time_based_regimes.py`
     -   **Action:** Write a test function `test_combined_time_and_indicator_regime`.
     -   Define an RMM config that uses `all_of` to combine an `hour_is_in` condition with an `is_above` indicator condition (e.g., ADX > 25).
@@ -131,7 +131,7 @@ This document outlines the specific, step-by-step tasks required to enhance the 
 
 ### 4. Update Documentation
 
-1.  [ ] **Modify `docs/project_requirements.md`:** Update the system requirements to reflect the new unified regime management approach.
+1.  [x] **Modify `docs/project_requirements.md`:** Update the system requirements to reflect the new unified regime management approach.
     -   **File:** `docs/project_requirements.md`
     -   **Action:** Locate section **[SYS-1.5] Trading Sessions & Blackout Periods**.
     -   **Modify** the text to state that blackout periods and trading windows are now configured directly within the RMM using time-based predicates.
@@ -139,11 +139,11 @@ This document outlines the specific, step-by-step tasks required to enhance the 
 
 ### 5. Final Review
 
-1.  [ ] **Run all tests:** Ensure that no existing tests have been broken by the changes.
+1.  [x] **Run all tests:** Ensure that no existing tests have been broken by the changes.
     ```bash
     poetry run pytest
     ```
-    - **Assert:** All tests must pass.
+    - **Assert:** All tests must pass. (Note: 1 pre-existing golden brief test failure due to sharpe_ratio field addition - unrelated to this work. 1310 tests passed.)
 
 2.  [ ] **Commit and push the changes.**
     ```bash
