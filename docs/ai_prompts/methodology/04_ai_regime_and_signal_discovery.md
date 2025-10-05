@@ -114,6 +114,33 @@ Use this template for each iteration's `run_summary.md`:
 
 ---
 
-## 5. Final Goal
+## 5. Success Criteria (ABSOLUTE REQUIREMENTS)
+
+A trading system is only considered successful and ready for formal validation if it meets **ALL** of these criteria over a significant backtest period (e.g., from `2013-01-01` to present).
+
+### 5.1 Profitability
+-   `total_pnl` > 0 (must be profitable)
+
+### 5.2 Risk Management
+-   `max_drawdown` < 20% of total PnL
+-   **Maximum Drawdown Period**: The primary target is a maximum drawdown period of **less than 2 weeks**. A slightly longer period (e.g., 3 weeks) may be acceptable only if other metrics are exceptionally strong, but the goal is to avoid prolonged periods of losses.
+    -   **Calculation Note**: The drawdown period calculation **MUST** exclude inactive periods where trading is blocked by a filter (e.g., an RMM policy). The clock "pauses" when the system is intentionally sidelined.
+
+### 5.3 Risk/Reward
+-   Sharpe Ratio > 1.0
+-   Reward/Risk Ratio (Avg Win / Avg Loss) > 1.0
+
+### 5.4 Consistency & Reliability
+-   **Profit Factor** (Gross Profit / Gross Loss) > 1.5. This demonstrates that winning trades significantly outweigh losing trades.
+-   **Low PnL Volatility**: The standard deviation of trade PnL should be low relative to the average PnL, indicating consistent, predictable returns rather than infrequent large windfalls.
+
+### 5.5 Statistical Significance & Robustness
+-   Sufficient number of trades to be statistically meaningful (typically 30+ trades).
+-   Performance must be consistent across different time periods and market regimes identified during analysis.
+-   The final system must pass a formal Walk-Forward Evaluation (WFE) during the validation phase to prove it is not curve-fit.
+
+---
+
+## 6. Final Goal
 
 Your objective is to repeat this workflow until you produce a trading system that meets all the project's success criteria (Sharpe > 1.0, passing WFE, etc.). Once such a system is found, you may proceed to the formal Validation and Promotion phases outlined in the other methodology documents.
