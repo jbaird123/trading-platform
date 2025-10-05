@@ -25,7 +25,10 @@ def monte_carlo_summary(
     if seed is not None:
         random.seed(seed)
     pnls = [t.pnl for t in trades]
-    n = max(1, len(pnls))
+    if not pnls:
+        # No trades - return empty summary
+        return {}
+    n = len(pnls)
     finals: list[float] = []
     finals_pnl: list[float] = []
     dd_values: list[float] = []

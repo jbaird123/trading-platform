@@ -42,7 +42,7 @@
   "meta": {
     "strategy_name": "Golden_EMA_Crossover",
     "run_id": "golden_run_test",
-    "git_commit": "787e485",
+    "git_commit": "9944851",
     "run_seed": 42
   },
   "strategy_params": {},
@@ -106,10 +106,7 @@
   "holding_time": {
     "median_secs": 0.0
   },
-  "monte_carlo": {
-    "trials": 10,
-    "mode": "bootstrap_trades"
-  },
+  "monte_carlo": {},
   "walk_forward": {
     "splits": [
       {
@@ -180,7 +177,7 @@
     "data_end": null,
     "symbols": [],
     "app_version": "0.0.1",
-    "git_commit": "787e485",
+    "git_commit": "9944851",
     "run_seed": 42
   },
   "artifacts": {},
@@ -235,8 +232,6 @@
     "streaks.longest_loss_streak": "Longest consecutive losing trades.",
     "streaks.current_streak": "Current consecutive winning or losing trades.",
     "holding_time.median_secs": "Median trade holding time in seconds.",
-    "monte_carlo.trials": "Number of Monte Carlo trials executed.",
-    "monte_carlo.mode": "MC engine mode (e.g., bootstrap_trades, block_bootstrap_trades, bar_bootstrap, bar_resimulation).",
     "walk_forward.splits": "List of train/test split results and chosen parameters.",
     "data_quality.index_monotonic_increasing": "True if the data index (timestamps) is strictly increasing.",
     "data_quality.duplicate_bars_count": "Number of duplicate timestamp entries found in the data.",
