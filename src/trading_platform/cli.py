@@ -168,9 +168,10 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
 
             last_days = int(fast_mode.get("last_days", 0) or 0)
             limit_bars = int(fast_mode.get("limit_bars", 0) or 0)
-        except Exception:  # pragma: no cover
-            last_days = 0  # pragma: no cover - Defensive: fallback if
-            # fast_mode has invalid values
+        except Exception as e:  # pragma: no cover
+            # Safe to continue: fast_mode parsing, defaults to 0
+            logger.debug(f"Failed to parse fast_mode values: {e}")  # pragma: no cover
+            last_days = 0  # pragma: no cover
             limit_bars = 0  # pragma: no cover
         if last_days > 0 and isinstance(df.index, pd.DatetimeIndex):
             cutoff = df.index.max() - timedelta(days=last_days)
