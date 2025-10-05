@@ -9,7 +9,6 @@ from typing import Any
 from trading_platform.core.config import RunConfig
 from trading_platform.core.robustness import (
     monte_carlo_summary,
-    walk_forward_summary,
 )
 from trading_platform.core.robustness import (
     parameter_search as robustness_parameter_search,
@@ -100,23 +99,21 @@ def finalize_run(
 
     # Compute optional robustness/search summaries from config toggles
     mc_cfg = config.monte_carlo if config is not None else {}
-    wf_cfg = config.walk_forward if config is not None else {}
     ps_cfg = config.parameter_search if config is not None else {}
 
     mc_summary = None
     if monte_carlo_param is None:
-        try:
-            trials = int(mc_cfg.get("trials", 0)) if isinstance(mc_cfg, dict) else 0
-            if trials > 0 or (isinstance(mc_cfg, dict) and mc_cfg.get("enabled")):
-                mc_summary = monte_carlo_summary(
-                    trades,
-                    initial_cash=initial_cash,
-                    trials=max(trials, 100),
-                    seed=mc_cfg.get("seed"),
-                    mode=str(mc_cfg.get("mode", "bootstrap_trades")),
-                )
-        except Exception:
-            mc_summary = None  # pragma: no cover
+        # No try/catch - if user requests Monte Carlo and it fails, they should know
+        # Fail-fast principle: user-requested analysis must succeed or raise clear error
+        trials = int(mc_cfg.get("trials", 0)) if isinstance(mc_cfg, dict) else 0
+        if trials > 0 or (isinstance(mc_cfg, dict) and mc_cfg.get("enabled")):
+            mc_summary = monte_carlo_summary(
+                trades,
+                initial_cash=initial_cash,
+                trials=max(trials, 100),
+                seed=mc_cfg.get("seed"),
+                mode=str(mc_cfg.get("mode", "bootstrap_trades")),
+            )
 
     wf_summary = None
     if walk_forward_param is None:
@@ -126,25 +123,24 @@ def finalize_run(
 
     ps_summary = None
     if parameter_search_param is None:
-        try:
-            if isinstance(ps_cfg, dict) and (
-                ps_cfg.get("grid") or ps_cfg.get("random_space")
-            ):
-                total_pnl = float(sum(t.pnl for t in trades))
+        # No try/catch - user requests must fail loudly
+        # Fail-fast: analysis must succeed or raise clear error
+        if isinstance(ps_cfg, dict) and (
+            ps_cfg.get("grid") or ps_cfg.get("random_space")
+        ):
+            total_pnl = float(sum(t.pnl for t in trades))
 
-                def eval_fn(_p: dict[str, Any]) -> float:
-                    obj = str(ps_cfg.get("objective", "total_pnl"))
-                    return total_pnl if obj == "total_pnl" else total_pnl
+            def eval_fn(_p: dict[str, Any]) -> float:
+                obj = str(ps_cfg.get("objective", "total_pnl"))
+                return total_pnl if obj == "total_pnl" else total_pnl
 
-                ps_summary = robustness_parameter_search(
-                    grid=ps_cfg.get("grid"),
-                    random_space=ps_cfg.get("random_space"),
-                    n_samples=ps_cfg.get("n_samples"),
-                    seed=ps_cfg.get("seed"),
-                    evaluate=eval_fn,
-                )
-        except Exception:
-            ps_summary = None  # pragma: no cover
+            ps_summary = robustness_parameter_search(
+                grid=ps_cfg.get("grid"),
+                random_space=ps_cfg.get("random_space"),
+                n_samples=ps_cfg.get("n_samples"),
+                seed=ps_cfg.get("seed"),
+                evaluate=eval_fn,
+            )
 
     # Choose parameter_search payload preference order:
     # 1) explicit argument, 2) computed summary, 3) config snapshot

@@ -39,8 +39,12 @@ This file targets the missing lines and branches identified in the coverage repo
 """
 
 
-def test_finalize_run_monte_carlo_exception_handling_line_117():
-    """Test monte_carlo exception handling to hit line 117."""
+def test_finalize_run_monte_carlo_exception_propagates():
+    """Test that Monte Carlo failures propagate (fail-fast principle).
+
+    Previously this test verified silent exception handling.
+    Now it verifies fail-fast behavior: user-requested MC must succeed or raise.
+    """
     trades = [
         Trade(
             symbol="EUR_USD",
@@ -74,47 +78,23 @@ def test_finalize_run_monte_carlo_exception_handling_line_117():
             },
         )
 
-        # Mock monte_carlo_summary to raise an exception to hit line 117
+        # Mock monte_carlo_summary to raise an exception
         with patch(
             "trading_platform.core.run.monte_carlo_summary",
             side_effect=Exception("Monte Carlo failed"),
-        ) as mock_mc, patch(
-            "trading_platform.core.run.save_run_brief"
-        ) as mock_brief, patch(
-            "trading_platform.core.run.save_chart_from_brief"
-        ), patch("trading_platform.core.run.save_trades_csv"), patch(
-            "trading_platform.core.run.save_html_report"
         ):
-            mock_brief.return_value = Path(temp_dir) / "brief.json"
-
-            # Call finalize_run - should handle monte_carlo exception gracefully
-            result = finalize_run(
-                run_path=run_path,
-                meta={"strategy_name": "TestStrategy"},
-                params={},
-                trades=trades,
-                initial_cash=10000.0,
-                config=config,
-                monte_carlo=None,  # Force use of config
-            )
-
-            # Verify monte_carlo_summary was called and failed
-            mock_mc.assert_called_once()
-
-            # Verify finalize_run completed successfully despite exception
-            assert result == Path(temp_dir) / "brief.json"
-
-            # Verify save_run_brief was called with config monte_carlo
-            # When mc_summary is None due to exception, it falls back to
-            # monte_carlo param which gets set to config.monte_carlo
-            call_kwargs = mock_brief.call_args.kwargs
-            expected_mc = {
-                "enabled": True,
-                "trials": 10,
-                "seed": 42,
-                "mode": "bootstrap_trades",
-            }
-            assert call_kwargs["monte_carlo"] == expected_mc
+            # Fail-fast principle: exception should propagate, not be silently caught
+            # User requested MC, so failure should be visible
+            with pytest.raises(Exception, match="Monte Carlo failed"):
+                finalize_run(
+                    run_path=run_path,
+                    meta={"strategy_name": "TestStrategy"},
+                    params={},
+                    trades=trades,
+                    initial_cash=10000.0,
+                    config=config,
+                    monte_carlo=None,  # Force use of config
+                )
 
 
 def test_finalize_run_walk_forward_exception_handling_line_127():
@@ -149,9 +129,7 @@ def test_finalize_run_walk_forward_exception_handling_line_127():
 
         # Walk-forward now runs in CLI before finalize_run
         # finalize_run just passes through the results
-        with patch(
-            "trading_platform.core.run.save_run_brief"
-        ) as mock_brief, patch(
+        with patch("trading_platform.core.run.save_run_brief") as mock_brief, patch(
             "trading_platform.core.run.save_chart_from_brief"
         ), patch("trading_platform.core.run.save_trades_csv"), patch(
             "trading_platform.core.run.save_html_report"
@@ -166,7 +144,10 @@ def test_finalize_run_walk_forward_exception_handling_line_127():
                 trades=trades,
                 initial_cash=10000.0,
                 config=config,
-                walk_forward={"splits": [], "oos_total_pnl": {"mean": 0.0}},  # Pre-computed
+                walk_forward={
+                    "splits": [],
+                    "oos_total_pnl": {"mean": 0.0},
+                },  # Pre-computed
             )
 
             # Verify finalize_run completed successfully
@@ -174,7 +155,10 @@ def test_finalize_run_walk_forward_exception_handling_line_127():
 
             # Verify save_run_brief was called with walk_forward results
             call_kwargs = mock_brief.call_args.kwargs
-            assert call_kwargs["walk_forward"] == {"splits": [], "oos_total_pnl": {"mean": 0.0}}
+            assert call_kwargs["walk_forward"] == {
+                "splits": [],
+                "oos_total_pnl": {"mean": 0.0},
+            }
 
 
 def test_finalize_run_walk_forward_invalid_config_branch_121_to_130():
@@ -208,16 +192,15 @@ def test_finalize_run_walk_forward_invalid_config_branch_121_to_130():
             walk_forward={"train_bars": 0, "test_bars": 0, "step_bars": 0},  # Invalid
         )
 
-        with patch(
-            "trading_platform.core.run.save_run_brief"
-        ) as mock_brief, patch(
+        with patch("trading_platform.core.run.save_run_brief") as mock_brief, patch(
             "trading_platform.core.run.save_chart_from_brief"
         ), patch("trading_platform.core.run.save_trades_csv"), patch(
             "trading_platform.core.run.save_html_report"
         ):
             mock_brief.return_value = Path(temp_dir) / "brief.json"
 
-            # Call finalize_run - walk_forward=None means no WFE was run (CLI caught invalid config)
+            # Call finalize_run - walk_forward=None means no WFE was run
+            # (CLI caught invalid config)
             result = finalize_run(
                 run_path=run_path,
                 meta={"strategy_name": "TestStrategy"},
@@ -231,19 +214,24 @@ def test_finalize_run_walk_forward_invalid_config_branch_121_to_130():
             # Verify finalize_run completed successfully
             assert result == Path(temp_dir) / "brief.json"
 
-            # When walk_forward param is None, it falls back to walk_forward param
-            # which is also None, so brief gets None. But the logic shows:
-            # walk_forward=wf_summary if wf_summary is not None else walk_forward
-            # Since wf_summary is None (we removed WFE from run.py), and walk_forward param is None,
-            # it actually passes None. But there may be another fallback in save_run_brief.
-            # Let's just verify it completed without checking the exact value
+            # When walk_forward param is None, it falls back to
+            # walk_forward param which is also None, so brief gets None.
+            # But the logic shows:
+            # walk_forward=wf_summary if wf_summary else walk_forward
+            # Since wf_summary is None (we removed WFE from run.py),
+            # and walk_forward param is None, it passes None.
+            # Verify it completed without checking the exact value
             call_kwargs = mock_brief.call_args.kwargs
             # Config walk_forward gets echoed back when walk_forward param is None
             assert "walk_forward" in call_kwargs
 
 
-def test_finalize_run_parameter_search_exception_handling_line_149():
-    """Test parameter_search exception handling to hit line 149."""
+def test_finalize_run_parameter_search_exception_propagates():
+    """Test that parameter search failures propagate (fail-fast principle).
+
+    Previously this test verified silent exception handling.
+    Now it verifies fail-fast behavior: user-requested PS must succeed or raise.
+    """
     trades = [
         Trade(
             symbol="EUR_USD",
@@ -276,39 +264,22 @@ def test_finalize_run_parameter_search_exception_handling_line_149():
             },
         )
 
-        # Mock robustness_parameter_search to raise exception to hit line 149
+        # Mock robustness_parameter_search to raise exception
         with patch(
             "trading_platform.core.run.robustness_parameter_search",
             side_effect=Exception("Parameter search failed"),
-        ) as mock_ps, patch(
-            "trading_platform.core.run.save_run_brief"
-        ) as mock_brief, patch(
-            "trading_platform.core.run.save_chart_from_brief"
-        ), patch("trading_platform.core.run.save_trades_csv"), patch(
-            "trading_platform.core.run.save_html_report"
         ):
-            mock_brief.return_value = Path(temp_dir) / "brief.json"
-
-            # Call finalize_run - should handle parameter_search exception gracefully
-            result = finalize_run(
-                run_path=run_path,
-                meta={"strategy_name": "TestStrategy"},
-                params={},
-                trades=trades,
-                initial_cash=10000.0,
-                config=config,
-                parameter_search=None,  # Force use of config
-            )
-
-            # Verify robustness_parameter_search was called and failed
-            mock_ps.assert_called_once()
-
-            # Verify finalize_run completed successfully despite exception
-            assert result == Path(temp_dir) / "brief.json"
-
-            # Verify save_run_brief was called with parameter_search config
-            call_kwargs = mock_brief.call_args.kwargs
-            assert call_kwargs["parameter_search"] == config.parameter_search
+            # Fail-fast principle: exception should propagate
+            with pytest.raises(Exception, match="Parameter search failed"):
+                finalize_run(
+                    run_path=run_path,
+                    meta={"strategy_name": "TestStrategy"},
+                    params={},
+                    trades=trades,
+                    initial_cash=10000.0,
+                    config=config,
+                    parameter_search=None,  # Force use of config
+                )
 
 
 def test_finalize_run_parameter_search_csv_export_lines_212_213():
@@ -559,9 +530,7 @@ def test_finalize_run_walk_forward_non_dict_config():
             # walk_forward defaults to empty dict
         )
 
-        with patch(
-            "trading_platform.core.run.save_run_brief"
-        ) as mock_brief, patch(
+        with patch("trading_platform.core.run.save_run_brief") as mock_brief, patch(
             "trading_platform.core.run.save_chart_from_brief"
         ), patch("trading_platform.core.run.save_trades_csv"), patch(
             "trading_platform.core.run.save_html_report"
@@ -616,9 +585,7 @@ def test_finalize_run_walk_forward_param_not_none():
         # Provide explicit walk_forward parameter (results from CLI)
         explicit_wf = {"summary": "custom_walk_forward"}
 
-        with patch(
-            "trading_platform.core.run.save_run_brief"
-        ) as mock_brief, patch(
+        with patch("trading_platform.core.run.save_run_brief") as mock_brief, patch(
             "trading_platform.core.run.save_chart_from_brief"
         ), patch("trading_platform.core.run.save_trades_csv"), patch(
             "trading_platform.core.run.save_html_report"
@@ -781,9 +748,7 @@ def test_finalize_run_walk_forward_enabled():
             walk_forward={"train_bars": 30, "test_bars": 10, "step_bars": 5},
         )
 
-        with patch(
-            "trading_platform.core.run.save_run_brief"
-        ) as mock_brief, patch(
+        with patch("trading_platform.core.run.save_run_brief") as mock_brief, patch(
             "trading_platform.core.run.save_chart_from_brief"
         ), patch("trading_platform.core.run.save_trades_csv"), patch(
             "trading_platform.core.run.save_html_report"
