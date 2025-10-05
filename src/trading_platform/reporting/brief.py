@@ -14,6 +14,7 @@ from statistics import median
 from typing import Any
 
 import jsonschema
+import numpy as np
 import pandas as pd
 from pyarrow import ArrowInvalid
 
@@ -527,6 +528,24 @@ def compute_equity_stats(trades: list[Trade], initial_cash: float) -> dict[str, 
     max_dd = 0.0
     dd_duration = 0
     temp_duration = 0
+
+    # Calculate Sharpe ratio from equity curve
+    equity_values = [float(eq) for _, eq in ec]
+    if len(equity_values) > 1:
+        returns = np.diff(equity_values) / equity_values[:-1]
+        mean_return = np.mean(returns)
+        std_return = np.std(returns, ddof=1)
+
+        # Annualize (assume ~2000 trading periods per year for hourly with blackouts)
+        # This is conservative - adjust based on actual trading frequency
+        periods_per_year = 2000
+        annualized_return = mean_return * periods_per_year
+        annualized_std = std_return * np.sqrt(periods_per_year)
+
+        sharpe_ratio = annualized_return / annualized_std if annualized_std > 0 else 0.0
+    else:
+        sharpe_ratio = 0.0
+
     for ts, eq in ec:
         if eq > max_peak:
             max_peak = eq
@@ -547,6 +566,7 @@ def compute_equity_stats(trades: list[Trade], initial_cash: float) -> dict[str, 
         "drawdown_curve": drawdown_curve,
         "max_drawdown": _round_currency(max_dd),
         "dd_duration_bars": dd_duration,
+        "sharpe_ratio": round(sharpe_ratio, 2),
     }
 
 
