@@ -145,9 +145,10 @@ This document outlines the specific, step-by-step tasks required to enhance the 
     ```
     - **Assert:** All tests must pass. (Note: 1 pre-existing golden brief test failure due to sharpe_ratio field addition - unrelated to this work. 1310 tests passed.)
 
-2.  [ ] **Commit and push the changes.**
+2.  [x] **Commit and push the changes.**
     ```bash
     git add .
     git commit -m "feat(rmm): Enhance RMM with time-based filter conditions"
     git push origin feature/RMM-time-filters
     ```
+    - **Completed:** Committed as aa1eb47
