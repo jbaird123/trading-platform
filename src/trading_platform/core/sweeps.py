@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import random
 from copy import deepcopy
 from pathlib import Path
@@ -13,6 +14,8 @@ from trading_platform.portfolio.trade import Trade
 from trading_platform.regime_market_manager.engine import RMMEngine
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
+
+logger = logging.getLogger(__name__)
 
 
 def _rmm_context(
@@ -175,7 +178,9 @@ def run_parameter_sweep(
             log_file = debug_path / "sweep_debug.log"
             with log_file.open("a") as f:
                 f.write("# sweep start\n")
-        except Exception:
+        except Exception as e:
+            # Safe to continue: debug logging is optional
+            logger.debug(f"Failed to create sweep debug log: {e}")
             log_file = None
     for cand in cands:
         scfg = deepcopy(strategy_cfg)
@@ -194,9 +199,11 @@ def run_parameter_sweep(
                         fname = feat.get("name")
                         fparams = feat.get("params", {})
                         f.write(f"  feature '{fname}': params={fparams}\n")
-            except Exception:  # pragma: no cover
-                pass  # pragma: no cover - Defensive: debug logging
-                # should not crash sweep
+            except Exception as e:  # pragma: no cover
+                # Safe to continue: debug logging is optional, should not crash sweep
+                logger.debug(
+                    f"Failed to write sweep debug log: {e}"
+                )  # pragma: no cover
 
         strat = compile_strategy(scfg)
 
@@ -333,8 +340,9 @@ def run_parameter_sweep(
                         f"params={cand} long={long_ct} short={short_ct} "
                         f"trades={len(trades)} score={score}\n"
                     )
-        except Exception:
-            pass
+        except Exception as e:
+            # Safe to continue: debug logging is optional
+            logger.debug(f"Failed to write sweep results to debug log: {e}")
     results.sort(key=lambda r: float(r["score"]), reverse=True)
     top = results[0] if results else {"params": {}, "score": 0.0}
     return {"top": top, "results": results}
@@ -446,7 +454,8 @@ def walk_forward_analysis(
         df: Market data DataFrame
         base_cfg: Base backtest configuration
         strategy_cfg: Strategy configuration
-        train_bars: Number of bars for training window (not used for optimization in this version)
+        train_bars: Number of bars for training window
+            (not used for optimization in this version)
         test_bars: Number of bars for each test window
         step_bars: Number of bars to step forward between windows
         data_handler: Optional data handler for regime management
@@ -474,11 +483,14 @@ def walk_forward_analysis(
 
     # Get instrument definition for REM (needed for pip-based calculations)
     from trading_platform.data.instrument import get_instrument_definition
+
     symbol = base_cfg.get("data_request", {}).get("symbol", "")
     instrument_def = get_instrument_definition(symbol) if symbol else None
     instrument_dict = instrument_def.model_dump() if instrument_def else None
 
-    rem = RiskExitManager(config=(base_cfg.get("rem_config") or {}), instrument=instrument_dict)
+    rem = RiskExitManager(
+        config=(base_cfg.get("rem_config") or {}), instrument=instrument_dict
+    )
     strat = compile_strategy(strategy_cfg)
 
     per_split: list[dict[str, Any]] = []
