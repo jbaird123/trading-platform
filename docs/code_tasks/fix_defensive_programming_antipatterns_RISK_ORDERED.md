@@ -312,14 +312,14 @@ If the answer to #1 is "uncertain" or #2 is "yes" or #3 is "yes" → **FAIL FAST
 - **Apply "Fail Fast" principle:** Config parsing errors should be clear
 - **Acceptance:** Config errors are clear
 
-### 26. [ ] Review ai/inference_client.py exception handling
+### 26. [X] Review ai/inference_client.py exception handling
 - **Priority:** LOW - Already has logging
 - **Estimated Time:** 30 minutes
 - **Action:** Review existing logging (already has 10 log calls)
 - **Likely:** Already well-handled, verify completeness
 - **Acceptance:** AI inference errors are appropriately logged
 
-### 27. [ ] Review ai/serving/app.py and deployment_manager.py
+### 27. [X] Review ai/serving/app.py and deployment_manager.py
 - **Priority:** LOW - Already has logging
 - **Estimated Time:** 30 minutes
 - **Action:** Review AI serving exception handling
