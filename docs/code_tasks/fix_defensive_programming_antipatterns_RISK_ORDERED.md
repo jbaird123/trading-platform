@@ -377,7 +377,7 @@ If the answer to #1 is "uncertain" or #2 is "yes" or #3 is "yes" → **FAIL FAST
 - **Action:** Fix any violations found
 - **Acceptance:** Linter clean
 
-### 33. [ ] Manual verification of critical paths
+### 33. [X] Manual verification of critical paths
 - **Priority:** HIGH - Real-world validation
 - **Estimated Time:** 1 hour
 - **Action:** Run backtest with intentional failures:
@@ -391,7 +391,7 @@ If the answer to #1 is "uncertain" or #2 is "yes" or #3 is "yes" → **FAIL FAST
 
 ## Sprint 6: Documentation (Week 2-3)
 
-### 34. [ ] Update CONTRIBUTING.md with exception handling guidelines
+### 34. [X] Update CONTRIBUTING.md with exception handling guidelines
 - **Priority:** MEDIUM - Helps future contributors
 - **Estimated Time:** 30 minutes
 - **File:** `CONTRIBUTING.md` (or create)
@@ -421,7 +421,7 @@ If the answer to #1 is "uncertain" or #2 is "yes" or #3 is "yes" → **FAIL FAST
   - Common pitfalls to avoid
 - **Acceptance:** Guide helps future refactoring
 
-### 37. [ ] Update changelog and documentation
+### 37. [X] Update changelog and documentation
 - **Priority:** MEDIUM - User communication
 - **Estimated Time:** 30 minutes
 - **File:** `CHANGELOG.md` (or equivalent)
