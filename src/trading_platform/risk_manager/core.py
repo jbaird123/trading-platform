@@ -69,7 +69,13 @@ class RiskExitManager:
             return float(pip_location)
 
         def _atr_value(length: int | None) -> float | None:
-            # ATR not present in current_bar; placeholder for integration.
+            # Try to get ATR from current_bar if it exists as a computed feature
+            atr_col = f"atr_{length}" if length else "atr"
+            if atr_col in current_bar.index:
+                return float(current_bar[atr_col])
+            # Fallback: check for generic 'atr' column
+            if "atr" in current_bar.index:
+                return float(current_bar["atr"])
             return None
 
         def _distance(rule: dict) -> float | None:
