@@ -391,6 +391,18 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
     first_trade = trades_with_analysis[0]
     # post_exit_analysis is guaranteed non-None due to filter above
     assert first_trade.post_exit_analysis is not None
+
+    # Check if using new PostExitAnalysis format (skip old metrics)
+    from trading_platform.reporting.models.exit_analysis import (
+        PostExitAnalysis,
+    )
+
+    if isinstance(first_trade.post_exit_analysis, PostExitAnalysis):
+        # New format - the old exit_efficiency metrics are being replaced
+        # by simulated_hold_analysis, so return empty dict
+        return {}
+
+    # Legacy format - proceed with old metrics
     horizons = sorted([int(h) for h in first_trade.post_exit_analysis.keys()])
 
     def analyze_by_exit_reason(reason: str) -> dict:
