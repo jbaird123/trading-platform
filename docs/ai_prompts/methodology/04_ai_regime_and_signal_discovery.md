@@ -70,8 +70,10 @@ Your primary goal is now to analyze `baseline/brief.json` to find a path to impr
 
 #### Formulate Hypothesis and Test
 
-1.  **Prioritize:** Based on your dual-track analysis, decide which path offers the most promising improvement: Regime Filtering or Signal Refinement.
-    -   **Parallel Testing:** If your analysis yields multiple strong, independent hypotheses (e.g., one for Regime and one for Signal), you may test them in parallel. Create `refinement_01_regime_filter` and `refinement_02_signal_filter` subdirectories.
+1.  **Prioritize & Choose Tool:** Based on your dual-track analysis, decide which path offers the most promising improvement.
+    -   If your hypothesis is based on **dynamic market conditions** (volatility, trend), implement it with an **RMM filter**.
+    -   If your hypothesis is based on **static time windows** (hour-of-day, day-of-week), implement it using the **Blackout Policy** in the run configuration.
+    -   **Parallel Testing:** If you have multiple strong, independent hypotheses, you may test them in parallel. Create `refinement_01_time_filter` and `refinement_02_signal_filter` subdirectories.
 2.  **State Hypothesis:** In your `run_summary.md`, clearly state your hypothesis. For example, "My primary hypothesis is that this strategy is only profitable during the London session. I will test this by creating an RMM filter."
 3.  **Implement:** Create a new subdirectory named `refinement_01`. Inside this directory, place the new configuration files (`rmm.yaml` or an updated `strategy.yaml`).
 4.  **Run Refinement Backtest:** Execute the backtest with the new configuration. The output will be `refinement_01/brief.json`.
