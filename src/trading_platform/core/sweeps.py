@@ -426,6 +426,123 @@ def walk_forward_optimize_and_test(
     }
 
 
+def walk_forward_analysis(
+    df: pd.DataFrame,
+    base_cfg: dict[str, Any],
+    strategy_cfg: dict[str, Any],
+    *,
+    train_bars: int,
+    test_bars: int,
+    step_bars: int,
+    data_handler: Any | None = None,
+) -> dict[str, Any]:
+    """
+    Bar-based walk-forward analysis without re-optimization.
+
+    Splits data into train/test windows by bar count, runs backtest on each
+    test window using the same strategy parameters, and computes OOS performance.
+
+    Args:
+        df: Market data DataFrame
+        base_cfg: Base backtest configuration
+        strategy_cfg: Strategy configuration
+        train_bars: Number of bars for training window (not used for optimization in this version)
+        test_bars: Number of bars for each test window
+        step_bars: Number of bars to step forward between windows
+        data_handler: Optional data handler for regime management
+
+    Returns:
+        Dictionary with splits and OOS performance statistics
+    """
+    from statistics import mean, median
+
+    # Create bar-based splits
+    splits = walk_forward_splits(df.index, window=train_bars, step=step_bars)
+
+    if not splits:
+        return {
+            "splits": [],
+            "oos_total_pnl": {
+                "mean": 0.0,
+                "median": 0.0,
+                "n_splits": 0,
+                "profitable_pct": 0.0,
+            },
+        }
+
+    cfg = RunConfig.model_validate(base_cfg)
+
+    # Get instrument definition for REM (needed for pip-based calculations)
+    from trading_platform.data.instrument import get_instrument_definition
+    symbol = base_cfg.get("data_request", {}).get("symbol", "")
+    instrument_def = get_instrument_definition(symbol) if symbol else None
+    instrument_dict = instrument_def.model_dump() if instrument_def else None
+
+    rem = RiskExitManager(config=(base_cfg.get("rem_config") or {}), instrument=instrument_dict)
+    strat = compile_strategy(strategy_cfg)
+
+    per_split: list[dict[str, Any]] = []
+    oos_scores: list[float] = []
+
+    for s in splits:
+        # Use test_bars to slice the test window from the split
+        # The split already gives us train_end, so test starts after that
+        test_start_idx = df.index.get_loc(s.test_start)
+        test_end_idx = min(test_start_idx + test_bars, len(df))
+        test = df.iloc[test_start_idx:test_end_idx]
+
+        if len(test) == 0:
+            continue
+
+        # Run backtest on test window
+        sig = strat.generate_signals(test)
+        _res = run_backtest(
+            market_data=test,
+            signals=sig,
+            strategy=strat,
+            config=cfg,
+            rem=rem,
+            rmm_context=_rmm_context(test, base_cfg, data_handler),
+        )
+
+        trades: list[Trade]
+        if isinstance(_res, tuple):
+            trades = cast(list[Trade], _res[0])
+        else:  # pragma: no cover
+            trades = cast(list[Trade], _res)
+
+        score = float(sum(t.pnl for t in trades))
+        oos_scores.append(score)
+
+        test_actual_end = test.index[-1] if len(test) > 0 else s.test_start
+
+        per_split.append(
+            {
+                "train_start": s.train_start,
+                "train_end": s.train_end,
+                "test_start": s.test_start,
+                "test_end": test_actual_end,
+                "test_bars": len(test),
+                "n_trades": len(trades),
+                "oos_pnl": score,
+            }
+        )
+
+    profitable_count = sum(1 for score in oos_scores if score > 0)
+    profitable_pct = (profitable_count / len(oos_scores) * 100) if oos_scores else 0.0
+
+    return {
+        "splits": per_split,
+        "oos_total_pnl": {
+            "mean": float(mean(oos_scores)) if oos_scores else 0.0,
+            "median": float(median(oos_scores)) if oos_scores else 0.0,
+            "n_splits": len(oos_scores),
+            "profitable_count": profitable_count,
+            "profitable_pct": profitable_pct,
+        },
+    }
+
+
 def monte_carlo_resimulation(
     df: pd.DataFrame,
     base_cfg: dict[str, Any],

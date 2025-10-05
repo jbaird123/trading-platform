@@ -403,39 +403,50 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             data_handler=data_handler,
         )
 
-    # Optional walk-forward analysis
+    # Optional walk-forward analysis (bar-based)
     wf_cfg = cfg_raw.get("walk_forward") or {}
     wf_results = None
-    if (
-        isinstance(wf_cfg, dict)
-        and int(wf_cfg.get("window", 0)) > 0
-        and int(wf_cfg.get("step", 0)) > 0
-    ):
-        # If parameter_search grid is provided, do walk-forward OPTIMIZATION
-        if isinstance(ps_cfg, dict) and ps_cfg.get("grid"):
-            grid_cfg = ps_cfg.get("grid")
-            grid_typed = cast(dict[str, list[Any]], grid_cfg)
-            wf_results = walk_forward_optimize_and_test(
-                df,
-                cfg_raw,
-                strat_cfg,
-                window=int(wf_cfg.get("window", 0)),
-                step=int(wf_cfg.get("step", 0)),
-                grid=grid_typed,
-                seed=ps_cfg.get("seed"),
-                objective=str(ps_cfg.get("objective", "total_pnl")),
-                dd_penalty=ps_cfg.get("dd_penalty"),
-                vol_penalty=ps_cfg.get("vol_penalty"),
-                data_handler=data_handler,
-            )
+
+    if isinstance(wf_cfg, dict) and wf_cfg.get("enabled"):
+        train_bars = int(wf_cfg.get("train_bars", 0))
+        test_bars = int(wf_cfg.get("test_bars", 0))
+        step_bars = int(wf_cfg.get("step_bars", 0))
+
+        if train_bars > 0 and test_bars > 0 and step_bars > 0:
+            # If parameter_search grid is provided, do walk-forward OPTIMIZATION
+            if isinstance(ps_cfg, dict) and ps_cfg.get("grid"):
+                grid_cfg = ps_cfg.get("grid")
+                grid_typed = cast(dict[str, list[Any]], grid_cfg)
+                wf_results = walk_forward_optimize_and_test(
+                    df,
+                    cfg_raw,
+                    strat_cfg,
+                    window=train_bars,
+                    step=step_bars,
+                    grid=grid_typed,
+                    seed=ps_cfg.get("seed"),
+                    objective=str(ps_cfg.get("objective", "total_pnl")),
+                    dd_penalty=ps_cfg.get("dd_penalty"),
+                    vol_penalty=ps_cfg.get("vol_penalty"),
+                    data_handler=data_handler,
+                )
+            else:
+                # Otherwise, do walk-forward ANALYSIS (bar-based, no re-optimization)
+                from trading_platform.core.sweeps import walk_forward_analysis
+
+                wf_results = walk_forward_analysis(
+                    df,
+                    cfg_raw,
+                    strat_cfg,
+                    train_bars=train_bars,
+                    test_bars=test_bars,
+                    step_bars=step_bars,
+                    data_handler=data_handler,
+                )
         else:
-            # Otherwise, just do walk-forward ANALYSIS on existing trades
-            # (splits trades by time into train/test windows and computes
-            # OOS performance)
-            wf_results = walk_forward_summary(
-                trades,
-                window=int(wf_cfg.get("window", 0)),
-                step=int(wf_cfg.get("step", 0)),
+            logger.warning(
+                "Walk-forward enabled but missing required parameters. "
+                "Provide 'train_bars', 'test_bars', and 'step_bars' (all > 0)."
             )
 
     # Optional Monte Carlo (bar-level resimulation)
