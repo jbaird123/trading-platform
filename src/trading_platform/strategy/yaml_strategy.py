@@ -75,16 +75,20 @@ def _eval_predicate(df: pd.DataFrame, pred: dict[str, Any]) -> pd.Series:
     left = _series_for_operand(df, pred.get("left"))
     right = _series_for_operand(df, pred.get("right"))
     if cond == "is_above":
-        return left > right
+        # Handle NaN: comparisons with NaN return False
+        return (left > right).fillna(False)
     if cond == "is_below":
-        return left < right
+        # Handle NaN: comparisons with NaN return False
+        return (left < right).fillna(False)
     if cond == "cross_above":
-        prev = left.shift(1) <= right.shift(1)
-        now = left > right
+        # Handle NaN: comparisons with NaN return False
+        prev = (left.shift(1) <= right.shift(1)).fillna(False)
+        now = (left > right).fillna(False)
         return prev & now
     if cond == "cross_below":
-        prev = left.shift(1) >= right.shift(1)
-        now = left < right
+        # Handle NaN: comparisons with NaN return False
+        prev = (left.shift(1) >= right.shift(1)).fillna(False)
+        now = (left < right).fillna(False)
         return prev & now
     return pd.Series([False] * len(df), index=df.index)
 

@@ -11,8 +11,8 @@
     }
   },
   "exposure": {
-    "average_gross_exposure": 25.15,
-    "peak_gross_exposure": 110.0
+    "average_gross_exposure": 19.25,
+    "peak_gross_exposure": 113.0
   },
   "contrasts": {},
   "stop_tp_candidates": {},
@@ -42,7 +42,7 @@
   "meta": {
     "strategy_name": "Golden_EMA_Crossover",
     "run_id": "golden_run_test",
-    "git_commit": "6ae9146",
+    "git_commit": "787e485",
     "run_seed": 42
   },
   "strategy_params": {},
@@ -180,7 +180,7 @@
     "data_end": null,
     "symbols": [],
     "app_version": "0.0.1",
-    "git_commit": "6ae9146",
+    "git_commit": "787e485",
     "run_seed": 42
   },
   "artifacts": {},

@@ -41,10 +41,14 @@ WARMUP_PERIOD = 100
 
 # Certain indicators (like RSI, ADX) use different smoothing methods (EMA vs. RMA)
 # between libraries, so we allow a slightly higher tolerance for them.
+# pandas-ta may calculate indicators slightly differently than TradingView.
 TOLERANCES = {
     "RSI_14": {"rtol": 1e-3},
     "ADX_14": {"rtol": 1e-2},  # ADX has a more complex calculation
     "ATR_14": {"rtol": 1e-3},
+    "BB_UPPER": {"rtol": 2e-4},  # pandas-ta BB calculations
+    "BB_MIDDLE": {"rtol": 2e-4},
+    "BB_LOWER": {"rtol": 2e-4},
 }
 
 

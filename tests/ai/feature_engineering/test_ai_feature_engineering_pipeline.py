@@ -70,8 +70,11 @@ def test_add_sma_feature(sample_dataframe):
     assert pd.isna(pipeline.df["sma_3"].iloc[0])
     assert pd.isna(pipeline.df["sma_3"].iloc[1])
     assert not pd.isna(pipeline.df["sma_3"].iloc[2])
-    # Basic value check for SMA(3) on [101, 102, 103] should be 102
-    assert pipeline.df["sma_3"].iloc[2] == (101 + 102 + 103) / 3
+    # Basic value check for SMA(3) on [101, 102, 103] should be ~102
+    # Use approx due to floating-point precision
+    assert pipeline.df["sma_3"].iloc[2] == pytest.approx(
+        (101 + 102 + 103) / 3, abs=1e-6
+    )
 
 
 def test_add_rsi_feature(sample_dataframe):
@@ -100,14 +103,16 @@ def test_add_feature_missing_kind(sample_dataframe):
 
 def test_add_feature_unsupported_kind(sample_dataframe):
     """
-    Verifies NotImplementedError for unsupported feature kinds.
+    Verifies behavior for unsupported feature kinds.
+    Now that we use centralized compute_features, unsupported types
+    result in a column with NaN values rather than an exception.
     """
     pipeline = FeatureEngineeringPipeline(sample_dataframe)
     feature_config = {"kind": "unsupported_feature", "params": {"length": 10}}
-    with pytest.raises(
-        NotImplementedError, match="Feature 'unsupported_feature' is not supported yet."
-    ):
-        pipeline.add_feature(feature_config)
+    pipeline.add_feature(feature_config)
+    # Should create column with NaN values
+    assert "unsupported_feature_10" in pipeline.df.columns
+    assert pipeline.df["unsupported_feature_10"].isna().all()
 
 
 def test_run_multiple_features(sample_dataframe):
