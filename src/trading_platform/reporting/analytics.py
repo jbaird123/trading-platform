@@ -4,10 +4,13 @@ Analytics functions for computing advanced metrics in backtest briefs.
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from trading_platform.portfolio.trade import Trade
+
+logger = logging.getLogger(__name__)
 
 
 def compute_stationarity(trades: list[Trade]) -> dict:
@@ -50,8 +53,9 @@ def compute_stationarity(trades: list[Trade]) -> dict:
             "adf_p_value": adf_p_value,
             "kpss_p_value": kpss_p_value,
         }
-    except Exception:
-        # Return empty dict on any error (e.g., import issues, computation errors)
+    except Exception as e:
+        # Safe to continue: stationarity analysis is optional advanced metric
+        logger.debug(f"Failed to compute stationarity analysis: {e}")
         return {}
 
 
@@ -105,8 +109,9 @@ def compute_feature_analysis(trades: list[Trade]) -> dict:
 
         return {"feature_correlation_matrix": corr_dict}
 
-    except Exception:
-        # Return empty dict on any error (e.g., import issues, computation errors)
+    except Exception as e:
+        # Safe to continue: feature analysis is optional advanced metric
+        logger.debug(f"Failed to compute feature analysis: {e}")
         return {}
 
 
@@ -142,8 +147,9 @@ def compute_activity(trades: list[Trade]) -> dict:
 
         return {"average_trades_per_day": round(avg_trades_per_day, 2)}
 
-    except Exception:
-        # Return empty dict on any error
+    except Exception as e:
+        # Safe to continue: activity metrics are optional
+        logger.debug(f"Failed to compute activity metrics: {e}")
         return {}
 
 
@@ -211,8 +217,9 @@ def compute_timing_buckets(trades: list[Trade]) -> dict:
             "day_of_week": day_results,
         }
 
-    except Exception:
-        # Return empty dict on any error
+    except Exception as e:
+        # Safe to continue: timing bucket analysis is optional
+        logger.debug(f"Failed to compute timing buckets: {e}")
         return {}
 
 
@@ -298,8 +305,9 @@ def compute_contrasts(trades: list[Trade]) -> dict:
             "short_trades": calculate_side_metrics(short_trades),
         }
 
-    except Exception:
-        # Return empty dict on any error
+    except Exception as e:
+        # Safe to continue: contrast analysis is optional
+        logger.debug(f"Failed to compute contrasts: {e}")
         return {}
 
 
@@ -363,8 +371,9 @@ def compute_stop_tp_candidates(trades: list[Trade]) -> dict:
             "mae_percentiles": calculate_percentiles(mae_values),
         }
 
-    except Exception:
-        # Return empty dict on any error
+    except Exception as e:
+        # Safe to continue: stop/TP candidate analysis is optional
+        logger.debug(f"Failed to compute stop/TP candidates: {e}")
         return {}
 
 

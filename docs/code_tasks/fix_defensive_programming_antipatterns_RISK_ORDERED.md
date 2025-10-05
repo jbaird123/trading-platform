@@ -230,14 +230,14 @@ If the answer to #1 is "uncertain" or #2 is "yes" or #3 is "yes" → **FAIL FAST
 - **Required:** User-visible errors for requested analyses
 - **Acceptance:** All analysis failures are logged/reported
 
-### 17. [ ] Review reporting/analytics.py exception handling
+### 17. [X] Review reporting/analytics.py exception handling
 - **Priority:** MEDIUM - Functions returning None on exception
 - **Estimated Time:** 45 minutes
 - **Focus:** Functions returning None on exception
 - **Action:** Ensure all have logging, especially if user-requested
 - **Acceptance:** No silent None returns
 
-### 18. [ ] Review reporting/brief.py exception handling
+### 18. [X] Review reporting/brief.py exception handling
 - **Priority:** MEDIUM - Core reporting functionality
 - **Estimated Time:** 45 minutes
 - **Action:** Review all `except Exception:` blocks
