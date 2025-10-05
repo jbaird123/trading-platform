@@ -203,18 +203,21 @@ def finalize_run(
                     w = csv.DictWriter(f, fieldnames=keys)
                     w.writeheader()
                     w.writerows(rows)
-    except Exception:
-        pass
+    except Exception as e:
+        # Safe to continue: CSV is convenience export, data exists in brief.json
+        logging.debug(f"Failed to export parameter search CSV: {e}")
     # Also export a minimal HTML report (skeleton)
     try:
         save_html_report(run_path, meta=meta, trades=trades)
-    except Exception:  # pragma: no cover - keep finalize robust
-        pass
+    except Exception as e:  # pragma: no cover - keep finalize robust
+        # Safe to continue: HTML report is optional, brief.json has all data
+        logging.debug(f"Failed to save HTML report: {e}")  # pragma: no cover
     # Export a lightweight-charts visualization from the brief
     try:
         save_chart_from_brief(run_path)
-    except Exception:  # pragma: no cover
-        pass
+    except Exception as e:  # pragma: no cover
+        # Safe to continue: chart is optional visualization, brief.json has all data
+        logging.debug(f"Failed to save chart: {e}")  # pragma: no cover
     # Export trades CSV for convenience
     try:
         save_trades_csv(run_path / "trades.csv", trades)
