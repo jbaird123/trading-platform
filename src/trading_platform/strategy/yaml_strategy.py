@@ -75,16 +75,20 @@ def _eval_predicate(df: pd.DataFrame, pred: dict[str, Any]) -> pd.Series:
     left = _series_for_operand(df, pred.get("left"))
     right = _series_for_operand(df, pred.get("right"))
     if cond == "is_above":
-        return left > right
+        # Handle NaN: comparisons with NaN return False
+        return (left > right).fillna(False)
     if cond == "is_below":
-        return left < right
+        # Handle NaN: comparisons with NaN return False
+        return (left < right).fillna(False)
     if cond == "cross_above":
-        prev = left.shift(1) <= right.shift(1)
-        now = left > right
+        # Handle NaN: comparisons with NaN return False
+        prev = (left.shift(1) <= right.shift(1)).fillna(False)
+        now = (left > right).fillna(False)
         return prev & now
     if cond == "cross_below":
-        prev = left.shift(1) >= right.shift(1)
-        now = left < right
+        # Handle NaN: comparisons with NaN return False
+        prev = (left.shift(1) >= right.shift(1)).fillna(False)
+        now = (left < right).fillna(False)
         return prev & now
     return pd.Series([False] * len(df), index=df.index)
 
@@ -239,17 +243,36 @@ class CompiledStrategy:
                     return block
             return None
 
-        # Generate commands based on entry/exit rules
-        # Strategy maintains internal state to detect transitions,
-        # but this state is not exposed to the caller.
+        # Generate signals based on entry/exit rules
+        # Strategy is stateless - Portfolio Manager handles position tracking
         signals: list[Signal | None] = []
-        internal_state = "flat"  # For command generation, not position tracking
 
         for i in range(len(df2)):
             signal: Signal | None = None
 
-            # Check exits first (if we think we're in a position internally)
-            if internal_state == "long" and bool(lx.iloc[i]):
+            # Check entry signals first - they take precedence to
+            # enable position flipping. When both entry and exit
+            # trigger on same bar (e.g. EMA crossover), entry wins
+            if bool(le.iloc[i]) and (not self.slope_filter or bool(slope_up.iloc[i])):
+                triggered_block = _find_triggered_block(le_blocks, i)
+                context = (
+                    self._extract_context(df2, triggered_block, i)
+                    if triggered_block
+                    else {}
+                )
+                signal = Signal(command="enter_long", context=context)
+            elif bool(se.iloc[i]) and (
+                not self.slope_filter or bool(slope_down.iloc[i])
+            ):
+                triggered_block = _find_triggered_block(se_blocks, i)
+                context = (
+                    self._extract_context(df2, triggered_block, i)
+                    if triggered_block
+                    else {}
+                )
+                signal = Signal(command="enter_short", context=context)
+            # Check exit signals - only emit if no entry signal triggered
+            elif bool(lx.iloc[i]):
                 triggered_block = _find_triggered_block(lx_blocks, i)
                 context = (
                     self._extract_context(df2, triggered_block, i)
@@ -257,8 +280,7 @@ class CompiledStrategy:
                     else {}
                 )
                 signal = Signal(command="exit_long", context=context)
-                internal_state = "flat"
-            elif internal_state == "short" and bool(sx.iloc[i]):
+            elif bool(sx.iloc[i]):
                 triggered_block = _find_triggered_block(sx_blocks, i)
                 context = (
                     self._extract_context(df2, triggered_block, i)
@@ -266,32 +288,6 @@ class CompiledStrategy:
                     else {}
                 )
                 signal = Signal(command="exit_short", context=context)
-                internal_state = "flat"
-
-            # Check entries (only if we think we're flat internally)
-            if internal_state == "flat":
-                if bool(le.iloc[i]) and (
-                    not self.slope_filter or bool(slope_up.iloc[i])
-                ):
-                    triggered_block = _find_triggered_block(le_blocks, i)
-                    context = (
-                        self._extract_context(df2, triggered_block, i)
-                        if triggered_block
-                        else {}
-                    )
-                    signal = Signal(command="enter_long", context=context)
-                    internal_state = "long"
-                elif bool(se.iloc[i]) and (
-                    not self.slope_filter or bool(slope_down.iloc[i])
-                ):
-                    triggered_block = _find_triggered_block(se_blocks, i)
-                    context = (
-                        self._extract_context(df2, triggered_block, i)
-                        if triggered_block
-                        else {}
-                    )
-                    signal = Signal(command="enter_short", context=context)
-                    internal_state = "short"
 
             signals.append(signal)
 

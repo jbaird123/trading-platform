@@ -43,7 +43,15 @@ def test_all_indicators_have_required_fields():
 
 def test_indicator_categories():
     """Test that all indicators have valid categories."""
-    valid_categories = {"trend", "momentum", "volatility", "volume", "price", "levels"}
+    valid_categories = {
+        "trend",
+        "momentum",
+        "volatility",
+        "volume",
+        "price",
+        "levels",
+        "pattern",
+    }
 
     for indicator_name, indicator_config in INDICATORS.items():
         category = indicator_config["category"]
@@ -125,6 +133,13 @@ def test_specific_indicators_exist():
         "HHV",
         "LLV",
         "DC",
+        # Patterns
+        "CDL_DOJI",
+        "CDL_HAMMER",
+        "CDL_ENGULFING",
+        "CDL_MORNINGSTAR",
+        "CDL_EVENINGSTAR",
+        "CDL_HARAMI",
     }
 
     for indicator in expected_indicators:
@@ -178,6 +193,21 @@ def test_level_indicators_category():
             category = INDICATORS[indicator]["category"]
             msg = f"{indicator} should be in levels category"
             assert category == "levels", msg
+
+
+def test_pattern_indicators_category():
+    """Test pattern indicators are properly categorized."""
+    pattern_indicators = [
+        "CDL_DOJI",
+        "CDL_HAMMER",
+        "CDL_ENGULFING",
+        "CDL_MORNINGSTAR",
+        "CDL_EVENINGSTAR",
+        "CDL_HARAMI",
+    ]
+    for indicator in pattern_indicators:
+        if indicator in INDICATORS:
+            assert INDICATORS[indicator]["category"] == "pattern"
 
 
 def test_indicator_display_names():

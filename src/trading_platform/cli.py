@@ -3,6 +3,7 @@ from __future__ import annotations
 #! ruff: noqa: I001
 import argparse
 import json
+import logging
 import subprocess
 import sys
 from datetime import datetime
@@ -17,7 +18,6 @@ from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
 from trading_platform.core.demo import generate_demo_run
 from trading_platform.core.policy import TradingWindowPolicy
-from trading_platform.core.robustness import walk_forward_summary
 from trading_platform.core.run import finalize_run, initialize_run
 from trading_platform.core.sweeps import (
     run_parameter_sweep,
@@ -32,12 +32,15 @@ from trading_platform.regime_market_manager.engine import RMMEngine
 from trading_platform.reporting.brief import compute_data_quality
 from trading_platform.reporting.chart_export import (
     save_chart_from_brief,
+    save_equity_chart_from_brief,
     save_features_for_chart,
 )
 from trading_platform.reporting.compare_html import save_comparison_report
 from trading_platform.reporting.csv_export import save_prices_csv
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
+
+logger = logging.getLogger(__name__)
 
 
 def _get_git_commit() -> str | None:
@@ -48,7 +51,10 @@ def _get_git_commit() -> str | None:
             .decode("ascii")
             .strip()
         )
-    except Exception:
+    except Exception as e:
+        # Safe to continue: git commit hash is metadata only
+        # System works fine without it
+        logger.debug(f"Failed to get git commit hash: {e}")
         return None
 
 
@@ -80,6 +86,11 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         return 2
     cfg_path = Path(args.config)
     cfg_raw = _load_config(cfg_path)
+
+    # Apply CLI --output-dir override if provided
+    output_dir = getattr(args, "output_dir", None)
+    if output_dir:
+        cfg_raw["runs_dir"] = output_dir
 
     # Load REM and RMM configs and include them in cfg_raw for proper config snapshot
     rem_path = cfg_raw.get("rem_path")
@@ -137,39 +148,24 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     try:
         processed_data_path = run_path / "processed_data.parquet"
         df.to_parquet(processed_data_path)
-    except Exception:
+    except Exception as e:
+        # Safe to continue: processed_data.parquet is for AI Lab analysis
+        # Not required for backtest results
+        logger.warning(f"Failed to save processed data parquet: {e}")
         processed_data_path = None
 
     # Strategy can be embedded or referenced via a separate YAML/JSON file
-    strat_cfg = cfg_raw.get("strategy") or {
-        "strategy_name": "CLI_Default",
-        # Minimal long-only example matching strategy.schema.json
-        "long_entry_rules": [
-            {
-                "any_of": [
-                    {
-                        "condition": "is_above",
-                        "left": "close",
-                        "right": 1.5,
-                    }
-                ]
-            }
-        ],
-        "long_exit_rules": [
-            {
-                "any_of": [
-                    {
-                        "condition": "is_below",
-                        "left": "close",
-                        "right": 1.5,
-                    }
-                ]
-            }
-        ],
-        # Keep shorts empty for the default; schema accepts long-only
-        "short_entry_rules": [],
-        "short_exit_rules": [],
-    }
+    strat_cfg = cfg_raw.get("strategy")
+    if not strat_cfg:
+        # Try loading from strategy_path if provided
+        strategy_path = cfg_raw.get("strategy_path")
+        if strategy_path:
+            strat_cfg = _load_config(Path(strategy_path))
+        else:
+            raise ValueError(
+                "No strategy provided. Specify 'strategy_path' in config "
+                "or embed 'strategy' definition."
+            )
     # Optional fast-mode: limit dataset for quicker iterations
     fast_mode = cfg_raw.get("fast_mode") or {}
     if isinstance(fast_mode, dict):
@@ -178,9 +174,10 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
 
             last_days = int(fast_mode.get("last_days", 0) or 0)
             limit_bars = int(fast_mode.get("limit_bars", 0) or 0)
-        except Exception:  # pragma: no cover
-            last_days = 0  # pragma: no cover - Defensive: fallback if
-            # fast_mode has invalid values
+        except Exception as e:  # pragma: no cover
+            # Safe to continue: fast_mode parsing, defaults to 0
+            logger.debug(f"Failed to parse fast_mode values: {e}")  # pragma: no cover
+            last_days = 0  # pragma: no cover
             limit_bars = 0  # pragma: no cover
         if last_days > 0 and isinstance(df.index, pd.DatetimeIndex):
             cutoff = df.index.max() - timedelta(days=last_days)
@@ -188,9 +185,10 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         elif limit_bars > 0:
             df = df.tail(limit_bars)
 
-    strat_path = cfg_raw.get("strategy_path")
-    if strat_path:
-        strat_cfg = _load_config(Path(str(strat_path)))
+    if isinstance(strat_cfg, dict) and "file_path" in strat_cfg:
+        # Resolve file_path relative to the main config file
+        p = Path(cfg_path.parent, strat_cfg["file_path"])
+        strat_cfg = _load_config(p)
 
     # Apply strategy_params from config (used for parameter sweeps)
     # This allows the config to override strategy defaults
@@ -224,6 +222,18 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     strat = compile_strategy(strat_cfg)
     signals = strat.generate_signals(df)
 
+    # Get feature-enriched dataframe for REM (includes ATR, etc.)
+    # This allows REM to access strategy-calculated features like ATR
+    # Ensure it's aligned with the (possibly sliced) input df
+    feature_enriched_df = strat._feature_df if strat._feature_df is not None else df
+    if feature_enriched_df is not None:
+        # Defensive checks: feature_df must match input df's length and index type
+        if len(feature_enriched_df) != len(df) or not isinstance(
+            feature_enriched_df.index, type(df.index)
+        ):
+            # Fall back to raw df if mismatched (can happen in tests with mocks)
+            feature_enriched_df = df
+
     # Persist raw signals for AI Lab analysis
     try:
         from trading_platform.core.signal import Signal
@@ -239,20 +249,29 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         else:
             signals_df = pd.DataFrame(signals)
         signals_df.to_parquet(signals_path)
-    except Exception:  # pragma: no cover
-        signals_path = None  # pragma: no cover - Defensive: file save might fail
+    except Exception as e:  # pragma: no cover
+        # Safe to continue: signals.parquet is for AI Lab post-analysis
+        # Not required for backtest results
+        logger.warning(
+            f"Failed to save signals.parquet for AI Lab: {e}"
+        )  # pragma: no cover
+        signals_path = None  # pragma: no cover
 
     # Persist prices and features for charts before finalize_run
     try:
         save_prices_csv(run_path / "prices.csv", df)
-    except Exception:  # pragma: no cover
-        pass  # pragma: no cover - Defensive: price save might fail
+    except Exception as e:  # pragma: no cover
+        # Safe to continue: prices.csv is only for interactive charts
+        # brief.json contains all data needed for analysis
+        logger.warning(f"Failed to save prices.csv: {e}")  # pragma: no cover
     try:
         fdf = getattr(strat, "_feature_df", None)
         if fdf is not None:
             save_features_for_chart(run_path, fdf, strat.features)
-    except Exception:  # pragma: no cover
-        pass  # pragma: no cover - Defensive: feature save might fail
+    except Exception as e:  # pragma: no cover
+        # Safe to continue: features.json is for charts/debugging only
+        # Not required for backtest analysis
+        logger.warning(f"Failed to save features: {e}")  # pragma: no cover
 
     # REM can be embedded or referenced via a separate file
     rem_cfg: dict[str, Any] | None = cfg_raw.get("rem_config")
@@ -352,17 +371,20 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             rmm_spans_path = run_path / "rmm_spans.json"
             rmm_spans_path.write_text(json.dumps(spans))
             print(f"- RMM spans: {rmm_spans_path}")
-        except Exception:  # pragma: no cover
-            rmm_spans_path = (
-                None  # pragma: no cover - Defensive: RMM span save might fail
-            )
+        except Exception as e:  # pragma: no cover
+            # Safe to continue: rmm_spans.json is for chart shading only
+            # Not required for backtest analysis
+            logger.warning(
+                f"Failed to save RMM spans for chart: {e}"
+            )  # pragma: no cover
+            rmm_spans_path = None  # pragma: no cover
 
     # Output toggles; default to no exposure unless explicitly requested
     ret_exp = bool(cfg_raw.get("return_exposure", False))
     ret_skips = bool(cfg_raw.get("return_skips", True))
 
     res = run_backtest(
-        market_data=df,
+        market_data=feature_enriched_df,
         signals=signals,
         strategy=strat,
         config=cfg,
@@ -420,39 +442,50 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
             data_handler=data_handler,
         )
 
-    # Optional walk-forward analysis
+    # Optional walk-forward analysis (bar-based)
     wf_cfg = cfg_raw.get("walk_forward") or {}
     wf_results = None
-    if (
-        isinstance(wf_cfg, dict)
-        and int(wf_cfg.get("window", 0)) > 0
-        and int(wf_cfg.get("step", 0)) > 0
-    ):
-        # If parameter_search grid is provided, do walk-forward OPTIMIZATION
-        if isinstance(ps_cfg, dict) and ps_cfg.get("grid"):
-            grid_cfg = ps_cfg.get("grid")
-            grid_typed = cast(dict[str, list[Any]], grid_cfg)
-            wf_results = walk_forward_optimize_and_test(
-                df,
-                cfg_raw,
-                strat_cfg,
-                window=int(wf_cfg.get("window", 0)),
-                step=int(wf_cfg.get("step", 0)),
-                grid=grid_typed,
-                seed=ps_cfg.get("seed"),
-                objective=str(ps_cfg.get("objective", "total_pnl")),
-                dd_penalty=ps_cfg.get("dd_penalty"),
-                vol_penalty=ps_cfg.get("vol_penalty"),
-                data_handler=data_handler,
-            )
+
+    if isinstance(wf_cfg, dict) and wf_cfg.get("enabled"):
+        train_bars = int(wf_cfg.get("train_bars", 0))
+        test_bars = int(wf_cfg.get("test_bars", 0))
+        step_bars = int(wf_cfg.get("step_bars", 0))
+
+        if train_bars > 0 and test_bars > 0 and step_bars > 0:
+            # If parameter_search grid is provided, do walk-forward OPTIMIZATION
+            if isinstance(ps_cfg, dict) and ps_cfg.get("grid"):
+                grid_cfg = ps_cfg.get("grid")
+                grid_typed = cast(dict[str, list[Any]], grid_cfg)
+                wf_results = walk_forward_optimize_and_test(
+                    df,
+                    cfg_raw,
+                    strat_cfg,
+                    window=train_bars,
+                    step=step_bars,
+                    grid=grid_typed,
+                    seed=ps_cfg.get("seed"),
+                    objective=str(ps_cfg.get("objective", "total_pnl")),
+                    dd_penalty=ps_cfg.get("dd_penalty"),
+                    vol_penalty=ps_cfg.get("vol_penalty"),
+                    data_handler=data_handler,
+                )
+            else:
+                # Otherwise, do walk-forward ANALYSIS (bar-based, no re-optimization)
+                from trading_platform.core.sweeps import walk_forward_analysis
+
+                wf_results = walk_forward_analysis(
+                    df,
+                    cfg_raw,
+                    strat_cfg,
+                    train_bars=train_bars,
+                    test_bars=test_bars,
+                    step_bars=step_bars,
+                    data_handler=data_handler,
+                )
         else:
-            # Otherwise, just do walk-forward ANALYSIS on existing trades
-            # (splits trades by time into train/test windows and computes
-            # OOS performance)
-            wf_results = walk_forward_summary(
-                trades,
-                window=int(wf_cfg.get("window", 0)),
-                step=int(wf_cfg.get("step", 0)),
+            logger.warning(
+                "Walk-forward enabled but missing required parameters. "
+                "Provide 'train_bars', 'test_bars', and 'step_bars' (all > 0)."
             )
 
     # Optional Monte Carlo (bar-level resimulation)
@@ -493,11 +526,20 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         rmm_spans_path=rmm_spans_path,
         processed_data_path=processed_data_path,
     )
+
+    # Generate equity curve chart
+    try:
+        save_equity_chart_from_brief(run_path)
+    except Exception as e:  # pragma: no cover
+        # Safe to continue: equity chart is optional visualization
+        logger.warning(f"Failed to generate equity chart: {e}")
+
     print(f"Run created at: {run_path}")
     print(f"- Brief: {run_path / 'brief.json'}")
     print(f"- Report: {run_path / 'report.html'}")
     print(f"- Trades: {run_path / 'trades.csv'}")
     print(f"- Chart: {run_path / 'chart.html'}")
+    print(f"- Equity: {run_path / 'equity_chart.html'}")
     return 0
 
 
@@ -690,6 +732,10 @@ def main() -> int:
     pb.add_argument("--config", help="Path to JSON/YAML RunConfig")
     pb.add_argument("--user", default="cli_user", help="User id for run path")
     pb.add_argument("--demo", action="store_true", help="Use demo backtest")
+    pb.add_argument(
+        "--output-dir",
+        help="Custom root directory for run artifacts (must be within workspace)",
+    )
     pb.set_defaults(func=cmd_run_backtest)
 
     pl = sub.add_parser("run-live", help="Run live adapter/controller")

@@ -1,8 +1,8 @@
-# AI Prompt: Autonomous Strategy Discovery
+# AI Prompt: Autonomous Strategy Discovery & Validation
 
 ## 1. Your Mission
 
-Your primary mission is to autonomously find a profitable trading strategy. You will use the tools and capabilities of this trading platform to discover, validate, and refine strategies in a structured and methodical way. Your entire process must be self-contained, reproducible, and clean.
+Your primary mission is to autonomously find and validate a profitable trading strategy. You will use the tools and capabilities of this trading platform to discover, validate, and refine strategies in a structured, chronological, and reproducible workflow.
 
 ---
 
@@ -10,76 +10,79 @@ Your primary mission is to autonomously find a profitable trading strategy. You 
 
 These rules are absolute and must be followed at all times.
 
--   **Workspace Integrity:**
-    -   You **MUST** create a unique session directory for your work under `workspace/strategy_discovery/`. Name it with a timestamp and the target strategy (e.g., `20251004_150000_ema_crossover_discovery`).
-    -   **ALL** files you create (configurations, logs, reports, temporary strategies) **MUST** be saved within this session directory. Do not write anywhere else until the final "Promotion" step.
+-   **Unified Campaign Workspace:**
+    -   All work for a single strategy idea **MUST** be contained within a single parent "campaign" directory under `workspace/research/`.
+    -   You must ask the user for a campaign name (e.g., `ema_crossover_campaign`).
+-   **Chronological, Timestamped Steps:**
+    -   Every action you take (a discovery sweep, a validation run, a refinement iteration) **MUST** be executed in its own unique, timestamped subdirectory within the campaign folder.
+    -   Directory names **MUST** follow the format: `YYYYMMDD_HHMMSS_ms_phase_description` (e.g., `20251005_143000_123_01_discovery_initial_sweep`).
+    -   This ensures a perfectly sorted, auditable history of the entire process.
 -   **Meticulous Logging:**
-    -   You **MUST** maintain a detailed log of your entire process in a file named `session_log.md` within your workspace.
-    -   For each iteration, you must log: your hypothesis, the exact change you are implementing, the key results, and your evaluation of those results.
--   **Methodical Process:** You must follow the structured workflows defined below. Do not take shortcuts.
+    -   Each step's timestamped directory **MUST** contain a `run_summary.md` file detailing the hypothesis, actions taken, and results for that specific step.
+    -   The root of the campaign directory **MUST** contain a master `campaign_log.md` that provides a high-level summary and links to each step's `run_summary.md`.
+-   **Log Technical Debt:**
+    -   If any step fails due to a technical error (e.g., a script crash, configuration error, or unexpected validation failure), you **MUST** document the error in detail in that step's `run_summary.md`.
+    -   You **MUST** also add an entry to a master `technical_debt.log` file in the root of the campaign workspace. This log should contain the timestamped directory of the failed step and a one-line summary of the error. This ensures platform issues are not forgotten.
+-   **Use Standard Timeframes:** You **MUST** restrict your analysis and strategy definitions to a conventional set of timeframes. You should prefer timeframes that are standard across most trading platforms.
+    -   **Allowed Timeframes:** `1M`, `5M`, `15M`, `30M`, `1H`, `4H`, `1D`.
+    -   Avoid arbitrary or unusual timeframes (e.g., `13M`, `3H`, `7H`) unless specifically instructed by the user for a research purpose.
 
 ---
 
-## 3. The Discovery Workflow
+## 3. The Unified Workflow
 
-### Phase 0: Initialization
+### Phase 0: Campaign Initialization
 
-1.  **Create Workspace:** Create your unique session directory as specified in the Mandates.
-2.  **Start Log:** Create the `session_log.md` file and add your first entry, stating the session's goal.
+1.  **Define Campaign:** Ask the user for a name for the new research campaign (e.g., `rsi_mean_reversion`).
+2.  **Create Campaign Workspace:** Create the parent directory: `workspace/research/<campaign_name>/`.
+3.  **Initialize Campaign Log:** Create the master `campaign_log.md` in the root of the campaign directory.
 
-### Phase 1: Mode Selection
+### Phase 1: Iterative Discovery & Refinement
 
-Your first operational decision is to choose a mode. You can ask the user for their preference.
+This is a loop where you will generate and test ideas. Each iteration is a new, timestamped step in the campaign workspace.
 
--   **[1] Improvement Mode:** Systematically refine an existing strategy.
--   **[2] Discovery Mode:** Brainstorm and validate a completely new strategy.
+1.  **Create Step Directory:** Create a new timestamped directory for this iteration (e.g., `.../20251005_143000_123_01_discovery_initial_sweep/`). All work for this step occurs here.
+2.  **Hypothesize:** Formulate a single, concrete hypothesis. This could be a brand new strategy idea or an improvement to the result of a previous step. Log this in the step's `run_summary.md`.
+3.  **Implement:** Create the necessary configuration files (strategy `.yaml`, parameter grids, etc.) within the current step directory.
+4.  **Test & Measure:** Run the appropriate script (`run-improvement-cycle.sh`, a parameter sweep, etc.). All output artifacts must be saved within the current step directory.
+5.  **Evaluate & Log:** Analyze the results (`brief.json`, etc.). Record your findings in the `run_summary.md` and update the master `campaign_log.md` with a link to this new step.
+6.  **Decide Next Step:** Based on the evaluation, decide whether to:
+    -   **Continue Refining:** Start a new "Discovery" iteration.
+    -   **Validate Candidate:** If a promising candidate is found, proceed to Phase 2.
+    -   **Pivot or Conclude:** If the idea is not working, you can pivot to a new hypothesis or end the campaign.
 
-Log which mode you have chosen.
+### Phase 2: Rigorous Validation
 
-### Phase 2A: "Improvement Mode" Workflow
+When you have a "winning" candidate from Phase 1, you must subject it to rigorous testing.
 
-If you choose Improvement Mode, follow these steps:
+1.  **Create Validation Step Directory:** Create a new timestamped directory for the validation phase (e.g., `.../20251005_144510_456_02_validation_of_sweep_winner/`).
+2.  **Run Validation Gauntlet:** Inside this directory, perform the necessary robustness checks. This typically involves running Walk-Forward Evaluation (WFE) and Monte Carlo (MC) simulations as defined in the `02_validation_prompt.md` guide.
+3.  **Log Validation Results:** Document the WFE and MC outcomes and your final verdict (`Robust` or `Brittle`) in the step's `run_summary.md`. Update the master `campaign_log.md`.
 
-1.  **Select Candidate:** List the strategies in `config/strategy/` and select one to improve.
-2.  **Establish Baseline:** Copy the strategy's configuration files into your session workspace. Run the `scripts/run-improvement-cycle.sh` script on this baseline configuration to generate the initial performance reports. Log the path to the baseline run directory.
-3.  **Begin Improvement Loop:** Start an iterative cycle to refine the strategy.
-    a.  **Synthesize & Hypothesize:** Analyze the `brief.json`, `ai_diagnostic_report.json`, and `ai_qualitative_report.md` from the most recent run. Formulate a single, concrete hypothesis for improvement and log it.
-    b.  **Implement Change:** Create a new version of the strategy YAML file (e.g., `strategy_v2.yaml`) in your workspace that implements your hypothesis.
-    c.  **Test & Measure:** Run the `scripts/run-improvement-cycle.sh` script on your new strategy version.
-    d.  **Evaluate:** Compare the new results to the previous version. If performance has improved and the success criteria are not yet met, continue the loop. If performance has degraded, you may revert the change and try a new hypothesis. Log your evaluation.
+### Phase 3: Promotion
 
-### Phase 2B: "Discovery Mode" Workflow
+If a strategy successfully passes validation, it can be promoted.
 
-If you choose Discovery Mode, follow these steps:
-
-1.  **Brainstorm & Hypothesize:**
-    a.  **Scan Assets:** Review `src/trading_platform/strategy/indicators_registry.py`, `docs/schemas/strategy.schema.json`, and the available instruments in the `data/` directory.
-    b.  **Formulate Novel Hypothesis:** Create a hypothesis for a new strategy logic that is not a simple variation of existing ones. Consider different indicators, timeframes, and instruments. Log your hypothesis.
-2.  **Scaffold & Validate:**
-    a.  **Create Strategy:** Write a new strategy YAML file from scratch in your workspace.
-    b.  **Create Wide Grid:** Create a `grid.json` file with a wide range of parameters to test the core concept.
-    c.  **Run Broad Sweep:** Execute a parameter search to determine if the concept has any merit. The goal is to find any pocket of profitability, not to perfect it yet.
-3.  **Proceed or Pivot:**
-    a.  **If Promising:** If the sweep is successful, select the best parameter set as your new "baseline" strategy. Now, **transition to the "Improvement Loop" (Phase 2A, Step 3)** to systematically refine your new discovery.
-    b.  **If Not Promising:** Log the failure and your analysis of why it failed. You may either return to the brainstorming step (2B.1) to try a new idea or conclude the session.
-
-### Phase 3: Final Report & Promotion
-
-Once your iterative loop is complete (either by meeting success criteria or reaching a stopping point), you must conclude the session.
-
-1.  **Generate Final Report:** Create a `final_report.md` in your session workspace. This report must summarize the entire journey: the initial state, each iteration's hypothesis and result, and the final, validated "winning" strategy configuration.
-2.  **Propose Promotion:** Ask the user if you should promote the winning strategy. If approved, create a new, clean directory under `configs/strategies/` (e.g., `ema_crossover_optimized_v1`) and copy the final strategy YAML, the final `brief.json`, and the `final_report.md` into it.
+1.  **Final Promotion Scorecard:** Before proceeding, you **MUST** create a final scorecard in the `final_report.md` that explicitly checks every criterion from Section 4 against the final validation run's `brief.json`. If any single criterion is not met, you **MUST HALT** the promotion, report the deficiency, and suggest returning to the Discovery phase.
+2.  **Create Promotion Step Directory:** Create a final timestamped directory (e.g., `.../20251005_151540_999_PROMOTION/`).
+3.  **Consolidate Artifacts:** Copy the final, "golden" artifacts into this directory:
+    -   The final strategy `.yaml` file.
+    -   The definitive `brief.json` from the validation run.
+    -   A `final_report.md` summarizing the entire campaign journey from initial idea to final validated parameters.
+4.  **Propose Next Action:** Ask the user if you should formally add the promoted strategy to the main `config/strategy/` directory.
 
 ---
 
 ## 4. Success Criteria
 
-A strategy is considered "winning" or "successful" when it meets a combination of these criteria over a significant backtest period. You should aim for:
+A strategy is considered "winning" or "successful" when it meets **all** of the following criteria over a significant backtest period. You must verify every one of these before promotion:
 
 -   **Consistent Profitability:** `total_pnl` is positive.
 -   **Acceptable Risk:** `max_drawdown` is less than 20% of the total PnL.
+-   **Short Drawdown Period:** The strategy should not have a drawdown period lasting longer than two weeks.
 -   **Good Risk/Reward:** Sharpe Ratio > 1.0.
--   **Robustness:** The strategy shows positive performance in the Walk-Forward Evaluation and does not have a high `ruin_prob` in the Monte Carlo simulation.
+-   **Positive Risk/Reward:** Reward/Risk Ratio (Avg Win / Avg Loss) > 1.0.
+-   **Robustness:** The strategy passes the validation criteria (e.g., WFE and MC tests).
 
 ---
 
@@ -87,5 +90,5 @@ A strategy is considered "winning" or "successful" when it meets a combination o
 
 At the end of your process, you will have:
 
-1.  A complete session directory in `workspace/strategy_discovery/` containing all artifacts and a detailed log.
-2.  A final proposal to the user to promote the best strategy found.
+1.  A complete campaign directory in `workspace/research/` containing a chronologically sorted series of timestamped folders, each documenting a specific step.
+2.  A `PROMOTION` folder containing the final, validated artifacts of a successful strategy.

@@ -44,13 +44,14 @@ def test_strategy_validation_rejects_missing_strategy_name():
         validate_strategy_config(cfg)
 
 
-def test_strategy_validation_rejects_incomplete_long_pair():
+def test_strategy_validation_accepts_entry_rules_without_exit():
+    """Exit rules are optional - strategies can rely solely on trailing stops."""
     cfg = {
-        "strategy_name": "Incomplete",
+        "strategy_name": "EntryOnly",
         "long_entry_rules": MINIMAL_LONG_RULES["long_entry_rules"],
     }
-    with pytest.raises(ValueError, match="Strategy schema validation error"):
-        validate_strategy_config(cfg)
+    # Should not raise - exit rules are optional
+    validate_strategy_config(cfg)
 
 
 def test_strategy_validation_rejects_incomplete_short_pair():

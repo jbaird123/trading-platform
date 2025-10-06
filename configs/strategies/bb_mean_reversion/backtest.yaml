@@ -1,14 +1,14 @@
 user_id: "bb_trader"
-initial_cash: 100000
+initial_cash: 10000
 warmup_bars: 100  # Need 100 bars for BB calculation (20-period + buffer)
 entry_window_bars: 3  # Allow entry within 3 bars of signal transition
 tie_break_policy:
   rule: "stop_then_tp"
-position_size: 10000  # 50% position sizing
+position_size: 10000
 
 # Transaction costs configuration
 cost_model:
-  spread_per_unit: 0.0 # 0015  # 1.5 pips for USD/JPY
+  spread_per_unit: 0.015 # 1.5 pips for USD/JPY
   slippage_per_unit: 0.0    # No additional slippage for now
   commission:
     type: "per_unit"
@@ -31,7 +31,7 @@ post_exit_analysis:
   horizons: [10, 20, 50]  # Track price movement for N bars after each exit
 
 # Risk/Exit Manager - trailing stops
-rem_path: "config/rem/trailing_stops.yaml"
+rem_path: "config/rem/fixed_stop5.yaml"
 
 # Strategy - Bollinger Band Mean Reversion
 strategy_path: "config/strategy/bb_mean_reversion.yaml"

@@ -95,13 +95,22 @@
             "BBWidth",
             "ATR",
             "HHV",
+            "CHOP",
+            "ICHIMOKU",
+            "SUPERTREND",
             "LLV",
             "DC",
             "KC",
             "OBV",
             "CMF",
             "VWAP",
-            "FIB"
+            "FIB",
+            "CDL_DOJI",
+            "CDL_HAMMER",
+            "CDL_ENGULFING",
+            "CDL_MORNINGSTAR",
+            "CDL_EVENINGSTAR",
+            "CDL_HARAMI"
           ],
           "description": "Indicator type to compute for regime logic."
         },
@@ -165,12 +174,28 @@
       "properties": {
         "condition": {
           "type": "string",
-          "enum": ["is_above", "is_below"]
+          "enum": [
+            "is_above",
+            "is_below",
+            "hour_is_in",
+            "hour_is_not_in",
+            "day_of_week_is_in",
+            "day_of_week_is_not_in"
+          ]
         },
         "left": { "$ref": "#/$defs/operand" },
-        "right": { "$ref": "#/$defs/operand" }
+        "right": { "$ref": "#/$defs/operand" },
+        "values": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              { "type": "string" },
+              { "type": "integer" }
+            ]
+          }
+        }
       },
-      "required": ["condition", "left", "right"]
+      "required": ["condition"]
     },
     "operand": {
       "oneOf": [

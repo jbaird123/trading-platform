@@ -43,7 +43,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "signal", "type": "int", "default": 9},
         ],
         "ta": {
-            "module": "pandas_ta.overlap",
+            "module": "pandas_ta.momentum",
             "function": "macd",
         },
     },
@@ -111,6 +111,20 @@ INDICATORS: dict[str, dict] = {
         "ta": {
             "module": "pandas_ta.momentum",
             "function": "roc",
+        },
+    },
+    "CHOP": {
+        "display": "Chop Index",
+        "category": "momentum",
+        "description": "Determines if the market is choppy (sideways) or trending.",
+        "params": [
+            {"name": "length", "type": "int", "default": 14},
+            {"name": "atr_length", "type": "int", "default": 1},
+            {"name": "scalar", "type": "float", "default": 100},
+        ],
+        "ta": {
+            "module": "pandas_ta.momentum",
+            "function": "chop",
         },
     },
     # Volatility / bands & channels
@@ -184,6 +198,35 @@ INDICATORS: dict[str, dict] = {
             "function": "cmf",
         },
     },
+    "ICHIMOKU": {
+        "display": "Ichimoku Cloud",
+        "category": "trend",
+        "description": "All-in-one trend indicator with support/resistance levels.",
+        "params": [
+            {"name": "tenkan", "type": "int", "default": 9},
+            {"name": "kijun", "type": "int", "default": 26},
+            {"name": "senkou", "type": "int", "default": 52},
+        ],
+        "ta": {
+            "module": "pandas_ta.trend",
+            "function": "ichimoku",
+        },
+    },
+    "SUPERTREND": {
+        "display": "SuperTrend",
+        "category": "trend",
+        "description": (
+            "Popular trend-following indicator used for " "trend direction and stops."
+        ),
+        "params": [
+            {"name": "length", "type": "int", "default": 7},
+            {"name": "multiplier", "type": "float", "default": 3.0},
+        ],
+        "ta": {
+            "module": "pandas_ta.trend",
+            "function": "supertrend",
+        },
+    },
     "VWAP": {
         "display": "Volume Weighted Average Price",
         "category": "price",
@@ -224,5 +267,66 @@ INDICATORS: dict[str, dict] = {
         ),
         "params": [{"name": "length", "type": "int", "default": 20}],
         "ta": {"module": "", "class": ""},
+    },
+    # Candlestick Patterns
+    "CDL_DOJI": {
+        "display": "Doji",
+        "category": "pattern",
+        "description": "Detects a Doji candlestick pattern (indecision).",
+        "params": [],
+        "ta": {
+            "module": "pandas_ta.candles",
+            "function": "cdl_doji",
+        },
+    },
+    "CDL_HAMMER": {
+        "display": "Hammer / Hanging Man",
+        "category": "pattern",
+        "description": "Detects Hammer (bullish) or Hanging Man (bearish) patterns.",
+        "params": [],
+        "ta": {
+            "module": "pandas_ta.candles",
+            "function": "cdl_hammer",
+        },
+    },
+    "CDL_ENGULFING": {
+        "display": "Engulfing",
+        "category": "pattern",
+        "description": "Detects Bullish or Bearish Engulfing patterns.",
+        "params": [],
+        "ta": {
+            "module": "pandas_ta.candles",
+            "function": "cdl_engulfing",
+        },
+    },
+    "CDL_MORNINGSTAR": {
+        "display": "Morning Star",
+        "category": "pattern",
+        "description": "Detects the Morning Star (bullish) reversal pattern.",
+        "params": [],
+        "ta": {
+            "module": "pandas_ta.candles",
+            "function": "cdl_morningstar",
+        },
+    },
+    "CDL_EVENINGSTAR": {
+        "display": "Evening Star",
+        "category": "pattern",
+        "description": "Detects the Evening Star (bearish) reversal pattern.",
+        "params": [],
+        "ta": {
+            "module": "pandas_ta.candles",
+            "function": "cdl_eveningstar",
+        },
+    },
+    "CDL_HARAMI": {
+        "display": "Harami",
+        "category": "pattern",
+        "description": "Detects Harami (inside bar) reversal patterns.",
+        "params": [],
+        "ta": {
+            "module": "pandas_ta.candles",
+            "function": "cdl_harami",
+        },
     },
 }

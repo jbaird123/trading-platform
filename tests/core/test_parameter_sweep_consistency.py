@@ -49,8 +49,12 @@ def test_parameter_sweep_matches_standalone(tmp_path, monkeypatch):
     This verifies the fix for the bug where sweep used strategy file defaults
     while standalone used config parameters.
     """
-    # Mock the centralized RUNS_DIR to use our temp directory
+    # Mock the centralized RUNS_DIR and WORKSPACE_DIR to use temp directory
+    # Mock both in paths and in config to handle default value resolution
     monkeypatch.setattr("trading_platform.core.paths.RUNS_DIR", tmp_path)
+    monkeypatch.setattr("trading_platform.core.paths.WORKSPACE_DIR", tmp_path)
+    monkeypatch.setattr("trading_platform.core.config.paths.RUNS_DIR", tmp_path)
+    monkeypatch.setattr("trading_platform.core.config.paths.WORKSPACE_DIR", tmp_path)
 
     # Create a minimal strategy config
     strategy_config = {
@@ -232,8 +236,12 @@ def test_strategy_params_override_file_defaults(tmp_path, monkeypatch):
     This test ensures parameter substitution works correctly when strategy_params
     are specified in the run config.
     """
-    # Mock the centralized RUNS_DIR to use our temp directory
+    # Mock the centralized RUNS_DIR and WORKSPACE_DIR to use temp directory
+    # Mock both in paths and in config to handle default value resolution
     monkeypatch.setattr("trading_platform.core.paths.RUNS_DIR", tmp_path)
+    monkeypatch.setattr("trading_platform.core.paths.WORKSPACE_DIR", tmp_path)
+    monkeypatch.setattr("trading_platform.core.config.paths.RUNS_DIR", tmp_path)
+    monkeypatch.setattr("trading_platform.core.config.paths.WORKSPACE_DIR", tmp_path)
 
     # Strategy with defaults 12/26
     strategy_config = {
@@ -345,29 +353,31 @@ def test_strategy_params_override_file_defaults(tmp_path, monkeypatch):
     prices_path = runs[0] / "prices.csv"
     prices = pd.read_csv(prices_path, index_col=0, parse_dates=True)
 
-    # Check second bar (first bar after initialization)
+    # Check a bar after warm-up period (after 80 bars for slow EMA)
     # EMA formula: EMA_t = (Price_t * K) + (EMA_{t-1} * (1 - K))
     # where K = 2 / (length + 1)
+    # pandas-ta needs warm-up period, so check bar 85 (after 80-period EMA)
 
     k_20 = 2 / 21
     k_80 = 2 / 81
 
-    # Get values
-    ema_fast_0 = ema_fast_series[0][1]  # First value
-    ema_slow_0 = ema_slow_series[0][1]
-    ema_fast_1 = ema_fast_series[1][1]  # Second value
-    ema_slow_1 = ema_slow_series[1][1]
+    # Find first non-NaN value for slow EMA
+    idx = 85  # Well past warm-up for both EMAs
+    ema_fast_prev = ema_fast_series[idx - 1][1]
+    ema_slow_prev = ema_slow_series[idx - 1][1]
+    ema_fast_curr = ema_fast_series[idx][1]
+    ema_slow_curr = ema_slow_series[idx][1]
 
-    price_1 = prices.iloc[1]["close"]
+    price_curr = prices.iloc[idx]["close"]
 
     # Calculate expected values
-    expected_fast_1 = (price_1 * k_20) + (ema_fast_0 * (1 - k_20))
-    expected_slow_1 = (price_1 * k_80) + (ema_slow_0 * (1 - k_80))
+    expected_fast = (price_curr * k_20) + (ema_fast_prev * (1 - k_20))
+    expected_slow = (price_curr * k_80) + (ema_slow_prev * (1 - k_80))
 
     # Verify (allow small floating point tolerance)
     assert (
-        abs(ema_fast_1 - expected_fast_1) < 1e-6
-    ), f"EMA fast not using length=20: expected {expected_fast_1}, got {ema_fast_1}"
+        abs(ema_fast_curr - expected_fast) < 1e-6
+    ), f"EMA fast not using length=20: expected {expected_fast}, got {ema_fast_curr}"
     assert (
-        abs(ema_slow_1 - expected_slow_1) < 1e-6
-    ), f"EMA slow not using length=80: expected {expected_slow_1}, got {ema_slow_1}"
+        abs(ema_slow_curr - expected_slow) < 1e-6
+    ), f"EMA slow not using length=80: expected {expected_slow}, got {ema_slow_curr}"

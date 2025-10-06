@@ -30,7 +30,8 @@ def test_mc_seed_and_identity_mode_and_trials_zero():
     s2 = monte_carlo_summary(
         [], initial_cash=100.0, trials=0, seed=None, mode="identity"
     )
-    assert s2["final_equity"]["mean"] == 100.0
+    # Empty trades returns empty dict (fail-fast principle)
+    assert s2 == {}
 
 
 def test_walk_forward_splits_continue_and_summary_empty():

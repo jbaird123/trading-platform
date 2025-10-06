@@ -1,61 +1,71 @@
-# AI Prompt: Autonomous Strategy Validation
+# AI Prompt Guide: Performing a Strategy Validation Step
 
 ## 1. Your Mission
 
-Your mission is to take a "candidate" trading strategy that was identified during the **Discovery Phase** and determine if its performance is robust or an illusion of curve-fitting. You will subject the strategy to a rigorous gauntlet of validation tests.
+Your mission is to take a "candidate" trading strategy that was identified during a Discovery step and determine if its performance is robust or an illusion of curve-fitting. This process is a **step within a larger research campaign**.
 
 ---
 
 ## 2. Core Mandates & Guardrails
 
--   **Workspace Integrity:** You **MUST** work within a dedicated session directory under `workspace/strategy_validation/`. Name it with a timestamp and the candidate's name (e.g., `20251005_100000_ema_crossover_short_only_validation`).
--   **Input:** Your primary input will be the file path to the candidate strategy's configuration file (`.yaml`).
--   **Meticulous Logging:** Maintain a `session_log.md` detailing each validation step, the commands run, and the results observed.
+-   **Campaign Integrity:** You **MUST** be working within an existing campaign directory under `workspace/research/`.
+-   **Create Step Directory:** You **MUST** create a new, unique, timestamped subdirectory for this validation step. The name should clearly identify it as a validation phase (e.g., `.../20251005_144510_456_02_validation_of_candidate/`).
+-   **Input:** Your primary input is the path to the candidate strategy's `.yaml` file from a **previous step** within the same campaign.
+-   **Meticulous Logging:** Maintain a `run_summary.md` within your new step directory, detailing each validation test, the commands run, and the results observed. Update the master `campaign_log.md` with a link to this step.
 
 ---
 
 ## 3. The Validation Workflow
 
-### Phase 0: Initialization
+### Phase 0: Initiating the Validation Step
 
-1.  **Identify Candidate Strategy:** Ask the user to provide the file path to the "winning" candidate strategy's configuration file (`.yaml`) that was generated during the Discovery Phase.
-2.  **Create Workspace:** Create your unique session directory under `workspace/strategy_validation/`. Name it with a timestamp and the candidate's name.
-3.  **Start Log:** Create the `session_log.md` file.
-4.  **Load Candidate:** Copy the candidate strategy's `.yaml` file into your workspace.
+1.  **Identify Candidate:** The candidate strategy is the best-performing configuration from a preceding Discovery step in the current campaign.
+2.  **Create Step Workspace:** Create your unique, timestamped directory for this validation run.
+3.  **Start Log:** Create the `run_summary.md` file and link it in the master `campaign_log.md`.
+4.  **Load Candidate:** Copy the candidate strategy's `.yaml` file from the previous step's directory into your current validation step directory.
 
 ### Phase 1: Walk-Forward Evaluation (WFE)
 
-This is the most critical test for robustness against changing market conditions. The goal is to determine if the strategy's performance is consistent across different time periods using a **post-hoc analysis**.
+This is a critical test for robustness against changing market conditions.
 
-1.  **Execute Baseline Backtest:** First, run a standard backtest using the candidate strategy's static parameters. This run will generate the full history of trades needed for the analysis.
-2.  **Perform Post-Hoc WFA:** After the backtest is complete, use the `walk_forward_summary` function (from `src/trading_platform/core/robustness.py`) on the list of generated trades. Configure this analysis with appropriate time-based windows, for example:
-    -   `window`: 12 months
-    -   `step`: 3 months
-3.  **Analyze WFE Results:** In your log, analyze the output from the `walk_forward_summary` function.
+1.  **Execute WFE:** Run the necessary backtests and analysis to perform a Walk-Forward Evaluation on the candidate strategy. All artifacts must be saved in the current step directory.
+2.  **Analyze WFE Results:** In your `run_summary.md`, analyze the WFE output.
     -   How many of the walk-forward windows were profitable?
     -   Is the performance consistent across different time periods?
     -   Does the strategy's performance degrade significantly on out-of-sample data?
+
+### Phase 1a: The Validation Gauntlet Checklist
+
+Before analyzing the results, you **MUST** create the following checklist in your `run_summary.md` and fill it out. This is non-negotiable.
+
+```markdown
+**Validation Gauntlet Checklist**
+
+- [ ] **Walk-Forward Evaluation (WFE):**
+  - **Command Run:** `...`
+  - **Result:** PASS/FAIL/SKIPPED
+  - **Reason (if SKIPPED):** `...`
+- [ ] **Monte Carlo (MC) Simulation:**
+  - **Command Run:** `...`
+  - **Result:** PASS/FAIL/SKIPPED
+  - **Reason (if SKIPPED):** `...`
+```
 
 ### Phase 2: Monte Carlo (MC) Simulation
 
 This tests for sensitivity to the sequence of trades (luck).
 
-1.  **Configure MC:** Create another run configuration file. This time, enable the Monte Carlo simulation feature with at least 1,000 runs.
-2.  **Execute MC:** Run the backtester with the MC configuration.
-3.  **Analyze MC Results:** In your log, analyze the `monte_carlo` section of the `brief.json`.
-    -   What is the probability of a 50% drawdown?
-    -   What is the probability of ruin?
-    -   Is the distribution of final equity outcomes reasonably centered around the original backtest result, or is the original result an outlier?
+1.  **Execute MC:** Run a backtest with the Monte Carlo simulation feature enabled (at least 1,000 runs).
+2.  **Analyze MC Results:** In your `run_summary.md`, analyze the `monte_carlo` section of the resulting `brief.json`.
+    -   What is the probability of a 50% drawdown or ruin?
+    -   Is the original backtest result an outlier compared to the distribution of simulation outcomes?
 
-### Phase 3: Final Report
+### Phase 3: Final Verdict
 
-1.  **Synthesize Findings:** Based on your analysis of the WFE and MC results, come to a final conclusion.
-2.  **Generate Validation Report:** Create a `validation_report.md` in your session workspace. This report must include:
-    -   A summary of the WFE results, including consistency and out-of-sample performance.
-    -   A summary of the MC results, including risk-of-ruin metrics.
-    -   A final verdict:
-        -   **Robust:** The strategy passed WFE and MC tests. It shows a stable edge and is a candidate for further refinement or paper trading.
-        -   **Brittle:** The strategy failed WFE or MC tests. Its performance is likely a result of curve-fitting. It should be rejected or returned to the Discovery Phase.
+1.  **Synthesize Findings:** Based on your analysis of the WFE and MC results, come to a final conclusion for this validation step.
+2.  **Log Verdict:** In your `run_summary.md`, record a final verdict based on the following **strict rule**:
+    -   **Robust:** The strategy is a candidate for `PROMOTION`. This verdict is **only possible if ALL checklist items above are marked `PASS`**.
+    -   **Brittle:** The strategy should be rejected or returned to a new `Discovery` step for refinement. This is the **automatic verdict if ANY checklist item is marked `FAIL` or `SKIPPED`**. If a step was skipped due to a platform or data limitation, you must state this clearly as the reason for the `Brittle` verdict and recommend the user resolve the limitation.
 
 ---
 

@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from trading_platform.reporting.models.exit_analysis import (
+        PostExitAnalysis,
+    )
 
 
 @dataclass(frozen=True)
@@ -34,5 +39,4 @@ class Trade:
     bars_held: int | None = None
     context_at_entry: dict[str, Any] | None = None
     context_at_exit: dict[str, Any] | None = None
-    post_exit_analysis: dict[str, dict[str, float]] | None = None
-    # Structure: {"10": {"mfe": 125.0, "mae": -20.0}, "20": {...}, "50": {...}}
+    post_exit_analysis: PostExitAnalysis | None = None

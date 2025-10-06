@@ -103,6 +103,7 @@ class PortfolioManager:
         allow_flip: bool,
         current_bar: pd.Series,
         context: dict | None = None,
+        min_hold_bars: int = 0,
     ) -> dict[str, Any]:
         """
         Process a strategy command and manage portfolio state.
@@ -118,6 +119,7 @@ class PortfolioManager:
             allow_flip: Whether to allow flipping positions
             current_bar: Current market data bar
             context: Strategy context (regime, indicators, etc.)
+            min_hold_bars: Minimum bars to hold before allowing exits
 
         Returns:
             Dictionary with:
@@ -140,13 +142,19 @@ class PortfolioManager:
         if command in ["enter_long", "enter_short"]:
             side = "long" if command == "enter_long" else "short"
             return self._handle_entry_command(
-                side, bar_index, entry_window_bars, allow_flip, current_bar, context
+                side,
+                bar_index,
+                entry_window_bars,
+                allow_flip,
+                current_bar,
+                context,
+                min_hold_bars,
             )
 
         # Exit commands
         elif command in ["exit_long", "exit_short"]:
             side = "long" if command == "exit_long" else "short"
-            return self._handle_exit_command(side, current_bar, context)
+            return self._handle_exit_command(side, current_bar, context, min_hold_bars)
 
         return {"action": "ignored", "reason": "unknown_command", "side": None}
 
@@ -158,6 +166,7 @@ class PortfolioManager:
         allow_flip: bool,
         current_bar: pd.Series,
         context: dict | None,
+        min_hold_bars: int = 0,
     ) -> dict[str, Any]:
         """Handle enter_long or enter_short command."""
 
@@ -165,8 +174,16 @@ class PortfolioManager:
         if self.current_position and self.current_position.side == side:
             return {"action": "ignored", "reason": "already_in_position", "side": side}
 
-        # In opposite position - always close per Decision 1
+        # In opposite position - check min_hold before closing
         if self.current_position and self.current_position.side != side:
+            # Check minimum hold time before allowing opposite_signal exit
+            if self.current_position.bars_held < min_hold_bars:
+                return {
+                    "action": "ignored",
+                    "reason": "min_hold_time_not_met",
+                    "side": side,
+                }
+
             self.close_position(
                 exit_price=current_bar["close"],
                 exit_time=cast(datetime, current_bar.name),
@@ -176,7 +193,11 @@ class PortfolioManager:
             # After closing, check if we should open entry window
             if not allow_flip:
                 # Just exit, don't open entry window
-                return {"action": "exited", "side": side, "reason": "opposite_signal"}
+                return {
+                    "action": "exited",
+                    "side": side,
+                    "reason": "opposite_signal",
+                }
             # Fall through to open entry window for flip
 
         # Flat or just closed - open entry window for this side
@@ -185,11 +206,23 @@ class PortfolioManager:
         return {"action": "window_opened", "side": side}
 
     def _handle_exit_command(
-        self, side: str, current_bar: pd.Series, context: dict | None
+        self,
+        side: str,
+        current_bar: pd.Series,
+        context: dict | None,
+        min_hold_bars: int = 0,
     ) -> dict[str, Any]:
         """Handle exit_long or exit_short command."""
 
         if self.current_position and self.current_position.side == side:
+            # Check minimum hold time before allowing signal exits
+            if self.current_position.bars_held < min_hold_bars:
+                return {
+                    "action": "ignored",
+                    "reason": "min_hold_time_not_met",
+                    "side": side,
+                }
+
             self.close_position(
                 exit_price=current_bar["close"],
                 exit_time=cast(datetime, current_bar.name),
@@ -447,9 +480,21 @@ class PortfolioManager:
         cost_exit, breakdown_exit = self._cost_model.compute_exit_cost(
             self._open_position.size, price=exit_mid, instrument=self.instrument
         )
-        spread_cost = self._cost_model.compute_spread_cost(
+        spread_cost_in_quote_ccy = self._cost_model.compute_spread_cost(
             self._open_position.size, instrument=self.instrument
         )
+
+        # Convert spread cost to base currency if necessary. For pairs like
+        # USD/JPY, the cost is in JPY and must be divided by the exit rate.
+        spread_cost = spread_cost_in_quote_ccy
+        if (
+            self.instrument
+            and self.instrument.get("asset_class") == "Forex"
+            and self.instrument.get("symbol", "").startswith(self.base_currency)
+            and exit_mid > 0
+        ):
+            spread_cost = spread_cost_in_quote_ccy / exit_mid
+
         commission_and_slippage_cost = cost_entry + cost_exit
         total_cost = commission_and_slippage_cost + spread_cost
 

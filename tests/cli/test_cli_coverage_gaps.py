@@ -22,21 +22,20 @@ def test_cli_data_request_with_all_filters(tmp_path):
             "start": "2023-01-02",
             "end": "2023-01-02",
         },
-        "strategy_path": "strategy.yaml",
-    }
-    mock_strategy_config = {
-        "strategy_name": "test_strategy",
-        "long_entry_rules": [
-            {"all_of": [{"condition": "is_above", "left": "close", "right": 1}]}
-        ],
-        "long_exit_rules": [
-            {"all_of": [{"condition": "is_below", "left": "close", "right": 1}]}
-        ],
+        "strategy": {
+            "strategy_name": "test_strategy",
+            "long_entry_rules": [
+                {"all_of": [{"condition": "is_above", "left": "close", "right": 1}]}
+            ],
+            "long_exit_rules": [
+                {"all_of": [{"condition": "is_below", "left": "close", "right": 1}]}
+            ],
+        },
     }
 
     with patch(
         "trading_platform.cli._load_config",
-        side_effect=[mock_run_config, mock_strategy_config],
+        return_value=mock_run_config,
     ), patch(
         "trading_platform.cli.RunConfig.model_validate", return_value=Mock()
     ), patch(
@@ -77,21 +76,20 @@ def test_cli_no_data_request_uses_toy_data(tmp_path):
         overrides=None,
     )
     mock_run_config = {
-        "strategy_path": "strategy.yaml",
-    }
-    mock_strategy_config = {
-        "strategy_name": "test_strategy",
-        "long_entry_rules": [
-            {"all_of": [{"condition": "is_above", "left": "close", "right": 1}]}
-        ],
-        "long_exit_rules": [
-            {"all_of": [{"condition": "is_below", "left": "close", "right": 1}]}
-        ],
+        "strategy": {
+            "strategy_name": "test_strategy",
+            "long_entry_rules": [
+                {"all_of": [{"condition": "is_above", "left": "close", "right": 1}]}
+            ],
+            "long_exit_rules": [
+                {"all_of": [{"condition": "is_below", "left": "close", "right": 1}]}
+            ],
+        },
     }
 
     with patch(
         "trading_platform.cli._load_config",
-        side_effect=[mock_run_config, mock_strategy_config],
+        return_value=mock_run_config,
     ), patch(
         "trading_platform.cli.RunConfig.model_validate", return_value=Mock()
     ), patch(

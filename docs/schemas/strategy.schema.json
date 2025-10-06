@@ -58,8 +58,8 @@
   },
   "required": ["strategy_name"],
   "anyOf": [
-    { "required": ["long_entry_rules", "long_exit_rules"] },
-    { "required": ["short_entry_rules", "short_exit_rules"] }
+    { "required": ["long_entry_rules"] },
+    { "required": ["short_entry_rules"] }
   ],
   "$defs": {
     "feature": {
@@ -87,13 +87,22 @@
             "BBWidth",
             "ATR",
             "HHV",
+            "CHOP",
+            "ICHIMOKU",
+            "SUPERTREND",
             "LLV",
             "DC",
             "KC",
             "OBV",
             "CMF",
             "VWAP",
-            "FIB"
+            "FIB",
+            "CDL_DOJI",
+            "CDL_HAMMER",
+            "CDL_ENGULFING",
+            "CDL_MORNINGSTAR",
+            "CDL_EVENINGSTAR",
+            "CDL_HARAMI"
           ],
           "description": "Indicator type to compute."
         },
@@ -119,7 +128,7 @@
       "type": "array",
       "description": "Ordered list of rule blocks; each must evaluate true.",
       "items": { "$ref": "#/$defs/rule_block" },
-      "minItems": 1
+      "minItems": 0
     },
     "rule_block": {
       "type": "object",

@@ -1,13 +1,13 @@
 """
 This module defines the feature engineering pipeline for the AI Lab.
-It is a placeholder and uses the `ta` library, consistent with the rest of the platform.
+It delegates to the centralized feature computation system.
 """
 
 from typing import Any, Dict, List
 
 import pandas as pd
-from ta.momentum import RSIIndicator
-from ta.trend import SMAIndicator
+
+from trading_platform.strategy.features import compute_features
 
 
 class FeatureEngineeringPipeline:
@@ -26,25 +26,25 @@ class FeatureEngineeringPipeline:
 
         Args:
             feature_config: A dictionary defining the feature, e.g.,
-                            {'kind': 'sma', 'length': 50}
+                            {'kind': 'sma', 'params': {'length': 50}}
         """
         kind = feature_config.get("kind")
         if not kind:
             raise ValueError("Feature config must include a 'kind'.")
 
-        # This is a simplified mapping. A real implementation would be more robust
-        # and likely driven by the central indicators_registry.py.
-        if kind == "sma":
-            length = feature_config.get("params", {}).get("length", 14)
-            indicator = SMAIndicator(close=self.df["close"], window=length)
-            self.df[f"sma_{length}"] = indicator.sma_indicator()
-        elif kind == "rsi":
-            length = feature_config.get("params", {}).get("length", 14)
-            indicator = RSIIndicator(close=self.df["close"], window=length)
-            self.df[f"rsi_{length}"] = indicator.rsi()
-        else:
-            # For now, we only support sma and rsi in this placeholder
-            raise NotImplementedError(f"Feature '{kind}' is not supported yet.")
+        params = feature_config.get("params", {})
+        length = params.get("length", 14)
+
+        # Convert to the format expected by compute_features
+        spec = {
+            "name": f"{kind.lower()}_{length}",
+            "type": kind.upper(),
+            "params": params,
+            "source": "close",
+        }
+
+        # Use centralized feature computation
+        self.df = compute_features(self.df, [spec])
 
     def run(self, feature_configs: List[Dict[str, Any]]) -> pd.DataFrame:
         """
@@ -56,9 +56,30 @@ class FeatureEngineeringPipeline:
         Returns:
             A new DataFrame with the added feature columns.
         """
-        print(f"Running feature engineering for {len(feature_configs)} features...")
+        print(
+            f"Running feature engineering for {len(feature_configs)} "
+            f"features..."
+        )
+
+        # Convert all configs to specs format
+        specs = []
         for config in feature_configs:
-            self.add_feature(config)
+            kind = config.get("kind")
+            if not kind:
+                raise ValueError("Feature config must include a 'kind'.")
+            params = config.get("params", {})
+            length = params.get("length", 14)
+
+            spec = {
+                "name": f"{kind.lower()}_{length}",
+                "type": kind.upper(),
+                "params": params,
+                "source": "close",
+            }
+            specs.append(spec)
+
+        # Use centralized feature computation
+        self.df = compute_features(self.df, specs)
 
         # Drop rows with NaN values that are created by indicators
         self.df.dropna(inplace=True)
@@ -93,8 +114,8 @@ if __name__ == "__main__":
 
     # Define features to be generated
     features_to_add = [
-        {"kind": "sma", "length": 2},
-        {"kind": "rsi", "length": 2},
+        {"kind": "sma", "params": {"length": 2}},
+        {"kind": "rsi", "params": {"length": 2}},
     ]
 
     pipeline = FeatureEngineeringPipeline(sample_df)

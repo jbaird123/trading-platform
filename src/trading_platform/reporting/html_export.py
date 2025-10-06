@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from trading_platform.portfolio.trade import Trade
+
+logger = logging.getLogger(__name__)
 
 
 def _to_ts(x: Any) -> datetime:
@@ -12,7 +15,9 @@ def _to_ts(x: Any) -> datetime:
         return x
     try:
         return datetime.fromisoformat(str(x))
-    except Exception:  # pragma: no cover
+    except Exception as e:  # pragma: no cover
+        # Safe to continue: timestamp parsing for HTML report, defaults to datetime.min
+        logger.debug(f"Failed to parse timestamp for HTML report: {e}")
         return datetime.min
 
 

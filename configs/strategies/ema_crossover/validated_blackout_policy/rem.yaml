@@ -1,0 +1,4 @@
+stop_loss:
+  price_offset: 0.0030
+take_profit:
+  price_offset: 0.0060

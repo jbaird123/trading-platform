@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import random
 from copy import deepcopy
 from pathlib import Path
@@ -13,6 +14,8 @@ from trading_platform.portfolio.trade import Trade
 from trading_platform.regime_market_manager.engine import RMMEngine
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
+
+logger = logging.getLogger(__name__)
 
 
 def _rmm_context(
@@ -175,7 +178,9 @@ def run_parameter_sweep(
             log_file = debug_path / "sweep_debug.log"
             with log_file.open("a") as f:
                 f.write("# sweep start\n")
-        except Exception:
+        except Exception as e:
+            # Safe to continue: debug logging is optional
+            logger.debug(f"Failed to create sweep debug log: {e}")
             log_file = None
     for cand in cands:
         scfg = deepcopy(strategy_cfg)
@@ -194,9 +199,11 @@ def run_parameter_sweep(
                         fname = feat.get("name")
                         fparams = feat.get("params", {})
                         f.write(f"  feature '{fname}': params={fparams}\n")
-            except Exception:  # pragma: no cover
-                pass  # pragma: no cover - Defensive: debug logging
-                # should not crash sweep
+            except Exception as e:  # pragma: no cover
+                # Safe to continue: debug logging is optional, should not crash sweep
+                logger.debug(
+                    f"Failed to write sweep debug log: {e}"
+                )  # pragma: no cover
 
         strat = compile_strategy(scfg)
 
@@ -333,8 +340,9 @@ def run_parameter_sweep(
                         f"params={cand} long={long_ct} short={short_ct} "
                         f"trades={len(trades)} score={score}\n"
                     )
-        except Exception:
-            pass
+        except Exception as e:
+            # Safe to continue: debug logging is optional
+            logger.debug(f"Failed to write sweep results to debug log: {e}")
     results.sort(key=lambda r: float(r["score"]), reverse=True)
     top = results[0] if results else {"params": {}, "score": 0.0}
     return {"top": top, "results": results}
@@ -422,6 +430,134 @@ def walk_forward_optimize_and_test(
             "mean": float(mean(oos_scores)) if oos_scores else 0.0,
             "median": float(median(oos_scores)) if oos_scores else 0.0,
             "n_splits": len(oos_scores),
+        },
+    }
+
+
+def walk_forward_analysis(
+    df: pd.DataFrame,
+    base_cfg: dict[str, Any],
+    strategy_cfg: dict[str, Any],
+    *,
+    train_bars: int,
+    test_bars: int,
+    step_bars: int,
+    data_handler: Any | None = None,
+) -> dict[str, Any]:
+    """
+    Bar-based walk-forward analysis without re-optimization.
+
+    Splits data into train/test windows by bar count, runs backtest on each
+    test window using the same strategy parameters, and computes OOS performance.
+
+    Args:
+        df: Market data DataFrame
+        base_cfg: Base backtest configuration
+        strategy_cfg: Strategy configuration
+        train_bars: Number of bars for training window
+            (not used for optimization in this version)
+        test_bars: Number of bars for each test window
+        step_bars: Number of bars to step forward between windows
+        data_handler: Optional data handler for regime management
+
+    Returns:
+        Dictionary with splits and OOS performance statistics
+    """
+    from statistics import mean, median
+
+    # Create bar-based splits
+    splits = walk_forward_splits(df.index, window=train_bars, step=step_bars)
+
+    if not splits:
+        return {
+            "splits": [],
+            "oos_total_pnl": {
+                "mean": 0.0,
+                "median": 0.0,
+                "n_splits": 0,
+                "profitable_pct": 0.0,
+            },
+        }
+
+    cfg = RunConfig.model_validate(base_cfg)
+
+    # Get instrument definition for REM (needed for pip-based calculations)
+    from trading_platform.data.instrument import get_instrument_definition
+
+    symbol = base_cfg.get("data_request", {}).get("symbol", "")
+    instrument_def = get_instrument_definition(symbol) if symbol else None
+    instrument_dict = instrument_def.model_dump() if instrument_def else None
+
+    rem = RiskExitManager(
+        config=(base_cfg.get("rem_config") or {}), instrument=instrument_dict
+    )
+    strat = compile_strategy(strategy_cfg)
+
+    per_split: list[dict[str, Any]] = []
+    oos_scores: list[float] = []
+
+    for s in splits:
+        # Use test_bars to slice the test window from the split
+        # The split already gives us train_end, so test starts after that
+        loc_result = df.index.get_loc(s.test_start)
+        # get_loc can return int, slice, or boolean array
+        if isinstance(loc_result, int):
+            test_start_idx = loc_result
+        elif isinstance(loc_result, slice):
+            test_start_idx = loc_result.start or 0
+        else:  # boolean array
+            test_start_idx = int(loc_result.argmax())
+        test_end_idx = min(test_start_idx + test_bars, len(df))
+        test = df.iloc[test_start_idx:test_end_idx]
+
+        if len(test) == 0:
+            continue
+
+        # Run backtest on test window
+        sig = strat.generate_signals(test)
+        _res = run_backtest(
+            market_data=test,
+            signals=sig,
+            strategy=strat,
+            config=cfg,
+            rem=rem,
+            rmm_context=_rmm_context(test, base_cfg, data_handler),
+        )
+
+        trades: list[Trade]
+        if isinstance(_res, tuple):
+            trades = cast(list[Trade], _res[0])
+        else:  # pragma: no cover
+            trades = cast(list[Trade], _res)
+
+        score = float(sum(t.pnl for t in trades))
+        oos_scores.append(score)
+
+        test_actual_end = test.index[-1] if len(test) > 0 else s.test_start
+
+        per_split.append(
+            {
+                "train_start": s.train_start,
+                "train_end": s.train_end,
+                "test_start": s.test_start,
+                "test_end": test_actual_end,
+                "test_bars": len(test),
+                "n_trades": len(trades),
+                "oos_pnl": score,
+            }
+        )
+
+    profitable_count = sum(1 for score in oos_scores if score > 0)
+    profitable_pct = (profitable_count / len(oos_scores) * 100) if oos_scores else 0.0
+
+    return {
+        "splits": per_split,
+        "oos_total_pnl": {
+            "mean": float(mean(oos_scores)) if oos_scores else 0.0,
+            "median": float(median(oos_scores)) if oos_scores else 0.0,
+            "n_splits": len(oos_scores),
+            "profitable_count": profitable_count,
+            "profitable_pct": profitable_pct,
         },
     }
 

@@ -56,10 +56,29 @@ def _eval_pred(df: pd.DataFrame, pred: dict[str, Any]) -> pd.Series:
         result = below_now & ~below_prev
         result.iloc[0] = False
         return result
+    if cond == "hour_is_in":
+        values = set(pred.get("values", []))
+        dt_index = pd.DatetimeIndex(df.index)
+        return pd.Series(dt_index.hour.isin(values), index=df.index)
+    if cond == "hour_is_not_in":
+        values = set(pred.get("values", []))
+        dt_index = pd.DatetimeIndex(df.index)
+        return pd.Series(~dt_index.hour.isin(values), index=df.index)
+    if cond == "day_of_week_is_in":
+        # Monday=0, Sunday=6
+        values = set(pred.get("values", []))
+        dt_index = pd.DatetimeIndex(df.index)
+        return pd.Series(dt_index.dayofweek.isin(values), index=df.index)
+    if cond == "day_of_week_is_not_in":
+        values = set(pred.get("values", []))
+        dt_index = pd.DatetimeIndex(df.index)
+        return pd.Series(~dt_index.dayofweek.isin(values), index=df.index)
     # SAFETY: Fail loudly on unrecognized conditions
     raise ValueError(
         f"Unrecognized RMM condition: '{cond}'. "
-        f"Supported: is_above, is_below, cross_above, cross_below"
+        f"Supported: is_above, is_below, cross_above, cross_below, "
+        f"hour_is_in, hour_is_not_in, day_of_week_is_in, "
+        f"day_of_week_is_not_in"
     )
 
 

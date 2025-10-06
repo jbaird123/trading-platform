@@ -186,8 +186,8 @@ def test_loader_skips_empty_incremental_files(tmp_path: Path) -> None:
     assert flags == []
 
 
-def test_loader_ignores_failed_incremental_files(tmp_path: Path) -> None:
-    """Incremental loader failures are ignored while base data is returned."""
+def test_loader_fails_fast_on_incremental_file_errors(tmp_path: Path) -> None:
+    """Incremental loader failures now fail fast (per fail-fast principle)."""
     full_dir, inc_dir = _setup_data_directory(tmp_path)
 
     # Create bad incremental file
@@ -196,6 +196,7 @@ def test_loader_ignores_failed_incremental_files(tmp_path: Path) -> None:
 
     from unittest.mock import patch
 
+    import pytest
     from trading_platform.data import loader as loader_module
 
     real_load = loader_module.load_and_normalize_data
@@ -209,7 +210,6 @@ def test_loader_ignores_failed_incremental_files(tmp_path: Path) -> None:
         "trading_platform.data.loader.load_and_normalize_data",
         side_effect=side_effect,
     ):
-        df, flags = load_instrument_data("EURUSD", tmp_path)
-
-    assert len(df) == 3  # Only base data, failed incremental ignored
-    assert flags == []
+        # Fail-fast principle: data loading errors must be visible
+        with pytest.raises(RuntimeError, match="failed incremental load"):
+            load_instrument_data("EURUSD", tmp_path)

@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 HTML_TMPL = r"""<!doctype html>
 <html>
@@ -412,7 +415,9 @@ def _read_prices_csv(run_path: Path) -> list[list[Any]]:
         iso, o, h, lo, c = parts[:5]
         try:
             rows.append([iso, float(o), float(h), float(lo), float(c)])
-        except Exception:
+        except Exception as e:
+            # Safe to skip: malformed price data row, chart degrades gracefully
+            logger.debug(f"Skipping malformed price row: {e}")
             continue
     return rows
 
@@ -436,8 +441,9 @@ def save_chart_from_brief(run_path: Path) -> Path:
         sname = meta.get("strategy_name")
         rid = meta.get("run_id")
         title = f"{sname} – {rid}" if sname and rid else (sname or rid or title)
-    except Exception:
-        pass
+    except Exception as e:
+        # Safe to continue: title generation is cosmetic, defaults to "Run Charts"
+        logger.debug(f"Failed to generate chart title from metadata: {e}")
     html = (
         HTML_TMPL.replace("__TITLE__", title)
         .replace("__EQUITY_JSON__", json.dumps(eq))
@@ -507,11 +513,211 @@ def save_features_for_chart(
             for t, v in zip(times, vals):
                 try:
                     fv = float(v)
-                except Exception:
+                    # Skip NaN values - they break JSON parsing in chart
+                    import math
+
+                    if math.isnan(fv):
+                        continue
+                except Exception as e:
+                    # Safe to skip: NaN/invalid feature value, chart degrades gracefully
+                    logger.debug(f"Skipping non-numeric feature value: {e}")
                     continue
                 arr.append([t, fv])
             series[col] = arr
     payload = {"meta": meta, "series": series}
     out = run_path / "features.json"
     out.write_text(json.dumps(payload))
+    return out
+
+
+EQUITY_CHART_TMPL = r"""<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>__TITLE__</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    html,body{height:100%;margin:0;font-family:system-ui,sans-serif}
+    header{padding:12px 16px;border-bottom:1px solid #ddd;background:#f9f9f9}
+    header h1{margin:0 0 4px 0;font-size:18px;font-weight:600}
+    header .stats{display:flex;gap:24px;font-size:13px;color:#666}
+    header .stat{display:flex;flex-direction:column}
+    header .stat-label{font-size:11px;text-transform:uppercase;letter-spacing:0.5px}
+    header .stat-value{font-size:16px;font-weight:600;color:#333;margin-top:2px}
+    header .stat-value.positive{color:#16a34a}
+    header .stat-value.negative{color:#dc2626}
+    #chart-container{height:calc(100vh - 120px);padding:16px}
+    #tt{position:fixed;pointer-events:none;background:#000e;color:#fff;
+      padding:6px 10px;border-radius:4px;font-size:12px;
+      transform:translate(8px,8px);display:none}
+  </style>
+  <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+  <header>
+    <h1>__TITLE__</h1>
+    <div class="stats">
+      <div class="stat">
+        <span class="stat-label">Total PnL</span>
+        <span class="stat-value __PNL_CLASS__">__TOTAL_PNL__</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Total Trades</span>
+        <span class="stat-value">__NUM_TRADES__</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Win Rate</span>
+        <span class="stat-value">__WIN_RATE__</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Max Drawdown</span>
+        <span class="stat-value negative">__MAX_DD__</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Sharpe Ratio</span>
+        <span class="stat-value">__SHARPE__</span>
+      </div>
+    </div>
+  </header>
+  <div id="chart-container"></div>
+  <div id="tt"></div>
+  <script id="equity" type="application/json">__EQUITY_JSON__</script>
+  <script>
+    (function(){
+      const container = document.getElementById('chart-container');
+      const rawEq = JSON.parse(document.getElementById('equity').textContent || '[]');
+
+      // Convert equity data to chart format
+      const equity = rawEq.map(([iso, v]) => ({
+        time: Math.floor(Date.parse(iso)/1000),
+        value: v
+      }));
+
+      // Create chart
+      const chart = LightweightCharts.createChart(container, {
+        layout: {
+          textColor: '#333',
+          background: {type: 'solid', color: '#fff'}
+        },
+        rightPriceScale: {visible: true},
+        timeScale: {
+          timeVisible: true,
+          secondsVisible: false,
+          rightOffset: 6,
+          fixLeftEdge: true,
+          fixRightEdge: true
+        },
+        grid: {
+          vertLines: {color: '#f0f0f0'},
+          horzLines: {color: '#f0f0f0'}
+        },
+        crosshair: {mode: 0}
+      });
+
+      // Add equity line series
+      const lineSeries = chart.addLineSeries({
+        color: '#2563eb',
+        lineWidth: 2,
+        priceFormat: {type: 'price', precision: 2, minMove: 0.01}
+      });
+      lineSeries.setData(equity);
+
+      // Add baseline at initial cash
+      if (equity.length > 0) {
+        const initialCash = equity[0].value;
+        lineSeries.createPriceLine({
+          price: initialCash,
+          color: '#64748b',
+          lineWidth: 1,
+          lineStyle: 2, // dashed
+          axisLabelVisible: true,
+          title: 'Initial'
+        });
+      }
+
+      chart.timeScale().fitContent();
+
+      // Tooltip
+      const tt = document.getElementById('tt');
+      chart.subscribeCrosshairMove(param => {
+        if (!param || !param.time) {
+          tt.style.display = 'none';
+          return;
+        }
+        const price = param.seriesPrices.get(lineSeries);
+        if (price == null) {
+          tt.style.display = 'none';
+          return;
+        }
+        const d = new Date(param.time * 1000);
+        const dateStr = d.toLocaleString();
+        tt.textContent = `${dateStr}  $${price.toFixed(2)}`;
+        tt.style.left = `${param.point.x}px`;
+        tt.style.top = `${param.point.y}px`;
+        tt.style.display = 'block';
+      });
+    })();
+  </script>
+</body>
+</html>
+"""
+
+
+def save_equity_chart_from_brief(run_path: Path) -> Path:
+    """Generate a standalone equity curve chart from brief.json.
+
+    Creates an interactive equity curve visualization with:
+    - Equity line over time
+    - Baseline at initial cash
+    - Performance statistics in header
+    - Hover tooltip showing date and equity value
+    """
+    brief_path = run_path / "brief.json"
+    data: dict[str, Any] = json.loads(brief_path.read_text())
+
+    # Extract data
+    equity = data.get("equity_stats", {}).get("equity_curve", [])
+    overall = data.get("overall_performance", {})
+    equity_stats = data.get("equity_stats", {})
+    risk_metrics = data.get("risk_metrics", {})
+
+    # Build title
+    meta = data.get("meta", {})
+    strategy_name = meta.get("strategy_name", "Strategy")
+    run_id = meta.get("run_id", "")
+    title = f"{strategy_name} - Equity Curve"
+    if run_id:
+        title = f"{strategy_name} ({run_id}) - Equity Curve"
+
+    # Format statistics
+    total_pnl = overall.get("total_pnl", 0.0)
+    pnl_class = "positive" if total_pnl > 0 else "negative" if total_pnl < 0 else ""
+    pnl_str = f"${total_pnl:,.2f}"
+
+    num_trades = overall.get("n_trades", 0)
+
+    win_rate = overall.get("win_rate", 0.0)
+    win_rate_str = f"{win_rate:.1%}"
+
+    max_dd = equity_stats.get("max_drawdown", 0.0)
+    max_dd_str = f"${abs(max_dd):,.2f}"
+
+    sharpe = risk_metrics.get("sharpe_ratio")
+    sharpe_str = f"{sharpe:.2f}" if sharpe is not None else "N/A"
+
+    # Generate HTML
+    html = (
+        EQUITY_CHART_TMPL.replace("__TITLE__", title)
+        .replace("__TOTAL_PNL__", pnl_str)
+        .replace("__PNL_CLASS__", pnl_class)
+        .replace("__NUM_TRADES__", str(num_trades))
+        .replace("__WIN_RATE__", win_rate_str)
+        .replace("__MAX_DD__", max_dd_str)
+        .replace("__SHARPE__", sharpe_str)
+        .replace("__EQUITY_JSON__", json.dumps(equity))
+    )
+
+    out = run_path / "equity_chart.html"
+    out.write_text(html)
+    logger.info(f"Saved equity chart to {out}")
     return out

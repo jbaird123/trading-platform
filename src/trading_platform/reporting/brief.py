@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import importlib.metadata as ilmd
 import json
+import logging
 import platform
 import sys
 from dataclasses import asdict, is_dataclass
@@ -13,6 +14,7 @@ from statistics import median
 from typing import Any
 
 import jsonschema
+import numpy as np
 import pandas as pd
 from pyarrow import ArrowInvalid
 
@@ -30,6 +32,8 @@ from trading_platform.reporting.analytics import (
     compute_stop_tp_candidates,
     compute_timing_buckets,
 )
+
+logger = logging.getLogger(__name__)
 
 # Path to the JSON Schema for brief field documentation
 SCHEMA_PATH = (
@@ -217,10 +221,16 @@ def _round_feature(name: str, value: Any) -> float | None:
 
         name_lower = name.lower()
 
-        # ADX, ATR: 2 decimals (percentage-like indicators)
-        if any(x in name_lower for x in ["adx", "atr"]):
+        # ADX: 2 decimals (percentage-like indicator)
+        if "adx" in name_lower:
             return float(
                 Decimal(str(f)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            )
+
+        # ATR: 6 decimals (price volatility - needs FX precision)
+        if "atr" in name_lower:
+            return float(
+                Decimal(str(f)).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
             )
 
         # RSI, Stochastic, CCI: 2 decimals (bounded oscillators)
@@ -337,20 +347,29 @@ def _serialize_trade(t: Trade) -> dict[str, Any]:
             for k, v in context_at_exit.items()
         }
 
-    # Round post-exit analysis MFE/MAE
+    # Handle post-exit analysis (supports both old dict and new Pydantic model)
     post_exit = getattr(t, "post_exit_analysis", None)
-    if post_exit and isinstance(post_exit, dict):
-        post_exit = {
-            horizon: {
-                "mfe": _round_currency(data.get("mfe"))
-                if isinstance(data, dict)
-                else data,
-                "mae": _round_currency(data.get("mae"))
-                if isinstance(data, dict)
-                else data,
+    if post_exit:
+        from trading_platform.reporting.models.exit_analysis import (
+            PostExitAnalysis,
+        )
+
+        if isinstance(post_exit, PostExitAnalysis):
+            # New format: convert Pydantic model to dict with rounding
+            post_exit = post_exit.model_dump()
+        elif isinstance(post_exit, dict):
+            # Legacy format: round MFE/MAE values
+            post_exit = {
+                horizon: {
+                    "mfe": _round_currency(data.get("mfe"))
+                    if isinstance(data, dict)
+                    else data,
+                    "mae": _round_currency(data.get("mae"))
+                    if isinstance(data, dict)
+                    else data,
+                }
+                for horizon, data in post_exit.items()
             }
-            for horizon, data in post_exit.items()
-        }
 
     cost_breakdown = _normalize_cost_breakdown(getattr(t, "cost_breakdown", None))
 
@@ -515,6 +534,26 @@ def compute_equity_stats(trades: list[Trade], initial_cash: float) -> dict[str, 
     max_dd = 0.0
     dd_duration = 0
     temp_duration = 0
+
+    # Calculate Sharpe ratio from equity curve
+    # Need at least 2 returns (3 equity points) for meaningful std calculation
+    equity_values = [float(eq) for _, eq in ec]
+    if len(equity_values) >= 3:
+        returns = np.diff(equity_values) / equity_values[:-1]
+        mean_return = np.mean(returns)
+        std_return = np.std(returns, ddof=1)
+
+        # Annualize (assume ~2000 trading periods/year for hourly + blackouts)
+        # This is conservative - adjust based on actual trading frequency
+        periods_per_year = 2000
+        annualized_return = mean_return * periods_per_year
+        annualized_std = std_return * np.sqrt(periods_per_year)
+
+        sharpe_ratio = annualized_return / annualized_std if annualized_std > 0 else 0.0
+    else:
+        # Insufficient data for meaningful Sharpe calculation
+        sharpe_ratio = 0.0
+
     for ts, eq in ec:
         if eq > max_peak:
             max_peak = eq
@@ -535,6 +574,7 @@ def compute_equity_stats(trades: list[Trade], initial_cash: float) -> dict[str, 
         "drawdown_curve": drawdown_curve,
         "max_drawdown": _round_currency(max_dd),
         "dd_duration_bars": dd_duration,
+        "sharpe_ratio": round(sharpe_ratio, 2),
     }
 
 
@@ -769,6 +809,18 @@ def generate_brief(
     # --- Exit efficiency analysis section ---
     exit_efficiency = compute_exit_efficiency(trades)
 
+    # --- Simulated hold analysis (realistic post-exit analysis) ---
+    from trading_platform.reporting.aggregators import (
+        aggregate_simulated_hold_analysis,
+    )
+
+    simulated_hold_analysis = aggregate_simulated_hold_analysis(trades)
+    # Add to exit_efficiency dict
+    if simulated_hold_analysis.by_hold_period:
+        exit_efficiency["simulated_hold_analysis"] = _to_jsonable(
+            simulated_hold_analysis.model_dump()
+        )
+
     base = {
         "meta": _to_jsonable(meta),
         "strategy_params": _to_jsonable(params),
@@ -899,7 +951,9 @@ def generate_brief(
     if not field_definitions:
         try:
             schema = json.loads(SCHEMA_PATH.read_text())
-        except Exception:  # pragma: no cover
+        except Exception as e:  # pragma: no cover
+            # Safe to continue: schema is for field definitions metadata only
+            logger.debug(f"Failed to load brief schema: {e}")
             schema = {}
         fdefs: dict[str, Any] = {}
         for p in _leaf_paths(placeholders):
@@ -909,7 +963,43 @@ def generate_brief(
                 # Strict mode: require schema coverage for every leaf
                 raise ValueError(f"Missing schema description for brief path: {p}")
             fdefs[p] = node["description"]
+        # Add custom field definitions for new simulated hold analysis
+        # (only when auto-generating from schema, not when pre-populated)
+        simulated_hold_field_defs = {
+            "exit_efficiency.simulated_hold_analysis": (
+                "Realistic simulation-based post-exit analysis. Simulates "
+                "holding positions longer after exit, accounting for "
+                "stop-loss and take-profit triggers. Provides actionable "
+                "guidance on whether delayed exits would actually improve "
+                "performance."
+            ),
+            "exit_efficiency.simulated_hold_analysis.by_hold_period": (
+                "Analysis results grouped by hold period (e.g., '10', '20', "
+                "'50' bars)."
+            ),
+            "exit_efficiency.simulated_hold_analysis.by_hold_period.*.avg_pnl_change_realistic": (  # noqa: E501
+                "Average change in PnL if positions were held this many "
+                "extra bars, accounting for stop-loss and take-profit "
+                "triggers. Positive means holding longer would have been "
+                "profitable."
+            ),
+            "exit_efficiency.simulated_hold_analysis.by_hold_period.*.avg_mfe_unrealistic": (  # noqa: E501
+                "Average Maximum Favorable Excursion during the hold period "
+                "(for comparison with old metrics). This is the unrealistic "
+                "best-case scenario."
+            ),
+            "exit_efficiency.simulated_hold_analysis.by_hold_period.*.outcome_distribution": (  # noqa: E501
+                "Breakdown of how simulations ended: stop_loss_hit, "
+                "take_profit_hit, or held_full_period (percentages)."
+            ),
+            "exit_efficiency.simulated_hold_analysis.by_hold_period.*.avg_pnl_change_by_original_exit_reason": (  # noqa: E501
+                "Average PnL change broken down by the trade's original exit "
+                "reason (e.g., 'opposite_signal', 'stop-loss', 'signal')."
+            ),
+        }
+        fdefs.update(simulated_hold_field_defs)
         placeholders["field_definitions"] = fdefs
+
     # Omit optional sections when empty to satisfy schema
     if not data_quality:
         placeholders.pop("data_quality", None)
@@ -1052,7 +1142,9 @@ def _compute_environment() -> dict[str, Any]:
     def _ver(pkg: str) -> str | None:
         try:
             return ilmd.version(pkg)
-        except Exception:  # pragma: no cover
+        except Exception as e:  # pragma: no cover
+            # Safe to continue: package version is metadata only
+            logger.debug(f"Failed to get version for {pkg}: {e}")
             return None
 
     return {
@@ -1074,7 +1166,9 @@ def _compute_provenance(trades: list[Trade], meta: dict[str, Any]) -> dict[str, 
     meta = meta or {}
     try:
         app_version = ilmd.version("trading-platform")
-    except Exception:  # pragma: no cover
+    except Exception as e:  # pragma: no cover
+        # Safe to continue: app version is metadata only
+        logger.debug(f"Failed to get trading-platform version: {e}")
         app_version = None
     return {
         "run_id": meta.get("run_id"),

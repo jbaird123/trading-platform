@@ -69,7 +69,13 @@ class RiskExitManager:
             return float(pip_location)
 
         def _atr_value(length: int | None) -> float | None:
-            # ATR not present in current_bar; placeholder for integration.
+            # Try to get ATR from current_bar if it exists as a computed feature
+            atr_col = f"atr_{length}" if length else "atr"
+            if atr_col in current_bar.index:
+                return float(current_bar[atr_col])
+            # Fallback: check for generic 'atr' column
+            if "atr" in current_bar.index:
+                return float(current_bar["atr"])
             return None
 
         def _distance(rule: dict) -> float | None:
@@ -88,7 +94,13 @@ class RiskExitManager:
             if not reference_point.startswith("context."):
                 return None
             key = reference_point.replace("context.", "")
-            return signal_context.get(key)
+            # Support nested strategy_features structure
+            if "strategy_features" in signal_context:
+                val = signal_context["strategy_features"].get(key)
+                return float(val) if val is not None else None
+            # Fall back to flat structure for backward compatibility
+            val = signal_context.get(key)
+            return float(val) if val is not None else None
 
         def _level_price(
             side: str, entry: float, rule: dict, is_stop: bool

@@ -1,0 +1,33 @@
+user_id: "discovery_campaign"
+initial_cash: 100000
+position_size: 25000
+warmup_bars: 100
+tie_break_policy:
+  rule: "stop_then_tp"
+
+instrument:
+  symbol: "EUR_USD"
+  timeframe: "1H"
+
+# Transaction costs (realistic retail spreads)
+cost_model:
+  spread_per_unit: 0.00015  # 1.5 pips for EUR/USD (1 pip = 0.0001)
+
+data_request:
+  symbol: "EUR_USD"
+  timeframe: "1H"
+  start: "2013-01-01"
+  end: "2025-09-26"
+
+# Strategy and REM configuration paths (relative to project root)
+strategy_path: "configs/strategies/ema_crossover/validated_blackout_policy/strategy.yaml"
+rem_path: "configs/strategies/ema_crossover/validated_blackout_policy/rem.yaml"
+
+# BLACKOUT POLICY: Block unprofitable hours
+# Trade ONLY during: 06-08, 10-11, 13-17 UTC
+# Block everything else
+blackout_utc:
+  - ["00:00", "06:00"]  # Block midnight to 6am
+  - ["08:00", "10:00"]  # Block 8am to 10am
+  - ["11:00", "13:00"]  # Block 11am to 1pm
+  - ["17:00", "23:59"]  # Block 5pm to midnight
