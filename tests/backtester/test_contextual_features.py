@@ -82,12 +82,15 @@ def test_backtester_adds_contextual_features_to_trade_context() -> None:
     assert first_trade.context_at_entry is not None
     assert isinstance(first_trade.context_at_entry, dict)
 
-    # Check that ctx_atr exists (directly in context when no RMM)
-    assert (
-        "ctx_atr" in first_trade.context_at_entry
-    ), "Contextual feature ctx_atr not found"
+    # Check for nested strategy_features structure
+    assert "strategy_features" in first_trade.context_at_entry
+    strategy_features = first_trade.context_at_entry["strategy_features"]
+    assert isinstance(strategy_features, dict)
 
-    ctx_atr_value = first_trade.context_at_entry["ctx_atr"]
+    # Check that ctx_atr exists in strategy_features
+    assert "ctx_atr" in strategy_features, "Contextual feature ctx_atr not found"
+
+    ctx_atr_value = strategy_features["ctx_atr"]
 
     # Verify it's a number
     assert isinstance(
@@ -165,15 +168,18 @@ def test_trade_context_always_includes_volume() -> None:
     first_trade = trades[0]
     assert isinstance(first_trade, Trade)
 
-    # Check that volume exists in context_at_entry
+    # Check that volume exists in nested strategy_features
     assert first_trade.context_at_entry is not None
     assert isinstance(first_trade.context_at_entry, dict)
-    assert "volume" in first_trade.context_at_entry, "volume not in context"
+    assert "strategy_features" in first_trade.context_at_entry
+    strategy_features = first_trade.context_at_entry["strategy_features"]
+    assert isinstance(strategy_features, dict)
+    assert "volume" in strategy_features, "volume not in strategy_features"
 
     # Verify the volume value matches the entry bar
     # Entry is at bar 15 (index 15), volume should be 1000 + 15*100 = 2500
     expected_volume = 1000 + 15 * 100
-    actual_volume = first_trade.context_at_entry["volume"]
+    actual_volume = strategy_features["volume"]
     assert (
         actual_volume == expected_volume
     ), f"Expected volume {expected_volume}, got {actual_volume}"
