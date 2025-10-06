@@ -221,10 +221,16 @@ def _round_feature(name: str, value: Any) -> float | None:
 
         name_lower = name.lower()
 
-        # ADX, ATR: 2 decimals (percentage-like indicators)
-        if any(x in name_lower for x in ["adx", "atr"]):
+        # ADX: 2 decimals (percentage-like indicator)
+        if "adx" in name_lower:
             return float(
                 Decimal(str(f)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            )
+
+        # ATR: 6 decimals (price volatility - needs FX precision)
+        if "atr" in name_lower:
+            return float(
+                Decimal(str(f)).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
             )
 
         # RSI, Stochastic, CCI: 2 decimals (bounded oscillators)
