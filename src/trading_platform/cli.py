@@ -87,6 +87,11 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     cfg_path = Path(args.config)
     cfg_raw = _load_config(cfg_path)
 
+    # Apply CLI --output-dir override if provided
+    output_dir = getattr(args, "output_dir", None)
+    if output_dir:
+        cfg_raw["runs_dir"] = output_dir
+
     # Load REM and RMM configs and include them in cfg_raw for proper config snapshot
     rem_path = cfg_raw.get("rem_path")
     if rem_path:
@@ -727,6 +732,10 @@ def main() -> int:
     pb.add_argument("--config", help="Path to JSON/YAML RunConfig")
     pb.add_argument("--user", default="cli_user", help="User id for run path")
     pb.add_argument("--demo", action="store_true", help="Use demo backtest")
+    pb.add_argument(
+        "--output-dir",
+        help="Custom root directory for run artifacts (must be within workspace)",
+    )
     pb.set_defaults(func=cmd_run_backtest)
 
     pl = sub.add_parser("run-live", help="Run live adapter/controller")

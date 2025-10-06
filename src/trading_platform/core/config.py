@@ -213,16 +213,20 @@ class RunConfig(BaseModel):
 
     @model_validator(mode="after")
     def enforce_workspace_runs_dir(self) -> RunConfig:
-        """Ensure runs_dir is always inside the workspace, ignoring user config."""
-        expected_runs_dir = paths.RUNS_DIR
-        if self.runs_dir.resolve() != expected_runs_dir.resolve():
+        """Ensure runs_dir is within workspace; allow custom subdirs."""
+        try:
+            # Check if provided path is within the workspace directory
+            self.runs_dir.resolve().relative_to(paths.WORKSPACE_DIR.resolve())
+        except ValueError:
+            # Path is outside workspace, log warning and reset to default
             logger.warning(
-                "Ignoring configured `runs_dir` (%s). "
-                "All runs are stored in the workspace: %s",
+                "Ignoring configured `runs_dir` (%s) because it is "
+                "outside the project workspace. "
+                "Defaulting to: %s",
                 self.runs_dir,
-                expected_runs_dir,
+                paths.RUNS_DIR,
             )
-            self.runs_dir = expected_runs_dir
+            self.runs_dir = paths.RUNS_DIR
         return self
 
     @model_validator(mode="after")
