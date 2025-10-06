@@ -1,0 +1,28 @@
+user_id: "discovery_campaign"
+initial_cash: 100000
+position_size: 25000
+warmup_bars: 100
+tie_break_policy:
+  rule: "stop_then_tp"
+
+instrument:
+  symbol: "EUR_USD"
+  timeframe: "1H"
+
+data_request:
+  symbol: "EUR_USD"
+  timeframe: "1H"
+  start: "2013-01-01"
+  end: "2025-09-26"
+
+# Note: strategy_path and rem_path are provided via CLI args in run.sh
+# Paths are relative to this directory
+
+# BLACKOUT POLICY: Block unprofitable hours
+# Trade ONLY during: 06-08, 10-11, 13-17 UTC
+# Block everything else
+blackout_utc:
+  - ["00:00", "06:00"]  # Block midnight to 6am
+  - ["08:00", "10:00"]  # Block 8am to 10am
+  - ["11:00", "13:00"]  # Block 11am to 1pm
+  - ["17:00", "23:59"]  # Block 5pm to midnight
