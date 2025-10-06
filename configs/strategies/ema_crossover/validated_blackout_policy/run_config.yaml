@@ -16,7 +16,7 @@ cost_model:
 data_request:
   symbol: "EUR_USD"
   timeframe: "1H"
-  start: "2024-01-01"
+  start: "2013-01-01"
   end: "2025-09-26"
 
 # Strategy and REM configuration paths (relative to project root)

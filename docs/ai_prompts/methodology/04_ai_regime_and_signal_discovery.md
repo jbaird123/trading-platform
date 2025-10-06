@@ -39,6 +39,16 @@ This process is guided by a structured, two-stage iterative loop: **"Analyze, Fi
 2.  **Avoid Granular Filters:** Prefer broad, session-based filters over hyper-specific, hour-based rules, which are a major overfitting risk.
 3.  **Filters Are Not Portable:** Never assume a profitable filter for one strategy will work for another. Every system requires independent optimization.
 
+### 2.4 Trading Style & Frequency
+
+-   **Target Timeframe:** You must focus your analysis on lower timeframes
+    suitable for intraday trading. **Start with the `15M` timeframe.** You may
+    explore `5M` if `15M` does not yield a sufficient number of trades.
+-   **Minimum Trade Frequency:** The discovered trading system must generate a
+    minimum number of trades to be considered valid. Over a 10-year backtest,
+    the system should generate **at least 1,500 trades**. This encourages the
+    discovery of systems with more opportunities and statistical significance.
+
 ---
 
 ## 3. The "Analyze, Validate, Compare" Workflow (WFE-Centric)
@@ -151,6 +161,9 @@ A trading system is only considered "successful" if its **Walk-Forward Evaluatio
 
 -   **`% Profitable Windows` > 70%:** This is the most important metric. The strategy must be profitable in at least 7 out of 10 out-of-sample periods.
 -   **`Performance Degradation` < 30%:** The drop-off between the average in-sample PnL and the average out-of-sample PnL must be minimal. A degradation > 50% indicates severe overfitting.
+-   **`Total Trades` > 1,500 (over 10+ years):** The system must be active
+    enough to provide a statistically significant sample size. This equates to
+    roughly 3 trades per week.
 
 ### 5.2 Secondary Criteria: Out-of-Sample Performance
 
