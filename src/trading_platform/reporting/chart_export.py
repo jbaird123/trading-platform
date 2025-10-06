@@ -513,6 +513,11 @@ def save_features_for_chart(
             for t, v in zip(times, vals):
                 try:
                     fv = float(v)
+                    # Skip NaN values - they break JSON parsing in chart
+                    import math
+
+                    if math.isnan(fv):
+                        continue
                 except Exception as e:
                     # Safe to skip: NaN/invalid feature value, chart degrades gracefully
                     logger.debug(f"Skipping non-numeric feature value: {e}")
