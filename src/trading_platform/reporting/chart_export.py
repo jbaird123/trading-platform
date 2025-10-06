@@ -582,12 +582,10 @@ EQUITY_CHART_TMPL = r"""<!doctype html>
   <div id="chart-container"></div>
   <div id="tt"></div>
   <script id="equity" type="application/json">__EQUITY_JSON__</script>
-  <script id="trades" type="application/json">__TRADES_JSON__</script>
   <script>
     (function(){
       const container = document.getElementById('chart-container');
       const rawEq = JSON.parse(document.getElementById('equity').textContent || '[]');
-      const trades = JSON.parse(document.getElementById('trades').textContent || '[]');
 
       // Convert equity data to chart format
       const equity = rawEq.map(([iso, v]) => ({
@@ -637,33 +635,6 @@ EQUITY_CHART_TMPL = r"""<!doctype html>
         });
       }
 
-      // Add trade markers
-      const markers = [];
-      trades.forEach(t => {
-        const entryTime = Math.floor(Date.parse(t.entry_time)/1000);
-        const exitTime = Math.floor(Date.parse(t.exit_time)/1000);
-        const win = Number(t.pnl || 0) > 0;
-
-        // Entry marker
-        markers.push({
-          time: entryTime,
-          position: 'belowBar',
-          color: win ? '#16a34a' : '#dc2626',
-          shape: 'arrowUp',
-          text: t.side === 'long' ? 'L' : 'S'
-        });
-
-        // Exit marker
-        markers.push({
-          time: exitTime,
-          position: 'aboveBar',
-          color: win ? '#16a34a' : '#dc2626',
-          shape: 'arrowDown',
-          text: win ? '+' : '-'
-        });
-      });
-      lineSeries.setMarkers(markers);
-
       chart.timeScale().fitContent();
 
       // Tooltip
@@ -697,7 +668,7 @@ def save_equity_chart_from_brief(run_path: Path) -> Path:
 
     Creates an interactive equity curve visualization with:
     - Equity line over time
-    - Trade entry/exit markers (green for wins, red for losses)
+    - Baseline at initial cash
     - Performance statistics in header
     - Hover tooltip showing date and equity value
     """
@@ -706,7 +677,6 @@ def save_equity_chart_from_brief(run_path: Path) -> Path:
 
     # Extract data
     equity = data.get("equity_stats", {}).get("equity_curve", [])
-    trades = data.get("trades", [])
     overall = data.get("overall_performance", {})
     equity_stats = data.get("equity_stats", {})
     risk_metrics = data.get("risk_metrics", {})
@@ -745,7 +715,6 @@ def save_equity_chart_from_brief(run_path: Path) -> Path:
         .replace("__MAX_DD__", max_dd_str)
         .replace("__SHARPE__", sharpe_str)
         .replace("__EQUITY_JSON__", json.dumps(equity))
-        .replace("__TRADES_JSON__", json.dumps(trades))
     )
 
     out = run_path / "equity_chart.html"
