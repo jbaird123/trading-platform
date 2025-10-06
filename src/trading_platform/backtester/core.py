@@ -249,9 +249,14 @@ def run_backtest(
             for feature in config.contextual_features:
                 feature_name = feature.name
                 if feature_name in data_with_context.columns:
-                    strategy_features[feature_name] = data_with_context[
-                        feature_name
-                    ].iloc[i]
+                    val = data_with_context[feature_name].iloc[i]
+                    # Convert NaN to None for JSON serialization
+                    import math
+
+                    if isinstance(val, float) and math.isnan(val):
+                        strategy_features[feature_name] = None
+                    else:
+                        strategy_features[feature_name] = val
 
         # Always include raw volume for analysis
         strategy_features["volume"] = current_bar["volume"]
