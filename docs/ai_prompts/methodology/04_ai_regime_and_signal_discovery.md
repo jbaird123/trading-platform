@@ -175,3 +175,7 @@ A trading system is only considered "successful" if its **Walk-Forward Evaluatio
 
 -   **`Total PnL` > 0:** The strategy should at least be profitable on the full dataset.
 -   **`Max Drawdown` < 25%:** The overall drawdown should remain within reasonable limits.
+-   **`Max Drawdown Duration` < ~14 days:** While not a strict failure
+    criterion, the time spent in a drawdown should be minimal. Strategies with
+    extended drawdown periods (e.g., over a month) are generally undesirable,
+    even if profitable. Aim for drawdowns to resolve within a few weeks.
