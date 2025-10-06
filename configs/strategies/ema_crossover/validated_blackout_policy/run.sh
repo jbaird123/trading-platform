@@ -18,10 +18,7 @@ echo ""
 
 # Run the backtest
 echo "Running backtest..."
-poetry run tp \
-  --run-config "$SCRIPT_DIR/run_config.yaml" \
-  --strategy "$SCRIPT_DIR/strategy.yaml" \
-  --rem "$SCRIPT_DIR/rem.yaml"
+poetry run tp run-backtest --config "$SCRIPT_DIR/run_config.yaml"
 
 # Get the most recent run directory
 LATEST_RUN=$(ls -td workspace/runs/discovery_campaign/run_* | head -1)
@@ -39,8 +36,9 @@ echo ""
 echo "Running AI qualitative analysis..."
 echo "=========================================="
 
-poetry run python -m trading_platform.ai.llm_analysis.llm_engine \
-  --brief-path "$LATEST_RUN/brief.json"
+poetry run tp ai-diagnose \
+  --brief "$LATEST_RUN/brief.json" \
+  --qualitative-report
 
 echo ""
 echo "=========================================="

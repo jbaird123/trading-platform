@@ -15,8 +15,9 @@ data_request:
   start: "2013-01-01"
   end: "2025-09-26"
 
-# Note: strategy_path and rem_path are provided via CLI args in run.sh
-# Paths are relative to this directory
+# Strategy and REM configuration paths (relative to project root)
+strategy_path: "configs/strategies/ema_crossover/validated_blackout_policy/strategy.yaml"
+rem_path: "configs/strategies/ema_crossover/validated_blackout_policy/rem.yaml"
 
 # BLACKOUT POLICY: Block unprofitable hours
 # Trade ONLY during: 06-08, 10-11, 13-17 UTC
