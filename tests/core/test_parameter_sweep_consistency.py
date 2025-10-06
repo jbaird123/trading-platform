@@ -49,8 +49,12 @@ def test_parameter_sweep_matches_standalone(tmp_path, monkeypatch):
     This verifies the fix for the bug where sweep used strategy file defaults
     while standalone used config parameters.
     """
-    # Mock the centralized RUNS_DIR to use our temp directory
+    # Mock the centralized RUNS_DIR and WORKSPACE_DIR to use temp directory
+    # Mock both in paths and in config to handle default value resolution
     monkeypatch.setattr("trading_platform.core.paths.RUNS_DIR", tmp_path)
+    monkeypatch.setattr("trading_platform.core.paths.WORKSPACE_DIR", tmp_path)
+    monkeypatch.setattr("trading_platform.core.config.paths.RUNS_DIR", tmp_path)
+    monkeypatch.setattr("trading_platform.core.config.paths.WORKSPACE_DIR", tmp_path)
 
     # Create a minimal strategy config
     strategy_config = {
@@ -232,8 +236,12 @@ def test_strategy_params_override_file_defaults(tmp_path, monkeypatch):
     This test ensures parameter substitution works correctly when strategy_params
     are specified in the run config.
     """
-    # Mock the centralized RUNS_DIR to use our temp directory
+    # Mock the centralized RUNS_DIR and WORKSPACE_DIR to use temp directory
+    # Mock both in paths and in config to handle default value resolution
     monkeypatch.setattr("trading_platform.core.paths.RUNS_DIR", tmp_path)
+    monkeypatch.setattr("trading_platform.core.paths.WORKSPACE_DIR", tmp_path)
+    monkeypatch.setattr("trading_platform.core.config.paths.RUNS_DIR", tmp_path)
+    monkeypatch.setattr("trading_platform.core.config.paths.WORKSPACE_DIR", tmp_path)
 
     # Strategy with defaults 12/26
     strategy_config = {
