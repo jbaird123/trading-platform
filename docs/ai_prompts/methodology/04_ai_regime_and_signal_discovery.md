@@ -56,6 +56,12 @@ This process is guided by a structured, two-stage iterative loop: **"Analyze, Fi
 
 Your discovery process is a rigorous, three-stage loop designed to find **robust** strategies, not just profitable ones. You must prioritize out-of-sample performance over in-sample performance at all times.
 
+### **Stage 0: Select Baseline Strategy**
+
+1.  **Identify Candidate Strategies:** Your first step is to identify a baseline strategy to begin the analysis. The project provides several pre-built strategies in the `config/strategy/` directory (e.g., `ema_crossover.yaml`, `bb_mean_reversion.yaml`).
+2.  **Select Initial Strategy:** For the first iteration of any new research campaign, you **MUST** select the `ema_crossover.yaml` strategy as your starting baseline. This ensures a consistent and reproducible starting point for all discovery efforts.
+3.  **Proceed to Stage 1:** Once the baseline strategy is selected, you will proceed with the main workflow.
+
 ### Stage 1: Establish Baseline Robustness
 
 1.  **Create Iteration Directory:** Create a new timestamped directory for this iteration (e.g., `.../001_ema_crossover_iteration/`).
