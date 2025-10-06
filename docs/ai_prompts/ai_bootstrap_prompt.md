@@ -96,7 +96,7 @@ When I do a Requirements Check, I want you to:
 ## Invariant Guardrails
 - 88‑column limit for code and tests.
 - 100% test coverage for new code; include minimal, focused tests.
-- Indicators use `ta` only; do not implement custom math unless explicitly
+- Indicators use `pandas-ta` only; do not implement custom math unless explicitly
   approved.
 - Briefs stay fully populated: provenance, environment, checksums,
   field_definitions, costs, exposure, r‑multiple, MFE/MAE, skipped_trades with

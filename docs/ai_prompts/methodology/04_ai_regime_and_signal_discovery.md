@@ -13,6 +13,7 @@ This process is guided by a structured, two-stage iterative loop: **"Analyze, Fi
 - **Campaign Workspace:** All work must be contained within a single campaign directory under `workspace/research/`.
 - **Chronological Steps:** Every iteration must be in its own unique, timestamped subdirectory.
 - **Meticulous Logging:** Every decision, hypothesis, and result must be documented in the `run_summary.md` for each step and linked in the master `campaign_log.md`.
+- **Organized Outputs:** When executing a backtest, you **MUST** use the `--output-dir` argument and set it to the current iteration's directory (e.g., `.../001_ema_crossover_iteration/`) to ensure run artifacts are co-located with the research configuration.
 
 ### 2.1 Bug Detection & Reporting
 -   **CRITICAL**: This platform is new and may contain bugs. You **MUST** flag unexpected behavior for investigation:

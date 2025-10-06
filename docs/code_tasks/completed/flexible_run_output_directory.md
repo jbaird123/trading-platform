@@ -11,7 +11,7 @@ Before starting, create and switch to the specified branch:
 
 ### Phase 1: Core Logic and Configuration
 
-1.  [ ] **Write Test for Relaxed Path Validator:**
+1.  [x] **Write Test for Relaxed Path Validator:**
     -   In `tests/core/test_config.py`, create a new test function `test_run_config_allows_custom_workspace_runs_dir`.
     -   **Test Case 1 (Allow custom workspace path):**
         -   Define a custom path: `custom_dir = paths.WORKSPACE_DIR / "custom_runs"`.
@@ -22,7 +22,7 @@ Before starting, create and switch to the specified branch:
         -   Create a `RunConfig` instance, passing `runs_dir=outside_dir`.
         -   Assert that the `runs_dir` attribute of the resulting config object resolves to the default `paths.RUNS_DIR`.
 
-2.  [ ] **Implement Relaxed Path Validator:**
+2.  [x] **Implement Relaxed Path Validator:**
     -   In `src/trading_platform/core/config.py`, modify the `enforce_workspace_runs_dir` function inside the `RunConfig` model.
     -   The new logic should be:
         ```python
@@ -41,7 +41,7 @@ Before starting, create and switch to the specified branch:
         return self
         ```
 
-3.  [ ] **Write Test for CLI Output Directory Argument:**
+3.  [x] **Write Test for CLI Output Directory Argument:**
     -   In `tests/cli/test_cli.py`, create a new test function `test_cmd_run_backtest_uses_output_dir`.
     -   Use `unittest.mock.patch` to mock `trading_platform.core.run.initialize_run`.
     -   Define a custom output directory path, e.g., `"workspace/test_cli_runs"`.
@@ -49,7 +49,7 @@ Before starting, create and switch to the specified branch:
     -   In the test, capture the `RunConfig` object passed to the mocked `initialize_run`.
     -   Assert that the `runs_dir` attribute of this captured `RunConfig` object is a `Path` object equivalent to `"workspace/test_cli_runs"`.
 
-4.  [ ] **Implement CLI Output Directory Argument:**
+4.  [x] **Implement CLI Output Directory Argument:**
     -   In `src/trading_platform/cli.py`, locate the `main` function.
     -   Find the subparser for `run-backtest` (variable `pb`).
     -   Add the new argument:
@@ -67,7 +67,7 @@ Before starting, create and switch to the specified branch:
 
 ### Phase 2: AI Prompt Integration
 
-5.  [ ] **Update AI Methodology Prompt:**
+5.  [x] **Update AI Methodology Prompt:**
     -   Open the file `docs/ai_prompts/methodology/04_ai_regime_and_signal_discovery.md`.
     -   In section `2. Core Mandates & Guardrails`, add a new bullet point:
         ```markdown
