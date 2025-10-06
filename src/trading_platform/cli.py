@@ -32,6 +32,7 @@ from trading_platform.regime_market_manager.engine import RMMEngine
 from trading_platform.reporting.brief import compute_data_quality
 from trading_platform.reporting.chart_export import (
     save_chart_from_brief,
+    save_equity_chart_from_brief,
     save_features_for_chart,
 )
 from trading_platform.reporting.compare_html import save_comparison_report
@@ -520,11 +521,20 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
         rmm_spans_path=rmm_spans_path,
         processed_data_path=processed_data_path,
     )
+
+    # Generate equity curve chart
+    try:
+        save_equity_chart_from_brief(run_path)
+    except Exception as e:  # pragma: no cover
+        # Safe to continue: equity chart is optional visualization
+        logger.warning(f"Failed to generate equity chart: {e}")
+
     print(f"Run created at: {run_path}")
     print(f"- Brief: {run_path / 'brief.json'}")
     print(f"- Report: {run_path / 'report.html'}")
     print(f"- Trades: {run_path / 'trades.csv'}")
     print(f"- Chart: {run_path / 'chart.html'}")
+    print(f"- Equity: {run_path / 'equity_chart.html'}")
     return 0
 
 
