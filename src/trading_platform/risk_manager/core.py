@@ -94,7 +94,13 @@ class RiskExitManager:
             if not reference_point.startswith("context."):
                 return None
             key = reference_point.replace("context.", "")
-            return signal_context.get(key)
+            # Support nested strategy_features structure
+            if "strategy_features" in signal_context:
+                val = signal_context["strategy_features"].get(key)
+                return float(val) if val is not None else None
+            # Fall back to flat structure for backward compatibility
+            val = signal_context.get(key)
+            return float(val) if val is not None else None
 
         def _level_price(
             side: str, entry: float, rule: dict, is_stop: bool

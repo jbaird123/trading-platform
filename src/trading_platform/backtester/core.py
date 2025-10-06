@@ -238,23 +238,26 @@ def run_backtest(
             command = signal.command
             # Merge signal context with strategy context
             strategy_context = strategy.get_context(i)
-            context = {**strategy_context, **signal.context}
+            strategy_features = {**strategy_context, **signal.context}
         else:
             # Legacy format: signal is just a command string
             command = signal
-            context = strategy.get_context(i)
+            strategy_features = strategy.get_context(i)
 
-        # Enrich context with contextual features if they were computed
+        # Enrich with contextual features if they were computed
         if config.contextual_features and data_with_context is not market_data:
             for feature in config.contextual_features:
                 feature_name = feature.name
                 if feature_name in data_with_context.columns:
-                    context[feature_name] = data_with_context[feature_name].iloc[i]
+                    strategy_features[feature_name] = data_with_context[
+                        feature_name
+                    ].iloc[i]
 
         # Always include raw volume for analysis
-        context["volume"] = current_bar["volume"]
+        strategy_features["volume"] = current_bar["volume"]
 
-        # Enrich context with regime information from RMM if available
+        # Build consistent nested context structure
+        # Always use strategy_features, add regime if RMM is present
         if rmm_context is not None:
             rmm_ctx = rmm_context.get(cast(datetime, current_bar.name))
             if rmm_ctx is not None:
@@ -267,10 +270,16 @@ def run_backtest(
                     "features": rmm_ctx.get("features", {}),
                     "timeframe": rmm_ctx.get("timeframe", "daily"),
                 }
-
-                # Rebuild context with proper structure - keep full precision
-                # Rounding happens in brief.py during serialization
-                context = {"strategy_features": context or {}, "regime": regime_data}
+                context = {
+                    "strategy_features": strategy_features,
+                    "regime": regime_data,
+                }
+            else:
+                # RMM context exists but no regime for this bar
+                context = {"strategy_features": strategy_features}
+        else:
+            # No RMM - still use nested structure for consistency
+            context = {"strategy_features": strategy_features}
 
         # Evaluate risk-based exits using the Risk & Exit Manager (REM)
         # REM exits (stop-loss, take-profit) are ALWAYS allowed
