@@ -12,6 +12,31 @@ from .utils import gen_run_id, normalize_symbol
 logger = logging.getLogger(__name__)
 
 
+class FeatureConfig(BaseModel):
+    """Configuration for a single technical indicator/feature."""
+
+    name: str = Field(description="Local identifier for the feature.")
+    type: str = Field(description="Indicator type (e.g., SMA, EMA, ATR).")
+    params: dict[str, Any] | None = Field(
+        default=None, description="Indicator-specific parameters."
+    )
+    source: str | None = Field(
+        default=None,
+        description="Input price series (e.g., open, high, low, close, hl2).",
+    )
+    source_ref: dict[str, Any] | None = Field(
+        default=None, description="Reference another feature as input series."
+    )
+
+
+# Default contextual features computed on every run
+DEFAULT_CONTEXTUAL_FEATURES: list[FeatureConfig] = [
+    FeatureConfig(name="ctx_atr", type="ATR", params={"length": 14}),
+    FeatureConfig(name="ctx_rsi", type="RSI", params={"length": 14}),
+    FeatureConfig(name="ctx_ema_slow", type="EMA", params={"length": 200}),
+]
+
+
 class RunConfig(BaseModel):
     """
     Defines the configuration for a single run of the trading platform.
@@ -164,6 +189,27 @@ class RunConfig(BaseModel):
             "Example: {'enabled': True, 'horizons': [10, 20, 50]}"
         ),
     )
+
+    contextual_features: list[FeatureConfig] | None = Field(
+        default=None,
+        description=(
+            "A list of indicators to compute for context, even if not used "
+            "in strategy rules."
+        ),
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def inject_default_contextual_features(cls, data: Any) -> Any:
+        """Inject default contextual features if not explicitly provided."""
+        if isinstance(data, dict):
+            # Only inject defaults if key is missing (None)
+            # If user provides [], we respect that (no defaults)
+            if "contextual_features" not in data:
+                data["contextual_features"] = [
+                    f.model_dump() for f in DEFAULT_CONTEXTUAL_FEATURES
+                ]
+        return data
 
     @model_validator(mode="after")
     def enforce_workspace_runs_dir(self) -> RunConfig:

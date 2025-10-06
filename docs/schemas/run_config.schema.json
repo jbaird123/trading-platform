@@ -37,6 +37,26 @@
         "end_date": { "type": "string", "format": "date" }
       },
       "required": ["source", "start_date", "end_date"]
+    },
+    "contextual_features": {
+      "type": "array",
+      "description": "A list of indicators to compute for context, even if not used in strategy rules.",
+      "default": [
+        { "name": "ctx_atr", "type": "ATR", "params": { "length": 14 } },
+        { "name": "ctx_rsi", "type": "RSI", "params": { "length": 14 } },
+        { "name": "ctx_ema_slow", "type": "EMA", "params": { "length": 200 } }
+      ],
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "type": { "type": "string" },
+          "params": { "type": "object" },
+          "source": { "type": "string" },
+          "source_ref": { "type": "object" }
+        },
+        "required": ["name", "type"]
+      }
     }
   },
   "required": ["strategy", "instrument", "data"]

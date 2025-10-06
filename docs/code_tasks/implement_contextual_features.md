@@ -1,6 +1,6 @@
 ### Contextual Features Implementation Plan
 
-**Branch Name:** `feature/contextual-features`
+**Branch Name:** `feature/contextual-features` ✅
 
 **Instructions for the developer:**
 Please create and switch to a new branch named `feature/contextual-features` before starting these tasks. Follow the tasks in the exact order provided.
@@ -9,7 +9,7 @@ Please create and switch to a new branch named `feature/contextual-features` bef
 
 #### I. Update Configuration Schema and Model
 
-1.  [ ] Task: Create a test for the `RunConfig` model with `contextual_features`.
+1.  [x] Task: Create a test for the `RunConfig` model with `contextual_features`.
     *   **File to Create**: `tests/core/test_config_contextual_features.py`
     *   **Action**: Add a new test function `test_run_config_loads_contextual_features`.
     *   **Logic**:
@@ -19,7 +19,7 @@ Please create and switch to a new branch named `feature/contextual-features` bef
         4.  Assert that the resulting `RunConfig` object has a `contextual_features` attribute.
         5.  Assert that this attribute is a list of `FeatureConfig` objects (you will define this model in the next step) and that its contents match the input dictionary.
 
-2.  [ ] Task: Update the `RunConfig` model and `run_config.schema.json`.
+2.  [x] Task: Update the `RunConfig` model and `run_config.schema.json`.
     *   **File to Modify**: `src/trading_platform/core/config.py`
     *   **Action**:
         1.  At the top of the file, add a new Pydantic model `FeatureConfig` that mirrors the structure of a feature in `strategy.schema.json`. It should have fields: `name: str`, `type: str`, `params: dict[str, Any] | None = None`, `source: str | None = None`, and `source_ref: dict[str, Any] | None = None`.
@@ -48,7 +48,7 @@ Please create and switch to a new branch named `feature/contextual-features` bef
 
 #### II. Integrate Feature Calculation into Backtester
 
-3.  [ ] Task: Create a test to ensure the `Backtester` computes and uses contextual features.
+3.  [x] Task: Create a test to ensure the `Backtester` computes and uses contextual features.
     *   **File to Create**: `tests/backtester/test_contextual_features.py`
     *   **Action**: Add a new test function `test_backtester_adds_contextual_features_to_trade_context`.
     *   **Logic**:
@@ -61,7 +61,7 @@ Please create and switch to a new branch named `feature/contextual-features` bef
         7.  Assert that the key `ctx_atr` exists in `trade.context_at_entry['strategy_features']`.
         8.  Assert that its value matches the pre-calculated ATR value for the entry bar.
 
-4.  [ ] Task: Modify the `Backtester` to calculate and inject contextual features.
+4.  [x] Task: Modify the `Backtester` to calculate and inject contextual features.
     *   **File to Modify**: `src/trading_platform/backtester/core.py`
     *   **Action**: Modify the `run_backtest` function.
     *   **Logic**:

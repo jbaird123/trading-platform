@@ -184,6 +184,26 @@ def run_backtest(
 
     symbol = resolve_instrument_symbol(config.instrument)
 
+    # Compute contextual features if specified in config
+    data_with_context = market_data
+    if config.contextual_features:
+        from trading_platform.strategy.features import compute_features
+
+        # Convert FeatureConfig objects to dict format for compute_features
+        features_list = [
+            {
+                "name": f.name,
+                "type": f.type,
+                "params": f.params or {},
+                "source": f.source,
+                "source_ref": f.source_ref,
+            }
+            for f in config.contextual_features
+        ]
+        data_with_context = compute_features(
+            market_data, features_list, strategy_parameters={}
+        )
+
     # Use the complete instrument definition from config
     # (RunConfig validator ensures it has all required fields)
     instrument_dict = config.instrument
@@ -218,13 +238,26 @@ def run_backtest(
             command = signal.command
             # Merge signal context with strategy context
             strategy_context = strategy.get_context(i)
-            context = {**strategy_context, **signal.context}
+            strategy_features = {**strategy_context, **signal.context}
         else:
             # Legacy format: signal is just a command string
             command = signal
-            context = strategy.get_context(i)
+            strategy_features = strategy.get_context(i)
 
-        # Enrich context with regime information from RMM if available
+        # Enrich with contextual features if they were computed
+        if config.contextual_features and data_with_context is not market_data:
+            for feature in config.contextual_features:
+                feature_name = feature.name
+                if feature_name in data_with_context.columns:
+                    strategy_features[feature_name] = data_with_context[
+                        feature_name
+                    ].iloc[i]
+
+        # Always include raw volume for analysis
+        strategy_features["volume"] = current_bar["volume"]
+
+        # Build consistent nested context structure
+        # Always use strategy_features, add regime if RMM is present
         if rmm_context is not None:
             rmm_ctx = rmm_context.get(cast(datetime, current_bar.name))
             if rmm_ctx is not None:
@@ -237,10 +270,16 @@ def run_backtest(
                     "features": rmm_ctx.get("features", {}),
                     "timeframe": rmm_ctx.get("timeframe", "daily"),
                 }
-
-                # Rebuild context with proper structure - keep full precision
-                # Rounding happens in brief.py during serialization
-                context = {"strategy_features": context or {}, "regime": regime_data}
+                context = {
+                    "strategy_features": strategy_features,
+                    "regime": regime_data,
+                }
+            else:
+                # RMM context exists but no regime for this bar
+                context = {"strategy_features": strategy_features}
+        else:
+            # No RMM - still use nested structure for consistency
+            context = {"strategy_features": strategy_features}
 
         # Evaluate risk-based exits using the Risk & Exit Manager (REM)
         # REM exits (stop-loss, take-profit) are ALWAYS allowed
