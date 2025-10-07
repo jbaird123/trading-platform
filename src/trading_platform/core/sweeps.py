@@ -45,23 +45,31 @@ def _rmm_context(
     regime_timeframe = rmm_cfg.get("timeframe", "1D")
 
     # PERFORMANCE: Check cache first if DataHandler is available
+    # BUT: For WFE test windows, we must NOT use the cached full-dataset context
+    # because we need regime classification specific to the test window.
+    # Only use cache if df covers the full dataset (detected by comparing indices).
+    use_cache = False
     if data_handler is not None:
-        cached_context = data_handler.get_rmm_context(rmm_cfg, regime_timeframe)
-        if cached_context is not None:
-            return dict(cached_context)
+        full_data = data_handler.get_data(timeframe=regime_timeframe)
+        # Only use cached context if df appears to be the full dataset
+        # (same start/end dates)
+        if (len(df) > 0 and len(full_data) > 0 and
+            df.index[0] == full_data.index[0] and
+            df.index[-1] == full_data.index[-1]):
+            cached_context = data_handler.get_rmm_context(rmm_cfg, regime_timeframe)
+            if cached_context is not None:
+                use_cache = True
+                return dict(cached_context)
 
-    # Not cached - compute regime classification
+    # Not cached OR test window - compute regime classification
     eng = RMMEngine(config=rmm_cfg)
 
-    # Use DataHandler for resampling if available (cached), otherwise
-    # fallback to direct resample
-    if data_handler is not None:
-        df_resampled = data_handler.get_data(timeframe=regime_timeframe)
-        already_resampled = True
-    else:
-        # Fallback for legacy code paths without DataHandler
-        df_resampled = df
-        already_resampled = False
+    # BUG FIX: Always use the provided df parameter (test window),
+    # not the full dataset from DataHandler.
+    # The DataHandler cache was causing WFE to apply regimes from the full
+    # dataset to test windows, making all WFE splits identical.
+    df_resampled = df
+    already_resampled = False
 
     regimes = eng.classify_regime(
         df_resampled, timeframe=regime_timeframe, already_resampled=already_resampled
@@ -91,9 +99,15 @@ def _rmm_context(
         for ts, row in proj.iterrows()
     }
 
-    # Cache the result if DataHandler is available
-    if data_handler is not None:
-        data_handler.set_rmm_context(rmm_cfg, regime_timeframe, rmm_context)
+    # Cache the result ONLY if this was for the full dataset, not a test window
+    # This prevents WFE test window contexts from polluting the cache
+    if data_handler is not None and not use_cache:
+        # Only cache if we're working with the full dataset
+        full_data = data_handler.get_data(timeframe=regime_timeframe)
+        if (len(df) > 0 and len(full_data) > 0 and
+            df.index[0] == full_data.index[0] and
+            df.index[-1] == full_data.index[-1]):
+            data_handler.set_rmm_context(rmm_cfg, regime_timeframe, rmm_context)
 
     return rmm_context
 
