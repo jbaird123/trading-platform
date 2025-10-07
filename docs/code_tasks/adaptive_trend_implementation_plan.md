@@ -12,8 +12,8 @@ This document provides a detailed, step-by-step plan for implementing the adapti
 ### Feature 1.1: Extend Indicator Registry
 
 1.  **[ ] TEST:** In `tests/strategy/test_yaml_strategy.py`, add `test_load_strategy_with_new_indicators` to load a YAML with `ema_slope`, `rsi`, and `roc` features and assert it parses correctly.
-2.  **[ ] IMPLEMENT:** In `src/trading_platform/strategy/indicators_registry.py`, add `ema_slope`, `rsi`, and `roc` to the `INDICATORS` dictionary.
-3.  **[ ] TEST:** In `tests/strategy/test_yaml_strategy.py`, add `test_new_indicator_schema_validation` to validate a strategy YAML with the new indicators against `docs/schemas/strategy.schema.json`.
+2.  **[ ] IMPLEMENT:** In `src/trading_platform/strategy/indicators_registry.py`, add `ema_slope`, `rsi`, and `roc` to the `INDICATORS` dictionary **and** implement the corresponding computation helpers in `src/trading_platform/strategy/features.py`.
+3.  **[ ] TEST:** In `tests/strategy/test_yaml_strategy.py`, add `test_new_indicator_schema_validation` to validate a strategy YAML with the new indicators against `docs/schemas/strategy.schema.json`. Include targeted tests in `tests/strategy/test_features.py` (or equivalent) for the `ema_slope`, `rsi`, and `roc` computations.
 4.  **[ ] IMPLEMENT:** In `docs/schemas/strategy.schema.json`, update the indicator definitions to include `ema_slope`, `rsi`, and `roc` and their parameters.
 
 ### Feature 1.2: Add New Strategy Predicates
@@ -27,7 +27,7 @@ This document provides a detailed, step-by-step plan for implementing the adapti
 ### Feature 1.3: Add Higher-Timeframe Feature Support
 
 10. **[ ] TEST:** Create `tests/data/test_data_handler_multi_timeframe.py`. Add `test_get_higher_timeframe_feature` that requests a 15min DataFrame and a feature like `adx_1h` and asserts the new column is correctly resampled and forward-filled.
-11. **[ ] IMPLEMENT:** In `src/trading_platform/data/data_handler.py`, modify the logic to detect timeframe suffixes (e.g., `_1h`), resample data, calculate the feature, and merge it back into the primary DataFrame using `ffill`.
+11. **[ ] IMPLEMENT:** In `src/trading_platform/data/data_handler.py`, modify the logic to detect timeframe suffixes (e.g., `_1h`), resample data, calculate the feature, and merge it back into the primary DataFrame using `ffill`. Update the strategy loader in `src/trading_platform/strategy/yaml_strategy.py` so suffixed feature names request the higher-timeframe computation.
 
 ---
 
@@ -42,7 +42,7 @@ This document provides a detailed, step-by-step plan for implementing the adapti
 16. **[ ] TEST:** In `test_dynamic_rem.py`, add `test_atr_trailing_stop_after_partial_exit`. After a partial exit, assert that the stop-loss for the remaining position begins trailing at the specified ATR multiple.
 17. **[ ] IMPLEMENT:** In `dynamic_rem.py`, add the ATR-based trailing stop logic that activates for the remainder of the position after a partial exit occurs.
 18. **[ ] TEST:** Create a schema `docs/schemas/rem_dynamic.schema.json` and a test to validate a full configuration for the `DynamicREM` against it.
-19. **[ ] IMPLEMENT:** Update the REM factory in `src/trading_platform/risk_manager/__init__.py` to instantiate `DynamicREM`.
+19. **[ ] IMPLEMENT:** Update the REM factory in `src/trading_platform/risk_manager/__init__.py` to instantiate `DynamicREM`, and ensure the new schema is wired into the existing REM validation flow so misconfigurations fail fast.
 
 ### Feature 2.2: Implement Volatility-Aware Trailing
 
@@ -75,7 +75,7 @@ This document provides a detailed, step-by-step plan for implementing the adapti
 
 30. **[ ] TEST:** In `tests/reporting/test_brief.py`, add `test_trade_context_includes_all_new_features`. Run a backtest using a strategy with the new signal and RMM features. Assert that the `entry_context` in `brief.json` contains values for `ema_slope`, `adx_1h`, and `atr_percentile`.
 31. **[ ] IMPLEMENT:** In the `Backtester`, ensure all strategy and RMM features are captured on the `Trade` object's `entry_context`.
-32. **[ ] IMPLEMENT:** In the `Reporting` module, update serialization logic to include all `entry_context` items in `brief.json` and `trades.csv`.
+32. **[ ] IMPLEMENT:** In the `Reporting` module, update serialization logic to include all `entry_context` items in both `brief.json` and `trades.csv`.
 
 ### Feature 4.2: Integrate Dynamic REM Metrics into Brief
 
