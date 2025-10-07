@@ -49,11 +49,12 @@ def _rmm_context(
     # because we need regime classification specific to the test window.
     # Only use cache if df covers the full dataset (detected by comparing indices).
     use_cache = False
+    full_data = None
     if data_handler is not None:
         full_data = data_handler.get_data(timeframe=regime_timeframe)
         # Only use cached context if df appears to be the full dataset
         # (same start/end dates)
-        if (len(df) > 0 and len(full_data) > 0 and
+        if (full_data is not None and len(df) > 0 and len(full_data) > 0 and
             df.index[0] == full_data.index[0] and
             df.index[-1] == full_data.index[-1]):
             cached_context = data_handler.get_rmm_context(rmm_cfg, regime_timeframe)
@@ -103,8 +104,7 @@ def _rmm_context(
     # This prevents WFE test window contexts from polluting the cache
     if data_handler is not None and not use_cache:
         # Only cache if we're working with the full dataset
-        full_data = data_handler.get_data(timeframe=regime_timeframe)
-        if (len(df) > 0 and len(full_data) > 0 and
+        if (full_data is not None and len(df) > 0 and len(full_data) > 0 and
             df.index[0] == full_data.index[0] and
             df.index[-1] == full_data.index[-1]):
             data_handler.set_rmm_context(rmm_cfg, regime_timeframe, rmm_context)

@@ -39,6 +39,7 @@ from trading_platform.reporting.compare_html import save_comparison_report
 from trading_platform.reporting.csv_export import save_prices_csv
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
+from trading_platform.utils.cache import clear_numba_cache
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +73,7 @@ def _load_config(path: Path) -> dict[str, Any]:
     return dict(json.loads(txt))
 
 
-def cmd_run_backtest(args: argparse.Namespace) -> int:
+def _run_backtest_logic(args: argparse.Namespace) -> int:
     if args.demo and not args.config:
         run_path = generate_demo_run(user_id=args.user)
         print(f"Run created at: {run_path}")
@@ -542,6 +543,24 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     print(f"- Equity: {run_path / 'equity_chart.html'}")
     return 0
 
+def cmd_run_backtest(args: argparse.Namespace) -> int:
+    if getattr(args, "clear_cache", False):
+        print("Clearing Numba cache as requested...")
+        clear_numba_cache()
+
+    try:
+        return _run_backtest_logic(args)
+    except RuntimeError as e:
+        if "numba" in str(e).lower() and "cache" in str(e).lower():
+            print(
+                "Numba cache error detected. Automatically retrying once with a cleared cache."
+            )
+            clear_numba_cache()
+            return _run_backtest_logic(args)
+        else:
+            raise e
+
+
 
 def cmd_ai_diagnose(args: argparse.Namespace) -> int:
     if not args.brief:
@@ -724,6 +743,14 @@ def cmd_open_chart(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_clear_cache(args: argparse.Namespace) -> int:
+    """Clear Numba cache directories."""
+    print("Clearing Numba cache...")
+    clear_numba_cache()
+    print("Numba cache cleared successfully.")
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(prog="tp", description="Trading Platform CLI")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -736,12 +763,20 @@ def main() -> int:
         "--output-dir",
         help="Custom root directory for run artifacts (must be within workspace)",
     )
+    pb.add_argument(
+        "--clear-cache",
+        action="store_true",
+        help="Clear Numba cache before running the backtest.",
+    )
     pb.set_defaults(func=cmd_run_backtest)
 
     pl = sub.add_parser("run-live", help="Run live adapter/controller")
     pl.add_argument("--config", help="Path to JSON/YAML RunConfig")
     pl.add_argument("--dry-run", action="store_true", help="No-op live run")
     pl.set_defaults(func=cmd_run_live)
+
+    p_clear = sub.add_parser("clear-cache", help="Clear Numba cache")
+    p_clear.set_defaults(func=cmd_clear_cache)
 
     pc = sub.add_parser("compare", help="Compare briefs and write HTML")
     pc.add_argument("a", nargs="?", help="Path to first brief.json")

@@ -34,6 +34,8 @@ def test_rmm_context_with_data_handler_cache_hit():
     mock_handler = Mock()
     cached_ctx = {datetime(2024, 1, 1): {"label": "cached", "confidence": 0.9}}
     mock_handler.get_rmm_context.return_value = cached_ctx
+    # Mock get_data to return a dataframe with the same index as df, so the cache is used
+    mock_handler.get_data.return_value = df.copy()
 
     cfg_raw = {"rmm_config": rmm_cfg}
 
@@ -46,6 +48,8 @@ def test_rmm_context_with_data_handler_cache_hit():
         # Should return cached context
         assert result == cached_ctx
         mock_handler.get_rmm_context.assert_called_once_with(rmm_cfg, "1D")
+        # get_data is now called once to check if the df is the full dataset
+        mock_handler.get_data.assert_called_once_with(timeframe="1D")
         # Engine should not be instantiated since we got cached result
         mock_engine_class.assert_not_called()
 
@@ -65,16 +69,11 @@ def test_rmm_context_with_data_handler_cache_miss():
         "features": [{"name": "volume"}],
     }
 
-    # Mock DataHandler - cache miss, then provides resampled data
+    # Mock DataHandler - cache miss
     mock_handler = Mock()
     mock_handler.get_rmm_context.return_value = None  # Cache miss
-
-    # Resampled daily data
-    df_daily = pd.DataFrame(
-        {"close": [1.2], "volume": [330]},
-        index=pd.date_range("2024-01-01", periods=1, freq="D"),
-    )
-    mock_handler.get_data.return_value = df_daily
+    # Mock get_data to return the full dataset (for cache check)
+    mock_handler.get_data.return_value = df.copy()
 
     cfg_raw = {"rmm_config": rmm_cfg}
 
@@ -85,7 +84,7 @@ def test_rmm_context_with_data_handler_cache_miss():
         # Mock regime classification
         regimes = pd.DataFrame(
             {"label": ["bullish"], "confidence": [0.9], "volume": [330]},
-            index=df_daily.index,
+            index=pd.date_range("2024-01-01", periods=1, freq="D"),
         )
         mock_engine.classify_regime.return_value = regimes
 
@@ -103,12 +102,12 @@ def test_rmm_context_with_data_handler_cache_miss():
 
         result = _rmm_context(df, cfg_raw, data_handler=mock_handler)
 
-        # Should have called get_data for resampling
+        # Should have called get_data to check for full dataset
         mock_handler.get_data.assert_called_once_with(timeframe="1D")
 
-        # Should have called classify_regime with already_resampled=True
+        # Should have called classify_regime with the original df and already_resampled=False
         mock_engine.classify_regime.assert_called_once_with(
-            df_daily, timeframe="1D", already_resampled=True
+            df, timeframe="1D", already_resampled=False
         )
 
         # Should have cached the result
