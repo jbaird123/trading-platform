@@ -83,8 +83,15 @@ Your goal is to analyze the **baseline WFE results** to find a path to **improve
 
 #### Track 2: Signal Analysis (The "What")
 
--   **Action:** Analyze `context_at_entry` in `baseline/brief.json`, again focusing on the differences between trades in profitable vs. unprofitable **out-of-sample windows**.
+-   **Action:** Analyze `context_at_entry` in `baseline/brief.json`. Your
+    primary focus here is to **contrast the context of winning vs. losing
+    trades, specifically within the out-of-sample (OOS) windows**. This will
+    help isolate the conditions that cause the strategy to fail on unseen data.
 -   **Action:** **Prioritize analysis of `contextual_features` if they exist in the `RunConfig`.** These features (e.g., `ATR`, `RSI`, `Volume`) were included specifically for this analysis. Look for patterns where winning or losing trades correlate with these contextual indicators, even if the strategy does not use them in its logic.
+-   **Action:** Check the `costs` section of `baseline/brief.json`. If the
+    `avg_pnl_per_trade` is not significantly greater than the
+    `avg_cost_per_trade`, the strategy may be too sensitive to transaction
+    costs. Flag this as a potential fragility concern in your analysis.
 -   **Task:** Form a hypothesis about a signal refinement that will make the strategy more robust.
 -   **Example:** "Losing WFE windows are characterized by low ADX values. The strategy is entering trades when the trend is too weak to generalize to new data. I will propose adding `adx > 25` as a required entry condition to improve robustness."
 -   **Example:** "The `RunConfig` included `ATR(14)` as a contextual feature. Analysis of `context_at_entry` shows that losing trades consistently occur when the normalized ATR is in the bottom 20th percentile. This suggests the strategy fails in low-volatility environments. I will propose adding a new RMM filter to block trades when volatility is low."
@@ -105,7 +112,7 @@ Your goal is to analyze the **baseline WFE results** to find a path to **improve
     -   Did it reduce the `Performance Degradation` between in-sample and out-of-sample PnL?
     -   Was the robustness hypothesis validated?
     -   **Plan for Next Iteration:** "The WFE results confirm the filter improved robustness by +15 percentage points. This will be the new baseline. Next, I will investigate..." or "The filter did not improve out-of-sample performance, despite a higher full-backtest PnL. I will discard it and test my signal refinement hypothesis."
-3.  **Know When to Pivot:** If after 3-5 iterations, no significant progress has been made in improving the **WFE metrics**, the strategy is not robust. Pivot to a new strategy.
+3.  **Know When to Pivot:** If after 3-5 iterations, no significant progress has been made in improving the **WFE metrics**, the strategy is not robust. Pivot to a new strategy. "Significant progress" is defined as a cumulative improvement of at least 5 percentage points in `% Profitable Windows` over three consecutive iterations.
 
 This completes one full iteration. The winning configuration from this iteration becomes the baseline for the next.
 
@@ -145,11 +152,12 @@ Use this template for each iteration's `run_summary.md`:
 
 ## 5. Comparison and Verdict
 
-| Metric        | Baseline | Refinement | Change |
-|---------------|----------|------------|--------|
-| Total PnL     | $X       | $Y         | +Z%    |
-| Sharpe Ratio  | A        | B          | +C%    |
-| Max Drawdown  | D%       | E%         | -F%    |
+| Metric                 | Baseline | Refinement | Change |
+|------------------------|----------|------------|--------|
+| Total PnL              | $X       | $Y         | +Z%    |
+| Sharpe Ratio           | A        | B          | +C%    |
+| Max Drawdown           | D%       | E%         | -F%    |
+| Max Drawdown Duration  | D days   | E days     | -F%    |
 
 -   **Verdict:** [e.g., Hypothesis VALIDATED. The RMM filter dramatically improved performance.]
 
@@ -182,7 +190,8 @@ A trading system is only considered "successful" if its **Walk-Forward Evaluatio
 
 -   **`Total PnL` > 0:** The strategy should at least be profitable on the full dataset.
 -   **`Max Drawdown` < 25%:** The overall drawdown should remain within reasonable limits.
--   **`Max Drawdown Duration` < ~14 days:** While not a strict failure
-    criterion, the time spent in a drawdown should be minimal. Strategies with
-    extended drawdown periods (e.g., over a month) are generally undesirable,
-    even if profitable. Aim for drawdowns to resolve within a few weeks.
+-   **`Max Drawdown Duration` < 21 days:** The time spent in a drawdown should be
+    minimal. While not a primary failure criterion, strategies with extended
+    drawdown periods (e.g., over a month) are generally undesirable, even if
+    profitable. This metric should be formally reported in each iteration's
+    comparison.
