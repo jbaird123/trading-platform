@@ -1,0 +1,72 @@
+strategy_name: "EMA_Crossover_RSI_ADX"
+parameters:
+  ema_fast_length: 12
+  ema_slow_length: 50
+  rsi_length: 14
+  adx_length: 14
+features:
+  - name: ema_fast
+    type: EMA
+    params:
+      length: ${ema_fast_length}
+    source: close
+  - name: ema_slow
+    type: EMA
+    params:
+      length: ${ema_slow_length}
+    source: close
+  - name: rsi_filter
+    type: RSI
+    params:
+      length: ${rsi_length}
+    source: close
+  - name: adx_filter
+    type: ADX
+    params:
+      length: ${adx_length}
+    source: close
+overlays: [ema_fast, ema_slow]
+long_entry_rules:
+  - all_of:
+      - condition: cross_above
+        left:
+          ref: ema_fast
+        right:
+          ref: ema_slow
+      - condition: is_above
+        left:
+          ref: rsi_filter
+        right: 55
+      - condition: is_above
+        left:
+          ref: adx_filter
+        right: 18
+long_exit_rules:
+  - any_of:
+      - condition: cross_below
+        left:
+          ref: ema_fast
+        right:
+          ref: ema_slow
+short_entry_rules:
+  - all_of:
+      - condition: cross_below
+        left:
+          ref: ema_fast
+        right:
+          ref: ema_slow
+      - condition: is_below
+        left:
+          ref: rsi_filter
+        right: 45
+      - condition: is_above
+        left:
+          ref: adx_filter
+        right: 18
+short_exit_rules:
+  - any_of:
+      - condition: cross_above
+        left:
+          ref: ema_fast
+        right:
+          ref: ema_slow
