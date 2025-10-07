@@ -294,7 +294,11 @@
     "exit_efficiency.simulated_hold_analysis.by_hold_period.*.avg_pnl_change_realistic": "Average change in PnL if positions were held this many extra bars, accounting for stop-loss and take-profit triggers. Positive means holding longer would have been profitable.",
     "exit_efficiency.simulated_hold_analysis.by_hold_period.*.avg_mfe_unrealistic": "Average Maximum Favorable Excursion during the hold period (for comparison with old metrics). This is the unrealistic best-case scenario.",
     "exit_efficiency.simulated_hold_analysis.by_hold_period.*.outcome_distribution": "Breakdown of how simulations ended: stop_loss_hit, take_profit_hit, or held_full_period (percentages).",
-    "exit_efficiency.simulated_hold_analysis.by_hold_period.*.avg_pnl_change_by_original_exit_reason": "Average PnL change broken down by the trade's original exit reason (e.g., 'opposite_signal', 'stop-loss', 'signal')."
+    "exit_efficiency.simulated_hold_analysis.by_hold_period.*.outcome_distribution.stop_loss_hit": "Percentage of simulations that ended by hitting the stop-loss.",
+    "exit_efficiency.simulated_hold_analysis.by_hold_period.*.outcome_distribution.take_profit_hit": "Percentage of simulations that ended by hitting the take-profit.",
+    "exit_efficiency.simulated_hold_analysis.by_hold_period.*.outcome_distribution.held_full_period": "Percentage of simulations that were held for the full period without hitting stops.",
+    "exit_efficiency.simulated_hold_analysis.by_hold_period.*.avg_pnl_change_by_original_exit_reason": "Average PnL change broken down by the trade's original exit reason (e.g., 'opposite_signal', 'stop-loss', 'signal').",
+    "exit_efficiency.simulated_hold_analysis.by_hold_period.*.avg_pnl_change_by_original_exit_reason.*": "Average PnL change for trades that originally exited with this specific exit reason."
   },
   "trades": [],
   "recommendations": [
