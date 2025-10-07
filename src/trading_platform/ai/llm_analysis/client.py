@@ -51,7 +51,7 @@ class LlmApiClient:
         }
 
         self._gemini_model = genai.GenerativeModel(
-            "gemini-2.5-flash", safety_settings=safety_settings
+            "gemini-2.5-pro", safety_settings=safety_settings
         )
 
     def _init_openai(self):
