@@ -11,7 +11,7 @@ Architected and developed by a single engineer leveraging AI-augmented developme
 
 ## Core Features
 
-- **Event-Driven Backtester**: Simulates trading strategies with high fidelity, processing market data tick-by-tick to avoid lookahead bias.
+- **Event-Driven Backtester**: Simulates trading strategies with high fidelity, processing market data minute-by-minute to avoid lookahead bias.
 - **Declarative Strategy Engine**: Define complex trading logic in simple, readable YAML files. Strategies are completely decoupled from risk management.
 - **Pluggable Risk & Exit Management (REM)**: Define exit logic (stop-losses, take-profits) separately from entry signals, allowing for mix-and-match testing of risk models.
 - **Regime-Based Market Analysis (RMM)**: Classify market conditions (e.g., "trending," "ranging") and dynamically enable or disable strategies based on the prevailing regime.
