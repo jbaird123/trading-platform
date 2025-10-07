@@ -15,8 +15,8 @@
     },
     "timeframe": {
       "type": "string",
-      "description": "Timeframe for regime classification (e.g., '1D', '4H', '1H', '15M'). Must be a valid pandas resample frequency.",
-      "pattern": "^\\d*[DHMS]$"
+      "description": "Timeframe for regime classification (e.g., '1D', '4H', '1H', '15min', '5T'). Must be a valid pandas resample frequency.",
+      "pattern": "^\\d*(?:[DHMS]|[mM][iI][nN]|[tT])$"
     },
     "features": {
       "type": "array",
