@@ -112,7 +112,17 @@ Your goal is to analyze the **baseline WFE results** to find a path to **improve
     -   Did it reduce the `Performance Degradation` between in-sample and out-of-sample PnL?
     -   Was the robustness hypothesis validated?
     -   **Plan for Next Iteration:** "The WFE results confirm the filter improved robustness by +15 percentage points. This will be the new baseline. Next, I will investigate..." or "The filter did not improve out-of-sample performance, despite a higher full-backtest PnL. I will discard it and test my signal refinement hypothesis."
-3.  **Know When to Pivot:** If after 3-5 iterations, no significant progress has been made in improving the **WFE metrics**, the strategy is not robust. Pivot to a new strategy. "Significant progress" is defined as a cumulative improvement of at least 5 percentage points in `% Profitable Windows` over three consecutive iterations.
+3.  **Know When to Pivot:** If after 3-5 iterations, no significant progress
+    has been made in improving the **WFE metrics**, the strategy is not robust
+    and you must pivot to a new one. "Significant progress" is defined as a
+    cumulative improvement of at least 5 percentage points in
+    `% Profitable Windows` over three consecutive iterations.
+    -   **Optional: Final Hypothesis Generation.** If you are stuck after 3
+        failed iterations, you may run the `ai-diagnose --qualitative-report`
+        command on the baseline run as a final attempt to generate a new
+        hypothesis. Document any insights from this report. If this does not
+        lead to a successful refinement on the next iteration, you **MUST**
+        pivot.
 
 This completes one full iteration. The winning configuration from this iteration becomes the baseline for the next.
 
