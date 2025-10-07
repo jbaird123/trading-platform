@@ -22,6 +22,16 @@ INDICATORS: dict[str, dict] = {
             "function": "ema",
         },
     },
+    "EMASlope": {
+        "display": "EMA Slope",
+        "category": "trend",
+        "description": "Rate of change (slope) of the EMA.",
+        "params": [
+            {"name": "length", "type": "int", "default": 14},
+            {"name": "slope_period", "type": "int", "default": 1},
+        ],
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
     "WMA": {
         "display": "Weighted Moving Average",
         "category": "trend",

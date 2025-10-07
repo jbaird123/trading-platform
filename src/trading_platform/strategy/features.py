@@ -31,6 +31,23 @@ def ema(series: pd.Series, length: int) -> pd.Series:
     return cast(pd.Series, result)
 
 
+def ema_slope(series: pd.Series, length: int, slope_period: int = 1) -> pd.Series:
+    """Calculate the slope (rate of change) of an EMA.
+
+    Args:
+        series: Input price series
+        length: EMA period
+        slope_period: Lookback period for calculating slope (default=1)
+
+    Returns:
+        Series containing the EMA slope values
+    """
+    ema_values = ema(series, length)
+    # Calculate slope as difference over slope_period
+    slope = ema_values.diff(periods=slope_period)
+    return slope
+
+
 def rsi(series: pd.Series, length: int) -> pd.Series:
     length = max(1, int(length))
     result = ta.rsi(close=series, length=length)
@@ -157,6 +174,10 @@ def compute_features(
         if typ == "EMA":
             length = int(resolved_params.get("length", 14))
             out[name] = ema(_price_series(df, source), length)
+        elif typ == "EMASlope":
+            length = int(resolved_params.get("length", 14))
+            slope_period = int(resolved_params.get("slope_period", 1))
+            out[name] = ema_slope(_price_series(df, source), length, slope_period)
         elif typ == "SMA":
             length = int(resolved_params.get("length", 14))
             result = ta.sma(close=_price_series(df, source), length=length)

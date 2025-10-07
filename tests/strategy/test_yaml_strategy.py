@@ -1740,3 +1740,120 @@ def test_yaml_strategy_signal_object_generation():
             assert signal.command == "enter_long"
             assert "order_block_low" in signal.context
             assert signal.context["order_block_low"] == 0.8
+
+
+def test_load_strategy_with_new_indicators():
+    """Task 1: Test loading YAML strategy with ema_slope, rsi, and roc.
+
+    Validates: Epic 1.1, Feature 1.1, Task 1
+    """
+    cfg = {
+        "strategy_name": "NewIndicatorsTest",
+        "features": [
+            {
+                "name": "ema_slope_14",
+                "type": "EMASlope",
+                "params": {"length": 14, "slope_period": 1},
+                "source": "close",
+            },
+            {
+                "name": "rsi_14",
+                "type": "RSI",
+                "params": {"length": 14},
+                "source": "close",
+            },
+            {
+                "name": "roc_12",
+                "type": "ROC",
+                "params": {"length": 12},
+                "source": "close",
+            },
+        ],
+        "long_entry_rules": [
+            {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+        ],
+        "long_exit_rules": [
+            {"all_of": [{"condition": "is_below", "left": "close", "right": 1.0}]}
+        ],
+    }
+
+    with patch("trading_platform.strategy.yaml_strategy.validate_strategy_config"):
+        strat = compile_strategy(cfg)
+
+        # Verify strategy was created with correct features
+        assert strat.name == "NewIndicatorsTest"
+        assert len(strat.features) == 3
+        assert strat.features[0]["name"] == "ema_slope_14"
+        assert strat.features[0]["type"] == "EMASlope"
+        assert strat.features[1]["name"] == "rsi_14"
+        assert strat.features[1]["type"] == "RSI"
+        assert strat.features[2]["name"] == "roc_12"
+        assert strat.features[2]["type"] == "ROC"
+
+
+def test_predicate_slope_is_above():
+    """Task 5: Test slope_is_above predicate.
+
+    Validates: Epic 1.2, Feature 1.2, Task 5
+    """
+    cfg = {
+        "strategy_name": "SlopePredicateTest",
+        "features": [
+            {
+                "name": "ema_slope_14",
+                "type": "EMASlope",
+                "params": {"length": 3, "slope_period": 1},
+                "source": "close",
+            }
+        ],
+        "long_entry_rules": [
+            {
+                "all_of": [
+                    {
+                        "condition": "slope_is_above",
+                        "left": "ema_slope_14",
+                        "right": 0.5,
+                    }
+                ]
+            }
+        ],
+        "long_exit_rules": [
+            {"all_of": [{"condition": "is_below", "left": "close", "right": 5.0}]}
+        ],
+    }
+
+    with patch("trading_platform.strategy.yaml_strategy.validate_strategy_config"):
+        strat = compile_strategy(cfg)
+
+        # Create test data with upward trend
+        df = pd.DataFrame(
+            {
+                "open": [10, 11, 12, 13, 14],
+                "high": [10.5, 11.5, 12.5, 13.5, 14.5],
+                "low": [9.5, 10.5, 11.5, 12.5, 13.5],
+                "close": [10, 11, 12, 13, 14],
+                "volume": [100, 100, 100, 100, 100],
+            },
+            index=pd.date_range("2024-01-01", periods=5),
+        )
+
+        with patch(
+            "trading_platform.strategy.features.compute_features"
+        ) as mock_compute:
+            # Mock features with ema_slope values
+            feature_df = df.copy()
+            # Simulating slope values: NaN, NaN, 0.6, 0.7, 0.8
+            feature_df["ema_slope_14"] = [float("nan"), float("nan"), 0.6, 0.7, 0.8]
+            mock_compute.return_value = feature_df
+
+            signals = strat.generate_signals(df)
+
+            # Should generate enter_long when slope > 0.5
+            commands = _extract_commands(signals)
+
+            # Verify that slope_is_above predicate works correctly
+            # Commands should be enter_long where slope > 0.5 (bars 2-4)
+            assert len(commands) == 5
+            # At least the last 2 commands should be enter_long (slope=0.7, 0.8)
+            assert commands[3] == "enter_long"  # slope = 0.7 > 0.5
+            assert commands[4] == "enter_long"  # slope = 0.8 > 0.5

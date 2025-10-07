@@ -75,6 +75,7 @@
           "enum": [
             "SMA",
             "EMA",
+            "EMASlope",
             "WMA",
             "MACD",
             "PSAR",
@@ -155,7 +156,7 @@
       "properties": {
         "condition": {
           "type": "string",
-          "enum": ["cross_above", "cross_below", "is_above", "is_below"]
+          "enum": ["cross_above", "cross_below", "is_above", "is_below", "slope_is_above", "roc_is_above"]
         },
         "left": {
           "$ref": "#/$defs/operand",

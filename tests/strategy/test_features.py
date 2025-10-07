@@ -21,6 +21,7 @@ from trading_platform.strategy.features import (
     compute_features,
     donchian_channels,
     ema,
+    ema_slope,
     hhv,
     llv,
 )
@@ -570,3 +571,138 @@ def test_price_sources_hl2_ohlc4_and_source_ref():
     ]
     out = compute_features(df, specs)
     assert "ema_hl2" in out and "ema_ohlc4" in out
+
+
+def test_ema_slope_computation():
+    """Task 3: Test EMASlope indicator computation.
+
+    Validates: Epic 1.1, Feature 1.1, Task 3
+    """
+
+    # Create test data with known trend
+    df = pd.DataFrame(
+        {"close": [10.0, 11.0, 12.0, 13.0, 14.0, 15.0]},
+        index=pd.date_range("2024-01-01", periods=6),
+    )
+
+    # Test with slope_period=1 (default)
+    slope = ema_slope(df["close"], length=3, slope_period=1)
+
+    # Verify slope series is returned
+    assert isinstance(slope, pd.Series)
+    assert len(slope) == len(df)
+
+    # First value should be NaN (no previous value for diff)
+    assert pd.isna(slope.iloc[0])
+
+    # Subsequent non-NaN values should be positive (uptrend)
+    # Slopes should be non-negative for uptrending price
+    valid_slopes = slope.dropna()
+    assert len(valid_slopes) > 0
+    assert all(valid_slopes >= 0)
+
+
+def test_ema_slope_in_compute_features():
+    """Task 3: Test EMASlope integration in compute_features.
+
+    Validates: Epic 1.1, Feature 1.1, Task 3
+    """
+    df = pd.DataFrame(
+        {
+            "open": [10, 11, 12, 13, 14],
+            "high": [10.5, 11.5, 12.5, 13.5, 14.5],
+            "low": [9.5, 10.5, 11.5, 12.5, 13.5],
+            "close": [10, 11, 12, 13, 14],
+            "volume": [100, 100, 100, 100, 100],
+        },
+        index=pd.date_range("2024-01-01", periods=5),
+    )
+
+    specs = [
+        {
+            "name": "ema_slope_14",
+            "type": "EMASlope",
+            "params": {"length": 3, "slope_period": 1},
+            "source": "close",
+        }
+    ]
+
+    result = compute_features(df, specs)
+
+    # Verify column was added
+    assert "ema_slope_14" in result.columns
+
+    # Verify it contains numeric values (NaN or float)
+    assert result["ema_slope_14"].dtype == "float64"
+
+    # First value should be NaN
+    assert pd.isna(result["ema_slope_14"].iloc[0])
+
+
+def test_rsi_in_compute_features():
+    """Task 3: Test RSI indicator (already exists, verify it works).
+
+    Validates: Epic 1.1, Feature 1.1, Task 3
+    """
+    df = pd.DataFrame(
+        {
+            "open": [10, 11, 12, 13, 14, 15, 14, 13, 12],
+            "high": [10.5, 11.5, 12.5, 13.5, 14.5, 15.5, 14.5, 13.5, 12.5],
+            "low": [9.5, 10.5, 11.5, 12.5, 13.5, 14.5, 13.5, 12.5, 11.5],
+            "close": [10, 11, 12, 13, 14, 15, 14, 13, 12],
+            "volume": [100, 100, 100, 100, 100, 100, 100, 100, 100],
+        },
+        index=pd.date_range("2024-01-01", periods=9),
+    )
+
+    specs = [
+        {
+            "name": "rsi_14",
+            "type": "RSI",
+            "params": {"length": 5},
+            "source": "close",
+        }
+    ]
+
+    result = compute_features(df, specs)
+
+    # Verify column was added
+    assert "rsi_14" in result.columns
+
+    # RSI should be between 0 and 100 (where not NaN)
+    valid_values = result["rsi_14"].dropna()
+    assert all((valid_values >= 0) & (valid_values <= 100))
+
+
+def test_roc_in_compute_features():
+    """Task 3: Test ROC indicator (already exists, verify it works).
+
+    Validates: Epic 1.1, Feature 1.1, Task 3
+    """
+    df = pd.DataFrame(
+        {
+            "open": [10, 11, 12, 13, 14],
+            "high": [10.5, 11.5, 12.5, 13.5, 14.5],
+            "low": [9.5, 10.5, 11.5, 12.5, 13.5],
+            "close": [10, 11, 12, 13, 14],
+            "volume": [100, 100, 100, 100, 100],
+        },
+        index=pd.date_range("2024-01-01", periods=5),
+    )
+
+    specs = [
+        {
+            "name": "roc_12",
+            "type": "ROC",
+            "params": {"length": 2},
+            "source": "close",
+        }
+    ]
+
+    result = compute_features(df, specs)
+
+    # Verify column was added
+    assert "roc_12" in result.columns
+
+    # ROC should be numeric
+    assert result["roc_12"].dtype == "float64"
