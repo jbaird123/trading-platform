@@ -31,6 +31,11 @@ from trading_platform.strategy.yaml_strategy import (
     validate_strategy_config,
 )
 
+try:
+    import jsonschema
+except ImportError:
+    jsonschema = None  # type: ignore[assignment]
+
 
 def _extract_commands(signals: pd.Series) -> list[str | None]:
     """Helper to extract command strings from Signal objects."""
@@ -1789,6 +1794,115 @@ def test_load_strategy_with_new_indicators():
         assert strat.features[1]["type"] == "RSI"
         assert strat.features[2]["name"] == "roc_12"
         assert strat.features[2]["type"] == "ROC"
+
+
+def test_new_indicator_schema_validation():
+    """Task 3: Validate new indicators can be loaded in strategy config.
+
+    Validates: Epic 1.1, Feature 1.1, Task 3
+    Tests that EMASlope, RSI, and ROC can be used in strategy configurations.
+    """
+    # Valid configuration with new indicators
+    config = {
+        "strategy_name": "NewIndicatorsSchemaTest",
+        "features": [
+            {
+                "name": "ema_slope_14",
+                "type": "EMASlope",
+                "params": {"length": 14, "slope_period": 1},
+                "source": "close",
+            },
+            {
+                "name": "rsi_14",
+                "type": "RSI",
+                "params": {"length": 14},
+                "source": "close",
+            },
+            {
+                "name": "roc_12",
+                "type": "ROC",
+                "params": {"length": 12},
+                "source": "close",
+            },
+        ],
+        "long_entry_rules": [
+            {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+        ],
+        "long_exit_rules": [
+            {"all_of": [{"condition": "is_below", "left": "close", "right": 1.0}]}
+        ],
+    }
+
+    # Should compile without error
+    with patch("trading_platform.strategy.yaml_strategy.validate_strategy_config"):
+        strategy = compile_strategy(config)
+        assert len(strategy.features) == 3
+        assert strategy.features[0]["type"] == "EMASlope"
+        assert strategy.features[1]["type"] == "RSI"
+        assert strategy.features[2]["type"] == "ROC"
+
+
+def test_new_predicate_schema_validation():
+    """Task 7: Validate new predicates can be used in strategy config.
+
+    Validates: Epic 1.2, Feature 1.2, Task 7
+    Tests that slope_is_above and roc_is_above predicates work in
+    strategy configurations.
+    """
+    # Configuration with new predicates
+    config = {
+        "strategy_name": "NewPredicatesSchemaTest",
+        "features": [
+            {
+                "name": "ema_slope_14",
+                "type": "EMASlope",
+                "params": {"length": 14, "slope_period": 1},
+                "source": "close",
+            },
+            {
+                "name": "roc_12",
+                "type": "ROC",
+                "params": {"length": 12},
+                "source": "close",
+            },
+        ],
+        "long_entry_rules": [
+            {
+                "all_of": [
+                    {
+                        "condition": "slope_is_above",
+                        "left": {"ref": "ema_slope_14"},
+                        "right": 0.001,
+                    },
+                    {
+                        "condition": "roc_is_above",
+                        "left": {"ref": "roc_12"},
+                        "right": 0.5,
+                    },
+                ]
+            }
+        ],
+        "long_exit_rules": [
+            {
+                "any_of": [
+                    {
+                        "condition": "slope_is_above",
+                        "left": {"ref": "ema_slope_14"},
+                        "right": -0.001,
+                    }
+                ]
+            }
+        ],
+    }
+
+    # Should compile without error
+    with patch("trading_platform.strategy.yaml_strategy.validate_strategy_config"):
+        strategy = compile_strategy(config)
+        assert len(strategy.long_entry_blocks) == 1
+        # Verify predicates are in the rules
+        rules = strategy.long_entry_blocks[0]["all_of"]
+        assert rules[0]["condition"] == "slope_is_above"
+        assert rules[1]["condition"] == "roc_is_above"
 
 
 def test_predicate_slope_is_above():

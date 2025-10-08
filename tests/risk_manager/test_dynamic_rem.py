@@ -223,6 +223,112 @@ def test_stop_tightens_on_falling_adx():
     assert abs(updated_stop - expected_stop) < 0.0001
 
 
+def test_partial_exit_fires_only_once():
+    """Test that each partial exit target fires only once per position.
+
+    Code Review Fix: Ensures partial exits don't retrigger on subsequent calls
+    when the R-multiple stays above the threshold.
+    """
+    # Create DynamicREM with multiple partial exit targets
+    config = {
+        "stop_loss": {"atr_multiple": 1.5},
+        "take_profit": {"atr_multiple": 3.0},
+        "partial_exits": [
+            {"r_multiple": 1.0, "fraction": 0.5},  # Close 50% at 1R
+            {"r_multiple": 2.0, "fraction": 0.3},  # Close 30% at 2R
+        ],
+    }
+
+    rem = DynamicREM(config)
+
+    position = Position(
+        symbol="EUR_USD",
+        entry_time=datetime(2024, 1, 1, 10, 0),
+        entry_price=1.1000,
+        entry_mid_price=1.1000,
+        side="long",
+        size=10000,
+        initial_risk_ccy=150.0,
+        bars_held=5,
+    )
+
+    # First call at 1.0R - should trigger first partial
+    current_price_1r = 1.1000 + 0.015
+    orders1 = rem.check_partial_exits(position, current_price_1r)
+    assert len(orders1) == 1
+    assert orders1[0]["r_multiple"] == 1.0
+    assert rem.stats["partial_exits_triggered"] == 1
+
+    # Second call at same price - should NOT retrigger
+    orders2 = rem.check_partial_exits(position, current_price_1r)
+    assert len(orders2) == 0
+    assert rem.stats["partial_exits_triggered"] == 1  # Count unchanged
+
+    # Third call at 2.0R - should trigger second partial only
+    current_price_2r = 1.1000 + 0.030
+    orders3 = rem.check_partial_exits(position, current_price_2r)
+    assert len(orders3) == 1
+    assert orders3[0]["r_multiple"] == 2.0
+    assert rem.stats["partial_exits_triggered"] == 2
+
+    # Fourth call at same price - should NOT retrigger
+    orders4 = rem.check_partial_exits(position, current_price_2r)
+    assert len(orders4) == 0
+    assert rem.stats["partial_exits_triggered"] == 2  # Count unchanged
+
+
+def test_stop_tightens_when_adx_is_zero():
+    """Test that volatility tightening works when ADX is exactly zero.
+
+    Code Review Fix: Ensures explicit 'is not None' check allows ADX=0
+    to trigger stop tightening in flat/low-volatility markets.
+    """
+    config = {
+        "stop_loss": {"atr_multiple": 1.5},
+        "take_profit": {"atr_multiple": 3.0},
+        "trailing_stop": {"atr_multiple": 1.5},
+        "volatility_threshold": 20.0,
+        "low_volatility_multiplier": 0.75,
+    }
+
+    rem = DynamicREM(config)
+
+    position = Position(
+        symbol="EUR_USD",
+        entry_time=datetime(2024, 1, 1, 10, 0),
+        entry_price=1.1000,
+        entry_mid_price=1.1000,
+        side="long",
+        size=10000,
+        initial_risk_ccy=150.0,
+        bars_held=10,
+    )
+
+    current_price = 1.1000 + 0.0225  # At +1.5R
+    atr = 0.010
+    initial_stop = 1.1000 - (1.5 * 0.010)
+
+    # Context with ADX = 0 (very flat market)
+    context = {"adx": 0.0}
+
+    # Manage position - stop should tighten even with ADX=0
+    updated_stop, _ = rem.manage_position(
+        position,
+        current_price=current_price,
+        atr=atr,
+        initial_stop=initial_stop,
+        context=context,
+    )
+
+    # Stop should tighten: current_price - (1.5 * 0.75 * ATR)
+    expected_stop = current_price - (1.5 * 0.75 * atr)
+    assert updated_stop is not None
+    assert abs(updated_stop - expected_stop) < 0.0001
+
+    # Verify tightening was tracked
+    assert rem.stats["volatility_tightenings"] == 1
+
+
 def test_dynamic_rem_schema_validation():
     """Task 18: Test DynamicREM configuration against schema.
 
@@ -270,3 +376,41 @@ def test_dynamic_rem_schema_validation():
         assert False, "Should have raised validation error"
     except jsonschema.ValidationError:
         pass  # Expected
+
+
+def test_create_rem_factory():
+    """Task 19: Test REM factory creates DynamicREM with validation.
+
+    Validates: Epic 2.1, Feature 2.1, Task 19
+    Ensures create_rem factory validates config and instantiates DynamicREM
+    """
+    from trading_platform.risk_manager import create_rem
+
+    # Valid configuration
+    valid_config = {
+        "stop_loss": {"atr_multiple": 1.5},
+        "take_profit": {"atr_multiple": 3.0},
+        "breakeven_threshold": 0.75,
+        "partial_exits": [{"r_multiple": 1.0, "fraction": 0.5}],
+    }
+
+    # Should create DynamicREM without error
+    rem = create_rem(valid_config)
+    assert isinstance(rem, DynamicREM)
+    assert rem.breakeven_threshold == 0.75
+
+    # Invalid config type
+    try:
+        create_rem("invalid_string")  # type: ignore[arg-type]
+        assert False, "Should have raised ValueError"
+    except ValueError as e:
+        assert "must be a dictionary" in str(e)
+
+    # Schema validation failure (if jsonschema available)
+    if jsonschema is not None:
+        invalid_config = {"name": "Invalid"}  # Missing required fields
+        try:
+            create_rem(invalid_config)
+            assert False, "Should have raised ValueError for schema validation"
+        except ValueError as e:
+            assert "schema validation failed" in str(e)

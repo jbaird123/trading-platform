@@ -143,7 +143,7 @@ def test_profile_adaptive_trend_features(
     print("=" * 80)
 
     # Profile strategy features (Epic 1)
-    print("\n📊 Profiling Epic 1: Strategy Features (EMASlope + Higher-Timeframe)")
+    print("\n📊 Profiling Epic 1: Strategy Features " "(EMASlope + Higher-Timeframe)")
     strategy_df, strategy_stats = profile_strategy_features(test_data)
     strategy_stats.print_stats(20)
 

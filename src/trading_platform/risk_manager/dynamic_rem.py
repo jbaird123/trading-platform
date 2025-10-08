@@ -53,6 +53,9 @@ class DynamicREM:
             "volatility_tightenings": 0,
         }
 
+        # Track which partial exits have already been triggered per position
+        self._triggered_partial_exits: dict[str, set[float]] = {}
+
     def manage_position(
         self,
         position: Position,
@@ -106,7 +109,7 @@ class DynamicREM:
                 # Volatility-aware adjustment (Task 21)
                 if self.volatility_threshold and context:
                     adx = context.get("adx")
-                    if adx and adx < self.volatility_threshold:
+                    if adx is not None and adx < self.volatility_threshold:
                         # Tighten stop when volatility is low
                         atr_multiple *= self.low_volatility_multiplier
                         # Task 34: Track volatility tightenings
@@ -134,7 +137,7 @@ class DynamicREM:
                 # Volatility-aware adjustment (Task 21)
                 if self.volatility_threshold and context:
                     adx = context.get("adx")
-                    if adx and adx < self.volatility_threshold:
+                    if adx is not None and adx < self.volatility_threshold:
                         atr_multiple *= self.low_volatility_multiplier
                         # Task 34: Track volatility tightenings
                         self.stats["volatility_tightenings"] += 1
@@ -198,13 +201,22 @@ class DynamicREM:
 
         r_multiple = self._calculate_r_multiple(position, current_price)
 
+        # Get position identifier
+        pos_id = f"{position.symbol}_{position.entry_time}"
+        if pos_id not in self._triggered_partial_exits:
+            self._triggered_partial_exits[pos_id] = set()
+
         # Check each partial exit target (Task 15)
         for exit_config in self.partial_exits:
             target_r = exit_config.get("r_multiple", 0)
             fraction = exit_config.get("fraction", 0)
 
             # Use epsilon for floating point comparison
-            if r_multiple >= (target_r - 1e-10):
+            # Only trigger if not already triggered
+            if (
+                r_multiple >= (target_r - 1e-10)
+                and target_r not in self._triggered_partial_exits[pos_id]
+            ):
                 orders.append(
                     {
                         "action": "close_partial",
@@ -212,6 +224,8 @@ class DynamicREM:
                         "r_multiple": target_r,
                     }
                 )
+                # Mark this exit as triggered
+                self._triggered_partial_exits[pos_id].add(target_r)
                 # Task 34: Track partial exits
                 self.stats["partial_exits_triggered"] += 1
 
