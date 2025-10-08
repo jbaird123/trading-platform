@@ -1,0 +1,38 @@
+# Strategy: Swing Points Both Sides
+# Description: Enters long on swing lows and short on swing highs.
+# This strategy trades both directions based on swing point detection.
+
+strategy_name: "Swing Points Both Sides"
+description: "Goes long on swing lows and short on swing highs."
+
+features:
+  - name: swing_low_signal
+    type: SWING_LOW
+    params:
+      left_bars: 5
+      right_bars: 5
+  - name: swing_high_signal
+    type: SWING_HIGH
+    params:
+      left_bars: 5
+      right_bars: 5
+
+# Enter long when swing low is detected
+long_entry_rules:
+  - all_of:
+      - condition: is_above
+        left:
+          ref: swing_low_signal
+        right: 0
+
+long_exit_rules: []
+
+# Enter short when swing high is detected
+short_entry_rules:
+  - all_of:
+      - condition: is_above
+        left:
+          ref: swing_high_signal
+        right: 0
+
+short_exit_rules: []

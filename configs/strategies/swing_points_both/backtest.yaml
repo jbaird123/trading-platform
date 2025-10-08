@@ -1,0 +1,34 @@
+# Run configuration for the Swing Points Both Sides strategy backtest
+
+user_id: "backtest_user"
+run_seed: 42
+log_level: "INFO"
+initial_cash: 100000.0
+position_size: 10000.0
+
+# Strategy Configuration
+strategy_path: "config/strategy/swing_points_both.yaml"
+
+# Risk & Exit Manager Configuration
+rem_path: "config/rem/trailing_stops.yaml"
+
+# Data Request
+data_request:
+  symbol: "EURUSD"
+  timeframe: "1h"
+  start: "2023-01-01"
+  end: "2023-12-31"
+
+# Instrument Definitions (required by backtester)
+instrument_definitions:
+  EURUSD:
+    symbol: "EURUSD"
+    tick_size: 0.0001
+    base_ccy: "EUR"
+    quote_ccy: "USD"
+
+# Fill and Tie-break Policies
+fill_policy:
+  policy: "market"
+tie_break_policy:
+  rule: "stop_then_tp"
