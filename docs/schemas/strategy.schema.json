@@ -75,6 +75,7 @@
           "enum": [
             "SMA",
             "EMA",
+            "EMASlope",
             "WMA",
             "MACD",
             "PSAR",
@@ -120,6 +121,10 @@
           "description": "Reference another computed feature as the input series.",
           "properties": { "ref": { "type": "string" } },
           "required": ["ref"]
+        },
+        "timeframe": {
+          "type": "string",
+          "description": "Optional higher timeframe for this feature (e.g., '1h', '4h', '1D')."
         }
       },
       "required": ["name", "type"]
@@ -155,7 +160,7 @@
       "properties": {
         "condition": {
           "type": "string",
-          "enum": ["cross_above", "cross_below", "is_above", "is_below"]
+          "enum": ["cross_above", "cross_below", "is_above", "is_below", "slope_is_above", "roc_is_above"]
         },
         "left": {
           "$ref": "#/$defs/operand",

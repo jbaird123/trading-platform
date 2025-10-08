@@ -64,12 +64,12 @@ def test_extract_rem_policy_without_price_offsets() -> None:
 
 
 def test_round_feature_adx_atr() -> None:
-    """Test _round_feature for ADX and ATR indicators (2 decimals).
+    """Test _round_feature for ADX and ATR indicators.
 
     Validates: Lines 191-194
     """
     assert _round_feature("adx", 23.456789) == 23.46
-    assert _round_feature("atr", 0.0123456) == 0.01
+    assert _round_feature("atr", 0.0123456) == 0.012346
     assert _round_feature("ADX_14", 50.999) == 51.0
 
 

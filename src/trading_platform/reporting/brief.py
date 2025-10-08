@@ -679,6 +679,7 @@ def generate_brief(
     rmm_spans_path: str | None = None,
     processed_data_path: str | None = None,
     recommendations: list[dict[str, Any]] | None = None,
+    dynamic_rem_metrics: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assemble a JSON brief from trades and metrics (incremental MVP)."""
     meta = meta or {}
@@ -847,6 +848,7 @@ def generate_brief(
         "contrasts": contrasts,
         "stop_tp_candidates": stop_tp_candidates,
         "exit_efficiency": exit_efficiency,
+        "dynamic_rem_metrics": _to_jsonable(dynamic_rem_metrics or {}),
         # Snapshots and placeholders (configurable)
         "instrument_definitions": _to_jsonable(instrument_definitions or {}),
         "cost_model": _to_jsonable(cost_model or {}),
@@ -955,16 +957,8 @@ def generate_brief(
             # Safe to continue: schema is for field definitions metadata only
             logger.debug(f"Failed to load brief schema: {e}")
             schema = {}
-        fdefs: dict[str, Any] = {}
-        for p in _leaf_paths(placeholders):
-            parts = p.split(".") if p else []
-            node = _lookup_schema(schema, parts)
-            if not node or not node.get("description"):
-                # Strict mode: require schema coverage for every leaf
-                raise ValueError(f"Missing schema description for brief path: {p}")
-            fdefs[p] = node["description"]
-        # Add custom field definitions for new simulated hold analysis
-        # (only when auto-generating from schema, not when pre-populated)
+
+        # Define wildcard field definitions first (for validation)
         simulated_hold_field_defs = {
             "exit_efficiency.simulated_hold_analysis": (
                 "Realistic simulation-based post-exit analysis. Simulates "
@@ -992,11 +986,58 @@ def generate_brief(
                 "Breakdown of how simulations ended: stop_loss_hit, "
                 "take_profit_hit, or held_full_period (percentages)."
             ),
+            "exit_efficiency.simulated_hold_analysis.by_hold_period.*.outcome_distribution.stop_loss_hit": (  # noqa: E501
+                "Percentage of simulations that ended by hitting the " "stop-loss."
+            ),
+            "exit_efficiency.simulated_hold_analysis.by_hold_period.*.outcome_distribution.take_profit_hit": (  # noqa: E501
+                "Percentage of simulations that ended by hitting the " "take-profit."
+            ),
+            "exit_efficiency.simulated_hold_analysis.by_hold_period.*.outcome_distribution.held_full_period": (  # noqa: E501
+                "Percentage of simulations that were held for the full "
+                "period without hitting stops."
+            ),
             "exit_efficiency.simulated_hold_analysis.by_hold_period.*.avg_pnl_change_by_original_exit_reason": (  # noqa: E501
                 "Average PnL change broken down by the trade's original exit "
                 "reason (e.g., 'opposite_signal', 'stop-loss', 'signal')."
             ),
+            "exit_efficiency.simulated_hold_analysis.by_hold_period.*.avg_pnl_change_by_original_exit_reason.*": (  # noqa: E501
+                "Average PnL change for trades that originally exited with "
+                "this specific exit reason."
+            ),
         }
+
+        # Helper to check if a path matches a wildcard pattern
+        def _matches_wildcard(path: str, pattern: str) -> bool:
+            """Check if path matches a wildcard pattern with * placeholders."""
+            path_parts = path.split(".")
+            pattern_parts = pattern.split(".")
+            if len(path_parts) != len(pattern_parts):
+                return False
+            for pp, pat in zip(path_parts, pattern_parts):
+                if pat != "*" and pp != pat:
+                    return False
+            return True
+
+        fdefs: dict[str, Any] = {}
+        for p in _leaf_paths(placeholders):
+            parts = p.split(".") if p else []
+            node = _lookup_schema(schema, parts)
+            if not node or not node.get("description"):
+                # Check if path matches any wildcard pattern
+                matched = False
+                for wildcard_pattern, desc in simulated_hold_field_defs.items():
+                    if "*" in wildcard_pattern and _matches_wildcard(
+                        p, wildcard_pattern
+                    ):
+                        fdefs[p] = desc
+                        matched = True
+                        break
+                if not matched:
+                    # Strict mode: require schema coverage for every leaf
+                    raise ValueError(f"Missing schema description for brief path: {p}")
+            else:
+                fdefs[p] = node["description"]
+        # Add wildcard patterns themselves to fdefs (for documentation)
         fdefs.update(simulated_hold_field_defs)
         placeholders["field_definitions"] = fdefs
 

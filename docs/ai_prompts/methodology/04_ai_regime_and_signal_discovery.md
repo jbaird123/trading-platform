@@ -64,10 +64,23 @@ Your discovery process is a rigorous, three-stage loop designed to find **robust
 
 ### Stage 1: Establish Baseline Robustness
 
-1.  **Create Iteration Directory:** Create a new timestamped directory for this iteration (e.g., `.../001_ema_crossover_iteration/`).
-2.  **Run Baseline WFE:** In a subdirectory named `baseline`, run the strategy with **no RMM filter** (`rmm_config: null`) and with `walk_forward` validation enabled in the run configuration.
-    -   This establishes the strategy's **raw robustness** and out-of-sample performance.
-    -   The key output is `baseline/brief.json`, specifically the `walk_forward_summary`.
+1.  **Create Iteration Directory:** Create a new timestamped directory for this
+    iteration (e.g., `.../001_ema_crossover_iteration/`).
+2.  **Configure and Run Baseline WFE:** In a subdirectory named `baseline`,
+    create a run configuration for the strategy.
+    -   **CRITICAL:** All run configurations created during this research process
+        **MUST** include the `post_exit_analysis` setting to enable simulated
+        hold analysis. Use the following configuration:
+        ```yaml
+        post_exit_analysis:
+          hold_periods: [5, 10, 20, 50, 100]
+        ```
+    -   Run the backtest with **no RMM filter** (`rmm_config: null`) and with
+        `walk_forward` validation enabled.
+    -   This establishes the strategy's **raw robustness** and out-of-sample
+        performance.
+    -   The key output is `baseline/brief.json`, which will now contain
+        `simulated_hold_analysis` data.
 
 ### Stage 2: Dual-Track Analysis and Hypothesis Formulation
 
@@ -83,11 +96,33 @@ Your goal is to analyze the **baseline WFE results** to find a path to **improve
 
 #### Track 2: Signal Analysis (The "What")
 
--   **Action:** Analyze `context_at_entry` in `baseline/brief.json`, again focusing on the differences between trades in profitable vs. unprofitable **out-of-sample windows**.
+-   **Action:** Analyze `context_at_entry` in `baseline/brief.json`. Your
+    primary focus here is to **contrast the context of winning vs. losing
+    trades, specifically within the out-of-sample (OOS) windows**. This will
+    help isolate the conditions that cause the strategy to fail on unseen data.
 -   **Action:** **Prioritize analysis of `contextual_features` if they exist in the `RunConfig`.** These features (e.g., `ATR`, `RSI`, `Volume`) were included specifically for this analysis. Look for patterns where winning or losing trades correlate with these contextual indicators, even if the strategy does not use them in its logic.
+-   **Action:** Check the `costs` section of `baseline/brief.json`. If the
+    `avg_pnl_per_trade` is not significantly greater than the
+    `avg_cost_per_trade`, the strategy may be too sensitive to transaction
+    costs. Flag this as a potential fragility concern in your analysis.
 -   **Task:** Form a hypothesis about a signal refinement that will make the strategy more robust.
 -   **Example:** "Losing WFE windows are characterized by low ADX values. The strategy is entering trades when the trend is too weak to generalize to new data. I will propose adding `adx > 25` as a required entry condition to improve robustness."
 -   **Example:** "The `RunConfig` included `ATR(14)` as a contextual feature. Analysis of `context_at_entry` shows that losing trades consistently occur when the normalized ATR is in the bottom 20th percentile. This suggests the strategy fails in low-volatility environments. I will propose adding a new RMM filter to block trades when volatility is low."
+
+#### Track 3: Filter Opportunity Cost Analysis (The "Why Not")
+
+-   **Action:** After a filter is added in a refinement run, you **MUST**
+    analyze the `skipped_trades` and `filter_impact` sections of the
+    `refinement/brief.json`.
+-   **Task:** Evaluate the trade-offs of your filter. Did the filter successfully
+    avoid losses? What was the "opportunity cost" in terms of profitable
+    trades that were skipped? A good filter should block more losing trades
+    than winning ones.
+-   **Example:** "The new RMM filter successfully avoided $15,000 in losses,
+    which is visible in the `filter_impact` summary. However, the
+    `skipped_trades` analysis shows it also blocked over 200 trades that would
+    have been profitable, for an opportunity cost of $40,000. The filter is
+    too restrictive and needs to be loosened."
 
 #### Formulate Hypothesis and Validate
 
@@ -105,7 +140,17 @@ Your goal is to analyze the **baseline WFE results** to find a path to **improve
     -   Did it reduce the `Performance Degradation` between in-sample and out-of-sample PnL?
     -   Was the robustness hypothesis validated?
     -   **Plan for Next Iteration:** "The WFE results confirm the filter improved robustness by +15 percentage points. This will be the new baseline. Next, I will investigate..." or "The filter did not improve out-of-sample performance, despite a higher full-backtest PnL. I will discard it and test my signal refinement hypothesis."
-3.  **Know When to Pivot:** If after 3-5 iterations, no significant progress has been made in improving the **WFE metrics**, the strategy is not robust. Pivot to a new strategy.
+3.  **Know When to Pivot:** If after 3-5 iterations, no significant progress
+    has been made in improving the **WFE metrics**, the strategy is not robust
+    and you must pivot to a new one. "Significant progress" is defined as a
+    cumulative improvement of at least 5 percentage points in
+    `% Profitable Windows` over three consecutive iterations.
+    -   **Optional: Final Hypothesis Generation.** If you are stuck after 3
+        failed iterations, you may run the `ai-diagnose --qualitative-report`
+        command on the baseline run as a final attempt to generate a new
+        hypothesis. Document any insights from this report. If this does not
+        lead to a successful refinement on the next iteration, you **MUST**
+        pivot.
 
 This completes one full iteration. The winning configuration from this iteration becomes the baseline for the next.
 
@@ -145,11 +190,12 @@ Use this template for each iteration's `run_summary.md`:
 
 ## 5. Comparison and Verdict
 
-| Metric        | Baseline | Refinement | Change |
-|---------------|----------|------------|--------|
-| Total PnL     | $X       | $Y         | +Z%    |
-| Sharpe Ratio  | A        | B          | +C%    |
-| Max Drawdown  | D%       | E%         | -F%    |
+| Metric                 | Baseline | Refinement | Change |
+|------------------------|----------|------------|--------|
+| Total PnL              | $X       | $Y         | +Z%    |
+| Sharpe Ratio           | A        | B          | +C%    |
+| Max Drawdown           | D%       | E%         | -F%    |
+| Max Drawdown Duration  | D days   | E days     | -F%    |
 
 -   **Verdict:** [e.g., Hypothesis VALIDATED. The RMM filter dramatically improved performance.]
 
@@ -180,9 +226,17 @@ A trading system is only considered "successful" if its **Walk-Forward Evaluatio
 
 ### 5.3 Sanity Check: Full Backtest
 
--   **`Total PnL` > 0:** The strategy should at least be profitable on the full dataset.
--   **`Max Drawdown` < 25%:** The overall drawdown should remain within reasonable limits.
--   **`Max Drawdown Duration` < ~14 days:** While not a strict failure
-    criterion, the time spent in a drawdown should be minimal. Strategies with
-    extended drawdown periods (e.g., over a month) are generally undesirable,
-    even if profitable. Aim for drawdowns to resolve within a few weeks.
+-   **`Total PnL` > 0:** The strategy should at least be profitable on the full
+    dataset.
+-   **`Max Drawdown` < 25%:** The overall drawdown should remain within
+    reasonable limits.
+-   **`Max Drawdown Duration` < 21 days:** The time spent in a drawdown should be
+    minimal. While not a primary failure criterion, strategies with extended
+    drawdown periods (e.g., over a month) are generally undesirable, even if
+    profitable. This metric should be formally reported in each iteration's
+    comparison.
+-   **`Peak Gross Exposure` < 3:** The strategy should not take on excessive
+    portfolio risk by holding too many positions at once. A value above 3
+    should be flagged for review.
+-   **`Data Quality Score` > 99.0:** The analysis must be performed on
+    high-quality data. Any score below this threshold should be investigated.

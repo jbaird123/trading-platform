@@ -37,12 +37,12 @@
   "feature_analysis": {},
   "checksums": {
     "instrument_defs_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-    "config_snapshot_hash": "17f1de363282aa63189049955af68317f754cec16175c31b0e9ce2ad49d81413"
+    "config_snapshot_hash": "1b2f953a3f926f7a6daba881d5e1e8eb7a8cece57f617747caf298e50478c6e9"
   },
   "meta": {
     "strategy_name": "Golden_EMA_Crossover",
     "run_id": "golden_run_test",
-    "git_commit": "aa1eb47",
+    "git_commit": "0b184a5",
     "run_seed": 42
   },
   "strategy_params": {},
@@ -141,6 +141,7 @@
     "signal_persistence_pct": 0.0,
     "avg_signal_duration_bars": 0.0
   },
+  "dynamic_rem_metrics": {},
   "instrument_definitions": {},
   "cost_model": {},
   "fill_policy": {},
@@ -163,8 +164,8 @@
     "take_profit_pips": "10000000000 pips"
   },
   "environment": {
-    "python_version": "3.12.11",
-    "platform": "macOS-26.0.1-arm64-arm-64bit",
+    "python_version": "3.13.7",
+    "platform": "macOS-26.0.1-arm64-arm-64bit-Mach-O",
     "timezone": "EDT",
     "dependency_versions": {
       "pandas": "2.3.2",
@@ -178,7 +179,7 @@
     "data_end": null,
     "symbols": [],
     "app_version": "0.0.1",
-    "git_commit": "aa1eb47",
+    "git_commit": "0b184a5",
     "run_seed": 42
   },
   "artifacts": {},
@@ -294,7 +295,11 @@
     "exit_efficiency.simulated_hold_analysis.by_hold_period.*.avg_pnl_change_realistic": "Average change in PnL if positions were held this many extra bars, accounting for stop-loss and take-profit triggers. Positive means holding longer would have been profitable.",
     "exit_efficiency.simulated_hold_analysis.by_hold_period.*.avg_mfe_unrealistic": "Average Maximum Favorable Excursion during the hold period (for comparison with old metrics). This is the unrealistic best-case scenario.",
     "exit_efficiency.simulated_hold_analysis.by_hold_period.*.outcome_distribution": "Breakdown of how simulations ended: stop_loss_hit, take_profit_hit, or held_full_period (percentages).",
-    "exit_efficiency.simulated_hold_analysis.by_hold_period.*.avg_pnl_change_by_original_exit_reason": "Average PnL change broken down by the trade's original exit reason (e.g., 'opposite_signal', 'stop-loss', 'signal')."
+    "exit_efficiency.simulated_hold_analysis.by_hold_period.*.outcome_distribution.stop_loss_hit": "Percentage of simulations that ended by hitting the stop-loss.",
+    "exit_efficiency.simulated_hold_analysis.by_hold_period.*.outcome_distribution.take_profit_hit": "Percentage of simulations that ended by hitting the take-profit.",
+    "exit_efficiency.simulated_hold_analysis.by_hold_period.*.outcome_distribution.held_full_period": "Percentage of simulations that were held for the full period without hitting stops.",
+    "exit_efficiency.simulated_hold_analysis.by_hold_period.*.avg_pnl_change_by_original_exit_reason": "Average PnL change broken down by the trade's original exit reason (e.g., 'opposite_signal', 'stop-loss', 'signal').",
+    "exit_efficiency.simulated_hold_analysis.by_hold_period.*.avg_pnl_change_by_original_exit_reason.*": "Average PnL change for trades that originally exited with this specific exit reason."
   },
   "trades": [],
   "recommendations": [

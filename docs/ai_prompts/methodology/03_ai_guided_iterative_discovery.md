@@ -14,6 +14,7 @@ These rules are absolute and must be followed at all times.
 
 ### 2.1 Unified Campaign Workspace
 -   All work for a single strategy campaign **MUST** be contained within a single parent "campaign" directory under `workspace/research/`.
+-   You are strictly forbidden from writing any files outside of this campaign workspace, with the single exception of promoting a final, validated strategy to the `config/strategy/` directory during the final promotion phase.
 -   Create a descriptive campaign name (e.g., `trend_following_discovery`, `mean_reversion_exploration`).
 
 ### 2.2 Chronological, Timestamped Steps
@@ -51,7 +52,7 @@ These rules are absolute and must be followed at all times.
     4. If uncertain, flag it for the user to review
 
 ### 2.5 Standard Timeframes
--   Use only standard timeframes: `1M`, `5M`, `15M`, `30M`, `1H`, `4H`, `1D`
+-   Use only the following standard timeframes: `1M`, `5M`, `15M`, `30M`
 -   Avoid arbitrary timeframes unless there's a specific research reason
 
 ---
@@ -66,6 +67,7 @@ These rules are absolute and must be followed at all times.
    -   Starting strategy idea (if provided by user)
    -   Methodology overview
 3. **Initialize Technical Debt Log**: Create empty `technical_debt.log`
+4. **Review Available Indicators**: Read the contents of `src/trading_platform/strategy/indicators_registry.py` to get a complete list of all available indicators and their parameters that you can use in your strategies.
 
 ### Phase 1: AI-Guided Iterative Discovery
 
@@ -137,7 +139,7 @@ If strategy passes validation:
 
 1. **Create Final Scorecard**: Verify ALL success criteria (Section 5)
 2. **Create Promotion Directory**: `YYYYMMDD_HHMMSS_XXX_99_PROMOTION/`
-3. **Consolidate Artifacts**: Final strategy.yaml, brief.json, comprehensive report
+3. **Promote Final Strategy**: Save the final, validated `strategy.yaml` to `config/strategy/` using a descriptive name (e.g., `bb_breakout_trend_15m.yaml`). Consolidate all other final artifacts (brief.json, reports) into the promotion directory.
 4. **Report to User**: Present findings and ask about formal promotion
 
 ---

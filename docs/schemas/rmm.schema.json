@@ -15,8 +15,8 @@
     },
     "timeframe": {
       "type": "string",
-      "description": "Timeframe for regime classification (e.g., '1D', '4H', '1H', '15M'). Must be a valid pandas resample frequency.",
-      "pattern": "^\\d*[DHMS]$"
+      "description": "Timeframe for regime classification (e.g., '1D', '4H', '1H', '15min', '5T'). Must be a valid pandas resample frequency.",
+      "pattern": "^\\d*(?:[DHMS]|[mM][iI][nN]|[tT])$"
     },
     "features": {
       "type": "array",
@@ -94,6 +94,7 @@
             "BB",
             "BBWidth",
             "ATR",
+            "ATRPercentile",
             "HHV",
             "CHOP",
             "ICHIMOKU",
@@ -105,6 +106,8 @@
             "CMF",
             "VWAP",
             "FIB",
+            "RealizedVolatility",
+            "VolumeZScore",
             "CDL_DOJI",
             "CDL_HAMMER",
             "CDL_ENGULFING",
@@ -180,8 +183,18 @@
             "hour_is_in",
             "hour_is_not_in",
             "day_of_week_is_in",
-            "day_of_week_is_not_in"
+            "day_of_week_is_not_in",
+            "percentile_is_above",
+            "volatility_is_between"
           ]
+        },
+        "lower": {
+          "type": "number",
+          "description": "Lower bound for volatility_is_between predicate."
+        },
+        "upper": {
+          "type": "number",
+          "description": "Upper bound for volatility_is_between predicate."
         },
         "left": { "$ref": "#/$defs/operand" },
         "right": { "$ref": "#/$defs/operand" },

@@ -363,10 +363,16 @@ def test_strategy_params_override_file_defaults(tmp_path, monkeypatch):
 
     # Find first non-NaN value for slow EMA
     idx = 85  # Well past warm-up for both EMAs
-    ema_fast_prev = ema_fast_series[idx - 1][1]
-    ema_slow_prev = ema_slow_series[idx - 1][1]
-    ema_fast_curr = ema_fast_series[idx][1]
-    ema_slow_curr = ema_slow_series[idx][1]
+
+    # The feature series strips initial NaNs, so we must offset our index.
+    # EMA(length=N) produces N-1 NaNs. First valid value is at index N-1.
+    offset_fast = 20 - 1
+    offset_slow = 80 - 1
+
+    ema_fast_prev = ema_fast_series[idx - 1 - offset_fast][1]
+    ema_slow_prev = ema_slow_series[idx - 1 - offset_slow][1]
+    ema_fast_curr = ema_fast_series[idx - offset_fast][1]
+    ema_slow_curr = ema_slow_series[idx - offset_slow][1]
 
     price_curr = prices.iloc[idx]["close"]
 

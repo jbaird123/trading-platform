@@ -73,12 +73,21 @@ def _eval_pred(df: pd.DataFrame, pred: dict[str, Any]) -> pd.Series:
         values = set(pred.get("values", []))
         dt_index = pd.DatetimeIndex(df.index)
         return pd.Series(~dt_index.dayofweek.isin(values), index=df.index)
+    if cond == "percentile_is_above":
+        # For percentile predicates, left is already a percentile (0-100)
+        # right is the threshold percentile value
+        return left > right
+    if cond == "volatility_is_between":
+        # Check if volatility is between lower and upper bounds
+        lower = float(pred.get("lower", 0.0))
+        upper = float(pred.get("upper", 1.0))
+        return (left >= lower) & (left <= upper)
     # SAFETY: Fail loudly on unrecognized conditions
     raise ValueError(
         f"Unrecognized RMM condition: '{cond}'. "
         f"Supported: is_above, is_below, cross_above, cross_below, "
         f"hour_is_in, hour_is_not_in, day_of_week_is_in, "
-        f"day_of_week_is_not_in"
+        f"day_of_week_is_not_in, percentile_is_above, volatility_is_between"
     )
 
 
