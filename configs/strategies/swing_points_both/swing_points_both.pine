@@ -5,30 +5,40 @@ strategy("Swing Points Both Sides", overlay=true, initial_capital=100000, defaul
 left_bars = input.int(5, "Left Bars", minval=1, tooltip="Number of bars to the left to check for swing point")
 right_bars = input.int(5, "Right Bars", minval=1, tooltip="Number of bars to the right to check for swing point")
 
-// === SWING POINT DETECTION ===
-// Swing Low: Current bar's low is lower than all bars within left_bars and right_bars
+// === SWING POINT DETECTION (WITHOUT LOOK-AHEAD BIAS) ===
+// To avoid look-ahead bias, we check if the bar from right_bars ago was a swing point
+// This means the signal is naturally lagged by right_bars periods, just like the Python version
+
+// Check if the bar from right_bars ago was a swing low
+// Compare bar[right_bars] against left_bars to the left and right_bars to the right
 isSwingLow = true
+
+// Check against left bars (further in the past)
 for i = 1 to left_bars
     if low[right_bars] >= low[right_bars + i]
         isSwingLow := false
         break
 
+// Check against right bars (between then and now)
 if isSwingLow
     for i = 1 to right_bars
-        if low[right_bars] >= low[right_bars - i]
+        if low[right_bars] > low[right_bars - i]
             isSwingLow := false
             break
 
-// Swing High: Current bar's high is higher than all bars within left_bars and right_bars
+// Check if the bar from right_bars ago was a swing high
 isSwingHigh = true
+
+// Check against left bars (further in the past)
 for i = 1 to left_bars
     if high[right_bars] <= high[right_bars + i]
         isSwingHigh := false
         break
 
+// Check against right bars (between then and now)
 if isSwingHigh
     for i = 1 to right_bars
-        if high[right_bars] <= high[right_bars - i]
+        if high[right_bars] < high[right_bars - i]
             isSwingHigh := false
             break
 
