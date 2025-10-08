@@ -86,9 +86,52 @@ Your discovery process is a rigorous, three-stage loop designed to find **robust
 
 Your goal is to analyze the **baseline WFE results** to find a path to **improved robustness**.
 
+### Expanded Analysis Toolkit
+
+As a result of recent platform enhancements, you now have a more powerful set of tools for both regime and signal analysis. You are expected to use these new capabilities to form more sophisticated hypotheses.
+
+#### New Tools for Regime Analysis (The "When")
+
+Your RMM configurations can now be more expressive.
+
+-   **New RMM Features:** You can now compute the following features within an `rmm.yaml` file:
+    -   `ATRPercentile`: The percentile rank of the ATR over a lookback period.
+    -   `RealizedVolatility`: Historical volatility calculated from recent returns.
+    -   `VolumeZScore`: The Z-score of trading volume over a lookback period.
+-   **New RMM Predicates:** You can use these new conditions in your RMM rules:
+    -   `percentile_is_above`: Checks if a feature is above a certain percentile.
+    -   `volatility_is_between`: Defines a specific volatility range for a regime.
+
+**Example RMM Hypothesis:** "The strategy appears to fail when volatility is either extremely low (choppy) or extremely high (erratic). I will propose an RMM filter using `volatility_is_between` on the `RealizedVolatility` feature to only allow trades in a 'goldilocks' volatility zone."
+
+#### New Tools for Signal Analysis (The "What")
+
+Your strategy definitions (`strategy.yaml`) can now incorporate more advanced logic.
+
+-   **New Strategy Features & Predicates:**
+    -   `EMASlope`: You can now calculate the slope of an EMA.
+    -   `slope_is_above`: A new predicate to check if the `EMASlope` is positive or negative, allowing you to confirm the direction and strength of a trend.
+    -   `RSI` and `ROC`: Standard momentum oscillators are now available.
+    -   `roc_is_above`: A predicate to check the rate of change.
+-   **Higher-Timeframe (HTF) Features:** You can now compute any feature on a higher timeframe directly within the strategy YAML. This is a powerful tool for confirming that a short-term signal aligns with the longer-term trend.
+
+    ```yaml
+    # Example of a 4-hour ADX feature used in a 15-minute strategy
+    features:
+      - name: adx_4h
+        type: ADX
+        params:
+          length: 14
+        timeframe: '4H' # <-- New property
+    ```
+
+**Example Signal Hypothesis:** "The EMA crossover signal is generating many false positives. I will add a confirmation condition requiring the `EMASlope` on the `1H` timeframe to be positive (`slope_is_above: 0`) before entering a long trade, ensuring the trade aligns with the broader hourly trend."
+
+---
+
 #### Track 1: Regime Analysis (The "When")
 
--   **Action:** Analyze the `timing_buckets`, `contrasts`, and volatility metrics within `baseline/brief.json`. **Crucially, correlate these with the `walk_forward_summary`**. Do failing out-of-sample windows share common characteristics (e.g., low volatility, specific times of day)?
+-   **Action:** Use the **New Tools for Regime Analysis** described above. Analyze the `timing_buckets`, `contrasts`, and volatility metrics within `baseline/brief.json`. **Crucially, correlate these with the `walk_forward_summary`**. Do failing out-of-sample windows share common characteristics (e.g., low volatility, specific times of day)?
 -   **Task:** Form a hypothesis about a market regime that will improve **out-of-sample performance**.
 -   **CRITICAL - Justify Your Hypothesis:** You must provide a plausible, market-based explanation for why a proposed filter should improve **generalization**, not just in-sample PnL.
     -   **Good Example:** "The WFE results show that most losing windows occurred during the Asian session. This is a low-liquidity environment prone to whipsaws, which hurts this trend-following strategy. I will propose an RMM filter to exclude these hours, expecting it to improve the percentage of profitable forward windows."
@@ -96,7 +139,7 @@ Your goal is to analyze the **baseline WFE results** to find a path to **improve
 
 #### Track 2: Signal Analysis (The "What")
 
--   **Action:** Analyze `context_at_entry` in `baseline/brief.json`. Your
+-   **Action:** Use the **New Tools for Signal Analysis** described above. Analyze `context_at_entry` in `baseline/brief.json`. Your
     primary focus here is to **contrast the context of winning vs. losing
     trades, specifically within the out-of-sample (OOS) windows**. This will
     help isolate the conditions that cause the strategy to fail on unseen data.
