@@ -1102,3 +1102,46 @@ def test_brief_regime_counts_include_skipped_trades():
     # Verify trade and skip counts
     assert regime_summary["n_trades"] == 2
     assert regime_summary["n_skipped_trades"] == 2
+
+
+def test_brief_contains_dynamic_rem_metrics() -> None:
+    """Task 33: Test that brief contains dynamic_rem_metrics section."""
+    # Create sample DynamicREM metrics
+    rem_metrics = {
+        "breakeven_triggers": 5,
+        "partial_exits_triggered": 12,
+        "trailing_stop_activations": 8,
+        "volatility_tightenings": 3,
+    }
+
+    brief_data = generate_brief(
+        meta={"run_id": "test-rem"},
+        params={},
+        trades=[_trade(100.0), _trade(-50.0)],
+        initial_cash=10000,
+        dynamic_rem_metrics=rem_metrics,
+    )
+
+    # Verify dynamic_rem_metrics section exists
+    assert "dynamic_rem_metrics" in brief_data
+
+    # Verify all expected fields are present
+    metrics = brief_data["dynamic_rem_metrics"]
+    assert metrics["breakeven_triggers"] == 5
+    assert metrics["partial_exits_triggered"] == 12
+    assert metrics["trailing_stop_activations"] == 8
+    assert metrics["volatility_tightenings"] == 3
+
+
+def test_brief_dynamic_rem_metrics_defaults_to_empty() -> None:
+    """Test dynamic_rem_metrics defaults to empty dict if not provided."""
+    brief_data = generate_brief(
+        meta={"run_id": "test-rem-empty"},
+        params={},
+        trades=[_trade(100.0)],
+        initial_cash=10000,
+    )
+
+    # Should have empty dict when not provided
+    assert "dynamic_rem_metrics" in brief_data
+    assert brief_data["dynamic_rem_metrics"] == {}

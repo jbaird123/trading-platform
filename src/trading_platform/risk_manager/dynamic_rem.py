@@ -45,6 +45,14 @@ class DynamicREM:
         self.volatility_threshold = config.get("volatility_threshold")
         self.low_volatility_multiplier = config.get("low_volatility_multiplier", 1.0)
 
+        # Task 34: Statistics tracking
+        self.stats = {
+            "breakeven_triggers": 0,
+            "partial_exits_triggered": 0,
+            "trailing_stop_activations": 0,
+            "volatility_tightenings": 0,
+        }
+
     def manage_position(
         self,
         position: Position,
@@ -83,6 +91,8 @@ class DynamicREM:
                 self.breakeven_threshold - 1e-10
             ):
                 stop = position.entry_price
+                # Task 34: Track breakeven triggers
+                self.stats["breakeven_triggers"] += 1
 
             # ATR trailing stop after partial exit (Task 17)
             if (
@@ -99,17 +109,23 @@ class DynamicREM:
                     if adx and adx < self.volatility_threshold:
                         # Tighten stop when volatility is low
                         atr_multiple *= self.low_volatility_multiplier
+                        # Task 34: Track volatility tightenings
+                        self.stats["volatility_tightenings"] += 1
 
                 if position.side == "long":
                     trailing_stop = current_price - (atr_multiple * atr)
                     # Only move stop up, never down
                     if stop is None or trailing_stop > stop:
                         stop = trailing_stop
+                        # Task 34: Track trailing stop activations
+                        self.stats["trailing_stop_activations"] += 1
                 else:  # short
                     trailing_stop = current_price + (atr_multiple * atr)
                     # Only move stop down, never up
                     if stop is None or trailing_stop < stop:
                         stop = trailing_stop
+                        # Task 34: Track trailing stop activations
+                        self.stats["trailing_stop_activations"] += 1
 
             # Simple trailing stop without partial exit requirement (Task 21)
             elif self.trailing_config and atr:
@@ -120,15 +136,21 @@ class DynamicREM:
                     adx = context.get("adx")
                     if adx and adx < self.volatility_threshold:
                         atr_multiple *= self.low_volatility_multiplier
+                        # Task 34: Track volatility tightenings
+                        self.stats["volatility_tightenings"] += 1
 
                 if position.side == "long":
                     trailing_stop = current_price - (atr_multiple * atr)
                     if stop is None or trailing_stop > stop:
                         stop = trailing_stop
+                        # Task 34: Track trailing stop activations
+                        self.stats["trailing_stop_activations"] += 1
                 else:  # short
                     trailing_stop = current_price + (atr_multiple * atr)
                     if stop is None or trailing_stop < stop:
                         stop = trailing_stop
+                        # Task 34: Track trailing stop activations
+                        self.stats["trailing_stop_activations"] += 1
 
         return stop, tp
 
@@ -190,5 +212,16 @@ class DynamicREM:
                         "r_multiple": target_r,
                     }
                 )
+                # Task 34: Track partial exits
+                self.stats["partial_exits_triggered"] += 1
 
         return orders
+
+    def get_stats(self) -> dict[str, int]:
+        """Get DynamicREM statistics.
+
+        Returns:
+            Dictionary with breakeven_triggers, partial_exits_triggered,
+            trailing_stop_activations, and volatility_tightenings counts
+        """
+        return self.stats.copy()
