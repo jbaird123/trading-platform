@@ -3,7 +3,7 @@
 user_id: "backtest_user"
 run_seed: 42
 log_level: "INFO"
-initial_cash: 100000.0
+initial_cash: 10000.0
 position_size: 10000.0
 
 # Strategy Configuration
@@ -16,8 +16,8 @@ rem_path: "config/rem/trailing_stops.yaml"
 data_request:
   symbol: "EURUSD"
   timeframe: "1h"
-  start: "2023-01-01"
-  end: "2023-12-31"
+  start: "2013-01-01"
+  end: "2025-09-25"
 
 # Instrument Definitions (required by backtester)
 instrument_definitions:
@@ -26,6 +26,14 @@ instrument_definitions:
     tick_size: 0.0001
     base_ccy: "EUR"
     quote_ccy: "USD"
+
+# Transaction costs configuration
+cost_model:
+  spread_per_unit: 0.00015  # 1.5 pips for EUR/USD
+  slippage_per_unit: 0.0    # No additional slippage for now
+  commission:
+    type: "per_unit"
+    value: 0.0
 
 # Fill and Tie-break Policies
 fill_policy:
