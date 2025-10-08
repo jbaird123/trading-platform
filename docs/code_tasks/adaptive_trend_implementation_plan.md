@@ -79,9 +79,9 @@ This document provides a detailed, step-by-step plan for implementing the adapti
 
 ### Feature 4.1: Log All New Contextual Features
 
-30. **[X] TEST:** Trade.context_at_entry already exists and automatically captures all features via the backtester's context mechanism (backtester/core.py:278-287). Verified this works as expected.
-31. **[X] IMPLEMENT:** Strategy and RMM features are automatically captured in context_at_entry during position creation (backtester/core.py:430). No additional implementation needed - existing framework handles this.
-32. **[X] IMPLEMENT:** Reporting serialization already handles context_at_entry properly via _serialize_trade() in reporting/brief.py. No additional changes needed.
+30. **[X] TEST:** Created comprehensive tests in tests/reporting/test_context_in_outputs.py verifying that new Epic 1 features (ema_slope_fast, adx_4h) and Epic 3 features (atr_pct, rvol, vol_z) appear correctly in both brief.json and trades.csv outputs. All 3 tests passing.
+31. **[X] IMPLEMENT:** Updated save_trades_csv() in reporting/csv_export.py to flatten context_at_entry into columns with 'ctx_' prefix. Added _flatten_context_keys() and _flatten_context() helper functions. CSV now dynamically includes all context fields (e.g., ctx_strategy_features_ema_slope_fast, ctx_regime_atr_pct).
+32. **[X] IMPLEMENT:** Verified context serialization in brief.json works correctly via _serialize_trade(). Context appears in trades array with nested structure preserved (strategy_features and regime subsections).
 
 ### Feature 4.2: Integrate Dynamic REM Metrics into Brief
 
