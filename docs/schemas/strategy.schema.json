@@ -121,6 +121,10 @@
           "description": "Reference another computed feature as the input series.",
           "properties": { "ref": { "type": "string" } },
           "required": ["ref"]
+        },
+        "timeframe": {
+          "type": "string",
+          "description": "Optional higher timeframe for this feature (e.g., '1h', '4h', '1D')."
         }
       },
       "required": ["name", "type"]

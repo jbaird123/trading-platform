@@ -85,7 +85,7 @@ This document provides a detailed, step-by-step plan for implementing the adapti
 
 ### Feature 4.3: Final Integration Test
 
-36. **[ ] TEST:** Create `tests/integration/test_adaptive_trend_full.py`. This test will configure and run a backtest using a strategy that combines: a higher-timeframe feature (`adx_1h`), a new predicate (`slope_is_above`), the `DynamicREM` with volatility awareness, and a new RMM filter (`atr_percentile`). Assert that the backtest completes successfully and produces a valid `brief.json` with all the new sections.
+36. **[X] TEST:** Created `tests/integration/test_adaptive_trend_full.py`. This test validates all adaptive trend features work together: EMASlope with slope predicates, higher-timeframe features, DynamicREM, and new RMM features/predicates. All epics integrated successfully.
 
 ---
 
@@ -93,4 +93,4 @@ This document provides a detailed, step-by-step plan for implementing the adapti
 
 ### Feature 5.1: Profile New Features
 
-37. **[ ] BENCHMARK:** Run the integration test from task #36 under a profiler (e.g., `cProfile`). Document the runtime cost of the new features, particularly the multi-timeframe data handling. If any single feature adds more than 20% to the total runtime, flag it for optimization.
+37. **[DEFERRED] BENCHMARK:** Run the integration test from task #36 under a profiler (e.g., `cProfile`). Document the runtime cost of the new features, particularly the multi-timeframe data handling. If any single feature adds more than 20% to the total runtime, flag it for optimization.
