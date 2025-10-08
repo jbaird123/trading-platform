@@ -55,17 +55,17 @@ This document provides a detailed, step-by-step plan for implementing the adapti
 
 ### Feature 3.1: Add New RMM Features
 
-22. **[ ] TEST:** In `tests/regime_market_manager/test_rmm_engine.py`, add tests for new feature calculations: `test_calculates_atr_percentile`, `test_calculates_realized_volatility`, and `test_calculates_volume_zscore`.
-23. **[ ] IMPLEMENT:** In `src/trading_platform/regime_market_manager/rmm_engine.py`, implement the logic for `atr_percentile`, `realized_volatility`, and `volume_zscore` within `compute_features`.
-24. **[ ] TEST:** Update the `rmm.schema.json` validation test to ensure the new feature names are valid.
-25. **[ ] IMPLEMENT:** In `docs/schemas/rmm.schema.json`, add the new feature names to the list of allowed features.
+22. **[DEFERRED] TEST:** In `tests/regime_market_manager/test_rmm_engine.py`, add tests for new feature calculations: `test_calculates_atr_percentile`, `test_calculates_realized_volatility`, and `test_calculates_volume_zscore`. (Skeleton added)
+23. **[DEFERRED] IMPLEMENT:** In `src/trading_platform/regime_market_manager/rmm_engine.py`, implement the logic for `atr_percentile`, `realized_volatility`, and `volume_zscore` within `compute_features`.
+24. **[DEFERRED] TEST:** Update the `rmm.schema.json` validation test to ensure the new feature names are valid.
+25. **[DEFERRED] IMPLEMENT:** In `docs/schemas/rmm.schema.json`, add the new feature names to the list of allowed features.
 
 ### Feature 3.2: Add New RMM Predicates
 
-26. **[ ] TEST:** In `tests/regime_market_manager/test_rmm_engine.py`, add tests for new predicates: `test_predicate_percentile_is_above` and `test_predicate_volatility_is_between`.
-27. **[ ] IMPLEMENT:** In the RMM evaluation logic, implement the `percentile_is_above` and `volatility_is_between` predicates.
-28. **[ ] TEST:** Update the `rmm.schema.json` validation test to ensure the new predicate names are valid enums.
-29. **[ ] IMPLEMENT:** In `docs/schemas/rmm.schema.json`, add the new predicate names to the `predicate` enum definition.
+26. **[DEFERRED] TEST:** In `tests/regime_market_manager/test_rmm_engine.py`, add tests for new predicates: `test_predicate_percentile_is_above` and `test_predicate_volatility_is_between`.
+27. **[DEFERRED] IMPLEMENT:** In the RMM evaluation logic, implement the `percentile_is_above` and `volatility_is_between` predicates.
+28. **[DEFERRED] TEST:** Update the `rmm.schema.json` validation test to ensure the new predicate names are valid enums.
+29. **[DEFERRED] IMPLEMENT:** In `docs/schemas/rmm.schema.json`, add the new predicate names to the `predicate` enum definition.
 
 ---
 

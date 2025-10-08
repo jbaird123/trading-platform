@@ -1,4 +1,8 @@
-"""Consolidated tests for Regime Market Manager engine logic."""
+"""
+Consolidated tests for Regime Market Manager engine logic.
+
+Tasks 22-29: Epic 3 - RMM Features
+"""
 
 from __future__ import annotations
 
