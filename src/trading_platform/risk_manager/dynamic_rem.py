@@ -43,6 +43,7 @@ class DynamicREM:
         self.partial_exits = config.get("partial_exits", [])
         self.trailing_config = config.get("trailing_stop")
         self.volatility_threshold = config.get("volatility_threshold")
+        self.low_volatility_multiplier = config.get("low_volatility_multiplier", 1.0)
 
     def manage_position(
         self,
@@ -68,6 +69,9 @@ class DynamicREM:
         """
         stop = initial_stop
         tp = initial_tp
+        partial_exits_triggered = (
+            context.get("partial_exits_triggered", []) if context else []
+        )
 
         # Calculate current R-multiple (Task 13)
         if position.initial_risk_ccy and position.initial_risk_ccy > 0:
@@ -79,6 +83,52 @@ class DynamicREM:
                 self.breakeven_threshold - 1e-10
             ):
                 stop = position.entry_price
+
+            # ATR trailing stop after partial exit (Task 17)
+            if (
+                self.trailing_config
+                and atr
+                and partial_exits_triggered
+                and self.trailing_config.get("activate_after_partial")
+            ):
+                atr_multiple = self.trailing_config.get("atr_multiple", 1.0)
+
+                # Volatility-aware adjustment (Task 21)
+                if self.volatility_threshold and context:
+                    adx = context.get("adx")
+                    if adx and adx < self.volatility_threshold:
+                        # Tighten stop when volatility is low
+                        atr_multiple *= self.low_volatility_multiplier
+
+                if position.side == "long":
+                    trailing_stop = current_price - (atr_multiple * atr)
+                    # Only move stop up, never down
+                    if stop is None or trailing_stop > stop:
+                        stop = trailing_stop
+                else:  # short
+                    trailing_stop = current_price + (atr_multiple * atr)
+                    # Only move stop down, never up
+                    if stop is None or trailing_stop < stop:
+                        stop = trailing_stop
+
+            # Simple trailing stop without partial exit requirement (Task 21)
+            elif self.trailing_config and atr:
+                atr_multiple = self.trailing_config.get("atr_multiple", 1.0)
+
+                # Volatility-aware adjustment (Task 21)
+                if self.volatility_threshold and context:
+                    adx = context.get("adx")
+                    if adx and adx < self.volatility_threshold:
+                        atr_multiple *= self.low_volatility_multiplier
+
+                if position.side == "long":
+                    trailing_stop = current_price - (atr_multiple * atr)
+                    if stop is None or trailing_stop > stop:
+                        stop = trailing_stop
+                else:  # short
+                    trailing_stop = current_price + (atr_multiple * atr)
+                    if stop is None or trailing_stop < stop:
+                        stop = trailing_stop
 
         return stop, tp
 
@@ -106,3 +156,39 @@ class DynamicREM:
         # R-multiple = PnL / Risk
         r_multiple = pnl / position.initial_risk_ccy
         return r_multiple
+
+    def check_partial_exits(
+        self, position: Position, current_price: float
+    ) -> list[dict[str, Any]]:
+        """Check if any partial exit targets have been reached.
+
+        Args:
+            position: Open position to check
+            current_price: Current market price
+
+        Returns:
+            List of exit orders (dicts with action, fraction, r_multiple)
+        """
+        orders: list[dict[str, Any]] = []
+
+        if not position.initial_risk_ccy or position.initial_risk_ccy == 0:
+            return orders
+
+        r_multiple = self._calculate_r_multiple(position, current_price)
+
+        # Check each partial exit target (Task 15)
+        for exit_config in self.partial_exits:
+            target_r = exit_config.get("r_multiple", 0)
+            fraction = exit_config.get("fraction", 0)
+
+            # Use epsilon for floating point comparison
+            if r_multiple >= (target_r - 1e-10):
+                orders.append(
+                    {
+                        "action": "close_partial",
+                        "fraction": fraction,
+                        "r_multiple": target_r,
+                    }
+                )
+
+        return orders

@@ -61,3 +61,156 @@ def test_breakeven_trigger():
     # Stop should now be at breakeven (entry price)
     assert updated_stop is not None
     assert abs(updated_stop - 1.1000) < 0.0001  # Breakeven = entry price
+
+
+def test_partial_profit_trigger():
+    """Task 14: Test partial profit-taking when target is reached.
+
+    Validates: Epic 2.1, Feature 2.1, Task 14
+    When a position reaches a profit target, the REM should generate
+    an order to close a fraction of the position.
+    """
+    # Create DynamicREM with partial exit configuration
+    config = {
+        "stop_loss": {"atr_multiple": 1.5},
+        "take_profit": {"atr_multiple": 3.0},
+        "partial_exits": [
+            {"r_multiple": 1.0, "fraction": 0.5},  # Close 50% at 1R
+            {"r_multiple": 2.0, "fraction": 0.5},  # Close 50% more at 2R
+        ],
+    }
+
+    rem = DynamicREM(config)
+
+    # Create a long position
+    position = Position(
+        symbol="EUR_USD",
+        entry_time=datetime(2024, 1, 1, 10, 0),
+        entry_price=1.1000,
+        entry_mid_price=1.1000,
+        side="long",
+        size=10000,
+        initial_risk_ccy=150.0,
+        bars_held=5,
+    )
+
+    # Current price at +1.0R (first partial exit target)
+    # 1R = $150, so price move = 150 / 10000 = 0.015
+    current_price = 1.1000 + 0.015
+
+    # Manage position - should trigger partial exit
+    orders = rem.check_partial_exits(position, current_price)
+
+    # Should generate an order to close 50% of the position
+    assert orders is not None
+    assert len(orders) > 0
+    order = orders[0]
+    assert order["action"] == "close_partial"
+    assert order["fraction"] == 0.5
+    assert order["r_multiple"] == 1.0
+
+
+def test_atr_trailing_stop_after_partial_exit():
+    """Task 16: Test ATR trailing stop activation after partial exit.
+
+    Validates: Epic 2.1, Feature 2.1, Task 16
+    After a partial exit, the stop-loss should trail using ATR multiple.
+    """
+    # Create DynamicREM with partial exit and trailing stop
+    config = {
+        "stop_loss": {"atr_multiple": 1.5},
+        "take_profit": {"atr_multiple": 3.0},
+        "partial_exits": [{"r_multiple": 1.0, "fraction": 0.5}],
+        "trailing_stop": {
+            "atr_multiple": 1.0,  # Trail at 1 ATR
+            "activate_after_partial": True,
+        },
+    }
+
+    rem = DynamicREM(config)
+
+    # Create a long position
+    position = Position(
+        symbol="EUR_USD",
+        entry_time=datetime(2024, 1, 1, 10, 0),
+        entry_price=1.1000,
+        entry_mid_price=1.1000,
+        side="long",
+        size=10000,
+        initial_risk_ccy=150.0,
+        bars_held=5,
+    )
+
+    # Current price at +1.5R (after partial exit at 1R)
+    current_price = 1.1000 + 0.0225  # 1.5R = 1.5 * 150 / 10000
+    atr = 0.010
+    initial_stop = 1.1000 - (1.5 * 0.010)
+
+    # Simulate that partial exit has occurred
+    context = {"partial_exits_triggered": [1.0]}  # Already exited at 1R
+
+    # Manage position with trailing stop
+    updated_stop, updated_tp = rem.manage_position(
+        position,
+        current_price=current_price,
+        atr=atr,
+        initial_stop=initial_stop,
+        context=context,
+    )
+
+    # Stop should now trail at current_price - (1.0 * ATR)
+    expected_stop = current_price - (1.0 * atr)
+    assert updated_stop is not None
+    assert abs(updated_stop - expected_stop) < 0.0001
+
+
+def test_stop_tightens_on_falling_adx():
+    """Task 20: Test stop tightens when ADX falls below threshold.
+
+    Validates: Epic 2.2, Feature 2.2, Task 20
+    When ADX falls below volatility threshold, trailing stop should tighten.
+    """
+    # Create DynamicREM with volatility-aware trailing
+    config = {
+        "stop_loss": {"atr_multiple": 1.5},
+        "take_profit": {"atr_multiple": 3.0},
+        "trailing_stop": {"atr_multiple": 1.5},  # Normal trailing distance
+        "volatility_threshold": 20.0,  # ADX threshold
+        "low_volatility_multiplier": 0.75,  # Tighten to 0.75x when ADX < 20
+    }
+
+    rem = DynamicREM(config)
+
+    # Create a long position in profit
+    position = Position(
+        symbol="EUR_USD",
+        entry_time=datetime(2024, 1, 1, 10, 0),
+        entry_price=1.1000,
+        entry_mid_price=1.1000,
+        side="long",
+        size=10000,
+        initial_risk_ccy=150.0,
+        bars_held=10,
+    )
+
+    # Current price at +1.5R
+    current_price = 1.1000 + 0.0225
+    atr = 0.010
+    initial_stop = 1.1000 - (1.5 * 0.010)
+
+    # Context with low ADX (falling volatility)
+    context = {"adx": 15.0}  # Below threshold of 20
+
+    # Manage position
+    updated_stop, updated_tp = rem.manage_position(
+        position,
+        current_price=current_price,
+        atr=atr,
+        initial_stop=initial_stop,
+        context=context,
+    )
+
+    # Stop should tighten: current_price - (1.5 * 0.75 * ATR)
+    expected_stop = current_price - (1.5 * 0.75 * atr)
+    assert updated_stop is not None
+    assert abs(updated_stop - expected_stop) < 0.0001
