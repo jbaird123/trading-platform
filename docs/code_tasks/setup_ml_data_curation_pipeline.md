@@ -89,4 +89,13 @@ Before starting, create and switch to the specified branch:
         dvc add data/training_sets/master_trade_log.parquet
         ```
     -   This will create a `master_trade_log.parquet.dvc` file.
-    -   Commit this DVC pointer file to git: `git add data/training_sets/master_trade_log.parquet.dvc && git commit -m "data: Track initial master trade log with DVC"`
+    -   Commit this DVC pointer file to git: `git add data/training_sets/master_trade_log.parquet.dvc && git commit -m "data: Track initial master trade log with DVC"
+
+11. [ ] **Track Market Data Directories with DVC:**
+    -   In your terminal, add the market data directories to DVC tracking:
+        ```bash
+        dvc add data/full
+        dvc add data/incremental
+        ```
+    -   This will create two new `.dvc` files: `data/full.dvc` and `data/incremental.dvc`.
+    -   Commit these new pointer files to git: `git add data/full.dvc data/incremental.dvc && git commit -m "data: Track market data directories with DVC"`
