@@ -13,11 +13,20 @@ def find_swing_points(
     low_col: str = "low",
 ) -> pd.DataFrame:
     """
-    Identifies swing points (highs and lows) in the price data.
-    A swing high is a candle with a high that is the highest in a window of
-    `left_bars` to the left and `right_bars` to the right.
-    A swing low is a candle with a low that is the lowest in a window of
-    `left_bars` to the left and `right_bars` to the right.
+    Identifies swing points (highs and lows) in the price data WITHOUT look-ahead bias.
+
+    A swing high at bar N is detected when:
+    - Bar N's high is the highest in window [N-left_bars, N+right_bars]
+    - The signal is emitted at bar N+right_bars (after confirmation)
+
+    A swing low at bar N is detected when:
+    - Bar N's low is the lowest in window [N-left_bars, N+right_bars]
+    - The signal is emitted at bar N+right_bars (after confirmation)
+
+    This implementation avoids look-ahead bias by only using historical data.
+    The signal naturally lags by `right_bars` periods because we must wait
+    for confirmation that no higher high (or lower low) occurred.
+
     Args:
         candles (pd.DataFrame): DataFrame with candlestick data.
         left_bars (int): Number of bars to the left to consider for a swing.
@@ -26,35 +35,42 @@ def find_swing_points(
         low_col (str): Name of the low price column.
     Returns:
         pd.DataFrame: A DataFrame with 'swing_high' and 'swing_low' columns,
-                      containing the price of the swing point at the candle
-                      where it occurred and NaN otherwise.
+                      containing 1.0 when a swing point is confirmed, 0.0 otherwise.
+                      The signal appears at bar N+right_bars when bar N is identified
+                      as a swing point.
     """
-    window_size = left_bars + right_bars + 1
+    n = len(candles)
+    swing_high = pd.Series(0.0, index=candles.index)
+    swing_low = pd.Series(0.0, index=candles.index)
 
-    # Find rolling max/min in a centered window
-    # The min_periods argument ensures we have a full window
-    rolling_max = (
-        candles[high_col]
-        .rolling(window=window_size, center=True, min_periods=window_size)
-        .max()
-    )
-    rolling_min = (
-        candles[low_col]
-        .rolling(window=window_size, center=True, min_periods=window_size)
-        .min()
-    )
+    # For each bar, check if it's a swing point
+    # We can only check bars where we have sufficient history on both sides
+    for i in range(left_bars, n - right_bars):
+        # Get the window around bar i
+        window_start = i - left_bars
+        window_end = i + right_bars + 1  # +1 for exclusive slice end
 
-    # Identify swing high/low candidates
-    swing_high_mask = candles[high_col] == rolling_max
-    swing_low_mask = candles[low_col] == rolling_min
+        # Check if bar i is a swing high
+        window_highs = candles[high_col].iloc[window_start:window_end]
+        if candles[high_col].iloc[i] == window_highs.max():
+            # Only mark the first occurrence if there are ties
+            max_indices = window_highs[window_highs == window_highs.max()].index
+            if candles.index[i] == max_indices[0]:
+                # Emit signal at i+right_bars (after confirmation period)
+                swing_high.iloc[i + right_bars] = 1.0
 
-    # Filter for the first occurrence in a sequence of consecutive identical highs/lows
-    unique_swing_high_mask = swing_high_mask & ~swing_high_mask.shift(1).fillna(False)
-    unique_swing_low_mask = swing_low_mask & ~swing_low_mask.shift(1).fillna(False)
+        # Check if bar i is a swing low
+        window_lows = candles[low_col].iloc[window_start:window_end]
+        if candles[low_col].iloc[i] == window_lows.min():
+            # Only mark the first occurrence if there are ties
+            min_indices = window_lows[window_lows == window_lows.min()].index
+            if candles.index[i] == min_indices[0]:
+                # Emit signal at i+right_bars (after confirmation period)
+                swing_low.iloc[i + right_bars] = 1.0
 
     # Create the output DataFrame
     swings = pd.DataFrame(index=candles.index)
-    swings["swing_high"] = candles[high_col][unique_swing_high_mask]
-    swings["swing_low"] = candles[low_col][unique_swing_low_mask]
+    swings["swing_high"] = swing_high
+    swings["swing_low"] = swing_low
 
     return swings

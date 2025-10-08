@@ -7,7 +7,11 @@ from trading_platform.strategy.custom_indicators import find_swing_points
 
 
 def test_find_swing_points():
-    """Test the find_swing_points function with a clear swing high and low."""
+    """Test the find_swing_points function with a clear swing high and low.
+
+    Note: Signals are lagged by right_bars periods to avoid look-ahead bias.
+    If bar 3 is a swing high with right_bars=3, the signal appears at bar 6.
+    """
     # Create a sample DataFrame with a clear swing high and low
     data = {
         "high": [10, 20, 30, 40, 30, 20, 10, 20, 30, 25, 15],
@@ -17,26 +21,24 @@ def test_find_swing_points():
     }
     candles = pd.DataFrame(data)
 
-    # Find swing points
+    # Find swing points with left_bars=3, right_bars=3
     swings = find_swing_points(candles, left_bars=3, right_bars=3)
 
-    # Expected results
-    expected_high_index = 3
-    expected_high_value = 40
-    expected_low_index = 6
-    expected_low_value = 5
+    # Bar 3 (high=40) is the swing high, but signal appears at bar 3+3=6
+    # Bar 6 (low=5) is the swing low, but signal would appear at bar 6+3=9
+    # However, we need at least 3 bars after bar 6, so check if bar 9 exists
 
-    # Check swing high
-    assert swings["swing_high"].iloc[expected_high_index] == expected_high_value
-    assert swings["swing_high"].dropna().shape[0] == 1
+    # Check swing high signal (bar 3 detected, signal at bar 6)
+    assert swings["swing_high"].iloc[6] == 1.0
+    assert (swings["swing_high"] == 1.0).sum() == 1
 
-    # Check swing low
-    assert swings["swing_low"].iloc[expected_low_index] == expected_low_value
-    assert swings["swing_low"].dropna().shape[0] == 1
+    # Check swing low signal (bar 6 detected, signal at bar 9)
+    assert swings["swing_low"].iloc[9] == 1.0
+    assert (swings["swing_low"] == 1.0).sum() == 1
 
-    # Check that other values are NaN
-    assert swings["swing_high"].drop(index=expected_high_index).isna().all()
-    assert swings["swing_low"].drop(index=expected_low_index).isna().all()
+    # Check that other values are 0.0
+    assert (swings["swing_high"].drop(index=6) == 0.0).all()
+    assert (swings["swing_low"].drop(index=9) == 0.0).all()
 
 
 def test_find_swing_points_no_swings():
@@ -53,13 +55,21 @@ def test_find_swing_points_no_swings():
     # Find swing points
     swings = find_swing_points(candles, left_bars=3, right_bars=3)
 
-    # Check that no swing points were found
-    assert swings["swing_high"].dropna().empty
-    assert swings["swing_low"].dropna().empty
+    # Check that no swing points were found (all values should be 0.0)
+    assert (swings["swing_high"] == 0.0).all()
+    assert (swings["swing_low"] == 0.0).all()
 
 
 def test_find_swing_points_multiple_swings():
-    """Test find_swing_points on data with multiple swings."""
+    """Test find_swing_points on data with multiple swings.
+
+    With left_bars=1, right_bars=1:
+    - Bar 1 (high=30) is a swing high, signal at bar 1+1=2
+    - Bar 2 (low=10) is a swing low, signal at bar 2+1=3
+    - Bar 3 (high=40) is a swing high, signal at bar 3+1=4
+    - Bar 4 (low=20) is a swing low, signal at bar 4+1=5
+    - Bar 5 (high=50) is a swing high, signal at bar 5+1=6
+    """
     data = {
         "high": [10, 30, 20, 40, 30, 50, 40, 20, 10],
         "low": [5, 25, 10, 35, 20, 45, 30, 15, 5],
@@ -70,13 +80,13 @@ def test_find_swing_points_multiple_swings():
 
     swings = find_swing_points(candles, left_bars=1, right_bars=1)
 
-    # Expected swing highs
-    assert swings["swing_high"].iloc[1] == 30
-    assert swings["swing_high"].iloc[3] == 40
-    assert swings["swing_high"].iloc[5] == 50
-    assert swings["swing_high"].dropna().shape[0] == 3
+    # Expected swing highs (signals appear 1 bar after the actual swing)
+    assert swings["swing_high"].iloc[2] == 1.0  # Bar 1 detected, signal at bar 2
+    assert swings["swing_high"].iloc[4] == 1.0  # Bar 3 detected, signal at bar 4
+    assert swings["swing_high"].iloc[6] == 1.0  # Bar 5 detected, signal at bar 6
+    assert (swings["swing_high"] == 1.0).sum() == 3
 
-    # Expected swing lows
-    assert swings["swing_low"].iloc[2] == 10
-    assert swings["swing_low"].iloc[4] == 20
-    assert swings["swing_low"].dropna().shape[0] == 2
+    # Expected swing lows (signals appear 1 bar after the actual swing)
+    assert swings["swing_low"].iloc[3] == 1.0  # Bar 2 detected, signal at bar 3
+    assert swings["swing_low"].iloc[5] == 1.0  # Bar 4 detected, signal at bar 5
+    assert (swings["swing_low"] == 1.0).sum() == 2
