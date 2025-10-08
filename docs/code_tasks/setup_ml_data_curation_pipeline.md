@@ -11,14 +11,14 @@ Before starting, create and switch to the specified branch:
 
 ### Phase 1: Setup and Core Logic
 
-1.  [ ] **Create Storage Directory:**
-    -   Create a new directory at `data/training_sets/`. This directory will store the curated datasets.
+1.  [ ] **Create Storage Directories:**
+    -   Create the new nested directory structure: `data/dvc/processed/training_sets/`. This path will store the curated datasets.
 
 2.  [ ] **Update .gitignore:**
     -   Open the root `.gitignore` file.
-    -   Add the following line to the end of the file to ensure curated datasets are not committed to the repository:
+    -   Add the following line to ensure DVC-tracked data is not committed to the repository:
         ```
-        /data/training_sets/
+        /data/dvc/
         ```
 
 3.  [ ] **Write Test for Curation Script CLI Entrypoint:**
@@ -82,20 +82,73 @@ Before starting, create and switch to the specified branch:
 10. [ ] **Run Curation and Track Data:**
     -   First, run the curation script on a real research directory to generate the initial training set. Example command:
         ```bash
-        poetry run python -m trading_platform.cli ai-curate-data --source-dir workspace/research/campaign_20251005_discovery/ --output-file data/training_sets/master_trade_log.parquet
+        poetry run python -m trading_platform.cli ai-curate-data --source-dir workspace/research/campaign_20251005_discovery/ --output-file data/dvc/processed/training_sets/master_trade_log.parquet
         ```
     -   Next, add the generated dataset to DVC tracking:
         ```bash
-        dvc add data/training_sets/master_trade_log.parquet
+        dvc add data/dvc/processed/training_sets/master_trade_log.parquet
         ```
-    -   This will create a `master_trade_log.parquet.dvc` file.
-    -   Commit this DVC pointer file to git: `git add data/training_sets/master_trade_log.parquet.dvc && git commit -m "data: Track initial master trade log with DVC"
+    -   This will create a `master_trade_log.parquet.dvc` file inside the `data/dvc/processed/training_sets/` directory.
+    -   Commit this DVC pointer file to git: `git add data/dvc/processed/training_sets/master_trade_log.parquet.dvc && git commit -m "data: Track initial master trade log with DVC"`
 
-11. [ ] **Track Market Data Directories with DVC:**
-    -   In your terminal, add the market data directories to DVC tracking:
+11. [ ] **Relocate and Track Market Data:**
+    -   Create the new directory for raw data:
         ```bash
-        dvc add data/full
-        dvc add data/incremental
+        mkdir -p data/dvc/raw
         ```
-    -   This will create two new `.dvc` files: `data/full.dvc` and `data/incremental.dvc`.
-    -   Commit these new pointer files to git: `git add data/full.dvc data/incremental.dvc && git commit -m "data: Track market data directories with DVC"`
+    -   Move the existing market data directories:
+        ```bash
+        mv data/full data/dvc/raw/
+        mv data/incremental data/dvc/raw/
+        ```
+    -   Add the relocated directories to DVC tracking:
+        ```bash
+        dvc add data/dvc/raw/full
+        dvc add data/dvc/raw/incremental
+        ```
+    -   This creates `data/dvc/raw/full.dvc` and `data/dvc/raw/incremental.dvc`.
+    -   Commit the new DVC pointer files:
+        ```bash
+        git add data/dvc/raw/. && git commit -m "data: Track market data directories with DVC"`
+
+### Phase 3: Update Dependent Code
+
+12. [ ] **Centralize Raw Data Path:**
+    -   Open `src/trading_platform/core/paths.py`.
+    -   Add a new constant `RAW_DATA_DIR` that points to the new location for raw market data:
+        ```python
+        RAW_DATA_DIR = PROJECT_ROOT / "data" / "dvc" / "raw"
+        ```
+
+13. [ ] **Update Data Handler Path:**
+    -   Open `src/trading_platform/cli.py`.
+    -   Find the instantiation of the `DataHandler`.
+    -   Change the `data_root` argument to use the new constant from the `paths` module:
+        ```python
+        # Before
+        data_root=paths.PROJECT_ROOT / "data",
+
+        # After
+        data_root=paths.RAW_DATA_DIR,
+        ```
+
+14. [ ] **Update Data Sync Script:**
+    -   Open the `scripts/sync-all.sh` file.
+    -   Find the line that defines the `DATA_DIR` variable.
+    -   Update the path to point to the new raw data directory:
+        ```bash
+        # Before
+        DATA_DIR="$PROJECT_ROOT/data"
+
+        # After
+        DATA_DIR="$PROJECT_ROOT/data/dvc/raw"
+        ```
+    -   Additionally, update the `mkdir` command in the same script to ensure it only creates the base directory if it doesn't exist:
+        ```bash
+        # Before
+        mkdir -p "$DATA_DIR/full"
+        mkdir -p "$DATA_DIR/incremental"
+
+        # After
+        mkdir -p "$DATA_DIR"
+        ```
