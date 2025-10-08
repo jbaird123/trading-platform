@@ -575,7 +575,7 @@
       "additionalProperties": true
     },
     "rem_policy": {
-      "type": "object", 
+      "type": "object",
       "description": "Risk Exit Manager (REM) policy configuration that controls stop losses, take profits, and other exit conditions.",
       "properties": {
         "stop_loss": { "type": "object", "description": "Stop loss configuration including price offsets and conditions." },
@@ -894,6 +894,28 @@
               "description": "Hypothetical avg PnL if all trades held 50 more bars."
             }
           }
+        }
+      }
+    },
+    "dynamic_rem_metrics": {
+      "type": "object",
+      "description": "Statistics from DynamicREM position management actions during the backtest.",
+      "properties": {
+        "breakeven_triggers": {
+          "type": "integer",
+          "description": "Number of times breakeven stop was triggered (stop moved to entry price)."
+        },
+        "partial_exits_triggered": {
+          "type": "integer",
+          "description": "Number of partial exit orders executed at target R-multiples."
+        },
+        "trailing_stop_activations": {
+          "type": "integer",
+          "description": "Number of times trailing stop was activated and moved."
+        },
+        "volatility_tightenings": {
+          "type": "integer",
+          "description": "Number of times stop was tightened due to low volatility conditions."
         }
       }
     },

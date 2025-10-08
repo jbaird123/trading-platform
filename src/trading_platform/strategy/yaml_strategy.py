@@ -80,6 +80,12 @@ def _eval_predicate(df: pd.DataFrame, pred: dict[str, Any]) -> pd.Series:
     if cond == "is_below":
         # Handle NaN: comparisons with NaN return False
         return (left < right).fillna(False)
+    if cond == "slope_is_above":
+        # Same as is_above, but semantically for slope values
+        return (left > right).fillna(False)
+    if cond == "roc_is_above":
+        # Same as is_above, but semantically for ROC values
+        return (left > right).fillna(False)
     if cond == "cross_above":
         # Handle NaN: comparisons with NaN return False
         prev = (left.shift(1) <= right.shift(1)).fillna(False)

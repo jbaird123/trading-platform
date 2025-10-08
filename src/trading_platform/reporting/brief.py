@@ -679,6 +679,7 @@ def generate_brief(
     rmm_spans_path: str | None = None,
     processed_data_path: str | None = None,
     recommendations: list[dict[str, Any]] | None = None,
+    dynamic_rem_metrics: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assemble a JSON brief from trades and metrics (incremental MVP)."""
     meta = meta or {}
@@ -847,6 +848,7 @@ def generate_brief(
         "contrasts": contrasts,
         "stop_tp_candidates": stop_tp_candidates,
         "exit_efficiency": exit_efficiency,
+        "dynamic_rem_metrics": _to_jsonable(dynamic_rem_metrics or {}),
         # Snapshots and placeholders (configurable)
         "instrument_definitions": _to_jsonable(instrument_definitions or {}),
         "cost_model": _to_jsonable(cost_model or {}),
@@ -985,12 +987,10 @@ def generate_brief(
                 "take_profit_hit, or held_full_period (percentages)."
             ),
             "exit_efficiency.simulated_hold_analysis.by_hold_period.*.outcome_distribution.stop_loss_hit": (  # noqa: E501
-                "Percentage of simulations that ended by hitting the "
-                "stop-loss."
+                "Percentage of simulations that ended by hitting the " "stop-loss."
             ),
             "exit_efficiency.simulated_hold_analysis.by_hold_period.*.outcome_distribution.take_profit_hit": (  # noqa: E501
-                "Percentage of simulations that ended by hitting the "
-                "take-profit."
+                "Percentage of simulations that ended by hitting the " "take-profit."
             ),
             "exit_efficiency.simulated_hold_analysis.by_hold_period.*.outcome_distribution.held_full_period": (  # noqa: E501
                 "Percentage of simulations that were held for the full "
@@ -1026,15 +1026,15 @@ def generate_brief(
                 # Check if path matches any wildcard pattern
                 matched = False
                 for wildcard_pattern, desc in simulated_hold_field_defs.items():
-                    if "*" in wildcard_pattern and _matches_wildcard(p, wildcard_pattern):
+                    if "*" in wildcard_pattern and _matches_wildcard(
+                        p, wildcard_pattern
+                    ):
                         fdefs[p] = desc
                         matched = True
                         break
                 if not matched:
                     # Strict mode: require schema coverage for every leaf
-                    raise ValueError(
-                        f"Missing schema description for brief path: {p}"
-                    )
+                    raise ValueError(f"Missing schema description for brief path: {p}")
             else:
                 fdefs[p] = node["description"]
         # Add wildcard patterns themselves to fdefs (for documentation)

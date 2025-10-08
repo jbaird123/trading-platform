@@ -18,15 +18,61 @@ Architected and developed by a single engineer leveraging AI-augmented developme
 - **Comprehensive Reporting**: Automatically generates detailed HTML reports, `brief.json` summaries, and trade logs for each backtest.
 - **AI/ML Research Lab**: A dedicated module for experimenting with machine learning models for signal generation and market analysis.
 
-## Architectural Vision
+## Architecture
 
-The platform is built on a foundation of clean architecture and **separation of concerns**, ensuring each component is independent and testable.
+The platform is built on a foundation of clean architecture and **separation of concerns**. The diagram below illustrates the high-level system architecture and the flow of information between components. A more detailed breakdown is available in the [System Architecture documentation](docs/architecture.md).
 
-The most critical design principle is the strict separation of the **Strategy Engine (SE)** from the **Risk & Exit Manager (REM)**.
-- The **Strategy Engine** is responsible *only* for generating entry and exit signals based on market features.
-- The **Risk & Exit Manager** is responsible *only* for managing the lifecycle of an open trade (e.g., applying a trailing stop or a time-based exit).
+```mermaid
+graph TD
+    subgraph "Input"
+        Config["Config File (.yaml, .json)"]
+    end
 
-This decoupling allows for immense flexibility, where any strategy can be tested against any risk management model.
+    subgraph "Orchestration"
+        CLI(CLI)
+        Backtester[Event-Driven Backtester]
+    end
+
+    subgraph "Data Processing"
+        DataSource[Data Source]
+    end
+
+    subgraph "Decision Logic"
+        RMM[Regime Market Manager]
+        Strategy[Strategy Engine]
+        REM[Risk & Exit Manager]
+    end
+
+    subgraph "State Management"
+        Portfolio[Portfolio Manager]
+        Execution[Execution Handler]
+    end
+
+    subgraph "Output"
+        Reports[HTML Reports & JSON data]
+    end
+
+    CLI -- Reads --> Config
+    CLI -- Initiates --> Backtester
+    DataSource -- Market Data --> Backtester
+
+    Backtester -- Tick Event --> RMM
+    RMM -- Market Regime --> Strategy
+    Backtester -- Tick Event --> Strategy
+    Strategy -- Entry Signal --> Backtester
+
+    Backtester -- Open Trade --> Execution
+    Execution -- Fill Event --> Portfolio
+    Backtester -- Tick Event --> REM
+    REM -- Manages open trade --> Portfolio
+    REM -- Exit Signal --> Backtester
+
+    Backtester -- Close Trade --> Execution
+
+    Backtester -- Generates --> Reports
+```
+
+The most critical design principle is the strict separation of the **Strategy Engine** from the **Risk & Exit Manager (REM)**. This decoupling allows for immense flexibility, where any strategy can be tested against any risk management model.
 
 ## Technology Stack
 

@@ -1,4 +1,8 @@
-"""Consolidated tests for Regime Market Manager engine logic."""
+"""
+Consolidated tests for Regime Market Manager engine logic.
+
+Tasks 22-29: Epic 3 - RMM Features
+"""
 
 from __future__ import annotations
 
@@ -408,3 +412,232 @@ def test_classify_regime_without_explicit_timeframe() -> None:
     result = engine.classify_regime(df, timeframe=None)  # Should use "1H" from config
 
     assert "label" in result.columns
+
+
+# --- Task 22: New RMM Features ---------------------------------------------
+
+
+def test_calculates_atr_percentile() -> None:
+    """Task 22: Test atr_percentile feature calculation."""
+    from trading_platform.regime_market_manager.engine import RMMEngine
+
+    config = {
+        "features": [
+            {
+                "name": "atr_pct",
+                "type": "ATRPercentile",
+                "params": {"atr_length": 14, "lookback": 20},
+            }
+        ],
+        "regimes": [],
+    }
+
+    engine = RMMEngine(config=config)
+
+    # Create test data with known ATR pattern
+    df = pd.DataFrame(
+        {
+            "open": [100.0] * 50,
+            "high": [101.0 + i * 0.1 for i in range(50)],
+            "low": [99.0 - i * 0.1 for i in range(50)],
+            "close": [100.5] * 50,
+            "volume": [1000] * 50,
+        },
+        index=pd.date_range("2024-01-01", periods=50, freq="D"),
+    )
+
+    result = engine.classify_regime(df, timeframe="1D", already_resampled=True)
+
+    # Feature should exist and be a percentile (0-100)
+    assert "atr_pct" in result.columns
+    assert (result["atr_pct"].dropna() >= 0).all()
+    assert (result["atr_pct"].dropna() <= 100).all()
+
+
+def test_calculates_realized_volatility() -> None:
+    """Task 22: Test realized_volatility feature calculation."""
+    from trading_platform.regime_market_manager.engine import RMMEngine
+
+    config = {
+        "features": [
+            {
+                "name": "rvol",
+                "type": "RealizedVolatility",
+                "params": {"length": 20},
+            }
+        ],
+        "regimes": [],
+    }
+
+    engine = RMMEngine(config=config)
+
+    # Create test data with varying returns
+    close_prices = [100.0]
+    for i in range(1, 50):
+        # Alternating small changes
+        close_prices.append(close_prices[-1] * (1 + 0.01 * ((-1) ** i)))
+
+    df = pd.DataFrame(
+        {
+            "open": close_prices,
+            "high": [c * 1.01 for c in close_prices],
+            "low": [c * 0.99 for c in close_prices],
+            "close": close_prices,
+            "volume": [1000] * 50,
+        },
+        index=pd.date_range("2024-01-01", periods=50, freq="D"),
+    )
+
+    result = engine.classify_regime(df, timeframe="1D", already_resampled=True)
+
+    # Feature should exist and be positive (volatility >= 0)
+    assert "rvol" in result.columns
+    assert (result["rvol"].dropna() >= 0).all()
+
+
+def test_calculates_volume_zscore() -> None:
+    """Task 22: Test volume_zscore feature calculation."""
+    from trading_platform.regime_market_manager.engine import RMMEngine
+
+    config = {
+        "features": [
+            {"name": "vol_z", "type": "VolumeZScore", "params": {"length": 20}}
+        ],
+        "regimes": [],
+    }
+
+    engine = RMMEngine(config=config)
+
+    # Create test data with spike in volume at the end
+    volumes = [1000.0] * 40 + [3000.0] * 10  # Volume spike in last 10 bars
+
+    df = pd.DataFrame(
+        {
+            "open": [100.0] * 50,
+            "high": [101.0] * 50,
+            "low": [99.0] * 50,
+            "close": [100.0] * 50,
+            "volume": volumes,
+        },
+        index=pd.date_range("2024-01-01", periods=50, freq="D"),
+    )
+
+    result = engine.classify_regime(df, timeframe="1D", already_resampled=True)
+
+    # Feature should exist
+    assert "vol_z" in result.columns
+    # Last bar (with volume spike) should have positive z-score
+    assert result["vol_z"].iloc[-1] > 0
+
+
+# --- Task 26: New RMM Predicates ------------------------------------------
+
+
+def test_predicate_percentile_is_above() -> None:
+    """Task 26: Test percentile_is_above predicate."""
+    from trading_platform.regime_market_manager.engine import RMMEngine
+
+    config = {
+        "features": [
+            {
+                "name": "atr_pct",
+                "type": "ATRPercentile",
+                "params": {"atr_length": 5, "lookback": 20},
+            }
+        ],
+        "regimes": [
+            {
+                "label": "high_vol",
+                "confidence": 0.8,
+                "conditions": {
+                    "all_of": [
+                        {
+                            "condition": "percentile_is_above",
+                            "left": {"ref": "atr_pct"},
+                            "right": 90,
+                        }
+                    ]
+                },
+            }
+        ],
+    }
+
+    engine = RMMEngine(config=config)
+
+    # Create test data with dramatically increasing volatility at end
+    highs = [101.0] * 30 + [101.0 + (i - 30) * 0.5 for i in range(30, 50)]
+    lows = [99.0] * 30 + [99.0 - (i - 30) * 0.5 for i in range(30, 50)]
+
+    df = pd.DataFrame(
+        {
+            "open": [100.0] * 50,
+            "high": highs,
+            "low": lows,
+            "close": [100.5] * 50,
+            "volume": [1000] * 50,
+        },
+        index=pd.date_range("2024-01-01", periods=50, freq="D"),
+    )
+
+    result = engine.classify_regime(df, timeframe="1D", already_resampled=True)
+
+    # Last bars should trigger high_vol regime (ATR percentile > 90)
+    # Due to percentile calculation, the very last bar will be at 100th percentile
+    assert result["label"].iloc[-1] == "high_vol"
+    assert result["confidence"].iloc[-1] == 0.8
+
+
+def test_predicate_volatility_is_between() -> None:
+    """Task 26: Test volatility_is_between predicate."""
+    from trading_platform.regime_market_manager.engine import RMMEngine
+
+    config = {
+        "features": [
+            {
+                "name": "rvol",
+                "type": "RealizedVolatility",
+                "params": {"length": 10},
+            }
+        ],
+        "regimes": [
+            {
+                "label": "moderate_vol",
+                "confidence": 0.7,
+                "conditions": {
+                    "all_of": [
+                        {
+                            "condition": "volatility_is_between",
+                            "left": {"ref": "rvol"},
+                            "lower": 0.005,
+                            "upper": 0.015,
+                        }
+                    ]
+                },
+            }
+        ],
+    }
+
+    engine = RMMEngine(config=config)
+
+    # Create test data with moderate volatility
+    close_prices = [100.0]
+    for i in range(1, 50):
+        # Small consistent moves (moderate volatility)
+        close_prices.append(close_prices[-1] * (1 + 0.008 * ((-1) ** i)))
+
+    df = pd.DataFrame(
+        {
+            "open": close_prices,
+            "high": [c * 1.005 for c in close_prices],
+            "low": [c * 0.995 for c in close_prices],
+            "close": close_prices,
+            "volume": [1000] * 50,
+        },
+        index=pd.date_range("2024-01-01", periods=50, freq="D"),
+    )
+
+    result = engine.classify_regime(df, timeframe="1D", already_resampled=True)
+
+    # Should classify as moderate_vol in later bars
+    assert result["label"].iloc[-1] == "moderate_vol"
+    assert result["confidence"].iloc[-1] == 0.7

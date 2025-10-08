@@ -31,6 +31,23 @@ def ema(series: pd.Series, length: int) -> pd.Series:
     return cast(pd.Series, result)
 
 
+def ema_slope(series: pd.Series, length: int, slope_period: int = 1) -> pd.Series:
+    """Calculate the slope (rate of change) of an EMA.
+
+    Args:
+        series: Input price series
+        length: EMA period
+        slope_period: Lookback period for calculating slope (default=1)
+
+    Returns:
+        Series containing the EMA slope values
+    """
+    ema_values = ema(series, length)
+    # Calculate slope as difference over slope_period
+    slope = ema_values.diff(periods=slope_period)
+    return slope
+
+
 def rsi(series: pd.Series, length: int) -> pd.Series:
     length = max(1, int(length))
     result = ta.rsi(close=series, length=length)
@@ -105,6 +122,62 @@ def donchian_channels(df: pd.DataFrame, length: int) -> tuple[pd.Series, pd.Seri
     return upper, lower
 
 
+def atr_percentile(df: pd.DataFrame, atr_length: int, lookback: int) -> pd.Series:
+    """Calculate ATR percentile rank over a lookback period.
+
+    Args:
+        df: DataFrame with OHLC data
+        atr_length: ATR calculation period
+        lookback: Lookback period for percentile calculation
+
+    Returns:
+        Series with ATR percentile values (0-100)
+    """
+    atr_values = atr(df, atr_length)
+    # Calculate percentile rank using rolling window
+    # Count how many values in window are less than current value
+    percentile = atr_values.rolling(window=lookback, min_periods=1).apply(
+        lambda x: (x.iloc[-1] > x).sum() / (len(x) - 1) * 100 if len(x) > 1 else 50.0,
+        raw=False,
+    )
+    return percentile
+
+
+def realized_volatility(series: pd.Series, length: int) -> pd.Series:
+    """Calculate realized volatility as the standard deviation of returns.
+
+    Args:
+        series: Price series (typically close)
+        length: Lookback period for volatility calculation
+
+    Returns:
+        Series with realized volatility values
+    """
+    # Calculate log returns
+    log_ret = pd.Series(np.log(series / series.shift(1)), index=series.index)
+    # Calculate rolling standard deviation of returns
+    vol = log_ret.rolling(window=length, min_periods=1).std()
+    return cast(pd.Series, vol)
+
+
+def volume_zscore(series: pd.Series, length: int) -> pd.Series:
+    """Calculate volume z-score relative to rolling mean and std.
+
+    Args:
+        series: Volume series
+        length: Lookback period for mean/std calculation
+
+    Returns:
+        Series with volume z-score values
+    """
+    rolling_mean = series.rolling(window=length, min_periods=1).mean()
+    rolling_std = series.rolling(window=length, min_periods=1).std()
+    # Avoid division by zero
+    rolling_std = rolling_std.replace(0, 1)
+    z_score = (series - rolling_mean) / rolling_std
+    return z_score
+
+
 def _resolve_parameter(param_value: Any, strategy_parameters: dict) -> Any:
     """Resolves parameter, substituting placeholders like ${param_name}."""
     if not isinstance(param_value, str):
@@ -118,6 +191,23 @@ def _resolve_parameter(param_value: Any, strategy_parameters: dict) -> Any:
                 f"Parameter '{param_name}' not found in strategy " f"parameters."
             )
     return param_value
+
+
+def _resample_to_higher_timeframe(df: pd.DataFrame, timeframe: str) -> pd.DataFrame:
+    """Resample OHLCV data to a higher timeframe.
+
+    Args:
+        df: DataFrame with OHLCV data
+        timeframe: Target timeframe (e.g., '1h', '4h', '1D')
+
+    Returns:
+        Resampled DataFrame
+    """
+    # Use pandas resample with OHLC aggregation
+    resampled = df.resample(timeframe).agg(
+        {"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"}
+    )
+    return resampled
 
 
 def compute_features(
@@ -141,12 +231,33 @@ def compute_features(
         typ = str(spec.get("type"))
         params = spec.get("params") or {}
         source = str(spec.get("source", "close"))
+        timeframe = spec.get("timeframe")  # Optional higher timeframe
         source_ref = None
         _src_ref_val = spec.get("source_ref")
         if isinstance(_src_ref_val, dict) and ("ref" in _src_ref_val):
             ref_val = _src_ref_val.get("ref")
             source_ref = str(ref_val) if ref_val is not None else None
         if not name:
+            continue
+
+        # Handle higher-timeframe features (Task 11)
+        if timeframe:
+            # Resample data to higher timeframe
+            df_resampled = _resample_to_higher_timeframe(df, timeframe)
+            # Compute feature on resampled data (create temp spec without timeframe)
+            temp_spec = {
+                "name": name,
+                "type": typ,
+                "params": params,
+                "source": source,
+            }
+            if source_ref:
+                temp_spec["source_ref"] = {"ref": source_ref}
+            # Recursively compute on resampled data
+            df_htf = compute_features(df_resampled, [temp_spec], strategy_parameters)
+            # Forward-fill back to original timeframe
+            htf_series = df_htf[name].reindex(df.index, method="ffill")
+            out[name] = htf_series
             continue
 
         # Resolve parameters for the current feature
@@ -157,6 +268,10 @@ def compute_features(
         if typ == "EMA":
             length = int(resolved_params.get("length", 14))
             out[name] = ema(_price_series(df, source), length)
+        elif typ == "EMASlope":
+            length = int(resolved_params.get("length", 14))
+            slope_period = int(resolved_params.get("slope_period", 1))
+            out[name] = ema_slope(_price_series(df, source), length, slope_period)
         elif typ == "SMA":
             length = int(resolved_params.get("length", 14))
             result = ta.sma(close=_price_series(df, source), length=length)
@@ -421,6 +536,16 @@ def compute_features(
                 )
             else:
                 out[name] = np.nan
+        elif typ == "ATRPercentile":
+            atr_len = int(resolved_params.get("atr_length", 14))
+            lookback = int(resolved_params.get("lookback", 20))
+            out[name] = atr_percentile(df, atr_len, lookback)
+        elif typ == "RealizedVolatility":
+            length = int(resolved_params.get("length", 20))
+            out[name] = realized_volatility(_price_series(df, source), length)
+        elif typ == "VolumeZScore":
+            length = int(resolved_params.get("length", 20))
+            out[name] = volume_zscore(pd.Series(df["volume"]), length)
         else:
             out[name] = np.nan
 
