@@ -1,6 +1,6 @@
 # ML Data Curation Pipeline Implementation Plan
 
-This document outlines the steps to create a robust pipeline for curating machine learning training data from backtest results.
+This document outlines the steps to create a robust pipeline for curating machine learning training data from backtest results, with versioning handled by DVC and remote storage on AWS S3.
 
 **Branch Name:** `feature/ml-data-curation`
 
@@ -72,14 +72,32 @@ Before starting, create and switch to the specified branch:
         -   After the loop, use `pd.concat` to merge all DataFrames in the list.
         -   Save the final, aggregated DataFrame to `output_file` using `df.to_parquet()`.
 
-### Phase 2: DVC Integration
+### Phase 2: DVC and S3 Remote Setup
 
 9.  [ ] **Initialize DVC:**
     -   In your terminal at the project root, run the command `dvc init`.
     -   This will create DVC-related files and directories (e.g., `.dvc/`).
     -   Commit the newly created files to git: `git add .dvc .dvcignore && git commit -m "build: Initialize DVC"`
 
-10. [ ] **Run Curation and Track Data:**
+10. [ ] **Configure DVC S3 Remote:**
+    -   **Prerequisites**: Ensure you have an AWS S3 bucket and your local environment is configured with AWS credentials (e.g., via `aws configure`).
+    -   Add the S3 bucket as a DVC remote. Replace `your-bucket-name` with your actual S3 bucket name.
+        ```bash
+        dvc remote add s3_storage s3://your-bucket-name/dvc-storage
+        ```
+    -   Set the new remote as the default for all push and pull operations.
+        ```bash
+        dvc remote default s3_storage
+        ```
+    -   Commit the DVC configuration changes to Git.
+        ```bash
+        git add .dvc/config
+        git commit -m "build: Configure DVC S3 remote storage"
+        ```
+
+### Phase 3: Track and Push Data to S3
+
+11. [ ] **Run Curation and Push Data to S3:**
     -   First, run the curation script on a real research directory to generate the initial training set. Example command:
         ```bash
         poetry run python -m trading_platform.cli ai-curate-data --source-dir workspace/research/campaign_20251005_discovery/ --output-file data/dvc/processed/training_sets/master_trade_log.parquet
@@ -88,10 +106,17 @@ Before starting, create and switch to the specified branch:
         ```bash
         dvc add data/dvc/processed/training_sets/master_trade_log.parquet
         ```
-    -   This will create a `master_trade_log.parquet.dvc` file inside the `data/dvc/processed/training_sets/` directory.
-    -   Commit this DVC pointer file to git: `git add data/dvc/processed/training_sets/master_trade_log.parquet.dvc && git commit -m "data: Track initial master trade log with DVC"`
+    -   Push the tracked data from your local DVC cache to the S3 remote:
+        ```bash
+        dvc push
+        ```
+    -   Commit the DVC pointer file to git:
+        ```bash
+        git add data/dvc/processed/training_sets/master_trade_log.parquet.dvc
+        git commit -m "data: Track and push initial master trade log"
+        ```
 
-11. [ ] **Relocate and Track Market Data:**
+12. [ ] **Relocate, Track, and Push Market Data to S3:**
     -   Create the new directory for raw data:
         ```bash
         mkdir -p data/dvc/raw
@@ -106,21 +131,26 @@ Before starting, create and switch to the specified branch:
         dvc add data/dvc/raw/full
         dvc add data/dvc/raw/incremental
         ```
-    -   This creates `data/dvc/raw/full.dvc` and `data/dvc/raw/incremental.dvc`.
+    -   Push the tracked directories to the S3 remote:
+        ```bash
+        dvc push
+        ```
     -   Commit the new DVC pointer files:
         ```bash
-        git add data/dvc/raw/. && git commit -m "data: Track market data directories with DVC"`
+        git add data/dvc/raw/full.dvc data/dvc/raw/incremental.dvc
+        git commit -m "data: Track and push market data directories"
+        ```
 
-### Phase 3: Update Dependent Code
+### Phase 4: Update Dependent Code
 
-12. [ ] **Centralize Raw Data Path:**
+13. [ ] **Centralize Raw Data Path:**
     -   Open `src/trading_platform/core/paths.py`.
     -   Add a new constant `RAW_DATA_DIR` that points to the new location for raw market data:
         ```python
         RAW_DATA_DIR = PROJECT_ROOT / "data" / "dvc" / "raw"
         ```
 
-13. [ ] **Update Data Handler Path:**
+14. [ ] **Update Data Handler Path:**
     -   Open `src/trading_platform/cli.py`.
     -   Find the instantiation of the `DataHandler`.
     -   Change the `data_root` argument to use the new constant from the `paths` module:
@@ -132,7 +162,7 @@ Before starting, create and switch to the specified branch:
         data_root=paths.RAW_DATA_DIR,
         ```
 
-14. [ ] **Update Data Sync Script:**
+15. [ ] **Update Data Sync Script:**
     -   Open the `scripts/sync-all.sh` file.
     -   Find the line that defines the `DATA_DIR` variable.
     -   Update the path to point to the new raw data directory:
@@ -151,4 +181,44 @@ Before starting, create and switch to the specified branch:
 
         # After
         mkdir -p "$DATA_DIR"
+        ```
+
+### Phase 5: DVC Utility Scripts
+
+16. [ ] **Create DVC script directory:**
+    -   Execute the following command to create a dedicated directory for DVC-related scripts:
+        ```bash
+        mkdir -p scripts/dvc
+        ```
+
+17. [ ] **Create DVC sync script:**
+    -   Create a new file named `scripts/dvc/sync.sh`.
+    -   Add the following content to the file. This script will accept `push` or `pull` as an argument to synchronize data with the DVC remote.
+        ```bash
+        #!/bin/bash
+        set -e
+
+        ACTION=$1
+
+        if [[ "$ACTION" != "push" && "$ACTION" != "pull" ]]; then
+            echo "Error: Invalid action. Use 'push' or 'pull'."
+            exit 1
+        fi
+
+        echo "Executing dvc $ACTION..."
+        dvc "$ACTION"
+        echo "DVC sync ($ACTION) complete."
+        ```
+
+18. [ ] **Make sync script executable:**
+    -   Run the following command to make the script executable:
+        ```bash
+        chmod +x scripts/dvc/sync.sh
+        ```
+
+19. [ ] **Commit the new script:**
+    -   Add the new script to Git version control.
+        ```bash
+        git add scripts/dvc/sync.sh
+        git commit -m "feat: Add dvc sync utility script"
         ```
