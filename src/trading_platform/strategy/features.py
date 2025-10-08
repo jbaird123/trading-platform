@@ -137,6 +137,23 @@ def _resolve_parameter(param_value: Any, strategy_parameters: dict) -> Any:
     return param_value
 
 
+def _resample_to_higher_timeframe(df: pd.DataFrame, timeframe: str) -> pd.DataFrame:
+    """Resample OHLCV data to a higher timeframe.
+
+    Args:
+        df: DataFrame with OHLCV data
+        timeframe: Target timeframe (e.g., '1h', '4h', '1D')
+
+    Returns:
+        Resampled DataFrame
+    """
+    # Use pandas resample with OHLC aggregation
+    resampled = df.resample(timeframe).agg(
+        {"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"}
+    )
+    return resampled
+
+
 def compute_features(
     df: pd.DataFrame, specs: list[dict], strategy_parameters: dict = {}
 ) -> pd.DataFrame:
@@ -158,12 +175,33 @@ def compute_features(
         typ = str(spec.get("type"))
         params = spec.get("params") or {}
         source = str(spec.get("source", "close"))
+        timeframe = spec.get("timeframe")  # Optional higher timeframe
         source_ref = None
         _src_ref_val = spec.get("source_ref")
         if isinstance(_src_ref_val, dict) and ("ref" in _src_ref_val):
             ref_val = _src_ref_val.get("ref")
             source_ref = str(ref_val) if ref_val is not None else None
         if not name:
+            continue
+
+        # Handle higher-timeframe features (Task 11)
+        if timeframe:
+            # Resample data to higher timeframe
+            df_resampled = _resample_to_higher_timeframe(df, timeframe)
+            # Compute feature on resampled data (create temp spec without timeframe)
+            temp_spec = {
+                "name": name,
+                "type": typ,
+                "params": params,
+                "source": source,
+            }
+            if source_ref:
+                temp_spec["source_ref"] = {"ref": source_ref}
+            # Recursively compute on resampled data
+            df_htf = compute_features(df_resampled, [temp_spec], strategy_parameters)
+            # Forward-fill back to original timeframe
+            htf_series = df_htf[name].reindex(df.index, method="ffill")
+            out[name] = htf_series
             continue
 
         # Resolve parameters for the current feature

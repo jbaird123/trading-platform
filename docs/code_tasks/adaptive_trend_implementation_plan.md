@@ -26,8 +26,8 @@ This document provides a detailed, step-by-step plan for implementing the adapti
 
 ### Feature 1.3: Add Higher-Timeframe Feature Support
 
-10. **[ ] TEST:** Create `tests/data/test_data_handler_multi_timeframe.py`. Add `test_get_higher_timeframe_feature` that requests a 15min DataFrame and a feature like `adx_1h` and asserts the new column is correctly resampled and forward-filled.
-11. **[ ] IMPLEMENT:** In `src/trading_platform/data/data_handler.py`, modify the logic to detect timeframe suffixes (e.g., `_1h`), resample data, calculate the feature, and merge it back into the primary DataFrame using `ffill`. Update the strategy loader in `src/trading_platform/strategy/yaml_strategy.py` so suffixed feature names request the higher-timeframe computation.
+10. **[X] TEST:** Create `tests/data/test_data_handler_multi_timeframe.py`. Add `test_get_higher_timeframe_feature` that requests a 15min DataFrame and a feature like `adx_1h` and asserts the new column is correctly resampled and forward-filled.
+11. **[X] IMPLEMENT:** In `src/trading_platform/strategy/features.py`, modify `compute_features` to detect if `spec['timeframe']` is present. If so, resample `df` to that TF, compute the feature, then `reindex` + `ffill` to the original bars.
 
 ---
 
