@@ -269,6 +269,26 @@ INDICATORS: dict[str, dict] = {
         "params": [{"name": "length", "type": "int", "default": 20}],
         "ta": {"module": "", "class": ""},
     },
+    "SWING_HIGH": {
+        "display": "Swing High",
+        "category": "levels",
+        "description": "Detects a swing high point (a local maximum).",
+        "params": [
+            {"name": "left_bars", "type": "int", "default": 10},
+            {"name": "right_bars", "type": "int", "default": 10},
+        ],
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
+    "SWING_LOW": {
+        "display": "Swing Low",
+        "category": "levels",
+        "description": "Detects a swing low point (a local minimum).",
+        "params": [
+            {"name": "left_bars", "type": "int", "default": 10},
+            {"name": "right_bars", "type": "int", "default": 10},
+        ],
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
     "DC": {
         "display": "Donchian Channels",
         "category": "levels",

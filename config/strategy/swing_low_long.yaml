@@ -1,0 +1,23 @@
+# Strategy: Swing Low Long
+# Description: Enters a long position when a swing low is detected.
+# This strategy is intended to be used with a trailing stop.
+
+strategy_name: "Swing Low Long"
+description: "Goes long on a swing low signal."
+
+features:
+  - name: swing_low_signal
+    type: SWING_LOW
+    params:
+      left_bars: 5
+      right_bars: 5
+
+# Enter long when swing low is detected (swing_low_signal > 0)
+long_entry_rules:
+  - all_of:
+      - condition: is_above
+        left:
+          ref: swing_low_signal
+        right: 0
+
+long_exit_rules: []

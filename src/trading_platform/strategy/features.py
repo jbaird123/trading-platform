@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 import pandas_ta as ta
 
+from trading_platform.strategy.custom_indicators import find_swing_points
+
 
 def _price_series(df: pd.DataFrame, source: str) -> pd.Series:
     if source in ("open", "high", "low", "close"):
@@ -410,6 +412,18 @@ def compute_features(
                 else _price_series(df, source or "low")
             )
             out[name] = llv(series_in, int(resolved_params.get("length", 20)))
+        elif typ in ("SWING_HIGH", "SWING_LOW"):
+            left_bars = int(resolved_params.get("left_bars", 10))
+            right_bars = int(resolved_params.get("right_bars", 10))
+            swings = find_swing_points(
+                df,
+                left_bars=left_bars,
+                right_bars=right_bars,
+            )
+            if typ == "SWING_HIGH":
+                out[name] = swings["swing_high"]
+            else:
+                out[name] = swings["swing_low"]
         elif typ == "DC":
             up, lo = donchian_channels(df, int(resolved_params.get("length", 20)))
             out[f"{name}_upper"] = up
