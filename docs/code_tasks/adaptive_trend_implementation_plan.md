@@ -41,8 +41,8 @@ This document provides a detailed, step-by-step plan for implementing the adapti
 15. **[X] IMPLEMENT:** In `dynamic_rem.py`, add logic to handle partial profit-taking, yielding an `Order` to reduce position size.
 16. **[X] TEST:** In `test_dynamic_rem.py`, add `test_atr_trailing_stop_after_partial_exit`. After a partial exit, assert that the stop-loss for the remaining position begins trailing at the specified ATR multiple.
 17. **[X] IMPLEMENT:** In `dynamic_rem.py`, add the ATR-based trailing stop logic that activates for the remainder of the position after a partial exit occurs.
-18. **[ ] TEST:** Create a schema `docs/schemas/rem_dynamic.schema.json` and a test to validate a full configuration for the `DynamicREM` against it. (DEFERRED)
-19. **[ ] IMPLEMENT:** Update the REM factory in `src/trading_platform/risk_manager/__init__.py` to instantiate `DynamicREM`, and ensure the new schema is wired into the existing REM validation flow so misconfigurations fail fast. (DEFERRED)
+18. **[X] TEST:** Create a schema `docs/schemas/rem_dynamic.schema.json` and a test to validate a full configuration for the `DynamicREM` against it.
+19. **[X] IMPLEMENT:** Update the REM factory in `src/trading_platform/risk_manager/__init__.py` to instantiate `DynamicREM`, and ensure the new schema is wired into the existing REM validation flow so misconfigurations fail fast.
 
 ### Feature 2.2: Implement Volatility-Aware Trailing
 

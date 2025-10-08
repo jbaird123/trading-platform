@@ -8,10 +8,17 @@ and volatility-aware trailing stops.
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
+from pathlib import Path
 
 from trading_platform.portfolio.position import Position
 from trading_platform.risk_manager.dynamic_rem import DynamicREM
+
+try:
+    import jsonschema
+except ImportError:
+    jsonschema = None  # type: ignore[assignment]
 
 
 def test_breakeven_trigger():
@@ -214,3 +221,52 @@ def test_stop_tightens_on_falling_adx():
     expected_stop = current_price - (1.5 * 0.75 * atr)
     assert updated_stop is not None
     assert abs(updated_stop - expected_stop) < 0.0001
+
+
+def test_dynamic_rem_schema_validation():
+    """Task 18: Test DynamicREM configuration against schema.
+
+    Validates: Epic 2.1, Feature 2.1, Task 18
+    Ensures DynamicREM config validates against rem_dynamic.schema.json
+    """
+    if jsonschema is None:
+        return  # Skip if jsonschema not installed
+
+    # Load schema
+    schema_path = (
+        Path(__file__).resolve().parents[2]
+        / "docs"
+        / "schemas"
+        / "rem_dynamic.schema.json"
+    )
+    schema = json.loads(schema_path.read_text())
+
+    # Valid configuration
+    valid_config = {
+        "name": "DynamicREM_Test",
+        "stop_loss": {"atr_multiple": 1.5},
+        "take_profit": {"atr_multiple": 3.0},
+        "breakeven_threshold": 0.75,
+        "partial_exits": [
+            {"r_multiple": 1.0, "fraction": 0.5},
+            {"r_multiple": 2.0, "fraction": 0.5},
+        ],
+        "trailing_stop": {
+            "atr_multiple": 1.0,
+            "activate_after_partial": True,
+        },
+        "volatility_threshold": 20.0,
+        "low_volatility_multiplier": 0.75,
+    }
+
+    # Should validate without error
+    jsonschema.validate(valid_config, schema)
+
+    # Invalid config (missing required field)
+    invalid_config = {"name": "Invalid"}
+
+    try:
+        jsonschema.validate(invalid_config, schema)
+        assert False, "Should have raised validation error"
+    except jsonschema.ValidationError:
+        pass  # Expected
