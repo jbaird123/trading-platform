@@ -5,7 +5,7 @@ This document provides a high-level overview of the trading platform's architect
 ```mermaid
 graph TD
     subgraph "Input"
-        Config[Config File (.yaml, .json)]
+        Config["Config File (.yaml, .json)"]
     end
 
     subgraph "Orchestration"

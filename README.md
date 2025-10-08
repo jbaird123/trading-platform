@@ -25,7 +25,7 @@ The platform is built on a foundation of clean architecture and **separation of 
 ```mermaid
 graph TD
     subgraph "Input"
-        Config[Config File (.yaml, .json)]
+        Config["Config File (.yaml, .json)"]
     end
 
     subgraph "Orchestration"
