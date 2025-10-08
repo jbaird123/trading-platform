@@ -122,6 +122,62 @@ def donchian_channels(df: pd.DataFrame, length: int) -> tuple[pd.Series, pd.Seri
     return upper, lower
 
 
+def atr_percentile(df: pd.DataFrame, atr_length: int, lookback: int) -> pd.Series:
+    """Calculate ATR percentile rank over a lookback period.
+
+    Args:
+        df: DataFrame with OHLC data
+        atr_length: ATR calculation period
+        lookback: Lookback period for percentile calculation
+
+    Returns:
+        Series with ATR percentile values (0-100)
+    """
+    atr_values = atr(df, atr_length)
+    # Calculate percentile rank using rolling window
+    # Count how many values in window are less than current value
+    percentile = atr_values.rolling(window=lookback, min_periods=1).apply(
+        lambda x: (x.iloc[-1] > x).sum() / (len(x) - 1) * 100 if len(x) > 1 else 50.0,
+        raw=False,
+    )
+    return percentile
+
+
+def realized_volatility(series: pd.Series, length: int) -> pd.Series:
+    """Calculate realized volatility as the standard deviation of returns.
+
+    Args:
+        series: Price series (typically close)
+        length: Lookback period for volatility calculation
+
+    Returns:
+        Series with realized volatility values
+    """
+    # Calculate log returns
+    log_ret = pd.Series(np.log(series / series.shift(1)), index=series.index)
+    # Calculate rolling standard deviation of returns
+    vol = log_ret.rolling(window=length, min_periods=1).std()
+    return cast(pd.Series, vol)
+
+
+def volume_zscore(series: pd.Series, length: int) -> pd.Series:
+    """Calculate volume z-score relative to rolling mean and std.
+
+    Args:
+        series: Volume series
+        length: Lookback period for mean/std calculation
+
+    Returns:
+        Series with volume z-score values
+    """
+    rolling_mean = series.rolling(window=length, min_periods=1).mean()
+    rolling_std = series.rolling(window=length, min_periods=1).std()
+    # Avoid division by zero
+    rolling_std = rolling_std.replace(0, 1)
+    z_score = (series - rolling_mean) / rolling_std
+    return z_score
+
+
 def _resolve_parameter(param_value: Any, strategy_parameters: dict) -> Any:
     """Resolves parameter, substituting placeholders like ${param_name}."""
     if not isinstance(param_value, str):
@@ -480,6 +536,16 @@ def compute_features(
                 )
             else:
                 out[name] = np.nan
+        elif typ == "ATRPercentile":
+            atr_len = int(resolved_params.get("atr_length", 14))
+            lookback = int(resolved_params.get("lookback", 20))
+            out[name] = atr_percentile(df, atr_len, lookback)
+        elif typ == "RealizedVolatility":
+            length = int(resolved_params.get("length", 20))
+            out[name] = realized_volatility(_price_series(df, source), length)
+        elif typ == "VolumeZScore":
+            length = int(resolved_params.get("length", 20))
+            out[name] = volume_zscore(pd.Series(df["volume"]), length)
         else:
             out[name] = np.nan
 
