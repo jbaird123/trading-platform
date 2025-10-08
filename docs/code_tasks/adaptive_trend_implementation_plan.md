@@ -35,8 +35,8 @@ This document provides a detailed, step-by-step plan for implementing the adapti
 
 ### Feature 2.1: Implement Dynamic REM Module
 
-12. **[ ] TEST:** Create `tests/risk_manager/test_dynamic_rem.py`. Add `test_breakeven_trigger` to simulate a trade reaching +0.75R and assert the REM updates the stop-loss to the entry price.
-13. **[ ] IMPLEMENT:** Create `src/trading_platform/risk_manager/dynamic_rem.py`. Implement a `DynamicREM` class. Add logic to check `trade.get_current_r_multiple()` and adjust `trade.stop_loss` if a `breakeven_threshold` is crossed.
+12. **[X] TEST:** Create `tests/risk_manager/test_dynamic_rem.py`. Add `test_breakeven_trigger` to simulate a trade reaching +0.75R and assert the REM updates the stop-loss to the entry price.
+13. **[X] IMPLEMENT:** Create `src/trading_platform/risk_manager/dynamic_rem.py`. Implement a `DynamicREM` class. Add logic to check `trade.get_current_r_multiple()` and adjust `trade.stop_loss` if a `breakeven_threshold` is crossed.
 14. **[ ] TEST:** In `test_dynamic_rem.py`, add `test_partial_profit_trigger` to simulate a trade hitting a profit target and assert the REM generates an order to close half the position.
 15. **[ ] IMPLEMENT:** In `dynamic_rem.py`, add logic to handle partial profit-taking, yielding an `Order` to reduce position size.
 16. **[ ] TEST:** In `test_dynamic_rem.py`, add `test_atr_trailing_stop_after_partial_exit`. After a partial exit, assert that the stop-loss for the remaining position begins trailing at the specified ATR multiple.
