@@ -73,6 +73,7 @@ Your discovery process is a rigorous, three-stage loop designed to find **robust
 2.  **Select Initial Strategy:** Select a baseline strategy that aligns with the campaign's goals.
     -   For campaigns prioritizing **high returns**, start with a trend-following strategy like `ema_crossover.yaml`.
     -   For campaigns prioritizing **consistency and low drawdown**, start with a mean-reversion strategy like `bb_mean_reversion.yaml`.
+    -   **Campaign Baseline Directive:** For the active Regime & Signal Discovery campaign, you **must** treat `config/strategy/bb_mean_reversion.yaml` as the default baseline. Do not pivot to an alternative starter strategy unless the user explicitly approves the change.
 3.  **Proceed to Stage 1:** Once the baseline strategy is selected, you will proceed with the main workflow.
 
 ### Stage 1: Establish Baseline Robustness
