@@ -55,6 +55,16 @@ jobs:
         run: |
           poetry run python tools/check_import_boundaries.py
 
+      - name: Run look-ahead bias detection
+        run: |
+          echo "Running automated bias detection for all indicators..."
+          poetry run pytest tests/strategy/test_indicator_bias_detection.py \
+                           tests/strategy/test_indicator_safety.py \
+                           -v \
+                           --tb=short \
+                           -m "not slow"
+          echo "✓ All indicators passed bias detection tests"
+
       - name: Run tests with coverage
         run: |
           # Generate coverage.xml at repo root for SonarCloud and HTML for humans

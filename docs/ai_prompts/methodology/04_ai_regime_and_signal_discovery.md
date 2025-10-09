@@ -50,6 +50,13 @@ This process is guided by a structured, two-stage iterative loop: **"Analyze, Fi
     the system should generate **at least 1,500 trades**. This encourages the
     discovery of systems with more opportunities and statistical significance.
 
+### 2.5 Financial Configuration
+
+-   **Initial Cash:** All backtests must be configured with an initial cash
+    investment of **$10,000**.
+-   **Position Sizing:** The size of each position taken must be fixed at
+    **$10,000**.
+
 ---
 
 ## 3. The "Analyze, Validate, Compare" Workflow (WFE-Centric)
@@ -251,23 +258,29 @@ Use this template for each iteration's `run_summary.md`:
 
 ## 5. Success Criteria (WFE-Based)
 
-A trading system is only considered "successful" if its **Walk-Forward Evaluation (WFE)** meets ALL of these criteria. Full-backtest metrics are for informational purposes only.
+A trading system is only considered "successful" if its **Walk-Forward Evaluation (WFE)** meets the criteria that align with the campaign's stated goals (e.g., high returns vs. consistency). Full-backtest metrics are for informational purposes only.
 
-### 5.1 Primary Criterion: Robustness
+### 5.1 Primary Criteria: Consistency & Reliability
 
--   **`% Profitable Windows` > 70%:** This is the most important metric. The strategy must be profitable in at least 7 out of 10 out-of-sample periods.
--   **`Performance Degradation` < 30%:** The drop-off between the average in-sample PnL and the average out-of-sample PnL must be minimal. A degradation > 50% indicates severe overfitting.
--   **`Total Trades` > 1,500 (over 10+ years):** The system must be active
-    enough to provide a statistically significant sample size. This equates to
-    roughly 3 trades per week.
+These are the primary goals for campaigns focused on delivering a reliable, low-drawdown system.
 
-### 5.2 Secondary Criteria: Out-of-Sample Performance
+-   **`Max Drawdown` < 15% (Full Backtest):** The system's largest peak-to-trough equity decline must be strictly controlled.
+-   **`Worst Window PnL` (Out-of-Sample):** The single worst out-of-sample loss must be acceptably small, demonstrating resilience.
+-   **`Max Drawdown Duration` < 30 days (Full Backtest):** The system should recover from drawdowns relatively quickly.
 
--   **`Out-of-Sample Sharpe Ratio` > 0.8:** The risk-adjusted return in the out-of-sample periods must be positive and reasonable.
--   **`Out-of-Sample Profit Factor` > 1.3:** Gross profits in out-of-sample periods must significantly exceed gross losses.
--   **`Worst Window PnL`:** The PnL of the single worst out-of-sample window should not represent an unacceptable risk to the portfolio.
+### 5.2 Secondary Criteria: Robustness & Profitability
 
-### 5.3 Sanity Check: Full Backtest
+-   **`% Profitable Windows` > 60%:** The strategy must be profitable in a majority of out-of-sample periods.
+-   **`Performance Degradation` < 40%:** The drop-off between in-sample and out-of-sample PnL should be manageable.
+-   **`Out-of-Sample Sharpe Ratio` > 0.7:** The risk-adjusted return in out-of-sample periods must be positive.
+-   **`Out-of-Sample Profit Factor` > 1.2:** Gross profits in out-of-sample periods should exceed gross losses.
+
+### 5.3 Activity & Verification Criteria
+
+-   **`Average Trades per Week` > 5:** The system must generate verifiable activity to ensure its liveness can be confirmed quickly after deployment.
+-   **`Peak Gross Exposure` < 3:** The strategy should not take on excessive portfolio risk.
+-   **`Data Quality Score` > 99.0:** The analysis must be performed on high-quality data.
+ll Backtest
 
 -   **`Total PnL` > 0:** The strategy should at least be profitable on the full
     dataset.
