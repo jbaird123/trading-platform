@@ -45,10 +45,12 @@ This process is guided by a structured, two-stage iterative loop: **"Analyze, Fi
 -   **Target Timeframe:** You must focus your analysis on lower timeframes
     suitable for intraday trading. **Start with the `15M` timeframe.** You may
     explore `5M` if `15M` does not yield a sufficient number of trades.
--   **Minimum Trade Frequency:** The discovered trading system must generate a
-    minimum number of trades to be considered valid. Over a 10-year backtest,
-    the system should generate **at least 1,500 trades**. This encourages the
-    discovery of systems with more opportunities and statistical significance.
+-   **Minimum Trade Frequency:** The discovered trading system must generate
+    **verifiable activity**, ideally averaging at least one trade per day (5+
+    trades per week). This ensures the system's liveness can be quickly
+    confirmed after deployment and provides a steady stream of data for
+    performance monitoring, without forcing the acceptance of thousands of
+    low-quality signals.
 
 ### 2.5 Financial Configuration
 
@@ -65,8 +67,12 @@ Your discovery process is a rigorous, three-stage loop designed to find **robust
 
 ### **Stage 0: Select Baseline Strategy**
 
-1.  **Identify Candidate Strategies:** Your first step is to identify a baseline strategy to begin the analysis. The project provides several pre-built strategies in the `config/strategy/` directory (e.g., `ema_crossover.yaml`, `bb_mean_reversion.yaml`).
-2.  **Select Initial Strategy:** For the first iteration of any new research campaign, you **MUST** select the `ema_crossover.yaml` strategy as your starting baseline. This ensures a consistent and reproducible starting point for all discovery efforts.
+1.  **Identify Candidate Strategies:** Your first step is to identify a baseline strategy to begin the analysis. The project provides several pre-built strategies in the `config/strategy/` directory. These generally fall into two categories:
+    -   **Trend-Following** (e.g., `ema_crossover.yaml`): Seek to capture large gains from sustained market trends. Often have a lower win-rate but high-reward outlier trades.
+    -   **Mean-Reversion** (e.g., `bb_mean_reversion.yaml`): Seek to profit from market chop, capturing many small, consistent wins. Often have a higher win-rate and lower drawdown.
+2.  **Select Initial Strategy:** Select a baseline strategy that aligns with the campaign's goals.
+    -   For campaigns prioritizing **high returns**, start with a trend-following strategy like `ema_crossover.yaml`.
+    -   For campaigns prioritizing **consistency and low drawdown**, start with a mean-reversion strategy like `bb_mean_reversion.yaml`.
 3.  **Proceed to Stage 1:** Once the baseline strategy is selected, you will proceed with the main workflow.
 
 ### Stage 1: Establish Baseline Robustness
@@ -280,19 +286,3 @@ These are the primary goals for campaigns focused on delivering a reliable, low-
 -   **`Average Trades per Week` > 5:** The system must generate verifiable activity to ensure its liveness can be confirmed quickly after deployment.
 -   **`Peak Gross Exposure` < 3:** The strategy should not take on excessive portfolio risk.
 -   **`Data Quality Score` > 99.0:** The analysis must be performed on high-quality data.
-ll Backtest
-
--   **`Total PnL` > 0:** The strategy should at least be profitable on the full
-    dataset.
--   **`Max Drawdown` < 25%:** The overall drawdown should remain within
-    reasonable limits.
--   **`Max Drawdown Duration` < 21 days:** The time spent in a drawdown should be
-    minimal. While not a primary failure criterion, strategies with extended
-    drawdown periods (e.g., over a month) are generally undesirable, even if
-    profitable. This metric should be formally reported in each iteration's
-    comparison.
--   **`Peak Gross Exposure` < 3:** The strategy should not take on excessive
-    portfolio risk by holding too many positions at once. A value above 3
-    should be flagged for review.
--   **`Data Quality Score` > 99.0:** The analysis must be performed on
-    high-quality data. Any score below this threshold should be investigated.
