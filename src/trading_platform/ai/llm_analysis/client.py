@@ -2,23 +2,22 @@ import os
 from typing import Literal
 
 import google.generativeai as genai
-from anthropic import Anthropic
 from google.generativeai.types import HarmBlockThreshold, HarmCategory
 from openai import OpenAI
 
-LLMProvider = Literal["gemini", "openai", "claude"]
+LLMProvider = Literal["gemini", "openai"]
 
 
 class LlmApiClient:
     """A client to handle communication with multiple LLM providers."""
 
-    def __init__(self, provider: LLMProvider = "claude"):
+    def __init__(self, provider: LLMProvider = "gemini"):
         """
         Initialize the LLM client with the specified provider.
 
         Args:
-            provider: The LLM provider to use ("gemini", "openai", or "claude").
-                     Defaults to "claude". Can also be set via LLM_PROVIDER env var.
+            provider: The LLM provider to use ("gemini" or "openai").
+                     Defaults to "gemini". Can also be set via LLM_PROVIDER env var.
         """
         # Allow environment variable override
         self.provider = os.getenv("LLM_PROVIDER", provider).lower()
@@ -27,12 +26,9 @@ class LlmApiClient:
             self._init_gemini()
         elif self.provider == "openai":
             self._init_openai()
-        elif self.provider == "claude":
-            self._init_claude()
         else:
             raise ValueError(
-                f"Unknown provider: {self.provider}. "
-                f"Must be one of: gemini, openai, claude"
+                f"Unknown provider: {self.provider}. " f"Must be one of: gemini, openai"
             )
 
     def _init_gemini(self):
@@ -61,13 +57,6 @@ class LlmApiClient:
             raise ValueError("OPENAI_API_KEY environment variable not set.")
         self._openai_client = OpenAI(api_key=api_key)
 
-    def _init_claude(self):
-        """Initialize Anthropic Claude client."""
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY environment variable not set.")
-        self._claude_client = Anthropic(api_key=api_key)
-
     def get_feedback(self, prompt: str) -> str:
         """Sends a prompt to the configured LLM and returns the text response."""
         try:
@@ -75,8 +64,6 @@ class LlmApiClient:
                 return self._get_gemini_feedback(prompt)
             elif self.provider == "openai":
                 return self._get_openai_feedback(prompt)
-            elif self.provider == "claude":
-                return self._get_claude_feedback(prompt)
             else:
                 return f"Error: Unknown provider {self.provider}"
         except Exception as e:
@@ -101,23 +88,5 @@ class LlmApiClient:
 
         if response.choices and len(response.choices) > 0:
             return response.choices[0].message.content or "Error: Empty response"
-
-        return "Error: LLM response did not contain text."
-
-    def _get_claude_feedback(self, prompt: str) -> str:
-        """Get feedback from Claude."""
-        response = self._claude_client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=4096,
-            temperature=0.7,
-            messages=[{"role": "user", "content": prompt}],
-        )
-
-        if response.content and len(response.content) > 0:
-            first_content = response.content[0]
-            if hasattr(first_content, "text"):
-                return first_content.text
-            else:
-                return f"Error: Unexpected content type: {type(first_content)}"
 
         return "Error: LLM response did not contain text."
