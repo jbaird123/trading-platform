@@ -4,7 +4,7 @@
 
 Your primary mission is to discover the **optimal parameters for a Bollinger Band (BB) trading strategy on the 5-minute timeframe** using a Walk-Forward Evaluation (WFE) approach.
 
-Your goal is to find the best possible configuration of the BB strategy that balances profitability with risk. You must adhere to the principle that **shorter, manageable drawdowns are preferable to larger gains with longer and deeper drawdowns.**
+Your goal is to find the best possible configuration of the BB strategy that balances profitability with risk. You must adhere to the principle that **shorter, manageable drawdowns are preferable to larger gains with longer and deeper drawdowns**, prioritizing parameter sets that keep losses shallow even if raw profitability is modest.
 
 This is a **WFE-powered parameter optimization** task. You must configure and run a single, comprehensive backtest that systematically sweeps through a grid of parameters, evaluating each one with a rigorous walk-forward methodology.
 
@@ -94,15 +94,15 @@ This is a **WFE-powered parameter optimization** task. You must configure and ru
     -   For each parameter set, parse the `walk_forward_summary` from its `brief.json`. From the `out_of_sample` section, extract the necessary metrics to calculate the Calmar Ratio (`total_pnl` and `max_drawdown_pct`).
     -   Calculate the Calmar Ratio. *Note: A precise annualized return calculation requires the time period; you can approximate by using the total out-of-sample return as a proxy, or by annualizing based on the total step size of your WFE.*
 3.  **Analyze and Select:**
-    -   Identify the top 3-5 parameter sets based on the out-of-sample Calmar Ratio.
-    -   From this shortlist, create a comparison table including other key **out-of-sample** metrics:
+    -   Identify the top 3-5 parameter sets based on the out-of-sample Calmar Ratio (higher is better for balancing return vs. drawdown depth).
+    -   From this shortlist, create a comparison table including other key **out-of-sample** metrics so you can weigh trade-offs:
         -   Total PnL
         -   Max Drawdown (%)
         -   Sharpe Ratio
         -   % Profitable Windows
-        -   Total Trades
-    -   Select the single best parameter set, using the secondary metrics (especially trade frequency) to inform your final decision.
-4.  **Conclude and Report:** In your `run_summary.md`, clearly state the winning parameter combination, its out-of-sample performance metrics, and a brief justification for your choice, using the template below.
+        -   Total Trades / Activity
+    -   Discuss the relative strengths and weaknesses of the leading candidates. You do **not** have to declare a single winner if the evidence is mixed; instead, explain how the metrics (especially Calmar, % profitable windows, and drawdown characteristics) influence your ranking.
+4.  **Conclude and Report:** In your `run_summary.md`, clearly summarize the top candidates, their key out-of-sample metrics, and your reasoning for preferring or deprioritizing each option.
 
 ---
 
@@ -146,20 +146,22 @@ Use this template for your `run_summary.md`:
 
 ---
 
-## 5. Ranking & Success Criteria (WFE-Based)
+## 5. Ranking & Evaluation Guidelines (WFE-Based)
 
-A parameter set is only considered "successful" if its **Walk-Forward Evaluation (WFE)** demonstrates robust out-of-sample performance. Full-backtest metrics are for informational purposes only. Use the following criteria to rank candidates from the sweep.
+Your goal is to compare parameter sets holistically—there are no hard pass/fail thresholds. Instead, use these metrics to reason about trade-offs and highlight candidates that best balance reliability with acceptable return:
 
-### 5.1 Primary Ranking Metric
--   **`Out-of-Sample Calmar Ratio`:** This is the most important metric. It directly measures return against the maximum drawdown experienced in the unseen, out-of-sample periods.
+### 5.1 Primary Ranking Input
+-   **`Out-of-Sample Calmar Ratio`:** Treat this as the anchor metric. Prefer higher Calmar values because they reward shallow drawdowns relative to return. If two candidates have similar Calmar, defer to the secondary metrics.
 
-### 5.2 Secondary Criteria: Robustness & Profitability
--   **`% Profitable Windows` > 60%:** The strategy must be profitable in a clear majority of out-of-sample periods.
--   **`Out-of-Sample Sharpe Ratio` > 0.7:** The risk-adjusted return in out-of-sample periods must be strong.
--   **`Performance Degradation` < 40%:** The drop-off between in-sample and out-of-sample PnL should be manageable.
+### 5.2 Secondary Considerations: Robustness & Profitability
+-   **`% Profitable Windows`:** Favor parameter sets that maintain profitability across more WFE windows, as they indicate consistency. Lower values are acceptable if Calmar remains superior, but document the trade-off.
+-   **`Out-of-Sample Sharpe Ratio`:** Use as a supporting signal for risk-adjusted return. A higher Sharpe bolsters confidence, yet a slightly lower value may be tolerable when Calmar and drawdown metrics are strong.
+-   **`Performance Degradation`:** Compare in-sample vs. out-of-sample PnL to understand stability. Large degradation should raise caution, but weigh it against improved drawdown control.
 
-### 5.3 Activity & Verification Criteria
--   **`Average Trades per Week` (Out-of-Sample) > 5:** The system must generate verifiable activity.
--   **`Worst Window PnL` (Out-of-Sample):** The single worst out-of-sample loss must be acceptably small.
+### 5.3 Activity & Verification
+-   **`Average Trades per Week` (Out-of-Sample):** Use to gauge whether the strategy is active enough to validate. Very low activity can indicate a brittle edge; very high activity might come with higher costs. Use as context when ranking.
+-   **`Worst Window PnL`:** Examine the deepest OOS loss window to judge pain tolerance. Prefer candidates with smaller worst-window losses, especially when Calmar differences are minor.
+
+Document how each of these factors influenced your ranking so future iterations can build on the insights.
 
 ---

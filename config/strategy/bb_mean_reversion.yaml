@@ -3,14 +3,14 @@ description: "Buy at lower band, sell at upper band"
 
 parameters:
   bb_length: 20
-  bb_std: 2.0
+  bb_std_dev: 2.0
 
 features:
   - name: bb
     type: BB
     params:
-      length: 20
-      ndev: 2.0
+      length: ${bb_length}
+      ndev: ${bb_std_dev}
     source: close
 
 long_entry_rules:
