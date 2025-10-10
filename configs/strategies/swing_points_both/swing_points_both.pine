@@ -1,0 +1,78 @@
+//@version=5
+strategy("Swing Points Both Sides", overlay=true, initial_capital=100000, default_qty_type=strategy.cash, default_qty_value=10000)
+
+// === INPUTS ===
+left_bars = input.int(5, "Left Bars", minval=1, tooltip="Number of bars to the left to check for swing point")
+right_bars = input.int(5, "Right Bars", minval=1, tooltip="Number of bars to the right to check for swing point")
+
+// === SWING POINT DETECTION (WITHOUT LOOK-AHEAD BIAS) ===
+// To avoid look-ahead bias, we check if the bar from right_bars ago was a swing point
+// This means the signal is naturally lagged by right_bars periods, just like the Python version
+
+// Check if the bar from right_bars ago was a swing low
+// Compare bar[right_bars] against left_bars to the left and right_bars to the right
+isSwingLow = true
+
+// Check against left bars (further in the past)
+for i = 1 to left_bars
+    if low[right_bars] >= low[right_bars + i]
+        isSwingLow := false
+        break
+
+// Check against right bars (between then and now)
+if isSwingLow
+    for i = 1 to right_bars
+        if low[right_bars] > low[right_bars - i]
+            isSwingLow := false
+            break
+
+// Check if the bar from right_bars ago was a swing high
+isSwingHigh = true
+
+// Check against left bars (further in the past)
+for i = 1 to left_bars
+    if high[right_bars] <= high[right_bars + i]
+        isSwingHigh := false
+        break
+
+// Check against right bars (between then and now)
+if isSwingHigh
+    for i = 1 to right_bars
+        if high[right_bars] < high[right_bars - i]
+            isSwingHigh := false
+            break
+
+// === PLOT SWING POINTS ===
+plotshape(isSwingLow, style=shape.triangleup, location=location.belowbar, color=color.green, size=size.small, title="Swing Low")
+plotshape(isSwingHigh, style=shape.triangledown, location=location.abovebar, color=color.red, size=size.small, title="Swing High")
+
+// === STRATEGY LOGIC ===
+// Enter long on swing low (signal appears right_bars ago)
+if isSwingLow
+    if strategy.position_size < 0  // If short, close it first
+        strategy.close("Short")
+    strategy.entry("Long", strategy.long)
+
+// Enter short on swing high (signal appears right_bars ago)
+if isSwingHigh
+    if strategy.position_size > 0  // If long, close it first
+        strategy.close("Long")
+    strategy.entry("Short", strategy.short)
+
+// === TRAILING STOP (approximating the REM behavior) ===
+// Using a simple ATR-based trailing stop to approximate the trailing_stops.yaml behavior
+atrLength = 14
+atrMultiplier = 2.0
+atr = ta.atr(atrLength)
+
+if strategy.position_size > 0  // Long position
+    stopLevel = strategy.position_avg_price - (atr * atrMultiplier)
+    strategy.exit("Long Stop", "Long", stop=stopLevel, trail_offset=atr * atrMultiplier, trail_points=0)
+
+if strategy.position_size < 0  // Short position
+    stopLevel = strategy.position_avg_price + (atr * atrMultiplier)
+    strategy.exit("Short Stop", "Short", stop=stopLevel, trail_offset=atr * atrMultiplier, trail_points=0)
+
+// === VISUAL REFERENCE ===
+// Plot position size for debugging
+plotchar(strategy.position_size, "Position Size", "", location.top)

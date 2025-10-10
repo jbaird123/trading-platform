@@ -103,7 +103,9 @@
             "CDL_ENGULFING",
             "CDL_MORNINGSTAR",
             "CDL_EVENINGSTAR",
-            "CDL_HARAMI"
+            "CDL_HARAMI",
+            "SWING_HIGH",
+            "SWING_LOW"
           ],
           "description": "Indicator type to compute."
         },

@@ -1,0 +1,23 @@
+# Strategy: Swing High Short
+# Description: Enters a short position when a swing high is detected.
+# This strategy is intended to be used with a trailing stop.
+
+strategy_name: "Swing High Short"
+description: "Goes short on a swing high signal."
+
+features:
+  - name: swing_high_signal
+    type: SWING_HIGH
+    params:
+      left_bars: 5
+      right_bars: 5
+
+# Enter short when swing high is detected (swing_high_signal > 0)
+short_entry_rules:
+  - all_of:
+      - condition: is_above
+        left:
+          ref: swing_high_signal
+        right: 0
+
+short_exit_rules: []

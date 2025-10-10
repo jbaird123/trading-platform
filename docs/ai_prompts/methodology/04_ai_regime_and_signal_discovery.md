@@ -45,10 +45,19 @@ This process is guided by a structured, two-stage iterative loop: **"Analyze, Fi
 -   **Target Timeframe:** You must focus your analysis on lower timeframes
     suitable for intraday trading. **Start with the `15M` timeframe.** You may
     explore `5M` if `15M` does not yield a sufficient number of trades.
--   **Minimum Trade Frequency:** The discovered trading system must generate a
-    minimum number of trades to be considered valid. Over a 10-year backtest,
-    the system should generate **at least 1,500 trades**. This encourages the
-    discovery of systems with more opportunities and statistical significance.
+-   **Minimum Trade Frequency:** The discovered trading system must generate
+    **verifiable activity**, ideally averaging at least one trade per day (5+
+    trades per week). This ensures the system's liveness can be quickly
+    confirmed after deployment and provides a steady stream of data for
+    performance monitoring, without forcing the acceptance of thousands of
+    low-quality signals.
+
+### 2.5 Financial Configuration
+
+-   **Initial Cash:** All backtests must be configured with an initial cash
+    investment of **$10,000**.
+-   **Position Sizing:** The size of each position taken must be fixed at
+    **$10,000**.
 
 ---
 
@@ -58,8 +67,13 @@ Your discovery process is a rigorous, three-stage loop designed to find **robust
 
 ### **Stage 0: Select Baseline Strategy**
 
-1.  **Identify Candidate Strategies:** Your first step is to identify a baseline strategy to begin the analysis. The project provides several pre-built strategies in the `config/strategy/` directory (e.g., `ema_crossover.yaml`, `bb_mean_reversion.yaml`).
-2.  **Select Initial Strategy:** For the first iteration of any new research campaign, you **MUST** select the `ema_crossover.yaml` strategy as your starting baseline. This ensures a consistent and reproducible starting point for all discovery efforts.
+1.  **Identify Candidate Strategies:** Your first step is to identify a baseline strategy to begin the analysis. The project provides several pre-built strategies in the `config/strategy/` directory. These generally fall into two categories:
+    -   **Trend-Following** (e.g., `ema_crossover.yaml`): Seek to capture large gains from sustained market trends. Often have a lower win-rate but high-reward outlier trades.
+    -   **Mean-Reversion** (e.g., `bb_mean_reversion.yaml`): Seek to profit from market chop, capturing many small, consistent wins. Often have a higher win-rate and lower drawdown.
+2.  **Select Initial Strategy:** Select a baseline strategy that aligns with the campaign's goals.
+    -   For campaigns prioritizing **high returns**, start with a trend-following strategy like `ema_crossover.yaml`.
+    -   For campaigns prioritizing **consistency and low drawdown**, start with a mean-reversion strategy like `bb_mean_reversion.yaml`.
+    -   **Campaign Baseline Directive:** For the active Regime & Signal Discovery campaign, you **must** treat `config/strategy/bb_mean_reversion.yaml` as the default baseline. Do not pivot to an alternative starter strategy unless the user explicitly approves the change.
 3.  **Proceed to Stage 1:** Once the baseline strategy is selected, you will proceed with the main workflow.
 
 ### Stage 1: Establish Baseline Robustness
@@ -86,9 +100,52 @@ Your discovery process is a rigorous, three-stage loop designed to find **robust
 
 Your goal is to analyze the **baseline WFE results** to find a path to **improved robustness**.
 
+### Expanded Analysis Toolkit
+
+As a result of recent platform enhancements, you now have a more powerful set of tools for both regime and signal analysis. You are expected to use these new capabilities to form more sophisticated hypotheses.
+
+#### New Tools for Regime Analysis (The "When")
+
+Your RMM configurations can now be more expressive.
+
+-   **New RMM Features:** You can now compute the following features within an `rmm.yaml` file:
+    -   `ATRPercentile`: The percentile rank of the ATR over a lookback period.
+    -   `RealizedVolatility`: Historical volatility calculated from recent returns.
+    -   `VolumeZScore`: The Z-score of trading volume over a lookback period.
+-   **New RMM Predicates:** You can use these new conditions in your RMM rules:
+    -   `percentile_is_above`: Checks if a feature is above a certain percentile.
+    -   `volatility_is_between`: Defines a specific volatility range for a regime.
+
+**Example RMM Hypothesis:** "The strategy appears to fail when volatility is either extremely low (choppy) or extremely high (erratic). I will propose an RMM filter using `volatility_is_between` on the `RealizedVolatility` feature to only allow trades in a 'goldilocks' volatility zone."
+
+#### New Tools for Signal Analysis (The "What")
+
+Your strategy definitions (`strategy.yaml`) can now incorporate more advanced logic.
+
+-   **New Strategy Features & Predicates:**
+    -   `EMASlope`: You can now calculate the slope of an EMA.
+    -   `slope_is_above`: A new predicate to check if the `EMASlope` is positive or negative, allowing you to confirm the direction and strength of a trend.
+    -   `RSI` and `ROC`: Standard momentum oscillators are now available.
+    -   `roc_is_above`: A predicate to check the rate of change.
+-   **Higher-Timeframe (HTF) Features:** You can now compute any feature on a higher timeframe directly within the strategy YAML. This is a powerful tool for confirming that a short-term signal aligns with the longer-term trend.
+
+    ```yaml
+    # Example of a 4-hour ADX feature used in a 15-minute strategy
+    features:
+      - name: adx_4h
+        type: ADX
+        params:
+          length: 14
+        timeframe: '4H' # <-- New property
+    ```
+
+**Example Signal Hypothesis:** "The EMA crossover signal is generating many false positives. I will add a confirmation condition requiring the `EMASlope` on the `1H` timeframe to be positive (`slope_is_above: 0`) before entering a long trade, ensuring the trade aligns with the broader hourly trend."
+
+---
+
 #### Track 1: Regime Analysis (The "When")
 
--   **Action:** Analyze the `timing_buckets`, `contrasts`, and volatility metrics within `baseline/brief.json`. **Crucially, correlate these with the `walk_forward_summary`**. Do failing out-of-sample windows share common characteristics (e.g., low volatility, specific times of day)?
+-   **Action:** Use the **New Tools for Regime Analysis** described above. Analyze the `timing_buckets`, `contrasts`, and volatility metrics within `baseline/brief.json`. **Crucially, correlate these with the `walk_forward_summary`**. Do failing out-of-sample windows share common characteristics (e.g., low volatility, specific times of day)?
 -   **Task:** Form a hypothesis about a market regime that will improve **out-of-sample performance**.
 -   **CRITICAL - Justify Your Hypothesis:** You must provide a plausible, market-based explanation for why a proposed filter should improve **generalization**, not just in-sample PnL.
     -   **Good Example:** "The WFE results show that most losing windows occurred during the Asian session. This is a low-liquidity environment prone to whipsaws, which hurts this trend-following strategy. I will propose an RMM filter to exclude these hours, expecting it to improve the percentage of profitable forward windows."
@@ -96,7 +153,7 @@ Your goal is to analyze the **baseline WFE results** to find a path to **improve
 
 #### Track 2: Signal Analysis (The "What")
 
--   **Action:** Analyze `context_at_entry` in `baseline/brief.json`. Your
+-   **Action:** Use the **New Tools for Signal Analysis** described above. Analyze `context_at_entry` in `baseline/brief.json`. Your
     primary focus here is to **contrast the context of winning vs. losing
     trades, specifically within the out-of-sample (OOS) windows**. This will
     help isolate the conditions that cause the strategy to fail on unseen data.
@@ -208,35 +265,25 @@ Use this template for each iteration's `run_summary.md`:
 
 ## 5. Success Criteria (WFE-Based)
 
-A trading system is only considered "successful" if its **Walk-Forward Evaluation (WFE)** meets ALL of these criteria. Full-backtest metrics are for informational purposes only.
+A trading system is only considered "successful" if its **Walk-Forward Evaluation (WFE)** meets the criteria that align with the campaign's stated goals (e.g., high returns vs. consistency). Full-backtest metrics are for informational purposes only.
 
-### 5.1 Primary Criterion: Robustness
+### 5.1 Primary Criteria: Consistency & Reliability
 
--   **`% Profitable Windows` > 70%:** This is the most important metric. The strategy must be profitable in at least 7 out of 10 out-of-sample periods.
--   **`Performance Degradation` < 30%:** The drop-off between the average in-sample PnL and the average out-of-sample PnL must be minimal. A degradation > 50% indicates severe overfitting.
--   **`Total Trades` > 1,500 (over 10+ years):** The system must be active
-    enough to provide a statistically significant sample size. This equates to
-    roughly 3 trades per week.
+These are the primary goals for campaigns focused on delivering a reliable, low-drawdown system.
 
-### 5.2 Secondary Criteria: Out-of-Sample Performance
+-   **`Max Drawdown` < 15% (Full Backtest):** The system's largest peak-to-trough equity decline must be strictly controlled.
+-   **`Worst Window PnL` (Out-of-Sample):** The single worst out-of-sample loss must be acceptably small, demonstrating resilience.
+-   **`Max Drawdown Duration` < 30 days (Full Backtest):** The system should recover from drawdowns relatively quickly.
 
--   **`Out-of-Sample Sharpe Ratio` > 0.8:** The risk-adjusted return in the out-of-sample periods must be positive and reasonable.
--   **`Out-of-Sample Profit Factor` > 1.3:** Gross profits in out-of-sample periods must significantly exceed gross losses.
--   **`Worst Window PnL`:** The PnL of the single worst out-of-sample window should not represent an unacceptable risk to the portfolio.
+### 5.2 Secondary Criteria: Robustness & Profitability
 
-### 5.3 Sanity Check: Full Backtest
+-   **`% Profitable Windows` > 60%:** The strategy must be profitable in a majority of out-of-sample periods.
+-   **`Performance Degradation` < 40%:** The drop-off between in-sample and out-of-sample PnL should be manageable.
+-   **`Out-of-Sample Sharpe Ratio` > 0.7:** The risk-adjusted return in out-of-sample periods must be positive.
+-   **`Out-of-Sample Profit Factor` > 1.2:** Gross profits in out-of-sample periods should exceed gross losses.
 
--   **`Total PnL` > 0:** The strategy should at least be profitable on the full
-    dataset.
--   **`Max Drawdown` < 25%:** The overall drawdown should remain within
-    reasonable limits.
--   **`Max Drawdown Duration` < 21 days:** The time spent in a drawdown should be
-    minimal. While not a primary failure criterion, strategies with extended
-    drawdown periods (e.g., over a month) are generally undesirable, even if
-    profitable. This metric should be formally reported in each iteration's
-    comparison.
--   **`Peak Gross Exposure` < 3:** The strategy should not take on excessive
-    portfolio risk by holding too many positions at once. A value above 3
-    should be flagged for review.
--   **`Data Quality Score` > 99.0:** The analysis must be performed on
-    high-quality data. Any score below this threshold should be investigated.
+### 5.3 Activity & Verification Criteria
+
+-   **`Average Trades per Week` > 5:** The system must generate verifiable activity to ensure its liveness can be confirmed quickly after deployment.
+-   **`Peak Gross Exposure` < 3:** The strategy should not take on excessive portfolio risk.
+-   **`Data Quality Score` > 99.0:** The analysis must be performed on high-quality data.

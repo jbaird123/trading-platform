@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+# Safety levels: safe, validated, requires_test, allow_lookahead
+# See strategy/indicator_safety.py for details
+
 INDICATORS: dict[str, dict] = {
     # Moving Averages
     "SMA": {
@@ -7,6 +10,7 @@ INDICATORS: dict[str, dict] = {
         "category": "trend",
         "description": "Average of prices over a window.",
         "params": [{"name": "length", "type": "int", "default": 14}],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.overlap",
             "function": "sma",
@@ -17,6 +21,7 @@ INDICATORS: dict[str, dict] = {
         "category": "trend",
         "description": "Exponentially weighted average of prices.",
         "params": [{"name": "length", "type": "int", "default": 14}],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.overlap",
             "function": "ema",
@@ -30,6 +35,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "length", "type": "int", "default": 14},
             {"name": "slope_period", "type": "int", "default": 1},
         ],
+        "safety": "validated",
         "ta": {"module": "", "class": ""},  # custom implementation
     },
     "WMA": {
@@ -37,6 +43,7 @@ INDICATORS: dict[str, dict] = {
         "category": "trend",
         "description": "Linearly weighted average of prices.",
         "params": [{"name": "length", "type": "int", "default": 14}],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.overlap",
             "function": "wma",
@@ -52,6 +59,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "slow", "type": "int", "default": 26},
             {"name": "signal", "type": "int", "default": 9},
         ],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.momentum",
             "function": "macd",
@@ -65,6 +73,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "step", "type": "float", "default": 0.02},
             {"name": "max_step", "type": "float", "default": 0.2},
         ],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.trend",
             "function": "psar",
@@ -75,6 +84,7 @@ INDICATORS: dict[str, dict] = {
         "category": "trend",
         "description": "Strength of a trend.",
         "params": [{"name": "length", "type": "int", "default": 14}],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.trend",
             "function": "adx",
@@ -85,6 +95,7 @@ INDICATORS: dict[str, dict] = {
         "category": "momentum",
         "description": "Momentum oscillator 0–100.",
         "params": [{"name": "length", "type": "int", "default": 14}],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.momentum",
             "function": "rsi",
@@ -98,6 +109,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "k", "type": "int", "default": 14},
             {"name": "d", "type": "int", "default": 3},
         ],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.momentum",
             "function": "stoch",
@@ -108,6 +120,7 @@ INDICATORS: dict[str, dict] = {
         "category": "momentum",
         "description": "Deviation from typical price.",
         "params": [{"name": "length", "type": "int", "default": 20}],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.momentum",
             "function": "cci",
@@ -118,6 +131,7 @@ INDICATORS: dict[str, dict] = {
         "category": "momentum",
         "description": "Percentage change over a period.",
         "params": [{"name": "length", "type": "int", "default": 12}],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.momentum",
             "function": "roc",
@@ -132,6 +146,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "atr_length", "type": "int", "default": 1},
             {"name": "scalar", "type": "float", "default": 100},
         ],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.momentum",
             "function": "chop",
@@ -146,6 +161,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "length", "type": "int", "default": 20},
             {"name": "std", "type": "float", "default": 2.0},
         ],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.volatility",
             "function": "bbands",
@@ -159,6 +175,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "length", "type": "int", "default": 20},
             {"name": "std", "type": "float", "default": 2.0},
         ],
+        "safety": "validated",
         "ta": {
             "module": "pandas_ta.volatility",
             "function": "bbands",
@@ -169,6 +186,7 @@ INDICATORS: dict[str, dict] = {
         "category": "volatility",
         "description": "Average of true ranges over a window.",
         "params": [{"name": "length", "type": "int", "default": 14}],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.volatility",
             "function": "atr",
@@ -182,6 +200,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "length", "type": "int", "default": 20},
             {"name": "mult", "type": "float", "default": 2.0},
         ],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.volatility",
             "function": "kc",
@@ -193,6 +212,7 @@ INDICATORS: dict[str, dict] = {
         "category": "volume",
         "description": "Cumulative volume adjusted by price direction.",
         "params": [],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.volume",
             "function": "obv",
@@ -203,6 +223,7 @@ INDICATORS: dict[str, dict] = {
         "category": "volume",
         "description": "Money flow over a window.",
         "params": [{"name": "length", "type": "int", "default": 20}],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.volume",
             "function": "cmf",
@@ -217,6 +238,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "kijun", "type": "int", "default": 26},
             {"name": "senkou", "type": "int", "default": 52},
         ],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.trend",
             "function": "ichimoku",
@@ -232,6 +254,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "length", "type": "int", "default": 7},
             {"name": "multiplier", "type": "float", "default": 3.0},
         ],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.trend",
             "function": "supertrend",
@@ -242,6 +265,7 @@ INDICATORS: dict[str, dict] = {
         "category": "price",
         "description": "Intraday average price weighted by volume.",
         "params": [],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.volume",
             "function": "vwap",
@@ -253,6 +277,7 @@ INDICATORS: dict[str, dict] = {
         "category": "levels",
         "description": "Key retracement levels between swing high/low.",
         "params": [{"name": "window", "type": "int", "default": 100}],
+        "safety": "requires_test",
         "ta": {"module": "", "class": ""},  # custom implementation TBD
     },
     "HHV": {
@@ -260,6 +285,7 @@ INDICATORS: dict[str, dict] = {
         "category": "levels",
         "description": "Rolling maximum over a window (e.g., 20-day high).",
         "params": [{"name": "length", "type": "int", "default": 20}],
+        "safety": "validated",
         "ta": {"module": "", "class": ""},
     },
     "LLV": {
@@ -267,7 +293,30 @@ INDICATORS: dict[str, dict] = {
         "category": "levels",
         "description": "Rolling minimum over a window (e.g., 20-day low).",
         "params": [{"name": "length", "type": "int", "default": 20}],
+        "safety": "validated",
         "ta": {"module": "", "class": ""},
+    },
+    "SWING_HIGH": {
+        "display": "Swing High",
+        "category": "levels",
+        "description": "Detects a swing high point (a local maximum).",
+        "params": [
+            {"name": "left_bars", "type": "int", "default": 10},
+            {"name": "right_bars", "type": "int", "default": 10},
+        ],
+        "safety": "validated",
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
+    "SWING_LOW": {
+        "display": "Swing Low",
+        "category": "levels",
+        "description": "Detects a swing low point (a local minimum).",
+        "params": [
+            {"name": "left_bars", "type": "int", "default": 10},
+            {"name": "right_bars", "type": "int", "default": 10},
+        ],
+        "safety": "validated",
+        "ta": {"module": "", "class": ""},  # custom implementation
     },
     "DC": {
         "display": "Donchian Channels",
@@ -276,6 +325,7 @@ INDICATORS: dict[str, dict] = {
             "Upper/lower bands from rolling high/low; exposes name_upper/name_lower"
         ),
         "params": [{"name": "length", "type": "int", "default": 20}],
+        "safety": "validated",
         "ta": {"module": "", "class": ""},
     },
     # Candlestick Patterns
@@ -284,6 +334,7 @@ INDICATORS: dict[str, dict] = {
         "category": "pattern",
         "description": "Detects a Doji candlestick pattern (indecision).",
         "params": [],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.candles",
             "function": "cdl_doji",
@@ -294,6 +345,7 @@ INDICATORS: dict[str, dict] = {
         "category": "pattern",
         "description": "Detects Hammer (bullish) or Hanging Man (bearish) patterns.",
         "params": [],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.candles",
             "function": "cdl_hammer",
@@ -304,6 +356,7 @@ INDICATORS: dict[str, dict] = {
         "category": "pattern",
         "description": "Detects Bullish or Bearish Engulfing patterns.",
         "params": [],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.candles",
             "function": "cdl_engulfing",
@@ -314,6 +367,7 @@ INDICATORS: dict[str, dict] = {
         "category": "pattern",
         "description": "Detects the Morning Star (bullish) reversal pattern.",
         "params": [],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.candles",
             "function": "cdl_morningstar",
@@ -324,6 +378,7 @@ INDICATORS: dict[str, dict] = {
         "category": "pattern",
         "description": "Detects the Evening Star (bearish) reversal pattern.",
         "params": [],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.candles",
             "function": "cdl_eveningstar",
@@ -334,6 +389,7 @@ INDICATORS: dict[str, dict] = {
         "category": "pattern",
         "description": "Detects Harami (inside bar) reversal patterns.",
         "params": [],
+        "safety": "safe",
         "ta": {
             "module": "pandas_ta.candles",
             "function": "cdl_harami",

@@ -236,3 +236,6 @@ __marimo__/
 workspace/
 runs/
 model.onnx
+
+
+.numba_cache/
