@@ -6,6 +6,7 @@ import json
 import logging
 import subprocess
 import sys
+from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
@@ -470,6 +471,47 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                     vol_penalty=ps_cfg.get("vol_penalty"),
                     data_handler=data_handler,
                 )
+
+                # NEW: Add per-candidate WFE summaries
+                # If both parameter_search and walk_forward are enabled,
+                # run WFE analysis for top N candidates from parameter sweep
+                if ps_results and wf_cfg.get("per_candidate_wfe", True):
+                    from trading_platform.core.sweeps import (
+                        walk_forward_analysis,
+                    )
+
+                    top_n = int(wf_cfg.get("per_candidate_top_n", 5))
+                    top_candidates = ps_results.get("results", [])[:top_n]
+
+                    per_candidate_wfe: list[dict[str, Any]] = []
+                    for cand in top_candidates:
+                        params = cand.get("params", {})
+                        # Create strategy config with this candidate's params
+                        cand_strat_cfg = deepcopy(strat_cfg)
+                        cand_params = dict(cand_strat_cfg.get("parameters") or {})
+                        cand_params.update(params)
+                        cand_strat_cfg["parameters"] = cand_params
+
+                        # Run WFE for this candidate
+                        wfe = walk_forward_analysis(
+                            df,
+                            cfg_raw,
+                            cand_strat_cfg,
+                            train_bars=train_bars,
+                            test_bars=test_bars,
+                            step_bars=step_bars,
+                            data_handler=data_handler,
+                        )
+                        per_candidate_wfe.append(
+                            {
+                                "params": params,
+                                "full_dataset_score": cand.get("score", 0.0),
+                                "wfe": wfe,
+                            }
+                        )
+
+                    # Add to parameter_search results
+                    ps_results["per_candidate_wfe"] = per_candidate_wfe
             else:
                 # Otherwise, do walk-forward ANALYSIS (bar-based, no re-optimization)
                 from trading_platform.core.sweeps import walk_forward_analysis
@@ -543,6 +585,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     print(f"- Equity: {run_path / 'equity_chart.html'}")
     return 0
 
+
 def cmd_run_backtest(args: argparse.Namespace) -> int:
     if getattr(args, "clear_cache", False):
         print("Clearing Numba cache as requested...")
@@ -553,13 +596,13 @@ def cmd_run_backtest(args: argparse.Namespace) -> int:
     except RuntimeError as e:
         if "numba" in str(e).lower() and "cache" in str(e).lower():
             print(
-                "Numba cache error detected. Automatically retrying once with a cleared cache."
+                "Numba cache error detected. "
+                "Automatically retrying once with a cleared cache."
             )
             clear_numba_cache()
             return _run_backtest_logic(args)
         else:
-            raise e
-
+            raise
 
 
 def cmd_ai_diagnose(args: argparse.Namespace) -> int:
