@@ -12,13 +12,13 @@ LLMProvider = Literal["gemini", "openai", "claude"]
 class LlmApiClient:
     """A client to handle communication with multiple LLM providers."""
 
-    def __init__(self, provider: LLMProvider = "claude"):
+    def __init__(self, provider: LLMProvider = "gemini"):
         """
         Initialize the LLM client with the specified provider.
 
         Args:
             provider: The LLM provider to use ("gemini", "openai", or "claude").
-                     Defaults to "claude". Can also be set via LLM_PROVIDER env var.
+                     Defaults to "gemini". Can also be set via LLM_PROVIDER env var.
         """
         # Allow environment variable override
         self.provider = os.getenv("LLM_PROVIDER", provider).lower()
@@ -63,9 +63,9 @@ class LlmApiClient:
 
     def _init_claude(self):
         """Initialize Anthropic Claude client."""
-        api_key = os.getenv("ANTHROPIC_API_KEY")
+        api_key = os.getenv("CLAUDE_API_KEY")
         if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY environment variable not set.")
+            raise ValueError("CLAUDE_API_KEY environment variable not set.")
         self._claude_client = Anthropic(api_key=api_key)
 
     def get_feedback(self, prompt: str) -> str:
