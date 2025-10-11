@@ -111,22 +111,36 @@ to the registry as needed.
 3. Remove `pandas-ta` from dependencies
 4. Update poetry.lock and install
 
-### Phase 2: Refactor features.py
+### Phase 2: Create Type Stub Files
+1. Create `stubs/ta/` directory structure
+2. Write stub files (.pyi) for ta library functions we use
+3. Create `stubs/talib/` directory structure
+4. Write stub files (.pyi) for TA-Lib functions we use
+5. Update mypy config to remove ignore_missing_imports for ta/talib
+6. Configure mypy to use stubs directory
+
+**Rationale:** Neither ta nor TA-Lib have type stubs available. Writing
+our own minimal stubs gives us type safety, better IDE support, and
+documents the APIs we depend on.
+
+### Phase 3: Refactor features.py
 1. Replace `import pandas_ta as ta` with imports from `ta` library
 2. Update each indicator calculation to use new library APIs
 3. Keep custom indicator implementations
-4. Add fallback to TA-Lib for candlestick patterns
+4. Add imports for TA-Lib functions (SMA, WMA, candlestick patterns)
 
-### Phase 3: Testing
-1. Run all indicator validation tests
-2. Verify TradingView golden validation still passes (32/33 tests)
-3. Fix CCI test (should now pass with correct `ta` implementation)
-4. Run strategy backtests to verify no regressions
+### Phase 4: Testing
+1. Run mypy to verify stub files work correctly
+2. Run all indicator validation tests
+3. Verify TradingView golden validation still passes (32/33 tests)
+4. Fix CCI test (should now pass with correct `ta` implementation)
+5. Run strategy backtests to verify no regressions
 
-### Phase 4: Documentation
+### Phase 5: Documentation
 1. Update indicator documentation
 2. Add migration notes to CHANGELOG
 3. Document library choices in technical docs
+4. Document stub file creation process for future indicators
 
 ## Key Benefits
 
@@ -137,12 +151,64 @@ to the registry as needed.
 5. **Performance**: Both libraries are optimized (ta uses Pandas/Numpy, TA-Lib uses C)
 6. **Maintainability**: Actively maintained projects with community support
 
+## Type Stub Strategy
+
+### Problem
+Neither `ta` nor `TA-Lib` provide type stubs or `py.typed` markers.
+Currently, mypy is configured to `ignore_missing_imports = true` for
+both libraries, which means:
+- ❌ No type checking for our usage of these libraries
+- ❌ Could hide bugs in our indicator code
+- ❌ Poor IDE autocompletion
+
+### Solution
+Create minimal stub files (.pyi) for only the functions we use:
+
+**Directory structure:**
+```
+stubs/
+├── ta/
+│   ├── __init__.pyi
+│   ├── trend.pyi      # ADX, EMA, PSAR, Ichimoku, SuperTrend, etc.
+│   ├── momentum.pyi   # RSI, MACD, STOCH, CCI, ROC, CHOP
+│   ├── volatility.pyi # ATR, BB, KC, DC
+│   └── volume.pyi     # OBV, CMF, VWAP
+└── talib/
+    └── __init__.pyi   # SMA, WMA, candlestick patterns
+```
+
+**Benefits:**
+- ✅ Type safety for our indicator calculations
+- ✅ Better IDE autocompletion and error detection
+- ✅ Documents the exact APIs we depend on
+- ✅ Minimal maintenance (only stub what we use)
+- ✅ Catches API changes early
+
+**Example stub:**
+```python
+# stubs/ta/trend.pyi
+import pandas as pd
+
+class EMAIndicator:
+    def __init__(self, close: pd.Series, window: int) -> None: ...
+    def ema_indicator(self) -> pd.Series: ...
+
+class ADXIndicator:
+    def __init__(
+        self, high: pd.Series, low: pd.Series, close: pd.Series,
+        window: int
+    ) -> None: ...
+    def adx(self) -> pd.Series: ...
+```
+
 ## Risk Mitigation
 
-1. **API Differences**: APIs differ from pandas-ta, requires careful refactoring
+1. **API Differences**: APIs differ from pandas-ta, requires careful
+   refactoring
 2. **Testing Required**: Full validation suite must pass
-3. **Custom Indicators**: 8-10 indicators need custom implementation
-4. **Migration Time**: Estimated 1-2 days for full migration and testing
+3. **Custom Indicators**: 13 indicators need custom implementation
+4. **Type Stubs**: Need to create minimal stubs for ta/talib
+5. **Migration Time**: Estimated 2-3 days for full migration and testing
 
 ## Library Availability Research for Custom Indicators
 
