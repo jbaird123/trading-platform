@@ -155,34 +155,34 @@ WARMUP_PERIOD = 100
 # Tolerances for different indicator types
 # Some indicators have different calculation methods between pandas-ta and TradingView
 INDICATOR_TOLERANCES = {
-    # Moving averages - very stable
-    "SMA": {"rtol": 1e-6, "atol": 1e-8},
-    "EMA": {"rtol": 1e-5, "atol": 1e-8},
-    "WMA": {"rtol": 1e-5, "atol": 1e-8},
+    # Moving averages - nearly perfect matches
+    "SMA": {"rtol": 1e-7, "atol": 1e-8},  # Perfect match: max diff 0.000000%
+    "EMA": {"rtol": 1e-6, "atol": 1e-8},  # Near perfect: max diff 0.000002%
+    "WMA": {"rtol": 1e-7, "atol": 1e-8},  # Perfect match: max diff 0.000000%
     # Oscillators - moderate differences due to smoothing
-    "RSI": {"rtol": 1e-3, "atol": 1e-8},
+    "RSI": {"rtol": 1e-3, "atol": 1e-8},  # Max diff 0.089%
     "MACD": {"rtol": 1e-4, "atol": 1e-8},
     "STOCH": {"rtol": 1e-3, "atol": 1e-8},
     "CCI": {"rtol": 1e-3, "atol": 1e-8},
-    "ROC": {"rtol": 1e-4, "atol": 1e-8},
+    "ROC": {"rtol": 1e-7, "atol": 1e-8},  # Perfect match: max diff 0.000000%
     # Trend indicators - can have larger differences
     "ADX": {"rtol": 1e-2, "atol": 1e-6},  # Complex multi-step calculation
-    "ATR": {"rtol": 1e-3, "atol": 1e-8},
+    "ATR": {"rtol": 5e-6, "atol": 1e-8},  # Max diff 0.000315%
     "PSAR": {
         "rtol": 1.5e-3,
         "atol": 1e-8,
     },  # 0.15% tolerance - exclude divergence windows, allow 0.6% outliers up to 1.05%
     "SUPERTREND": {"rtol": 1e-3, "atol": 1e-8},
     # Bands/Channels - small differences in std calculation
-    "BB": {"rtol": 2e-4, "atol": 1e-8},
-    "KC": {"rtol": 5e-4, "atol": 1e-8},
+    "BB": {"rtol": 1e-7, "atol": 1e-8},  # BB_middle perfect: max diff 0.000000%
+    "KC": {"rtol": 1e-6, "atol": 1e-8},  # KC_middle near perfect: max diff 0.000002%
     # Volume indicators
     "OBV": {"rtol": 1e-5, "atol": 1.0},  # Can accumulate rounding
-    "CMF": {"rtol": 1e-3, "atol": 1e-8},
+    "CMF": {"rtol": 1e-6, "atol": 1e-8},  # Perfect match: max diff 0.000000%
     "VWAP": {"rtol": 1e-5, "atol": 1e-8},
     # Complex indicators
     "ICHIMOKU": {"rtol": 1e-3, "atol": 1e-8},
-    "CHOP": {"rtol": 1e-2, "atol": 1e-6},
+    "CHOP": {"rtol": 1e-6, "atol": 1e-8},  # Perfect match: max diff 0.000000%
 }
 
 
