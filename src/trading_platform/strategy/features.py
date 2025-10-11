@@ -127,7 +127,7 @@ def adx(df: pd.DataFrame, length: int) -> pd.DataFrame:
 def bb_width(series: pd.Series, length: int, ndev: float) -> pd.Series:
     length = max(1, int(length))
     ndev = float(ndev)
-    bb = ta.bbands(close=series, length=length, std=ndev)  # type: ignore
+    bb = ta.bbands(close=series, length=length, std=ndev)
     if bb is None or bb.empty:
         return pd.Series([np.nan] * len(series), index=series.index, dtype="float64")
     # pandas_ta returns DataFrame with columns: BBL_length_std, BBM_, BBU_
@@ -344,7 +344,7 @@ def compute_features(
             bb = ta.bbands(
                 close=_price_series(df, source),
                 length=length,
-                std=ndev,  # type: ignore[arg-type]
+                std=ndev,
             )
             if bb is not None and not bb.empty:
                 out[f"{name}_upper"] = bb.iloc[:, 2]

@@ -192,6 +192,17 @@ INDICATORS: dict[str, dict] = {
             "function": "atr",
         },
     },
+    "ATRPercentile": {
+        "display": "ATR Percentile",
+        "category": "volatility",
+        "description": "Percentile rank of ATR over lookback period.",
+        "params": [
+            {"name": "atr_length", "type": "int", "default": 14},
+            {"name": "lookback", "type": "int", "default": 20},
+        ],
+        "safety": "validated",
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
     "KC": {
         "display": "Keltner Channels Width",
         "category": "volatility",
@@ -228,6 +239,22 @@ INDICATORS: dict[str, dict] = {
             "module": "pandas_ta.volume",
             "function": "cmf",
         },
+    },
+    "RealizedVolatility": {
+        "display": "Realized Volatility",
+        "category": "volatility",
+        "description": "Standard deviation of log returns.",
+        "params": [{"name": "length", "type": "int", "default": 20}],
+        "safety": "validated",
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
+    "VolumeZScore": {
+        "display": "Volume Z-Score",
+        "category": "volume",
+        "description": "Z-score of volume relative to rolling mean.",
+        "params": [{"name": "length", "type": "int", "default": 20}],
+        "safety": "validated",
+        "ta": {"module": "", "class": ""},  # custom implementation
     },
     "ICHIMOKU": {
         "display": "Ichimoku Cloud",
