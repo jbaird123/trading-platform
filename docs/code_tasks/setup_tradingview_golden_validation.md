@@ -1,0 +1,661 @@
+# TradingView Golden Validation Testing Strategy
+
+**Status:** Draft - To be implemented after ML Data Curation Pipeline
+
+**Prerequisites:**
+- `docs/code_tasks/setup_ml_data_curation_pipeline.md` must be completed first
+- DVC must be configured and working
+
+---
+
+## Overview
+
+This plan implements comprehensive validation testing by comparing our platform's
+calculations against TradingView exports. We validate both:
+
+1. **Indicator calculations** - Ensure our pandas-ta calculations match TradingView
+2. **Strategy execution** - Ensure our backtests produce same trades/PnL as TradingView
+
+---
+
+## Current State
+
+### What Already Exists ✅
+
+We already have basic indicator validation:
+
+**Files:**
+- `tests/data/test_golden_datasets.py` - 8 passing tests validating indicators
+- `data/fixtures/eurusd_1h_sample.csv` - TradingView export with indicators
+- `data/fixtures/eurusd_1min_sample.csv` - 1-minute data for resampling tests
+
+**Validated Indicators:**
+- EMA (20, 50)
+- RSI (14)
+- ADX (14)
+- ATR (14)
+- Bollinger Bands (20, 2.0)
+
+**Test Status:** All passing with appropriate tolerances for library differences
+
+### What's Missing ❌
+
+1. **Strategy/Trade Validation** - No comparison of backtest trades vs TradingView
+2. **PnL Validation** - No comparison of equity curves
+3. **Comprehensive Indicator Coverage** - Missing MACD, Stochastic, CCI, etc.
+4. **PineScript Reference Implementations** - No reference strategies
+5. **Larger Golden Datasets** - Current samples are small (164KB + 712KB)
+
+---
+
+## Proposed Directory Structure
+
+### Data Organization
+
+```
+data/
+├── dvc/
+│   ├── raw/                     # From ML pipeline (already planned)
+│   │   ├── full/
+│   │   └── incremental/
+│   │
+│   ├── golden/                  # NEW - Golden validation datasets (DVC-tracked)
+│   │   ├── indicators/
+│   │   │   ├── eurusd_1h_full.csv        # Comprehensive dataset
+│   │   │   ├── eurusd_4h_full.csv        # Multiple timeframes
+│   │   │   ├── gbpusd_1h_full.csv        # Multiple instruments
+│   │   │   └── metadata.json             # Dataset catalog
+│   │   │
+│   │   └── strategies/          # Strategy validation datasets
+│   │       ├── ema_crossover/
+│   │       │   ├── ohlcv.csv             # Market data used
+│   │       │   ├── trades.csv            # TradingView trade export
+│   │       │   └── equity_curve.csv      # Running equity
+│   │       │
+│   │       ├── bb_mean_reversion/
+│   │       │   ├── ohlcv.csv
+│   │       │   ├── trades.csv
+│   │       │   └── equity_curve.csv
+│   │       │
+│   │       └── multi_indicator_strategy/
+│   │           ├── ohlcv.csv
+│   │           ├── trades.csv
+│   │           └── equity_curve.csv
+│   │
+│   └── processed/               # From ML pipeline (already planned)
+│       └── training_sets/
+│
+└── fixtures/                    # Small test data (git-committed)
+    ├── eurusd_1h_sample.csv     # Existing - keep as-is
+    ├── eurusd_1min_sample.csv   # Existing - keep as-is
+    └── README.md
+```
+
+### Configuration & Code Organization
+
+```
+configs/
+└── golden_strategies/           # NEW - Reference strategy implementations
+    ├── ema_crossover/
+    │   ├── strategy.yaml         # Our platform's strategy definition
+    │   ├── strategy.pine         # PineScript equivalent
+    │   ├── run_config.yaml       # Backtest configuration
+    │   ├── rem.yaml             # Risk/exit management
+    │   └── README.md            # How to run in TradingView & regenerate
+    │
+    ├── bb_mean_reversion/
+    │   ├── strategy.yaml
+    │   ├── strategy.pine
+    │   ├── run_config.yaml
+    │   ├── rem.yaml
+    │   └── README.md
+    │
+    └── multi_indicator_strategy/
+        └── ... (same structure)
+
+tests/
+├── data/
+│   ├── test_golden_datasets.py          # Existing - keep as-is
+│   └── test_golden_data_validation.py   # Existing placeholder
+│
+└── validation/                          # NEW - Comprehensive validation
+    ├── test_indicator_validation.py     # Expanded indicator tests
+    ├── test_strategy_validation.py      # Trade/PnL comparison
+    └── conftest.py                      # Shared fixtures
+```
+
+---
+
+## Implementation Phases
+
+### Phase 1: Expand Indicator Coverage
+
+**Goal:** Validate all indicators used in our strategies
+
+#### 1.1 Additional Indicators to Test
+- [ ] MACD (and signal/histogram)
+- [ ] Stochastic Oscillator
+- [ ] CCI (Commodity Channel Index)
+- [ ] Any other indicators your strategies use
+
+#### 1.2 Export Process
+1. Open TradingView chart
+2. Add all indicators with same parameters as platform
+3. Export to CSV with indicators included
+4. Place in `data/dvc/golden/indicators/`
+5. Track with DVC: `dvc add data/dvc/golden/indicators/`
+
+#### 1.3 Test Implementation
+- Create `tests/validation/test_indicator_validation.py`
+- Parametrize tests for all indicators
+- Use DVC-tracked datasets
+- Document tolerances and rationale
+
+---
+
+### Phase 2: Strategy Selection & PineScript Development
+
+**Goal:** Choose 3-5 representative strategies and implement PineScript versions
+
+#### 2.1 Recommended Strategy Selection
+
+**Start Simple, Add Complexity:**
+
+1. **Simple EMA Crossover** (Easiest - Start Here)
+   - Purpose: Baseline validation
+   - Complexity: Low
+   - Entry: EMA 20 crosses above EMA 50 (long)
+   - Exit: EMA 20 crosses below EMA 50
+   - Why: Minimal indicator complexity, easy to debug
+
+2. **BB Mean Reversion** (Medium)
+   - Purpose: Test indicator calculations
+   - Complexity: Medium
+   - Entry: Price touches lower BB
+   - Exit: Price reaches middle BB or upper BB
+   - Why: Tests Bollinger Band calculations
+
+3. **Multi-Indicator Strategy** (Complex)
+   - Purpose: Test feature combination
+   - Complexity: High
+   - Entry: EMA cross + RSI < 30 + ADX > 25
+   - Exit: RSI > 70 or stop loss
+   - Why: Tests multiple indicators working together
+
+4. **Time-Filtered Strategy** (Optional)
+   - Purpose: Test session handling
+   - Entry: EMA cross + within London session
+   - Why: Tests time/session filters
+
+5. **ATR-Based Stop Strategy** (Optional)
+   - Purpose: Test risk management
+   - Entry: EMA cross
+   - Exit: ATR-based trailing stop
+   - Why: Tests dynamic risk management
+
+#### 2.2 PineScript Development Workflow
+
+For each strategy:
+
+1. **Write PineScript Version**
+   - Mirror YAML strategy exactly
+   - Same indicator parameters
+   - Same entry/exit logic
+   - Use fixed position size (e.g., 1 contract)
+   - Initially NO stop-loss/take-profit (validate signals first)
+
+2. **Document Parameters**
+   - TradingView version used
+   - Date range used
+   - Indicator settings
+   - Commission settings (if any)
+
+3. **Export Format Requirements**
+
+   **Trades Export (CSV):**
+   ```
+   Columns: Entry Time, Entry Price, Exit Time, Exit Price,
+            Side (Long/Short), Profit, Cumulative Profit,
+            Size (contracts/shares)
+   ```
+
+   **Equity Curve Export (CSV):**
+   ```
+   Columns: Timestamp, Equity, Drawdown
+   ```
+
+4. **Metadata File (JSON)**
+   ```json
+   {
+     "strategy_name": "ema_crossover",
+     "tradingview_version": "TradingView Pro 2025.1",
+     "export_date": "2025-10-10",
+     "date_range": {
+       "start": "2023-01-01",
+       "end": "2024-12-31"
+     },
+     "instrument": "EURUSD",
+     "timeframe": "1H",
+     "position_size": 1.0,
+     "commission": 0.0,
+     "initial_capital": 100000.0
+   }
+   ```
+
+---
+
+### Phase 3: Trade & PnL Validation Framework
+
+**Goal:** Build automated comparison between our trades and TradingView trades
+
+#### 3.1 Tolerance Strategy
+
+Define acceptable variances:
+
+```python
+TRADE_VALIDATION_TOLERANCES = {
+    "entry_time": timedelta(minutes=0),   # Exact match required
+    "exit_time": timedelta(minutes=0),    # Exact match required
+    "entry_price": 0.0001,                # 1 pip for forex (0.01%)
+    "exit_price": 0.0001,                 # 1 pip for forex
+    "trade_pnl": 0.50,                    # $0.50 per trade
+    "total_pnl": 1.00,                    # $1.00 total
+    "trade_count": 0,                     # Must match exactly
+}
+
+EQUITY_CURVE_TOLERANCES = {
+    "correlation": 0.999,                 # r > 0.999
+    "final_equity": 1.00,                 # $1.00 difference
+}
+
+METRICS_TOLERANCES = {
+    "win_rate": 0.01,                     # 1 percentage point
+    "profit_factor": 0.05,                # 5% difference
+    "max_drawdown": 0.02,                 # 2% difference
+}
+```
+
+#### 3.2 Test Implementation
+
+**File:** `tests/validation/test_strategy_validation.py`
+
+**Key Test Functions:**
+
+```python
+def test_trade_count_matches_tradingview():
+    """Trade count must match exactly"""
+
+def test_trade_times_match_tradingview():
+    """Entry/exit times must match within tolerance"""
+
+def test_trade_prices_match_tradingview():
+    """Entry/exit prices must match within tolerance"""
+
+def test_trade_pnl_matches_tradingview():
+    """Individual and total PnL must match"""
+
+def test_equity_curve_correlation():
+    """Equity curves should be highly correlated"""
+
+def test_final_metrics_match():
+    """Win rate, profit factor, etc. should match"""
+```
+
+**Helper Functions Needed:**
+
+```python
+def load_tradingview_trades(strategy_name: str) -> pd.DataFrame:
+    """Load TradingView trade export"""
+
+def load_platform_trades(strategy_name: str) -> list[Trade]:
+    """Run backtest and return trades"""
+
+def align_trades(
+    our_trades: list[Trade],
+    tv_trades: pd.DataFrame
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Align trades by entry time for comparison"""
+
+def compare_trade_sequences(
+    our_trades: pd.DataFrame,
+    tv_trades: pd.DataFrame,
+    tolerances: dict
+) -> dict[str, Any]:
+    """Compare and report differences"""
+
+def calculate_equity_curve(trades: list[Trade]) -> pd.Series:
+    """Calculate running equity from trades"""
+
+def compare_metrics(
+    our_metrics: dict,
+    tv_metrics: dict,
+    tolerances: dict
+) -> bool:
+    """Compare aggregate metrics"""
+```
+
+#### 3.3 Pytest Fixtures
+
+**File:** `tests/validation/conftest.py`
+
+```python
+@pytest.fixture(scope="module")
+def dvc_golden_data():
+    """Ensure DVC data is pulled before tests"""
+    # Check if data exists, run dvc pull if needed
+
+@pytest.fixture
+def golden_strategy_config(strategy_name):
+    """Load strategy config from configs/golden_strategies/"""
+
+@pytest.fixture
+def tradingview_trades(strategy_name):
+    """Load TradingView trade export"""
+
+@pytest.fixture
+def platform_trades(strategy_name, golden_strategy_config):
+    """Run backtest and return our trades"""
+```
+
+---
+
+### Phase 4: Data Export & DVC Setup
+
+#### 4.1 TradingView Export Process
+
+**Document:** `configs/golden_strategies/README.md`
+
+1. Open TradingView
+2. Load strategy from PineScript file
+3. Set date range (e.g., 2023-01-01 to 2024-12-31)
+4. Set initial capital ($100,000)
+5. Set position size (1 contract)
+6. Disable commission (or set to known value)
+7. Run backtest
+8. Export trades to CSV
+9. Export equity curve (if possible)
+10. Take screenshot of backtest results
+11. Record metadata (TV version, date, parameters)
+
+#### 4.2 File Placement
+
+```bash
+# For each strategy:
+
+# 1. Place data files
+data/dvc/golden/strategies/ema_crossover/
+├── ohlcv.csv           # Market data
+├── trades.csv          # TradingView export
+└── equity_curve.csv    # TradingView equity
+
+# 2. Place configs
+configs/golden_strategies/ema_crossover/
+├── strategy.yaml       # Your platform config
+├── strategy.pine       # PineScript source
+├── run_config.yaml
+├── rem.yaml
+└── README.md           # How to regenerate
+```
+
+#### 4.3 DVC Tracking
+
+```bash
+# Track golden datasets
+dvc add data/dvc/golden/indicators/
+dvc add data/dvc/golden/strategies/
+
+# Push to S3
+dvc push
+
+# Commit DVC pointer files
+git add data/dvc/golden/.dvc
+git commit -m "data: Track golden validation datasets"
+```
+
+---
+
+### Phase 5: Documentation
+
+#### 5.1 Main Documentation
+
+**File:** `docs/testing/tradingview_validation.md`
+
+**Contents:**
+- Purpose and rationale
+- How to export data from TradingView
+- How to add new golden strategies
+- Tolerance rationale
+- Troubleshooting guide
+- When to regenerate datasets
+
+#### 5.2 Per-Strategy Documentation
+
+**File:** `configs/golden_strategies/{strategy_name}/README.md`
+
+**Contents:**
+- Strategy description
+- TradingView setup instructions
+- Parameter values used
+- Export process
+- Last regenerated date
+- Known differences/tolerances
+
+#### 5.3 Dataset Documentation
+
+**File:** `data/dvc/golden/README.md` (committed to git, not tracked by DVC)
+
+**Contents:**
+- Dataset inventory
+- Which TradingView version was used
+- When each dataset was generated
+- How to regenerate
+- DVC commands to pull data
+
+---
+
+## Implementation Order
+
+### Recommended Sequence:
+
+1. **Start Small - One Strategy End-to-End**
+   - [ ] Pick simplest strategy (EMA crossover)
+   - [ ] Write PineScript version
+   - [ ] Export from TradingView
+   - [ ] Place files in correct locations
+   - [ ] Track with DVC
+   - [ ] Write comparison test
+   - [ ] Tune tolerances until passing
+
+2. **Validate Framework is Reusable**
+   - [ ] Add 2nd strategy (BB mean reversion)
+   - [ ] Ensure helper functions are generic
+   - [ ] Refactor any hard-coded values
+
+3. **Expand Coverage**
+   - [ ] Add remaining strategies (3-5 total)
+   - [ ] Add more indicators to indicator validation
+   - [ ] Document everything
+
+4. **CI/CD Integration**
+   - [ ] Decide if validation tests run on every commit or manually
+   - [ ] Set up DVC pull in CI if needed
+   - [ ] Create "validation" test marker for pytest
+
+---
+
+## Open Questions & Decisions Needed
+
+### 1. Tolerance Levels
+**Question:** How strict should matching be?
+
+**Options:**
+- **Strict:** Exact match on trade count, ≤1 pip on prices
+- **Moderate:** Allow 1-2 trades difference, ≤5 pips on prices
+- **Lenient:** Focus on final PnL being close, allow execution differences
+
+**Recommendation:** Start strict, loosen if needed
+
+---
+
+### 2. Data Source
+**Question:** Should we use existing market data or export fresh from TradingView?
+
+**Options:**
+- **Option A:** Use our existing data (`data/dvc/raw/`)
+  - Pros: Consistency, already have it
+  - Cons: TV might not have same data source
+
+- **Option B:** Export OHLCV from TradingView along with trades
+  - Pros: Guaranteed same data source
+  - Cons: Redundant data storage
+
+**Recommendation:** Option B - export from TV to ensure exact match
+
+---
+
+### 3. Test Organization
+**Question:** Should these be part of regular test suite or separate?
+
+**Options:**
+- **Option A:** Regular test suite (run on every commit)
+  - Pros: Continuous validation
+  - Cons: Slower, requires DVC pull
+
+- **Option B:** Separate "validation" suite (run manually/pre-release)
+  - Pros: Faster CI, intentional validation
+  - Cons: Might forget to run
+
+**Recommendation:** Option B with pytest markers:
+```python
+@pytest.mark.validation
+def test_strategy_matches_tradingview():
+    ...
+```
+
+Run with: `pytest -m validation`
+
+---
+
+### 4. Risk Management Testing
+**Question:** Should we validate stop-loss/take-profit logic?
+
+**Options:**
+- **Phase 1:** Validate signals only (no stops)
+- **Phase 2:** Add stop-loss validation later
+
+**Recommendation:** Phase 1 approach - get signals right first
+
+---
+
+### 5. Dataset Size
+**Question:** How much data should golden datasets contain?
+
+**Options:**
+- **Small:** 1 month (fast tests, limited coverage)
+- **Medium:** 1 year (good balance)
+- **Large:** 3+ years (comprehensive, slow)
+
+**Recommendation:** Start with 1 year, expand if needed
+
+---
+
+## Success Criteria
+
+### Phase 1 (Indicators) Complete When:
+- [ ] All platform indicators validated against TradingView
+- [ ] Tests pass with documented tolerances
+- [ ] Tolerances documented and justified
+
+### Phase 2 (Strategies) Complete When:
+- [ ] 3+ strategies validated end-to-end
+- [ ] Trade counts match exactly
+- [ ] PnL matches within $1.00
+- [ ] All tests passing consistently
+
+### Phase 3 (Documentation) Complete When:
+- [ ] Export process documented
+- [ ] Each strategy has README
+- [ ] Tolerances explained
+- [ ] Regeneration process documented
+
+---
+
+## Migration from Current State
+
+### Do NOT Change These Files:
+- ✅ Keep `data/fixtures/eurusd_1h_sample.csv` (already exists)
+- ✅ Keep `data/fixtures/eurusd_1min_sample.csv` (already exists)
+- ✅ Keep `tests/data/test_golden_datasets.py` (already working)
+- ✅ Update paths in test file from `data/samples/` to `data/fixtures/`
+
+### Add These New Directories:
+```bash
+# Data directories (DVC-tracked)
+mkdir -p data/dvc/golden/indicators
+mkdir -p data/dvc/golden/strategies
+
+# Config directories (git-committed)
+mkdir -p configs/golden_strategies
+
+# Test directories
+mkdir -p tests/validation
+```
+
+### Update .gitignore:
+```
+# Already planned for ML pipeline
+/data/dvc/
+
+# Should already be there, but confirm
+*.pyc
+__pycache__/
+```
+
+---
+
+## Maintenance & Evolution
+
+### When to Regenerate Golden Datasets:
+
+1. **TradingView Updates** - If TV updates indicator calculations
+2. **Indicator Library Changes** - If we change pandas-ta version
+3. **New Strategies** - When adding new strategies to platform
+4. **Data Quality Issues** - If we discover issues with current datasets
+
+### Version Control Strategy:
+
+- **DVC** tracks data versions automatically
+- **Git** tracks config changes
+- Tag releases with data version: `v1.0.0-golden-2025-10`
+
+---
+
+## References
+
+### Existing Code to Review:
+- `tests/data/test_golden_datasets.py` - Current indicator validation
+- `tests/core/test_golden_brief.py` - Brief validation pattern
+- `tests/fixtures/golden_run/` - Existing test fixture structure
+
+### External Documentation:
+- TradingView Pine Script documentation
+- pandas-ta documentation
+- DVC documentation
+
+---
+
+## Notes
+
+- This plan assumes ML pipeline is completed first
+- DVC must be working and configured
+- S3 bucket must be available
+- TradingView subscription may be required for data exports
+- Consider starting with just 1-2 strategies before full implementation
+
+---
+
+**Next Steps:**
+1. Complete ML data curation pipeline
+2. Review this plan
+3. Choose first strategy to validate
+4. Begin Phase 1 implementation
