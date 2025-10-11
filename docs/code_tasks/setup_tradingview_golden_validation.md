@@ -654,6 +654,109 @@ __pycache__/
 
 ---
 
+### Phase 6: Formalizing Metadata with a JSON Schema (Recommended)
+
+**Goal:** To ensure all golden validation datasets are consistently documented and
+programmatically verifiable, preventing missing information and making the
+validation process more robust and auditable over the long term.
+
+#### 6.1 Rationale
+
+While the plan includes creating `metadata.json` files, their structure is
+informal. A formal JSON Schema provides several key benefits:
+
+-   **Consistency:** Enforces that all required fields (like `tradingview_version`
+    or `export_date`) are present in every metadata file.
+-   **Validation:** Allows for automated checks to ensure the data types and
+    formats are correct (e.g., dates are in `YYYY-MM-DD` format).
+-   **Discoverability:** The schema itself serves as clear, machine-readable
+    documentation for what constitutes a valid metadata file.
+
+#### 6.2 Proposed Schema Definition
+
+I recommend creating a new schema file at
+`docs/schemas/golden_metadata.schema.json` with the following content. This
+schema is designed to be flexible enough to describe metadata for both
+individual strategy validations and general indicator datasets.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/golden_metadata.schema.json",
+  "title": "Golden Validation Dataset Metadata",
+  "description": "Metadata for a TradingView golden validation dataset.",
+  "type": "object",
+  "properties": {
+    "dataset_type": {
+      "description": "The type of validation data.",
+      "type": "string",
+      "enum": ["strategy", "indicator"]
+    },
+    "strategy_name": { "type": "string" },
+    "tradingview_version": { "type": "string" },
+    "export_date": { "type": "string", "format": "date" },
+    "date_range": {
+      "type": "object",
+      "properties": {
+        "start": { "type": "string", "format": "date" },
+        "end": { "type": "string", "format": "date" }
+      },
+      "required": ["start", "end"]
+    },
+    "instrument": { "type": "string" },
+    "timeframe": { "type": "string" },
+    "initial_capital": { "type": "number" },
+    "position_size": { "type": "number" },
+    "commission": { "type": "number", "minimum": 0 }
+  },
+  "required": [
+    "dataset_type", "tradingview_version", "export_date", "date_range",
+    "instrument", "timeframe"
+  ]
+}
+```
+
+#### 6.3 How to Use the Schema
+
+The schema can be integrated directly into the testing workflow. When a test
+fixture loads a golden dataset for validation, it should first load the
+accompanying `metadata.json` and validate it against this schema.
+
+A helper function can be created in `tests/validation/conftest.py` or a similar
+shared testing module.
+
+**Example Validation Logic:**
+
+```python
+import json
+from pathlib import Path
+import jsonschema
+
+def load_and_validate_golden_metadata(metadata_path: Path) -> dict:
+    """Loads a metadata.json file and validates it against the schema."""
+
+    # Define paths to schema and metadata
+    schema_path = Path("docs/schemas/golden_metadata.schema.json")
+
+    # Load schema and data
+    with open(schema_path, "r") as f:
+        schema = json.load(f)
+    with open(metadata_path, "r") as f:
+        metadata = json.load(f)
+
+    # Validate
+    jsonschema.validate(instance=metadata, schema=schema)
+
+    return metadata
+
+# This function would then be used in a pytest fixture
+# to ensure all golden data is valid before a test runs.
+```
+
+By implementing this, we build a more reliable foundation for our entire
+validation strategy, ensuring that as we add more golden datasets, their quality
+and completeness are automatically maintained.
+
 **Next Steps:**
 1. Complete ML data curation pipeline
 2. Review this plan
