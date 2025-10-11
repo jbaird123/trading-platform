@@ -59,3 +59,21 @@ def test_cmd_run_backtest_uses_output_dir(tmp_path: Path) -> None:
         # Assert that runs_dir is a Path object equivalent to custom dir
         assert isinstance(called_config.runs_dir, Path)
         assert str(called_config.runs_dir) == custom_output_dir
+
+
+def test_cmd_ai_curate_data():
+    """Test that ai-curate-data CLI command invokes run_curation_pipeline."""
+    # Validates: ML Data Curation - CLI entrypoint
+    from trading_platform.cli import cmd_ai_curate_data
+
+    with patch("trading_platform.cli.run_curation_pipeline") as mock_run_curation:
+        args = argparse.Namespace(
+            source_dir="/fake/dir", output_file="/fake/file.parquet"
+        )
+
+        cmd_ai_curate_data(args)
+
+        # Assert that run_curation_pipeline was called exactly once
+        mock_run_curation.assert_called_once_with(
+            source_dir=Path("/fake/dir"), output_file=Path("/fake/file.parquet")
+        )

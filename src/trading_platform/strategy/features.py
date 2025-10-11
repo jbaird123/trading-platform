@@ -61,10 +61,16 @@ def rsi(series: pd.Series, length: int) -> pd.Series:
 def atr(df: pd.DataFrame, length: int) -> pd.Series:
     n = len(df)
     length = max(1, min(int(length), n))
-    result = ta.atr(high=df["high"], low=df["low"], close=df["close"], length=length)
-    if result is None:
+    try:
+        result = ta.atr(
+            high=df["high"], low=df["low"], close=df["close"], length=length
+        )
+        if result is None:
+            return pd.Series([np.nan] * n, index=df.index, dtype="float64")
+        return cast(pd.Series, result)
+    except (IndexError, ValueError, TypeError):
+        # TypeError can occur in pandas_ta with Python 3.13 (isnan bug)
         return pd.Series([np.nan] * n, index=df.index, dtype="float64")
-    return cast(pd.Series, result)
 
 
 def adx(df: pd.DataFrame, length: int) -> pd.Series:
@@ -84,7 +90,8 @@ def adx(df: pd.DataFrame, length: int) -> pd.Series:
         if isinstance(result, pd.DataFrame):
             return cast(pd.Series, result.iloc[:, 0])
         return cast(pd.Series, result)
-    except (IndexError, ValueError):
+    except (IndexError, ValueError, TypeError):
+        # TypeError can occur in pandas_ta with Python 3.13 (isnan bug)
         return pd.Series([np.nan] * n, index=df.index, dtype="float64")
 
 

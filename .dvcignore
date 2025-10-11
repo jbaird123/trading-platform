@@ -1,0 +1,15 @@
+# Add patterns of files dvc should ignore, which could improve
+# the performance. Learn more at
+# https://dvc.org/doc/user-guide/dvcignore
+
+# Security: Never track sensitive files
+*.env
+*.env.*
+*credentials*
+*secrets*
+*api_key*
+*apikey*
+*.key
+*.pem
+*.p12
+*.pfx

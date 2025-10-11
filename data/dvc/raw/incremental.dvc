@@ -1,0 +1,6 @@
+outs:
+- md5: 8527ead43430eb337dd8763f409372e5.dir
+  size: 24742934
+  nfiles: 10
+  hash: md5
+  path: incremental
