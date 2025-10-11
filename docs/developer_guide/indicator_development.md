@@ -33,7 +33,6 @@ All indicators are classified into safety levels:
 | **safe** | Built-in pandas-ta with known implementations | EMA, RSI, ATR, ADX |
 | **validated** | Custom indicators, manually reviewed & tested | SWING_HIGH, HHV, LLV |
 | **requires_test** | New/untrusted, must pass bias detection | FIB (TBD) |
-| **allow_lookahead** | Explicitly uses future data (research only) | None currently |
 
 ## How to Write Safe Indicators
 

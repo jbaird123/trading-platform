@@ -27,7 +27,8 @@ scipy = "^1.16.2"
 skl2onnx = "^1.16.0"
 fastapi = "^0.111.0"
 uvicorn = {extras = ["standard"], version = "^0.30.1"}
-pandas-ta = "^0.4.71b0"
+ta = "0.11.0"
+TA-Lib = "^0.4.28"
 joblib = "^1.5.2"
 google-generativeai = "^0.8.5"
 statsmodels = "^0.14.5"
@@ -85,7 +86,8 @@ show_error_codes = true
 module = [
     "scipy.*",
     "sklearn.*",
-    "pandas_ta.*",
+    "ta.*",
+    "talib",
     "yaml",
     "skl2onnx.*",
     "lightgbm.*",

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-# Safety levels: safe, validated, requires_test, allow_lookahead
+# Safety levels: safe, validated, requires_test
 # See strategy/indicator_safety.py for details
 
 INDICATORS: dict[str, dict] = {

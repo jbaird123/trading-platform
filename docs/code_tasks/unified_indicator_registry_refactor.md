@@ -148,7 +148,6 @@ class SafetyLevel(Enum):
     SAFE = "safe"
     VALIDATED = "validated"
     REQUIRES_TEST = "requires_test"
-    ALLOW_LOOKAHEAD = "allow_lookahead"
 
 def get_safety_level(indicator_type: str) -> SafetyLevel:
     """Get safety level for an indicator from registry."""

@@ -31,10 +31,6 @@ class SafetyLevel(Enum):
     # New or untrusted indicators that must pass automated
     # bias detection before being used.
 
-    ALLOW_LOOKAHEAD = "allow_lookahead"
-    # Explicitly marked as intentionally using future data
-    # (for research purposes only). Will trigger warnings.
-
 
 # Safety classification registry
 INDICATOR_SAFETY: dict[str, SafetyLevel] = {
@@ -162,24 +158,6 @@ def requires_bias_test(indicator_type: str) -> bool:
     return level == SafetyLevel.REQUIRES_TEST
 
 
-def is_lookahead_allowed(indicator_type: str) -> bool:
-    """
-    Check if indicator is explicitly marked as lookahead-allowed.
-
-    Args:
-        indicator_type: Indicator type name
-
-    Returns:
-        True if lookahead is explicitly allowed (research only)
-
-    Example:
-        >>> is_lookahead_allowed('EMA')
-        False
-    """
-    level = get_safety_level(indicator_type)
-    return level == SafetyLevel.ALLOW_LOOKAHEAD
-
-
 class LookAheadBiasError(Exception):
     """Raised when an indicator fails bias detection."""
 
@@ -209,10 +187,6 @@ def validate_indicator_safety(
 
     if level in (SafetyLevel.SAFE, SafetyLevel.VALIDATED):
         # Already verified safe
-        return
-
-    if level == SafetyLevel.ALLOW_LOOKAHEAD:
-        # Explicitly allowed (will warn elsewhere)
         return
 
     if level == SafetyLevel.REQUIRES_TEST:
@@ -255,7 +229,6 @@ def get_safety_summary() -> dict[str, list[str]]:
         "safe": [],
         "validated": [],
         "requires_test": [],
-        "allow_lookahead": [],
     }
 
     for indicator, level in INDICATOR_SAFETY.items():
