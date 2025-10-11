@@ -34,9 +34,9 @@ repos:
         language: python
         types: [yaml]
         files: ^config/strategy/.*\.yaml$
-      - id: block-ta-import
-        name: Block import of ta library
-        entry: bash -c 'grep -l "import ta" "$@" | xargs -r false' --
+      - id: block-pandas-ta-import
+        name: Block import of pandas_ta library
+        entry: bash -c 'grep -E "import pandas.?ta|from pandas.?ta" "$@" | grep -v "^#" && exit 1 || exit 0' --
         language: system
         types: [python]
 
