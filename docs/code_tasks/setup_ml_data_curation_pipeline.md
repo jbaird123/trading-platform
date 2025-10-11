@@ -116,7 +116,7 @@ Before starting, create and switch to the specified branch:
         git commit -m "data: Track and push initial master trade log"
         ```
 
-12. [ ] **Relocate, Track, and Push Market Data to S3:**
+12. [x] **Relocate, Track, and Push Market Data to S3:**
     -   Create the new directory for raw data:
         ```bash
         mkdir -p data/dvc/raw
