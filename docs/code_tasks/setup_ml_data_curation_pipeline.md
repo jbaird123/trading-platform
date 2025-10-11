@@ -216,7 +216,7 @@ Before starting, create and switch to the specified branch:
         chmod +x scripts/dvc/sync.sh
         ```
 
-19. [ ] **Commit the new script:**
+19. [x] **Commit the new script:**
     -   Add the new script to Git version control.
         ```bash
         git add scripts/dvc/sync.sh
