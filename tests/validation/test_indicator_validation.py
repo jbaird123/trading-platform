@@ -47,8 +47,9 @@ COMPREHENSIVE_INDICATOR_TEST_CASES = [
         "MACD",
         {"fast": 12, "slow": 26, "signal": 9},
     ),
-    ("Stoch", "stoch k", "batch2", "STOCH", {"k": 14, "d": 3, "smooth_k": 3}),
-    ("Stoch_signal", "stoch d", "batch2", "STOCH", {"k": 14, "d": 3, "smooth_k": 3}),
+    # TradingView uses Fast Stochastic (smooth_k=1), not Slow (smooth_k=3)
+    ("Stoch", "stoch k", "batch2", "STOCH", {"k": 14, "d": 3, "smooth_k": 1}),
+    ("Stoch_signal", "stoch d", "batch2", "STOCH", {"k": 14, "d": 3, "smooth_k": 1}),
     ("CCI", "cci 20", "batch2", "CCI", {"length": 20}),
     ("ROC", "roc 12", "batch2", "ROC", {"length": 12}),
     ("Choppiness", "choppiness", "batch2", "CHOP", {"length": 14}),
@@ -169,7 +170,10 @@ INDICATOR_TOLERANCES = {
         "rtol": 1e-4,
         "atol": 6e-7,
     },  # Max abs diff: macd=5.2e-7, signal=4.1e-7, diff=1.3e-7
-    "STOCH": {"rtol": 1e-3, "atol": 1e-8},
+    "STOCH": {
+        "rtol": 1e-7,
+        "atol": 1e-8,
+    },  # Perfect match with Fast Stochastic (smooth_k=1)
     "CCI": {"rtol": 1e-3, "atol": 1e-8},
     "ROC": {"rtol": 1e-7, "atol": 1e-8},  # Perfect match: max diff 0.000000%
     # Trend indicators - can have larger differences

@@ -400,16 +400,20 @@ def compute_features(
                 out[f"{name}_up"] = np.nan
                 out[f"{name}_down"] = np.nan
         elif typ == "STOCH":
-            length = int(resolved_params.get("length", 14))
-            k = int(resolved_params.get("k", 3))
-            d = int(resolved_params.get("d", 3))
+            # Stochastic parameters:
+            # k: Fast %K period (lookback for high/low range)
+            # d: Slow %D period (smoothing of %K to get %D signal)
+            # smooth_k: Slow %K smoothing period (smoothing before %D)
+            k_period = int(resolved_params.get("k", 14))
+            d_period = int(resolved_params.get("d", 3))
+            smooth_k_period = int(resolved_params.get("smooth_k", 3))
             stoch = ta.stoch(
                 high=df["high"],
                 low=df["low"],
                 close=df["close"],
-                k=length,
-                d=d,
-                smooth_k=k,
+                k=k_period,
+                d=d_period,
+                smooth_k=smooth_k_period,
             )
             if stoch is not None and not stoch.empty:
                 out[f"{name}"] = stoch.iloc[:, 0]  # STOCHk
