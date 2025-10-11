@@ -161,7 +161,7 @@ INDICATOR_TOLERANCES = {
     "WMA": {"rtol": 1e-7, "atol": 1e-8},  # Perfect match: max diff 0.000000%
     # Oscillators - moderate differences due to smoothing
     "RSI": {"rtol": 1e-3, "atol": 1e-8},  # Max diff 0.089%
-    "MACD": {"rtol": 1e-4, "atol": 1e-8},
+    "MACD": {"rtol": 1e-4, "atol": 6e-7},  # Max abs diff: macd=5.2e-7, signal=4.1e-7, diff=1.3e-7
     "STOCH": {"rtol": 1e-3, "atol": 1e-8},
     "CCI": {"rtol": 1e-3, "atol": 1e-8},
     "ROC": {"rtol": 1e-7, "atol": 1e-8},  # Perfect match: max diff 0.000000%
