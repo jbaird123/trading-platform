@@ -143,14 +143,14 @@ Before starting, create and switch to the specified branch:
 
 ### Phase 4: Update Dependent Code
 
-13. [ ] **Centralize Raw Data Path:**
+13. [x] **Centralize Raw Data Path:**
     -   Open `src/trading_platform/core/paths.py`.
     -   Add a new constant `RAW_DATA_DIR` that points to the new location for raw market data:
         ```python
         RAW_DATA_DIR = PROJECT_ROOT / "data" / "dvc" / "raw"
         ```
 
-14. [ ] **Update Data Handler Path:**
+14. [x] **Update Data Handler Path:**
     -   Open `src/trading_platform/cli.py`.
     -   Find the instantiation of the `DataHandler`.
     -   Change the `data_root` argument to use the new constant from the `paths` module:
@@ -162,7 +162,7 @@ Before starting, create and switch to the specified branch:
         data_root=paths.RAW_DATA_DIR,
         ```
 
-15. [ ] **Update Data Sync Script:**
+15. [x] **Update Data Sync Script:**
     -   Open the `scripts/sync-all.sh` file.
     -   Find the line that defines the `DATA_DIR` variable.
     -   Update the path to point to the new raw data directory:
