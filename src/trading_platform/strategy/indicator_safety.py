@@ -89,6 +89,12 @@ INDICATOR_SAFETY: dict[str, SafetyLevel] = {
     # Custom rolling min, uses safe_rolling_min helper
     "DC": SafetyLevel.VALIDATED,
     # Donchian Channels, uses safe helpers
+    "ATRPercentile": SafetyLevel.VALIDATED,
+    # Custom ATR percentile rank calculation, reviewed and validated
+    "RealizedVolatility": SafetyLevel.VALIDATED,
+    # Standard deviation of log returns, reviewed and validated
+    "VolumeZScore": SafetyLevel.VALIDATED,
+    # Z-score of volume relative to rolling mean, reviewed and validated
     # ========================================
     # REQUIRES_TEST: Unclassified
     # ========================================
