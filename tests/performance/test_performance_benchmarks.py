@@ -14,8 +14,9 @@ from datetime import datetime
 
 import pandas as pd
 import pytest
-from trading_platform.backtester.core import run_backtest
+from trading_platform.backtester.orchestrator import run_backtest_from_config
 from trading_platform.core.config import RunConfig
+from trading_platform.data.instrument import get_instrument_definition
 from trading_platform.strategy.features import compute_features
 
 # SYS-1.9.1: Vectorized operations on multi-year data
@@ -161,7 +162,9 @@ def test_sys_1_9_2_multi_year_backtest_performance():
 
     # Realistic price action
     base = 1.1000
-    noise = pd.Series(range(periods)).apply(lambda x: (x % 100 - 50) * 0.00001)
+    noise = pd.Series(range(periods), index=index).apply(
+        lambda x: (x % 100 - 50) * 0.00001
+    )
     close = base + noise
     df = pd.DataFrame(
         {
@@ -175,18 +178,19 @@ def test_sys_1_9_2_multi_year_backtest_performance():
     )
 
     # Simple EMA crossover strategy config
+    instrument = get_instrument_definition("EURUSD")
     config = RunConfig(  # type: ignore[call-arg]
-        symbol="EURUSD",
-        strategy_path="configs/strategies/ema_crossover.yaml",
-        data=df,
-        initial_capital=100000,
+        instrument=instrument.model_dump(),
+        initial_cash=100000,
         warmup_bars=50,
         entry_window_bars=0,
     )
 
     # Benchmark backtest execution
     start_time = time.time()
-    result = run_backtest(config)  # type: ignore[arg-type,call-arg]
+    result = run_backtest_from_config(
+        config, market_data=df, strategy_path="config/strategy/ema_crossover.yaml"
+    )
     elapsed = time.time() - start_time
 
     # Verify backtest completed
@@ -327,7 +331,7 @@ def test_backtest_execution_time_1m_bars():
     periods = 50_000  # Reduced for CI, represents 1M bar performance
     index = pd.date_range("2020-01-01", periods=periods, freq="5min")
 
-    close = 100.0 + (pd.Series(range(periods)) * 0.01 % 10)
+    close = 100.0 + (pd.Series(range(periods), index=index) * 0.01 % 10)
     df = pd.DataFrame(
         {
             "open": close,
@@ -339,17 +343,18 @@ def test_backtest_execution_time_1m_bars():
         index=index,
     )
 
+    instrument = get_instrument_definition("EURUSD")
     config = RunConfig(  # type: ignore[call-arg]
-        symbol="EURUSD",
-        strategy_path="configs/strategies/ema_crossover.yaml",
-        data=df,
-        initial_capital=100000,
+        instrument=instrument.model_dump(),
+        initial_cash=100000,
         warmup_bars=50,
         entry_window_bars=0,
     )
 
     start_time = time.time()
-    result = run_backtest(config)  # type: ignore[arg-type,call-arg]
+    result = run_backtest_from_config(
+        config, market_data=df, strategy_path="config/strategy/ema_crossover.yaml"
+    )
     elapsed = time.time() - start_time
 
     bars_per_sec = periods / elapsed
