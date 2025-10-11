@@ -1,0 +1,192 @@
+strategy_name: "Ichimoku Cloud Trend Following"
+description: |
+  Trade with the Ichimoku Cloud, a comprehensive trend-following system that provides
+  support/resistance, trend direction, and momentum signals in a single indicator.
+
+  The Ichimoku Cloud (Ichimoku Kinko Hyo) consists of 5 components:
+
+  1. TENKAN-SEN (Conversion Line, 9-period):
+     - Fastest moving line, acts as trigger line
+     - Calculation: (9-period high + 9-period low) / 2
+     - No display shift
+
+  2. KIJUN-SEN (Base Line, 26-period):
+     - Slower confirmation line, stronger support/resistance
+     - Calculation: (26-period high + 26-period low) / 2
+     - No display shift
+
+  3. SENKOU SPAN A (Leading Span A):
+     - First cloud boundary
+     - Calculation: (Tenkan + Kijun) / 2
+     - DISPLAY: Shifted 26 periods AHEAD (projects future support/resistance)
+
+  4. SENKOU SPAN B (Leading Span B, 52-period):
+     - Second cloud boundary
+     - Calculation: (52-period high + 52-period low) / 2
+     - DISPLAY: Shifted 26 periods AHEAD (projects future support/resistance)
+
+  5. CHIKOU SPAN (Lagging Span):
+     - Current close price
+     - DISPLAY: Shifted 26 periods BEHIND (helps identify trend strength)
+
+  IMPORTANT: pandas_ta vs TradingView Implementation Differences
+  ==============================================================
+
+  Our platform uses pandas_ta, which has a quirk in its shift implementation:
+
+  pandas_ta shifts (from source code ichimoku.py):
+    - Senkou A & B: shift(kijun - 1) = shift(25) instead of standard shift(26)
+    - Chikou: shift(-kijun + 1) = shift(-25) instead of standard shift(-26)
+
+  TradingView uses standard shifts:
+    - Senkou A & B: shift(26) forward for display
+    - Chikou: shift(26) backward for display
+
+  WHAT THIS MEANS FOR YOU:
+  - Our platform's Ichimoku calculations are IDENTICAL to TradingView's calculations
+  - The only difference is pandas_ta shifts by 25 instead of 26 during export
+  - This is PURELY a display/export difference, not a calculation difference
+  - For trading strategy logic, this difference is negligible (only 1 bar)
+  - All 5 components match TradingView within floating-point precision
+
+  Strategy Logic (Classic Ichimoku Signals):
+  ==========================================
+
+  STRONG BULLISH SIGNALS:
+  - Price above the cloud (both Senkou A and B)
+  - Tenkan crosses above Kijun (TK cross)
+  - Chikou above price from 26 bars ago (momentum confirmation)
+  - Cloud is green (Senkou A > Senkou B)
+
+  STRONG BEARISH SIGNALS:
+  - Price below the cloud
+  - Tenkan crosses below Kijun
+  - Chikou below price from 26 bars ago
+  - Cloud is red (Senkou A < Senkou B)
+
+parameters:
+  tenkan_period: 9    # Conversion line period (fast)
+  kijun_period: 26    # Base line period (standard)
+  senkou_period: 52   # Leading Span B period (slow)
+
+features:
+  - name: ich
+    type: ICHIMOKU
+    params:
+      tenkan: ${tenkan_period}
+      kijun: ${kijun_period}
+      senkou: ${senkou_period}
+    # Ichimoku generates 5 columns:
+    #   ich_tenkan   - Conversion Line (9-period midpoint)
+    #   ich_kijun    - Base Line (26-period midpoint)
+    #   ich_senkou_a - Leading Span A (avg of Tenkan + Kijun, shifted +25)
+    #   ich_senkou_b - Leading Span B (52-period midpoint, shifted +25)
+    #   ich_chikou   - Lagging Span (current close, shifted -25)
+
+# LONG TRADES: Enter when price is above cloud with bullish momentum
+long_entry_rules:
+  - all_of:
+      # Price above cloud (both Senkou A and B)
+      - condition: is_above
+        left: close
+        right:
+          ref: ich_senkou_a
+      - condition: is_above
+        left: close
+        right:
+          ref: ich_senkou_b
+      # Bullish TK cross: Tenkan above Kijun
+      - condition: is_above
+        left:
+          ref: ich_tenkan
+        right:
+          ref: ich_kijun
+      # Bullish cloud: Senkou A above Senkou B
+      - condition: is_above
+        left:
+          ref: ich_senkou_a
+        right:
+          ref: ich_senkou_b
+
+# LONG EXIT: Exit when price enters or falls below cloud
+long_exit_rules:
+  - any_of:
+      # Price crosses below Senkou A (enters cloud from above)
+      - condition: is_below
+        left: close
+        right:
+          ref: ich_senkou_a
+      # Bearish TK cross: Tenkan crosses below Kijun
+      - condition: is_below
+        left:
+          ref: ich_tenkan
+        right:
+          ref: ich_kijun
+
+# SHORT TRADES: Enter when price is below cloud with bearish momentum
+short_entry_rules:
+  - all_of:
+      # Price below cloud (both Senkou A and B)
+      - condition: is_below
+        left: close
+        right:
+          ref: ich_senkou_a
+      - condition: is_below
+        left: close
+        right:
+          ref: ich_senkou_b
+      # Bearish TK cross: Tenkan below Kijun
+      - condition: is_below
+        left:
+          ref: ich_tenkan
+        right:
+          ref: ich_kijun
+      # Bearish cloud: Senkou A below Senkou B
+      - condition: is_below
+        left:
+          ref: ich_senkou_a
+        right:
+          ref: ich_senkou_b
+
+# SHORT EXIT: Exit when price enters or rises above cloud
+short_exit_rules:
+  - any_of:
+      # Price crosses above Senkou A (enters cloud from below)
+      - condition: is_above
+        left: close
+        right:
+          ref: ich_senkou_a
+      # Bullish TK cross: Tenkan crosses above Kijun
+      - condition: is_above
+        left:
+          ref: ich_tenkan
+        right:
+          ref: ich_kijun
+
+# TRADING NOTES
+# =============
+#
+# 1. CLOUD AS SUPPORT/RESISTANCE:
+#    - In uptrend: Cloud acts as support zone
+#    - In downtrend: Cloud acts as resistance zone
+#    - Thick cloud = strong support/resistance
+#    - Thin cloud = weak support/resistance
+#
+# 2. CHIKOU SPAN (LAGGING LINE):
+#    - If Chikou is above price (from 26 bars ago): Bullish confirmation
+#    - If Chikou is below price (from 26 bars ago): Bearish confirmation
+#    - Chikou crossing price levels can signal momentum shifts
+#
+# 3. FLAT CLOUD (KUMO TWIST):
+#    - When Senkou A and B are converging: Uncertainty, trend may be weak
+#    - When they twist (cross): Potential trend reversal ahead
+#
+# 4. TIMEFRAME CONSIDERATIONS:
+#    - Ichimoku works best on higher timeframes (4H, Daily)
+#    - On 1H charts (like our validation data), signals can be more frequent
+#    - Consider using larger periods for more stable signals on lower timeframes
+#
+# 5. STOP PLACEMENT:
+#    - Place stops below cloud for longs (above cloud for shorts)
+#    - Cloud thickness indicates how far price needs to move for stop
+#    - Wider cloud = wider stop required

@@ -543,11 +543,14 @@ def compute_features(
                 senkou=int(resolved_params.get("senkou", 52)),
             )
             if ichimoku_df is not None and not ichimoku_df.empty:
-                out[f"{name}_tenkan"] = ichimoku_df.iloc[:, 0]
-                out[f"{name}_kijun"] = ichimoku_df.iloc[:, 1]
-                out[f"{name}_senkou_a"] = ichimoku_df.iloc[:, 2]
-                out[f"{name}_senkou_b"] = ichimoku_df.iloc[:, 3]
-                out[f"{name}_chikou"] = ichimoku_df.iloc[:, 4]
+                # pandas_ta returns columns in order: ISA, ISB, ITS, IKS, ICS
+                # ISA = Senkou Span A, ISB = Senkou Span B
+                # ITS = Tenkan-sen, IKS = Kijun-sen, ICS = Chikou Span
+                out[f"{name}_senkou_a"] = ichimoku_df.iloc[:, 0]  # ISA
+                out[f"{name}_senkou_b"] = ichimoku_df.iloc[:, 1]  # ISB
+                out[f"{name}_tenkan"] = ichimoku_df.iloc[:, 2]  # ITS
+                out[f"{name}_kijun"] = ichimoku_df.iloc[:, 3]  # IKS
+                out[f"{name}_chikou"] = ichimoku_df.iloc[:, 4]  # ICS
             else:
                 out[f"{name}_tenkan"] = np.nan
                 out[f"{name}_kijun"] = np.nan
