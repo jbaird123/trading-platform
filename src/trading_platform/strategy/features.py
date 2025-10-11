@@ -564,7 +564,10 @@ def compute_features(
             )
             if st is not None and not st.empty:
                 out[f"{name}"] = st.iloc[:, 0]
-                out[f"{name}_direction"] = st.iloc[:, 1]
+                # Invert direction to match TradingView convention:
+                # pandas_ta: 1=uptrend, -1=downtrend
+                # TradingView: 1=downtrend, -1=uptrend
+                out[f"{name}_direction"] = -st.iloc[:, 1]
                 out[f"{name}_long"] = st.iloc[:, 2]
                 out[f"{name}_short"] = st.iloc[:, 3]
             else:
