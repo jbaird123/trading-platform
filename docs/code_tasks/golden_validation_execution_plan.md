@@ -189,7 +189,7 @@
 ### Part B: Documentation
 
 - [ ] 110. Update `data/dvc/golden/README.md` with final inventory
-- [ ] 111. Update `docs/testing/tradingview_validation.md` with lessons learned
+- [ ] 111. Update `docs/validation/tradingview_validation.md` with lessons learned
 - [ ] 112. Create summary of tolerance decisions
 - [ ] 113. Document any platform differences discovered
 - [ ] 114. Update main task document with completion status

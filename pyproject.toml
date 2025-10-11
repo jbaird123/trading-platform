@@ -124,6 +124,7 @@ filterwarnings = [
 ]
 markers = [
     "slow: Marks a test as slow-running (e.g., performance benchmarks).",
+    "validation: Golden validation tests (TradingView comparison).",
     "req_DH_2_1: Marks a test as covering a specific requirement.",
     "req_DH_2_2: Marks a test as covering a specific requirement.",
     "req_DH_2_3: Marks a test as covering a specific requirement.",

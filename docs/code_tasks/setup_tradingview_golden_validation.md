@@ -762,3 +762,234 @@ and completeness are automatically maintained.
 2. Review this plan
 3. Choose first strategy to validate
 4. Begin Phase 1 implementation
+
+---
+
+## Implementation Status (2025-10-11)
+
+### ✅ Completed Tasks
+
+#### Infrastructure Setup
+- [x] Created directory structure:
+  - `data/dvc/golden/indicators/`
+  - `data/dvc/golden/strategies/ema_crossover/`
+  - `data/dvc/golden/strategies/bb_mean_reversion/`
+  - `data/dvc/golden/strategies/multi_indicator_strategy/`
+  - `configs/golden_strategies/ema_crossover/`
+  - `tests/validation/`
+
+#### Schema & Metadata (Phase 6)
+- [x] Created `docs/schemas/golden_metadata.schema.json`
+  - Validates dataset metadata (TradingView exports)
+  - Required fields: dataset_type, tradingview_version, etc.
+  - Used by test fixtures for validation
+
+#### EMA Crossover Strategy (Phase 2.1 - First Strategy)
+- [x] Created platform strategy YAML:
+  - `configs/golden_strategies/ema_crossover/strategy.yaml`
+  - Simple EMA(20)/EMA(50) crossover
+  - Long and short sides
+  - No stop-loss/take-profit for baseline validation
+
+- [x] Created risk/exit management:
+  - `configs/golden_strategies/ema_crossover/rem.yaml`
+  - No exit rules (signals only)
+
+- [x] Created run configuration:
+  - `configs/golden_strategies/ema_crossover/run_config.yaml`
+  - $100k initial capital
+  - $10k position size
+  - No costs for baseline
+
+- [x] Created PineScript equivalent:
+  - `configs/golden_strategies/ema_crossover/strategy.pine`
+  - Matches platform logic exactly
+  - Same parameters and entry/exit rules
+  - Ready for TradingView import
+
+- [x] Created strategy README:
+  - `configs/golden_strategies/ema_crossover/README.md`
+  - Step-by-step TradingView export instructions
+  - Parameter documentation
+  - Regeneration guidelines
+
+#### Test Framework (Phase 3)
+- [x] Created `tests/validation/conftest.py`:
+  - DVC data pull fixture
+  - Strategy name extraction fixture
+  - Golden paths fixture
+  - Config loading fixtures
+  - TradingView CSV loading fixtures
+  - Metadata validation helper
+
+- [x] Created `tests/validation/test_strategy_validation.py`:
+  - Tolerance definitions
+  - Helper functions:
+    - `load_platform_trades()` (stub)
+    - `align_trades()`
+    - `compare_trade_sequences()`
+    - `calculate_equity_curve()`
+    - `compare_metrics()`
+  - Test cases (all properly skip until data exists):
+    - `test_ema_crossover_trade_count_matches_tradingview`
+    - `test_ema_crossover_trade_times_match_tradingview`
+    - `test_ema_crossover_trade_pnl_matches_tradingview`
+    - `test_ema_crossover_equity_curve_correlation`
+    - `test_metadata_schema_validation` ✅ PASSING
+
+- [x] Registered `validation` pytest marker in pyproject.toml
+  - Run with: `pytest -m validation`
+
+#### Documentation (Phase 5)
+- [x] Created `data/dvc/golden/README.md`:
+  - Dataset inventory
+  - Pull/usage instructions
+  - When to regenerate
+  - Troubleshooting
+
+- [x] Created `docs/validation/tradingview_validation.md`:
+  - Complete workflow guide
+  - TradingView export process
+  - Tolerance explanations
+  - Adding new strategies
+  - CI/CD integration
+  - Troubleshooting common issues
+
+#### Comprehensive Indicator Dataset (Phase 1 Complete)
+- [x] Created 9 PineScript batch files for TradingView export:
+  - `configs/golden_strategies/indicators/batch1_moving_averages.pine`
+    - 6 indicators: SMA 20, EMA 20, WMA 20, RSI 14, ATR 14, PSAR
+    - 11 total columns (5 OHLCV + 6 indicators)
+  - `configs/golden_strategies/indicators/batch2_oscillators.pine`
+    - 8 indicators: MACD×3, Stochastic×2, CCI 20, ROC 12, Choppiness
+    - 13 total columns (5 OHLCV + 8 indicators)
+  - `configs/golden_strategies/indicators/batch3_volume.pine`
+    - 2 indicators: OBV, VWAP
+    - 7 total columns (5 OHLCV + 2 indicators)
+  - `configs/golden_strategies/indicators/batch4_adx.pine`
+    - 3 indicators: DMI+, DMI-, ADX 14
+    - 8 total columns (5 OHLCV + 3 indicators)
+  - `configs/golden_strategies/indicators/batch5_bollinger.pine`
+    - 3 indicators: BB Upper, BB Middle, BB Lower (20, 2.0σ)
+    - 8 total columns (5 OHLCV + 3 indicators)
+  - `configs/golden_strategies/indicators/batch6_supertrend.pine`
+    - 2 indicators: SuperTrend, ST Direction (3.0, 7)
+    - 7 total columns (5 OHLCV + 2 indicators)
+  - `configs/golden_strategies/indicators/batch7_keltner.pine`
+    - 3 indicators: KC Upper, KC Middle, KC Lower (20, 20, 2.0)
+    - 8 total columns (5 OHLCV + 3 indicators)
+  - `configs/golden_strategies/indicators/batch8_ichimoku.pine`
+    - 5 indicators: Ich Conversion, Ich Base, Ich Span A, Ich Span B, Ich Lagging
+    - 10 total columns (5 OHLCV + 5 indicators)
+  - `configs/golden_strategies/indicators/batch9_cmf.pine`
+    - 1 indicator: CMF 20
+    - 6 total columns (5 OHLCV + 1 indicator)
+  - **Total: 32 indicators across 9 batches**
+  - Each batch designed to stay within TradingView's ~11 column export limit
+
+- [x] Exported all batches from TradingView:
+  - Instrument: OANDA:EURUSD
+  - Timeframe: 1 hour
+  - Date range: March 4, 2022 - October 10, 2025
+  - Row count: 22,447 hourly bars per batch
+  - All batches share identical OHLCV data
+  - Files kept unmodified from TradingView export
+
+- [x] Organized indicator batch data:
+  - Created `data/dvc/golden/indicators/comprehensive/` directory
+  - Placed all 9 CSV batch files:
+    - `batch1_moving_averages_eurusd_1h.csv`
+    - `batch2_oscillators_eurusd_1h.csv`
+    - `batch3_volume_eurusd_1h.csv`
+    - `batch4_adx_eurusd_1h.csv`
+    - `batch5_bollinger_eurusd_1h.csv`
+    - `batch6_supertrend_eurusd_1h.csv`
+    - `batch7_keltner_eurusd_1h.csv`
+    - `batch8_ichimoku_eurusd_1h.csv`
+    - `batch9_cmf_eurusd_1h.csv`
+
+- [x] Created comprehensive metadata:
+  - `data/dvc/golden/indicators/comprehensive/metadata.json`
+  - Validates against `docs/schemas/golden_metadata.schema.json`
+  - Documents all 32 indicators with parameters
+  - Maps indicator names to CSV column names
+  - Records batch structure and row/column counts
+  - Documents TradingView export limitations and merge strategy
+
+- [x] Tracked with DVC and pushed to S3:
+  - All 9 batch CSV files tracked with DVC
+  - DVC pointer files committed to git
+  - Successfully pushed to S3 remote
+  - Metadata.json committed to git (not DVC-tracked)
+
+- [x] Created indicator batch documentation:
+  - `configs/golden_strategies/indicators/README.md`
+  - Explains purpose of batch files
+  - Provides step-by-step TradingView export instructions
+  - Includes batch overview table
+  - Documents troubleshooting steps
+  - Explains merge strategy (in-memory during tests)
+
+### 📋 Pending Tasks
+
+#### Phase 1: Indicator Validation (Data Export Complete ✅)
+- [x] ~~Export additional indicators from TradingView~~ (32 indicators exported)
+- [ ] Create `tests/validation/test_indicator_validation.py`
+- [ ] Implement test fixtures to load and merge batch data in-memory
+- [ ] Validate all 32 indicators against platform calculations:
+  - [ ] Moving averages: SMA, EMA, WMA
+  - [ ] Oscillators: RSI, MACD, Stochastic, CCI, ROC, Choppiness
+  - [ ] Volatility: ATR, Bollinger Bands, Keltner Channels
+  - [ ] Trend: ADX/DMI, PSAR, SuperTrend, Ichimoku Cloud
+  - [ ] Volume: OBV, VWAP, CMF
+
+#### Phase 2: Complete Strategy Portfolio
+- [ ] Export EMA crossover data from TradingView
+  - [ ] Export trades.csv
+  - [ ] Export ohlcv.csv
+  - [ ] Export equity_curve.csv (if available)
+  - [ ] Create metadata.json
+  - [ ] Track with DVC
+- [ ] Implement BB mean reversion strategy
+- [ ] Implement multi-indicator strategy
+
+#### Phase 3: Complete Test Implementation
+- [ ] Implement `load_platform_trades()` function
+- [ ] Integrate with backtester
+- [ ] Verify tests pass with real TradingView data
+- [ ] Tune tolerances if needed
+
+#### Phase 4: DVC Integration
+- [ ] Add golden datasets to DVC
+- [ ] Push to S3
+- [ ] Document pull process for team
+
+### 🎯 Next Immediate Steps
+
+1. **Export TradingView Data**
+   - Open TradingView
+   - Load `configs/golden_strategies/ema_crossover/strategy.pine`
+   - Configure per README instructions
+   - Export trades and OHLCV
+   - Create metadata.json
+
+2. **Track with DVC**
+   ```bash
+   dvc add data/dvc/golden/strategies/ema_crossover/
+   dvc push
+   git add data/dvc/golden/strategies/ema_crossover.dvc
+   git commit -m "data: Add EMA crossover golden validation"
+   ```
+
+3. **Implement Test Integration**
+   - Complete `load_platform_trades()` in test file
+   - Run tests against real data
+   - Adjust tolerances if needed
+
+### 📝 Notes
+
+- All infrastructure is in place
+- Tests properly skip until data is exported
+- Documentation is complete
+- Framework is reusable for additional strategies
+- Ready for Phase 1 (indicator validation) and Phase 2 (strategy data export)
