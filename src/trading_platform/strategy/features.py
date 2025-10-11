@@ -73,10 +73,14 @@ def atr(df: pd.DataFrame, length: int) -> pd.Series:
         return pd.Series([np.nan] * n, index=df.index, dtype="float64")
 
 
-def adx(df: pd.DataFrame, length: int) -> pd.Series:
+def adx(df: pd.DataFrame, length: int) -> pd.DataFrame:
     n = len(df)
     if n < 3:
-        return pd.Series([np.nan] * n, index=df.index, dtype="float64")
+        empty_df = pd.DataFrame(
+            {"ADX": [np.nan] * n, "DI+": [np.nan] * n, "DI-": [np.nan] * n},
+            index=df.index,
+        )
+        return empty_df
     length = max(3, min(int(length), n))
 
     try:
@@ -84,15 +88,40 @@ def adx(df: pd.DataFrame, length: int) -> pd.Series:
             high=df["high"], low=df["low"], close=df["close"], length=length
         )
         if result is None:
-            return pd.Series([np.nan] * n, index=df.index, dtype="float64")
-        # pandas_ta returns DataFrame with ADX, DMP, DMN columns
-        # We want the ADX column (first one)
+            empty_df = pd.DataFrame(
+                {"ADX": [np.nan] * n, "DI+": [np.nan] * n, "DI-": [np.nan] * n},
+                index=df.index,
+            )
+            return empty_df
+        # pandas_ta returns DataFrame with columns: ADX_14, ADXR_14_2, DMP_14, DMN_14
+        # Rename to match TradingView: ADX, DI+, DI-
         if isinstance(result, pd.DataFrame):
-            return cast(pd.Series, result.iloc[:, 0])
-        return cast(pd.Series, result)
+            adx_col = [col for col in result.columns if col.startswith("ADX_")][0]
+            dmp_col = [col for col in result.columns if col.startswith("DMP_")][0]
+            dmn_col = [col for col in result.columns if col.startswith("DMN_")][0]
+
+            renamed = pd.DataFrame(
+                {
+                    "ADX": result[adx_col],
+                    "DI+": result[dmp_col],
+                    "DI-": result[dmn_col],
+                },
+                index=result.index,
+            )
+            return renamed
+        # Fallback if not DataFrame (shouldn't happen)
+        empty_df = pd.DataFrame(
+            {"ADX": [np.nan] * n, "DI+": [np.nan] * n, "DI-": [np.nan] * n},
+            index=df.index,
+        )
+        return empty_df
     except (IndexError, ValueError, TypeError):
         # TypeError can occur in pandas_ta with Python 3.13 (isnan bug)
-        return pd.Series([np.nan] * n, index=df.index, dtype="float64")
+        empty_df = pd.DataFrame(
+            {"ADX": [np.nan] * n, "DI+": [np.nan] * n, "DI-": [np.nan] * n},
+            index=df.index,
+        )
+        return empty_df
 
 
 def bb_width(series: pd.Series, length: int, ndev: float) -> pd.Series:
@@ -304,7 +333,11 @@ def compute_features(
             length = int(resolved_params.get("length", 14))
             out[name] = atr(df, length)
         elif typ == "ADX":
-            out[name] = adx(df, int(resolved_params.get("length", 14)))
+            # ADX returns DataFrame with ADX, DI+, DI- columns
+            adx_df = adx(df, int(resolved_params.get("length", 14)))
+            # Merge all columns into output
+            for col in adx_df.columns:
+                out[f"{name}_{col}"] = adx_df[col]
         elif typ == "BB":
             length = int(resolved_params.get("length", 20))
             ndev = float(resolved_params.get("ndev", 2.0))

@@ -189,7 +189,8 @@ def test_adx_no_bias(test_ohlcv_data: pd.DataFrame) -> None:
     """ADX should have no look-ahead bias."""
 
     def indicator(df: pd.DataFrame) -> pd.Series:
-        return adx(df, length=14)
+        adx_df = adx(df, length=14)
+        return adx_df["ADX"]  # Return just the ADX column
 
     result = detect_lookahead_bias(indicator, test_ohlcv_data)
     assert not result.has_bias, str(result)
