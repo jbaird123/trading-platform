@@ -1,0 +1,21 @@
+//@version=6
+indicator("Golden Validation - Batch 10: OHLCV with Volume", overlay=false)
+
+// BATCH 10: OHLCV Reference Data
+// This batch provides the complete OHLCV data including volume for all other batches.
+// All other batches (1-9) share this same OHLCV data but don't include volume column.
+//
+// Purpose: Provide volume data needed for test calculations
+// Columns: 5 OHLCV + 1 volume indicator = 6 total columns
+
+// Plot volume explicitly so TradingView exports it
+plot(volume, "Volume", color=color.blue, linewidth=2)
+
+// Instructions for Export:
+// 1. Load this script in TradingView
+// 2. Set instrument: OANDA:EURUSD
+// 3. Set timeframe: 1 Hour
+// 4. Set date range to match other batches (should show ~22,447 bars)
+// 5. Export chart data
+// 6. Verify exported CSV has columns: time,open,high,low,close,Volume
+// 7. Save as: batch10_ohlcv_eurusd_1h.csv

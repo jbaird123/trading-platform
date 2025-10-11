@@ -1,0 +1,5 @@
+outs:
+- md5: 705c5d23be78841e40c5fa2af321b42d
+  size: 1400575
+  hash: md5
+  path: batch10_ohlcv_eurusd_1h.csv

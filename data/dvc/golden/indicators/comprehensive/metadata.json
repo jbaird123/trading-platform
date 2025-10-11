@@ -22,32 +22,46 @@
       "indicators": [
         {
           "name": "SMA",
-          "parameters": {"length": 20},
+          "parameters": {
+            "length": 20
+          },
           "column_name": "SMA 20"
         },
         {
           "name": "EMA",
-          "parameters": {"length": 20},
+          "parameters": {
+            "length": 20
+          },
           "column_name": "EMA 20"
         },
         {
           "name": "WMA",
-          "parameters": {"length": 20},
+          "parameters": {
+            "length": 20
+          },
           "column_name": "WMA 20"
         },
         {
           "name": "RSI",
-          "parameters": {"length": 14},
+          "parameters": {
+            "length": 14
+          },
           "column_name": "RSI 14"
         },
         {
           "name": "ATR",
-          "parameters": {"length": 14},
+          "parameters": {
+            "length": 14
+          },
           "column_name": "ATR 14"
         },
         {
           "name": "PSAR",
-          "parameters": {"start": 0.02, "increment": 0.02, "max": 0.2},
+          "parameters": {
+            "start": 0.02,
+            "increment": 0.02,
+            "max": 0.2
+          },
           "column_name": "PSAR"
         }
       ]
@@ -60,42 +74,66 @@
       "indicators": [
         {
           "name": "MACD",
-          "parameters": {"fast": 12, "slow": 26, "signal": 9},
+          "parameters": {
+            "fast": 12,
+            "slow": 26,
+            "signal": 9
+          },
           "column_name": "MACD"
         },
         {
           "name": "MACD_Signal",
-          "parameters": {"fast": 12, "slow": 26, "signal": 9},
+          "parameters": {
+            "fast": 12,
+            "slow": 26,
+            "signal": 9
+          },
           "column_name": "Signal"
         },
         {
           "name": "MACD_Histogram",
-          "parameters": {"fast": 12, "slow": 26, "signal": 9},
+          "parameters": {
+            "fast": 12,
+            "slow": 26,
+            "signal": 9
+          },
           "column_name": "Histogram"
         },
         {
           "name": "Stochastic_K",
-          "parameters": {"k_length": 14, "d_length": 3},
+          "parameters": {
+            "k_length": 14,
+            "d_length": 3
+          },
           "column_name": "Stoch K"
         },
         {
           "name": "Stochastic_D",
-          "parameters": {"k_length": 14, "d_length": 3},
+          "parameters": {
+            "k_length": 14,
+            "d_length": 3
+          },
           "column_name": "Stoch D"
         },
         {
           "name": "CCI",
-          "parameters": {"length": 20},
+          "parameters": {
+            "length": 20
+          },
           "column_name": "CCI 20"
         },
         {
           "name": "ROC",
-          "parameters": {"length": 12},
+          "parameters": {
+            "length": 12
+          },
           "column_name": "ROC 12"
         },
         {
           "name": "Choppiness",
-          "parameters": {"length": 14},
+          "parameters": {
+            "length": 14
+          },
           "column_name": "Choppiness"
         }
       ]
@@ -126,17 +164,23 @@
       "indicators": [
         {
           "name": "DMI_Plus",
-          "parameters": {"length": 14},
+          "parameters": {
+            "length": 14
+          },
           "column_name": "DI+"
         },
         {
           "name": "DMI_Minus",
-          "parameters": {"length": 14},
+          "parameters": {
+            "length": 14
+          },
           "column_name": "DI-"
         },
         {
           "name": "ADX",
-          "parameters": {"length": 14},
+          "parameters": {
+            "length": 14
+          },
           "column_name": "ADX 14"
         }
       ]
@@ -149,17 +193,26 @@
       "indicators": [
         {
           "name": "BB_Upper",
-          "parameters": {"length": 20, "ndev": 2.0},
+          "parameters": {
+            "length": 20,
+            "ndev": 2.0
+          },
           "column_name": "BB Upper"
         },
         {
           "name": "BB_Middle",
-          "parameters": {"length": 20, "ndev": 2.0},
+          "parameters": {
+            "length": 20,
+            "ndev": 2.0
+          },
           "column_name": "BB Middle"
         },
         {
           "name": "BB_Lower",
-          "parameters": {"length": 20, "ndev": 2.0},
+          "parameters": {
+            "length": 20,
+            "ndev": 2.0
+          },
           "column_name": "BB Lower"
         }
       ]
@@ -172,12 +225,18 @@
       "indicators": [
         {
           "name": "SuperTrend",
-          "parameters": {"factor": 3.0, "atr_period": 7},
+          "parameters": {
+            "factor": 3.0,
+            "atr_period": 7
+          },
           "column_name": "SuperTrend"
         },
         {
           "name": "SuperTrend_Direction",
-          "parameters": {"factor": 3.0, "atr_period": 7},
+          "parameters": {
+            "factor": 3.0,
+            "atr_period": 7
+          },
           "column_name": "ST Direction"
         }
       ]
@@ -190,17 +249,29 @@
       "indicators": [
         {
           "name": "KC_Upper",
-          "parameters": {"ema_length": 20, "atr_length": 20, "multiplier": 2.0},
+          "parameters": {
+            "ema_length": 20,
+            "atr_length": 20,
+            "multiplier": 2.0
+          },
           "column_name": "KC Upper"
         },
         {
           "name": "KC_Middle",
-          "parameters": {"ema_length": 20, "atr_length": 20, "multiplier": 2.0},
+          "parameters": {
+            "ema_length": 20,
+            "atr_length": 20,
+            "multiplier": 2.0
+          },
           "column_name": "KC Middle"
         },
         {
           "name": "KC_Lower",
-          "parameters": {"ema_length": 20, "atr_length": 20, "multiplier": 2.0},
+          "parameters": {
+            "ema_length": 20,
+            "atr_length": 20,
+            "multiplier": 2.0
+          },
           "column_name": "KC Lower"
         }
       ]
@@ -213,27 +284,38 @@
       "indicators": [
         {
           "name": "Ichimoku_Conversion",
-          "parameters": {"conversion_period": 9},
+          "parameters": {
+            "conversion_period": 9
+          },
           "column_name": "Ich Conversion"
         },
         {
           "name": "Ichimoku_Base",
-          "parameters": {"base_period": 26},
+          "parameters": {
+            "base_period": 26
+          },
           "column_name": "Ich Base"
         },
         {
           "name": "Ichimoku_SpanA",
-          "parameters": {"conversion_period": 9, "base_period": 26},
+          "parameters": {
+            "conversion_period": 9,
+            "base_period": 26
+          },
           "column_name": "Ich Span A"
         },
         {
           "name": "Ichimoku_SpanB",
-          "parameters": {"span_period": 52},
+          "parameters": {
+            "span_period": 52
+          },
           "column_name": "Ich Span B"
         },
         {
           "name": "Ichimoku_Lagging",
-          "parameters": {"displacement": 26},
+          "parameters": {
+            "displacement": 26
+          },
           "column_name": "Ich Lagging"
         }
       ]
@@ -246,21 +328,36 @@
       "indicators": [
         {
           "name": "CMF",
-          "parameters": {"length": 20},
+          "parameters": {
+            "length": 20
+          },
           "column_name": "CMF 20"
+        }
+      ]
+    },
+    {
+      "batch_number": 10,
+      "filename": "batch10_ohlcv_eurusd_1h.csv",
+      "row_count": 22447,
+      "column_count": 6,
+      "indicators": [
+        {
+          "name": "Volume",
+          "parameters": {},
+          "column_name": "Volume"
         }
       ]
     }
   ],
   "notes": [
     "TradingView CSV export limited to ~11 columns total",
-    "32 indicators split across 9 batches",
+    "32 indicators + 1 volume reference split across 10 batches",
     "All batches share same OHLCV data, different indicator columns",
     "Files kept unmodified from TradingView export",
     "Merging performed in-memory during test execution"
   ],
   "total_indicators": 32,
-  "total_batches": 9,
-  "batches_exported": 9,
+  "total_batches": 10,
+  "batches_exported": 10,
   "batches_pending": []
 }
