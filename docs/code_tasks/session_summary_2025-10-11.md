@@ -267,3 +267,27 @@ After registry unification:
 - [Library Restrictions Update](./library_restrictions_update.md)
 - [Automated Bias Detection](../../tests/utils/bias_detection.py)
 - [Bias Detection Tests](../../tests/strategy/test_indicator_bias_detection.py)
+
+---
+
+## Post-Session Update: ALLOW_LOOKAHEAD Removed
+
+**Commit:** `62efb29` - Remove ALLOW_LOOKAHEAD safety level (YAGNI)
+
+### Discussion & Decision
+User questioned the purpose of ALLOW_LOOKAHEAD safety level. After
+analysis:
+- Found that ZERO indicators were actually marked as ALLOW_LOOKAHEAD
+- It was a "future-proofing" feature with no current use case
+- Decision: YAGNI (You Ain't Gonna Need It) - remove it
+
+### Changes
+- Removed ALLOW_LOOKAHEAD from SafetyLevel enum
+- Removed is_lookahead_allowed() function
+- Updated all tests and documentation
+- Safety system now has 3 clean levels: SAFE, VALIDATED, REQUIRES_TEST
+
+### Result
+Simpler, cleaner safety system focused on actual use cases.
+
+**Updated commit count: 8 total commits**
