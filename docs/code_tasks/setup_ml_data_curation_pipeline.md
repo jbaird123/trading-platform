@@ -74,12 +74,12 @@ Before starting, create and switch to the specified branch:
 
 ### Phase 2: DVC and S3 Remote Setup
 
-9.  [ ] **Initialize DVC:**
+9.  [x] **Initialize DVC:**
     -   In your terminal at the project root, run the command `dvc init`.
     -   This will create DVC-related files and directories (e.g., `.dvc/`).
     -   Commit the newly created files to git: `git add .dvc .dvcignore && git commit -m "build: Initialize DVC"`
 
-10. [ ] **Configure DVC S3 Remote:**
+10. [x] **Configure DVC S3 Remote:**
     -   **Prerequisites**: Ensure you have an AWS S3 bucket and your local environment is configured with AWS credentials (e.g., via `aws configure`).
     -   Add the S3 bucket as a DVC remote. Replace `your-bucket-name` with your actual S3 bucket name.
         ```bash
@@ -97,7 +97,7 @@ Before starting, create and switch to the specified branch:
 
 ### Phase 3: Track and Push Data to S3
 
-11. [ ] **Run Curation and Push Data to S3:**
+11. [x] **Run Curation and Push Data to S3:**
     -   First, run the curation script on a real research directory to generate the initial training set. Example command:
         ```bash
         poetry run python -m trading_platform.cli ai-curate-data --source-dir workspace/research/campaign_20251005_discovery/ --output-file data/dvc/processed/training_sets/master_trade_log.parquet
