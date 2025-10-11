@@ -1,0 +1,84 @@
+strategy_name: "SuperTrend Trend Following"
+description: |
+  Follow the trend using SuperTrend indicator.
+
+  SuperTrend provides a dynamic support/resistance line that adapts to volatility.
+  The indicator has two key outputs:
+
+  1. SuperTrend LINE: The actual price level (support in uptrend, resistance in downtrend)
+  2. SuperTrend DIRECTION: A binary signal indicating the current trend
+
+  DIRECTION VALUES (pandas_ta standard encoding):
+    direction =  1  →  UPTREND   (price above SuperTrend line, ST acts as support)
+    direction = -1  →  DOWNTREND (price below SuperTrend line, ST acts as resistance)
+
+  Note: TradingView uses inverted encoding (1=downtrend, -1=uptrend), but our
+  platform uses the standard pandas_ta convention which is more intuitive.
+
+  Strategy Logic:
+  - Enter LONG when direction changes to 1 (uptrend begins)
+  - Exit LONG when direction changes to -1 (uptrend ends)
+  - Enter SHORT when direction changes to -1 (downtrend begins)
+  - Exit SHORT when direction changes to 1 (downtrend ends)
+
+parameters:
+  atr_length: 7        # ATR period for volatility calculation
+  atr_multiplier: 3.0  # Multiplier for ATR to set band distance
+
+features:
+  - name: st
+    type: SUPERTREND
+    params:
+      length: ${atr_length}
+      multiplier: ${atr_multiplier}
+    # SuperTrend generates 4 columns:
+    #   st              - The SuperTrend line value
+    #   st_direction    - Trend direction: 1=uptrend, -1=downtrend
+    #   st_long         - Long support level (active when direction=1)
+    #   st_short        - Short resistance level (active when direction=-1)
+
+# LONG TRADES: Enter when uptrend begins (direction becomes 1)
+long_entry_rules:
+  - all_of:
+      # Direction equals 1 (uptrend)
+      - condition: equals
+        left:
+          ref: st_direction
+        right: 1
+      # Price is above the SuperTrend line (confirmation)
+      - condition: is_above
+        left: close
+        right:
+          ref: st
+
+# LONG EXIT: Exit when uptrend ends (direction becomes -1)
+long_exit_rules:
+  - any_of:
+      # Direction equals -1 (downtrend)
+      - condition: equals
+        left:
+          ref: st_direction
+        right: -1
+
+# SHORT TRADES: Enter when downtrend begins (direction becomes -1)
+short_entry_rules:
+  - all_of:
+      # Direction equals -1 (downtrend)
+      - condition: equals
+        left:
+          ref: st_direction
+        right: -1
+      # Price is below the SuperTrend line (confirmation)
+      - condition: is_below
+        left: close
+        right:
+          ref: st
+
+# SHORT EXIT: Exit when downtrend ends (direction becomes 1)
+short_exit_rules:
+  - any_of:
+      # Direction equals 1 (uptrend)
+      - condition: equals
+        left:
+          ref: st_direction
+        right: 1
