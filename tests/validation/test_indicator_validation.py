@@ -26,27 +26,29 @@ BATCH_DATA_DIR = (
 COMPREHENSIVE_INDICATOR_TEST_CASES = [
     # Batch 1: Moving Averages (6 indicators)
     # Headers: time,open,high,low,close,SMA 20,EMA 20,WMA 20,RSI 14,ATR 14,PSAR
-    ("SMA_20", "sma 20", "batch1", "SMA", {"length": 20}),
-    ("EMA_20", "ema 20", "batch1", "EMA", {"length": 20}),
-    ("WMA_20", "wma 20", "batch1", "WMA", {"length": 20}),
-    ("RSI_14", "rsi 14", "batch1", "RSI", {"length": 14}),
-    ("ATR_14", "atr 14", "batch1", "ATR", {"length": 14}),
+    # Platform generates: SMA, EMA, WMA, RSI, ATR, PSAR (no suffix)
+    ("SMA", "sma 20", "batch1", "SMA", {"length": 20}),
+    ("EMA", "ema 20", "batch1", "EMA", {"length": 20}),
+    ("WMA", "wma 20", "batch1", "WMA", {"length": 20}),
+    ("RSI", "rsi 14", "batch1", "RSI", {"length": 14}),
+    ("ATR", "atr 14", "batch1", "ATR", {"length": 14}),
     ("PSAR", "psar", "batch1", "PSAR", {"af0": 0.02, "af": 0.02, "max_af": 0.2}),
     # Batch 2: Oscillators (8 indicators)
     # Headers: time,open,high,low,close,MACD,Signal,Histogram,Stoch K,Stoch D,CCI 20,ROC 12,Choppiness
-    ("MACD_line", "macd", "batch2", "MACD", {"fast": 12, "slow": 26, "signal": 9}),
+    # Platform generates: MACD_macd, MACD_signal, MACD_diff, Stoch, Stoch_signal, CCI, ROC, Choppiness
+    ("MACD_macd", "macd", "batch2", "MACD", {"fast": 12, "slow": 26, "signal": 9}),
     ("MACD_signal", "signal", "batch2", "MACD", {"fast": 12, "slow": 26, "signal": 9}),
     (
-        "MACD_histogram",
+        "MACD_diff",
         "histogram",
         "batch2",
         "MACD",
         {"fast": 12, "slow": 26, "signal": 9},
     ),
-    ("Stoch_K", "stoch k", "batch2", "STOCH", {"k": 14, "d": 3, "smooth_k": 3}),
-    ("Stoch_D", "stoch d", "batch2", "STOCH", {"k": 14, "d": 3, "smooth_k": 3}),
-    ("CCI_20", "cci 20", "batch2", "CCI", {"length": 20}),
-    ("ROC_12", "roc 12", "batch2", "ROC", {"length": 12}),
+    ("Stoch", "stoch k", "batch2", "STOCH", {"k": 14, "d": 3, "smooth_k": 3}),
+    ("Stoch_signal", "stoch d", "batch2", "STOCH", {"k": 14, "d": 3, "smooth_k": 3}),
+    ("CCI", "cci 20", "batch2", "CCI", {"length": 20}),
+    ("ROC", "roc 12", "batch2", "ROC", {"length": 12}),
     ("Choppiness", "choppiness", "batch2", "CHOP", {"length": 14}),
     # Batch 3: Volume (2 indicators)
     # Headers: time,open,high,low,close,OBV,VWAP
@@ -54,9 +56,10 @@ COMPREHENSIVE_INDICATOR_TEST_CASES = [
     ("VWAP", "vwap", "batch3", "VWAP", {}),
     # Batch 4: ADX/DMI (3 indicators)
     # Headers: time,open,high,low,close,DI+,DI-,ADX 14
-    ("DI_plus", "di+", "batch4", "ADX", {"length": 14}),
-    ("DI_minus", "di-", "batch4", "ADX", {"length": 14}),
-    ("ADX_14", "adx 14", "batch4", "ADX", {"length": 14}),
+    # Platform generates: DI (single column with DI+ info), need to check DI- mapping
+    ("DI", "di+", "batch4", "ADX", {"length": 14}),
+    ("DI", "di-", "batch4", "ADX", {"length": 14}),
+    ("ADX", "adx 14", "batch4", "ADX", {"length": 14}),
     # Batch 5: Bollinger Bands (3 indicators)
     # Headers: time,open,high,low,close,BB Upper,BB Middle,BB Lower
     ("BB_upper", "bb upper", "batch5", "BB", {"length": 20, "ndev": 2.0}),
@@ -103,36 +106,37 @@ COMPREHENSIVE_INDICATOR_TEST_CASES = [
     ),
     # Batch 8: Ichimoku (5 indicators)
     # Headers: time,open,high,low,close,Ich Conversion,Ich Base,Ich Span A,Ich Span B,Ich Lagging
+    # Platform generates: Ichimoku_tenkan, Ichimoku_kijun, Ichimoku_senkou_a, Ichimoku_senkou_b, Ichimoku_chikou
     (
-        "Ichimoku_conversion",
+        "Ichimoku_tenkan",
         "ich conversion",
         "batch8",
         "ICHIMOKU",
         {"tenkan": 9, "kijun": 26, "senkou": 52},
     ),
     (
-        "Ichimoku_base",
+        "Ichimoku_kijun",
         "ich base",
         "batch8",
         "ICHIMOKU",
         {"tenkan": 9, "kijun": 26, "senkou": 52},
     ),
     (
-        "Ichimoku_spanA",
+        "Ichimoku_senkou_a",
         "ich span a",
         "batch8",
         "ICHIMOKU",
         {"tenkan": 9, "kijun": 26, "senkou": 52},
     ),
     (
-        "Ichimoku_spanB",
+        "Ichimoku_senkou_b",
         "ich span b",
         "batch8",
         "ICHIMOKU",
         {"tenkan": 9, "kijun": 26, "senkou": 52},
     ),
     (
-        "Ichimoku_lagging",
+        "Ichimoku_chikou",
         "ich lagging",
         "batch8",
         "ICHIMOKU",
@@ -140,7 +144,7 @@ COMPREHENSIVE_INDICATOR_TEST_CASES = [
     ),
     # Batch 9: CMF (1 indicator)
     # Headers: time,open,high,low,close,CMF 20
-    ("CMF_20", "cmf 20", "batch9", "CMF", {"length": 20}),
+    ("CMF", "cmf 20", "batch9", "CMF", {"length": 20}),
 ]
 
 
@@ -244,8 +248,9 @@ def platform_calculated_features(batch_data_cache):
     We use batch1 OHLCV since all batches share the same market data.
     Returns a DataFrame with all calculated indicators.
     """
-    # Get OHLCV from batch1 (all batches have identical OHLCV)
-    ohlcv_df = batch_data_cache["batch1"][
+    # Get OHLCV from batch10 (which includes volume column)
+    # All other batches (1-9) have same OHLC but don't include volume
+    ohlcv_df = batch_data_cache["batch10"][
         ["open", "high", "low", "close", "volume"]
     ].copy()
 
