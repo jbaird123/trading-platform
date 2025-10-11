@@ -11,23 +11,23 @@ Before starting, create and switch to the specified branch:
 
 ### Phase 1: Setup and Core Logic
 
-1.  [ ] **Create Storage Directories:**
+1.  [x] **Create Storage Directories:**
     -   Create the new nested directory structure: `data/dvc/processed/training_sets/`. This path will store the curated datasets.
 
-2.  [ ] **Update .gitignore:**
+2.  [x] **Update .gitignore:**
     -   Open the root `.gitignore` file.
     -   Add the following line to ensure DVC-tracked data is not committed to the repository:
         ```
         /data/dvc/
         ```
 
-3.  [ ] **Write Test for Curation Script CLI Entrypoint:**
+3.  [x] **Write Test for Curation Script CLI Entrypoint:**
     -   In `tests/cli/test_cli.py`, add a new test function `test_cmd_ai_curate_data`.
     -   This test should use `unittest.mock.patch` to mock the `trading_platform.ai.data_curation.run_curation_pipeline` function (which does not exist yet).
     -   The test will invoke the main CLI function with the arguments `ai-curate-data --source-dir /fake/dir --output-file /fake/file.parquet`.
     -   Assert that the mocked `run_curation_pipeline` function was called exactly once with the correct arguments.
 
-4.  [ ] **Implement Curation Script CLI Entrypoint:**
+4.  [x] **Implement Curation Script CLI Entrypoint:**
     -   In `src/trading_platform/cli.py`:
         -   Import a new (not-yet-created) function: `from trading_platform.ai.data_curation import run_curation_pipeline`.
         -   Create a new command function `cmd_ai_curate_data(args: argparse.Namespace) -> int`.
@@ -35,7 +35,7 @@ Before starting, create and switch to the specified branch:
         -   In the `main()` function, add a new subparser for the `ai-curate-data` command. It should have two required arguments: `--source-dir` and `--output-file`.
         -   Set its default function to `cmd_ai_curate_data`.
 
-5.  [ ] **Write Test for Trade Data Extraction:**
+5.  [x] **Write Test for Trade Data Extraction:**
     -   Create a new file: `src/trading_platform/ai/feature_engineering/test_trade_extractor.py`.
     -   In this file, create a test function `test_extract_trades_from_brief`.
     -   The test should use a sample `brief.json` structure (as a dictionary) containing a `trades` array with at least two trades. Each trade must have nested `entry_context` and `exit_context` objects with mock indicator data.
@@ -44,7 +44,7 @@ Before starting, create and switch to the specified branch:
     -   Assert that the DataFrame has 2 rows.
     -   Assert that the DataFrame columns are flattened correctly (e.g., a column named `entry_context_RSI_14` exists).
 
-6.  [ ] **Implement Trade Data Extraction Logic:**
+6.  [x] **Implement Trade Data Extraction Logic:**
     -   Create a new file: `src/trading_platform/ai/feature_engineering/trade_extractor.py`.
     -   Create the function `extract_trades_from_brief(brief_data: dict) -> pd.DataFrame`.
     -   This function will:
@@ -52,7 +52,7 @@ Before starting, create and switch to the specified branch:
         -   Use `pandas.json_normalize` to flatten each trade object into a tabular format. The `sep` argument should be `_`.
         -   Return the resulting DataFrame.
 
-7.  [ ] **Write Test for Curation Pipeline Orchestrator:**
+7.  [x] **Write Test for Curation Pipeline Orchestrator:**
     -   Create a new file: `src/trading_platform/ai/test_data_curation.py`.
     -   Create a test function `test_run_curation_pipeline`.
     -   This test will use `pathlib.Path` and `tmp_path` to create a temporary directory structure simulating research results (e.g., `tmp_path/run1/brief.json`, `tmp_path/run2/brief.json`).
@@ -61,7 +61,7 @@ Before starting, create and switch to the specified branch:
     -   Assert that the `output.parquet` file is created.
     -   Read the Parquet file back into a DataFrame and assert that it contains the correct total number of trades from all mock briefs.
 
-8.  [ ] **Implement Curation Pipeline Orchestrator:**
+8.  [x] **Implement Curation Pipeline Orchestrator:**
     -   Create a new file: `src/trading_platform/ai/data_curation.py`.
     -   Create the function `run_curation_pipeline(source_dir: Path, output_file: Path)`.
     -   This function will:

@@ -13,6 +13,7 @@ from typing import Any, cast
 
 import pandas as pd
 
+from trading_platform.ai.data_curation import run_curation_pipeline
 from trading_platform.ai.synthesis.engine import DiagnosticSynthesisEngine
 from trading_platform.backtester.core import run_backtest
 from trading_platform.core import paths
@@ -681,6 +682,14 @@ def cmd_ai_diagnose(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_ai_curate_data(args: argparse.Namespace) -> int:
+    """Curate ML training data from backtest results."""
+    run_curation_pipeline(
+        source_dir=Path(args.source_dir), output_file=Path(args.output_file)
+    )
+    return 0
+
+
 def cmd_run_live(args: argparse.Namespace) -> int:
     if args.dry_run:
         print("Live controller (dry-run): OK")
@@ -860,6 +869,15 @@ def main() -> int:
         "WARNING: This sends run data to a third-party API and may incur costs.",
     )
     pad.set_defaults(func=cmd_ai_diagnose)
+
+    pcd = sub.add_parser(
+        "ai-curate-data", help="Curate ML training data from backtest results"
+    )
+    pcd.add_argument(
+        "--source-dir", required=True, help="Directory containing brief.json files"
+    )
+    pcd.add_argument("--output-file", required=True, help="Output parquet file path")
+    pcd.set_defaults(func=cmd_ai_curate_data)
 
     args = p.parse_args()
     return int(args.func(args))

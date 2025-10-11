@@ -206,6 +206,9 @@ cython_debug/
 # Ignore all data files by default
 data/*
 
+# DVC-tracked data should not be committed
+/data/dvc/
+
 # But explicitly un-ignore the samples directory and its contents
 !data/samples/
 
