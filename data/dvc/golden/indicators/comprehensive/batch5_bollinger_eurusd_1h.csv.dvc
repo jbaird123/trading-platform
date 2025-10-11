@@ -1,0 +1,5 @@
+outs:
+- md5: 7512c0af13b3b900e93c64b6e43b1b9e
+  size: 2544475
+  hash: md5
+  path: batch5_bollinger_eurusd_1h.csv

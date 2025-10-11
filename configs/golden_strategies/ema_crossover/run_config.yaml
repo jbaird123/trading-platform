@@ -1,0 +1,27 @@
+user_id: "golden_validation_ema_crossover"
+initial_cash: 100000
+position_size: 10000  # Fixed $10k per trade
+warmup_bars: 100
+
+instrument:
+  symbol: "EUR_USD"
+  timeframe: "1H"
+
+# No transaction costs for baseline validation
+cost_model:
+  spread_per_unit: 0.0
+  slippage_per_unit: 0.0
+  commission: 0.0
+
+data_request:
+  symbol: "EUR_USD"
+  timeframe: "1H"
+  start: "2023-01-01"
+  end: "2024-12-31"
+
+# Strategy and REM paths
+strategy_path: "configs/golden_strategies/ema_crossover/strategy.yaml"
+rem_path: "configs/golden_strategies/ema_crossover/rem.yaml"
+
+tie_break_policy:
+  rule: "stop_then_tp"

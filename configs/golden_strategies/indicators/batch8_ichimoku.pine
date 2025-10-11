@@ -1,0 +1,50 @@
+//@version=6
+indicator("Golden Validation - Batch 8: Ichimoku Cloud", overlay=false)
+
+// BATCH 8: Ichimoku Cloud
+// 5 indicators + 5 OHLCV = 10 total columns
+
+// Ichimoku Cloud - manual calculation (5 columns)
+ich_conversion = (ta.highest(high, 9) + ta.lowest(low, 9)) / 2
+ich_base = (ta.highest(high, 26) + ta.lowest(low, 26)) / 2
+ich_spanA = (ich_conversion + ich_base) / 2
+ich_spanB = (ta.highest(high, 52) + ta.lowest(low, 52)) / 2
+ich_lagging = close[26]
+
+// Visual plots
+plot(ich_conversion, "Ich Conversion", color=color.blue, linewidth=2)
+plot(ich_base, "Ich Base", color=color.red, linewidth=2)
+plot(ich_spanA, "Ich Span A", color=color.green, linewidth=1)
+plot(ich_spanB, "Ich Span B", color=color.orange, linewidth=1)
+plot(ich_lagging, "Ich Lagging", color=color.purple, linewidth=1)
+
+// Table showing current values
+var table valuesTable = table.new(position.top_right, 2, 6,
+                                   bgcolor=color.new(color.black, 80),
+                                   border_width=1)
+
+if barstate.islast
+    table.cell(valuesTable, 0, 0, "Indicator", text_color=color.white,
+               bgcolor=color.new(color.blue, 50))
+    table.cell(valuesTable, 1, 0, "Value", text_color=color.white,
+               bgcolor=color.new(color.blue, 50))
+
+    table.cell(valuesTable, 0, 1, "Ich Conv", text_color=color.white)
+    table.cell(valuesTable, 1, 1, str.tostring(ich_conversion, "#.#####"),
+               text_color=color.yellow)
+
+    table.cell(valuesTable, 0, 2, "Ich Base", text_color=color.white)
+    table.cell(valuesTable, 1, 2, str.tostring(ich_base, "#.#####"),
+               text_color=color.yellow)
+
+    table.cell(valuesTable, 0, 3, "Ich Span A", text_color=color.white)
+    table.cell(valuesTable, 1, 3, str.tostring(ich_spanA, "#.#####"),
+               text_color=color.yellow)
+
+    table.cell(valuesTable, 0, 4, "Ich Span B", text_color=color.white)
+    table.cell(valuesTable, 1, 4, str.tostring(ich_spanB, "#.#####"),
+               text_color=color.yellow)
+
+    table.cell(valuesTable, 0, 5, "Ich Lagging", text_color=color.white)
+    table.cell(valuesTable, 1, 5, str.tostring(ich_lagging, "#.#####"),
+               text_color=color.yellow)

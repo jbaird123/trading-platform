@@ -1,0 +1,33 @@
+//@version=6
+indicator("Golden Validation - Batch 3: Volume Indicators",
+          overlay=false)
+
+// BATCH 3: Volume Indicators
+// 2 indicators + 5 OHLCV = 7 total columns
+
+// Volume indicators
+obv = ta.obv
+vwap_val = ta.vwap(close)
+
+// Visual plots
+plot(obv, "OBV", color=color.blue, linewidth=2)
+plot(vwap_val, "VWAP", color=color.orange, linewidth=2)
+
+// Table showing current values
+var table valuesTable = table.new(position.top_right, 2, 3,
+                                   bgcolor=color.new(color.black, 80),
+                                   border_width=1)
+
+if barstate.islast
+    table.cell(valuesTable, 0, 0, "Indicator", text_color=color.white,
+               bgcolor=color.new(color.blue, 50))
+    table.cell(valuesTable, 1, 0, "Value", text_color=color.white,
+               bgcolor=color.new(color.blue, 50))
+
+    table.cell(valuesTable, 0, 1, "OBV", text_color=color.white)
+    table.cell(valuesTable, 1, 1, str.tostring(obv, "#"),
+               text_color=color.yellow)
+
+    table.cell(valuesTable, 0, 2, "VWAP", text_color=color.white)
+    table.cell(valuesTable, 1, 2, str.tostring(vwap_val, "#.#####"),
+               text_color=color.yellow)

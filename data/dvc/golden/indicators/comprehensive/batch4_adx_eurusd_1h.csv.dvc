@@ -1,0 +1,5 @@
+outs:
+- md5: 0c0aef54fe6447774f96c7dfe632af72
+  size: 2537013
+  hash: md5
+  path: batch4_adx_eurusd_1h.csv

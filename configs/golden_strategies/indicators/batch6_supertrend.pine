@@ -1,0 +1,31 @@
+//@version=6
+indicator("Golden Validation - Batch 6: SuperTrend", overlay=false)
+
+// BATCH 6: SuperTrend
+// 2 indicators (value, direction) + 5 OHLCV = 7 total columns
+
+// SuperTrend (2 columns)
+[supertrend, supertrend_dir] = ta.supertrend(3.0, 7)
+
+// Visual plots
+plot(supertrend, "SuperTrend", color=color.purple, linewidth=2)
+plot(supertrend_dir, "ST Direction", color=color.yellow, linewidth=1)
+
+// Table showing current values
+var table valuesTable = table.new(position.top_right, 2, 3,
+                                   bgcolor=color.new(color.black, 80),
+                                   border_width=1)
+
+if barstate.islast
+    table.cell(valuesTable, 0, 0, "Indicator", text_color=color.white,
+               bgcolor=color.new(color.blue, 50))
+    table.cell(valuesTable, 1, 0, "Value", text_color=color.white,
+               bgcolor=color.new(color.blue, 50))
+
+    table.cell(valuesTable, 0, 1, "SuperTrend", text_color=color.white)
+    table.cell(valuesTable, 1, 1, str.tostring(supertrend, "#.#####"),
+               text_color=color.yellow)
+
+    table.cell(valuesTable, 0, 2, "ST Dir", text_color=color.white)
+    table.cell(valuesTable, 1, 2, str.tostring(supertrend_dir, "#"),
+               text_color=color.yellow)

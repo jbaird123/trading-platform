@@ -1,0 +1,5 @@
+outs:
+- md5: 809d96187d3b97e06806ba0d9e8da713
+  size: 1746932
+  hash: md5
+  path: batch9_cmf_eurusd_1h.csv

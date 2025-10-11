@@ -1,0 +1,5 @@
+outs:
+- md5: 9004f59fe2dc8b35216fb737bdb0cb61
+  size: 2468734
+  hash: md5
+  path: batch8_ichimoku_eurusd_1h.csv

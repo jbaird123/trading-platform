@@ -1,0 +1,5 @@
+outs:
+- md5: 14598a6c6df0e8fc7894abc3c451af60
+  size: 4920946
+  hash: md5
+  path: batch2_oscillators_eurusd_1h.csv

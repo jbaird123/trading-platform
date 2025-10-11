@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/golden_metadata.schema.json",
+  "title": "Golden Validation Dataset Metadata",
+  "description": "Metadata for TradingView golden validation dataset.",
+  "type": "object",
+  "properties": {
+    "dataset_type": {
+      "description": "The type of validation data.",
+      "type": "string",
+      "enum": ["strategy", "indicator"]
+    },
+    "strategy_name": {
+      "type": "string",
+      "description": "Name of strategy (required for strategy type)."
+    },
+    "tradingview_version": {
+      "type": "string",
+      "description": "TradingView version used for export."
+    },
+    "export_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date when dataset was exported (YYYY-MM-DD)."
+    },
+    "date_range": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "type": "string",
+          "format": "date",
+          "description": "Start date of data range (YYYY-MM-DD)."
+        },
+        "end": {
+          "type": "string",
+          "format": "date",
+          "description": "End date of data range (YYYY-MM-DD)."
+        }
+      },
+      "required": ["start", "end"]
+    },
+    "instrument": {
+      "type": "string",
+      "description": "Trading instrument symbol (e.g., EURUSD, SPY)."
+    },
+    "timeframe": {
+      "type": "string",
+      "description": "Timeframe for data (e.g., 1H, 4H, 1D)."
+    },
+    "initial_capital": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Initial capital for strategy backtests."
+    },
+    "position_size": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Fixed position size used."
+    },
+    "commission": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Commission per trade."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes about this dataset."
+    }
+  },
+  "required": [
+    "dataset_type",
+    "tradingview_version",
+    "export_date",
+    "date_range",
+    "instrument",
+    "timeframe"
+  ]
+}

@@ -1,0 +1,84 @@
+//@version=6
+indicator("Golden Validation - Batch 2: Oscillators", overlay=false)
+
+// BATCH 2: MACD, Stochastic, CCI, ROC, Choppiness
+// 8 indicator columns + 5 OHLCV = 13 total columns
+
+// MACD (3 columns)
+[macd_line, macd_signal, macd_hist] = ta.macd(close, 12, 26, 9)
+
+// Stochastic (2 columns)
+stoch_k = ta.stoch(close, high, low, 14)
+stoch_d = ta.sma(stoch_k, 3)
+
+// CCI
+cci_20 = ta.cci(close, 20)
+
+// ROC
+roc_12 = ta.roc(close, 12)
+
+// Choppiness Index
+chop_length = 14
+sum_atr = math.sum(ta.tr, chop_length)
+high_low_range = ta.highest(high, chop_length) -
+                 ta.lowest(low, chop_length)
+chop = 100 * math.log10(sum_atr / high_low_range) /
+       math.log10(chop_length)
+
+// Visual plots
+plot(macd_line, "MACD", color=color.blue, linewidth=2)
+plot(macd_signal, "Signal", color=color.orange, linewidth=2)
+plot(macd_hist, "Histogram", color=color.gray,
+     style=plot.style_histogram)
+
+plot(stoch_k, "Stoch K", color=color.green, linewidth=2)
+plot(stoch_d, "Stoch D", color=color.red, linewidth=2)
+hline(80, "Stoch Upper", color=color.red, linestyle=hline.style_dashed)
+hline(20, "Stoch Lower", color=color.green, linestyle=hline.style_dashed)
+
+plot(cci_20, "CCI 20", color=color.purple, linewidth=1)
+plot(roc_12, "ROC 12", color=color.yellow, linewidth=1)
+plot(chop, "Choppiness", color=color.fuchsia, linewidth=2)
+
+// Table showing current values
+var table valuesTable = table.new(position.top_right, 2, 9,
+                                   bgcolor=color.new(color.black, 80),
+                                   border_width=1)
+
+if barstate.islast
+    table.cell(valuesTable, 0, 0, "Indicator", text_color=color.white,
+               bgcolor=color.new(color.blue, 50))
+    table.cell(valuesTable, 1, 0, "Value", text_color=color.white,
+               bgcolor=color.new(color.blue, 50))
+
+    table.cell(valuesTable, 0, 1, "MACD Line", text_color=color.white)
+    table.cell(valuesTable, 1, 1, str.tostring(macd_line, "#.######"),
+               text_color=color.yellow)
+
+    table.cell(valuesTable, 0, 2, "MACD Signal", text_color=color.white)
+    table.cell(valuesTable, 1, 2, str.tostring(macd_signal, "#.######"),
+               text_color=color.yellow)
+
+    table.cell(valuesTable, 0, 3, "MACD Hist", text_color=color.white)
+    table.cell(valuesTable, 1, 3, str.tostring(macd_hist, "#.######"),
+               text_color=color.yellow)
+
+    table.cell(valuesTable, 0, 4, "Stoch K", text_color=color.white)
+    table.cell(valuesTable, 1, 4, str.tostring(stoch_k, "#.##"),
+               text_color=color.yellow)
+
+    table.cell(valuesTable, 0, 5, "Stoch D", text_color=color.white)
+    table.cell(valuesTable, 1, 5, str.tostring(stoch_d, "#.##"),
+               text_color=color.yellow)
+
+    table.cell(valuesTable, 0, 6, "CCI 20", text_color=color.white)
+    table.cell(valuesTable, 1, 6, str.tostring(cci_20, "#.##"),
+               text_color=color.yellow)
+
+    table.cell(valuesTable, 0, 7, "ROC 12", text_color=color.white)
+    table.cell(valuesTable, 1, 7, str.tostring(roc_12, "#.##"),
+               text_color=color.yellow)
+
+    table.cell(valuesTable, 0, 8, "Choppiness", text_color=color.white)
+    table.cell(valuesTable, 1, 8, str.tostring(chop, "#.##"),
+               text_color=color.yellow)

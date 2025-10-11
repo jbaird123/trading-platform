@@ -1,0 +1,39 @@
+//@version=6
+indicator("Golden Validation - Batch 7: Keltner Channels", overlay=false)
+
+// BATCH 7: Keltner Channels
+// 3 indicators (upper, middle, lower) + 5 OHLCV = 8 total columns
+
+// Keltner Channels (3 columns)
+kc_middle = ta.ema(close, 20)
+kc_range = ta.atr(20) * 2.0
+kc_upper = kc_middle + kc_range
+kc_lower = kc_middle - kc_range
+
+// Visual plots
+plot(kc_upper, "KC Upper", color=color.red, linewidth=2)
+plot(kc_middle, "KC Middle", color=color.orange, linewidth=2)
+plot(kc_lower, "KC Lower", color=color.green, linewidth=2)
+
+// Table showing current values
+var table valuesTable = table.new(position.top_right, 2, 4,
+                                   bgcolor=color.new(color.black, 80),
+                                   border_width=1)
+
+if barstate.islast
+    table.cell(valuesTable, 0, 0, "Indicator", text_color=color.white,
+               bgcolor=color.new(color.blue, 50))
+    table.cell(valuesTable, 1, 0, "Value", text_color=color.white,
+               bgcolor=color.new(color.blue, 50))
+
+    table.cell(valuesTable, 0, 1, "KC Upper", text_color=color.white)
+    table.cell(valuesTable, 1, 1, str.tostring(kc_upper, "#.#####"),
+               text_color=color.yellow)
+
+    table.cell(valuesTable, 0, 2, "KC Middle", text_color=color.white)
+    table.cell(valuesTable, 1, 2, str.tostring(kc_middle, "#.#####"),
+               text_color=color.yellow)
+
+    table.cell(valuesTable, 0, 3, "KC Lower", text_color=color.white)
+    table.cell(valuesTable, 1, 3, str.tostring(kc_lower, "#.#####"),
+               text_color=color.yellow)
