@@ -124,12 +124,12 @@ def test_sys_1_9_1_batch_io_performance():
     start_time = time.time()
 
     # Resample to hourly (batch operation)
-    hourly = df.resample("1H").agg(
+    hourly = df.resample("1h").agg(
         {"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"}
     )
 
     # Batch calculation
-    hourly["returns"] = hourly["close"].pct_change()
+    hourly["returns"] = hourly["close"].pct_change(fill_method=None)
     hourly["volatility"] = hourly["returns"].rolling(24).std()
 
     elapsed = time.time() - start_time
