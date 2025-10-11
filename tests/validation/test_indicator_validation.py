@@ -670,21 +670,30 @@ def test_indicator_matches_tradingview_comprehensive(
         ):
             close_match = True
 
-    # --- Special handling for SuperTrend_direction: High match rate validation ---
-    # SuperTrend direction is a binary indicator (1 or -1) that depends on whether
-    # price is above or below the SuperTrend line. Due to small differences in the
-    # SuperTrend line calculation (max 0.94%), some bars near reversals may have
-    # direction mismatches. We validate that 99%+ of bars match exactly.
+    # --- Special handling for SuperTrend_direction: Encoding difference ---
+    # SuperTrend direction is a binary indicator (1 or -1) that indicates whether
+    # price is above or below the SuperTrend line.
     #
-    # Note: pandas_ta uses standard encoding (1=uptrend, -1=downtrend), while
-    # TradingView uses inverted encoding (1=downtrend, -1=uptrend). We invert
-    # our direction output to match TradingView's convention.
+    # IMPORTANT: pandas_ta and TradingView use OPPOSITE encoding conventions:
+    #   - pandas_ta:   1 = uptrend (price above ST),  -1 = downtrend (price below ST)
+    #   - TradingView: 1 = downtrend (price below ST), -1 = uptrend (price above ST)
+    #
+    # Both are semantically correct - they correctly identify trend direction but
+    # use inverted numeric conventions. To validate, we invert our values (multiply
+    # by -1) before comparison to match TradingView's convention.
+    #
+    # Due to small differences in SuperTrend line calculation (max 0.94%), some bars
+    # near reversals may still have direction mismatches. We validate that 99%+ of
+    # bars match after inversion.
     if our_name == "SuperTrend_direction" and not close_match:
-        # Direction should be exactly 1 or -1, so we check exact matches
-        exact_matches = (aligned_calc == aligned_tv).sum()
+        # Invert our direction values to match TradingView's convention
+        aligned_calc_inverted = -aligned_calc
+
+        # Check exact matches after inversion
+        exact_matches = (aligned_calc_inverted == aligned_tv).sum()
         match_rate = exact_matches / len(aligned_tv)
 
-        # Pass if 99%+ of bars have matching direction
+        # Pass if 99%+ of bars have matching direction after inversion
         if match_rate >= 0.99:
             close_match = True
 
