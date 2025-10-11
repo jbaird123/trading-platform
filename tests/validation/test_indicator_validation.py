@@ -568,44 +568,40 @@ def test_indicator_matches_tradingview_comprehensive(
     # - TradingView: Session-anchored VWAP that resets daily
     # - pandas_ta: Continuous VWAP calculated from the start of the dataset
     #
-    # Analysis shows TradingView resets VWAP at 21:00-03:00 UTC (evening to
-    # early morning), likely corresponding to market close/open transitions.
-    # The reset effect creates elevated differences that persist for several
-    # hours as the VWAP stabilizes:
-    # - 21:00 UTC: Largest divergence (1-1.4% differences)
-    # - 22:00-23:00, 00:00-03:00 UTC: Lingering effects (0.15-0.29%)
-    # - First 10 bars: Initialization period (0.45-0.67%)
-    # - All other hours: Very tight agreement (<0.05%)
+    # Analysis shows TradingView resets VWAP at 21:00-03:00 UTC:
+    # - 21:00-23:00 UTC: Reset window with max difference of 1.36%
+    # - 00:00-03:00 UTC: Post-midnight spillover (0.16-0.29% differences)
+    # - First 7 bars: Initialization issues (0.46-0.67% differences)
+    # - All other hours: Tight agreement (< 0.14%)
     #
     # Solution:
-    # Use different tolerances:
-    # - Reset window (hours 21-23, 0-3 UTC) + first 10 bars: 2% tolerance
-    # - All other hours: 0.2% tolerance (strict validation)
+    # - Reset window (hours 21-23, 0-3 UTC): 1.5% tolerance
+    # - First 7 bars: Skip (initialization differences during warmup)
+    # - All other hours: 0.16% tolerance (covers max 0.155%)
     #
     if our_name == "VWAP" and not close_match:
-        # Separate bars into reset window and normal bars
-        # Reset window includes evening/night hours around market transitions
+        # Separate bars into reset window (21:00-23:00, 00:00-03:00 UTC)
         reset_window_mask = aligned_tv.index.hour.isin([21, 22, 23, 0, 1, 2, 3])
 
-        # Also include first 10 bars (initialization period)
-        first_10_mask = pd.Series(False, index=aligned_tv.index)
-        first_10_mask.iloc[:10] = True
-        reset_window_mask = reset_window_mask | first_10_mask
+        # Skip first 7 bars due to initialization issues (0.46-0.67% differences)
+        # Both systems have elevated differences during VWAP warmup period
+        first_bars_mask = pd.Series(False, index=aligned_tv.index)
+        first_bars_mask.iloc[:7] = True
 
         reset_bars = aligned_tv[reset_window_mask]
-        normal_bars = aligned_tv[~reset_window_mask]
+        normal_bars = aligned_tv[~reset_window_mask & ~first_bars_mask]
 
         reset_bars_calc = aligned_calc[reset_window_mask]
-        normal_bars_calc = aligned_calc[~reset_window_mask]
+        normal_bars_calc = aligned_calc[~reset_window_mask & ~first_bars_mask]
 
-        # Validate normal bars with strict tolerance (0.2%)
+        # Validate normal bars with strict tolerance (0.16%)
         normal_match = np.allclose(
-            normal_bars, normal_bars_calc, rtol=2e-3, atol=atol, equal_nan=True
+            normal_bars, normal_bars_calc, rtol=1.6e-3, atol=atol, equal_nan=True
         )
 
-        # Validate reset window bars with relaxed tolerance (2%)
+        # Validate reset window bars with relaxed tolerance (1.5%)
         reset_match = np.allclose(
-            reset_bars, reset_bars_calc, rtol=2e-2, atol=atol, equal_nan=True
+            reset_bars, reset_bars_calc, rtol=1.5e-2, atol=atol, equal_nan=True
         )
 
         # Pass if both match
