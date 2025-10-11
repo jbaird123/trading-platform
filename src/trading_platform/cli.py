@@ -120,7 +120,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         instrument_def = get_instrument_definition(data_req["symbol"])
         data_handler = DataHandler(
             symbol=data_req["symbol"],
-            data_root=paths.PROJECT_ROOT / "data",
+            data_root=paths.RAW_DATA_DIR,
             instrument=instrument_def,
         )
         dq_flags = data_handler.data_quality_flags

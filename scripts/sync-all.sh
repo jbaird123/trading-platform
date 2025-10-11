@@ -11,11 +11,10 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
 
 # Check if data directory exists, create if not
-DATA_DIR="$PROJECT_ROOT/data"
+DATA_DIR="$PROJECT_ROOT/data/dvc/raw"
 if [ ! -d "$DATA_DIR" ]; then
     echo "📁 Creating data directory at $DATA_DIR"
-    mkdir -p "$DATA_DIR/full"
-    mkdir -p "$DATA_DIR/incremental"
+    mkdir -p "$DATA_DIR"
 fi
 
 echo "🔄 Synchronizing all instruments..."

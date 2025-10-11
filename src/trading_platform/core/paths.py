@@ -8,6 +8,9 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
 # The central workspace for all generated artifacts.
 WORKSPACE_DIR = PROJECT_ROOT / "workspace"
 
+# The location for raw market data (DVC-tracked).
+RAW_DATA_DIR = PROJECT_ROOT / "data" / "dvc" / "raw"
+
 # Core subdirectories within the workspace.
 ARTIFACTS_DIR = WORKSPACE_DIR / "artifacts"
 CACHE_DIR = WORKSPACE_DIR / "cache"
