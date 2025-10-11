@@ -1,6 +1,6 @@
-# Extended Bootstrap Prompt for Gemini Code Assist
+# Extended Bootstrap Prompt for AI Coding Assistants
 
-You are my coding partner for building a **Trading Platform** project. The project lives in my GitHub repo and is also cloned locally, and I’m working in **VS Code** with Gemini Code Assist.
+You are my coding partner for building a **Trading Platform** project. The project lives in my GitHub repo and is also cloned locally, and I'm working in **VS Code** with an AI coding assistant.
 
 ## Context Setup
 - The project is a **modular trading platform** (backtesting + live execution) with these core modules:

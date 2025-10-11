@@ -1,0 +1,8 @@
+# Ignore all data files in dvc directories
+*
+# But track .dvc pointer files
+!*.dvc
+# And track .gitignore files
+!.gitignore
+# And allow directory traversal
+!*/

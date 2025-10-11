@@ -11,23 +11,23 @@ Before starting, create and switch to the specified branch:
 
 ### Phase 1: Setup and Core Logic
 
-1.  [ ] **Create Storage Directories:**
+1.  [x] **Create Storage Directories:**
     -   Create the new nested directory structure: `data/dvc/processed/training_sets/`. This path will store the curated datasets.
 
-2.  [ ] **Update .gitignore:**
+2.  [x] **Update .gitignore:**
     -   Open the root `.gitignore` file.
     -   Add the following line to ensure DVC-tracked data is not committed to the repository:
         ```
         /data/dvc/
         ```
 
-3.  [ ] **Write Test for Curation Script CLI Entrypoint:**
+3.  [x] **Write Test for Curation Script CLI Entrypoint:**
     -   In `tests/cli/test_cli.py`, add a new test function `test_cmd_ai_curate_data`.
     -   This test should use `unittest.mock.patch` to mock the `trading_platform.ai.data_curation.run_curation_pipeline` function (which does not exist yet).
     -   The test will invoke the main CLI function with the arguments `ai-curate-data --source-dir /fake/dir --output-file /fake/file.parquet`.
     -   Assert that the mocked `run_curation_pipeline` function was called exactly once with the correct arguments.
 
-4.  [ ] **Implement Curation Script CLI Entrypoint:**
+4.  [x] **Implement Curation Script CLI Entrypoint:**
     -   In `src/trading_platform/cli.py`:
         -   Import a new (not-yet-created) function: `from trading_platform.ai.data_curation import run_curation_pipeline`.
         -   Create a new command function `cmd_ai_curate_data(args: argparse.Namespace) -> int`.
@@ -35,7 +35,7 @@ Before starting, create and switch to the specified branch:
         -   In the `main()` function, add a new subparser for the `ai-curate-data` command. It should have two required arguments: `--source-dir` and `--output-file`.
         -   Set its default function to `cmd_ai_curate_data`.
 
-5.  [ ] **Write Test for Trade Data Extraction:**
+5.  [x] **Write Test for Trade Data Extraction:**
     -   Create a new file: `src/trading_platform/ai/feature_engineering/test_trade_extractor.py`.
     -   In this file, create a test function `test_extract_trades_from_brief`.
     -   The test should use a sample `brief.json` structure (as a dictionary) containing a `trades` array with at least two trades. Each trade must have nested `entry_context` and `exit_context` objects with mock indicator data.
@@ -44,7 +44,7 @@ Before starting, create and switch to the specified branch:
     -   Assert that the DataFrame has 2 rows.
     -   Assert that the DataFrame columns are flattened correctly (e.g., a column named `entry_context_RSI_14` exists).
 
-6.  [ ] **Implement Trade Data Extraction Logic:**
+6.  [x] **Implement Trade Data Extraction Logic:**
     -   Create a new file: `src/trading_platform/ai/feature_engineering/trade_extractor.py`.
     -   Create the function `extract_trades_from_brief(brief_data: dict) -> pd.DataFrame`.
     -   This function will:
@@ -52,7 +52,7 @@ Before starting, create and switch to the specified branch:
         -   Use `pandas.json_normalize` to flatten each trade object into a tabular format. The `sep` argument should be `_`.
         -   Return the resulting DataFrame.
 
-7.  [ ] **Write Test for Curation Pipeline Orchestrator:**
+7.  [x] **Write Test for Curation Pipeline Orchestrator:**
     -   Create a new file: `src/trading_platform/ai/test_data_curation.py`.
     -   Create a test function `test_run_curation_pipeline`.
     -   This test will use `pathlib.Path` and `tmp_path` to create a temporary directory structure simulating research results (e.g., `tmp_path/run1/brief.json`, `tmp_path/run2/brief.json`).
@@ -61,7 +61,7 @@ Before starting, create and switch to the specified branch:
     -   Assert that the `output.parquet` file is created.
     -   Read the Parquet file back into a DataFrame and assert that it contains the correct total number of trades from all mock briefs.
 
-8.  [ ] **Implement Curation Pipeline Orchestrator:**
+8.  [x] **Implement Curation Pipeline Orchestrator:**
     -   Create a new file: `src/trading_platform/ai/data_curation.py`.
     -   Create the function `run_curation_pipeline(source_dir: Path, output_file: Path)`.
     -   This function will:
@@ -74,12 +74,12 @@ Before starting, create and switch to the specified branch:
 
 ### Phase 2: DVC and S3 Remote Setup
 
-9.  [ ] **Initialize DVC:**
+9.  [x] **Initialize DVC:**
     -   In your terminal at the project root, run the command `dvc init`.
     -   This will create DVC-related files and directories (e.g., `.dvc/`).
     -   Commit the newly created files to git: `git add .dvc .dvcignore && git commit -m "build: Initialize DVC"`
 
-10. [ ] **Configure DVC S3 Remote:**
+10. [x] **Configure DVC S3 Remote:**
     -   **Prerequisites**: Ensure you have an AWS S3 bucket and your local environment is configured with AWS credentials (e.g., via `aws configure`).
     -   Add the S3 bucket as a DVC remote. Replace `your-bucket-name` with your actual S3 bucket name.
         ```bash
@@ -97,7 +97,7 @@ Before starting, create and switch to the specified branch:
 
 ### Phase 3: Track and Push Data to S3
 
-11. [ ] **Run Curation and Push Data to S3:**
+11. [x] **Run Curation and Push Data to S3:**
     -   First, run the curation script on a real research directory to generate the initial training set. Example command:
         ```bash
         poetry run python -m trading_platform.cli ai-curate-data --source-dir workspace/research/campaign_20251005_discovery/ --output-file data/dvc/processed/training_sets/master_trade_log.parquet
@@ -116,7 +116,7 @@ Before starting, create and switch to the specified branch:
         git commit -m "data: Track and push initial master trade log"
         ```
 
-12. [ ] **Relocate, Track, and Push Market Data to S3:**
+12. [x] **Relocate, Track, and Push Market Data to S3:**
     -   Create the new directory for raw data:
         ```bash
         mkdir -p data/dvc/raw
@@ -143,14 +143,14 @@ Before starting, create and switch to the specified branch:
 
 ### Phase 4: Update Dependent Code
 
-13. [ ] **Centralize Raw Data Path:**
+13. [x] **Centralize Raw Data Path:**
     -   Open `src/trading_platform/core/paths.py`.
     -   Add a new constant `RAW_DATA_DIR` that points to the new location for raw market data:
         ```python
         RAW_DATA_DIR = PROJECT_ROOT / "data" / "dvc" / "raw"
         ```
 
-14. [ ] **Update Data Handler Path:**
+14. [x] **Update Data Handler Path:**
     -   Open `src/trading_platform/cli.py`.
     -   Find the instantiation of the `DataHandler`.
     -   Change the `data_root` argument to use the new constant from the `paths` module:
@@ -162,7 +162,7 @@ Before starting, create and switch to the specified branch:
         data_root=paths.RAW_DATA_DIR,
         ```
 
-15. [ ] **Update Data Sync Script:**
+15. [x] **Update Data Sync Script:**
     -   Open the `scripts/sync-all.sh` file.
     -   Find the line that defines the `DATA_DIR` variable.
     -   Update the path to point to the new raw data directory:
@@ -185,13 +185,13 @@ Before starting, create and switch to the specified branch:
 
 ### Phase 5: DVC Utility Scripts
 
-16. [ ] **Create DVC script directory:**
+16. [x] **Create DVC script directory:**
     -   Execute the following command to create a dedicated directory for DVC-related scripts:
         ```bash
         mkdir -p scripts/dvc
         ```
 
-17. [ ] **Create DVC sync script:**
+17. [x] **Create DVC sync script:**
     -   Create a new file named `scripts/dvc/sync.sh`.
     -   Add the following content to the file. This script will accept `push` or `pull` as an argument to synchronize data with the DVC remote.
         ```bash
@@ -210,13 +210,13 @@ Before starting, create and switch to the specified branch:
         echo "DVC sync ($ACTION) complete."
         ```
 
-18. [ ] **Make sync script executable:**
+18. [x] **Make sync script executable:**
     -   Run the following command to make the script executable:
         ```bash
         chmod +x scripts/dvc/sync.sh
         ```
 
-19. [ ] **Commit the new script:**
+19. [x] **Commit the new script:**
     -   Add the new script to Git version control.
         ```bash
         git add scripts/dvc/sync.sh
