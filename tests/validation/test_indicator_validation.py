@@ -161,7 +161,10 @@ INDICATOR_TOLERANCES = {
     "WMA": {"rtol": 1e-7, "atol": 1e-8},  # Perfect match: max diff 0.000000%
     # Oscillators - moderate differences due to smoothing
     "RSI": {"rtol": 1e-3, "atol": 1e-8},  # Max diff 0.089%
-    "MACD": {"rtol": 1e-4, "atol": 6e-7},  # Max abs diff: macd=5.2e-7, signal=4.1e-7, diff=1.3e-7
+    "MACD": {
+        "rtol": 1e-4,
+        "atol": 6e-7,
+    },  # Max abs diff: macd=5.2e-7, signal=4.1e-7, diff=1.3e-7
     "STOCH": {"rtol": 1e-3, "atol": 1e-8},
     "CCI": {"rtol": 1e-3, "atol": 1e-8},
     "ROC": {"rtol": 1e-7, "atol": 1e-8},  # Perfect match: max diff 0.000000%
@@ -502,6 +505,50 @@ def test_indicator_matches_tradingview_comprehensive(
         # Pass if: outlier percentage <= allowance AND all outliers < 1.05%
         if outlier_percentage <= outlier_allowance and outliers_within_limit:
             close_match = True  # Override to pass
+
+    # --- Special handling for OBV: Validate changes, not absolute values ---
+    #
+    # OBV (On-Balance Volume) is a cumulative indicator where only the CHANGES
+    # between bars matter, not the absolute values. The absolute OBV value is
+    # meaningless - traders only care about:
+    # 1. Direction of OBV movement (confirming price trends)
+    # 2. Divergences between price and OBV direction
+    #
+    # Why we have a constant offset:
+    # TradingView's OBV calculation includes historical data from BEFORE our
+    # export starts (2022-03-04 14:00). Analysis shows:
+    # - TradingView first OBV = -476,481
+    # - Platform first OBV = NaN (pandas_ta starts at bar 2)
+    # - This creates a constant offset of -476,481 across ALL bars
+    #
+    # Root cause:
+    # TradingView had accumulated OBV = -453,411 from prior bars we don't have.
+    # On our first bar, price closed down, so: -453,411 - 23,070 = -476,481
+    # This offset persists throughout all 22,346+ bars.
+    #
+    # Solution:
+    # Instead of comparing absolute OBV values, we compare the first-order
+    # differences (bar-to-bar changes). If both systems show identical changes,
+    # they're tracking volume direction identically, which is what matters.
+    #
+    if our_name == "OBV" and not close_match:
+        # Calculate first-order differences (bar-to-bar changes)
+        tv_changes = aligned_tv.diff().dropna()
+        platform_changes = aligned_calc.diff().dropna()
+
+        # Align the changes (in case indices differ slightly)
+        tv_changes_aligned, platform_changes_aligned = tv_changes.align(
+            platform_changes, join="inner"
+        )
+
+        # Validate that the changes match
+        close_match = np.allclose(
+            tv_changes_aligned,
+            platform_changes_aligned,
+            rtol=rtol,
+            atol=atol,
+            equal_nan=True,
+        )
 
     if not close_match:
         # Calculate statistics for debugging
