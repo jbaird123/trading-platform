@@ -185,13 +185,13 @@ Before starting, create and switch to the specified branch:
 
 ### Phase 5: DVC Utility Scripts
 
-16. [ ] **Create DVC script directory:**
+16. [x] **Create DVC script directory:**
     -   Execute the following command to create a dedicated directory for DVC-related scripts:
         ```bash
         mkdir -p scripts/dvc
         ```
 
-17. [ ] **Create DVC sync script:**
+17. [x] **Create DVC sync script:**
     -   Create a new file named `scripts/dvc/sync.sh`.
     -   Add the following content to the file. This script will accept `push` or `pull` as an argument to synchronize data with the DVC remote.
         ```bash
@@ -210,7 +210,7 @@ Before starting, create and switch to the specified branch:
         echo "DVC sync ($ACTION) complete."
         ```
 
-18. [ ] **Make sync script executable:**
+18. [x] **Make sync script executable:**
     -   Run the following command to make the script executable:
         ```bash
         chmod +x scripts/dvc/sync.sh
