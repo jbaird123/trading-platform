@@ -203,18 +203,23 @@ cython_debug/
 # ---------------------------------------------------------------------------
 # Project-specific ignores
 
-# Ignore all data files by default
-data/*
+# For data directories: ignore all files except .dvc pointer files
+data/full/**
+!data/full/**/.dvc
+data/incremental/**
+!data/incremental/**/.dvc
+data/dvc/raw/**
+!data/dvc/raw/**/*.dvc
+data/dvc/processed/**
+!data/dvc/processed/**/*.dvc
 
-# DVC-tracked data should not be committed
-/data/dvc/
+# Allow samples directory
+!data/samples/**
+data/samples/**/*.parquet
+data/samples/**/*.feather
 
-# But explicitly un-ignore the samples directory and its contents
-!data/samples/
-
-# And un-ignore the .gitkeep files that track the empty directories
-!data/full/.gitkeep
-!data/samples/.gitkeep
+# Allow .gitkeep files
+!data/**/.gitkeep
 
 # Common large/local artifacts not needed in Git
 *.parquet
