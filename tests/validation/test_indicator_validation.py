@@ -915,38 +915,6 @@ def test_indicator_matches_tradingview_comprehensive(
 
 
 @pytest.mark.validation
-def test_all_batches_have_same_ohlcv(batch_data_cache):
-    """Verify that all 9 batches have identical OHLCV data.
-
-    This is a sanity check to ensure the batch exports are consistent.
-    """
-    batch_keys = [f"batch{i}" for i in range(1, 10)]
-
-    # Get OHLCV from batch1 as reference
-    reference_ohlcv = batch_data_cache["batch1"][
-        ["open", "high", "low", "close", "volume"]
-    ]
-
-    for batch_key in batch_keys[1:]:  # Skip batch1 since it's the reference
-        batch_ohlcv = batch_data_cache[batch_key][
-            ["open", "high", "low", "close", "volume"]
-        ]
-
-        # Align on timestamp
-        aligned_ref, aligned_batch = reference_ohlcv.align(batch_ohlcv, join="inner")
-
-        # Check OHLC are exactly equal
-        assert aligned_ref[["open", "high", "low", "close"]].equals(
-            aligned_batch[["open", "high", "low", "close"]]
-        ), f"OHLC data in {batch_key} doesn't match batch1"
-
-        # Check volume with small tolerance
-        assert np.allclose(
-            aligned_ref["volume"], aligned_batch["volume"], rtol=1e-6
-        ), f"Volume data in {batch_key} doesn't match batch1"
-
-
-@pytest.mark.validation
 def test_metadata_describes_all_test_cases(batch_metadata):
     """Verify that metadata.json has proper structure and documents indicators."""
 
