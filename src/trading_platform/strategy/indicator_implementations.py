@@ -852,7 +852,11 @@ def compute_swing_high(
     source: str = "close",
     source_ref: str | None = None,
 ) -> pd.Series:
-    """Compute Swing High points."""
+    """Compute Swing High points.
+
+    Returns the high price value at swing high points (matching TradingView),
+    NaN elsewhere.
+    """
     left_bars = int(params.get("left_bars", 10))
     right_bars = int(params.get("right_bars", 10))
     swings = find_swing_points(
@@ -860,7 +864,11 @@ def compute_swing_high(
         left_bars=left_bars,
         right_bars=right_bars,
     )
-    return swings["swing_high"]
+    # Convert 1.0 flags to actual high price values, 0.0 to NaN
+    result = swings["swing_high"].copy()
+    result = result.where(result == 0, df["high"])  # Replace 1.0 with high price
+    result = result.replace(0.0, float("nan"))  # Replace 0.0 with NaN
+    return result
 
 
 def compute_swing_low(
@@ -869,7 +877,11 @@ def compute_swing_low(
     source: str = "close",
     source_ref: str | None = None,
 ) -> pd.Series:
-    """Compute Swing Low points."""
+    """Compute Swing Low points.
+
+    Returns the low price value at swing low points (matching TradingView),
+    NaN elsewhere.
+    """
     left_bars = int(params.get("left_bars", 10))
     right_bars = int(params.get("right_bars", 10))
     swings = find_swing_points(
@@ -877,7 +889,11 @@ def compute_swing_low(
         left_bars=left_bars,
         right_bars=right_bars,
     )
-    return swings["swing_low"]
+    # Convert 1.0 flags to actual low price values, 0.0 to NaN
+    result = swings["swing_low"].copy()
+    result = result.where(result == 0, df["low"])  # Replace 1.0 with low price
+    result = result.replace(0.0, float("nan"))  # Replace 0.0 with NaN
+    return result
 
 
 # ==============================================================================
