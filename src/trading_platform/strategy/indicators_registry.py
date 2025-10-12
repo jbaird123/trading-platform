@@ -1,7 +1,36 @@
+"""
+Unified Indicator Registry.
+
+This module provides the single source of truth for all technical indicators,
+including their metadata, implementations, and safety classifications.
+"""
+
 from __future__ import annotations
 
-# Safety levels: safe, validated, requires_test
-# See strategy/indicator_safety.py for details
+from enum import Enum
+from typing import TYPE_CHECKING
+
+from trading_platform.strategy import feature_implementations as impl
+
+if TYPE_CHECKING:
+    import pandas as pd
+
+
+class SafetyLevel(Enum):
+    """Safety classification for indicators to prevent look-ahead bias."""
+
+    SAFE = "safe"
+    # Proven safe through testing or review.
+    # Built-in library indicators with known safe implementations.
+
+    VALIDATED = "validated"
+    # Custom indicators that have been manually reviewed
+    # and validated to be free from look-ahead bias.
+
+    REQUIRES_TEST = "requires_test"
+    # New or untrusted indicators that must pass automated
+    # bias detection before being used.
+
 
 INDICATORS: dict[str, dict] = {
     # Moving Averages
@@ -11,6 +40,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Average of prices over a window.",
         "params": [{"name": "length", "type": "int", "default": 14}],
         "safety": "safe",
+        "implementation": impl.compute_sma,
         "ta": {
             "module": "pandas_ta.overlap",
             "function": "sma",
@@ -22,6 +52,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Exponentially weighted average of prices.",
         "params": [{"name": "length", "type": "int", "default": 14}],
         "safety": "safe",
+        "implementation": impl.compute_ema,
         "ta": {
             "module": "pandas_ta.overlap",
             "function": "ema",
@@ -36,6 +67,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "slope_period", "type": "int", "default": 1},
         ],
         "safety": "validated",
+        "implementation": impl.compute_ema_slope,
         "ta": {"module": "", "class": ""},  # custom implementation
     },
     "WMA": {
@@ -44,6 +76,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Linearly weighted average of prices.",
         "params": [{"name": "length", "type": "int", "default": 14}],
         "safety": "safe",
+        "implementation": impl.compute_wma,
         "ta": {
             "module": "pandas_ta.overlap",
             "function": "wma",
@@ -60,6 +93,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "signal", "type": "int", "default": 9},
         ],
         "safety": "safe",
+        "implementation": impl.compute_macd,
         "ta": {
             "module": "pandas_ta.momentum",
             "function": "macd",
@@ -74,6 +108,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "max_step", "type": "float", "default": 0.2},
         ],
         "safety": "safe",
+        "implementation": impl.compute_psar,
         "ta": {
             "module": "pandas_ta.trend",
             "function": "psar",
@@ -85,6 +120,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Strength of a trend.",
         "params": [{"name": "length", "type": "int", "default": 14}],
         "safety": "safe",
+        "implementation": impl.compute_adx,
         "ta": {
             "module": "pandas_ta.trend",
             "function": "adx",
@@ -96,6 +132,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Momentum oscillator 0–100.",
         "params": [{"name": "length", "type": "int", "default": 14}],
         "safety": "safe",
+        "implementation": impl.compute_rsi,
         "ta": {
             "module": "pandas_ta.momentum",
             "function": "rsi",
@@ -110,6 +147,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "d", "type": "int", "default": 3},
         ],
         "safety": "safe",
+        "implementation": impl.compute_stoch,
         "ta": {
             "module": "pandas_ta.momentum",
             "function": "stoch",
@@ -121,6 +159,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Deviation from typical price.",
         "params": [{"name": "length", "type": "int", "default": 20}],
         "safety": "safe",
+        "implementation": impl.compute_cci,
         "ta": {
             "module": "pandas_ta.momentum",
             "function": "cci",
@@ -132,6 +171,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Percentage change over a period.",
         "params": [{"name": "length", "type": "int", "default": 12}],
         "safety": "safe",
+        "implementation": impl.compute_roc,
         "ta": {
             "module": "pandas_ta.momentum",
             "function": "roc",
@@ -147,6 +187,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "scalar", "type": "float", "default": 100},
         ],
         "safety": "safe",
+        "implementation": impl.compute_chop,
         "ta": {
             "module": "pandas_ta.momentum",
             "function": "chop",
@@ -162,6 +203,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "std", "type": "float", "default": 2.0},
         ],
         "safety": "safe",
+        "implementation": impl.compute_bb,
         "ta": {
             "module": "pandas_ta.volatility",
             "function": "bbands",
@@ -176,6 +218,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "std", "type": "float", "default": 2.0},
         ],
         "safety": "validated",
+        "implementation": impl.compute_bb_width,
         "ta": {
             "module": "pandas_ta.volatility",
             "function": "bbands",
@@ -187,6 +230,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Average of true ranges over a window.",
         "params": [{"name": "length", "type": "int", "default": 14}],
         "safety": "safe",
+        "implementation": impl.compute_atr,
         "ta": {
             "module": "pandas_ta.volatility",
             "function": "atr",
@@ -201,6 +245,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "lookback", "type": "int", "default": 20},
         ],
         "safety": "validated",
+        "implementation": impl.compute_atr_percentile,
         "ta": {"module": "", "class": ""},  # custom implementation
     },
     "KC": {
@@ -212,6 +257,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "mult", "type": "float", "default": 2.0},
         ],
         "safety": "safe",
+        "implementation": impl.compute_kc,
         "ta": {
             "module": "pandas_ta.volatility",
             "function": "kc",
@@ -224,6 +270,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Cumulative volume adjusted by price direction.",
         "params": [],
         "safety": "safe",
+        "implementation": impl.compute_obv,
         "ta": {
             "module": "pandas_ta.volume",
             "function": "obv",
@@ -235,6 +282,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Money flow over a window.",
         "params": [{"name": "length", "type": "int", "default": 20}],
         "safety": "safe",
+        "implementation": impl.compute_cmf,
         "ta": {
             "module": "pandas_ta.volume",
             "function": "cmf",
@@ -246,6 +294,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Standard deviation of log returns.",
         "params": [{"name": "length", "type": "int", "default": 20}],
         "safety": "validated",
+        "implementation": impl.compute_realized_volatility,
         "ta": {"module": "", "class": ""},  # custom implementation
     },
     "VolumeZScore": {
@@ -254,6 +303,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Z-score of volume relative to rolling mean.",
         "params": [{"name": "length", "type": "int", "default": 20}],
         "safety": "validated",
+        "implementation": impl.compute_volume_zscore,
         "ta": {"module": "", "class": ""},  # custom implementation
     },
     "ICHIMOKU": {
@@ -266,6 +316,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "senkou", "type": "int", "default": 52},
         ],
         "safety": "safe",
+        "implementation": impl.compute_ichimoku,
         "ta": {
             "module": "pandas_ta.trend",
             "function": "ichimoku",
@@ -282,6 +333,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "multiplier", "type": "float", "default": 3.0},
         ],
         "safety": "safe",
+        "implementation": impl.compute_supertrend,
         "ta": {
             "module": "pandas_ta.trend",
             "function": "supertrend",
@@ -293,6 +345,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Intraday average price weighted by volume.",
         "params": [],
         "safety": "safe",
+        "implementation": impl.compute_vwap,
         "ta": {
             "module": "pandas_ta.volume",
             "function": "vwap",
@@ -305,6 +358,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Key retracement levels between swing high/low.",
         "params": [{"name": "window", "type": "int", "default": 100}],
         "safety": "requires_test",
+        "implementation": impl.compute_fib,
         "ta": {"module": "", "class": ""},  # custom implementation TBD
     },
     "HHV": {
@@ -313,6 +367,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Rolling maximum over a window (e.g., 20-day high).",
         "params": [{"name": "length", "type": "int", "default": 20}],
         "safety": "validated",
+        "implementation": impl.compute_hhv,
         "ta": {"module": "", "class": ""},
     },
     "LLV": {
@@ -321,6 +376,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Rolling minimum over a window (e.g., 20-day low).",
         "params": [{"name": "length", "type": "int", "default": 20}],
         "safety": "validated",
+        "implementation": impl.compute_llv,
         "ta": {"module": "", "class": ""},
     },
     "SWING_HIGH": {
@@ -332,6 +388,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "right_bars", "type": "int", "default": 10},
         ],
         "safety": "validated",
+        "implementation": impl.compute_swing_high,
         "ta": {"module": "", "class": ""},  # custom implementation
     },
     "SWING_LOW": {
@@ -343,6 +400,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "right_bars", "type": "int", "default": 10},
         ],
         "safety": "validated",
+        "implementation": impl.compute_swing_low,
         "ta": {"module": "", "class": ""},  # custom implementation
     },
     "DC": {
@@ -353,6 +411,7 @@ INDICATORS: dict[str, dict] = {
         ),
         "params": [{"name": "length", "type": "int", "default": 20}],
         "safety": "validated",
+        "implementation": impl.compute_dc,
         "ta": {"module": "", "class": ""},
     },
     # Candlestick Patterns
@@ -362,6 +421,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Detects a Doji candlestick pattern (indecision).",
         "params": [],
         "safety": "safe",
+        "implementation": impl.compute_cdl_doji,
         "ta": {
             "module": "pandas_ta.candles",
             "function": "cdl_doji",
@@ -373,6 +433,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Detects Hammer (bullish) or Hanging Man (bearish) patterns.",
         "params": [],
         "safety": "safe",
+        "implementation": impl.compute_cdl_hammer,
         "ta": {
             "module": "pandas_ta.candles",
             "function": "cdl_hammer",
@@ -384,6 +445,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Detects Bullish or Bearish Engulfing patterns.",
         "params": [],
         "safety": "safe",
+        "implementation": impl.compute_cdl_engulfing,
         "ta": {
             "module": "pandas_ta.candles",
             "function": "cdl_engulfing",
@@ -395,6 +457,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Detects the Morning Star (bullish) reversal pattern.",
         "params": [],
         "safety": "safe",
+        "implementation": impl.compute_cdl_morningstar,
         "ta": {
             "module": "pandas_ta.candles",
             "function": "cdl_morningstar",
@@ -406,6 +469,7 @@ INDICATORS: dict[str, dict] = {
         "description": "Detects the Evening Star (bearish) reversal pattern.",
         "params": [],
         "safety": "safe",
+        "implementation": impl.compute_cdl_eveningstar,
         "ta": {
             "module": "pandas_ta.candles",
             "function": "cdl_eveningstar",
@@ -417,9 +481,156 @@ INDICATORS: dict[str, dict] = {
         "description": "Detects Harami (inside bar) reversal patterns.",
         "params": [],
         "safety": "safe",
+        "implementation": impl.compute_cdl_harami,
         "ta": {
             "module": "pandas_ta.candles",
             "function": "cdl_harami",
         },
     },
 }
+
+
+# ==============================================================================
+# Safety Helper Functions
+# ==============================================================================
+
+
+def get_safety_level(indicator_type: str) -> SafetyLevel:
+    """
+    Get the safety level for an indicator type.
+
+    Args:
+        indicator_type: Indicator type name (e.g., 'EMA', 'SWING_HIGH')
+
+    Returns:
+        SafetyLevel for the indicator (REQUIRES_TEST if not in registry)
+
+    Example:
+        >>> get_safety_level('EMA')
+        SafetyLevel.SAFE
+        >>> get_safety_level('SWING_HIGH')
+        SafetyLevel.VALIDATED
+    """
+    indicator = INDICATORS.get(indicator_type)
+    if not indicator:
+        return SafetyLevel.REQUIRES_TEST
+    safety_str = indicator.get("safety", "requires_test")
+    return SafetyLevel(safety_str)
+
+
+def is_indicator_safe(indicator_type: str) -> bool:
+    """
+    Check if an indicator is safe to use without testing.
+
+    Args:
+        indicator_type: Indicator type name
+
+    Returns:
+        True if indicator is SAFE or VALIDATED
+
+    Example:
+        >>> is_indicator_safe('EMA')
+        True
+        >>> is_indicator_safe('UNKNOWN_INDICATOR')
+        False
+    """
+    level = get_safety_level(indicator_type)
+    return level in (SafetyLevel.SAFE, SafetyLevel.VALIDATED)
+
+
+def requires_bias_test(indicator_type: str) -> bool:
+    """
+    Check if indicator requires bias detection testing.
+
+    Args:
+        indicator_type: Indicator type name
+
+    Returns:
+        True if indicator requires testing before use
+
+    Example:
+        >>> requires_bias_test('EMA')
+        False
+        >>> requires_bias_test('FIB')
+        True
+    """
+    level = get_safety_level(indicator_type)
+    return level == SafetyLevel.REQUIRES_TEST
+
+
+class LookAheadBiasError(Exception):
+    """Raised when an indicator fails bias detection."""
+
+    pass
+
+
+def validate_indicator_safety(
+    indicator_type: str,
+    test_data: pd.DataFrame | None = None,
+) -> None:
+    """
+    Validate that an indicator is safe to use.
+
+    Args:
+        indicator_type: Indicator type name
+        test_data: Optional test data for bias detection
+                   (required if indicator REQUIRES_TEST)
+
+    Raises:
+        LookAheadBiasError: If indicator requires testing but fails
+
+    Example:
+        >>> validate_indicator_safety('EMA')  # Safe, no error
+        >>> validate_indicator_safety('UNKNOWN', test_data)  # May raise
+    """
+    level = get_safety_level(indicator_type)
+
+    if level in (SafetyLevel.SAFE, SafetyLevel.VALIDATED):
+        # Already verified safe
+        return
+
+    if level == SafetyLevel.REQUIRES_TEST:
+        # Need to run bias detection
+        if test_data is None:
+            raise LookAheadBiasError(
+                f"Indicator '{indicator_type}' requires bias "
+                f"detection testing but no test data provided. "
+                f"Either:\n"
+                f"1. Add it to INDICATORS registry as SAFE/VALIDATED\n"
+                f"2. Provide test_data for automatic validation\n"
+                f"3. Run tests in tests/strategy/"
+                f"test_indicator_bias_detection.py"
+            )
+
+        # This would need the actual indicator function
+        # For now, we raise an error indicating manual testing needed
+        raise LookAheadBiasError(
+            f"Indicator '{indicator_type}' is not classified as safe. "
+            f"Please run bias detection tests in "
+            f"tests/strategy/test_indicator_bias_detection.py "
+            f"and update INDICATORS registry if it passes."
+        )
+
+
+def get_safety_summary() -> dict[str, list[str]]:
+    """
+    Get a summary of all indicators by safety level.
+
+    Returns:
+        Dict mapping safety level names to lists of indicators
+
+    Example:
+        >>> summary = get_safety_summary()
+        >>> print(f"Safe: {len(summary['safe'])} indicators")
+    """
+    summary: dict[str, list[str]] = {
+        "safe": [],
+        "validated": [],
+        "requires_test": [],
+    }
+
+    for indicator_name, indicator_data in INDICATORS.items():
+        safety_str = indicator_data.get("safety", "requires_test")
+        summary[safety_str].append(indicator_name)
+
+    return summary

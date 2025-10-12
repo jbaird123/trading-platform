@@ -92,7 +92,7 @@ def test_compute_features_none_strategy_parameters():
     specs = [{"name": "test_ema", "type": "EMA", "params": {"length": 10}}]
 
     # Pass None as strategy_parameters to trigger line 164
-    result = compute_features(df, specs, strategy_parameters=None)  # type: ignore[arg-type]
+    result = compute_features(df, specs, strategy_parameters=None)
 
     assert "test_ema" in result.columns
     assert len(result) == len(df)
@@ -330,6 +330,10 @@ def test_compute_features_all_indicator_types():
             assert f"{name}_upper" in result.columns
             assert f"{name}_lower" in result.columns
             assert f"{name}_middle" in result.columns
+        elif typ == "ADX":
+            assert f"{name}_ADX" in result.columns
+            assert f"{name}_DI+" in result.columns
+            assert f"{name}_DI-" in result.columns
         elif typ == "MACD":
             assert f"{name}_macd" in result.columns
             assert f"{name}_signal" in result.columns
@@ -392,15 +396,15 @@ def test_adx_short_dataframe():
     )
 
     result = adx(df, length=14)
-    # Should return NaN for insufficient data
-    assert result.isna().all()
+    # Should return NaN for insufficient data (DataFrame with all NaN values)
+    assert result.isna().all().all()
 
     # Test with single bar
     df_single = pd.DataFrame({"high": [1.1050], "low": [1.1000], "close": [1.1025]})
 
     result_single = adx(df_single, length=14)
     # Single bar also insufficient - should be NaN
-    assert result_single.isna().all()
+    assert result_single.isna().all().all()
 
 
 def test_adx_length_clamping():
@@ -418,15 +422,18 @@ def test_adx_length_clamping():
     # Should clamp to available length (3)
     result = adx(df, length=100)
     assert len(result) == 3
-    # With only 3 bars, ADX may have NaN values - check it returns a Series
-    assert isinstance(result, pd.Series)
+    # With only 3 bars, ADX may have NaN values
+    # Check it returns a DataFrame with 3 columns
+    assert isinstance(result, pd.DataFrame)
+    assert list(result.columns) == ["ADX", "DI+", "DI-"]
 
     # Test with length smaller than minimum (3)
     # Should clamp to minimum (3)
     result_small = adx(df, length=1)
     assert len(result_small) == 3
     # With minimal data, may still have NaN - just check it returns correctly
-    assert isinstance(result_small, pd.Series)
+    assert isinstance(result_small, pd.DataFrame)
+    assert list(result_small.columns) == ["ADX", "DI+", "DI-"]
 
 
 def test_bb_width_short_length():

@@ -6,7 +6,7 @@ and provides appropriate safety checks.
 """
 
 import pytest
-from trading_platform.strategy.indicator_safety import (
+from trading_platform.strategy.indicators_registry import (
     LookAheadBiasError,
     SafetyLevel,
     get_safety_level,

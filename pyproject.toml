@@ -28,7 +28,6 @@ skl2onnx = "^1.16.0"
 fastapi = "^0.111.0"
 uvicorn = {extras = ["standard"], version = "^0.30.1"}
 ta = "0.11.0"
-TA-Lib = "^0.4.28"
 joblib = "^1.5.2"
 google-generativeai = "^0.8.5"
 statsmodels = "^0.14.5"
@@ -87,7 +86,6 @@ module = [
     "scipy.*",
     "sklearn.*",
     "ta.*",
-    "talib",
     "yaml",
     "skl2onnx.*",
     "lightgbm.*",
