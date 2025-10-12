@@ -10,7 +10,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from trading_platform.strategy import feature_implementations as impl
+from trading_platform.strategy import indicator_implementations as impl
 
 if TYPE_CHECKING:
     import pandas as pd

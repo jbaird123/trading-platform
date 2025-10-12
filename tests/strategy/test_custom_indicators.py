@@ -3,7 +3,7 @@ Tests for custom indicator functions.
 """
 
 import pandas as pd
-from trading_platform.strategy.custom_indicators import find_swing_points
+from trading_platform.strategy.indicator_helpers import find_swing_points
 
 
 def test_find_swing_points():

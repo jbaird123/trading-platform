@@ -50,7 +50,7 @@ from ta.volume import (
     VolumeWeightedAveragePrice,
 )
 
-from trading_platform.strategy.custom_indicators import find_swing_points
+from trading_platform.strategy.indicator_helpers import find_swing_points
 
 
 def _price_series(df: pd.DataFrame, source: str) -> pd.Series:

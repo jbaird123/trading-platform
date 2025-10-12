@@ -12,11 +12,11 @@ from typing import Any
 import pandas as pd
 
 # ema_slope is now compute_ema_slope, create wrapper
-from trading_platform.strategy import feature_implementations as _impl
+from trading_platform.strategy import indicator_implementations as _impl
 
 # Import helper functions for backwards compatibility with existing tests
-# These are exported from feature_implementations for test usage
-from trading_platform.strategy.feature_implementations import (
+# These are exported from indicator_implementations for test usage
+from trading_platform.strategy.indicator_implementations import (
     _price_series,
     adx,
     atr,
@@ -48,7 +48,7 @@ def bb_width(series: pd.Series, length: int, ndev: float) -> pd.Series:
 # Also export the donchian_channels function name
 def donchian_channels(df: pd.DataFrame, length: int) -> tuple[pd.Series, pd.Series]:
     """Donchian Channels - wrapper for backwards compatibility."""
-    from trading_platform.strategy.feature_implementations import compute_dc
+    from trading_platform.strategy.indicator_implementations import compute_dc
 
     result = compute_dc(df, {"length": length}, "close", None)
     return result["upper"], result["lower"]

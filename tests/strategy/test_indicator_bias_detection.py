@@ -8,7 +8,6 @@ from look-ahead bias by comparing vectorized vs bar-by-bar computation.
 import numpy as np
 import pandas as pd
 import pytest
-from trading_platform.strategy.custom_indicators import find_swing_points
 from trading_platform.strategy.features import (
     adx,
     atr,
@@ -16,6 +15,7 @@ from trading_platform.strategy.features import (
     ema_slope,
     rsi,
 )
+from trading_platform.strategy.indicator_helpers import find_swing_points
 from trading_platform.strategy.safe_indicators import (
     donchian_channels,
     hhv,

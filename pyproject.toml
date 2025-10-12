@@ -83,8 +83,8 @@ warn_unused_ignores = true
 show_error_codes = true
 
 [[tool.mypy.overrides]]
-module = "trading_platform.strategy.feature_implementations"
-# Ignore arg-type errors for TA-Lib candlestick patterns
+module = "trading_platform.strategy.indicator_implementations"
+# Ignore arg-type errors for TA-Lib functions (SMA, WMA, candlestick patterns)
 # pandas .values can return ExtensionArray or ndarray, talib expects ndarray
 disable_error_code = ["arg-type"]
 
