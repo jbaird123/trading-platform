@@ -128,6 +128,9 @@ filterwarnings = [
     # Pandas internal downcasting warnings in test code - will be resolved when pandas removes this behavior
     "ignore:Downcasting object dtype arrays.*:FutureWarning",
     "ignore:Setting an item of incompatible dtype is deprecated:FutureWarning:tests.conftest",
+    # Third-party ta library PSAR implementation has dtype compatibility issues - fixed in future pandas versions
+    "ignore:Setting an item of incompatible dtype is deprecated.*:FutureWarning:ta.trend",
+    "ignore:Series.__setitem__ treating keys as positions is deprecated.*:FutureWarning:ta.trend",
 ]
 markers = [
     "slow: Marks a test as slow-running (e.g., performance benchmarks).",
