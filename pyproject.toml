@@ -36,6 +36,7 @@ dukascopy-python = "^4.0.1"
 openai = "^1.58.1"
 anthropic = "^0.40.0"
 dvc = {extras = ["s3"], version = "^3.63.0"}
+ta-lib = ">=0.4.30"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"
@@ -80,6 +81,12 @@ mypy_path = "src"
 check_untyped_defs = true
 warn_unused_ignores = true
 show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = "trading_platform.strategy.feature_implementations"
+# Ignore arg-type errors for TA-Lib candlestick patterns
+# pandas .values can return ExtensionArray or ndarray, talib expects ndarray
+disable_error_code = ["arg-type"]
 
 [[tool.mypy.overrides]]
 module = [

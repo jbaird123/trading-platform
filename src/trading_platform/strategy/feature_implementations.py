@@ -23,6 +23,9 @@ from typing import Any, cast
 import numpy as np
 import pandas as pd
 
+# Import TA-Lib for candlestick patterns
+import talib
+
 # Import from ta library (stable, production-ready)
 from ta.momentum import ROCIndicator, RSIIndicator, StochasticOscillator
 from ta.trend import (
@@ -719,14 +722,20 @@ def compute_cdl_doji(
     source: str = "close",
     source_ref: str | None = None,
 ) -> pd.Series:
-    """Compute Doji candlestick pattern.
+    """Compute Doji candlestick pattern using TA-Lib.
 
-    TODO: Candlestick patterns not available in stable ta library.
-    Need TA-Lib implementation.
-    Currently returns empty series to prevent import errors.
+    Returns integer values: 0 (no pattern), 100 (bullish), -100 (bearish).
     """
-    # Temporary placeholder - candlestick patterns need TA-Lib
-    return _empty_series(df)
+    try:
+        result = talib.CDLDOJI(
+            df["open"].values,
+            df["high"].values,
+            df["low"].values,
+            df["close"].values,
+        )
+        return pd.Series(result, index=df.index, dtype="float64")
+    except (IndexError, ValueError, TypeError, KeyError):
+        return _empty_series(df)
 
 
 def compute_cdl_hammer(
@@ -735,14 +744,20 @@ def compute_cdl_hammer(
     source: str = "close",
     source_ref: str | None = None,
 ) -> pd.Series:
-    """Compute Hammer candlestick pattern.
+    """Compute Hammer candlestick pattern using TA-Lib.
 
-    TODO: Candlestick patterns not available in stable ta library.
-    Need TA-Lib implementation.
-    Currently returns empty series to prevent import errors.
+    Returns integer values: 0 (no pattern), 100 (bullish), -100 (bearish).
     """
-    # Temporary placeholder - candlestick patterns need TA-Lib
-    return _empty_series(df)
+    try:
+        result = talib.CDLHAMMER(
+            df["open"].values,
+            df["high"].values,
+            df["low"].values,
+            df["close"].values,
+        )
+        return pd.Series(result, index=df.index, dtype="float64")
+    except (IndexError, ValueError, TypeError, KeyError):
+        return _empty_series(df)
 
 
 def compute_cdl_engulfing(
@@ -751,14 +766,20 @@ def compute_cdl_engulfing(
     source: str = "close",
     source_ref: str | None = None,
 ) -> pd.Series:
-    """Compute Engulfing candlestick pattern.
+    """Compute Engulfing candlestick pattern using TA-Lib.
 
-    TODO: Candlestick patterns not available in stable ta library.
-    Need TA-Lib implementation.
-    Currently returns empty series to prevent import errors.
+    Returns integer values: 0 (no pattern), 100 (bullish), -100 (bearish).
     """
-    # Temporary placeholder - candlestick patterns need TA-Lib
-    return _empty_series(df)
+    try:
+        result = talib.CDLENGULFING(
+            df["open"].values,
+            df["high"].values,
+            df["low"].values,
+            df["close"].values,
+        )
+        return pd.Series(result, index=df.index, dtype="float64")
+    except (IndexError, ValueError, TypeError, KeyError):
+        return _empty_series(df)
 
 
 def compute_cdl_morningstar(
@@ -767,14 +788,20 @@ def compute_cdl_morningstar(
     source: str = "close",
     source_ref: str | None = None,
 ) -> pd.Series:
-    """Compute Morning Star candlestick pattern.
+    """Compute Morning Star candlestick pattern using TA-Lib.
 
-    TODO: Candlestick patterns not available in stable ta library.
-    Need TA-Lib implementation.
-    Currently returns empty series to prevent import errors.
+    Returns integer values: 0 (no pattern), 100 (bullish), -100 (bearish).
     """
-    # Temporary placeholder - candlestick patterns need TA-Lib
-    return _empty_series(df)
+    try:
+        result = talib.CDLMORNINGSTAR(
+            df["open"].values,
+            df["high"].values,
+            df["low"].values,
+            df["close"].values,
+        )
+        return pd.Series(result, index=df.index, dtype="float64")
+    except (IndexError, ValueError, TypeError, KeyError):
+        return _empty_series(df)
 
 
 def compute_cdl_eveningstar(
@@ -783,14 +810,20 @@ def compute_cdl_eveningstar(
     source: str = "close",
     source_ref: str | None = None,
 ) -> pd.Series:
-    """Compute Evening Star candlestick pattern.
+    """Compute Evening Star candlestick pattern using TA-Lib.
 
-    TODO: Candlestick patterns not available in stable ta library.
-    Need TA-Lib implementation.
-    Currently returns empty series to prevent import errors.
+    Returns integer values: 0 (no pattern), 100 (bullish), -100 (bearish).
     """
-    # Temporary placeholder - candlestick patterns need TA-Lib
-    return _empty_series(df)
+    try:
+        result = talib.CDLEVENINGSTAR(
+            df["open"].values,
+            df["high"].values,
+            df["low"].values,
+            df["close"].values,
+        )
+        return pd.Series(result, index=df.index, dtype="float64")
+    except (IndexError, ValueError, TypeError, KeyError):
+        return _empty_series(df)
 
 
 def compute_cdl_harami(
@@ -799,14 +832,20 @@ def compute_cdl_harami(
     source: str = "close",
     source_ref: str | None = None,
 ) -> pd.Series:
-    """Compute Harami candlestick pattern.
+    """Compute Harami candlestick pattern using TA-Lib.
 
-    TODO: Candlestick patterns not available in stable ta library.
-    Need TA-Lib implementation.
-    Currently returns empty series to prevent import errors.
+    Returns integer values: 0 (no pattern), 100 (bullish), -100 (bearish).
     """
-    # Temporary placeholder - candlestick patterns need TA-Lib
-    return _empty_series(df)
+    try:
+        result = talib.CDLHARAMI(
+            df["open"].values,
+            df["high"].values,
+            df["low"].values,
+            df["close"].values,
+        )
+        return pd.Series(result, index=df.index, dtype="float64")
+    except (IndexError, ValueError, TypeError, KeyError):
+        return _empty_series(df)
 
 
 # ==============================================================================
