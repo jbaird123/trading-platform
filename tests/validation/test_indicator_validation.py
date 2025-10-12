@@ -588,44 +588,44 @@ def test_indicator_matches_tradingview_comprehensive(
         aligned_tv, aligned_calc, rtol=rtol, atol=atol, equal_nan=True
     )
 
-    # --- Special handling for VWAP: Two-tier validation with outlier allowance ---
+    # --- Special handling for VWAP: Three-tier relative difference validation ---
     #
     # VWAP uses cumulative calculations throughout the trading session. Small
     # floating-point differences in each bar compound throughout the day, with
     # the largest differences occurring at end-of-day (21:00-23:00 UTC).
     #
     # Analysis shows:
-    # - 95% of bars are within 0.14% relative tolerance
+    # - 95% of bars are within 0.14% relative tolerance (median: 0.008%)
     # - 99% of bars are within 0.43% relative tolerance
     # - Worst cases (100+ pips) occur at end-of-session, where cumulative
     #   rounding has built up over 20+ hours
     # - Max observed difference: 1.37% (133 pips) at 2022-09-28 21:00 UTC
     #
-    # Solution: Two-tier validation
-    # - Tier 1 (95th percentile): 0.15% - excellent match for 95% of bars
-    # - Tier 2: Allow up to 5% of bars as outliers with max 1.5% relative difference
+    # Solution: Three-tier validation using relative differences
+    # - Tier 1 (95th percentile): 0.15% - excellent match for intraday bars
+    # - Tier 2 (99th percentile): 0.45% - moderate end-of-day accumulation
+    # - Tier 3 (max): 1.5% - extreme end-of-day bars (max observed: 1.37%)
     #
     if our_name == "VWAP" and not close_match:
         rel_diff = np.abs(aligned_calc - aligned_tv) / np.abs(aligned_tv)
         rel_diff_clean = rel_diff.replace([np.inf, -np.inf], np.nan).dropna()
 
-        # Tier 1: Primary tolerance (95th percentile)
-        primary_tolerance = 1.5e-3  # 0.15%
+        # Three-tier thresholds
+        p95_threshold = 1.5e-3  # 0.15%
+        p99_threshold = 4.5e-3  # 0.45%
+        max_threshold = 15e-3  # 1.5%
 
-        # Tier 2: Outlier threshold and allowance
-        outlier_threshold = 15e-3  # 1.5% (max observed: 1.37%)
-        outlier_allowance = 0.05  # 5% of bars
+        # Calculate actual percentiles
+        p95_actual = rel_diff_clean.quantile(0.95)
+        p99_actual = rel_diff_clean.quantile(0.99)
+        max_actual = rel_diff_clean.max()
 
-        # Count outliers
-        outliers = rel_diff_clean > primary_tolerance
-        outlier_count = outliers.sum()
-        outlier_fraction = outlier_count / len(rel_diff_clean)
-
-        # Check that outliers are within threshold
-        severe_outliers = rel_diff_clean > outlier_threshold
-        severe_outlier_count = severe_outliers.sum()
-
-        if outlier_fraction <= outlier_allowance and severe_outlier_count == 0:
+        # Pass if all three tiers meet thresholds
+        if (
+            p95_actual <= p95_threshold
+            and p99_actual <= p99_threshold
+            and max_actual <= max_threshold
+        ):
             close_match = True
 
     # Special handling for PSAR: two-tier validation with outlier allowance
