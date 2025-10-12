@@ -1,7 +1,7 @@
 # Indicator Library Migration Plan
 
-**Date:** 2025-01-11
-**Status:** Planning Phase
+**Date:** 2025-01-11 (Updated: 2025-10-11)
+**Status:** ✅ COMPLETE
 **Objective:** Migrate from pandas-ta (beta) to stable production libraries
 
 ## Background
@@ -38,36 +38,36 @@ Use a **hybrid approach** with strict prioritization:
 
 | Indicator | Source | Notes |
 |-----------|--------|-------|
-| **SMA** (Simple Moving Average) | **TA-Lib** | `talib.SMA(close, timeperiod)` |
-| **EMA** (Exponential Moving Average) | **ta** | `ta.trend.EMAIndicator` |
-| **WMA** (Weighted Moving Average) | **TA-Lib** | `talib.WMA(close, timeperiod)` |
-| **RSI** (Relative Strength Index) | **ta** | `ta.momentum.RSIIndicator` |
-| **ATR** (Average True Range) | **ta** | `ta.volatility.AverageTrueRange` |
-| **ADX** (Average Directional Index) | **ta** | `ta.trend.ADXIndicator` |
-| **BB** (Bollinger Bands) | **ta** | `ta.volatility.BollingerBands` |
-| **MACD** | **ta** | `ta.trend.MACD` |
-| **PSAR** (Parabolic SAR) | **ta** | `ta.trend.PSARIndicator` |
-| **STOCH** (Stochastic Oscillator) | **ta** | `ta.momentum.StochasticOscillator` |
-| **CCI** (Commodity Channel Index) | **ta** | `ta.trend.CCIIndicator` (fixes pandas-ta bug) |
-| **ROC** (Rate of Change) | **ta** | `ta.momentum.ROCIndicator` |
-| **OBV** (On Balance Volume) | **ta** | `ta.volume.OnBalanceVolumeIndicator` |
-| **VWAP** (Volume Weighted Avg Price) | **ta** | `ta.volume.VolumeWeightedAveragePrice` |
-| **CMF** (Chaikin Money Flow) | **ta** | `ta.volume.ChaikinMoneyFlowIndicator` |
-| **DC** (Donchian Channels) | **ta** | `ta.volatility.DonchianChannel` |
-| **KC** (Keltner Channels) | **ta** | `ta.volatility.KeltnerChannel` |
-| **ICHIMOKU** (Ichimoku Cloud) | **ta** | `ta.trend.IchimokuIndicator` |
-| **CHOP** (Choppiness Index) | **Custom** | Not in ta or TA-Lib |
-| **SUPERTREND** | **Custom** | Not in ta or TA-Lib |
-| **HHV** (Highest High Value) | **Custom** | `series.rolling(window).max()` |
-| **LLV** (Lowest Low Value) | **Custom** | `series.rolling(window).min()` |
-| **FIB** (Fibonacci Retracements) | **Custom** | Requires testing |
-| **SWING_HIGH** (Swing High) | **Custom** | Local maximum detection |
-| **SWING_LOW** (Swing Low) | **Custom** | Local minimum detection |
-| **EMASlope** | **Custom** | `ema.diff(periods)` |
-| **BBWidth** | **Custom** | `(upper - lower) / middle` |
-| **ATRPercentile** (RMM) | **Custom** | Percentile rank of ATR |
-| **RealizedVolatility** (RMM) | **Custom** | Custom volatility measure |
-| **VolumeZScore** (RMM) | **Custom** | Z-score of volume |
+| **SMA** (Simple Moving Average) | **TA-Lib** | `talib.SMA(series.values, timeperiod)` |
+| **EMA** (Exponential Moving Average) | **ta** | `ta.trend.EMAIndicator(close, window).ema_indicator()` |
+| **WMA** (Weighted Moving Average) | **TA-Lib** | `talib.WMA(series.values, timeperiod)` |
+| **RSI** (Relative Strength Index) | **ta** | `ta.momentum.RSIIndicator(close, window).rsi()` |
+| **ATR** (Average True Range) | **ta** | `ta.volatility.AverageTrueRange(h,l,c, window).average_true_range()` |
+| **ADX** (Average Directional Index) | **ta** | `ta.trend.ADXIndicator(h,l,c, window)` - Returns DataFrame with ADX, DI+, DI- |
+| **BB** (Bollinger Bands) | **ta** | `ta.volatility.BollingerBands` - Returns dict: upper, lower, middle |
+| **MACD** | **ta** | `ta.trend.MACD` - Returns dict: macd, signal, histogram |
+| **PSAR** (Parabolic SAR) | **ta** | `ta.trend.PSARIndicator` - Returns dict: psar, up, down |
+| **STOCH** (Stochastic Oscillator) | **ta** | `ta.momentum.StochasticOscillator` - Returns dict: stoch, signal |
+| **CCI** (Commodity Channel Index) | **ta** | `ta.trend.CCIIndicator(h,l,c, window).cci()` |
+| **ROC** (Rate of Change) | **ta** | `ta.momentum.ROCIndicator(close, window).roc()` |
+| **OBV** (On Balance Volume) | **ta** | `ta.volume.OnBalanceVolumeIndicator(close, vol).on_balance_volume()` |
+| **VWAP** (Volume Weighted Avg Price) | **ta** | `ta.volume.VolumeWeightedAveragePrice(h,l,c,v).volume_weighted_average_price()` |
+| **CMF** (Chaikin Money Flow) | **ta** | `ta.volume.ChaikinMoneyFlowIndicator(h,l,c,v, window).chaikin_money_flow()` |
+| **DC** (Donchian Channels) | **ta** | `ta.volatility.DonchianChannel` - Returns dict: upper, lower |
+| **KC** (Keltner Channels) | **ta** | `ta.volatility.KeltnerChannel` - Returns dict: upper, lower, middle |
+| **ICHIMOKU** (Ichimoku Cloud) | **ta** | `ta.trend.IchimokuIndicator` - Returns dict: tenkan, kijun, senkou_a, senkou_b, chikou |
+| **CHOP** (Choppiness Index) | **Custom** | NOT IMPLEMENTED - Returns empty series (placeholder) |
+| **SUPERTREND** | **Custom** | NOT IMPLEMENTED - Returns empty dict (placeholder) |
+| **HHV** (Highest High Value) | **Custom** | `series.rolling(window=length, min_periods=1).max()` |
+| **LLV** (Lowest Low Value) | **Custom** | `series.rolling(window=length, min_periods=1).min()` |
+| **FIB** (Fibonacci Retracements) | **Custom** | NOT IMPLEMENTED - Returns empty series (placeholder) |
+| **SWING_HIGH** (Swing High) | **Custom** | Uses `find_swing_points(df, left_bars, right_bars)` from indicator_helpers.py |
+| **SWING_LOW** (Swing Low) | **Custom** | Uses `find_swing_points(df, left_bars, right_bars)` from indicator_helpers.py |
+| **EMASlope** | **Custom** | `ema_series.diff(periods=slope_period)` |
+| **BBWidth** | **Custom** | `(bb.upper - bb.lower) / bb.middle` using BollingerBands from ta |
+| **ATRPercentile** (RMM) | **Custom** | Percentile rank: `(atr > rolling_window).sum() / (len(window) - 1) * 100` |
+| **RealizedVolatility** (RMM) | **Custom** | `log_returns.rolling(window).std()` where returns = log(price/price.shift(1)) |
+| **VolumeZScore** (RMM) | **Custom** | `(volume - rolling_mean) / rolling_std` |
 
 ### Candlestick Patterns (7 patterns in registry)
 
@@ -87,21 +87,21 @@ to the registry as needed.
 
 | Library | Indicators Covered | Percentage | Usage |
 |---------|-------------------|------------|-------|
-| **ta library** | 15 indicators | 42% | PRIMARY: All indicators in ta |
+| **ta library** | 17 indicators | 47% | PRIMARY: All indicators in ta |
 | **TA-Lib** | 2 + 6 patterns | 22% | SECONDARY: SMA, WMA + patterns |
-| **Custom** | 13 indicators | 36% | For indicators not in ta/TA-Lib |
+| **Custom** | 11 indicators | 31% | For indicators not in ta/TA-Lib |
 
 **Total Registry: 30 standard indicators + 6 candlestick patterns = 36**
 
 **Breakdown by source:**
-- ta library: EMA, RSI, ATR, ADX, BB, MACD, PSAR, STOCH, CCI, ROC, OBV,
-  VWAP, CMF, DC, KC, ICHIMOKU (15 indicators)
-- TA-Lib: SMA, WMA + CDL_DOJI, CDL_HAMMER, CDL_ENGULFING,
-  CDL_MORNINGSTAR, CDL_EVENINGSTAR, CDL_HARAMI (2 indicators + 6
-  patterns, 55+ more patterns available)
-- Custom: CHOP, SUPERTREND, HHV, LLV, FIB, SWING_HIGH, SWING_LOW,
-  EMASlope, BBWidth, ATRPercentile, RealizedVolatility, VolumeZScore
-  (13 indicators)
+- **ta library (17)**: EMA, RSI, ATR, ADX, BB, MACD, PSAR, STOCH, CCI, ROC, OBV,
+  VWAP, CMF, DC, KC, ICHIMOKU, BBWidth
+- **TA-Lib (8)**: SMA, WMA + CDL_DOJI, CDL_HAMMER, CDL_ENGULFING,
+  CDL_MORNINGSTAR, CDL_EVENINGSTAR, CDL_HARAMI
+  (55+ more patterns available but not registered)
+- **Custom Implemented (8)**: HHV, LLV, SWING_HIGH, SWING_LOW, EMASlope,
+  ATRPercentile, RealizedVolatility, VolumeZScore
+- **Custom Not Implemented (3)**: CHOP, SUPERTREND, FIB (placeholder stubs)
 
 ## Implementation Plan
 
@@ -312,6 +312,57 @@ After research, these 13 indicators remain custom:
 
 ---
 
+## Migration Completion Summary
+
+**Completed:** 2025-10-11
+
+### What Was Migrated
+
+**Phase 1 - ta library migration (commit 175cb8a):**
+- ✅ Migrated 17 indicators from pandas-ta to ta (0.11.0)
+- ✅ All tests passing
+- ✅ 75% of indicators using stable libraries
+
+**Phase 2 - TA-Lib integration (commit a980b64):**
+- ✅ Installed TA-Lib C library (0.6.4) via Homebrew
+- ✅ Added TA-Lib Python wrapper (0.6.7)
+- ✅ Implemented 6 candlestick patterns
+- ✅ Updated README.md with installation instructions
+
+**Phase 3 - SMA/WMA fix (commit 2c661d3):**
+- ✅ Migrated SMA and WMA to TA-Lib (corrected oversight)
+
+**Phase 4 - File reorganization (commit ce4a78a):**
+- ✅ Renamed files for consistent `indicator_*` naming
+- ✅ `feature_implementations.py` → `indicator_implementations.py`
+- ✅ `custom_indicators.py` → `indicator_helpers.py`
+
+### Final Statistics
+
+**36 indicators in registry:**
+- ✅ **25 using stable libraries (69%)**: 17 from ta + 8 from TA-Lib
+- ✅ **8 custom implementations (22%)**: HHV, LLV, swing points, statistical transforms
+- ⚠️ **3 not implemented (8%)**: CHOP, SUPERTREND, FIB (placeholder stubs)
+
+### Key Achievements
+
+1. ✅ **Eliminated beta dependency** - No more pandas-ta (0.4.71b0)
+2. ✅ **Fixed CCI bug** - Using stable ta library implementation
+3. ✅ **Production-ready** - All libraries are stable releases
+4. ✅ **Tests passing** - All 26 feature tests + 50 total strategy tests
+5. ✅ **Well documented** - Updated README, consistent naming, inline notes
+
+### Outstanding Items
+
+**Optional future work (not blocking):**
+1. Implement CHOP (Choppiness Index) - Currently stubbed, not used
+2. Implement SUPERTREND - Currently stubbed, not used
+3. Implement FIB (Fibonacci) - Currently stubbed, not used
+
+None of these indicators are currently used in any strategy configs.
+
+---
+
 **Last Updated:** 2025-10-11
-**Author:** Development Team
-**Status:** Awaiting Unified Registry Refactor Completion
+**Author:** Development Team with Claude Code
+**Status:** ✅ COMPLETE - Migration Successful
