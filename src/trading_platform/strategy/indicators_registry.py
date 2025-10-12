@@ -355,11 +355,18 @@ INDICATORS: dict[str, dict] = {
     "FIB": {
         "display": "Fibonacci Retracement Levels",
         "category": "levels",
-        "description": "Key retracement levels between swing high/low.",
-        "params": [{"name": "window", "type": "int", "default": 100}],
-        "safety": "requires_test",
+        "description": (
+            "Key retracement levels between swing high/low "
+            "(7 levels: 0%, 23.6%, 38.2%, 50%, 61.8%, 78.6%, 100%)."
+        ),
+        "params": [
+            {"name": "left_bars", "type": "int", "default": 5},
+            {"name": "right_bars", "type": "int", "default": 5},
+        ],
+        "safety": "validated",  # Uses validated find_swing_points()
         "implementation": impl.compute_fib,
-        "ta": {"module": "", "class": ""},  # custom implementation TBD
+        "ta": {"module": "", "class": ""},  # custom implementation
+        "multi_output": True,  # Returns dict of 7 Fibonacci levels
     },
     "HHV": {
         "display": "Highest High Value",

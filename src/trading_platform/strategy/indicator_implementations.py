@@ -593,12 +593,47 @@ def compute_chop(
 ) -> pd.Series:
     """Compute Choppiness Index.
 
-    TODO: CHOP is not available in the stable ta library.
-    Need custom implementation or TA-Lib alternative.
-    Currently returns empty series to prevent import errors.
+    Formula: 100 * LOG10(SUM(ATR(1), n) / (MaxHi(n) - MinLo(n))) / LOG10(n)
+
+    Values: 0-100 scale
+    - Close to 0: Strong trending market
+    - Close to 100: Choppy/sideways market
+    - Common thresholds: <38.2 trending, 38.2-61.8 neutral, >61.8 choppy
     """
-    # Temporary placeholder - CHOP not in stable ta library
-    return _empty_series(df)
+    length = int(params.get("length", 14))
+    n = len(df)
+
+    if n < length:
+        return _empty_series(df)
+
+    try:
+        # Calculate True Range for period of 1
+        high = df["high"]
+        low = df["low"]
+        close = df["close"]
+        prev_close = close.shift(1)
+
+        tr = pd.concat(
+            [high - low, (high - prev_close).abs(), (low - prev_close).abs()], axis=1
+        ).max(axis=1)
+
+        # Sum of TR over n periods
+        sum_tr = tr.rolling(window=length, min_periods=length).sum()
+
+        # Highest high and lowest low over n periods
+        max_high = high.rolling(window=length, min_periods=length).max()
+        min_low = low.rolling(window=length, min_periods=length).min()
+
+        # Calculate CHOP
+        range_hl = max_high - min_low
+        # Avoid division by zero
+        range_hl = range_hl.replace(0, np.nan)
+
+        chop = 100 * np.log10(sum_tr / range_hl) / np.log10(length)
+
+        return cast(pd.Series, chop)
+    except (IndexError, ValueError, TypeError, KeyError):
+        return _empty_series(df)
 
 
 def compute_cci(
@@ -670,15 +705,103 @@ def compute_supertrend(
     source: str = "close",
     source_ref: str | None = None,
 ) -> dict[str, pd.Series]:
-    """Compute SuperTrend.
+    """Compute SuperTrend indicator.
 
-    TODO: SUPERTREND is not available in the stable ta library.
-    Need custom implementation or TA-Lib alternative.
-    Currently returns empty series to prevent import errors.
+    Algorithm by Olivier Seban. Combines ATR and price to identify trend direction.
+
+    Returns dict with keys:
+    - "": Main SuperTrend value (alternates between upper/lower band based on trend)
+    - "direction": 1 for uptrend, -1 for downtrend
+    - "long": Lower band (support in uptrend)
+    - "short": Upper band (resistance in downtrend)
+
+    Default params: length=7, multiplier=3.0
     """
-    # Temporary placeholder - SUPERTREND not in stable ta library
-    empty = _empty_series(df)
-    return {"": empty, "direction": empty, "long": empty, "short": empty}
+    length = int(params.get("length", 7))
+    multiplier = float(params.get("multiplier", 3.0))
+    n = len(df)
+
+    if n < length:
+        empty = _empty_series(df)
+        return {"": empty, "direction": empty, "long": empty, "short": empty}
+
+    try:
+        # Calculate ATR
+        atr_values = atr(df, length)
+
+        # Calculate HL2 (average of high and low)
+        hl2 = (df["high"] + df["low"]) / 2
+
+        # Calculate basic bands
+        basic_upper = hl2 + (multiplier * atr_values)
+        basic_lower = hl2 - (multiplier * atr_values)
+
+        # Initialize final bands
+        final_upper = pd.Series(index=df.index, dtype="float64")
+        final_lower = pd.Series(index=df.index, dtype="float64")
+        supertrend = pd.Series(index=df.index, dtype="float64")
+        direction = pd.Series(index=df.index, dtype="float64")
+
+        close = df["close"]
+
+        # Calculate final bands with persistence logic
+        for i in range(n):
+            if i == 0:
+                final_upper.iloc[i] = basic_upper.iloc[i]
+                final_lower.iloc[i] = basic_lower.iloc[i]
+            else:
+                # Upper band: use basic_upper unless it's greater than previous
+                # and close was above previous upper band
+                if (
+                    basic_upper.iloc[i] < final_upper.iloc[i - 1]
+                    or close.iloc[i - 1] > final_upper.iloc[i - 1]
+                ):
+                    final_upper.iloc[i] = basic_upper.iloc[i]
+                else:
+                    final_upper.iloc[i] = final_upper.iloc[i - 1]
+
+                # Lower band: use basic_lower unless it's less than previous
+                # and close was below previous lower band
+                if (
+                    basic_lower.iloc[i] > final_lower.iloc[i - 1]
+                    or close.iloc[i - 1] < final_lower.iloc[i - 1]
+                ):
+                    final_lower.iloc[i] = basic_lower.iloc[i]
+                else:
+                    final_lower.iloc[i] = final_lower.iloc[i - 1]
+
+        # Determine trend direction and supertrend value
+        for i in range(n):
+            if i == 0:
+                # Start with uptrend
+                direction.iloc[i] = 1
+                supertrend.iloc[i] = final_lower.iloc[i]
+            else:
+                # If close crosses above upper band, switch to uptrend
+                if close.iloc[i] > final_upper.iloc[i - 1]:
+                    direction.iloc[i] = 1
+                # If close crosses below lower band, switch to downtrend
+                elif close.iloc[i] < final_lower.iloc[i - 1]:
+                    direction.iloc[i] = -1
+                # Otherwise maintain previous direction
+                else:
+                    direction.iloc[i] = direction.iloc[i - 1]
+
+                # SuperTrend follows the appropriate band
+                if direction.iloc[i] == 1:
+                    supertrend.iloc[i] = final_lower.iloc[i]
+                else:
+                    supertrend.iloc[i] = final_upper.iloc[i]
+
+        return {
+            "": supertrend,  # Main value
+            "direction": direction,  # 1=up, -1=down
+            "long": final_lower,  # Support line
+            "short": final_upper,  # Resistance line
+        }
+    except (IndexError, ValueError, TypeError, KeyError):
+        empty = _empty_series(df)
+        return {"": empty, "direction": empty, "long": empty, "short": empty}
 
 
 def compute_swing_high(
@@ -914,8 +1037,56 @@ def compute_fib(
     params: dict[str, Any],
     source: str = "close",
     source_ref: str | None = None,
-) -> pd.Series:
-    """Compute Fibonacci Retracement Levels (TBD - placeholder)."""
-    # TODO: Implement fibonacci retracement levels
-    # This is a placeholder that returns NaN
-    return _empty_series(df)
+) -> dict[str, pd.Series]:
+    """Compute Fibonacci Retracement Levels.
+
+    Calculates Fibonacci retracement levels between swing high and swing low.
+    Uses find_swing_points() to identify swing points.
+
+    Returns dict with standard Fibonacci ratios:
+    - "0.000": Swing low (0% retracement)
+    - "0.236": 23.6% retracement
+    - "0.382": 38.2% retracement
+    - "0.500": 50% retracement
+    - "0.618": 61.8% retracement (golden ratio)
+    - "0.786": 78.6% retracement
+    - "1.000": Swing high (100% retracement)
+
+    Default params: left_bars=5, right_bars=5 (for swing point detection)
+    """
+    left_bars = int(params.get("left_bars", 5))
+    right_bars = int(params.get("right_bars", 5))
+
+    # Standard Fibonacci ratios
+    fib_ratios = [0.000, 0.236, 0.382, 0.500, 0.618, 0.786, 1.000]
+
+    try:
+        # Find swing points
+        swings = find_swing_points(df, left_bars=left_bars, right_bars=right_bars)
+
+        swing_high_series = swings["swing_high"]
+        swing_low_series = swings["swing_low"]
+
+        # Forward fill to get the most recent swing high/low at each point
+        recent_swing_high = swing_high_series.ffill()
+        recent_swing_low = swing_low_series.ffill()
+
+        # Calculate range
+        fib_range = recent_swing_high - recent_swing_low
+
+        # Calculate Fibonacci levels
+        # For uptrend: start from swing low and add ratios of range
+        # For downtrend: start from swing high and subtract ratios of range
+        # We'll calculate both and use the most recent swing direction
+        result = {}
+
+        for ratio in fib_ratios:
+            # Calculate level from swing low (uptrend perspective)
+            level = recent_swing_low + (fib_range * ratio)
+            result[f"{ratio:.3f}"] = level
+
+        return result
+
+    except (IndexError, ValueError, TypeError, KeyError):
+        empty = _empty_series(df)
+        return {f"{ratio:.3f}": empty for ratio in fib_ratios}
