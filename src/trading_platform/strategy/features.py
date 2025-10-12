@@ -156,8 +156,24 @@ def compute_features(
             if source_ref:
                 temp_spec["source_ref"] = {"ref": source_ref}
             df_htf = compute_features(df_resampled, [temp_spec], strategy_parameters)
-            htf_series = df_htf[name].reindex(df.index, method="ffill")
-            out[name] = htf_series
+
+            # Handle multi-output indicators (e.g., ADX returns name_ADX,
+            # name_DI+, name_DI-). Find columns that start with feature name.
+            htf_cols = [
+                col
+                for col in df_htf.columns
+                if col == name or col.startswith(f"{name}_")
+            ]
+
+            if not htf_cols:
+                # Fallback: try the exact name (shouldn't happen but be safe)
+                htf_cols = [name]
+
+            # Reindex and forward-fill all columns for this feature
+            for col in htf_cols:
+                if col in df_htf.columns:
+                    htf_series = df_htf[col].reindex(df.index, method="ffill")
+                    out[col] = htf_series
             continue
 
         # Resolve parameter substitutions (${param_name})

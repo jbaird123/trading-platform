@@ -83,7 +83,10 @@ def test_sys_1_9_1_vectorized_indicator_computation():
     assert "ema_fast" in result.columns
     assert "ema_slow" in result.columns
     assert "rsi" in result.columns
-    assert "adx" in result.columns
+    # ADX now returns 3 columns: ADX, DI+, DI-
+    assert "adx_ADX" in result.columns
+    assert "adx_DI+" in result.columns
+    assert "adx_DI-" in result.columns
 
     # Performance assertion: Should compute 5 indicators on 525K bars
     # in under 5 seconds on a modern laptop

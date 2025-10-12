@@ -44,21 +44,23 @@ def test_get_higher_timeframe_feature():
 
     result = compute_features(df, specs)
 
-    # Verify the feature was added
-    assert "adx_1h" in result.columns
+    # Verify the ADX features were added (ADX returns 3 columns: ADX, DI+, DI-)
+    assert "adx_1h_ADX" in result.columns
+    assert "adx_1h_DI+" in result.columns
+    assert "adx_1h_DI-" in result.columns
 
     # Verify it has the same length as input (forward-filled)
     assert len(result) == len(df)
 
     # Verify it contains numeric values (may have NaN during warmup)
-    assert result["adx_1h"].dtype == "float64"
+    assert result["adx_1h_ADX"].dtype == "float64"
 
     # Verify forward-fill worked (values should repeat within each hour)
     # First hour (4 bars of 15min): should have same value
-    valid_values = result["adx_1h"].dropna()
+    valid_values = result["adx_1h_ADX"].dropna()
     if len(valid_values) > 4:
         # Check that within a 1-hour window, values are constant (forward-filled)
-        first_hour_values = result["adx_1h"].iloc[0:4]
+        first_hour_values = result["adx_1h_ADX"].iloc[0:4]
         if not first_hour_values.isna().all():
             # Values within the same hour should be identical (forward-filled)
             unique_in_hour = first_hour_values.dropna().nunique()

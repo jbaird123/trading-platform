@@ -36,7 +36,9 @@ def test_trade_context_includes_new_features_in_brief() -> None:
             "strategy_features": {
                 "ema_fast": 1.0985,
                 "ema_slope_fast": 0.0012,  # Epic 1: new EMASlope feature
-                "adx_4h": 28.5,  # Epic 1: higher-timeframe feature
+                "adx_4h_ADX": 28.5,  # Epic 1: higher-timeframe feature (ADX main value)
+                "adx_4h_DI+": 25.0,  # ADX directional indicator
+                "adx_4h_DI-": 20.0,  # ADX directional indicator
             },
             "regime": {
                 "label": "trending",
@@ -70,7 +72,8 @@ def test_trade_context_includes_new_features_in_brief() -> None:
     # Verify Epic 1 features: EMASlope and higher-timeframe
     assert "strategy_features" in context
     assert context["strategy_features"]["ema_slope_fast"] == 0.0012
-    assert context["strategy_features"]["adx_4h"] == 28.5
+    # ADX now returns 3 columns, check the main ADX value
+    assert context["strategy_features"]["adx_4h_ADX"] == 28.5
 
     # Verify Epic 3 features: new RMM features
     assert "regime" in context
@@ -98,7 +101,9 @@ def test_trade_context_includes_new_features_in_csv(tmp_path: Path) -> None:
             "strategy_features": {
                 "ema_fast": 1.0985,
                 "ema_slope_fast": 0.0012,  # Epic 1: new feature
-                "adx_4h": 28.5,  # Epic 1: higher-timeframe
+                "adx_4h_ADX": 28.5,  # Epic 1: higher-timeframe (ADX main value)
+                "adx_4h_DI+": 25.0,  # ADX directional indicator
+                "adx_4h_DI-": 20.0,  # ADX directional indicator
             },
             "regime": {
                 "label": "trending",
@@ -124,8 +129,9 @@ def test_trade_context_includes_new_features_in_csv(tmp_path: Path) -> None:
     assert "ctx_strategy_features_ema_slope_fast" in df.columns
     assert df.iloc[0]["ctx_strategy_features_ema_slope_fast"] == 0.0012
 
-    assert "ctx_strategy_features_adx_4h" in df.columns
-    assert df.iloc[0]["ctx_strategy_features_adx_4h"] == 28.5
+    # ADX now has 3 columns, check the main ADX value
+    assert "ctx_strategy_features_adx_4h_ADX" in df.columns
+    assert df.iloc[0]["ctx_strategy_features_adx_4h_ADX"] == 28.5
 
     # Epic 3 features (directly under regime)
     assert "ctx_regime_atr_pct" in df.columns

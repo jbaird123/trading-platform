@@ -186,7 +186,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "atr_length", "type": "int", "default": 1},
             {"name": "scalar", "type": "float", "default": 100},
         ],
-        "safety": "safe",
+        "safety": "validated",  # Custom implementation - bias tested
         "implementation": impl.compute_chop,
         "ta": {
             "module": "pandas_ta.momentum",
@@ -332,7 +332,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "length", "type": "int", "default": 7},
             {"name": "multiplier", "type": "float", "default": 3.0},
         ],
-        "safety": "safe",
+        "safety": "validated",  # Custom implementation - bias tested
         "implementation": impl.compute_supertrend,
         "ta": {
             "module": "pandas_ta.trend",
@@ -363,7 +363,7 @@ INDICATORS: dict[str, dict] = {
             {"name": "left_bars", "type": "int", "default": 5},
             {"name": "right_bars", "type": "int", "default": 5},
         ],
-        "safety": "validated",  # Uses validated find_swing_points()
+        "safety": "validated",  # Uses validated find_swing_points() - bias tested
         "implementation": impl.compute_fib,
         "ta": {"module": "", "class": ""},  # custom implementation
         "multi_output": True,  # Returns dict of 7 Fibonacci levels
