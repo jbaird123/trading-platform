@@ -1,5 +1,5 @@
 outs:
-- md5: 10475781a9e2dc317df21b7b646d0f2d
-  size: 2550603
+- md5: 349ecf81fdaf4abefeabb8f0a8e32107
+  size: 2489284
   hash: md5
   path: batch7_keltner_eurusd_1h.csv

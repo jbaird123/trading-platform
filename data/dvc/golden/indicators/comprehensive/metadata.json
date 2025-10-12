@@ -2,10 +2,11 @@
   "$schema": "../../schemas/golden_metadata.schema.json",
   "dataset_type": "indicators",
   "tradingview_version": "unknown",
-  "export_date": "2025-10-11",
+  "export_date": "2025-10-12",
+  "timezone": "UTC (Reykjavik)",
   "date_range": {
-    "start": "2022-03-04T09:00:00-05:00",
-    "end": "2025-10-10T16:00:00-04:00"
+    "start": "2022-02-04T17:00:00Z",
+    "end": "2025-10-10T20:00:00Z"
   },
   "instrument": {
     "symbol": "EURUSD",
