@@ -172,8 +172,11 @@ def parse_tradingview_trades(tv_df: pd.DataFrame) -> pd.DataFrame:
                 side = "unknown"
 
             # Parse times
-            # TradingView exports times in local exchange timezone (no TZ marker)
-            # We need to parse as US/Eastern and convert to UTC to match platform
+            # TradingView exports times in US/Eastern timezone (no TZ marker)
+            # IMPORTANT: TradingView CSV timestamps are off by 1 hour - they show
+            # the bar AFTER the actual entry/exit bar. We must subtract 1 hour.
+            # This is likely because TV shows the timestamp when the order is
+            # confirmed/filled rather than when it was placed.
             entry_time = entry_row.get("Date/Time")
             exit_time = exit_row.get("Date/Time")
 
@@ -182,12 +185,14 @@ def parse_tradingview_trades(tv_df: pd.DataFrame) -> pd.DataFrame:
                     pd.to_datetime(entry_time)
                     .tz_localize("US/Eastern")
                     .tz_convert("UTC")
+                    - timedelta(hours=1)  # Adjust for TV's 1-bar offset
                 )
             if not pd.isna(exit_time) and isinstance(exit_time, str):
                 exit_time = (
                     pd.to_datetime(exit_time)
                     .tz_localize("US/Eastern")
                     .tz_convert("UTC")
+                    - timedelta(hours=1)  # Adjust for TV's 1-bar offset
                 )
 
             trades.append(
@@ -551,6 +556,7 @@ def test_ema_crossover_trade_pnl_matches_tradingview(
     total_pnl_tolerance = float(tolerances["total_pnl"])
 
     mismatches = []
+    all_differences = []  # Track ALL differences for analysis
     total_pnl_diff = 0.0
 
     for i in range(len(platform_df)):
@@ -560,6 +566,25 @@ def test_ema_crossover_trade_pnl_matches_tradingview(
         # Compare individual trade PnL
         pnl_diff = abs(platform_trade["pnl"] - tv_trade["pnl"])
         total_pnl_diff += platform_trade["pnl"] - tv_trade["pnl"]
+
+        # Track ALL differences for diagnostic purposes
+        if pnl_diff > 0.01:  # More than 1 cent
+            all_differences.append(
+                {
+                    "trade_num": i + 1,
+                    "entry_time": platform_trade["entry_time"],
+                    "exit_time": platform_trade["exit_time"],
+                    "side": platform_trade["side"],
+                    "platform_entry": platform_trade["entry_price"],
+                    "tv_entry": tv_trade["entry_price"],
+                    "platform_exit": platform_trade["exit_price"],
+                    "tv_exit": tv_trade["exit_price"],
+                    "platform_pnl": platform_trade["pnl"],
+                    "tv_pnl": tv_trade["pnl"],
+                    "diff": platform_trade["pnl"] - tv_trade["pnl"],
+                    "abs_diff": pnl_diff,
+                }
+            )
 
         if pnl_diff > trade_pnl_tolerance:
             mismatches.append(
@@ -579,7 +604,34 @@ def test_ema_crossover_trade_pnl_matches_tradingview(
     print(f"Platform total PnL: ${platform_df['pnl'].sum():.2f}")
     print(f"TradingView total PnL: ${tv_df['pnl'].sum():.2f}")
     print(f"Total PnL difference: ${total_pnl_diff:.2f}")
-    print(f"Trade PnL mismatches (>{trade_pnl_tolerance}): {len(mismatches)}")
+    print(f"Trades with ANY PnL difference (>$0.01): {len(all_differences)}")
+    print(f"Trade PnL mismatches (>${trade_pnl_tolerance}): {len(mismatches)}")
+
+    if all_differences:
+        print("\n=== ALL PnL Differences (showing first 20) ===")
+        for diff in all_differences[:20]:
+            entry_price_diff = abs(diff["platform_entry"] - diff["tv_entry"])
+            exit_price_diff = abs(diff["platform_exit"] - diff["tv_exit"])
+            print(
+                f"Trade {diff['trade_num']} {diff['side']}: "
+                f"Entry {diff['entry_time'].strftime('%Y-%m-%d %H:%M')}, "
+                f"Exit {diff['exit_time'].strftime('%Y-%m-%d %H:%M')}"
+            )
+            print(
+                f"  Entry prices: Platform={diff['platform_entry']:.5f}, "
+                f"TV={diff['tv_entry']:.5f}, diff={entry_price_diff:.5f}"
+            )
+            print(
+                f"  Exit prices:  Platform={diff['platform_exit']:.5f}, "
+                f"TV={diff['tv_exit']:.5f}, diff={exit_price_diff:.5f}"
+            )
+            print(
+                f"  PnL: Platform=${diff['platform_pnl']:.2f}, "
+                f"TV=${diff['tv_pnl']:.2f}, Diff=${diff['diff']:.2f}"
+            )
+            print()
+        if len(all_differences) > 20:
+            print(f"... and {len(all_differences) - 20} more")
 
     if mismatches:
         print("\n=== Trade PnL Mismatches (showing first 10) ===")

@@ -5,7 +5,10 @@ strategy("EMA Crossover Golden",
          default_qty_value=10000,
          commission_type=strategy.commission.percent,
          commission_value=0.0,
-         pyramiding=1)
+         pyramiding=1,
+         process_orders_on_close=false,
+         calc_on_order_fills=false,
+         calc_on_every_tick=false)
 
 // Input parameters (must match our YAML exactly)
 ema_fast_length = input.int(20, "Fast EMA Length")

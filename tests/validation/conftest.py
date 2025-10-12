@@ -223,6 +223,9 @@ def tradingview_trades(
 
     Returns:
         DataFrame with TradingView trades
+
+    Raises:
+        AssertionError: If timestamps are not in UTC format
     """
     trades_path = golden_strategy_paths["trades"]
 
@@ -233,6 +236,67 @@ def tradingview_trades(
         )
 
     df = pd.read_csv(trades_path)
+
+    # Check timezone format before processing
+    # Look for Date/Time column (TradingView's default)
+    time_col = None
+    for col in ["Date/Time", "Entry Time", "date_time", "time", "Time"]:
+        if col in df.columns:
+            time_col = col
+            break
+
+    if time_col is not None:
+        # Get first non-null timestamp
+        first_time = None
+        for val in df[time_col]:
+            if pd.notna(val):
+                first_time = str(val)
+                break
+
+        if first_time:
+            # Check if it's in UTC format
+            # TradingView trades export doesn't include timezone markers in timestamps
+            # so we can only check for explicit NON-UTC markers
+            # Format: "2023-01-06 20:00" (no timezone suffix)
+
+            # Check for -01:00 offset (Azores time, NOT pure UTC)
+            if "-01:00" in first_time:
+                pytest.fail(
+                    f"TradingView trades export has -01:00 timezone offset!\n"
+                    f"Found timestamp: {first_time}\n"
+                    f"Expected format: 2023-01-06 20:00 (plain, no offset)\n"
+                    f"\n"
+                    f"In TradingView:\n"
+                    f"1. Go to Settings (gear icon) → Chart Settings\n"
+                    f"2. Set 'Timezone' to 'UTC (Reykjavik)' "
+                    f"(NOT 'UTC (Azores)')\n"
+                    f"3. Re-export the trades list\n"
+                    f"\n"
+                    f"Note: 'UTC (Azores)' includes DST offsets (-01:00), "
+                    f"which is incorrect.\n"
+                    f"Use 'UTC (Reykjavik)' for true UTC with no offsets.\n"
+                )
+
+            # Check for other clear non-UTC timezone markers
+            has_bad_marker = any(
+                marker in first_time
+                for marker in ["-05:00", "-04:00", "-02:00", "-03:00", "EST", "EDT"]
+            )
+
+            if has_bad_marker:
+                pytest.fail(
+                    f"TradingView trades export has non-UTC timezone marker!\n"
+                    f"Found timestamp: {first_time}\n"
+                    f"Expected format: 2023-01-06 20:00 (plain UTC, no offset)\n"
+                    f"\n"
+                    f"In TradingView:\n"
+                    f"1. Go to Settings (gear icon) → Chart Settings\n"
+                    f"2. Set 'Timezone' to 'UTC (Reykjavik)'\n"
+                    f"3. Re-export the trades list\n"
+                    f"\n"
+                    f"Note: The trades CSV doesn't include 'Z' suffix, but should be\n"
+                    f"in UTC if TradingView timezone is set to 'UTC (Reykjavik)'.\n"
+                )
 
     # Standardize column names (TradingView may vary)
     column_mapping = {
@@ -271,6 +335,9 @@ def tradingview_ohlcv(
 
     Returns:
         DataFrame with OHLCV data
+
+    Raises:
+        AssertionError: If timestamps are not in UTC format
     """
     ohlcv_path = golden_strategy_paths["ohlcv"]
 
@@ -280,7 +347,93 @@ def tradingview_ohlcv(
             "Run TradingView export first."
         )
 
-    df = pd.read_csv(ohlcv_path)
+    # Read raw CSV to check timezone format
+    df_raw = pd.read_csv(ohlcv_path)
+
+    # Find time column
+    time_col = None
+    for col in ["time", "Time", "timestamp", "Timestamp"]:
+        if col in df_raw.columns:
+            time_col = col
+            break
+
+    if time_col is None:
+        pytest.fail("No time column found in OHLCV CSV")
+
+    # Check MULTIPLE timestamps for UTC format (not just first)
+    # TradingView can have mixed formats if wrong UTC option is selected
+    timestamps_to_check = [
+        df_raw[time_col].iloc[0],
+        df_raw[time_col].iloc[len(df_raw) // 2] if len(df_raw) > 1 else None,
+        df_raw[time_col].iloc[-1] if len(df_raw) > 0 else None,
+    ]
+
+    for idx, ts in enumerate(timestamps_to_check):
+        if ts is None:
+            continue
+
+        timestamp_str = str(ts)
+
+        # Check for -01:00 offset (Azores time, NOT pure UTC)
+        if "-01:00" in timestamp_str:
+            pytest.fail(
+                f"TradingView OHLCV export has -01:00 timezone offset (Azores time)!\n"
+                f"Found timestamp at position {idx}: {timestamp_str}\n"
+                f"Expected format: 2023-01-06T19:00:00Z (with Z suffix)\n"
+                f"\n"
+                f"In TradingView:\n"
+                f"1. Go to Settings (gear icon) → Chart Settings\n"
+                f"2. Set 'Timezone' to 'UTC (Reykjavik)' (NOT 'UTC (Azores)')\n"
+                f"3. Re-export the chart data\n"
+                f"\n"
+                f"Note: 'UTC (Azores)' includes DST offsets (-01:00), "
+                f"which is incorrect.\n"
+                f"Use 'UTC (Reykjavik)' for true UTC with no offsets.\n"
+            )
+
+        # Check for other non-UTC timezone markers
+        has_bad_offset = any(
+            marker in timestamp_str
+            for marker in [
+                "-05:00",
+                "-04:00",
+                "-02:00",
+                "-03:00",
+                "-06:00",
+                "EST",
+                "EDT",
+            ]
+        )
+
+        if has_bad_offset:
+            pytest.fail(
+                f"TradingView OHLCV export has non-UTC timezone offset!\n"
+                f"Found timestamp at position {idx}: {timestamp_str}\n"
+                f"Expected format: 2023-01-06T19:00:00Z (with Z suffix)\n"
+                f"\n"
+                f"In TradingView:\n"
+                f"1. Go to Settings (gear icon) → Chart Settings\n"
+                f"2. Set 'Timezone' to 'UTC (Reykjavik)'\n"
+                f"3. Re-export the chart data\n"
+            )
+
+        # UTC timestamps should end with 'Z' (proper ISO 8601 UTC format)
+        if not timestamp_str.endswith("Z"):
+            pytest.fail(
+                f"TradingView OHLCV export timestamps must end with 'Z' (UTC marker)!\n"
+                f"Found timestamp at position {idx}: {timestamp_str}\n"
+                f"Expected format: 2023-01-06T19:00:00Z\n"
+                f"\n"
+                f"In TradingView:\n"
+                f"1. Go to Settings (gear icon) → Chart Settings\n"
+                f"2. Set 'Timezone' to 'UTC (Reykjavik)'\n"
+                f"3. Re-export the chart data\n"
+                f"\n"
+                f"The timestamps should have a 'Z' suffix indicating UTC.\n"
+            )
+
+    # Now parse normally
+    df = df_raw.copy()
 
     # Standardize column names
     df = df.rename(
