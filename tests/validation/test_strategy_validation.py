@@ -51,6 +51,7 @@ def load_platform_trades(
     strategy_name: str,
     run_config: dict[str, Any],
     ohlcv_data: pd.DataFrame,
+    date_range: dict[str, str] | None = None,
 ) -> list[dict]:
     """Runs backtest and returns platform trades.
 
@@ -58,17 +59,70 @@ def load_platform_trades(
         strategy_name: Name of strategy
         run_config: Run configuration dictionary
         ohlcv_data: OHLCV data to use
+        date_range: Optional date range dict with 'start' and 'end' keys
 
     Returns:
         List of trade dictionaries from platform backtest
     """
-    # Create backtester
-    # Note: This is a simplified version - actual implementation
-    # would need to properly load strategy, REM, etc.
+    from pathlib import Path
 
-    # For now, return empty list - this will be implemented
-    # when we have actual TradingView data to test against
-    return []
+    import yaml
+    from trading_platform.backtester.orchestrator import run_backtest_from_config
+    from trading_platform.core.config import RunConfig
+
+    # Filter OHLCV data to match TradingView date range if provided
+    if date_range:
+        start_date = pd.to_datetime(date_range["start"], utc=True)
+        end_date = pd.to_datetime(date_range["end"], utc=True)
+        ohlcv_data = ohlcv_data.loc[start_date:end_date]
+
+    # Load strategy config
+    strategy_dir = Path(f"configs/golden_strategies/{strategy_name}")
+    strategy_path = strategy_dir / "strategy.yaml"
+
+    if not strategy_path.exists():
+        raise FileNotFoundError(f"Strategy file not found: {strategy_path}")
+
+    with open(strategy_path) as f:
+        strategy_config = yaml.safe_load(f)
+
+    # Load REM config if it exists
+    rem_path = strategy_dir / "rem.yaml"
+    rem_config = None
+    if rem_path.exists():
+        with open(rem_path) as f:
+            rem_config = yaml.safe_load(f)
+
+    # Create RunConfig from run_config dict
+    config_dict = run_config.copy()
+
+    # Add REM config if available
+    if rem_config:
+        config_dict["rem_config"] = rem_config
+
+    # Create RunConfig
+    config = RunConfig.model_validate(config_dict)
+
+    # Run backtest
+    results = run_backtest_from_config(
+        config=config, market_data=ohlcv_data, strategy_config=strategy_config
+    )
+
+    # Convert Trade objects to dictionaries
+    trades_list = []
+    for trade in results["trades"]:
+        trades_list.append(
+            {
+                "entry_time": trade.entry_time,
+                "exit_time": trade.exit_time,
+                "entry_price": trade.entry_price,
+                "exit_price": trade.exit_price,
+                "pnl": trade.pnl,
+                "side": trade.side,
+            }
+        )
+
+    return trades_list
 
 
 def align_trades(
@@ -282,26 +336,35 @@ pytestmark = pytest.mark.validation
 def test_ema_crossover_trade_count_matches_tradingview(
     golden_strategy_config,
     tradingview_trades,
+    tradingview_ohlcv,
     golden_metadata,
 ):
     """Validates that EMA crossover produces same number of trades.
 
     # Validates: [SE-3.5.3], [BT-7.8]
     """
-    # Skip until we have actual TradingView data
-    pytest.skip("Pending TradingView data export")
-
-    # Load platform trades (to be implemented)
+    # Load platform trades
     platform_trades = load_platform_trades(
         strategy_name="ema_crossover",
         run_config=golden_strategy_config["run_config"],
-        ohlcv_data=None,  # Will use fixture
+        ohlcv_data=tradingview_ohlcv,
+        date_range=golden_metadata.get("date_range"),
     )
 
     # Compare counts
-    assert len(platform_trades) == len(tradingview_trades), (
-        f"Trade count mismatch: Platform={len(platform_trades)}, "
-        f"TradingView={len(tradingview_trades)}"
+    # TradingView CSV has 2 rows per trade (entry + exit)
+    # Filter out open trades (where Signal column contains "Open")
+    if "Signal" in tradingview_trades.columns:
+        closed_trades = tradingview_trades[tradingview_trades["Signal"] != "Open"]
+    else:
+        closed_trades = tradingview_trades
+
+    tv_trade_count = len(closed_trades) // 2
+    platform_trade_count = len(platform_trades)
+
+    assert platform_trade_count == tv_trade_count, (
+        f"Trade count mismatch: Platform={platform_trade_count}, "
+        f"TradingView={tv_trade_count} (closed trades only)"
     )
 
 

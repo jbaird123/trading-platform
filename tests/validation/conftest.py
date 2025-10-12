@@ -61,20 +61,37 @@ def ensure_dvc_data_pulled():
     dvc_files = list(GOLDEN_DATA_ROOT.glob("**/*.dvc"))
 
     if dvc_files:
-        # Try to pull DVC data
-        try:
-            subprocess.run(
-                ["dvc", "pull", str(GOLDEN_DATA_ROOT)],
-                cwd=PROJECT_ROOT,
-                check=True,
-                capture_output=True,
-            )
-        except subprocess.CalledProcessError:
-            pytest.skip(
-                "DVC pull failed - ensure DVC is configured " "and you have access"
-            )
-        except FileNotFoundError:
-            pytest.skip("DVC not installed")
+        # Check if data files already exist locally
+        # If they do, we don't need to pull from DVC
+        has_local_data = False
+        for dvc_file in dvc_files:
+            # Get the actual data directory/file that this .dvc file points to
+            data_path = dvc_file.with_suffix("")
+            if data_path.exists():
+                # Check if it's a directory with files or a file
+                if data_path.is_dir():
+                    if any(data_path.iterdir()):
+                        has_local_data = True
+                        break
+                elif data_path.is_file():
+                    has_local_data = True
+                    break
+
+        # Only try to pull if we don't have local data
+        if not has_local_data:
+            try:
+                subprocess.run(
+                    ["dvc", "pull", str(GOLDEN_DATA_ROOT)],
+                    cwd=PROJECT_ROOT,
+                    check=True,
+                    capture_output=True,
+                )
+            except subprocess.CalledProcessError:
+                pytest.skip(
+                    "DVC pull failed - ensure DVC is configured " "and you have access"
+                )
+            except FileNotFoundError:
+                pytest.skip("DVC not installed")
 
     return True
 
@@ -278,5 +295,9 @@ def tradingview_ohlcv(
     if "timestamp" in df.columns:
         df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
         df = df.set_index("timestamp")
+
+    # Add dummy volume column if not present (TradingView forex data often lacks volume)
+    if "volume" not in df.columns:
+        df["volume"] = 1.0
 
     return df
