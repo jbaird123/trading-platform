@@ -54,6 +54,10 @@ class PortfolioManager:
             "short": (-1, None),
         }
 
+        # Pending exit flag for execution model refactor
+        # Set when close is needed but execution timing controlled by caller
+        self._pending_exit: bool = False
+
     @property
     def current_position(self) -> Position | None:
         """Public read-only access to the current open position, if any."""
@@ -168,42 +172,47 @@ class PortfolioManager:
         context: dict | None,
         min_hold_bars: int = 0,
     ) -> dict[str, Any]:
-        """Handle enter_long or enter_short command."""
+        """
+        Handle enter_long or enter_short command.
 
-        # Already in same-side position
+        Returns action descriptors instead of executing trades directly.
+        The caller (Backtester) is responsible for execution timing.
+        """
+
+        # Case 2: Already in same-side position
         if self.current_position and self.current_position.side == side:
-            return {"action": "ignored", "reason": "already_in_position", "side": side}
+            return {
+                "action": "no_action",
+                "reason": "already_in_position",
+                "side": side,
+            }
 
-        # In opposite position - check min_hold before closing
+        # Case 3: In opposite position (flip scenario)
         if self.current_position and self.current_position.side != side:
             # Check minimum hold time before allowing opposite_signal exit
             if self.current_position.bars_held < min_hold_bars:
                 return {
-                    "action": "ignored",
+                    "action": "no_action",
                     "reason": "min_hold_time_not_met",
                     "side": side,
                 }
 
-            self.close_position(
-                exit_price=current_bar["close"],
-                exit_time=cast(datetime, current_bar.name),
-                exit_reason="opposite_signal",
-                context_at_exit=context,
-            )
-            # After closing, check if we should open entry window
-            if not allow_flip:
-                # Just exit, don't open entry window
-                return {
-                    "action": "exited",
-                    "side": side,
-                    "reason": "opposite_signal",
-                }
-            # Fall through to open entry window for flip
+            # Set pending exit flag - exit will be executed by caller
+            self._pending_exit = True
 
-        # Flat or just closed - open entry window for this side
+            # DO NOT open entry window yet - it will open after exit completes
+            # Return should_close descriptor with entry_side for flip handling
+            return {
+                "action": "should_close",
+                "reason": "opposite_signal",
+                "entry_side": side,
+                "bar_index": bar_index,
+            }
+
+        # Case 1: Flat (no position) - open entry window for this side
         self._entry_windows[side] = (bar_index, None)  # (window_start, last_entered)
 
-        return {"action": "window_opened", "side": side}
+        return {"action": "open_entry_window", "side": side, "bar_index": bar_index}
 
     def _handle_exit_command(
         self,

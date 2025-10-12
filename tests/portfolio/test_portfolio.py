@@ -191,7 +191,7 @@ def test_process_enter_long_command():
         context=None,
     )
 
-    assert result["action"] == "window_opened"
+    assert result["action"] == "open_entry_window"
     assert result["side"] == "long"
     assert pm.can_attempt_entry("long", 0, 3)
 
@@ -253,7 +253,7 @@ def test_process_enter_when_already_in_position():
         context=None,
     )
 
-    assert result["action"] == "ignored"
+    assert result["action"] == "no_action"
     assert result["reason"] == "already_in_position"
 
 
@@ -284,10 +284,14 @@ def test_process_flip_position():
         context=None,
     )
 
-    assert result["action"] == "window_opened"
-    assert result["side"] == "short"
-    assert pm.current_position is None  # Closed long
-    assert len(pm.trades) == 1  # Long trade closed
+    # After refactor: flip returns should_close descriptor
+    assert result["action"] == "should_close"
+    assert result["reason"] == "opposite_signal"
+    assert result["entry_side"] == "short"
+    # Position NOT closed yet - execution deferred to caller
+    assert pm.current_position is not None
+    assert pm.current_position.side == "long"
+    assert len(pm.trades) == 0  # No trades closed yet
 
 
 @requires("PM-5.8")
@@ -307,7 +311,7 @@ def test_entry_window_remains_open_with_none_commands():
         current_bar=pd.Series({"close": 1.0}, name=datetime(2024, 1, 1)),
         context=None,
     )
-    assert result["action"] == "window_opened"
+    assert result["action"] == "open_entry_window"
 
     # Bar 1: None command (window should stay active)
     result = pm.process_command(
