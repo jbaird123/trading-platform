@@ -39,10 +39,9 @@ plotshape(swing_high, "Swing High", style=shape.triangledown, location=location.
 plotshape(swing_low, "Swing Low", style=shape.triangleup, location=location.belowbar,
           color=color.green, size=size.small)
 
-// ATR Percentile plotted in separate pane (indicator window)
-bgcolor(atr_percentile > 80 ? color.new(color.red, 90) :
-        atr_percentile < 20 ? color.new(color.green, 90) : na,
-        title="ATR Percentile Zones")
+// ATR Percentile background coloring
+atr_color = atr_percentile > 80 ? color.new(color.red, 90) : atr_percentile < 20 ? color.new(color.green, 90) : na
+bgcolor(atr_color, title="ATR Percentile Zones")
 
 // Table showing current values
 var table valuesTable = table.new(position.top_right, 2, 8,
