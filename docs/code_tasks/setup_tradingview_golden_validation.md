@@ -930,18 +930,43 @@ and completeness are automatically maintained.
   - Documents troubleshooting steps
   - Explains merge strategy (in-memory during tests)
 
-### 📋 Pending Tasks
+### ✅ Phase 1: Indicator Validation - COMPLETE
 
-#### Phase 1: Indicator Validation (Data Export Complete ✅)
-- [x] ~~Export additional indicators from TradingView~~ (32 indicators exported)
-- [ ] Create `tests/validation/test_indicator_validation.py`
-- [ ] Implement test fixtures to load and merge batch data in-memory
-- [ ] Validate all 32 indicators against platform calculations:
-  - [ ] Moving averages: SMA, EMA, WMA
-  - [ ] Oscillators: RSI, MACD, Stochastic, CCI, ROC, Choppiness
-  - [ ] Volatility: ATR, Bollinger Bands, Keltner Channels
-  - [ ] Trend: ADX/DMI, PSAR, SuperTrend, Ichimoku Cloud
-  - [ ] Volume: OBV, VWAP, CMF
+#### Data Export ✅
+- [x] Exported 32 indicators from TradingView in 9 batches
+- [x] All batches tracked with DVC and pushed to S3
+- [x] Comprehensive metadata.json created and validated
+
+#### Test Implementation ✅
+- [x] Created `tests/validation/test_indicator_validation.py`
+- [x] Implemented test fixtures to load batch data
+- [x] All 41 indicator validation tests PASSING
+- [x] Validated all 32 indicators against platform calculations:
+  - [x] Moving averages: SMA, EMA, WMA (3 tests passing)
+  - [x] Oscillators: RSI, MACD, Stochastic, CCI, ROC, Choppiness (8 tests passing)
+  - [x] Volatility: ATR, Bollinger Bands, Keltner Channels (7 tests passing)
+  - [x] Trend: ADX/DMI, PSAR, SuperTrend, Ichimoku Cloud (14 tests passing)
+  - [x] Volume: OBV, VWAP, CMF (3 tests passing)
+  - [x] Levels: HHV, LLV, Donchian Channels, Swing Points, ATRPercentile (6 tests passing)
+
+#### Library Migration ✅
+- [x] Migrated from pandas-ta to TA-Lib library (2025-10-12)
+- [x] All indicators re-validated with new library
+- [x] pandas-ta completely removed from system
+- [x] Pre-commit hook prevents pandas-ta re-introduction
+
+#### Tolerance Optimization ✅
+- [x] OBV: Tightened to strictest possible (rtol=1e-10, atol=1e-10)
+  - Perfect match on non-flat bars (100% accuracy)
+  - Special handling for flat bar convention differences
+- [x] SuperTrend: Optimized to rtol=1e-7
+  - Removed redundant warm-up logic (global WARMUP_PERIOD handles it)
+- [x] PSAR: Documented reversal timing decision
+  - Divergence window filtering required (0.86% of bars)
+  - 99.64% accuracy with 0.15% tolerance after filtering
+  - Custom implementation not worth maintenance burden
+
+### 📋 Pending Tasks
 
 #### Phase 2: Complete Strategy Portfolio
 - [ ] Export EMA crossover data from TradingView
@@ -988,8 +1013,51 @@ and completeness are automatically maintained.
 
 ### 📝 Notes
 
-- All infrastructure is in place
-- Tests properly skip until data is exported
+- ✅ Phase 1 (indicator validation) is COMPLETE
+- All infrastructure is in place for Phase 2
+- Tests properly skip until strategy data is exported
 - Documentation is complete
 - Framework is reusable for additional strategies
-- Ready for Phase 1 (indicator validation) and Phase 2 (strategy data export)
+- Ready for Phase 2 (strategy data export)
+
+### 📊 Recent Work Summary (2025-10-12)
+
+#### TA-Lib Migration & Validation Refinement
+Over multiple sessions, we completed a comprehensive migration from pandas-ta to TA-Lib
+and optimized all indicator validation tests:
+
+1. **Library Migration:**
+   - Replaced pandas-ta with TA-Lib library across all indicators
+   - Updated 32+ indicator implementations
+   - All 41 validation tests passing with new library
+   - Completely removed pandas-ta from system
+   - Added pre-commit hook to prevent re-introduction
+
+2. **Indicator-Specific Optimizations:**
+   - **OBV:** Discovered and documented flat bar convention differences
+     - TradingView: OBV unchanged on flat bars
+     - TA-Lib: adds volume on flat bars
+     - Solution: Compare first-order differences, filter flat bars
+     - Tightened tolerance to strictest possible (rtol=1e-10)
+
+   - **SuperTrend:** Simplified warm-up handling
+     - Discovered global WARMUP_PERIOD=100 already handles edge cases
+     - Removed redundant SuperTrend-specific warm-up logic
+     - Tightened tolerance to rtol=1e-7
+
+   - **PSAR:** Re-evaluated reversal timing with TA-Lib
+     - Reversal timing still differs (192 bars / 0.86%)
+     - 99.64% accuracy after filtering divergence windows
+     - Decided to keep divergence window filtering approach
+     - Documented that this is well-known in trading communities
+
+3. **Test Quality Improvements:**
+   - All tests use strictest possible tolerances while maintaining correctness
+   - Comprehensive documentation of tolerance decisions
+   - Special handling only where necessary (PSAR, OBV, VWAP)
+   - Global WARMUP_PERIOD=100 for all indicators
+
+4. **Next Steps:**
+   - Phase 1 indicator validation is complete and stable
+   - Ready to begin Phase 2: Strategy validation
+   - EMA crossover strategy infrastructure ready, needs TradingView data export
