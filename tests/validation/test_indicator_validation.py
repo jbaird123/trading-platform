@@ -336,7 +336,11 @@ def platform_calculated_features(batch_data_cache):
 
         if feature_key not in added_features:
             # For multi-column indicators (BB, MACD, etc), use base name
-            base_name = our_name.split("_")[0] if "_" in our_name else our_name
+            # Exception: SWING_HIGH/SWING_LOW are single-output with underscores
+            if our_name in ("SWING_HIGH", "SWING_LOW"):
+                base_name = our_name  # Keep full name
+            else:
+                base_name = our_name.split("_")[0] if "_" in our_name else our_name
 
             feature_specs.append(
                 {"name": base_name, "type": feature_type, "params": params}

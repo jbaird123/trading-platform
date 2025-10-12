@@ -11,6 +11,7 @@ def find_swing_points(
     right_bars: int = 10,
     high_col: str = "high",
     low_col: str = "low",
+    return_prices: bool = False,
 ) -> pd.DataFrame:
     """
     Identifies swing points (highs and lows) in the price data WITHOUT look-ahead bias.
@@ -33,15 +34,17 @@ def find_swing_points(
         right_bars (int): Number of bars to the right to consider for a swing.
         high_col (str): Name of the high price column.
         low_col (str): Name of the low price column.
+        return_prices (bool): If True, return actual price values at swing points
+                              (NaN elsewhere). If False, return 1.0/0.0 flags.
     Returns:
         pd.DataFrame: A DataFrame with 'swing_high' and 'swing_low' columns,
-                      containing 1.0 when a swing point is confirmed, 0.0 otherwise.
+                      containing either 1.0/0.0 flags or actual price values/NaN.
                       The signal appears at bar N+right_bars when bar N is identified
                       as a swing point.
     """
     n = len(candles)
-    swing_high = pd.Series(0.0, index=candles.index)
-    swing_low = pd.Series(0.0, index=candles.index)
+    swing_high = pd.Series(float("nan") if return_prices else 0.0, index=candles.index)
+    swing_low = pd.Series(float("nan") if return_prices else 0.0, index=candles.index)
 
     # For each bar, check if it's a swing point
     # We can only check bars where we have sufficient history on both sides
@@ -57,7 +60,10 @@ def find_swing_points(
             max_indices = window_highs[window_highs == window_highs.max()].index
             if candles.index[i] == max_indices[0]:
                 # Emit signal at i+right_bars (after confirmation period)
-                swing_high.iloc[i + right_bars] = 1.0
+                # Value is either 1.0 or the actual high price from bar i
+                swing_high.iloc[i + right_bars] = (
+                    candles[high_col].iloc[i] if return_prices else 1.0
+                )
 
         # Check if bar i is a swing low
         window_lows = candles[low_col].iloc[window_start:window_end]
@@ -66,7 +72,10 @@ def find_swing_points(
             min_indices = window_lows[window_lows == window_lows.min()].index
             if candles.index[i] == min_indices[0]:
                 # Emit signal at i+right_bars (after confirmation period)
-                swing_low.iloc[i + right_bars] = 1.0
+                # Value is either 1.0 or the actual low price from bar i
+                swing_low.iloc[i + right_bars] = (
+                    candles[low_col].iloc[i] if return_prices else 1.0
+                )
 
     # Create the output DataFrame
     swings = pd.DataFrame(index=candles.index)

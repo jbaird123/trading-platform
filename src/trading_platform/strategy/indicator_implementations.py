@@ -863,12 +863,9 @@ def compute_swing_high(
         df,
         left_bars=left_bars,
         right_bars=right_bars,
+        return_prices=True,  # Return actual price values, not 1.0/0.0 flags
     )
-    # Convert 1.0 flags to actual high price values, 0.0 to NaN
-    result = swings["swing_high"].copy()
-    result = result.where(result == 0, df["high"])  # Replace 1.0 with high price
-    result = result.replace(0.0, float("nan"))  # Replace 0.0 with NaN
-    return result
+    return swings["swing_high"]
 
 
 def compute_swing_low(
@@ -888,12 +885,9 @@ def compute_swing_low(
         df,
         left_bars=left_bars,
         right_bars=right_bars,
+        return_prices=True,  # Return actual price values, not 1.0/0.0 flags
     )
-    # Convert 1.0 flags to actual low price values, 0.0 to NaN
-    result = swings["swing_low"].copy()
-    result = result.where(result == 0, df["low"])  # Replace 1.0 with low price
-    result = result.replace(0.0, float("nan"))  # Replace 0.0 with NaN
-    return result
+    return swings["swing_low"]
 
 
 # ==============================================================================
