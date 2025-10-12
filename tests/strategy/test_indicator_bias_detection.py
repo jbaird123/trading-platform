@@ -391,6 +391,7 @@ def test_bias_percentage_calculation() -> None:
 # ============================================================
 
 
+@pytest.mark.slow
 def test_bias_detection_performance(
     test_ohlcv_data: pd.DataFrame,
 ) -> None:
@@ -399,6 +400,12 @@ def test_bias_detection_performance(
 
     Note: This is intentionally slow (bar-by-bar computation).
     Only used during testing/validation, not production.
+
+    To skip this test during development:
+        pytest -m "not slow"
+
+    To run only slow tests:
+        pytest -m slow
     """
     import time
 
