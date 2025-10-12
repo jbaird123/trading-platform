@@ -438,56 +438,21 @@ def test_indicator_matches_tradingview_comprehensive(
     #
     # DISCOVERY: pandas_ta vs TradingView Shift Implementation
     # ========================================================
-    # After investigation of pandas_ta source code (ichimoku.py lines 71-73):
+    # --- Ichimoku displacement handled in compute_ichimoku() ---
     #
-    # pandas_ta applies these shifts DURING calculation:
-    #   span_a = span_a.shift(kijun - 1)     # shift(26 - 1) = shift(25)
-    #   span_b = span_b.shift(kijun - 1)     # shift(25)
-    #   chikou_span = close.shift(-kijun + 1) # shift(-26 + 1) = shift(-25)
+    # After migrating to the `ta` library, Ichimoku displacement is handled
+    # directly in compute_ichimoku().
     #
-    # TradingView applies standard display shifts when exporting:
-    #   Senkou A/B: shift(+26) forward
-    #   Chikou: shift(+26) backward (which is close shifted back 26)
+    # The `ta` library's IchimokuIndicator with visual=False returns unshifted
+    # values for senkou spans, matching TradingView's export format:
+    #   - Senkou A/B: Raw calculated values (no displacement in export)
+    #   - Chikou: close.shift(-26) (displacement IS applied in export)
     #
-    # KEY INSIGHT: pandas_ta uses (kijun - 1) = 25 instead of the standard 26!
-    # This is a pandas_ta implementation quirk that differs from the standard.
+    # This matches TradingView's exports exactly, so no additional shifts are
+    # needed in the test. The previous shift adjustments were specific to the
+    # old library's implementation quirks.
     #
-    # ALIGNMENT SOLUTION
-    # ==================
-    # To align pandas_ta output with TradingView's standard-shifted export:
-    #
-    # Senkou A & B:
-    #   - pandas_ta has: value at calculation_position + 25
-    #   - TradingView has: value at calculation_position + 26
-    #   - To align: shift(-25) brings pandas_ta back to calculation_position,
-    #               which aligns with TV's calculation_position (both at same base)
-    #   - Result: Perfect match after shift(-25)
-    #
-    # Chikou:
-    #   - pandas_ta has: close[i-25] at position i (shifted forward 25)
-    #   - TradingView has: close[i+26] at position i
-    #     (shifted backward 26 for display)
-    #   - At position i: pandas_ta shows close from 25 bars ago
-    #   - At position i: TradingView shows close from 26 bars in future
-    #     (display convention)
-    #   - To align pandas_ta[i] with TV[i]: need to shift by
-    #     26-(-25) = 51 periods
-    #   - Result: Perfect match after shift(51)
-    #
-    # VALIDATION RESULTS
-    # ==================
-    # After applying these shifts, all 5 Ichimoku components match within
-    # floating-point precision (max diff ~2.2e-16, essentially perfect).
-    #
-    if our_name in ["Ichimoku_senkou_a", "Ichimoku_senkou_b"]:
-        # Shift by -25 to undo pandas_ta's +25 shift and align with TradingView
-        # Drop NaN values introduced by the shift
-        calculated_series = calculated_series.shift(-25).dropna()
-    elif our_name == "Ichimoku_chikou":
-        # Shift by +51 to align pandas_ta's -25 shift with TradingView's +26 display
-        # Calculation: TV position - pandas_ta position = 26 - (-25) = 51
-        # Drop NaN values introduced by the shift
-        calculated_series = calculated_series.shift(51).dropna()
+    # Note: The test will now compare values directly without any adjustment.
 
     # Align the two series on timestamp
     aligned_tv, aligned_calc = tradingview_series.align(calculated_series, join="inner")
