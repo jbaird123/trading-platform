@@ -1038,15 +1038,33 @@ def compute_atr_percentile(
     source: str = "close",
     source_ref: str | None = None,
 ) -> pd.Series:
-    """Calculate ATR percentile rank over a lookback period."""
+    """Calculate ATR percentile rank over a lookback period.
+
+    Matches TradingView's ta.percentrank() calculation, which rounds to 5% zones
+    for readability (0, 5, 10, ..., 100).
+    """
     atr_len = int(params.get("atr_length", 14))
     lookback = int(params.get("lookback", 20))
     atr_values = atr(df, atr_len)
-    # Calculate percentile rank using rolling window
-    # Count how many values in window are less than current value
-    percentile = atr_values.rolling(window=lookback, min_periods=1).apply(
-        lambda x: (x.iloc[-1] > x).sum() / (len(x) - 1) * 100 if len(x) > 1 else 50.0,
-        raw=False,
+
+    # TradingView's ta.percentrank() formula:
+    # Compares current value against previous N bars (excluding current)
+    # Formula: count(previous N values < current) / N * 100
+    # Then rounds to nearest 5% for zone-based display
+    def percentrank_tv(x):
+        if len(x) <= 1:
+            return 0.0
+        current = x.iloc[-1]
+        # Compare against previous values only (exclude current)
+        previous = x.iloc[:-1]
+        count_below = (previous < current).sum()
+        # Calculate precise percentile, then round to nearest 5%
+        precise = count_below / len(previous) * 100
+        return round(precise / 5) * 5
+
+    # Use lookback+1 window to get current + previous N bars
+    percentile = atr_values.rolling(window=lookback + 1, min_periods=2).apply(
+        percentrank_tv, raw=False
     )
     return percentile
 

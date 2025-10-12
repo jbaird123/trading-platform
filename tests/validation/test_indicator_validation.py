@@ -990,5 +990,5 @@ def test_metadata_describes_all_test_cases(batch_metadata):
     # Verify we have a reasonable number of indicators
     assert len(metadata_indicators) >= 30, "Expected at least 30 indicators in metadata"
     assert (
-        len(COMPREHENSIVE_INDICATOR_TEST_CASES) == 33
-    ), "Expected exactly 33 test cases"
+        len(COMPREHENSIVE_INDICATOR_TEST_CASES) == 40
+    ), "Expected exactly 40 test cases"
