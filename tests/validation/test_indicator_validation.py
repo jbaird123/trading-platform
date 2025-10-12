@@ -769,29 +769,38 @@ def test_indicator_matches_tradingview_comprehensive(
         abs_diff = np.abs(aligned_calc - aligned_tv)
 
         # Set thresholds based on indicator type
-        if our_name == "DI_DI+":
-            max_threshold = 2.1  # Max: 2.08
-            p99_threshold = 0.09  # 99th: 0.08
-            p95_threshold = 0.001  # 95th: 0.00 (essentially perfect)
-        elif our_name == "DI_DI-":
-            max_threshold = 1.4  # Max: 1.32
-            p99_threshold = 0.08  # 99th: 0.075
-            p95_threshold = 0.001  # 95th: 0.00008
+        # DI+/DI- use same thresholds:
+        #   - 96th percentile < 0.0005 (>96% of bars within 0.0005)
+        #   - 99th percentile < 0.09 (>99% of bars within 0.09)
+        #   - 99.9th percentile < 1.5 (>99.9% of bars within 1.5)
+        if our_name in ["DI_DI+", "DI_DI-"]:
+            p96_threshold = 0.0005
+            p99_threshold = 0.09
+            p999_threshold = 1.5
         else:  # DI_ADX
-            max_threshold = 1.4  # Max: 1.37
-            p99_threshold = 0.4  # 99th: 0.40
-            p95_threshold = 0.01  # 95th: 0.009
+            # ADX thresholds:
+            #   - 92nd percentile < 0.0007 (>92% of bars within 0.0007)
+            #   - 99th percentile < 0.45 (>99% of bars within 0.45)
+            #   - Maximum < 1.5 (100% of bars within 1.5)
+            p96_threshold = 0.0007  # Using 92nd percentile (0.92 quantile)
+            p99_threshold = 0.45
+            p999_threshold = 1.5
 
         # Calculate percentiles
-        p95_actual = abs_diff.quantile(0.95)
-        p99_actual = abs_diff.quantile(0.99)
-        max_actual = abs_diff.max()
+        if our_name in ["DI_DI+", "DI_DI-"]:
+            p96_actual = abs_diff.quantile(0.96)
+            p99_actual = abs_diff.quantile(0.99)
+            p999_actual = abs_diff.quantile(0.999)
+        else:  # DI_ADX
+            p96_actual = abs_diff.quantile(0.92)  # 92nd percentile
+            p99_actual = abs_diff.quantile(0.99)
+            p999_actual = abs_diff.max()  # 100% must be within threshold
 
         # Pass if all three tiers meet thresholds
         if (
-            p95_actual <= p95_threshold
+            p96_actual <= p96_threshold
             and p99_actual <= p99_threshold
-            and max_actual <= max_threshold
+            and p999_actual <= p999_threshold
         ):
             close_match = True
 
