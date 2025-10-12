@@ -225,7 +225,10 @@ INDICATOR_TOLERANCES = {
         "atol": 1e-8,
     },  # 0.2% tolerance: KC_middle perfect, KC_upper/lower max 0.19%, median 1.8 pips
     # Volume indicators
-    "OBV": {"rtol": 1e-5, "atol": 1.0},  # Can accumulate rounding
+    "OBV": {
+        "rtol": 1e-10,
+        "atol": 1e-10,
+    },  # Perfect match on non-flat bars after filtering
     "CMF": {"rtol": 1e-6, "atol": 1e-8},  # Perfect match: max diff 0.000000%
     "VWAP": {"rtol": 1e-5, "atol": 1e-8},
     # Complex indicators
