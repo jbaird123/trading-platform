@@ -196,7 +196,7 @@ debt that needs fixing.
 
 ## Next Session Priorities
 
-### 1. Unified Registry Refactor (4-6 hours)
+### 1. Unified Registry Refactor (4-6 hours) - MUST DO FIRST
 Execute the refactoring plan:
 1. Extract implementation functions to `feature_implementations.py`
 2. Add implementation references to registry
@@ -208,10 +208,24 @@ Execute the refactoring plan:
 **Critical:** This is a major architectural change. Needs focused
 attention.
 
-### 2. Indicator Library Migration (2-3 days)
+**BLOCKER:** Library migration cannot proceed until this is complete.
+
+### 2. Indicator Library Migration (2-3 days) - DO AFTER REGISTRY REFACTOR
+**⚠️ Prerequisites:**
+- Unified registry refactor Phase 1 complete (feature_implementations.py exists)
+- Unified registry refactor Phase 2 complete (safety merged into registry)
+- All tests passing after registry refactor
+
+**Why this order:**
+- Both plans modify features.py - doing in wrong order creates conflicts
+- Registry refactor creates standardized interface that makes library swapping cleaner
+- Migration targets feature_implementations.py (not features.py)
+
+**Plan updated:** See [indicator_library_migration.md](./indicator_library_migration.md) for revised phases
+
 After registry unification:
 1. Create type stub files for ta and TA-Lib
-2. Migrate from pandas_ta to ta/talib
+2. Migrate from pandas_ta to ta/talib in feature_implementations.py
 3. Run TradingView validation tests
 4. Update documentation
 

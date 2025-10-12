@@ -105,11 +105,35 @@ to the registry as needed.
 
 ## Implementation Plan
 
+### ⚠️ PREREQUISITE: Unified Registry Refactor
+
+**This migration MUST happen AFTER the unified registry refactor is complete.**
+
+The unified registry refactor (see [unified_indicator_registry_refactor.md](./unified_indicator_registry_refactor.md)) will:
+- Move all indicator implementations to `feature_implementations.py`
+- Establish a standardized interface: `compute_X(df, params, source, source_ref) -> Series | dict`
+- Make `features.py` registry-driven (no more if/elif chains)
+
+**Why this order matters:**
+1. Registry refactor rewrites features.py structure → library migration changes library calls
+2. Doing library migration first would create merge conflicts
+3. Standardized interface makes library swapping cleaner
+4. Single location (feature_implementations.py) to update, not scattered code
+
+**Status Check Before Starting:**
+- [ ] Unified registry refactor Phase 1 complete (feature_implementations.py exists)
+- [ ] Unified registry refactor Phase 2 complete (safety merged into registry)
+- [ ] All tests passing after registry refactor
+- [ ] features.py now uses registry lookups
+
+---
+
 ### Phase 1: Setup and Dependencies
 1. Add `ta==0.11.0` to pyproject.toml
 2. Add `TA-Lib-binary` to pyproject.toml (Python wrapper for TA-Lib)
 3. Remove `pandas-ta` from dependencies
 4. Update poetry.lock and install
+5. **Verify imports work** in feature_implementations.py
 
 ### Phase 2: Create Type Stub Files
 1. Create `stubs/ta/` directory structure
@@ -123,11 +147,25 @@ to the registry as needed.
 our own minimal stubs gives us type safety, better IDE support, and
 documents the APIs we depend on.
 
-### Phase 3: Refactor features.py
+### Phase 3: Refactor feature_implementations.py
+**Target file changed:** `src/trading_platform/strategy/feature_implementations.py` (not features.py)
+
 1. Replace `import pandas_ta as ta` with imports from `ta` library
-2. Update each indicator calculation to use new library APIs
+2. Update each `compute_X()` function to use new library APIs
 3. Keep custom indicator implementations
 4. Add imports for TA-Lib functions (SMA, WMA, candlestick patterns)
+5. **Maintain standardized interface** - all functions still follow:
+   ```python
+   def compute_X(
+       df: pd.DataFrame,
+       params: dict[str, Any],
+       source: str = "close",
+       source_ref: str | None = None,
+   ) -> pd.Series | dict[str, pd.Series]:
+       ...
+   ```
+
+**Migration approach:** Update implementations one at a time, test after each batch.
 
 ### Phase 4: Testing
 1. Run mypy to verify stub files work correctly
@@ -135,12 +173,14 @@ documents the APIs we depend on.
 3. Verify TradingView golden validation still passes (32/33 tests)
 4. Fix CCI test (should now pass with correct `ta` implementation)
 5. Run strategy backtests to verify no regressions
+6. **Verify registry still works** - features.py should not need changes
 
 ### Phase 5: Documentation
 1. Update indicator documentation
 2. Add migration notes to CHANGELOG
 3. Document library choices in technical docs
 4. Document stub file creation process for future indicators
+5. Update unified_indicator_registry_refactor.md status (mark complete)
 
 ## Key Benefits
 
@@ -255,11 +295,12 @@ After research, these 13 indicators remain custom:
 
 ## Next Steps
 
-1. **Decision Required**: Approve migration strategy
-2. **Create Branch**: `feature/migrate-to-stable-ta-libs`
-3. **Begin Phase 1**: Update dependencies
-4. **Incremental Migration**: Migrate indicators one category at a time
-5. **Continuous Testing**: Run tests after each category migration
+1. ⚠️ **FIRST**: Complete unified registry refactor (see [unified_indicator_registry_refactor.md](./unified_indicator_registry_refactor.md))
+2. **Decision Required**: Approve library migration strategy
+3. **Create Branch**: `feature/migrate-to-stable-ta-libs`
+4. **Begin Phase 1**: Update dependencies
+5. **Incremental Migration**: Migrate indicators one category at a time in feature_implementations.py
+6. **Continuous Testing**: Run tests after each category migration
 
 ## References
 
@@ -271,6 +312,6 @@ After research, these 13 indicators remain custom:
 
 ---
 
-**Last Updated:** 2025-01-11
+**Last Updated:** 2025-10-11
 **Author:** Development Team
-**Status:** Awaiting Approval
+**Status:** Awaiting Unified Registry Refactor Completion
