@@ -265,11 +265,14 @@ def compute_hhv(
     source: str = "high",
     source_ref: str | None = None,
 ) -> pd.Series:
-    """Compute Highest High Value."""
+    """Compute Highest High Value.
+
+    Note: Always uses 'high' column, ignoring source parameter.
+    """
     series_in = (
         pd.Series(df[source_ref], dtype="float64")
         if source_ref
-        else _price_series(df, source)
+        else _price_series(df, "high")  # Always use high, ignore source param
     )
     return hhv(series_in, int(params.get("length", 20)))
 
@@ -280,11 +283,14 @@ def compute_llv(
     source: str = "low",
     source_ref: str | None = None,
 ) -> pd.Series:
-    """Compute Lowest Low Value."""
+    """Compute Lowest Low Value.
+
+    Note: Always uses 'low' column, ignoring source parameter.
+    """
     series_in = (
         pd.Series(df[source_ref], dtype="float64")
         if source_ref
-        else _price_series(df, source)
+        else _price_series(df, "low")  # Always use low, ignore source param
     )
     return llv(series_in, int(params.get("length", 20)))
 
