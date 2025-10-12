@@ -301,8 +301,69 @@ def batch_data_cache(batch_metadata):
             )
 
         # Load and prepare the dataframe
-        df = pd.read_csv(csv_path)
-        df = df.rename(columns={"time": "timestamp"})
+        df_raw = pd.read_csv(csv_path)
+
+        # UTC TIMEZONE VALIDATION
+        # Validate that timestamps are in proper UTC format before processing
+        # TradingView has two UTC options:
+        # - UTC (Azores): WRONG - includes DST, produces -01:00 offsets
+        # - UTC (Reykjavik): CORRECT - pure UTC, produces Z suffix
+
+        time_col = "time"
+        if time_col not in df_raw.columns:
+            pytest.fail(
+                f"Expected 'time' column not found in {filename}. "
+                f"Available columns: {list(df_raw.columns)}"
+            )
+
+        # Check MULTIPLE timestamps for UTC format (not just first)
+        # TradingView can have mixed formats if wrong UTC option selected
+        timestamps_to_check = [
+            df_raw[time_col].iloc[0],
+            (df_raw[time_col].iloc[len(df_raw) // 2] if len(df_raw) > 1 else None),
+            df_raw[time_col].iloc[-1] if len(df_raw) > 0 else None,
+        ]
+
+        for idx, ts in enumerate(timestamps_to_check):
+            if ts is None:
+                continue
+
+            timestamp_str = str(ts)
+
+            # Check for -01:00 offset (Azores time, NOT pure UTC)
+            if "-01:00" in timestamp_str:
+                pytest.fail(
+                    f"TradingView indicator export ({filename}) has "
+                    f"-01:00 timezone offset (Azores time)!\n"
+                    f"Found timestamp at position {idx}: {timestamp_str}\n"
+                    f"Expected format: 2023-01-06T19:00:00Z (with Z suffix)\n"
+                    f"\n"
+                    f"In TradingView:\n"
+                    f"1. Go to Settings (gear icon) → Chart Settings\n"
+                    f"2. Set 'Timezone' to 'UTC (Reykjavik)' "
+                    f"(NOT 'UTC (Azores)')\n"
+                    f"3. Re-export the chart data\n"
+                    f"\n"
+                    f"Note: 'UTC (Azores)' includes DST offsets (-01:00), "
+                    f"which is incorrect.\n"
+                    f"Use 'UTC (Reykjavik)' for true UTC with no offsets.\n"
+                )
+
+            # UTC timestamps should end with 'Z' (proper ISO 8601 UTC format)
+            if not timestamp_str.endswith("Z"):
+                pytest.fail(
+                    f"TradingView indicator export ({filename}) timestamps "
+                    f"must end with 'Z' (UTC marker)!\n"
+                    f"Found timestamp at position {idx}: {timestamp_str}\n"
+                    f"Expected format: 2023-01-06T19:00:00Z\n"
+                    f"\n"
+                    f"In TradingView:\n"
+                    f"1. Go to Settings (gear icon) → Chart Settings\n"
+                    f"2. Set 'Timezone' to 'UTC (Reykjavik)'\n"
+                    f"3. Re-export the chart data\n"
+                )
+
+        df = df_raw.rename(columns={"time": "timestamp"})
         df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
         df = df.set_index("timestamp")
 
