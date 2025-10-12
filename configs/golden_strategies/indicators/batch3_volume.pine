@@ -7,7 +7,11 @@ indicator("Golden Validation - Batch 3: Volume Indicators",
 
 // Volume indicators
 obv = ta.obv
-vwap_val = ta.vwap(close)
+
+// VWAP using Typical Price (H+L+C)/3 as per standard formula
+// ta.vwap() is already session-anchored (resets daily)
+typical_price = (high + low + close) / 3
+vwap_val = ta.vwap(typical_price)
 
 // Visual plots
 plot(obv, "OBV", color=color.blue, linewidth=2)

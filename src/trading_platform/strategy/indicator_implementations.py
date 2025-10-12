@@ -47,7 +47,6 @@ from ta.volatility import (
 from ta.volume import (
     ChaikinMoneyFlowIndicator,
     OnBalanceVolumeIndicator,
-    VolumeWeightedAveragePrice,
 )
 
 from trading_platform.strategy.indicator_helpers import find_swing_points
@@ -571,17 +570,46 @@ def compute_vwap(
     source: str = "close",
     source_ref: str | None = None,
 ) -> pd.Series:
-    """Compute Volume Weighted Average Price."""
+    """Compute Volume Weighted Average Price (session-anchored).
+
+    Implements industry-standard session-anchored VWAP that resets at the
+    start of each trading session (daily). Uses Typical Price (H+L+C)/3 as
+    the price source.
+
+    VWAP = Cumulative(Typical Price × Volume) / Cumulative(Volume)
+
+    Note: This differs from the ta library's VolumeWeightedAveragePrice which
+    uses a rolling window approach. Session-anchored VWAP is the standard used
+    by most trading platforms including TradingView.
+    """
     try:
-        indicator = VolumeWeightedAveragePrice(
-            high=df["high"],
-            low=df["low"],
-            close=df["close"],
-            volume=df["volume"],
-            fillna=False,
-        )
-        return indicator.volume_weighted_average_price()  # type: ignore[no-any-return]
-    except (IndexError, ValueError, TypeError):
+        # Calculate Typical Price (industry standard for VWAP)
+        typical_price = (df["high"] + df["low"] + df["close"]) / 3
+        volume = df["volume"]
+
+        # Identify session boundaries (new day in UTC)
+        # Assumes index is DatetimeIndex with timezone info
+        session: pd.Series | pd.DatetimeIndex
+        if isinstance(df.index, pd.DatetimeIndex):
+            # Create session identifier (date only)
+            session = df.index.normalize()
+        else:
+            # Fallback: treat entire dataset as one session
+            session = pd.Series(0, index=df.index)
+
+        # Calculate VWAP for each session
+        # Group by session and calculate cumulative sums within each session
+        pv = typical_price * volume
+
+        # Use groupby with cumsum to reset at session boundaries
+        cum_pv = pv.groupby(session).cumsum()
+        cum_vol = volume.groupby(session).cumsum()
+
+        # VWAP = cumulative(price × volume) / cumulative(volume)
+        vwap = cum_pv / cum_vol
+
+        return pd.Series(vwap, name="vwap", index=df.index)
+    except (IndexError, ValueError, TypeError, KeyError):
         return _empty_series(df)
 
 
