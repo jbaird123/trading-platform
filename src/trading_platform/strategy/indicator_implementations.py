@@ -713,13 +713,16 @@ def compute_ichimoku(
         # Note: TradingView exports Ichimoku values WITHOUT displacement applied
         # FOR SENKOU SPANS ONLY. Chikou span IS shifted in the export.
         # - Senkou A/B: Raw calculated values (no shift)
-        # - Chikou: close.shift(-26) - shows past price at current position
+        # - Chikou: close.shift(+26) - shows past price at current position
+        #   (positive shift moves values forward, so past values appear at current bar)
         return {
             "tenkan": indicator.ichimoku_conversion_line(),
             "kijun": indicator.ichimoku_base_line(),
             "senkou_a": indicator.ichimoku_a(),
             "senkou_b": indicator.ichimoku_b(),
-            "chikou": df["close"].shift(-kijun),  # Lagging span: past close
+            "chikou": df["close"].shift(
+                kijun
+            ),  # Lagging span: past close (26 bars ago)
         }
     except (IndexError, ValueError, TypeError):
         empty = _empty_series(df)
