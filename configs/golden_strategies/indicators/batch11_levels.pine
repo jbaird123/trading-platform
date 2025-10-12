@@ -32,6 +32,7 @@ plot(hhv_20, "HHV 20", color=color.new(color.green, 0), linewidth=2, style=plot.
 plot(llv_20, "LLV 20", color=color.new(color.red, 0), linewidth=2, style=plot.style_stepline)
 plot(dc_upper, "DC Upper", color=color.new(color.blue, 50), linewidth=1)
 plot(dc_lower, "DC Lower", color=color.new(color.orange, 50), linewidth=1)
+plot(atr_percentile, "ATR Percentile", color=color.new(color.purple, 0), linewidth=1)
 
 // Plot swing points as shapes (only when detected)
 plotshape(swing_high, "Swing High", style=shape.triangledown, location=location.abovebar,
