@@ -190,10 +190,14 @@ def compute_sma(
     source: str = "close",
     source_ref: str | None = None,
 ) -> pd.Series:
-    """Compute Simple Moving Average."""
+    """Compute Simple Moving Average using TA-Lib."""
     length = int(params.get("length", 14))
     series = _price_series(df, source)
-    return series.rolling(window=length, min_periods=1).mean()
+    try:
+        result = talib.SMA(series.values, timeperiod=length)
+        return pd.Series(result, index=df.index, dtype="float64")
+    except (IndexError, ValueError, TypeError, KeyError):
+        return _empty_series(df)
 
 
 def compute_wma(
@@ -202,14 +206,14 @@ def compute_wma(
     source: str = "close",
     source_ref: str | None = None,
 ) -> pd.Series:
-    """Compute Weighted Moving Average."""
+    """Compute Weighted Moving Average using TA-Lib."""
     length = int(params.get("length", 14))
     series = _price_series(df, source)
-    weights = np.arange(1, length + 1)
-    return series.rolling(window=length, min_periods=1).apply(
-        lambda x: np.average(x, weights=weights[: len(x)]) if len(x) > 0 else np.nan,
-        raw=True,
-    )
+    try:
+        result = talib.WMA(series.values, timeperiod=length)
+        return pd.Series(result, index=df.index, dtype="float64")
+    except (IndexError, ValueError, TypeError, KeyError):
+        return _empty_series(df)
 
 
 def compute_rsi(
