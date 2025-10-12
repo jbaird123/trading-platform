@@ -212,9 +212,9 @@ INDICATOR_TOLERANCES = {
         "atol": 1e-8,
     },  # 0.15% tolerance - exclude divergence windows, allow 0.6% outliers up to 1.05%
     "SUPERTREND": {
-        "rtol": 1e-2,
+        "rtol": 1e-7,
         "atol": 1e-8,
-    },  # 1% tolerance: max 0.94%, 99.98% of bars within 1%
+    },  # Tightest tolerance: 99.72% bars pass, fails on warm-up + outliers
     # Bands/Channels - small differences in std calculation
     "BB": {
         "rtol": 1e-7,
@@ -803,38 +803,6 @@ def test_indicator_matches_tradingview_comprehensive(
             and p999_actual <= p999_threshold
         ):
             close_match = True
-
-    # --- Special handling for SuperTrend: Exclude warm-up period ---
-    # SuperTrend uses ATR (length=7) which needs a warm-up period to stabilize.
-    # During the first 10-14 bars, small ATR differences get amplified by the
-    # multiplier (3.0) and cause large differences during trend reversals.
-    #
-    # Analysis shows all bars with differences > 10 pips occur in first 10 bars.
-    # After a 20-bar warm-up (3x ATR length), accuracy is near-perfect:
-    # - 99.59% perfect match (< 1e-10)
-    # - 99.92% within 0.1 pips
-    # - Maximum difference: 0.78 pips
-    #
-    # Solution: Skip first 20 bars and use strict tolerance for remaining bars.
-    #
-    if our_name == "SuperTrend" and not close_match:
-        # Get the actual parameter used (default is 7)
-        atr_length = params.get("length", 7)
-        warmup_bars = atr_length * 3  # Use 3x ATR length as warm-up
-
-        # Skip warm-up period for validation
-        if len(aligned_calc) > warmup_bars:
-            aligned_calc_post_warmup = aligned_calc.iloc[warmup_bars:]
-            aligned_tv_post_warmup = aligned_tv.iloc[warmup_bars:]
-
-            # Use strict tolerance after warm-up: rtol=1e-5 (0.001%), atol=1e-6
-            close_match = np.allclose(
-                aligned_calc_post_warmup,
-                aligned_tv_post_warmup,
-                rtol=1e-5,
-                atol=1e-6,
-                equal_nan=True,
-            )
 
     # --- Special handling for SuperTrend_direction: Encoding difference ---
     # SuperTrend direction is a binary indicator (1 or -1) that indicates whether
