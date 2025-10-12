@@ -1,7 +1,7 @@
 //@version=6
-indicator("Golden Validation - Batch 11: Levels", overlay=true)
+indicator("Golden Validation - Batch 10: Levels", overlay=true)
 
-// BATCH 11: Level Indicators
+// BATCH 10: Level Indicators
 // 7 indicators + 5 OHLCV = 12 total columns
 // Indicators: HHV, LLV, DC Upper, DC Lower, Swing High, Swing Low, ATR Percentile
 

@@ -3,7 +3,10 @@ indicator("Golden Validation - Batch 3: Volume Indicators",
           overlay=false)
 
 // BATCH 3: Volume Indicators
-// 2 indicators + 5 OHLCV = 7 total columns
+// 3 indicators (Volume, OBV, VWAP) + 5 OHLCV = 8 total columns
+
+// Volume (base data - included for platform validation)
+// Volume is already available as built-in 'volume' variable
 
 // Volume indicators
 obv = ta.obv
@@ -14,11 +17,12 @@ typical_price = (high + low + close) / 3
 vwap_val = ta.vwap(typical_price)
 
 // Visual plots
+plot(volume, "Volume", color=color.green, linewidth=1, style=plot.style_histogram)
 plot(obv, "OBV", color=color.blue, linewidth=2)
 plot(vwap_val, "VWAP", color=color.orange, linewidth=2)
 
 // Table showing current values
-var table valuesTable = table.new(position.top_right, 2, 3,
+var table valuesTable = table.new(position.top_right, 2, 4,
                                    bgcolor=color.new(color.black, 80),
                                    border_width=1)
 
@@ -28,10 +32,14 @@ if barstate.islast
     table.cell(valuesTable, 1, 0, "Value", text_color=color.white,
                bgcolor=color.new(color.blue, 50))
 
-    table.cell(valuesTable, 0, 1, "OBV", text_color=color.white)
-    table.cell(valuesTable, 1, 1, str.tostring(obv, "#"),
+    table.cell(valuesTable, 0, 1, "Volume", text_color=color.white)
+    table.cell(valuesTable, 1, 1, str.tostring(volume, "#"),
                text_color=color.yellow)
 
-    table.cell(valuesTable, 0, 2, "VWAP", text_color=color.white)
-    table.cell(valuesTable, 1, 2, str.tostring(vwap_val, "#.#####"),
+    table.cell(valuesTable, 0, 2, "OBV", text_color=color.white)
+    table.cell(valuesTable, 1, 2, str.tostring(obv, "#"),
+               text_color=color.yellow)
+
+    table.cell(valuesTable, 0, 3, "VWAP", text_color=color.white)
+    table.cell(valuesTable, 1, 3, str.tostring(vwap_val, "#.#####"),
                text_color=color.yellow)

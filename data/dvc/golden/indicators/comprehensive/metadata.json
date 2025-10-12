@@ -142,8 +142,13 @@
       "batch_number": 3,
       "filename": "batch3_volume_eurusd_1h.csv",
       "row_count": 22447,
-      "column_count": 7,
+      "column_count": 8,
       "indicators": [
+        {
+          "name": "Volume",
+          "parameters": {},
+          "column_name": "Volume"
+        },
         {
           "name": "OBV",
           "parameters": {},
@@ -337,20 +342,7 @@
     },
     {
       "batch_number": 10,
-      "filename": "batch10_ohlcv_eurusd_1h.csv",
-      "row_count": 22447,
-      "column_count": 6,
-      "indicators": [
-        {
-          "name": "Volume",
-          "parameters": {},
-          "column_name": "Volume"
-        }
-      ]
-    },
-    {
-      "batch_number": 11,
-      "filename": "batch11_levels_eurusd_1h.csv",
+      "filename": "batch10_levels_eurusd_1h.csv",
       "row_count": 22447,
       "column_count": 12,
       "indicators": [
@@ -411,13 +403,14 @@
   ],
   "notes": [
     "TradingView CSV export limited to ~11 columns total",
-    "39 indicators + 1 volume reference split across 11 batches",
+    "40 indicators split across 10 batches",
     "All batches share same OHLCV data, different indicator columns",
+    "Volume indicator included in batch3 (was previously in separate batch10)",
     "Files kept unmodified from TradingView export",
     "Merging performed in-memory during test execution"
   ],
-  "total_indicators": 39,
-  "total_batches": 11,
-  "batches_exported": 11,
+  "total_indicators": 40,
+  "total_batches": 10,
+  "batches_exported": 10,
   "batches_pending": []
 }
