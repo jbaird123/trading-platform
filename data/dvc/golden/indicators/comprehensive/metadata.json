@@ -347,17 +347,77 @@
           "column_name": "Volume"
         }
       ]
+    },
+    {
+      "batch_number": 11,
+      "filename": "batch11_levels_eurusd_1h.csv",
+      "row_count": 22447,
+      "column_count": 12,
+      "indicators": [
+        {
+          "name": "HHV",
+          "parameters": {
+            "length": 20
+          },
+          "column_name": "HHV 20"
+        },
+        {
+          "name": "LLV",
+          "parameters": {
+            "length": 20
+          },
+          "column_name": "LLV 20"
+        },
+        {
+          "name": "DC_Upper",
+          "parameters": {
+            "length": 20
+          },
+          "column_name": "DC Upper"
+        },
+        {
+          "name": "DC_Lower",
+          "parameters": {
+            "length": 20
+          },
+          "column_name": "DC Lower"
+        },
+        {
+          "name": "Swing_High",
+          "parameters": {
+            "left_bars": 10,
+            "right_bars": 10
+          },
+          "column_name": "Swing High"
+        },
+        {
+          "name": "Swing_Low",
+          "parameters": {
+            "left_bars": 10,
+            "right_bars": 10
+          },
+          "column_name": "Swing Low"
+        },
+        {
+          "name": "ATR_Percentile",
+          "parameters": {
+            "atr_length": 14,
+            "lookback": 20
+          },
+          "column_name": "ATR Percentile"
+        }
+      ]
     }
   ],
   "notes": [
     "TradingView CSV export limited to ~11 columns total",
-    "32 indicators + 1 volume reference split across 10 batches",
+    "39 indicators + 1 volume reference split across 11 batches",
     "All batches share same OHLCV data, different indicator columns",
     "Files kept unmodified from TradingView export",
     "Merging performed in-memory during test execution"
   ],
-  "total_indicators": 32,
-  "total_batches": 10,
+  "total_indicators": 39,
+  "total_batches": 11,
   "batches_exported": 10,
-  "batches_pending": []
+  "batches_pending": [11]
 }

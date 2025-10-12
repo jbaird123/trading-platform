@@ -150,6 +150,34 @@ COMPREHENSIVE_INDICATOR_TEST_CASES = [
     # Batch 9: CMF (1 indicator)
     # Headers: time,open,high,low,close,CMF 20
     ("CMF", "cmf 20", "batch9", "CMF", {"length": 20}),
+    # Batch 11: Levels (6 indicators)
+    # Headers: time,open,high,low,close,HHV 20,LLV 20,DC Upper,DC Lower,
+    #          Swing High,Swing Low,ATR Percentile
+    ("HHV", "hhv 20", "batch11", "HHV", {"length": 20}),
+    ("LLV", "llv 20", "batch11", "LLV", {"length": 20}),
+    ("DC_upper", "dc upper", "batch11", "DC", {"length": 20}),
+    ("DC_lower", "dc lower", "batch11", "DC", {"length": 20}),
+    (
+        "SWING_HIGH",
+        "swing high",
+        "batch11",
+        "SWING_HIGH",
+        {"left_bars": 10, "right_bars": 10},
+    ),
+    (
+        "SWING_LOW",
+        "swing low",
+        "batch11",
+        "SWING_LOW",
+        {"left_bars": 10, "right_bars": 10},
+    ),
+    (
+        "ATRPercentile",
+        "atr percentile",
+        "batch11",
+        "ATRPercentile",
+        {"atr_length": 14, "lookback": 20},
+    ),
 ]
 
 
@@ -206,6 +234,19 @@ INDICATOR_TOLERANCES = {
         "atol": 1e-8,
     },  # Perfect match after correct shift alignment
     "CHOP": {"rtol": 1e-6, "atol": 1e-8},  # Perfect match: max diff 0.000000%
+    # Level indicators - simple rolling operations
+    "HHV": {"rtol": 1e-7, "atol": 1e-8},  # Rolling max - should be perfect
+    "LLV": {"rtol": 1e-7, "atol": 1e-8},  # Rolling min - should be perfect
+    "DC": {"rtol": 1e-7, "atol": 1e-8},  # Based on HHV/LLV - should be perfect
+    "SWING_HIGH": {
+        "rtol": 1e-7,
+        "atol": 1e-8,
+    },  # Pivot detection - should match exactly
+    "SWING_LOW": {"rtol": 1e-7, "atol": 1e-8},  # Pivot detection - should match exactly
+    "ATRPercentile": {
+        "rtol": 1e-3,
+        "atol": 1e-8,
+    },  # Percentile rank - may have minor differences
 }
 
 
