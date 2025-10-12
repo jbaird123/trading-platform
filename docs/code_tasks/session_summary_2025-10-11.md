@@ -226,8 +226,12 @@ After registry unification:
 4. `149d54d` - Add 3 missing indicators to registry, sync all schemas
 5. `1278fee` - Sync indicator_safety with registry
 6. `7974a75` - Create unified registry refactoring plan
+7. `bd04e4b` - Add comprehensive session summary
+8. `62efb29` - Remove ALLOW_LOOKAHEAD safety level (YAGNI)
+9. `16c8e4c` - Update session summary with ALLOW_LOOKAHEAD removal
+10. `eb44b11` - Remove library_restrictions_update.md (redundant)
 
-**Total: 6 commits, ~400 lines changed, 3 new documents**
+**Total: 10 commits, ~500 lines changed**
 
 ---
 
@@ -290,4 +294,40 @@ analysis:
 ### Result
 Simpler, cleaner safety system focused on actual use cases.
 
-**Updated commit count: 8 total commits**
+### Architectural Decision: Keep Separate or Merge?
+
+**Initial Plan:** Keep indicators_registry.py and indicator_safety.py
+separate
+
+**User Question:** "Isn't the safety field duplicated?"
+
+**Analysis:**
+- Only ONE field duplicates: the safety classification
+- Everything else is separate concerns (UI metadata vs. runtime
+  validation)
+- Tests enforce synchronization
+
+**Discussion:** Should we accept this duplication?
+
+**User Decision:** No, duplication is a code smell
+
+**Final Architecture:** Merge into single unified registry
+- Safety is an **intrinsic property** of the indicator (like params,
+  category)
+- Move SafetyLevel enum and helper functions into indicators_registry.py
+- Delete indicator_safety.py
+- Result: Zero duplication, single source of truth
+
+This decision is reflected in the unified_indicator_registry_refactor.md
+plan for next session.
+
+### Documentation Cleanup
+
+**Commit:** `eb44b11` - Remove library_restrictions_update.md
+
+Deleted redundant documentation file - information already preserved in:
+- Git commit messages
+- Session summary
+- Pre-commit config comments
+
+**Updated commit count: 10 total commits**
