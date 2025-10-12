@@ -11,8 +11,9 @@ indicator("Golden Validation - Batch 2: Oscillators", overlay=false)
 stoch_k = ta.stoch(close, high, low, 14)
 stoch_d = ta.sma(stoch_k, 3)
 
-// CCI
-cci_20 = ta.cci(close, 20)
+// CCI (using Typical Price as per standard formula)
+typical_price = (high + low + close) / 3
+cci_20 = ta.cci(typical_price, 20)
 
 // ROC
 roc_12 = ta.roc(close, 12)
