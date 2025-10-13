@@ -101,15 +101,21 @@ def strategy_name(request) -> str:
     """Extracts strategy name from test name or marker.
 
     Returns:
-        Strategy name (e.g., 'ema_crossover')
+        Strategy name (e.g., 'ema_crossover/baseline',
+        'ema_crossover/20pip_stop')
     """
     # Try to extract from test name
-    # Convention: test_<strategy_name>_<test_description>
+    # Convention: test_<strategy_name>_<variation>_<test_description>
     test_name = request.node.name
 
     # Default strategies for common test names
     if "ema_crossover" in test_name:
-        return "ema_crossover"
+        # Check for variation in test name
+        if "20pip_stop" in test_name:
+            return "ema_crossover/20pip_stop"
+        elif "baseline" in test_name or "_ema_crossover_" in test_name:
+            # Default to baseline for backward compatibility
+            return "ema_crossover/baseline"
     elif "bb_mean_reversion" in test_name:
         return "bb_mean_reversion"
     elif "multi_indicator" in test_name:
@@ -120,8 +126,8 @@ def strategy_name(request) -> str:
     if marker and marker.args:
         return str(marker.args[0])
 
-    # Default
-    return "ema_crossover"
+    # Default to baseline
+    return "ema_crossover/baseline"
 
 
 @pytest.fixture
@@ -129,7 +135,9 @@ def golden_strategy_paths(strategy_name: str) -> dict[str, Path]:
     """Returns all relevant paths for a golden strategy.
 
     Args:
-        strategy_name: Name of strategy (e.g., 'ema_crossover')
+        strategy_name: Name of strategy with optional variation
+                       (e.g., 'ema_crossover/baseline',
+                       'ema_crossover/20pip_stop')
 
     Returns:
         Dictionary with paths to data and config files

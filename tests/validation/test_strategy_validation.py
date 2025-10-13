@@ -481,7 +481,7 @@ def test_ema_crossover_trade_count_matches_tradingview(
     """
     # Load platform trades
     platform_trades = load_platform_trades(
-        strategy_name="ema_crossover",
+        strategy_name="ema_crossover/baseline",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
         date_range=golden_metadata.get("date_range"),
@@ -529,7 +529,7 @@ def test_ema_crossover_trade_times_match_tradingview(
     """
     # Load platform trades
     platform_trades = load_platform_trades(
-        strategy_name="ema_crossover",
+        strategy_name="ema_crossover/baseline",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
         date_range=golden_metadata.get("date_range"),
@@ -602,7 +602,7 @@ def test_ema_crossover_trade_pnl_matches_tradingview(
     """
     # Load platform trades
     platform_trades = load_platform_trades(
-        strategy_name="ema_crossover",
+        strategy_name="ema_crossover/baseline",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
         date_range=golden_metadata.get("date_range"),
@@ -731,7 +731,7 @@ def test_ema_crossover_equity_curve_correlation(
     """
     # Load platform trades
     platform_trades = load_platform_trades(
-        strategy_name="ema_crossover",
+        strategy_name="ema_crossover/baseline",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
         date_range=golden_metadata.get("date_range"),
