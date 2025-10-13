@@ -14,11 +14,28 @@ from trading_platform.portfolio.trade import Trade
 
 class PortfolioManager:
     """
-    Manages the state of the portfolio, including cash, positions, and trades.
+    Portfolio Manager - State Tracking and Decision Making
 
-    This class is the single source of truth for the portfolio's state. It is
-    used by both the backtester and the live execution layer to ensure
-    consistent logic. For the MVP, it handles one position at a time.
+    The Portfolio Manager is responsible for:
+    1. Tracking portfolio state (cash, positions, trades)
+    2. Making decisions about when positions should be opened or closed
+    3. Managing entry window state for command-based strategies
+
+    The Portfolio Manager does NOT execute trades directly. Instead, it returns
+    "action descriptors" - dictionaries that tell the caller (Backtester or
+    Execution Layer) what action should be taken. The caller is responsible for
+    determining WHEN to execute (e.g., current bar close vs next bar open).
+
+    This separation of concerns allows the same Portfolio Manager logic to be
+    used in both backtesting (with configurable execution models) and live
+    trading (with real-time execution).
+
+    Action Descriptor Examples:
+    - {'action': 'open_entry_window', 'side': 'long', 'bar_index': 42}
+    - {'action': 'should_close', 'reason': 'signal'}
+    - {'action': 'no_action', 'reason': 'already_in_position'}
+
+    See docs/architecture/execution_model.md for complete design details.
     """
 
     def __init__(

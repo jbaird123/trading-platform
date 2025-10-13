@@ -24,12 +24,14 @@ import pytest
 # === TOLERANCE DEFINITIONS ===
 
 TRADE_VALIDATION_TOLERANCES: dict[str, Any] = {
-    "entry_time": timedelta(days=3),  # Allow 3 days for data gaps and DST transitions
-    "exit_time": timedelta(days=3),  # Allow 3 days for data gaps and DST transitions
-    "entry_price": 0.0001,  # 1 pip for forex (0.01%)
-    "exit_price": 0.0001,  # 1 pip for forex
-    "trade_pnl": 50.00,  # $50.00 per trade (execution timing differences)
-    "total_pnl": 100.00,  # $100.00 total (accumulated differences)
+    "entry_time": timedelta(
+        hours=1
+    ),  # 1-hour tolerance (minor EMA floating-point differences)
+    "exit_time": timedelta(hours=1),  # 1-hour tolerance
+    "entry_price": 0.00001,  # 0.1 pip for forex (tighter tolerance with next_bar_open)
+    "exit_price": 0.00001,  # 0.1 pip for forex
+    "trade_pnl": 5.00,  # $5.00 per trade (timing-related differences)
+    "total_pnl": 10.00,  # $10.00 total (minor differences from timing/rounding)
     "trade_count": 0,  # Must match exactly
 }
 
@@ -61,21 +63,55 @@ def load_platform_trades(
         run_config: Run configuration dictionary
         ohlcv_data: OHLCV data to use
         date_range: Optional date range dict with 'start' and 'end' keys
+                    Trades will be filtered to this range, but backtest runs on extended
+                    data (100 bars before start) to allow proper indicator warmup.
 
     Returns:
         List of trade dictionaries from platform backtest
     """
+    from datetime import timedelta
     from pathlib import Path
 
     import yaml
     from trading_platform.backtester.orchestrator import run_backtest_from_config
     from trading_platform.core.config import RunConfig
 
-    # Filter OHLCV data to match TradingView date range if provided
+    # Calculate extended start date for warmup if date_range provided
+    # We go back 100 bars to match TradingView's warmup behavior
+    ohlcv_to_use = ohlcv_data
     if date_range:
         start_date = pd.to_datetime(date_range["start"], utc=True)
-        end_date = pd.to_datetime(date_range["end"], utc=True)
-        ohlcv_data = ohlcv_data.loc[start_date:end_date]
+        # End date should be inclusive of the entire day (23:59:59)
+        # Add 1 day and subtract 1 second to get end of day
+        end_date = pd.to_datetime(date_range["end"], utc=True) + timedelta(
+            days=1, seconds=-1
+        )
+
+        # Get timeframe from run_config to calculate bar duration
+        timeframe = run_config.get("instrument", {}).get("timeframe", "1H")
+
+        # Calculate bars back based on timeframe
+        # For hourly data: 100 bars = 100 hours
+        # For daily data: 100 bars = 100 days, etc.
+        if timeframe == "1H":
+            bars_back_hours = 100
+        elif timeframe == "1D":
+            bars_back_hours = 100 * 24
+        elif timeframe == "4H":
+            bars_back_hours = 100 * 4
+        else:
+            # Default to hourly if unknown
+            bars_back_hours = 100
+
+        # Calculate extended start (100 bars back from validation start)
+        extended_start = start_date - timedelta(hours=bars_back_hours)
+
+        # Filter OHLCV data to extended range
+        # Start: 100 bars before validation start (for warmup)
+        # End: validation end date (don't process data beyond validation period)
+        ohlcv_to_use = ohlcv_data[
+            (ohlcv_data.index >= extended_start) & (ohlcv_data.index <= end_date)
+        ].copy()
 
     # Load strategy config
     strategy_dir = Path(f"configs/golden_strategies/{strategy_name}")
@@ -101,17 +137,41 @@ def load_platform_trades(
     if rem_config:
         config_dict["rem_config"] = rem_config
 
+    # Override warmup_bars to 0 when using extended data
+    # Since we already extended the data by 100 bars, we don't want
+    # the backtester to skip additional bars
+    if date_range:
+        config_dict["warmup_bars"] = 0
+
     # Create RunConfig
     config = RunConfig.model_validate(config_dict)
 
-    # Run backtest
+    # Run backtest on extended data
     results = run_backtest_from_config(
-        config=config, market_data=ohlcv_data, strategy_config=strategy_config
+        config=config, market_data=ohlcv_to_use, strategy_config=strategy_config
     )
 
     # Convert Trade objects to dictionaries
+    # Exclude force-closed trades (exit_reason="end_of_data") as TradingView
+    # doesn't close open positions at end of backtest
     trades_list = []
     for trade in results["trades"]:
+        # Skip force-closed trades for golden validation
+        if trade.exit_reason == "end_of_data":
+            continue
+
+        # Filter trades to date_range if provided
+        # This allows us to run backtest on extended data for warmup
+        # but only compare trades that fall within the validation period
+        if date_range:
+            start_date = pd.to_datetime(date_range["start"], utc=True)
+            end_date = pd.to_datetime(date_range["end"], utc=True)
+
+            # Include trade if it entered within the date range
+            if not (start_date <= trade.entry_time <= end_date):
+                # Skip trades outside the validation period
+                continue
+
         trades_list.append(
             {
                 "entry_time": trade.entry_time,
@@ -172,28 +232,16 @@ def parse_tradingview_trades(tv_df: pd.DataFrame) -> pd.DataFrame:
                 side = "unknown"
 
             # Parse times
-            # TradingView exports times in US/Eastern timezone (no TZ marker)
-            # IMPORTANT: TradingView CSV timestamps are off by 1 hour - they show
-            # the bar AFTER the actual entry/exit bar. We must subtract 1 hour.
-            # This is likely because TV shows the timestamp when the order is
-            # confirmed/filled rather than when it was placed.
+            # TradingView exports are already in UTC (validated by golden test fixtures)
+            # and already use bar open times (matching our platform convention).
+            # No timezone conversion or timestamp adjustment needed.
             entry_time = entry_row.get("Date/Time")
             exit_time = exit_row.get("Date/Time")
 
             if not pd.isna(entry_time) and isinstance(entry_time, str):
-                entry_time = (
-                    pd.to_datetime(entry_time)
-                    .tz_localize("US/Eastern")
-                    .tz_convert("UTC")
-                    - timedelta(hours=1)  # Adjust for TV's 1-bar offset
-                )
+                entry_time = pd.to_datetime(entry_time, utc=True)
             if not pd.isna(exit_time) and isinstance(exit_time, str):
-                exit_time = (
-                    pd.to_datetime(exit_time)
-                    .tz_localize("US/Eastern")
-                    .tz_convert("UTC")
-                    - timedelta(hours=1)  # Adjust for TV's 1-bar offset
-                )
+                exit_time = pd.to_datetime(exit_time, utc=True)
 
             trades.append(
                 {
@@ -450,9 +498,22 @@ def test_ema_crossover_trade_count_matches_tradingview(
     tv_trade_count = len(closed_trades) // 2
     platform_trade_count = len(platform_trades)
 
+    # Validate against metadata's validation_range_closed_trades count
+    # This is the count of closed trades within the validation date range
+    # (after warmup filtering)
+    expected_closed_trades = golden_metadata.get(
+        "validation_range_closed_trades",
+        golden_metadata.get("closed_trades", golden_metadata.get("total_trades")),
+    )
+
     assert platform_trade_count == tv_trade_count, (
         f"Trade count mismatch: Platform={platform_trade_count}, "
-        f"TradingView={tv_trade_count} (closed trades only)"
+        f"TradingView={tv_trade_count} (closed trades in validation range only)"
+    )
+
+    assert platform_trade_count == expected_closed_trades, (
+        f"Trade count vs metadata mismatch: Platform={platform_trade_count}, "
+        f"Metadata validation_range_closed_trades={expected_closed_trades}"
     )
 
 

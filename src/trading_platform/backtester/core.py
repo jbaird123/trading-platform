@@ -247,13 +247,21 @@ def run_backtest(
                 context_at_exit=pending_exit.get("context"),
             )
             # Handle flip: if exit was for opposite signal, open entry window
+            # and immediately execute entry at same bar open
             if "entry_side" in pending_exit:
                 portfolio.complete_pending_exit_and_open_entry_window(
                     pending_exit["entry_side"], i
                 )
+                # Create pending_entry for immediate execution below
+                # (will be executed right after this block)
+                pending_entry = {
+                    "symbol": symbol,
+                    "side": pending_exit["entry_side"],
+                    "size": float(config.position_size),
+                    "instrument": instrument_dict,
+                    "context": pending_exit.get("context"),
+                }
             pending_exit = None
-            if return_exposure:
-                exposure_curve.append((cast(datetime, current_bar.name), 0.0))
 
         # Execute pending entry from previous bar (next_bar_open model)
         if pending_entry is not None:
@@ -379,7 +387,7 @@ def run_backtest(
                 )
                 if return_exposure:
                     exposure_curve.append((cast(datetime, current_bar.name), 0.0))
-                # Don't continue - allow flip entry to be processed
+                continue
             else:  # next_bar_open
                 # Defer execution to next bar's open
                 pending_exit = {
@@ -555,6 +563,21 @@ def run_backtest(
             if pos is not None:
                 exposure_val = float(abs(pos.size) * float(current_bar["close"]))
             exposure_curve.append((cast(datetime, current_bar.name), exposure_val))
+
+    # Force-close any remaining open position at end of backtest
+    if portfolio.current_position:
+        last_bar = market_data.iloc[-1]
+        portfolio.close_position(
+            exit_price=last_bar["close"],
+            exit_time=cast(datetime, market_data.index[-1]),
+            exit_reason="end_of_data",
+            context_at_exit=None,
+        )
+        # Update the last exposure entry to reflect the closed position
+        if return_exposure and exposure_curve:
+            # Replace the last entry's exposure value with 0.0
+            last_time = exposure_curve[-1][0]
+            exposure_curve[-1] = (last_time, 0.0)
 
     if skipped:
         # Choose counterfactual mode

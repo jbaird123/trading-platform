@@ -2,6 +2,7 @@ user_id: "golden_validation_ema_crossover"
 initial_cash: 100000
 position_size: 10000  # Fixed $10k per trade
 warmup_bars: 100
+execution_model: "next_bar_open"  # Realistic execution model (matches TradingView)
 
 instrument:
   symbol: "EUR_USD"

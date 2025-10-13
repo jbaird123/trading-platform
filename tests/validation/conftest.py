@@ -213,16 +213,18 @@ def golden_metadata(
 @pytest.fixture
 def tradingview_trades(
     golden_strategy_paths: dict[str, Path],
+    golden_metadata: dict[str, Any],
     ensure_dvc_data_pulled: bool,
 ) -> pd.DataFrame:
-    """Loads TradingView trade export CSV.
+    """Loads TradingView trade export CSV and filters to validation date range.
 
     Args:
         golden_strategy_paths: Paths fixture
+        golden_metadata: Metadata fixture with date_range
         ensure_dvc_data_pulled: Session fixture ensuring data exists
 
     Returns:
-        DataFrame with TradingView trades
+        DataFrame with TradingView trades filtered to validation date range
 
     Raises:
         AssertionError: If timestamps are not in UTC format
@@ -318,6 +320,42 @@ def tradingview_trades(
         df["entry_time"] = pd.to_datetime(df["entry_time"], utc=True)
     if "exit_time" in df.columns:
         df["exit_time"] = pd.to_datetime(df["exit_time"], utc=True)
+
+    # Filter trades to validation date range if specified in metadata
+    # This allows TradingView exports to include warmup data that gets filtered out
+    #
+    # IMPORTANT: When exporting from TradingView, always set the export start date
+    # EARLIER than the validation start date (recommended: 100+ bars before).
+    # This ensures:
+    # 1. Indicators have enough data to warm up properly
+    # 2. Early trades aren't filtered out by TradingView's internal logic
+    # 3. Both systems detect the same number of crossovers
+    #
+    # The filtering below will automatically exclude trades outside the validation
+    # range, so it's safe (and recommended) to export extra data at the beginning.
+    date_range = golden_metadata.get("date_range")
+    if date_range and "Date/Time" in df.columns:
+        start_date = pd.to_datetime(date_range["start"], utc=True)
+        end_date = pd.to_datetime(date_range["end"], utc=True)
+
+        # Parse Date/Time column for filtering
+        df["_filter_time"] = pd.to_datetime(df["Date/Time"], utc=True)
+
+        # Filter: keep trades where entry is within validation range
+        # For TradingView format, we need to look at entry rows (Type contains "Entry")
+        mask_entry = df["Type"].str.contains("Entry", case=False, na=False)
+        mask_date = (df["_filter_time"] >= start_date) & (
+            df["_filter_time"] <= end_date
+        )
+
+        # Get trade numbers that have entries in the validation range
+        valid_trade_nums = df[mask_entry & mask_date]["Trade #"].unique()
+
+        # Keep all rows (entry and exit) for trades that entered in validation range
+        df = df[df["Trade #"].isin(valid_trade_nums)].copy()
+
+        # Drop the temporary filter column
+        df = df.drop(columns=["_filter_time"])
 
     return df
 

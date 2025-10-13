@@ -153,9 +153,14 @@ class RunConfig(BaseModel):
     execution_model: Literal["current_bar_close", "next_bar_open"] = Field(
         "current_bar_close",
         description=(
-            "Execution model for entries and exits. 'current_bar_close' "
-            "executes trades immediately at signal bar close (unrealistic). "
-            "'next_bar_open' defers execution to next bar open (realistic)."
+            "Execution model for entries and exits. "
+            "'current_bar_close' executes trades immediately at the "
+            "signal bar's close price (unrealistic, but useful for rapid "
+            "prototyping). 'next_bar_open' defers execution to the next "
+            "bar's open price (realistic, industry standard, matches "
+            "TradingView behavior). For golden validation testing, always "
+            "use 'next_bar_open'. See docs/architecture/execution_model.md "
+            "for details."
         ),
     )
     daily_loss_cap: float | None = Field(

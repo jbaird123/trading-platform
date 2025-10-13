@@ -166,9 +166,12 @@ def test_position_cap_skips_same_direction_entry():
     )
     trades, exposure, skipped = cast(tuple[list, list, list], result)
 
-    assert len(trades) == 0
-    # TODO: Fix this test for command-based signals - position cap logic needs review
-    # assert any(s.get("skip_reason") == "position_cap" for s in skipped)
+    # Should have 1 trade: bar 0 enters long, bar 1 tries to enter long
+    # again but skipped. Trade is force-closed at end of backtest
+    assert len(trades) == 1
+    assert trades[0].side == "long"
+    assert trades[0].exit_reason == "end_of_data"
+    # TODO: Verify skipped entry for bar 1 (position cap logic needs review)
 
 
 def test_position_cap_not_reached_when_already_open():
@@ -210,7 +213,12 @@ def test_position_cap_not_reached_when_already_open():
     )
     trades, exposure, skipped = cast(tuple[list, list, list], result)
 
-    assert len(trades) == 0
+    # Should have 1 trade: bar 0 enters long, bar 1 has no signal,
+    # position force-closed at end
+    assert len(trades) == 1
+    assert trades[0].side == "long"
+    assert trades[0].exit_reason == "end_of_data"
+    # No entries should be skipped due to position cap (max is 2, we only opened 1)
     assert not any(s.get("skip_reason") == "position_cap" for s in skipped)
 
 

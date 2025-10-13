@@ -1005,12 +1005,16 @@ def test_backtester_executes_pending_exit_at_next_bar_open():
     # Create config with next_bar_open execution model
     config = RunConfig(
         instrument=_instrument(),
-        run_type="backtest",
         execution_model="next_bar_open",
         entry_window_bars=0,
-        warmup_threshold=0,
+        warmup_bars=0,
         min_hold_bars=0,
     )
+
+    # Create a minimal REM (required parameter)
+    from trading_platform.risk_manager.core import RiskExitManager
+
+    rem = RiskExitManager(config={}, instrument=TEST_INSTRUMENT)
 
     # Run backtest
     result = run_backtest(
@@ -1018,7 +1022,7 @@ def test_backtester_executes_pending_exit_at_next_bar_open():
         signals=signals,
         strategy=strategy,
         config=config,
-        rem=None,
+        rem=rem,
         rmm_context=None,
         return_exposure=False,
         return_skips=False,
@@ -1037,3 +1041,81 @@ def test_backtester_executes_pending_exit_at_next_bar_open():
     assert trades_list[0].exit_time == idx[3]
     # Exit price should be bar 3 open (not bar 2 close!)
     assert trades_list[0].exit_price == pytest.approx(1.0030)
+
+
+def test_backtester_handles_flip_with_next_bar_open():
+    """
+    Test that next_bar_open execution model handles flips correctly.
+
+    Validates that when a flip occurs (opposite entry signal):
+    - Long position exits at next bar open
+    - Short position enters at same bar open (same time/price as exit)
+    - Both trades execute at the same bar's open price
+    """
+    # Create 5 bars with distinct prices
+    idx = [datetime(2024, 1, 1, h) for h in range(5)]
+    df = pd.DataFrame(
+        {
+            "open": [1.0000, 1.0010, 1.0020, 1.0030, 1.0040],
+            "high": [1.0005, 1.0015, 1.0025, 1.0035, 1.0045],
+            "low": [0.9995, 1.0005, 1.0015, 1.0025, 1.0035],
+            "close": [1.0002, 1.0012, 1.0022, 1.0032, 1.0042],
+            "volume": [100] * 5,
+        },
+        index=idx,
+    )
+
+    # Create strategy
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(df)
+
+    # Signals: bar 0 enter_long, bar 2 enter_short (flip), rest None
+    signals = pd.Series(
+        ["enter_long", None, "enter_short", None, None],
+        index=df.index,
+    )
+
+    # Create config with next_bar_open and allow_flip
+    config = RunConfig(
+        instrument=_instrument(),
+        execution_model="next_bar_open",
+        entry_window_bars=0,
+        warmup_bars=0,
+        min_hold_bars=0,
+        allow_flip_on_bar=True,
+    )
+
+    # Create a minimal REM
+    from trading_platform.risk_manager.core import RiskExitManager
+
+    rem = RiskExitManager(config={}, instrument=TEST_INSTRUMENT)
+
+    # Run backtest
+    result = run_backtest(
+        market_data=df,
+        signals=signals,
+        strategy=strategy,
+        config=config,
+        rem=rem,
+        rmm_context=None,
+        return_exposure=False,
+        return_skips=False,
+    )
+    trades_list = result if isinstance(result, list) else result[0]
+
+    # Should have 2 trades
+    assert len(trades_list) == 2
+
+    # Trade 1 (long): Entry at bar 1 open, exit at bar 3 open
+    assert trades_list[0].side == "long"
+    assert trades_list[0].entry_time == idx[1]
+    assert trades_list[0].entry_price == pytest.approx(1.0010)
+    assert trades_list[0].exit_time == idx[3]
+    assert trades_list[0].exit_price == pytest.approx(1.0030)
+    assert trades_list[0].exit_reason == "opposite_signal"
+
+    # Trade 2 (short): Entry at bar 3 open (same time/price as trade 1 exit)
+    assert trades_list[1].side == "short"
+    assert trades_list[1].entry_time == idx[3]
+    assert trades_list[1].entry_price == pytest.approx(1.0030)
+    # Trade 2 still open or exits later (not tested here)

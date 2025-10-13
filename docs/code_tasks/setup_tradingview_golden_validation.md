@@ -367,15 +367,23 @@ def platform_trades(strategy_name, golden_strategy_config):
 
 1. Open TradingView
 2. Load strategy from PineScript file
-3. Set date range (e.g., 2023-01-01 to 2024-12-31)
+3. **⚠️ CRITICAL: Set export start date EARLIER than validation start date**
+   - **Validation range**: 2023-01-01 to 2024-12-31
+   - **Export start date**: 2022-12-01 (at least 100 bars before)
+   - **Why**: Indicators need warmup period; TradingView may filter trades near start date
+   - **Safe practice**: Always add 1 month buffer before validation start
 4. Set initial capital ($100,000)
-5. Set position size (1 contract)
+5. Set position size (1 contract or $10,000)
 6. Disable commission (or set to known value)
 7. Run backtest
 8. Export trades to CSV
-9. Export equity curve (if possible)
-10. Take screenshot of backtest results
-11. Record metadata (TV version, date, parameters)
+9. Export OHLCV data with indicators
+10. Export equity curve (if possible)
+11. Take screenshot of backtest results
+12. Record metadata (TV version, date, parameters)
+
+**Important**: The test suite will automatically filter trades to the validation date range,
+so it's safe (and required) to export extra warmup data at the beginning.
 
 #### 4.2 File Placement
 

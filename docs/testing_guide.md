@@ -329,9 +329,61 @@ Tests run automatically on:
 3. Use smaller datasets for unit tests
 4. Move slow tests to integration test suite
 
+## Golden Validation Testing
+
+### Overview
+
+Golden validation tests compare our platform's output against TradingView exports to ensure correctness. These are integration tests that validate the entire calculation pipeline.
+
+### Critical: TradingView Export Date Range
+
+**⚠️ ALWAYS set export start date EARLIER than validation start date!**
+
+When exporting trade data from TradingView for golden validation:
+
+1. **Validation period**: The actual date range you want to test (e.g., 2023-01-01 to 2024-12-31)
+2. **Export start date**: At least 100 bars BEFORE the validation start (e.g., 2022-12-01)
+3. **Why this matters**:
+   - Indicators need historical data to "warm up" before producing accurate values
+   - TradingView may filter out trades that occur near the export start date
+   - Without warmup data, early trades may be missing or have different values
+
+**Example:**
+```
+Validation range:  2023-01-01 to 2024-12-31
+Export start:      2022-12-01 (1 month buffer for hourly data)
+Export end:        2024-12-31
+```
+
+**Recommended buffer sizes:**
+- Hourly data: 100 bars = ~5-7 days (recommend 1 month to be safe)
+- Daily data: 100 bars = ~5 months (recommend 6 months)
+- 4-hour data: 100 bars = ~17 days (recommend 1 month)
+
+### How Filtering Works
+
+The test suite automatically filters trades to the validation range:
+
+1. Export includes warmup period trades (before validation start)
+2. `tradingview_trades` fixture filters to only include trades where `entry_time >= validation_start`
+3. Platform backtest runs on extended data (with warmup)
+4. `load_platform_trades()` filters platform trades to validation range
+5. Both datasets now have matching trade counts for comparison
+
+See: `tests/validation/conftest.py::tradingview_trades()` for implementation details.
+
+### Documentation Locations
+
+When setting up golden validation for a new strategy, document the export requirements in:
+
+1. **Strategy README**: `configs/golden_strategies/{strategy_name}/README.md`
+2. **This guide**: You're reading it now
+3. **Code comments**: In `tests/validation/conftest.py`
+
 ## Resources
 
 - [pytest documentation](https://docs.pytest.org/)
 - [unittest.mock documentation](https://docs.python.org/3/library/unittest.mock.html)
 - [REQUIREMENTS.md](../REQUIREMENTS.md) - Full requirements list
 - [requirement_to_test_map.md](./requirement_to_test_map.md) - Requirement → Test mapping
+- [Golden Validation Setup](./code_tasks/setup_tradingview_golden_validation.md) - Detailed golden validation guide
