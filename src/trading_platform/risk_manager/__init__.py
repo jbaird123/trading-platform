@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .core import RiskExitManager
 from .dynamic_rem import DynamicREM
-from .rem import RiskExitManager
 
 __all__ = ["RiskExitManager", "DynamicREM", "create_rem"]
 
