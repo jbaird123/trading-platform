@@ -60,5 +60,4 @@ if short_exit and strategy.position_size < 0
     strategy.close("Short")
 
 // Background coloring for regime visualization
-bgcolor(ema_fast > ema_slow ? color.new(color.green, 95) :
-        color.new(color.red, 95), title="Trend Direction")
+bgcolor(ema_fast > ema_slow ? color.new(color.green, 95) : color.new(color.red, 95), title="Trend Direction")
