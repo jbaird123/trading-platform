@@ -1,0 +1,64 @@
+//@version=5
+strategy("EMA Crossover 20pip Stop Golden",
+         overlay=true,
+         initial_capital=100000,
+         default_qty_value=10000,
+         default_qty_type=strategy.cash,
+         commission_type=strategy.commission.percent,
+         commission_value=0.0,
+         pyramiding=1,
+         process_orders_on_close=false,
+         calc_on_order_fills=false,
+         calc_on_every_tick=false)
+
+// Input parameters (must match our YAML exactly)
+ema_fast_length = input.int(20, "Fast EMA Length")
+ema_slow_length = input.int(50, "Slow EMA Length")
+stop_loss_pips = input.int(20, "Stop Loss (pips)")
+
+// Calculate EMAs
+ema_fast = ta.ema(close, ema_fast_length)
+ema_slow = ta.ema(close, ema_slow_length)
+
+// Plot EMAs for visualization
+plot(ema_fast, "EMA Fast", color=color.blue, linewidth=2)
+plot(ema_slow, "EMA Slow", color=color.red, linewidth=2)
+
+// Entry conditions
+long_entry = ta.crossover(ema_fast, ema_slow)
+short_entry = ta.crossunder(ema_fast, ema_slow)
+
+// Exit conditions (signal-based exit)
+long_exit = ta.crossunder(ema_fast, ema_slow)
+short_exit = ta.crossover(ema_fast, ema_slow)
+
+// Calculate stop loss in price terms
+// For EURUSD: 1 pip = 0.0001, so 20 pips = 0.0020
+pip_value = syminfo.mintick * 10  // For EURUSD: 0.00001 * 10 = 0.0001
+stop_loss_distance = stop_loss_pips * pip_value
+
+// Execute trades with stop loss
+if long_entry
+    strategy.close("Short")
+    strategy.entry("Long", strategy.long)
+    // Set stop loss at entry price - 20 pips
+    strategy.exit("Long SL", "Long",
+                  stop=close - stop_loss_distance)
+
+if short_entry
+    strategy.close("Long")
+    strategy.entry("Short", strategy.short)
+    // Set stop loss at entry price + 20 pips
+    strategy.exit("Short SL", "Short",
+                  stop=close + stop_loss_distance)
+
+// Signal-based exits (override stop if signal triggers first)
+if long_exit and strategy.position_size > 0
+    strategy.close("Long")
+
+if short_exit and strategy.position_size < 0
+    strategy.close("Short")
+
+// Background coloring for regime visualization
+bgcolor(ema_fast > ema_slow ? color.new(color.green, 95) :
+        color.new(color.red, 95), title="Trend Direction")
