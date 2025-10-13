@@ -15,6 +15,9 @@ costs:
   commission: 0.0
   slippage_per_unit: 0.0
 
+# Execution model (how entries/exits are filled)
+execution_model: "next_bar_open"  # REQUIRED - matches TradingView behavior
+
 # Standard fill policy
 fill_policy:
   type: "next_bar_open"
