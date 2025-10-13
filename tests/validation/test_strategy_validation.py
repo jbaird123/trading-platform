@@ -24,20 +24,18 @@ import pytest
 # === TOLERANCE DEFINITIONS ===
 
 TRADE_VALIDATION_TOLERANCES: dict[str, Any] = {
-    "entry_time": timedelta(
-        hours=1
-    ),  # 1-hour tolerance (minor EMA floating-point differences)
-    "exit_time": timedelta(hours=1),  # 1-hour tolerance
-    "entry_price": 0.00001,  # 0.1 pip for forex (tighter tolerance with next_bar_open)
-    "exit_price": 0.00001,  # 0.1 pip for forex
-    "trade_pnl": 5.00,  # $5.00 per trade (timing-related differences)
-    "total_pnl": 10.00,  # $10.00 total (minor differences from timing/rounding)
+    "entry_time": timedelta(hours=0),  # Zero tolerance - exact match required
+    "exit_time": timedelta(hours=0),  # Zero tolerance - exact match required
+    "entry_price": 0.0,  # Zero tolerance - exact match required
+    "exit_price": 0.0,  # Zero tolerance - exact match required
+    "trade_pnl": 0.01,  # 1 cent tolerance for floating-point precision
+    "total_pnl": 0.01,  # 1 cent tolerance for floating-point precision
     "trade_count": 0,  # Must match exactly
 }
 
 EQUITY_CURVE_TOLERANCES: dict[str, float] = {
-    "correlation": 0.995,  # r > 0.995 (highly correlated)
-    "final_equity": 100.00,  # $100.00 difference
+    "correlation": 1.0,  # Perfect correlation required
+    "final_equity": 0.01,  # 1 cent tolerance for floating-point precision
 }
 
 METRICS_TOLERANCES = {
@@ -87,27 +85,13 @@ def load_platform_trades(
             days=1, seconds=-1
         )
 
-        # Get timeframe from run_config to calculate bar duration
-        timeframe = run_config.get("instrument", {}).get("timeframe", "1H")
-
-        # Calculate bars back based on timeframe
-        # For hourly data: 100 bars = 100 hours
-        # For daily data: 100 bars = 100 days, etc.
-        if timeframe == "1H":
-            bars_back_hours = 100
-        elif timeframe == "1D":
-            bars_back_hours = 100 * 24
-        elif timeframe == "4H":
-            bars_back_hours = 100 * 4
-        else:
-            # Default to hourly if unknown
-            bars_back_hours = 100
-
-        # Calculate extended start (100 bars back from validation start)
-        extended_start = start_date - timedelta(hours=bars_back_hours)
+        # UPDATE: Using fixed 2022-12-01 start date per TradingView exports
+        # This ensures identical warmup period and indicator calculations
+        # (previously calculated dynamically as 100 bars back)
+        extended_start = pd.Timestamp("2022-12-01", tz="UTC")
 
         # Filter OHLCV data to extended range
-        # Start: 100 bars before validation start (for warmup)
+        # Start: 2022-12-01 (matches TradingView export warmup)
         # End: validation end date (don't process data beyond validation period)
         ohlcv_to_use = ohlcv_data[
             (ohlcv_data.index >= extended_start) & (ohlcv_data.index <= end_date)
@@ -830,3 +814,163 @@ def test_metadata_schema_validation():
 
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(instance=invalid_metadata, schema=schema)
+
+
+# === 20-PIP STOP LOSS VARIATION TESTS ===
+
+
+def test_ema_crossover_20pip_stop_trade_count_matches_tradingview(
+    golden_strategy_config,
+    tradingview_trades,
+    tradingview_ohlcv,
+    golden_metadata,
+):
+    """Validates 20-pip stop variation produces same number of trades.
+
+    # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
+    """
+    platform_trades = load_platform_trades(
+        strategy_name="ema_crossover/20pip_stop",
+        run_config=golden_strategy_config["run_config"],
+        ohlcv_data=tradingview_ohlcv,
+        date_range=golden_metadata.get("date_range"),
+    )
+
+    if "Signal" in tradingview_trades.columns:
+        closed_trades = tradingview_trades[tradingview_trades["Signal"] != "Open"]
+    else:
+        closed_trades = tradingview_trades
+
+    tv_trade_count = len(closed_trades) // 2
+    platform_trade_count = len(platform_trades)
+
+    expected_closed_trades = golden_metadata.get(
+        "validation_range_closed_trades",
+        golden_metadata.get("closed_trades", golden_metadata.get("total_trades")),
+    )
+
+    assert platform_trade_count == tv_trade_count, (
+        f"Trade count mismatch: Platform={platform_trade_count}, "
+        f"TradingView={tv_trade_count}"
+    )
+
+    assert platform_trade_count == expected_closed_trades, (
+        f"Trade count vs metadata: Platform={platform_trade_count}, "
+        f"Metadata={expected_closed_trades}"
+    )
+
+
+def test_ema_crossover_20pip_stop_trade_times_match_tradingview(
+    golden_strategy_config,
+    tradingview_trades,
+    tradingview_ohlcv,
+    golden_metadata,
+):
+    """Validates 20-pip stop entry/exit times match within tolerance.
+
+    # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
+    """
+    platform_trades = load_platform_trades(
+        strategy_name="ema_crossover/20pip_stop",
+        run_config=golden_strategy_config["run_config"],
+        ohlcv_data=tradingview_ohlcv,
+        date_range=golden_metadata.get("date_range"),
+    )
+
+    platform_df, tv_df = align_trades(platform_trades, tradingview_trades)
+    tolerances = TRADE_VALIDATION_TOLERANCES
+    time_tolerance = tolerances["entry_time"]
+
+    mismatches = []
+    for i in range(len(platform_df)):
+        platform_trade = platform_df.iloc[i]
+        tv_trade = tv_df.iloc[i]
+
+        entry_diff = abs(platform_trade["entry_time"] - tv_trade["entry_time"])
+        exit_diff = abs(platform_trade["exit_time"] - tv_trade["exit_time"])
+
+        if entry_diff > time_tolerance:
+            mismatches.append(
+                f"Trade {i}: Entry time diff {entry_diff} > " f"{time_tolerance}"
+            )
+
+        if exit_diff > time_tolerance:
+            mismatches.append(
+                f"Trade {i}: Exit time diff {exit_diff} > " f"{time_tolerance}"
+            )
+
+    assert len(mismatches) == 0, "Time mismatches found:\n" + "\n".join(mismatches)
+
+
+def test_ema_crossover_20pip_stop_trade_pnl_matches_tradingview(
+    golden_strategy_config,
+    tradingview_trades,
+    tradingview_ohlcv,
+    golden_metadata,
+):
+    """Validates 20-pip stop PnL matches within tolerance.
+
+    # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3], [PM-5.6]
+    """
+    platform_trades = load_platform_trades(
+        strategy_name="ema_crossover/20pip_stop",
+        run_config=golden_strategy_config["run_config"],
+        ohlcv_data=tradingview_ohlcv,
+        date_range=golden_metadata.get("date_range"),
+    )
+
+    platform_df, tv_df = align_trades(platform_trades, tradingview_trades)
+    results = compare_trade_sequences(platform_df, tv_df, TRADE_VALIDATION_TOLERANCES)
+
+    assert results["passed"], (
+        f"PnL comparison failed:\n"
+        f"Discrepancies: {len(results['discrepancies'])}\n"
+        f"Details: {results['discrepancies'][:5]}"
+    )
+
+
+def test_ema_crossover_20pip_stop_equity_curve_correlation(
+    golden_strategy_config,
+    tradingview_trades,
+    tradingview_ohlcv,
+    golden_metadata,
+):
+    """Validates 20-pip stop equity curves are highly correlated.
+
+    # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
+    """
+    platform_trades = load_platform_trades(
+        strategy_name="ema_crossover/20pip_stop",
+        run_config=golden_strategy_config["run_config"],
+        ohlcv_data=tradingview_ohlcv,
+        date_range=golden_metadata.get("date_range"),
+    )
+
+    initial_capital = golden_metadata.get("initial_capital", 100000.0)
+
+    platform_df, tv_df = align_trades(platform_trades, tradingview_trades)
+
+    platform_equity = [initial_capital]
+    tv_equity = [initial_capital]
+
+    for i in range(len(platform_df)):
+        platform_equity.append(platform_equity[-1] + platform_df.iloc[i]["pnl"])
+        tv_equity.append(tv_equity[-1] + tv_df.iloc[i]["pnl"])
+
+    correlation = np.corrcoef(platform_equity, tv_equity)[0, 1]
+    final_diff = abs(platform_equity[-1] - tv_equity[-1])
+
+    print("\n=== 20-Pip Stop Equity Analysis ===")
+    print(f"Platform final: ${platform_equity[-1]:,.2f}")
+    print(f"TradingView final: ${tv_equity[-1]:,.2f}")
+    print(f"Difference: ${final_diff:.2f}")
+    print(f"Correlation: {correlation:.6f}")
+
+    min_corr = EQUITY_CURVE_TOLERANCES["correlation"]
+    max_diff = EQUITY_CURVE_TOLERANCES["final_equity"]
+
+    assert correlation >= min_corr, f"Correlation {correlation:.6f} < {min_corr:.6f}"
+
+    assert (
+        final_diff <= max_diff
+    ), f"Final equity diff ${final_diff:.2f} > ${max_diff:.2f}"

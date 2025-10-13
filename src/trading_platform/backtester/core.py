@@ -336,32 +336,27 @@ def run_backtest(
             context = {"strategy_features": strategy_features}
 
         # === REM EXIT PHASE: Check risk-based exits ===
-        # REM exits (stop-loss, take-profit) are ALWAYS allowed
-        # regardless of min_hold_bars (protective risk management)
+        # REM exits (stop-loss, take-profit) are ALWAYS executed immediately
+        # at the intra-bar price when hit, regardless of execution_model.
+        # This is realistic behavior - protective orders execute intra-bar.
+        # The execution_model setting only applies to signal-based entries/exits.
         if portfolio.current_position and rem is not None:
             rem_result = rem.check_exits_intrabar(
                 portfolio.current_position, current_bar
             )
 
             if rem_result is not None and rem_result["action"] == "should_close":
-                if config.execution_model == "current_bar_close":
-                    # Immediate execution at REM-calculated price
-                    portfolio.close_position(
-                        exit_price=rem_result["exit_price"],
-                        exit_time=cast(datetime, current_bar.name),
-                        exit_reason=rem_result["reason"],
-                        context_at_exit=context,
-                    )
-                    if return_exposure:
-                        exposure_curve.append((cast(datetime, current_bar.name), 0.0))
-                    continue
-                else:  # next_bar_open
-                    # Defer execution to next bar's open
-                    pending_exit = {
-                        "reason": rem_result["reason"],
-                        "context": context,
-                    }
-                    continue
+                # ALWAYS execute REM exits immediately at intra-bar price
+                # Stop-loss and take-profit orders don't wait for bar close
+                portfolio.close_position(
+                    exit_price=rem_result["exit_price"],
+                    exit_time=cast(datetime, current_bar.name),
+                    exit_reason=rem_result["reason"],
+                    context_at_exit=context,
+                )
+                if return_exposure:
+                    exposure_curve.append((cast(datetime, current_bar.name), 0.0))
+                continue
 
         # === STRATEGY COMMAND PHASE: Process strategy signals ===
         result = portfolio.process_command(

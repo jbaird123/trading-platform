@@ -4,13 +4,5 @@ description: "Fixed 20-pip stop loss for golden validation"
 
 # Fixed stop loss: 20 pips
 # For EURUSD: 20 pips = 0.0020 in canonical price terms
-# Platform translates this based on instrument definition
 stop_loss:
-  type: "fixed_pips"
-  value: 20
-
-# No take-profit for this test (isolate stop-loss behavior)
-take_profit: null
-
-# No trailing stop
-trailing_stop: null
+  price_offset: 0.0020
