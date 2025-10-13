@@ -221,30 +221,32 @@ class PortfolioManager:
         context: dict | None,
         min_hold_bars: int = 0,
     ) -> dict[str, Any]:
-        """Handle exit_long or exit_short command."""
+        """
+        Handle exit_long or exit_short command.
 
-        if self.current_position and self.current_position.side == side:
-            # Check minimum hold time before allowing signal exits
-            if self.current_position.bars_held < min_hold_bars:
-                return {
-                    "action": "ignored",
-                    "reason": "min_hold_time_not_met",
-                    "side": side,
-                }
+        Returns action descriptors instead of executing trades directly.
+        The caller (Backtester) is responsible for execution timing.
+        """
 
-            self.close_position(
-                exit_price=current_bar["close"],
-                exit_time=cast(datetime, current_bar.name),
-                exit_reason="signal",
-                context_at_exit=context,
-            )
-            return {"action": "exited", "side": side}
-        else:
+        # Case 1: No position exists
+        if not self.current_position:
+            return {"action": "no_action", "reason": "no_position"}
+
+        # Case 3: Exit command for opposite side
+        if self.current_position.side != side:
+            return {"action": "no_action", "reason": "wrong_side"}
+
+        # Case 2: Exit command matches current position side
+        # Check minimum hold time before allowing signal exits
+        if self.current_position.bars_held < min_hold_bars:
             return {
-                "action": "ignored",
-                "reason": "no_matching_position",
+                "action": "no_action",
+                "reason": "min_hold_time_not_met",
                 "side": side,
             }
+
+        # Return should_close descriptor - execution deferred to caller
+        return {"action": "should_close", "reason": "signal", "side": side}
 
     def _check_active_entry_windows(
         self,
@@ -294,6 +296,35 @@ class PortfolioManager:
             return True  # Infinite window
 
         return bars_since_start <= entry_window_bars
+
+    def complete_pending_exit_and_open_entry_window(
+        self, side: str, bar_index: int
+    ) -> dict[str, Any]:
+        """
+        Complete a pending exit and open entry window for new side.
+
+        Called by Backtester after executing a flip exit. Clears the
+        _pending_exit flag and opens entry window for the new side.
+
+        Args:
+            side: Side for new entry window ('long' or 'short')
+            bar_index: Current bar index
+
+        Returns:
+            Action descriptor confirming entry window opened
+        """
+        # Sanity check: should only be called when pending exit is set
+        assert (
+            self._pending_exit
+        ), "complete_pending_exit_and_open_entry_window called without pending exit"
+
+        # Clear pending exit flag
+        self._pending_exit = False
+
+        # Open entry window for new side
+        self._entry_windows[side] = (bar_index, None)
+
+        return {"action": "entry_window_opened", "side": side, "bar_index": bar_index}
 
     def _get_point_value(self, entry_price: float, exit_price: float) -> float:
         """

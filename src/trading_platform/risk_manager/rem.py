@@ -3,7 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, TextIO
 
+import pandas as pd
 import yaml
+
+from trading_platform.portfolio.position import Position
 
 
 class RiskExitManager:
@@ -80,3 +83,65 @@ class RiskExitManager:
         if side == "long":
             return entry - dist if is_stop else entry + dist
         return entry + dist if is_stop else entry - dist
+
+    def check_exits_intrabar(
+        self, position: Position, current_bar: pd.Series
+    ) -> dict[str, Any] | None:
+        """
+        Check if position should exit based on intrabar price action.
+
+        Returns action descriptor with exit price if stop/TP triggered,
+        None otherwise. This allows Backtester to control execution timing.
+
+        Args:
+            position: Current open position
+            current_bar: Bar with OHLC data
+
+        Returns:
+            Action descriptor dict or None
+        """
+        # Get stop-loss and take-profit prices
+        stop_loss_price, take_profit_price = self.check_exits(
+            position.side, position.entry_price
+        )
+
+        # Check stop-loss trigger
+        if stop_loss_price is not None:
+            if position.side == "long":
+                # Long: stop triggers if low <= stop price
+                if current_bar["low"] <= stop_loss_price:
+                    return {
+                        "action": "should_close",
+                        "reason": "stop_loss",
+                        "exit_price": stop_loss_price,
+                    }
+            else:  # short
+                # Short: stop triggers if high >= stop price
+                if current_bar["high"] >= stop_loss_price:
+                    return {
+                        "action": "should_close",
+                        "reason": "stop_loss",
+                        "exit_price": stop_loss_price,
+                    }
+
+        # Check take-profit trigger
+        if take_profit_price is not None:
+            if position.side == "long":
+                # Long: TP triggers if high >= TP price
+                if current_bar["high"] >= take_profit_price:
+                    return {
+                        "action": "should_close",
+                        "reason": "take_profit",
+                        "exit_price": take_profit_price,
+                    }
+            else:  # short
+                # Short: TP triggers if low <= TP price
+                if current_bar["low"] <= take_profit_price:
+                    return {
+                        "action": "should_close",
+                        "reason": "take_profit",
+                        "exit_price": take_profit_price,
+                    }
+
+        # Neither stop nor TP triggered
+        return None

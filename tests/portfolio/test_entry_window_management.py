@@ -252,7 +252,7 @@ def test_pm_5_8_3_entry_commands_only():
         entry_time=datetime(2024, 1, 1),
     )
 
-    # Exit command should execute immediately (no window)
+    # Exit command should return should_close (no window logic for exits)
     result = pm.process_command(
         "exit_long",
         5,
@@ -263,8 +263,12 @@ def test_pm_5_8_3_entry_commands_only():
         None,
     )
 
-    assert result["action"] == "exited", "Exit should execute immediately"
-    assert pm.current_position is None
+    # After refactor: exits return should_close descriptor
+    assert result["action"] == "should_close"
+    assert result["reason"] == "signal"
+    assert result["side"] == "long"
+    # Position NOT closed yet - execution deferred to caller
+    assert pm.current_position is not None
 
 
 # PM-5.8.4: Entry windows persist across None commands
@@ -701,3 +705,123 @@ def test_entry_command_with_opposite_position_returns_should_close():
     assert (
         window_start == -1
     ), "Entry window should NOT be opened yet (window_start should be -1)"
+
+
+def test_complete_pending_exit_opens_window():
+    """
+    Test complete_pending_exit_and_open_entry_window method.
+
+    After exit completes, this method should clear _pending_exit flag
+    and open entry window for the new side.
+    """
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=100000, instrument=TEST_INSTRUMENT
+    )
+
+    # Simulate pending exit state
+    pm._pending_exit = True
+
+    # Call complete_pending_exit_and_open_entry_window
+    result = pm.complete_pending_exit_and_open_entry_window("short", 101)
+
+    # Verify _pending_exit cleared
+    assert pm._pending_exit is False, "Should clear _pending_exit flag"
+
+    # Verify entry window opened
+    window_start, last_entered = pm._entry_windows["short"]
+    assert window_start == 101, "Should open entry window at bar 101"
+    assert last_entered is None, "Should not be entered yet"
+
+    # Verify return value
+    assert result == {
+        "action": "entry_window_opened",
+        "side": "short",
+        "bar_index": 101,
+    }
+
+
+def test_exit_command_with_no_position_returns_no_action():
+    """
+    Test exit command with no position returns no_action.
+
+    When no position exists, exit command should return no_action.
+    """
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=100000, instrument=TEST_INSTRUMENT
+    )
+
+    result = pm.process_command(
+        command="exit_long",
+        bar_index=50,
+        warmup_threshold=0,
+        entry_window_bars=3,
+        allow_flip=False,
+        current_bar=pd.Series({"close": 1.0}, name=datetime(2024, 1, 1)),
+        context=None,
+    )
+
+    assert result == {"action": "no_action", "reason": "no_position"}
+
+
+def test_exit_command_with_matching_position_returns_should_close():
+    """
+    Test exit command matching position returns should_close.
+
+    When position side matches exit command, should return should_close.
+    """
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=100000, instrument=TEST_INSTRUMENT
+    )
+
+    # Create long position
+    pm.create_new_position(
+        symbol="TEST",
+        side="long",
+        entry_price=1.0,
+        size=100,
+        entry_time=datetime(2024, 1, 1),
+    )
+
+    result = pm.process_command(
+        command="exit_long",
+        bar_index=50,
+        warmup_threshold=0,
+        entry_window_bars=3,
+        allow_flip=False,
+        current_bar=pd.Series({"close": 1.05}, name=datetime(2024, 1, 1, 1)),
+        context=None,
+    )
+
+    assert result == {"action": "should_close", "reason": "signal", "side": "long"}
+
+
+def test_exit_command_with_opposite_position_returns_no_action():
+    """
+    Test exit command for opposite position returns no_action.
+
+    When exit command doesn't match position side, return no_action.
+    """
+    pm = PortfolioManager(
+        base_currency="USD", initial_cash=100000, instrument=TEST_INSTRUMENT
+    )
+
+    # Create long position
+    pm.create_new_position(
+        symbol="TEST",
+        side="long",
+        entry_price=1.0,
+        size=100,
+        entry_time=datetime(2024, 1, 1),
+    )
+
+    result = pm.process_command(
+        command="exit_short",
+        bar_index=50,
+        warmup_threshold=0,
+        entry_window_bars=3,
+        allow_flip=False,
+        current_bar=pd.Series({"close": 1.05}, name=datetime(2024, 1, 1, 1)),
+        context=None,
+    )
+
+    assert result == {"action": "no_action", "reason": "wrong_side"}

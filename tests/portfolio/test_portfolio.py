@@ -213,8 +213,8 @@ def test_process_exit_when_no_position():
         context=None,
     )
 
-    assert result["action"] == "ignored"
-    assert result["reason"] == "no_matching_position"
+    assert result["action"] == "no_action"
+    assert result["reason"] == "no_position"
 
 
 @requires("PM-5.8")
