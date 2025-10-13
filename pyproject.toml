@@ -27,7 +27,7 @@ scipy = "^1.16.2"
 skl2onnx = "^1.16.0"
 fastapi = "^0.111.0"
 uvicorn = {extras = ["standard"], version = "^0.30.1"}
-pandas-ta = "^0.4.71b0"
+ta = "0.11.0"
 joblib = "^1.5.2"
 google-generativeai = "^0.8.5"
 statsmodels = "^0.14.5"
@@ -36,6 +36,7 @@ dukascopy-python = "^4.0.1"
 openai = "^1.58.1"
 anthropic = "^0.40.0"
 dvc = {extras = ["s3"], version = "^3.63.0"}
+ta-lib = ">=0.4.30"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"
@@ -82,10 +83,16 @@ warn_unused_ignores = true
 show_error_codes = true
 
 [[tool.mypy.overrides]]
+module = "trading_platform.strategy.indicator_implementations"
+# Ignore arg-type errors for TA-Lib functions (SMA, WMA, candlestick patterns)
+# pandas .values can return ExtensionArray or ndarray, talib expects ndarray
+disable_error_code = ["arg-type"]
+
+[[tool.mypy.overrides]]
 module = [
     "scipy.*",
     "sklearn.*",
-    "pandas_ta.*",
+    "ta.*",
     "yaml",
     "skl2onnx.*",
     "lightgbm.*",
@@ -121,9 +128,13 @@ filterwarnings = [
     # Pandas internal downcasting warnings in test code - will be resolved when pandas removes this behavior
     "ignore:Downcasting object dtype arrays.*:FutureWarning",
     "ignore:Setting an item of incompatible dtype is deprecated:FutureWarning:tests.conftest",
+    # Third-party ta library PSAR implementation has dtype compatibility issues - fixed in future pandas versions
+    "ignore:Setting an item of incompatible dtype is deprecated.*:FutureWarning:ta.trend",
+    "ignore:Series.__setitem__ treating keys as positions is deprecated.*:FutureWarning:ta.trend",
 ]
 markers = [
     "slow: Marks a test as slow-running (e.g., performance benchmarks).",
+    "validation: Golden validation tests (TradingView comparison).",
     "req_DH_2_1: Marks a test as covering a specific requirement.",
     "req_DH_2_2: Marks a test as covering a specific requirement.",
     "req_DH_2_3: Marks a test as covering a specific requirement.",

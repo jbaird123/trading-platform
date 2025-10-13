@@ -1,0 +1,417 @@
+{
+  "$schema": "../../schemas/golden_metadata.schema.json",
+  "dataset_type": "indicators",
+  "tradingview_version": "unknown",
+  "export_date": "2025-10-12",
+  "timezone": "UTC (Reykjavik)",
+  "date_range": {
+    "start": "2022-02-04T17:00:00Z",
+    "end": "2025-10-10T20:00:00Z"
+  },
+  "instrument": {
+    "symbol": "EURUSD",
+    "broker": "OANDA",
+    "asset_class": "forex"
+  },
+  "timeframe": "1h",
+  "batches": [
+    {
+      "batch_number": 1,
+      "filename": "batch1_moving_averages_eurusd_1h.csv",
+      "row_count": 22447,
+      "column_count": 11,
+      "indicators": [
+        {
+          "name": "SMA",
+          "parameters": {
+            "length": 20
+          },
+          "column_name": "SMA 20"
+        },
+        {
+          "name": "EMA",
+          "parameters": {
+            "length": 20
+          },
+          "column_name": "EMA 20"
+        },
+        {
+          "name": "WMA",
+          "parameters": {
+            "length": 20
+          },
+          "column_name": "WMA 20"
+        },
+        {
+          "name": "RSI",
+          "parameters": {
+            "length": 14
+          },
+          "column_name": "RSI 14"
+        },
+        {
+          "name": "ATR",
+          "parameters": {
+            "length": 14
+          },
+          "column_name": "ATR 14"
+        },
+        {
+          "name": "PSAR",
+          "parameters": {
+            "start": 0.02,
+            "increment": 0.02,
+            "max": 0.2
+          },
+          "column_name": "PSAR"
+        }
+      ]
+    },
+    {
+      "batch_number": 2,
+      "filename": "batch2_oscillators_eurusd_1h.csv",
+      "row_count": 22447,
+      "column_count": 13,
+      "indicators": [
+        {
+          "name": "MACD",
+          "parameters": {
+            "fast": 12,
+            "slow": 26,
+            "signal": 9
+          },
+          "column_name": "MACD"
+        },
+        {
+          "name": "MACD_Signal",
+          "parameters": {
+            "fast": 12,
+            "slow": 26,
+            "signal": 9
+          },
+          "column_name": "Signal"
+        },
+        {
+          "name": "MACD_Histogram",
+          "parameters": {
+            "fast": 12,
+            "slow": 26,
+            "signal": 9
+          },
+          "column_name": "Histogram"
+        },
+        {
+          "name": "Stochastic_K",
+          "parameters": {
+            "k_length": 14,
+            "d_length": 3
+          },
+          "column_name": "Stoch K"
+        },
+        {
+          "name": "Stochastic_D",
+          "parameters": {
+            "k_length": 14,
+            "d_length": 3
+          },
+          "column_name": "Stoch D"
+        },
+        {
+          "name": "CCI",
+          "parameters": {
+            "length": 20
+          },
+          "column_name": "CCI 20"
+        },
+        {
+          "name": "ROC",
+          "parameters": {
+            "length": 12
+          },
+          "column_name": "ROC 12"
+        },
+        {
+          "name": "Choppiness",
+          "parameters": {
+            "length": 14
+          },
+          "column_name": "Choppiness"
+        }
+      ]
+    },
+    {
+      "batch_number": 3,
+      "filename": "batch3_volume_eurusd_1h.csv",
+      "row_count": 22447,
+      "column_count": 8,
+      "indicators": [
+        {
+          "name": "Volume",
+          "parameters": {},
+          "column_name": "Volume"
+        },
+        {
+          "name": "OBV",
+          "parameters": {},
+          "column_name": "OBV"
+        },
+        {
+          "name": "VWAP",
+          "parameters": {},
+          "column_name": "VWAP"
+        }
+      ]
+    },
+    {
+      "batch_number": 4,
+      "filename": "batch4_adx_eurusd_1h.csv",
+      "row_count": 22447,
+      "column_count": 8,
+      "indicators": [
+        {
+          "name": "DMI_Plus",
+          "parameters": {
+            "length": 14
+          },
+          "column_name": "DI+"
+        },
+        {
+          "name": "DMI_Minus",
+          "parameters": {
+            "length": 14
+          },
+          "column_name": "DI-"
+        },
+        {
+          "name": "ADX",
+          "parameters": {
+            "length": 14
+          },
+          "column_name": "ADX 14"
+        }
+      ]
+    },
+    {
+      "batch_number": 5,
+      "filename": "batch5_bollinger_eurusd_1h.csv",
+      "row_count": 22447,
+      "column_count": 8,
+      "indicators": [
+        {
+          "name": "BB_Upper",
+          "parameters": {
+            "length": 20,
+            "ndev": 2.0
+          },
+          "column_name": "BB Upper"
+        },
+        {
+          "name": "BB_Middle",
+          "parameters": {
+            "length": 20,
+            "ndev": 2.0
+          },
+          "column_name": "BB Middle"
+        },
+        {
+          "name": "BB_Lower",
+          "parameters": {
+            "length": 20,
+            "ndev": 2.0
+          },
+          "column_name": "BB Lower"
+        }
+      ]
+    },
+    {
+      "batch_number": 6,
+      "filename": "batch6_supertrend_eurusd_1h.csv",
+      "row_count": 22447,
+      "column_count": 7,
+      "indicators": [
+        {
+          "name": "SuperTrend",
+          "parameters": {
+            "factor": 3.0,
+            "atr_period": 7
+          },
+          "column_name": "SuperTrend"
+        },
+        {
+          "name": "SuperTrend_Direction",
+          "parameters": {
+            "factor": 3.0,
+            "atr_period": 7
+          },
+          "column_name": "ST Direction"
+        }
+      ]
+    },
+    {
+      "batch_number": 7,
+      "filename": "batch7_keltner_eurusd_1h.csv",
+      "row_count": 22447,
+      "column_count": 8,
+      "indicators": [
+        {
+          "name": "KC_Upper",
+          "parameters": {
+            "ema_length": 20,
+            "atr_length": 20,
+            "multiplier": 2.0
+          },
+          "column_name": "KC Upper"
+        },
+        {
+          "name": "KC_Middle",
+          "parameters": {
+            "ema_length": 20,
+            "atr_length": 20,
+            "multiplier": 2.0
+          },
+          "column_name": "KC Middle"
+        },
+        {
+          "name": "KC_Lower",
+          "parameters": {
+            "ema_length": 20,
+            "atr_length": 20,
+            "multiplier": 2.0
+          },
+          "column_name": "KC Lower"
+        }
+      ]
+    },
+    {
+      "batch_number": 8,
+      "filename": "batch8_ichimoku_eurusd_1h.csv",
+      "row_count": 22447,
+      "column_count": 10,
+      "indicators": [
+        {
+          "name": "Ichimoku_Conversion",
+          "parameters": {
+            "conversion_period": 9
+          },
+          "column_name": "Ich Conversion"
+        },
+        {
+          "name": "Ichimoku_Base",
+          "parameters": {
+            "base_period": 26
+          },
+          "column_name": "Ich Base"
+        },
+        {
+          "name": "Ichimoku_SpanA",
+          "parameters": {
+            "conversion_period": 9,
+            "base_period": 26
+          },
+          "column_name": "Ich Span A"
+        },
+        {
+          "name": "Ichimoku_SpanB",
+          "parameters": {
+            "span_period": 52
+          },
+          "column_name": "Ich Span B"
+        },
+        {
+          "name": "Ichimoku_Lagging",
+          "parameters": {
+            "displacement": 26
+          },
+          "column_name": "Ich Lagging"
+        }
+      ]
+    },
+    {
+      "batch_number": 9,
+      "filename": "batch9_cmf_eurusd_1h.csv",
+      "row_count": 22447,
+      "column_count": 6,
+      "indicators": [
+        {
+          "name": "CMF",
+          "parameters": {
+            "length": 20
+          },
+          "column_name": "CMF 20"
+        }
+      ]
+    },
+    {
+      "batch_number": 10,
+      "filename": "batch10_levels_eurusd_1h.csv",
+      "row_count": 22447,
+      "column_count": 12,
+      "indicators": [
+        {
+          "name": "HHV",
+          "parameters": {
+            "length": 20
+          },
+          "column_name": "HHV 20"
+        },
+        {
+          "name": "LLV",
+          "parameters": {
+            "length": 20
+          },
+          "column_name": "LLV 20"
+        },
+        {
+          "name": "DC_Upper",
+          "parameters": {
+            "length": 20
+          },
+          "column_name": "DC Upper"
+        },
+        {
+          "name": "DC_Lower",
+          "parameters": {
+            "length": 20
+          },
+          "column_name": "DC Lower"
+        },
+        {
+          "name": "Swing_High",
+          "parameters": {
+            "left_bars": 10,
+            "right_bars": 10
+          },
+          "column_name": "Swing High"
+        },
+        {
+          "name": "Swing_Low",
+          "parameters": {
+            "left_bars": 10,
+            "right_bars": 10
+          },
+          "column_name": "Swing Low"
+        },
+        {
+          "name": "ATR_Percentile",
+          "parameters": {
+            "atr_length": 14,
+            "lookback": 20
+          },
+          "column_name": "ATR Percentile"
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "TradingView CSV export limited to ~11 columns total",
+    "40 indicators split across 10 batches",
+    "All batches share same OHLCV data, different indicator columns",
+    "Volume indicator included in batch3 (was previously in separate batch10)",
+    "Files kept unmodified from TradingView export",
+    "Merging performed in-memory during test execution"
+  ],
+  "total_indicators": 40,
+  "total_batches": 10,
+  "batches_exported": 10,
+  "batches_pending": []
+}

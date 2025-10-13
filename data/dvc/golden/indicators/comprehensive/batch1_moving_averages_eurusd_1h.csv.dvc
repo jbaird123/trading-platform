@@ -1,0 +1,5 @@
+outs:
+- md5: 1423c208805785a999a1a34b55fa3587
+  size: 3750102
+  hash: md5
+  path: batch1_moving_averages_eurusd_1h.csv

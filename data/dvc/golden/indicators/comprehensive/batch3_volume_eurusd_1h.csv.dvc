@@ -1,0 +1,5 @@
+outs:
+- md5: 8baf82dffae624e4ead2c8d149835177
+  size: 1935993
+  hash: md5
+  path: batch3_volume_eurusd_1h.csv

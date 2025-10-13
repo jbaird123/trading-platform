@@ -210,7 +210,10 @@ def test_profile_adaptive_trend_features(
     assert len(strategy_df) == len(test_data)
     assert len(rmm_df) > 0  # RMM resamples to 1D, so fewer rows expected
     assert "ema_slope_fast" in strategy_df.columns
-    assert "adx_4h" in strategy_df.columns
+    # ADX now returns 3 columns: ADX, DI+, DI-
+    assert "adx_4h_ADX" in strategy_df.columns
+    assert "adx_4h_DI+" in strategy_df.columns
+    assert "adx_4h_DI-" in strategy_df.columns
     assert "atr_pct" in rmm_df.columns
     assert "rvol" in rmm_df.columns
     assert "vol_z" in rmm_df.columns

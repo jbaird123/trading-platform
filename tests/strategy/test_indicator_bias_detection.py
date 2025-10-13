@@ -8,7 +8,6 @@ from look-ahead bias by comparing vectorized vs bar-by-bar computation.
 import numpy as np
 import pandas as pd
 import pytest
-from trading_platform.strategy.custom_indicators import find_swing_points
 from trading_platform.strategy.features import (
     adx,
     atr,
@@ -16,6 +15,7 @@ from trading_platform.strategy.features import (
     ema_slope,
     rsi,
 )
+from trading_platform.strategy.indicator_helpers import find_swing_points
 from trading_platform.strategy.safe_indicators import (
     donchian_channels,
     hhv,
@@ -189,7 +189,8 @@ def test_adx_no_bias(test_ohlcv_data: pd.DataFrame) -> None:
     """ADX should have no look-ahead bias."""
 
     def indicator(df: pd.DataFrame) -> pd.Series:
-        return adx(df, length=14)
+        adx_df = adx(df, length=14)
+        return adx_df["ADX"]  # Return just the ADX column
 
     result = detect_lookahead_bias(indicator, test_ohlcv_data)
     assert not result.has_bias, str(result)
@@ -262,6 +263,56 @@ def test_swing_points_with_different_params_no_bias(
         assert (
             not result_low.has_bias
         ), f"Swing low (left={left}, right={right}): {result_low}"
+
+
+def test_chop_no_bias(test_ohlcv_data: pd.DataFrame) -> None:
+    """
+    CHOP (Choppiness Index) should have no look-ahead bias.
+
+    Tests custom implementation using rolling TR, max/min, and log calculations.
+    """
+    from trading_platform.strategy.indicator_implementations import compute_chop
+
+    def indicator(df: pd.DataFrame) -> pd.Series:
+        return compute_chop(df, {"length": 14}, "close")
+
+    result = detect_lookahead_bias(indicator, test_ohlcv_data)
+    assert not result.has_bias, str(result)
+
+
+def test_supertrend_no_bias(test_ohlcv_data: pd.DataFrame) -> None:
+    """
+    SUPERTREND should have no look-ahead bias.
+
+    Tests custom implementation with iterative band calculation and state persistence.
+    This is critical to test since the implementation uses complex bar-by-bar logic.
+    """
+    from trading_platform.strategy.indicator_implementations import compute_supertrend
+
+    def indicator(df: pd.DataFrame) -> pd.Series:
+        result_dict = compute_supertrend(df, {"length": 7, "multiplier": 3.0})
+        return result_dict[""]  # Main SuperTrend value
+
+    result = detect_lookahead_bias(indicator, test_ohlcv_data)
+    assert not result.has_bias, str(result)
+
+
+def test_fib_no_bias(test_ohlcv_data: pd.DataFrame) -> None:
+    """
+    FIB (Fibonacci retracement) should have no look-ahead bias.
+
+    Tests that swing point detection and forward-fill don't introduce bias.
+    Uses validated find_swing_points() but ffill could theoretically cause issues.
+    """
+    from trading_platform.strategy.indicator_implementations import compute_fib
+
+    def indicator(df: pd.DataFrame) -> pd.Series:
+        result_dict = compute_fib(df, {"left_bars": 5, "right_bars": 5})
+        # Test the 61.8% Fibonacci level (golden ratio)
+        return result_dict["0.618"]
+
+    result = detect_lookahead_bias(indicator, test_ohlcv_data)
+    assert not result.has_bias, str(result)
 
 
 # ============================================================
@@ -390,6 +441,7 @@ def test_bias_percentage_calculation() -> None:
 # ============================================================
 
 
+@pytest.mark.slow
 def test_bias_detection_performance(
     test_ohlcv_data: pd.DataFrame,
 ) -> None:
@@ -398,6 +450,12 @@ def test_bias_detection_performance(
 
     Note: This is intentionally slow (bar-by-bar computation).
     Only used during testing/validation, not production.
+
+    To skip this test during development:
+        pytest -m "not slow"
+
+    To run only slow tests:
+        pytest -m slow
     """
     import time
 

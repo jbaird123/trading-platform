@@ -1,0 +1,5 @@
+outs:
+- md5: 766c566b45819206299c12b1c9aeae10
+  size: 1686544
+  hash: md5
+  path: batch6_supertrend_eurusd_1h.csv

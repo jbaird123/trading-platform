@@ -79,6 +79,7 @@ The most critical design principle is the strict separation of the **Strategy En
 - **Language**: Python (3.12+)
 - **Dependency Management**: Poetry
 - **Core Libraries**: pandas, NumPy, Pyarrow
+- **Technical Analysis**: ta (0.11.0), TA-Lib (0.6.7)
 - **API & Web**: FastAPI, Uvicorn
 - **Data Validation**: Pydantic
 - **ML & Research**: scikit-learn, LightGBM, SHAP, MLflow
@@ -90,6 +91,7 @@ The most critical design principle is the strict separation of the **Strategy En
 #### Prerequisites
 - Python (version 3.12 or higher)
 - [Poetry](https://python-poetry.org/docs/#installation)
+- TA-Lib C library (for technical indicators)
 
 #### Steps
 1.  **Clone the repository:**
@@ -100,11 +102,23 @@ The most critical design principle is the strict separation of the **Strategy En
     ```bash
     cd trading-platform
     ```
-3.  **Install dependencies:**
+3.  **Install TA-Lib C library** (system dependency):
+    - **macOS:**
+      ```bash
+      brew install ta-lib
+      ```
+    - **Ubuntu/Debian:**
+      ```bash
+      sudo apt-get install ta-lib
+      ```
+    - **Windows:**
+      Download pre-built binaries from [https://github.com/cgohlke/talib-build/releases](https://github.com/cgohlke/talib-build/releases)
+4.  **Install Python dependencies:**
     ```bash
     poetry install
     ```
-4.  **Verify the installation by running the test suite:**
+    This will install all Python packages including the TA-Lib wrapper.
+5.  **Verify the installation by running the test suite:**
     ```bash
     poetry run pytest
     ```

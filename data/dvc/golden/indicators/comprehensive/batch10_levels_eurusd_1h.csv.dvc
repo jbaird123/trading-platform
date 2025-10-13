@@ -1,0 +1,5 @@
+outs:
+- md5: 3bbe33d9fc012f5b45fc7a62f617ae69
+  size: 2171432
+  hash: md5
+  path: batch10_levels_eurusd_1h.csv

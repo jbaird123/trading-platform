@@ -94,7 +94,10 @@ def test_adaptive_trend_full_integration() -> None:
     # Verify Epic 1 features computed
     assert "ema_fast" in strategy_df.columns
     assert "ema_slope_fast" in strategy_df.columns
-    assert "adx_4h" in strategy_df.columns
+    # ADX now returns 3 columns: ADX, DI+, DI-
+    assert "adx_4h_ADX" in strategy_df.columns
+    assert "adx_4h_DI+" in strategy_df.columns
+    assert "adx_4h_DI-" in strategy_df.columns
 
     # EPIC 3: RMM with new features and predicates
     rmm_config = {

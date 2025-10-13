@@ -1,0 +1,84 @@
+//@version=6
+indicator("Golden Validation - Batch 10: Levels", overlay=true)
+
+// BATCH 10: Level Indicators
+// 7 indicators + 5 OHLCV = 12 total columns
+// Indicators: HHV, LLV, DC Upper, DC Lower, Swing High, Swing Low, ATR Percentile
+
+// HHV/LLV - Highest High Value / Lowest Low Value
+length_hhv_llv = 20
+hhv_20 = ta.highest(high, length_hhv_llv)
+llv_20 = ta.lowest(low, length_hhv_llv)
+
+// Donchian Channels (based on HHV/LLV)
+length_dc = 20
+dc_upper = ta.highest(high, length_dc)
+dc_lower = ta.lowest(low, length_dc)
+
+// Swing High/Low using pivot functions
+left_bars = 10
+right_bars = 10
+swing_high = ta.pivothigh(high, left_bars, right_bars)
+swing_low = ta.pivotlow(low, left_bars, right_bars)
+
+// ATR Percentile - percentile rank of ATR over lookback period
+atr_length = 14
+lookback = 20
+atr_value = ta.atr(atr_length)
+atr_percentile = ta.percentrank(atr_value, lookback)
+
+// Visual plots
+plot(hhv_20, "HHV 20", color=color.new(color.green, 0), linewidth=2, style=plot.style_stepline)
+plot(llv_20, "LLV 20", color=color.new(color.red, 0), linewidth=2, style=plot.style_stepline)
+plot(dc_upper, "DC Upper", color=color.new(color.blue, 50), linewidth=1)
+plot(dc_lower, "DC Lower", color=color.new(color.orange, 50), linewidth=1)
+plot(atr_percentile, "ATR Percentile", color=color.new(color.purple, 0), linewidth=1)
+
+// Plot swing points as shapes (only when detected)
+plotshape(swing_high, "Swing High", style=shape.triangledown, location=location.abovebar,
+          color=color.red, size=size.small)
+plotshape(swing_low, "Swing Low", style=shape.triangleup, location=location.belowbar,
+          color=color.green, size=size.small)
+
+// ATR Percentile background coloring
+atr_color = atr_percentile > 80 ? color.new(color.red, 90) : atr_percentile < 20 ? color.new(color.green, 90) : na
+bgcolor(atr_color, title="ATR Percentile Zones")
+
+// Table showing current values
+var table valuesTable = table.new(position.top_right, 2, 8,
+                                   bgcolor=color.new(color.black, 80),
+                                   border_width=1)
+
+if barstate.islast
+    table.cell(valuesTable, 0, 0, "Indicator", text_color=color.white,
+               bgcolor=color.new(color.blue, 50))
+    table.cell(valuesTable, 1, 0, "Value", text_color=color.white,
+               bgcolor=color.new(color.blue, 50))
+
+    table.cell(valuesTable, 0, 1, "HHV 20", text_color=color.white)
+    table.cell(valuesTable, 1, 1, str.tostring(hhv_20, "#.#####"),
+               text_color=color.yellow)
+
+    table.cell(valuesTable, 0, 2, "LLV 20", text_color=color.white)
+    table.cell(valuesTable, 1, 2, str.tostring(llv_20, "#.#####"),
+               text_color=color.yellow)
+
+    table.cell(valuesTable, 0, 3, "DC Upper", text_color=color.white)
+    table.cell(valuesTable, 1, 3, str.tostring(dc_upper, "#.#####"),
+               text_color=color.yellow)
+
+    table.cell(valuesTable, 0, 4, "DC Lower", text_color=color.white)
+    table.cell(valuesTable, 1, 4, str.tostring(dc_lower, "#.#####"),
+               text_color=color.yellow)
+
+    table.cell(valuesTable, 0, 5, "Swing High", text_color=color.white)
+    table.cell(valuesTable, 1, 5, na(swing_high) ? "N/A" : str.tostring(swing_high, "#.#####"),
+               text_color=color.yellow)
+
+    table.cell(valuesTable, 0, 6, "Swing Low", text_color=color.white)
+    table.cell(valuesTable, 1, 6, na(swing_low) ? "N/A" : str.tostring(swing_low, "#.#####"),
+               text_color=color.yellow)
+
+    table.cell(valuesTable, 0, 7, "ATR Percentile", text_color=color.white)
+    table.cell(valuesTable, 1, 7, str.tostring(atr_percentile, "#.##"),
+               text_color=color.yellow)

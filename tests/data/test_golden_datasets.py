@@ -73,16 +73,21 @@ def calculated_data(golden_data_1h):
     feature_specs = [
         {"name": our_name, "type": type, "params": params}
         for our_name, _, type, params in INDICATOR_TEST_CASES
-        if type != "BB"  # Handle BB separately
+        if type not in ["BB", "ADX"]  # Handle BB and ADX separately
     ]
     feature_specs.append(
         {"name": "BB", "type": "BB", "params": {"length": 20, "ndev": 2.0}}
+    )
+    # ADX needs special handling - we only want to test the ADX column, not DI+/DI-
+    feature_specs.append(
+        {"name": "ADX_14_base", "type": "ADX", "params": {"length": 14}}
     )
     calculated_df = compute_features(golden_data_1h, feature_specs).rename(
         columns={
             "BB_middle": "BB_MIDDLE",
             "BB_upper": "BB_UPPER",
             "BB_lower": "BB_LOWER",
+            "ADX_14_base_ADX": "ADX_14",  # Rename ADX column to match test expectation
         }
     )
     return calculated_df

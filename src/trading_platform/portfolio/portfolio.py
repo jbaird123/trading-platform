@@ -14,11 +14,28 @@ from trading_platform.portfolio.trade import Trade
 
 class PortfolioManager:
     """
-    Manages the state of the portfolio, including cash, positions, and trades.
+    Portfolio Manager - State Tracking and Decision Making
 
-    This class is the single source of truth for the portfolio's state. It is
-    used by both the backtester and the live execution layer to ensure
-    consistent logic. For the MVP, it handles one position at a time.
+    The Portfolio Manager is responsible for:
+    1. Tracking portfolio state (cash, positions, trades)
+    2. Making decisions about when positions should be opened or closed
+    3. Managing entry window state for command-based strategies
+
+    The Portfolio Manager does NOT execute trades directly. Instead, it returns
+    "action descriptors" - dictionaries that tell the caller (Backtester or
+    Execution Layer) what action should be taken. The caller is responsible for
+    determining WHEN to execute (e.g., current bar close vs next bar open).
+
+    This separation of concerns allows the same Portfolio Manager logic to be
+    used in both backtesting (with configurable execution models) and live
+    trading (with real-time execution).
+
+    Action Descriptor Examples:
+    - {'action': 'open_entry_window', 'side': 'long', 'bar_index': 42}
+    - {'action': 'should_close', 'reason': 'signal'}
+    - {'action': 'no_action', 'reason': 'already_in_position'}
+
+    See docs/architecture/execution_model.md for complete design details.
     """
 
     def __init__(
@@ -53,6 +70,10 @@ class PortfolioManager:
             "long": (-1, None),
             "short": (-1, None),
         }
+
+        # Pending exit flag for execution model refactor
+        # Set when close is needed but execution timing controlled by caller
+        self._pending_exit: bool = False
 
     @property
     def current_position(self) -> Position | None:
@@ -168,42 +189,47 @@ class PortfolioManager:
         context: dict | None,
         min_hold_bars: int = 0,
     ) -> dict[str, Any]:
-        """Handle enter_long or enter_short command."""
+        """
+        Handle enter_long or enter_short command.
 
-        # Already in same-side position
+        Returns action descriptors instead of executing trades directly.
+        The caller (Backtester) is responsible for execution timing.
+        """
+
+        # Case 2: Already in same-side position
         if self.current_position and self.current_position.side == side:
-            return {"action": "ignored", "reason": "already_in_position", "side": side}
+            return {
+                "action": "no_action",
+                "reason": "already_in_position",
+                "side": side,
+            }
 
-        # In opposite position - check min_hold before closing
+        # Case 3: In opposite position (flip scenario)
         if self.current_position and self.current_position.side != side:
             # Check minimum hold time before allowing opposite_signal exit
             if self.current_position.bars_held < min_hold_bars:
                 return {
-                    "action": "ignored",
+                    "action": "no_action",
                     "reason": "min_hold_time_not_met",
                     "side": side,
                 }
 
-            self.close_position(
-                exit_price=current_bar["close"],
-                exit_time=cast(datetime, current_bar.name),
-                exit_reason="opposite_signal",
-                context_at_exit=context,
-            )
-            # After closing, check if we should open entry window
-            if not allow_flip:
-                # Just exit, don't open entry window
-                return {
-                    "action": "exited",
-                    "side": side,
-                    "reason": "opposite_signal",
-                }
-            # Fall through to open entry window for flip
+            # Set pending exit flag - exit will be executed by caller
+            self._pending_exit = True
 
-        # Flat or just closed - open entry window for this side
+            # DO NOT open entry window yet - it will open after exit completes
+            # Return should_close descriptor with entry_side for flip handling
+            return {
+                "action": "should_close",
+                "reason": "opposite_signal",
+                "entry_side": side,
+                "bar_index": bar_index,
+            }
+
+        # Case 1: Flat (no position) - open entry window for this side
         self._entry_windows[side] = (bar_index, None)  # (window_start, last_entered)
 
-        return {"action": "window_opened", "side": side}
+        return {"action": "open_entry_window", "side": side, "bar_index": bar_index}
 
     def _handle_exit_command(
         self,
@@ -212,30 +238,32 @@ class PortfolioManager:
         context: dict | None,
         min_hold_bars: int = 0,
     ) -> dict[str, Any]:
-        """Handle exit_long or exit_short command."""
+        """
+        Handle exit_long or exit_short command.
 
-        if self.current_position and self.current_position.side == side:
-            # Check minimum hold time before allowing signal exits
-            if self.current_position.bars_held < min_hold_bars:
-                return {
-                    "action": "ignored",
-                    "reason": "min_hold_time_not_met",
-                    "side": side,
-                }
+        Returns action descriptors instead of executing trades directly.
+        The caller (Backtester) is responsible for execution timing.
+        """
 
-            self.close_position(
-                exit_price=current_bar["close"],
-                exit_time=cast(datetime, current_bar.name),
-                exit_reason="signal",
-                context_at_exit=context,
-            )
-            return {"action": "exited", "side": side}
-        else:
+        # Case 1: No position exists
+        if not self.current_position:
+            return {"action": "no_action", "reason": "no_position"}
+
+        # Case 3: Exit command for opposite side
+        if self.current_position.side != side:
+            return {"action": "no_action", "reason": "wrong_side"}
+
+        # Case 2: Exit command matches current position side
+        # Check minimum hold time before allowing signal exits
+        if self.current_position.bars_held < min_hold_bars:
             return {
-                "action": "ignored",
-                "reason": "no_matching_position",
+                "action": "no_action",
+                "reason": "min_hold_time_not_met",
                 "side": side,
             }
+
+        # Return should_close descriptor - execution deferred to caller
+        return {"action": "should_close", "reason": "signal", "side": side}
 
     def _check_active_entry_windows(
         self,
@@ -285,6 +313,35 @@ class PortfolioManager:
             return True  # Infinite window
 
         return bars_since_start <= entry_window_bars
+
+    def complete_pending_exit_and_open_entry_window(
+        self, side: str, bar_index: int
+    ) -> dict[str, Any]:
+        """
+        Complete a pending exit and open entry window for new side.
+
+        Called by Backtester after executing a flip exit. Clears the
+        _pending_exit flag and opens entry window for the new side.
+
+        Args:
+            side: Side for new entry window ('long' or 'short')
+            bar_index: Current bar index
+
+        Returns:
+            Action descriptor confirming entry window opened
+        """
+        # Sanity check: should only be called when pending exit is set
+        assert (
+            self._pending_exit
+        ), "complete_pending_exit_and_open_entry_window called without pending exit"
+
+        # Clear pending exit flag
+        self._pending_exit = False
+
+        # Open entry window for new side
+        self._entry_windows[side] = (bar_index, None)
+
+        return {"action": "entry_window_opened", "side": side, "bar_index": bar_index}
 
     def _get_point_value(self, entry_price: float, exit_price: float) -> float:
         """

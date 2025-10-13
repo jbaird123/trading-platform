@@ -6,13 +6,12 @@ and provides appropriate safety checks.
 """
 
 import pytest
-from trading_platform.strategy.indicator_safety import (
+from trading_platform.strategy.indicators_registry import (
     LookAheadBiasError,
     SafetyLevel,
     get_safety_level,
     get_safety_summary,
     is_indicator_safe,
-    is_lookahead_allowed,
     requires_bias_test,
     validate_indicator_safety,
 )
@@ -37,8 +36,10 @@ def test_get_safety_level_for_validated_indicators() -> None:
 
 
 def test_get_safety_level_for_requires_test_indicators() -> None:
-    """Unimplemented indicators should require testing."""
-    assert get_safety_level("FIB") == SafetyLevel.REQUIRES_TEST
+    """Unknown indicators should require testing."""
+    # FIB used to be requires_test but is now validated after passing bias tests
+    # Test with an unknown indicator instead
+    assert get_safety_level("UNKNOWN_INDICATOR") == SafetyLevel.REQUIRES_TEST
 
 
 def test_get_safety_level_for_unknown_indicators() -> None:
@@ -54,9 +55,9 @@ def test_is_indicator_safe() -> None:
 
     # Validated indicators (also considered safe)
     assert is_indicator_safe("SWING_HIGH") is True
+    assert is_indicator_safe("FIB") is True  # Now validated after passing bias tests
 
     # Untested indicators
-    assert is_indicator_safe("FIB") is False
     assert is_indicator_safe("UNKNOWN") is False
 
 
@@ -65,20 +66,10 @@ def test_requires_bias_test() -> None:
     # Safe/validated don't require testing
     assert requires_bias_test("EMA") is False
     assert requires_bias_test("SWING_HIGH") is False
+    assert requires_bias_test("FIB") is False  # Now validated after passing bias tests
 
     # Unknown requires testing
-    assert requires_bias_test("FIB") is True
     assert requires_bias_test("UNKNOWN") is True
-
-
-def test_is_lookahead_allowed() -> None:
-    """Test lookahead permission check."""
-    # Regular indicators don't allow lookahead
-    assert is_lookahead_allowed("EMA") is False
-    assert is_lookahead_allowed("SWING_HIGH") is False
-
-    # No indicators currently allow lookahead
-    assert is_lookahead_allowed("UNKNOWN") is False
 
 
 def test_validate_indicator_safety_for_safe_indicators() -> None:
@@ -91,9 +82,7 @@ def test_validate_indicator_safety_for_safe_indicators() -> None:
 
 def test_validate_indicator_safety_for_untested_indicators() -> None:
     """Untested indicators should raise error."""
-    with pytest.raises(LookAheadBiasError, match="requires bias detection testing"):
-        validate_indicator_safety("FIB")
-
+    # FIB is now validated, test with unknown indicator instead
     with pytest.raises(LookAheadBiasError, match="requires bias detection testing"):
         validate_indicator_safety("UNKNOWN_INDICATOR")
 
@@ -106,19 +95,22 @@ def test_get_safety_summary() -> None:
     assert "safe" in summary
     assert "validated" in summary
     assert "requires_test" in summary
-    assert "allow_lookahead" in summary
 
     # Check some known indicators are in correct categories
     assert "EMA" in summary["safe"]
     assert "RSI" in summary["safe"]
     assert "SWING_HIGH" in summary["validated"]
     assert "SWING_LOW" in summary["validated"]
-    assert "FIB" in summary["requires_test"]
+    assert "FIB" in summary["validated"]  # Now validated after passing bias tests
+    assert "CHOP" in summary["validated"]  # Now validated after passing bias tests
+    assert (
+        "SUPERTREND" in summary["validated"]
+    )  # Now validated after passing bias tests
 
-    # All lists should be non-empty except possibly allow_lookahead
+    # All lists should be non-empty
     assert len(summary["safe"]) > 0
     assert len(summary["validated"]) > 0
-    assert len(summary["requires_test"]) > 0
+    # requires_test may be empty if all indicators are classified
 
 
 def test_safety_registry_completeness() -> None:
@@ -132,13 +124,12 @@ def test_safety_registry_completeness() -> None:
         # Each indicator should have a safety classification
         safety = get_safety_level(indicator_name)
 
-        # Should not default to requires_test for known indicators
-        # (except FIB which is explicitly requires_test)
-        if indicator_name != "FIB":
-            assert safety in (
-                SafetyLevel.SAFE,
-                SafetyLevel.VALIDATED,
-            ), f"{indicator_name} has no explicit safety classification"
+        # All registered indicators should be safe or validated
+        # (FIB, CHOP, SUPERTREND are now validated after passing bias tests)
+        assert safety in (
+            SafetyLevel.SAFE,
+            SafetyLevel.VALIDATED,
+        ), f"{indicator_name} has no explicit safety classification"
 
 
 def test_safety_metadata_in_registry() -> None:
@@ -169,4 +160,3 @@ def test_safety_level_enum_values() -> None:
     assert SafetyLevel.SAFE.value == "safe"
     assert SafetyLevel.VALIDATED.value == "validated"
     assert SafetyLevel.REQUIRES_TEST.value == "requires_test"
-    assert SafetyLevel.ALLOW_LOOKAHEAD.value == "allow_lookahead"
