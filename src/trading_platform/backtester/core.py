@@ -229,9 +229,58 @@ def run_backtest(
 
     warmup_threshold = max(0, config.warmup_bars)
 
+    # Pending actions for next_bar_open execution model
+    pending_exit: dict[str, Any] | None = None
+    pending_entry: dict[str, Any] | None = None
+
     for i in range(len(market_data)):
         signal = signals.iloc[i]
         current_bar = market_data.iloc[i]
+
+        # === EXECUTION PHASE: Execute pending actions ===
+        # Execute pending exit from previous bar (next_bar_open model)
+        if pending_exit is not None:
+            portfolio.close_position(
+                exit_price=current_bar["open"],
+                exit_time=cast(datetime, current_bar.name),
+                exit_reason=pending_exit["reason"],
+                context_at_exit=pending_exit.get("context"),
+            )
+            # Handle flip: if exit was for opposite signal, open entry window
+            # and immediately execute entry at same bar open
+            if "entry_side" in pending_exit:
+                portfolio.complete_pending_exit_and_open_entry_window(
+                    pending_exit["entry_side"], i
+                )
+                # Create pending_entry for immediate execution below
+                # (will be executed right after this block)
+                pending_entry = {
+                    "symbol": symbol,
+                    "side": pending_exit["entry_side"],
+                    "size": float(config.position_size),
+                    "instrument": instrument_dict,
+                    "context": pending_exit.get("context"),
+                }
+            pending_exit = None
+
+        # Execute pending entry from previous bar (next_bar_open model)
+        if pending_entry is not None:
+            portfolio.create_new_position(
+                symbol=pending_entry["symbol"],
+                side=pending_entry["side"],
+                entry_price=current_bar["open"],
+                size=pending_entry["size"],
+                entry_time=cast(datetime, current_bar.name),
+                instrument=pending_entry["instrument"],
+                context_at_entry=pending_entry.get("context"),
+                initial_risk_ccy=None,
+            )
+            # Mark that we've entered on this entry window
+            portfolio._entry_windows[pending_entry["side"]] = (
+                portfolio._entry_windows[pending_entry["side"]][0],
+                i,
+            )
+            pending_entry = None
 
         # Extract command and context from Signal object (or use legacy format)
         if isinstance(signal, Signal):
@@ -286,27 +335,35 @@ def run_backtest(
             # No RMM - still use nested structure for consistency
             context = {"strategy_features": strategy_features}
 
-        # Evaluate risk-based exits using the Risk & Exit Manager (REM)
+        # === REM EXIT PHASE: Check risk-based exits ===
         # REM exits (stop-loss, take-profit) are ALWAYS allowed
         # regardless of min_hold_bars (protective risk management)
-        if portfolio.current_position:
-            exit_details = rem.check_exits(
-                portfolio.current_position, current_bar, signal=signal
+        if portfolio.current_position and rem is not None:
+            rem_result = rem.check_exits_intrabar(
+                portfolio.current_position, current_bar
             )
 
-            if exit_details:
-                portfolio.close_position(
-                    exit_price=exit_details["exit_price"],
-                    exit_time=cast(datetime, current_bar.name),
-                    exit_reason=exit_details["reason"],
-                    context_at_exit=context,
-                )
-                # Update exposure only if requested
-                if return_exposure:
-                    exposure_curve.append((cast(datetime, current_bar.name), 0.0))
-                continue
+            if rem_result is not None and rem_result["action"] == "should_close":
+                if config.execution_model == "current_bar_close":
+                    # Immediate execution at REM-calculated price
+                    portfolio.close_position(
+                        exit_price=rem_result["exit_price"],
+                        exit_time=cast(datetime, current_bar.name),
+                        exit_reason=rem_result["reason"],
+                        context_at_exit=context,
+                    )
+                    if return_exposure:
+                        exposure_curve.append((cast(datetime, current_bar.name), 0.0))
+                    continue
+                else:  # next_bar_open
+                    # Defer execution to next bar's open
+                    pending_exit = {
+                        "reason": rem_result["reason"],
+                        "context": context,
+                    }
+                    continue
 
-        # Process command through Portfolio Manager
+        # === STRATEGY COMMAND PHASE: Process strategy signals ===
         result = portfolio.process_command(
             command=cast(SignalCommand, command),
             bar_index=i,
@@ -318,12 +375,37 @@ def run_backtest(
             context=context,
         )
 
+        # Handle should_close descriptor (signal-based exit)
+        if result["action"] == "should_close":
+            if config.execution_model == "current_bar_close":
+                # Immediate execution at bar close
+                portfolio.close_position(
+                    exit_price=current_bar["close"],
+                    exit_time=cast(datetime, current_bar.name),
+                    exit_reason=result["reason"],
+                    context_at_exit=context,
+                )
+                if return_exposure:
+                    exposure_curve.append((cast(datetime, current_bar.name), 0.0))
+                continue
+            else:  # next_bar_open
+                # Defer execution to next bar's open
+                pending_exit = {
+                    "reason": result["reason"],
+                    "context": context,
+                }
+                # For flip: include entry_side and bar_index
+                if "entry_side" in result:
+                    pending_exit["entry_side"] = result["entry_side"]
+                    pending_exit["bar_index"] = result.get("bar_index", i)
+                # Don't continue - allow processing to continue for flip
+
         # Update position metrics if we have an open position
         if portfolio.current_position:
             portfolio._update_position_metrics(current_bar)
 
         # Attempt entry if PM indicates a window is open
-        if result["action"] in ["window_opened", "window_active"]:
+        if result["action"] in ["open_entry_window", "window_active"]:
             side = result["side"]
 
             # Check if we can attempt entry for this side
@@ -416,25 +498,35 @@ def run_backtest(
                         }
                     )
                 else:
-                    # All filters passed - create position
-                    entry_price = current_bar["close"]
+                    # All filters passed - execute entry
                     size = float(config.position_size)
 
-                    portfolio.create_new_position(
-                        symbol=symbol,
-                        side=side,
-                        entry_price=entry_price,
-                        size=size,
-                        entry_time=cast(datetime, current_bar.name),
-                        instrument=instrument_dict,
-                        context_at_entry=context,
-                        initial_risk_ccy=None,  # This is now handled by REM
-                    )
-                    # Mark that we've entered on this entry window
-                    portfolio._entry_windows[side] = (
-                        portfolio._entry_windows[side][0],
-                        i,
-                    )
+                    if config.execution_model == "current_bar_close":
+                        # Immediate execution at bar close
+                        portfolio.create_new_position(
+                            symbol=symbol,
+                            side=side,
+                            entry_price=current_bar["close"],
+                            size=size,
+                            entry_time=cast(datetime, current_bar.name),
+                            instrument=instrument_dict,
+                            context_at_entry=context,
+                            initial_risk_ccy=None,
+                        )
+                        # Mark that we've entered on this entry window
+                        portfolio._entry_windows[side] = (
+                            portfolio._entry_windows[side][0],
+                            i,
+                        )
+                    else:  # next_bar_open
+                        # Defer execution to next bar's open
+                        pending_entry = {
+                            "symbol": symbol,
+                            "side": side,
+                            "size": size,
+                            "instrument": instrument_dict,
+                            "context": context,
+                        }
 
             elif not policy.can_open(
                 cast(datetime, current_bar.name)
@@ -471,6 +563,21 @@ def run_backtest(
             if pos is not None:
                 exposure_val = float(abs(pos.size) * float(current_bar["close"]))
             exposure_curve.append((cast(datetime, current_bar.name), exposure_val))
+
+    # Force-close any remaining open position at end of backtest
+    if portfolio.current_position:
+        last_bar = market_data.iloc[-1]
+        portfolio.close_position(
+            exit_price=last_bar["close"],
+            exit_time=cast(datetime, market_data.index[-1]),
+            exit_reason="end_of_data",
+            context_at_exit=None,
+        )
+        # Update the last exposure entry to reflect the closed position
+        if return_exposure and exposure_curve:
+            # Replace the last entry's exposure value with 0.0
+            last_time = exposure_curve[-1][0]
+            exposure_curve[-1] = (last_time, 0.0)
 
     if skipped:
         # Choose counterfactual mode
