@@ -196,3 +196,33 @@ class RiskExitManager:
                 return {"exit_price": tp_price, "reason": "take-profit"}
 
         return None
+
+    def check_exits_intrabar(
+        self, position: Position, current_bar: pd.Series
+    ) -> dict[str, Any] | None:
+        """
+        Check if position should exit based on intrabar price action.
+
+        Returns action descriptor with exit price if stop/TP triggered,
+        None otherwise. This is a wrapper around check_exits() that formats
+        the result as an action descriptor for the execution model refactor.
+
+        Args:
+            position: Current open position
+            current_bar: Bar with OHLC data
+
+        Returns:
+            Action descriptor dict or None
+        """
+        # Call existing check_exits method
+        exit_details = self.check_exits(position, current_bar)
+
+        if exit_details is None:
+            return None
+
+        # Format as action descriptor
+        return {
+            "action": "should_close",
+            "reason": exit_details["reason"],
+            "exit_price": exit_details["exit_price"],
+        }

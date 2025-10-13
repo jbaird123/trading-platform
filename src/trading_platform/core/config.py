@@ -150,6 +150,14 @@ class RunConfig(BaseModel):
             "same bar."
         ),
     )
+    execution_model: Literal["current_bar_close", "next_bar_open"] = Field(
+        "current_bar_close",
+        description=(
+            "Execution model for entries and exits. 'current_bar_close' "
+            "executes trades immediately at signal bar close (unrealistic). "
+            "'next_bar_open' defers execution to next bar open (realistic)."
+        ),
+    )
     daily_loss_cap: float | None = Field(
         default=None, description="Portfolio-level daily loss cap in base currency."
     )
