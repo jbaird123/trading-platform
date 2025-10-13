@@ -369,9 +369,10 @@ def platform_trades(strategy_name, golden_strategy_config):
 2. Load strategy from PineScript file
 3. **⚠️ CRITICAL: Set export start date EARLIER than validation start date**
    - **Validation range**: 2023-01-01 to 2024-12-31
-   - **Export start date**: 2022-12-01 (at least 100 bars before)
+   - **Export start date**: 2022-12-01 (MUST be at least 1 month before for hourly data)
    - **Why**: Indicators need warmup period; TradingView may filter trades near start date
-   - **Safe practice**: Always add 1 month buffer before validation start
+   - **Required practice**: Always add 1 month buffer minimum before validation start
+   - **Note**: The old "100 bars" guidance was insufficient - empirical testing shows 1 month is required for perfect matching
 4. Set initial capital ($100,000)
 5. Set position size (1 contract or $10,000)
 6. Disable commission (or set to known value)

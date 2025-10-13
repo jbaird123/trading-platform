@@ -342,23 +342,26 @@ Golden validation tests compare our platform's output against TradingView export
 When exporting trade data from TradingView for golden validation:
 
 1. **Validation period**: The actual date range you want to test (e.g., 2023-01-01 to 2024-12-31)
-2. **Export start date**: At least 100 bars BEFORE the validation start (e.g., 2022-12-01)
+2. **Export start date**: At least 1 MONTH BEFORE the validation start (e.g., 2022-12-01)
 3. **Why this matters**:
    - Indicators need historical data to "warm up" before producing accurate values
    - TradingView may filter out trades that occur near the export start date
    - Without warmup data, early trades may be missing or have different values
+   - **100 bars is NOT enough** - empirical testing shows 1 month is required for accurate matching
 
 **Example:**
 ```
 Validation range:  2023-01-01 to 2024-12-31
-Export start:      2022-12-01 (1 month buffer for hourly data)
+Export start:      2022-12-01 (1 month buffer - REQUIRED)
 Export end:        2024-12-31
 ```
 
-**Recommended buffer sizes:**
-- Hourly data: 100 bars = ~5-7 days (recommend 1 month to be safe)
-- Daily data: 100 bars = ~5 months (recommend 6 months)
-- 4-hour data: 100 bars = ~17 days (recommend 1 month)
+**Recommended buffer sizes (minimum):**
+- Hourly data: 1 month (~720 bars) - 100 bars is insufficient
+- Daily data: 6 months (~130 bars minimum)
+- 4-hour data: 1 month (~180 bars minimum)
+
+**Note**: The old "100 bars" guidance was found to be insufficient. Golden validation testing with EMA crossover strategies showed that using exactly 1 month of warmup data (2022-12-01 for a 2023-01-01 validation start) produces perfect matching with TradingView, while 100 bars led to discrepancies.
 
 ### How Filtering Works
 

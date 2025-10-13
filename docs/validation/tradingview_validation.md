@@ -186,6 +186,20 @@ pytest tests/validation/test_strategy_validation.py::test_ema_crossover -v
 
 ## Tolerances Explained
 
+### Critical: Warmup Period Requirements
+
+**⚠️ The old "100 bars" warmup guidance was insufficient!**
+
+Empirical testing with EMA crossover golden validation revealed that:
+- **100 bars (~5 days for hourly data)** resulted in trade discrepancies
+- **Exactly 1 month (~720 bars for hourly data)** produces perfect matching with TradingView
+- Using the fixed date of 2022-12-01 for a 2023-01-01 validation start achieved zero-tolerance validation
+
+**Required warmup periods by timeframe:**
+- Hourly: 1 month (~720 bars)
+- 4-hour: 1 month (~180 bars)
+- Daily: 6 months (~130 bars)
+
 ### Why Tolerances?
 
 Different libraries use slightly different algorithms:

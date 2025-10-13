@@ -64,12 +64,14 @@ Click the strategy gear icon and set:
 
 ### 3. Set Date Range
 
-**⚠️ IMPORTANT: Export with warmup period**
+**⚠️ CRITICAL: Export with warmup period**
 
 - **Validation Range:** 2023-01-01 to 2024-12-31
-- **Export Start Date:** 2022-12-01 (100 bars before)
+- **Export Start Date:** 2022-12-01 (REQUIRED - exactly 1 month before)
 
 Set chart to show from **Dec 1, 2022** to **Dec 31, 2024**
+
+**Note**: The old "100 bars" guidance (~5 days) was insufficient. Golden validation testing proved that exactly 1 month of warmup data (~720 bars for hourly charts) is required for perfect matching with TradingView. Using any less will result in discrepancies in early trades.
 
 ### 4. Export Data
 

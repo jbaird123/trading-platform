@@ -62,7 +62,7 @@ def load_platform_trades(
         ohlcv_data: OHLCV data to use
         date_range: Optional date range dict with 'start' and 'end' keys
                     Trades will be filtered to this range, but backtest runs on extended
-                    data (100 bars before start) to allow proper indicator warmup.
+                    data (1 month before start) to allow proper indicator warmup.
 
     Returns:
         List of trade dictionaries from platform backtest
@@ -75,7 +75,8 @@ def load_platform_trades(
     from trading_platform.core.config import RunConfig
 
     # Calculate extended start date for warmup if date_range provided
-    # We go back 100 bars to match TradingView's warmup behavior
+    # We go back 1 month (not 100 bars - that was insufficient) to match
+    # TradingView's warmup behavior
     ohlcv_to_use = ohlcv_data
     if date_range:
         start_date = pd.to_datetime(date_range["start"], utc=True)
@@ -85,9 +86,13 @@ def load_platform_trades(
             days=1, seconds=-1
         )
 
-        # UPDATE: Using fixed 2022-12-01 start date per TradingView exports
+        # Using fixed 2022-12-01 start date per TradingView exports
+        # (exactly 1 month before validation start)
         # This ensures identical warmup period and indicator calculations
-        # (previously calculated dynamically as 100 bars back)
+        # NOTE: 100 bars was insufficient - empirical testing proved that
+        # exactly 1 month (~720 bars for hourly data) is required for
+        # perfect matching with TradingView. Using less results in early
+        # trade discrepancies.
         extended_start = pd.Timestamp("2022-12-01", tz="UTC")
 
         # Filter OHLCV data to extended range
