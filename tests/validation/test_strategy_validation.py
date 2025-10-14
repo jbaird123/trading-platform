@@ -4,6 +4,11 @@
 
 This module tests that our platform produces the same trades and PnL
 as TradingView when running identical strategies on identical data.
+
+IMPORTANT: All golden validation tests MUST use the utility functions from
+golden_utils.py to ensure consistent data loading, filtering, and validation.
+
+See: docs/GOLDEN_VALIDATION.md for the golden validation contract.
 """
 
 from datetime import timedelta
@@ -13,6 +18,11 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import pytest
+
+# Golden validation utilities (ALWAYS use these for golden tests)
+from tests.validation.golden_utils import (
+    filter_platform_trades_to_validation_range,
+)
 
 # Note: Backtester imports will be added when implementing
 # from trading_platform.backtester import run_backtest
@@ -54,54 +64,38 @@ def load_platform_trades(
     ohlcv_data: pd.DataFrame,
     date_range: dict[str, str] | None = None,
 ) -> list[dict]:
-    """Runs backtest and returns platform trades.
+    """Runs backtest and returns platform trades filtered to validation range.
+
+    This function handles the complete golden validation workflow:
+    1. Loads strategy and REM configs
+    2. Runs backtest on OHLCV data (already filtered to warmup → validation end)
+    3. Filters trades to validation range by entry_time
+    4. Excludes "end_of_data" forced exits
+
+    NOTE: The OHLCV data passed in should already be filtered to the extended range
+    (warmup_start → validation_end). Use load_and_validate_ohlcv() for this.
 
     Args:
-        strategy_name: Name of strategy
+        strategy_name: Name of strategy (e.g., "ema_crossover/20pip_stop")
         run_config: Run configuration dictionary
-        ohlcv_data: OHLCV data to use
-        date_range: Optional date range dict with 'start' and 'end' keys
-                    Trades will be filtered to this range, but backtest runs on extended
-                    data (1 month before start) to allow proper indicator warmup.
+        ohlcv_data: OHLCV data (already filtered to extended range)
+        date_range: Validation range dict with 'start' and 'end' keys
+                    Used to filter trades to validation period
 
     Returns:
-        List of trade dictionaries from platform backtest
+        List of trade dictionaries filtered to validation range
+
+    See: docs/GOLDEN_VALIDATION.md for the golden validation contract
     """
-    from datetime import timedelta
     from pathlib import Path
 
     import yaml
     from trading_platform.backtester.orchestrator import run_backtest_from_config
     from trading_platform.core.config import RunConfig
 
-    # Calculate extended start date for warmup if date_range provided
-    # We go back 1 month (not 100 bars - that was insufficient) to match
-    # TradingView's warmup behavior
+    # OHLCV data should already be filtered to [warmup_start, validation_end]
+    # by load_and_validate_ohlcv(). We just use it directly.
     ohlcv_to_use = ohlcv_data
-    if date_range:
-        start_date = pd.to_datetime(date_range["start"], utc=True)
-        # End date should be inclusive of the entire day (23:59:59)
-        # Add 1 day and subtract 1 second to get end of day
-        end_date = pd.to_datetime(date_range["end"], utc=True) + timedelta(
-            days=1, seconds=-1
-        )
-
-        # Using fixed 2022-12-01 start date for warmup period
-        # (exactly 1 month before validation start on 2023-01-01)
-        # This ensures identical warmup period and indicator calculations.
-        # NOTE: 100 bars was insufficient - empirical testing proved that
-        # exactly 1 month (~720 bars for hourly data) is required for
-        # perfect matching with TradingView. Using less results in early
-        # trade discrepancies.
-        # Any OHLCV data before 2022-12-01 in the export is ignored.
-        extended_start = pd.Timestamp("2022-12-01", tz="UTC")
-
-        # Filter OHLCV data to extended range
-        # Start: earliest available data (respects TradingView export range)
-        # End: validation end date (don't process data beyond validation period)
-        ohlcv_to_use = ohlcv_data[
-            (ohlcv_data.index >= extended_start) & (ohlcv_data.index <= end_date)
-        ].copy()
 
     # Load strategy config
     strategy_dir = Path(f"configs/golden_strategies/{strategy_name}")
@@ -141,28 +135,18 @@ def load_platform_trades(
         config=config, market_data=ohlcv_to_use, strategy_config=strategy_config
     )
 
-    # Convert Trade objects to dictionaries
-    # Exclude force-closed trades (exit_reason="end_of_data") as TradingView
-    # doesn't close open positions at end of backtest
-    trades_list = []
-    for trade in results["trades"]:
-        # Skip force-closed trades for golden validation
-        if trade.exit_reason == "end_of_data":
-            continue
-
-        # Filter trades to date_range if provided
-        # This allows us to run backtest on extended data for warmup
-        # but only compare trades that fall within the validation period
-        if date_range:
-            start_date = pd.to_datetime(date_range["start"], utc=True)
-            end_date = pd.to_datetime(date_range["end"], utc=True)
-
-            # Include trade if it entered within the date range
-            if not (start_date <= trade.entry_time <= end_date):
-                # Skip trades outside the validation period
-                continue
-
-        trades_list.append(
+    # Filter trades to validation range using utility function
+    # This handles:
+    # - Excluding "end_of_data" forced exits (TradingView doesn't close at end)
+    # - Filtering by entry_time within validation range
+    # - Converting Trade objects to dictionaries
+    if date_range:
+        trades_list = filter_platform_trades_to_validation_range(
+            results["trades"], date_range
+        )
+    else:
+        # No filtering, just convert and exclude end_of_data
+        trades_list = [
             {
                 "entry_time": trade.entry_time,
                 "exit_time": trade.exit_time,
@@ -171,19 +155,27 @@ def load_platform_trades(
                 "pnl": trade.pnl,
                 "side": trade.side,
             }
-        )
+            for trade in results["trades"]
+            if trade.exit_reason != "end_of_data"
+        ]
 
     return trades_list
 
 
-def parse_tradingview_trades(tv_df: pd.DataFrame) -> pd.DataFrame:
+def parse_tradingview_trades(
+    tv_df: pd.DataFrame, validation_range: dict[str, str] | None = None
+) -> pd.DataFrame:
     """Parses TradingView CSV format into trade objects.
+
+    DEPRECATED: Use load_and_validate_tradingview_trades() from golden_utils.py instead.
+    That function handles validation range filtering automatically.
 
     TradingView exports have 2 rows per trade (entry + exit).
     This function combines them into single trade rows.
 
     Args:
         tv_df: Raw TradingView CSV DataFrame
+        validation_range: Optional dict with 'start' and 'end' keys for filtering
 
     Returns:
         DataFrame with one row per trade
@@ -233,6 +225,17 @@ def parse_tradingview_trades(tv_df: pd.DataFrame) -> pd.DataFrame:
             if not pd.isna(exit_time) and isinstance(exit_time, str):
                 exit_time = pd.to_datetime(exit_time, utc=True)
 
+            # Filter by validation range if provided
+            # IMPORTANT: TradingView exports contain MORE trades than validation range
+            # We must filter to exact validation range to match platform trades
+            if validation_range:
+                start_date = pd.to_datetime(validation_range["start"], utc=True)
+                end_date = pd.to_datetime(validation_range["end"], utc=True)
+
+                if not (start_date <= entry_time <= end_date):
+                    # Skip trades outside validation period
+                    continue
+
             trades.append(
                 {
                     "trade_num": trade_num,
@@ -251,20 +254,25 @@ def parse_tradingview_trades(tv_df: pd.DataFrame) -> pd.DataFrame:
 def align_trades(
     our_trades: list[dict],
     tv_trades: pd.DataFrame,
+    validation_range: dict[str, str] | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Aligns platform and TradingView trades for comparison.
 
     Matches trades by entry time and returns aligned DataFrames.
 
+    NOTE: Prefers using load_and_validate_tradingview_trades() from golden_utils.py
+    which handles validation range filtering automatically.
+
     Args:
-        our_trades: List of platform trade dictionaries
-        tv_trades: Raw TradingView DataFrame (will be parsed)
+        our_trades: List of platform trade dictionaries (already filtered)
+        tv_trades: Raw TradingView DataFrame (will be parsed and filtered)
+        validation_range: Optional dict with 'start' and 'end' for filtering TV trades
 
     Returns:
         Tuple of (platform_df, tradingview_df) aligned by entry time
     """
-    # Parse TradingView trades
-    tv_df = parse_tradingview_trades(tv_trades)
+    # Parse TradingView trades (with optional validation range filtering)
+    tv_df = parse_tradingview_trades(tv_trades, validation_range)
 
     # Convert platform trades to DataFrame
     if not our_trades:
@@ -525,8 +533,10 @@ def test_ema_crossover_trade_times_match_tradingview(
         date_range=golden_metadata.get("date_range"),
     )
 
-    # Align trades
-    platform_df, tv_df = align_trades(platform_trades, tradingview_trades)
+    # Align trades (pass validation_range to ensure TV trades are filtered)
+    platform_df, tv_df = align_trades(
+        platform_trades, tradingview_trades, golden_metadata.get("date_range")
+    )
 
     # Compare entry and exit times
     tolerances = TRADE_VALIDATION_TOLERANCES
@@ -598,8 +608,10 @@ def test_ema_crossover_trade_pnl_matches_tradingview(
         date_range=golden_metadata.get("date_range"),
     )
 
-    # Align trades
-    platform_df, tv_df = align_trades(platform_trades, tradingview_trades)
+    # Align trades (pass validation_range to ensure TV trades are filtered)
+    platform_df, tv_df = align_trades(
+        platform_trades, tradingview_trades, golden_metadata.get("date_range")
+    )
 
     # Compare PnL
     tolerances = TRADE_VALIDATION_TOLERANCES
@@ -727,8 +739,10 @@ def test_ema_crossover_equity_curve_correlation(
         date_range=golden_metadata.get("date_range"),
     )
 
-    # Align trades
-    platform_df, tv_df = align_trades(platform_trades, tradingview_trades)
+    # Align trades (pass validation_range to ensure TV trades are filtered)
+    platform_df, tv_df = align_trades(
+        platform_trades, tradingview_trades, golden_metadata.get("date_range")
+    )
 
     # Calculate equity curves
     initial_capital = golden_metadata.get("initial_capital", 100000.0)
