@@ -356,7 +356,9 @@ def run_backtest(
                 )
                 if return_exposure:
                     exposure_curve.append((cast(datetime, current_bar.name), 0.0))
-                continue
+                # Don't continue - allow entry signals to be processed on same bar
+                # after stop loss exit (realistic: stop hits early in bar, signal
+                # triggers later in bar)
 
         # === STRATEGY COMMAND PHASE: Process strategy signals ===
         result = portfolio.process_command(
@@ -382,7 +384,23 @@ def run_backtest(
                 )
                 if return_exposure:
                     exposure_curve.append((cast(datetime, current_bar.name), 0.0))
-                continue
+
+                # For flips: open entry window for opposite side (don't continue)
+                # This allows the entry logic below to process the flip on same bar
+                if "entry_side" in result:
+                    portfolio.complete_pending_exit_and_open_entry_window(
+                        result["entry_side"], i
+                    )
+                    # Update result to reflect the open entry window
+                    result = {
+                        "action": "open_entry_window",
+                        "side": result["entry_side"],
+                        "bar_index": i,
+                    }
+                    # Don't continue - fall through to entry logic
+                else:
+                    # Not a flip - just a regular exit, skip rest of bar
+                    continue
             else:  # next_bar_open
                 # Defer execution to next bar's open
                 pending_exit = {

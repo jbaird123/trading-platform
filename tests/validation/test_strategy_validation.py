@@ -86,17 +86,18 @@ def load_platform_trades(
             days=1, seconds=-1
         )
 
-        # Using fixed 2022-12-01 start date per TradingView exports
-        # (exactly 1 month before validation start)
-        # This ensures identical warmup period and indicator calculations
+        # Using fixed 2022-12-01 start date for warmup period
+        # (exactly 1 month before validation start on 2023-01-01)
+        # This ensures identical warmup period and indicator calculations.
         # NOTE: 100 bars was insufficient - empirical testing proved that
         # exactly 1 month (~720 bars for hourly data) is required for
         # perfect matching with TradingView. Using less results in early
         # trade discrepancies.
+        # Any OHLCV data before 2022-12-01 in the export is ignored.
         extended_start = pd.Timestamp("2022-12-01", tz="UTC")
 
         # Filter OHLCV data to extended range
-        # Start: 2022-12-01 (matches TradingView export warmup)
+        # Start: earliest available data (respects TradingView export range)
         # End: validation end date (don't process data beyond validation period)
         ohlcv_to_use = ohlcv_data[
             (ohlcv_data.index >= extended_start) & (ohlcv_data.index <= end_date)
