@@ -93,9 +93,21 @@ def load_platform_trades(
     from trading_platform.backtester.orchestrator import run_backtest_from_config
     from trading_platform.core.config import RunConfig
 
-    # OHLCV data should already be filtered to [warmup_start, validation_end]
-    # by load_and_validate_ohlcv(). We just use it directly.
-    ohlcv_to_use = ohlcv_data
+    # Filter OHLCV data to extended range [warmup_start, validation_end]
+    # Even though caller may pass full OHLCV, we must filter it
+    if date_range:
+        from datetime import timedelta
+
+        end_date = pd.to_datetime(date_range["end"], utc=True) + timedelta(
+            days=1, seconds=-1
+        )
+        # Use hardcoded warmup start (1 month before validation on 2023-01-01)
+        warmup_start = pd.Timestamp("2022-12-01", tz="UTC")
+        ohlcv_to_use = ohlcv_data[
+            (ohlcv_data.index >= warmup_start) & (ohlcv_data.index <= end_date)
+        ].copy()
+    else:
+        ohlcv_to_use = ohlcv_data
 
     # Load strategy config
     strategy_dir = Path(f"configs/golden_strategies/{strategy_name}")
@@ -486,14 +498,13 @@ def test_ema_crossover_trade_count_matches_tradingview(
     )
 
     # Compare counts
-    # TradingView CSV has 2 rows per trade (entry + exit)
-    # Filter out open trades (where Signal column contains "Open")
-    if "Signal" in tradingview_trades.columns:
-        closed_trades = tradingview_trades[tradingview_trades["Signal"] != "Open"]
-    else:
-        closed_trades = tradingview_trades
+    # Parse TradingView trades with validation range filtering
+    # This filters to validation range AND excludes open trades
+    tv_trades_df = parse_tradingview_trades(
+        tradingview_trades, golden_metadata.get("date_range")
+    )
 
-    tv_trade_count = len(closed_trades) // 2
+    tv_trade_count = len(tv_trades_df)
     platform_trade_count = len(platform_trades)
 
     # Validate against metadata's validation_range_closed_trades count
