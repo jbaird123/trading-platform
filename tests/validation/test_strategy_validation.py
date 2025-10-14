@@ -391,7 +391,7 @@ def compare_trade_sequences(
             )
 
         # Check PnL
-        pnl_diff = abs(our_trade["pnl"] - tv_trade["profit"])
+        pnl_diff = abs(our_trade["pnl"] - tv_trade["pnl"])
         if pnl_diff > tolerances["trade_pnl"]:
             results["passed"] = False
             results["discrepancies"].append(
@@ -399,7 +399,7 @@ def compare_trade_sequences(
                     "type": "pnl_mismatch",
                     "trade_index": idx,
                     "platform": our_trade["pnl"],
-                    "tradingview": tv_trade["profit"],
+                    "tradingview": tv_trade["pnl"],
                     "difference": pnl_diff,
                 }
             )
