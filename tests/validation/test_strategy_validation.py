@@ -526,13 +526,13 @@ def test_ema_crossover_trade_count_matches_tradingview(
     )
 
 
-def test_ema_crossover_trade_times_match_tradingview(
+def test_ema_crossover_entry_times_match_tradingview(
     golden_strategy_config,
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
 ):
-    """Validates that entry/exit times match within tolerance.
+    """Validates that entry times match within tolerance.
 
     # Validates: [SE-3.5.3], [BT-7.8]
     """
@@ -549,7 +549,7 @@ def test_ema_crossover_trade_times_match_tradingview(
         platform_trades, tradingview_trades, golden_metadata.get("date_range")
     )
 
-    # Compare entry and exit times
+    # Compare entry times
     tolerances = TRADE_VALIDATION_TOLERANCES
     time_tolerance = tolerances["entry_time"]  # Already a timedelta
 
@@ -564,31 +564,17 @@ def test_ema_crossover_trade_times_match_tradingview(
             mismatches.append(
                 {
                     "trade_num": i + 1,
-                    "field": "entry_time",
                     "platform": platform_trade["entry_time"],
                     "tradingview": tv_trade["entry_time"],
                     "diff": entry_diff,
                 }
             )
 
-        # Check exit time
-        exit_diff = abs(platform_trade["exit_time"] - tv_trade["exit_time"])
-        if exit_diff > time_tolerance:
-            mismatches.append(
-                {
-                    "trade_num": i + 1,
-                    "field": "exit_time",
-                    "platform": platform_trade["exit_time"],
-                    "tradingview": tv_trade["exit_time"],
-                    "diff": exit_diff,
-                }
-            )
-
     if mismatches:
-        print("\n=== Trade Timing Mismatches ===")
+        print("\n=== Entry Time Mismatches ===")
         for mm in mismatches[:10]:  # Show first 10
             print(
-                f"Trade {mm['trade_num']} {mm['field']}: "
+                f"Trade {mm['trade_num']}: "
                 f"Platform={mm['platform']}, TV={mm['tradingview']}, "
                 f"Diff={mm['diff']}"
             )
@@ -596,8 +582,69 @@ def test_ema_crossover_trade_times_match_tradingview(
             print(f"... and {len(mismatches) - 10} more")
 
     assert len(mismatches) == 0, (
-        f"Found {len(mismatches)} timing mismatches. "
-        f"Entry/exit times must match exactly (tolerance={time_tolerance})"
+        f"Found {len(mismatches)} entry time mismatches. "
+        f"Entry times must match exactly (tolerance={time_tolerance})"
+    )
+
+
+def test_ema_crossover_exit_times_match_tradingview(
+    golden_strategy_config,
+    tradingview_trades,
+    tradingview_ohlcv,
+    golden_metadata,
+):
+    """Validates that exit times match within tolerance.
+
+    # Validates: [SE-3.5.3], [BT-7.8]
+    """
+    # Load platform trades
+    platform_trades = load_platform_trades(
+        strategy_name="ema_crossover/baseline",
+        run_config=golden_strategy_config["run_config"],
+        ohlcv_data=tradingview_ohlcv,
+        date_range=golden_metadata.get("date_range"),
+    )
+
+    # Align trades (pass validation_range to ensure TV trades are filtered)
+    platform_df, tv_df = align_trades(
+        platform_trades, tradingview_trades, golden_metadata.get("date_range")
+    )
+
+    # Compare exit times
+    tolerances = TRADE_VALIDATION_TOLERANCES
+    time_tolerance = tolerances["exit_time"]  # Already a timedelta
+
+    mismatches = []
+    for i in range(len(platform_df)):
+        platform_trade = platform_df.iloc[i]
+        tv_trade = tv_df.iloc[i]
+
+        # Check exit time
+        exit_diff = abs(platform_trade["exit_time"] - tv_trade["exit_time"])
+        if exit_diff > time_tolerance:
+            mismatches.append(
+                {
+                    "trade_num": i + 1,
+                    "platform": platform_trade["exit_time"],
+                    "tradingview": tv_trade["exit_time"],
+                    "diff": exit_diff,
+                }
+            )
+
+    if mismatches:
+        print("\n=== Exit Time Mismatches ===")
+        for mm in mismatches[:10]:  # Show first 10
+            print(
+                f"Trade {mm['trade_num']}: "
+                f"Platform={mm['platform']}, TV={mm['tradingview']}, "
+                f"Diff={mm['diff']}"
+            )
+        if len(mismatches) > 10:
+            print(f"... and {len(mismatches) - 10} more")
+
+    assert len(mismatches) == 0, (
+        f"Found {len(mismatches)} exit time mismatches. "
+        f"Exit times must match exactly (tolerance={time_tolerance})"
     )
 
 
@@ -891,13 +938,13 @@ def test_ema_crossover_20pip_stop_trade_count_matches_tradingview(
     )
 
 
-def test_ema_crossover_20pip_stop_trade_times_match_tradingview(
+def test_ema_crossover_20pip_stop_entry_times_match_tradingview(
     golden_strategy_config,
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
 ):
-    """Validates 20-pip stop entry/exit times match within tolerance.
+    """Validates 20-pip stop entry times match within tolerance.
 
     # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
     """
@@ -908,7 +955,9 @@ def test_ema_crossover_20pip_stop_trade_times_match_tradingview(
         date_range=golden_metadata.get("date_range"),
     )
 
-    platform_df, tv_df = align_trades(platform_trades, tradingview_trades)
+    platform_df, tv_df = align_trades(
+        platform_trades, tradingview_trades, golden_metadata.get("date_range")
+    )
     tolerances = TRADE_VALIDATION_TOLERANCES
     time_tolerance = tolerances["entry_time"]
 
@@ -918,19 +967,89 @@ def test_ema_crossover_20pip_stop_trade_times_match_tradingview(
         tv_trade = tv_df.iloc[i]
 
         entry_diff = abs(platform_trade["entry_time"] - tv_trade["entry_time"])
-        exit_diff = abs(platform_trade["exit_time"] - tv_trade["exit_time"])
 
         if entry_diff > time_tolerance:
             mismatches.append(
-                f"Trade {i}: Entry time diff {entry_diff} > " f"{time_tolerance}"
+                {
+                    "trade_num": i + 1,
+                    "platform": platform_trade["entry_time"],
+                    "tradingview": tv_trade["entry_time"],
+                    "diff": entry_diff,
+                }
             )
+
+    if mismatches:
+        print("\n=== Entry Time Mismatches ===")
+        for mm in mismatches[:10]:
+            print(
+                f"Trade {mm['trade_num']}: "
+                f"Platform={mm['platform']}, TV={mm['tradingview']}, "
+                f"Diff={mm['diff']}"
+            )
+        if len(mismatches) > 10:
+            print(f"... and {len(mismatches) - 10} more")
+
+    assert len(mismatches) == 0, (
+        f"Found {len(mismatches)} entry time mismatches. "
+        f"Entry times must match exactly (tolerance={time_tolerance})"
+    )
+
+
+def test_ema_crossover_20pip_stop_exit_times_match_tradingview(
+    golden_strategy_config,
+    tradingview_trades,
+    tradingview_ohlcv,
+    golden_metadata,
+):
+    """Validates 20-pip stop exit times match within tolerance.
+
+    # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
+    """
+    platform_trades = load_platform_trades(
+        strategy_name="ema_crossover/20pip_stop",
+        run_config=golden_strategy_config["run_config"],
+        ohlcv_data=tradingview_ohlcv,
+        date_range=golden_metadata.get("date_range"),
+    )
+
+    platform_df, tv_df = align_trades(
+        platform_trades, tradingview_trades, golden_metadata.get("date_range")
+    )
+    tolerances = TRADE_VALIDATION_TOLERANCES
+    time_tolerance = tolerances["exit_time"]
+
+    mismatches = []
+    for i in range(len(platform_df)):
+        platform_trade = platform_df.iloc[i]
+        tv_trade = tv_df.iloc[i]
+
+        exit_diff = abs(platform_trade["exit_time"] - tv_trade["exit_time"])
 
         if exit_diff > time_tolerance:
             mismatches.append(
-                f"Trade {i}: Exit time diff {exit_diff} > " f"{time_tolerance}"
+                {
+                    "trade_num": i + 1,
+                    "platform": platform_trade["exit_time"],
+                    "tradingview": tv_trade["exit_time"],
+                    "diff": exit_diff,
+                }
             )
 
-    assert len(mismatches) == 0, "Time mismatches found:\n" + "\n".join(mismatches)
+    if mismatches:
+        print("\n=== Exit Time Mismatches ===")
+        for mm in mismatches[:10]:
+            print(
+                f"Trade {mm['trade_num']}: "
+                f"Platform={mm['platform']}, TV={mm['tradingview']}, "
+                f"Diff={mm['diff']}"
+            )
+        if len(mismatches) > 10:
+            print(f"... and {len(mismatches) - 10} more")
+
+    assert len(mismatches) == 0, (
+        f"Found {len(mismatches)} exit time mismatches. "
+        f"Exit times must match exactly (tolerance={time_tolerance})"
+    )
 
 
 def test_ema_crossover_20pip_stop_trade_pnl_matches_tradingview(
@@ -950,7 +1069,9 @@ def test_ema_crossover_20pip_stop_trade_pnl_matches_tradingview(
         date_range=golden_metadata.get("date_range"),
     )
 
-    platform_df, tv_df = align_trades(platform_trades, tradingview_trades)
+    platform_df, tv_df = align_trades(
+        platform_trades, tradingview_trades, golden_metadata.get("date_range")
+    )
     results = compare_trade_sequences(platform_df, tv_df, TRADE_VALIDATION_TOLERANCES)
 
     assert results["passed"], (
@@ -979,7 +1100,9 @@ def test_ema_crossover_20pip_stop_equity_curve_correlation(
 
     initial_capital = golden_metadata.get("initial_capital", 100000.0)
 
-    platform_df, tv_df = align_trades(platform_trades, tradingview_trades)
+    platform_df, tv_df = align_trades(
+        platform_trades, tradingview_trades, golden_metadata.get("date_range")
+    )
 
     platform_equity = [initial_capital]
     tv_equity = [initial_capital]
