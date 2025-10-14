@@ -306,6 +306,7 @@ def filter_platform_trades_to_validation_range(
                     "exit_price": trade.exit_price,
                     "pnl": trade.pnl,
                     "side": trade.side,
+                    "exit_reason": trade.exit_reason,
                 }
             )
 
