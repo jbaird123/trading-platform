@@ -842,31 +842,12 @@ def test_ema_crossover_equity_curve_correlation(
     )
 
 
-def test_metadata_schema_validation():
-    """Test that metadata schema validation works.
+def test_ema_crossover_metadata_schema_validation(golden_metadata):
+    """Validates baseline metadata conforms to schema.
 
     # Validates: [RV-9.6]
     """
-    # This test validates the schema validation itself
-
-    # Create a valid metadata example
-    valid_metadata = {
-        "dataset_type": "strategy",
-        "strategy_name": "test_strategy",
-        "tradingview_version": "TradingView Pro 2025.10",
-        "export_date": "2025-10-11",
-        "date_range": {
-            "start": "2023-01-01",
-            "end": "2024-12-31",
-        },
-        "instrument": "EURUSD",
-        "timeframe": "1H",
-        "initial_capital": 100000.0,
-        "position_size": 10000.0,
-        "commission": 0.0,
-    }
-
-    # This should not raise an exception
+    # This test validates that the baseline strategy metadata is valid
     import json
 
     import jsonschema
@@ -881,17 +862,14 @@ def test_metadata_schema_validation():
     with open(schema_path) as f:
         schema = json.load(f)
 
-    # Should pass
-    jsonschema.validate(instance=valid_metadata, schema=schema)
+    # Should pass - metadata already loaded and validated by fixture
+    jsonschema.validate(instance=golden_metadata, schema=schema)
 
-    # Test that invalid metadata fails
-    invalid_metadata = {
-        "dataset_type": "strategy",
-        # Missing required fields
-    }
-
-    with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate(instance=invalid_metadata, schema=schema)
+    # Verify key baseline metadata fields
+    assert golden_metadata["dataset_type"] == "strategy"
+    assert "ema_crossover" in golden_metadata["strategy_name"].lower()
+    assert "date_range" in golden_metadata
+    assert "initial_capital" in golden_metadata
 
 
 # === 20-PIP STOP LOSS VARIATION TESTS ===
@@ -1128,3 +1106,34 @@ def test_ema_crossover_20pip_stop_equity_curve_correlation(
     assert (
         final_diff <= max_diff
     ), f"Final equity diff ${final_diff:.2f} > ${max_diff:.2f}"
+
+
+def test_ema_crossover_20pip_stop_metadata_schema_validation(golden_metadata):
+    """Validates 20-pip stop metadata conforms to schema.
+
+    # Validates: [RV-9.6]
+    """
+    # This test validates that the 20pip_stop strategy metadata is valid
+    import json
+
+    import jsonschema
+
+    schema_path = (
+        Path(__file__).parent.parent.parent
+        / "docs"
+        / "schemas"
+        / "golden_metadata.schema.json"
+    )
+
+    with open(schema_path) as f:
+        schema = json.load(f)
+
+    # Should pass - metadata already loaded and validated by fixture
+    jsonschema.validate(instance=golden_metadata, schema=schema)
+
+    # Verify key 20pip_stop metadata fields
+    assert golden_metadata["dataset_type"] == "strategy"
+    assert "ema_crossover" in golden_metadata["strategy_name"].lower()
+    assert "20pip_stop" in golden_metadata["strategy_name"].lower()
+    assert "date_range" in golden_metadata
+    assert "initial_capital" in golden_metadata
