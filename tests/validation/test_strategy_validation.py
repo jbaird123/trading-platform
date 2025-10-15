@@ -1032,3 +1032,365 @@ def test_ema_crossover_20pip_stop_exit_prices_match_tradingview(
         f"Exit prices must match exactly (tolerance={price_tolerance}). "
         f"Note: {len(excluded_same_bar)} same-bar exits were excluded."
     )
+
+
+# === 20-PIP STOP LOSS + 40-PIP TAKE PROFIT VARIATION TESTS ===
+
+
+def test_ema_crossover_20pip_stop_40pip_tp_trade_count_matches_tradingview(
+    golden_strategy_config,
+    tradingview_trades,
+    tradingview_ohlcv,
+    golden_metadata,
+):
+    """Validates 20-pip stop + 40-pip TP variation produces same number of trades.
+
+    # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
+    """
+    platform_trades = load_platform_trades(
+        strategy_name="ema_crossover/20pip_stop_40pip_tp",
+        run_config=golden_strategy_config["run_config"],
+        ohlcv_data=tradingview_ohlcv,
+        date_range=golden_metadata.get("date_range"),
+    )
+
+    if "Signal" in tradingview_trades.columns:
+        closed_trades = tradingview_trades[tradingview_trades["Signal"] != "Open"]
+    else:
+        closed_trades = tradingview_trades
+
+    tv_trade_count = len(closed_trades) // 2
+    platform_trade_count = len(platform_trades)
+
+    expected_closed_trades = golden_metadata.get(
+        "validation_range_closed_trades",
+        golden_metadata.get("closed_trades", golden_metadata.get("total_trades")),
+    )
+
+    assert platform_trade_count == tv_trade_count, (
+        f"Trade count mismatch: Platform={platform_trade_count}, "
+        f"TradingView={tv_trade_count}"
+    )
+
+    assert platform_trade_count == expected_closed_trades, (
+        f"Trade count vs metadata: Platform={platform_trade_count}, "
+        f"Metadata={expected_closed_trades}"
+    )
+
+
+def test_ema_crossover_20pip_stop_40pip_tp_entry_times_match_tradingview(
+    golden_strategy_config,
+    tradingview_trades,
+    tradingview_ohlcv,
+    golden_metadata,
+):
+    """Validates 20-pip stop + 40-pip TP entry times match within tolerance.
+
+    # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
+    """
+    platform_trades = load_platform_trades(
+        strategy_name="ema_crossover/20pip_stop_40pip_tp",
+        run_config=golden_strategy_config["run_config"],
+        ohlcv_data=tradingview_ohlcv,
+        date_range=golden_metadata.get("date_range"),
+    )
+
+    platform_df, tv_df = align_trades(
+        platform_trades, tradingview_trades, golden_metadata.get("date_range")
+    )
+    tolerances = TRADE_VALIDATION_TOLERANCES
+    time_tolerance = tolerances["entry_time"]
+
+    mismatches = []
+    for i in range(len(platform_df)):
+        platform_trade = platform_df.iloc[i]
+        tv_trade = tv_df.iloc[i]
+
+        entry_diff = abs(platform_trade["entry_time"] - tv_trade["entry_time"])
+
+        if entry_diff > time_tolerance:
+            mismatches.append(
+                {
+                    "trade_num": i + 1,
+                    "platform": platform_trade["entry_time"],
+                    "tradingview": tv_trade["entry_time"],
+                    "diff": entry_diff,
+                }
+            )
+
+    if mismatches:
+        print("\n=== Entry Time Mismatches ===")
+        for mm in mismatches[:10]:
+            print(
+                f"Trade {mm['trade_num']}: "
+                f"Platform={mm['platform']}, TV={mm['tradingview']}, "
+                f"Diff={mm['diff']}"
+            )
+        if len(mismatches) > 10:
+            print(f"... and {len(mismatches) - 10} more")
+
+    assert len(mismatches) == 0, (
+        f"Found {len(mismatches)} entry time mismatches. "
+        f"Entry times must match exactly (tolerance={time_tolerance})"
+    )
+
+
+def test_ema_crossover_20pip_stop_40pip_tp_exit_times_match_tradingview(
+    golden_strategy_config,
+    tradingview_trades,
+    tradingview_ohlcv,
+    golden_metadata,
+):
+    """Validates 20-pip stop + 40-pip TP exit times match within tolerance.
+
+    Excludes trades where platform had same-bar stop-loss/TP exits, as TradingView's
+    historical backtesting cannot check stops/TPs within a bar (only at next bar open).
+
+    # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
+    """
+    platform_trades = load_platform_trades(
+        strategy_name="ema_crossover/20pip_stop_40pip_tp",
+        run_config=golden_strategy_config["run_config"],
+        ohlcv_data=tradingview_ohlcv,
+        date_range=golden_metadata.get("date_range"),
+    )
+
+    platform_df, tv_df = align_trades(
+        platform_trades, tradingview_trades, golden_metadata.get("date_range")
+    )
+    tolerances = TRADE_VALIDATION_TOLERANCES
+    time_tolerance = tolerances["exit_time"]
+
+    mismatches = []
+    excluded_same_bar = []
+
+    for i in range(len(platform_df)):
+        platform_trade = platform_df.iloc[i]
+        tv_trade = tv_df.iloc[i]
+
+        # Exclude same-bar stop-loss/TP exits (TradingView limitation)
+        # Platform can detect intra-bar stops/TPs, TradingView cannot
+        if platform_trade["entry_time"] == platform_trade["exit_time"]:
+            excluded_same_bar.append(i)
+            continue
+
+        exit_diff = abs(platform_trade["exit_time"] - tv_trade["exit_time"])
+
+        if exit_diff > time_tolerance:
+            mismatches.append(
+                {
+                    "trade_num": i + 1,
+                    "trade_index": i,
+                    "platform": platform_trade["exit_time"],
+                    "tradingview": tv_trade["exit_time"],
+                    "diff": exit_diff,
+                }
+            )
+
+    # Report excluded trades
+    if excluded_same_bar:
+        print("\n=== Excluded Same-Bar Stop-Loss/TP Exits ===")
+        print(
+            f"Excluded {len(excluded_same_bar)} trades where platform detected "
+            f"intra-bar stop-loss or take-profit."
+        )
+        print(
+            "This is expected: TradingView's historical backtesting cannot "
+            "check stops/TPs within a bar."
+        )
+
+    # Report unexpected mismatches
+    if mismatches:
+        print("\n=== UNEXPECTED Exit Time Mismatches ===")
+        for mm in mismatches[:10]:
+            print(
+                f"Trade {mm['trade_num']}: "
+                f"Platform={mm['platform']}, TV={mm['tradingview']}, "
+                f"Diff={mm['diff']}"
+            )
+        if len(mismatches) > 10:
+            print(f"... and {len(mismatches) - 10} more")
+
+    assert len(mismatches) == 0, (
+        f"Found {len(mismatches)} UNEXPECTED exit time mismatches. "
+        f"Exit times must match exactly (tolerance={time_tolerance}). "
+        f"Note: {len(excluded_same_bar)} same-bar exits were excluded."
+    )
+
+
+def test_ema_crossover_20pip_stop_40pip_tp_metadata_schema_validation(
+    golden_metadata,
+):
+    """Validates 20-pip stop + 40-pip TP metadata conforms to schema.
+
+    # Validates: [RV-9.6]
+    """
+    # This test validates that the 20pip_stop_40pip_tp strategy metadata is valid
+    import json
+
+    import jsonschema
+
+    schema_path = (
+        Path(__file__).parent.parent.parent
+        / "docs"
+        / "schemas"
+        / "golden_metadata.schema.json"
+    )
+
+    with open(schema_path) as f:
+        schema = json.load(f)
+
+    # Should pass - metadata already loaded and validated by fixture
+    jsonschema.validate(instance=golden_metadata, schema=schema)
+
+    # Verify key 20pip_stop_40pip_tp metadata fields
+    assert golden_metadata["dataset_type"] == "strategy"
+    assert "ema_crossover" in golden_metadata["strategy_name"].lower()
+    assert "date_range" in golden_metadata
+    assert "initial_capital" in golden_metadata
+
+
+def test_ema_crossover_20pip_stop_40pip_tp_entry_prices_match_tradingview(
+    golden_strategy_config,
+    tradingview_trades,
+    tradingview_ohlcv,
+    golden_metadata,
+):
+    """Validates 20-pip stop + 40-pip TP entry prices match within tolerance.
+
+    # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
+    """
+    platform_trades = load_platform_trades(
+        strategy_name="ema_crossover/20pip_stop_40pip_tp",
+        run_config=golden_strategy_config["run_config"],
+        ohlcv_data=tradingview_ohlcv,
+        date_range=golden_metadata.get("date_range"),
+    )
+
+    platform_df, tv_df = align_trades(
+        platform_trades, tradingview_trades, golden_metadata.get("date_range")
+    )
+    tolerances = TRADE_VALIDATION_TOLERANCES
+    price_tolerance = tolerances["entry_price"]
+
+    mismatches = []
+    for i in range(len(platform_df)):
+        platform_trade = platform_df.iloc[i]
+        tv_trade = tv_df.iloc[i]
+
+        price_diff = abs(platform_trade["entry_price"] - tv_trade["entry_price"])
+
+        if price_diff > price_tolerance:
+            mismatches.append(
+                {
+                    "trade_num": i + 1,
+                    "entry_time": platform_trade["entry_time"],
+                    "platform": platform_trade["entry_price"],
+                    "tradingview": tv_trade["entry_price"],
+                    "diff": price_diff,
+                }
+            )
+
+    if mismatches:
+        print("\n=== Entry Price Mismatches ===")
+        for mm in mismatches[:10]:
+            print(
+                f"Trade {mm['trade_num']} ({mm['entry_time']}): "
+                f"Platform={mm['platform']:.5f}, TV={mm['tradingview']:.5f}, "
+                f"Diff={mm['diff']:.5f}"
+            )
+        if len(mismatches) > 10:
+            print(f"... and {len(mismatches) - 10} more")
+
+    assert len(mismatches) == 0, (
+        f"Found {len(mismatches)} entry price mismatches. "
+        f"Entry prices must match exactly (tolerance={price_tolerance})"
+    )
+
+
+def test_ema_crossover_20pip_stop_40pip_tp_exit_prices_match_tradingview(
+    golden_strategy_config,
+    tradingview_trades,
+    tradingview_ohlcv,
+    golden_metadata,
+):
+    """Validates 20-pip stop + 40-pip TP exit prices match within tolerance.
+
+    Excludes trades where platform had same-bar stop-loss/TP exits, as TradingView's
+    historical backtesting cannot check stops/TPs within a bar (only at next bar open).
+
+    # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
+    """
+    platform_trades = load_platform_trades(
+        strategy_name="ema_crossover/20pip_stop_40pip_tp",
+        run_config=golden_strategy_config["run_config"],
+        ohlcv_data=tradingview_ohlcv,
+        date_range=golden_metadata.get("date_range"),
+    )
+
+    platform_df, tv_df = align_trades(
+        platform_trades, tradingview_trades, golden_metadata.get("date_range")
+    )
+    tolerances = TRADE_VALIDATION_TOLERANCES
+    price_tolerance = tolerances["exit_price"]
+
+    mismatches = []
+    excluded_same_bar = []
+
+    for i in range(len(platform_df)):
+        platform_trade = platform_df.iloc[i]
+        tv_trade = tv_df.iloc[i]
+
+        # Exclude same-bar stop-loss/TP exits (TradingView limitation)
+        # Platform can detect intra-bar stops/TPs, TradingView cannot
+        if platform_trade["entry_time"] == platform_trade["exit_time"]:
+            excluded_same_bar.append(i)
+            continue
+
+        price_diff = abs(platform_trade["exit_price"] - tv_trade["exit_price"])
+
+        if price_diff > price_tolerance:
+            mismatches.append(
+                {
+                    "trade_num": i + 1,
+                    "trade_index": i,
+                    "entry_time": platform_trade["entry_time"],
+                    "exit_time": platform_trade["exit_time"],
+                    "platform": platform_trade["exit_price"],
+                    "tradingview": tv_trade["exit_price"],
+                    "diff": price_diff,
+                }
+            )
+
+    # Report excluded trades
+    if excluded_same_bar:
+        print("\n=== Excluded Same-Bar Stop-Loss/TP Exits ===")
+        print(
+            f"Excluded {len(excluded_same_bar)} trades where platform detected "
+            f"intra-bar stop-loss or take-profit."
+        )
+        print(
+            "This is expected: TradingView's historical backtesting cannot "
+            "check stops/TPs within a bar."
+        )
+
+    # Report unexpected mismatches
+    if mismatches:
+        print("\n=== UNEXPECTED Exit Price Mismatches ===")
+        for mm in mismatches[:10]:
+            entry_time = mm["entry_time"]
+            exit_time = mm["exit_time"]
+            print(
+                f"Trade {mm['trade_num']} (Entry: {entry_time}, "
+                f"Exit: {exit_time}): "
+                f"Platform={mm['platform']:.5f}, TV={mm['tradingview']:.5f}, "
+                f"Diff={mm['diff']:.5f}"
+            )
+        if len(mismatches) > 10:
+            print(f"... and {len(mismatches) - 10} more")
+
+    assert len(mismatches) == 0, (
+        f"Found {len(mismatches)} UNEXPECTED exit price mismatches. "
+        f"Exit prices must match exactly (tolerance={price_tolerance}). "
+        f"Note: {len(excluded_same_bar)} same-bar exits were excluded."
+    )
