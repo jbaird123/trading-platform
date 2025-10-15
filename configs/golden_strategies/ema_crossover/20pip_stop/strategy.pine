@@ -37,27 +37,60 @@ short_exit = ta.crossover(ema_fast, ema_slow)
 pip_value = syminfo.mintick * 10  // For EURUSD: 0.00001 * 10 = 0.0001
 stop_loss_distance = stop_loss_pips * pip_value
 
-// Execute trades with stop loss
+// Track whether we just entered on the previous bar
+var bool just_entered_long = false
+var bool just_entered_short = false
+var float long_stop_price = na
+var float short_stop_price = na
+
+// Execute trades
 if long_entry
     strategy.close("Short")
     strategy.entry("Long", strategy.long)
-    // Set stop loss at entry price - 20 pips
-    strategy.exit("Long SL", "Long",
-                  stop=close - stop_loss_distance)
+    just_entered_long := true
+    just_entered_short := false
 
 if short_entry
     strategy.close("Long")
     strategy.entry("Short", strategy.short)
-    // Set stop loss at entry price + 20 pips
-    strategy.exit("Short SL", "Short",
-                  stop=close + stop_loss_distance)
+    just_entered_short := true
+    just_entered_long := false
+
+// Apply stop-loss on the bar AFTER entry using the entry bar's open price
+// On signal bar: entry order is placed, just_entered_xxx = true
+// On next bar: entry fills at open, we calculate stop based on THIS bar's open
+if just_entered_long and strategy.position_size > 0
+    long_stop_price := open - stop_loss_distance
+    strategy.exit("Long SL", "Long", stop=long_stop_price)
+    just_entered_long := false
+    short_stop_price := na
+
+if just_entered_short and strategy.position_size < 0
+    short_stop_price := open + stop_loss_distance
+    strategy.exit("Short SL", "Short", stop=short_stop_price)
+    just_entered_short := false
+    long_stop_price := na
+
+// Maintain stop for existing positions using the stored stop price
+if strategy.position_size > 0 and not na(long_stop_price) and not just_entered_long
+    strategy.exit("Long SL", "Long", stop=long_stop_price)
+
+if strategy.position_size < 0 and not na(short_stop_price) and not just_entered_short
+    strategy.exit("Short SL", "Short", stop=short_stop_price)
 
 // Signal-based exits (override stop if signal triggers first)
 if long_exit and strategy.position_size > 0
     strategy.close("Long")
+    long_stop_price := na
 
 if short_exit and strategy.position_size < 0
     strategy.close("Short")
+    short_stop_price := na
+
+// Clear stop prices when no position
+if strategy.position_size == 0
+    long_stop_price := na
+    short_stop_price := na
 
 // Background coloring for regime visualization
 bgcolor(ema_fast > ema_slow ? color.new(color.green, 95) : color.new(color.red, 95), title="Trend Direction")
