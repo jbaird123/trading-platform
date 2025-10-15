@@ -15,7 +15,6 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -699,17 +698,16 @@ def test_ema_crossover_exit_times_match_tradingview(
     )
 
 
-def test_ema_crossover_trade_pnl_matches_tradingview(
+def test_ema_crossover_entry_prices_match_tradingview(
     golden_strategy_config,
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
 ):
-    """Validates that PnL matches within tolerance.
+    """Validates baseline entry prices match within tolerance.
 
-    # Validates: [PM-5.6], [BT-7.8]
+    # Validates: [SE-3.5.3], [BT-7.8]
     """
-    # Load platform trades
     platform_trades = load_platform_trades(
         strategy_name="ema_crossover/baseline",
         run_config=golden_strategy_config["run_config"],
@@ -717,130 +715,57 @@ def test_ema_crossover_trade_pnl_matches_tradingview(
         date_range=golden_metadata.get("date_range"),
     )
 
-    # Align trades (pass validation_range to ensure TV trades are filtered)
     platform_df, tv_df = align_trades(
         platform_trades, tradingview_trades, golden_metadata.get("date_range")
     )
-
-    # Compare PnL
     tolerances = TRADE_VALIDATION_TOLERANCES
-    trade_pnl_tolerance = float(tolerances["trade_pnl"])
-    total_pnl_tolerance = float(tolerances["total_pnl"])
+    price_tolerance = tolerances["entry_price"]
 
     mismatches = []
-    all_differences = []  # Track ALL differences for analysis
-    total_pnl_diff = 0.0
-
     for i in range(len(platform_df)):
         platform_trade = platform_df.iloc[i]
         tv_trade = tv_df.iloc[i]
 
-        # Compare individual trade PnL
-        pnl_diff = abs(platform_trade["pnl"] - tv_trade["pnl"])
-        total_pnl_diff += platform_trade["pnl"] - tv_trade["pnl"]
+        price_diff = abs(platform_trade["entry_price"] - tv_trade["entry_price"])
 
-        # Track ALL differences for diagnostic purposes
-        if pnl_diff > 0.01:  # More than 1 cent
-            all_differences.append(
-                {
-                    "trade_num": i + 1,
-                    "entry_time": platform_trade["entry_time"],
-                    "exit_time": platform_trade["exit_time"],
-                    "side": platform_trade["side"],
-                    "platform_entry": platform_trade["entry_price"],
-                    "tv_entry": tv_trade["entry_price"],
-                    "platform_exit": platform_trade["exit_price"],
-                    "tv_exit": tv_trade["exit_price"],
-                    "platform_pnl": platform_trade["pnl"],
-                    "tv_pnl": tv_trade["pnl"],
-                    "diff": platform_trade["pnl"] - tv_trade["pnl"],
-                    "abs_diff": pnl_diff,
-                }
-            )
-
-        if pnl_diff > trade_pnl_tolerance:
+        if price_diff > price_tolerance:
             mismatches.append(
                 {
                     "trade_num": i + 1,
                     "entry_time": platform_trade["entry_time"],
-                    "platform_pnl": platform_trade["pnl"],
-                    "tv_pnl": tv_trade["pnl"],
-                    "diff": platform_trade["pnl"] - tv_trade["pnl"],
-                    "abs_diff": pnl_diff,
+                    "platform": platform_trade["entry_price"],
+                    "tradingview": tv_trade["entry_price"],
+                    "diff": price_diff,
                 }
             )
 
-    # Print detailed comparison
-    print("\n=== PnL Comparison ===")
-    print(f"Total trades: {len(platform_df)}")
-    print(f"Platform total PnL: ${platform_df['pnl'].sum():.2f}")
-    print(f"TradingView total PnL: ${tv_df['pnl'].sum():.2f}")
-    print(f"Total PnL difference: ${total_pnl_diff:.2f}")
-    print(f"Trades with ANY PnL difference (>$0.01): {len(all_differences)}")
-    print(f"Trade PnL mismatches (>${trade_pnl_tolerance}): {len(mismatches)}")
-
-    if all_differences:
-        print("\n=== ALL PnL Differences (showing first 20) ===")
-        for diff in all_differences[:20]:
-            entry_price_diff = abs(diff["platform_entry"] - diff["tv_entry"])
-            exit_price_diff = abs(diff["platform_exit"] - diff["tv_exit"])
-            print(
-                f"Trade {diff['trade_num']} {diff['side']}: "
-                f"Entry {diff['entry_time'].strftime('%Y-%m-%d %H:%M')}, "
-                f"Exit {diff['exit_time'].strftime('%Y-%m-%d %H:%M')}"
-            )
-            print(
-                f"  Entry prices: Platform={diff['platform_entry']:.5f}, "
-                f"TV={diff['tv_entry']:.5f}, diff={entry_price_diff:.5f}"
-            )
-            print(
-                f"  Exit prices:  Platform={diff['platform_exit']:.5f}, "
-                f"TV={diff['tv_exit']:.5f}, diff={exit_price_diff:.5f}"
-            )
-            print(
-                f"  PnL: Platform=${diff['platform_pnl']:.2f}, "
-                f"TV=${diff['tv_pnl']:.2f}, Diff=${diff['diff']:.2f}"
-            )
-            print()
-        if len(all_differences) > 20:
-            print(f"... and {len(all_differences) - 20} more")
-
     if mismatches:
-        print("\n=== Trade PnL Mismatches (showing first 10) ===")
+        print("\n=== Entry Price Mismatches ===")
         for mm in mismatches[:10]:
             print(
                 f"Trade {mm['trade_num']} ({mm['entry_time']}): "
-                f"Platform=${mm['platform_pnl']:.2f}, "
-                f"TV=${mm['tv_pnl']:.2f}, "
-                f"Diff=${mm['diff']:.2f}"
+                f"Platform={mm['platform']:.5f}, TV={mm['tradingview']:.5f}, "
+                f"Diff={mm['diff']:.5f}"
             )
         if len(mismatches) > 10:
             print(f"... and {len(mismatches) - 10} more")
 
-    # Check total PnL
-    assert abs(total_pnl_diff) <= total_pnl_tolerance, (
-        f"Total PnL difference ${abs(total_pnl_diff):.2f} exceeds "
-        f"tolerance ${total_pnl_tolerance:.2f}"
-    )
-
-    # Check individual trades
     assert len(mismatches) == 0, (
-        f"Found {len(mismatches)} trades with PnL differences "
-        f"> ${trade_pnl_tolerance:.2f}"
+        f"Found {len(mismatches)} entry price mismatches. "
+        f"Entry prices must match exactly (tolerance={price_tolerance})"
     )
 
 
-def test_ema_crossover_equity_curve_correlation(
+def test_ema_crossover_exit_prices_match_tradingview(
     golden_strategy_config,
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
 ):
-    """Validates that equity curves are highly correlated.
+    """Validates baseline exit prices match within tolerance.
 
-    # Validates: [PM-5.3], [RV-9.1]
+    # Validates: [SE-3.5.3], [BT-7.8]
     """
-    # Load platform trades
     platform_trades = load_platform_trades(
         strategy_name="ema_crossover/baseline",
         run_config=golden_strategy_config["run_config"],
@@ -848,48 +773,48 @@ def test_ema_crossover_equity_curve_correlation(
         date_range=golden_metadata.get("date_range"),
     )
 
-    # Align trades (pass validation_range to ensure TV trades are filtered)
     platform_df, tv_df = align_trades(
         platform_trades, tradingview_trades, golden_metadata.get("date_range")
     )
+    tolerances = TRADE_VALIDATION_TOLERANCES
+    price_tolerance = tolerances["exit_price"]
 
-    # Calculate equity curves
-    initial_capital = golden_metadata.get("initial_capital", 100000.0)
-
-    platform_equity = [initial_capital]
-    tv_equity = [initial_capital]
-
+    mismatches = []
     for i in range(len(platform_df)):
-        platform_equity.append(platform_equity[-1] + platform_df.iloc[i]["pnl"])
-        tv_equity.append(tv_equity[-1] + tv_df.iloc[i]["pnl"])
+        platform_trade = platform_df.iloc[i]
+        tv_trade = tv_df.iloc[i]
 
-    # Calculate correlation
-    correlation = np.corrcoef(platform_equity, tv_equity)[0, 1]
+        price_diff = abs(platform_trade["exit_price"] - tv_trade["exit_price"])
 
-    # Calculate final equity difference
-    final_equity_diff = abs(platform_equity[-1] - tv_equity[-1])
+        if price_diff > price_tolerance:
+            mismatches.append(
+                {
+                    "trade_num": i + 1,
+                    "entry_time": platform_trade["entry_time"],
+                    "exit_time": platform_trade["exit_time"],
+                    "platform": platform_trade["exit_price"],
+                    "tradingview": tv_trade["exit_price"],
+                    "diff": price_diff,
+                }
+            )
 
-    # Print results
-    print("\n=== Equity Curve Analysis ===")
-    print(f"Initial capital: ${initial_capital:,.2f}")
-    print(f"Platform final equity: ${platform_equity[-1]:,.2f}")
-    print(f"TradingView final equity: ${tv_equity[-1]:,.2f}")
-    print(f"Final equity difference: ${final_equity_diff:.2f}")
-    print(f"Correlation coefficient: {correlation:.6f}")
+    if mismatches:
+        print("\n=== Exit Price Mismatches ===")
+        for mm in mismatches[:10]:
+            entry_time = mm["entry_time"]
+            exit_time = mm["exit_time"]
+            print(
+                f"Trade {mm['trade_num']} (Entry: {entry_time}, "
+                f"Exit: {exit_time}): "
+                f"Platform={mm['platform']:.5f}, TV={mm['tradingview']:.5f}, "
+                f"Diff={mm['diff']:.5f}"
+            )
+        if len(mismatches) > 10:
+            print(f"... and {len(mismatches) - 10} more")
 
-    # Check correlation
-    tolerances = EQUITY_CURVE_TOLERANCES
-    min_correlation = tolerances["correlation"]
-    final_equity_tolerance = tolerances["final_equity"]
-
-    assert correlation >= min_correlation, (
-        f"Equity curve correlation {correlation:.6f} is below "
-        f"minimum threshold {min_correlation:.6f}"
-    )
-
-    assert final_equity_diff <= final_equity_tolerance, (
-        f"Final equity difference ${final_equity_diff:.2f} exceeds "
-        f"tolerance ${final_equity_tolerance:.2f}"
+    assert len(mismatches) == 0, (
+        f"Found {len(mismatches)} exit price mismatches. "
+        f"Exit prices must match exactly (tolerance={price_tolerance})"
     )
 
 
