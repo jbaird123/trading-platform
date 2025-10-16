@@ -63,51 +63,49 @@ When ambiguity is detected on the primary timeframe:
 
 ### Phase 2: Ambiguity Detection Logic
 
-3. [ ] **Write tests for ambiguity detection helper function**
-   - File: `tests/risk_manager/test_trailing_stop_ambiguity.py` (create new file)
-   - Test function: `is_ambiguous_trailing_stop(bar: pd.Series, trailing_stop_level: float, take_profit_level: float | None) -> bool`
-   - Test Case 1: Trailing stop between bar high/low, no TP → True
-   - Test Case 2: Trailing stop between bar high/low, TP also between → True
-   - Test Case 3: Trailing stop between bar high/low, TP outside → True
-   - Test Case 4: Both trailing stop and TP outside bar range → False
-   - Test Case 5: Fixed stop (no trailing) and TP both between high/low → True
-   - Test Case 6: Only stop OR only TP between high/low (not both) → False
-   - Test edge cases: stop exactly at high, stop exactly at low
-   - Target: 100% coverage of ambiguity detection logic
+**Important Distinction**: There are TWO types of ambiguity to detect:
+1. **Primary Timeframe Ambiguity** - When trailing stop is in bar's range (requires 1-minute zoom)
+2. **1-Minute Tie-Breaking Ambiguity** - When both stop AND TP are in same 1-minute bar (requires policy)
 
-4. [ ] **Implement ambiguity detection helper function**
-   - File: `src/trading_platform/risk_manager/trailing_stop_utils.py` (create new file)
-   - Function: `is_ambiguous_trailing_stop(bar: pd.Series, trailing_stop_level: float, take_profit_level: float | None) -> bool`
-   - Logic:
+3. [ ] **Write tests for primary timeframe ambiguity detection**
+   - File: `tests/risk_manager/test_trailing_stop_ambiguity.py` (create new file)
+   - Test function: `is_trailing_stop_ambiguous(bar: pd.Series, trailing_stop_level: float) -> bool`
+   - Test Case 1 (Ambiguous): Trailing stop is between bar high/low → `True`
+   - Test Case 2 (Not Ambiguous): Trailing stop is below bar low (long) → `False`
+   - Test Case 3 (Not Ambiguous): Trailing stop is above bar high (short) → `False`
+   - Test Case 4 (Edge): Trailing stop exactly at bar low → `True` (inclusive)
+   - Test Case 5 (Edge): Trailing stop exactly at bar high → `True` (inclusive)
+   - Note: This function does NOT consider take-profit level - it only determines if we need to zoom to 1-minute resolution
+   - Target: 100% coverage of primary timeframe ambiguity detection
+
+4. [ ] **Implement primary timeframe ambiguity detection**
+   - File: `src/trading_platform/risk_manager/exit_utils.py` (create new file)
+   - Function: `is_trailing_stop_ambiguous(bar: pd.Series, trailing_stop_level: float) -> bool`
+   - Purpose: Determines if we need to zoom to 1-minute resolution on the primary timeframe
+   - Logic: If the trailing stop level is within the bar's range, we cannot determine from OHLC alone whether it was hit due to intra-bar movement ambiguity
      ```python
      # Ambiguous if trailing stop is between bar's high and low
-     if bar['low'] <= trailing_stop_level <= bar['high']:
-         return True
-
-     # Ambiguous if both stop and TP are between bar's high and low
-     if take_profit_level is not None:
-         stop_in_range = bar['low'] <= trailing_stop_level <= bar['high']
-         tp_in_range = bar['low'] <= take_profit_level <= bar['high']
-         if stop_in_range and tp_in_range:
-             return True
-
-     return False
+     # This is the fundamental problem: we don't know the intra-bar order of movements
+     return bar['low'] <= trailing_stop_level <= bar['high']
      ```
    - Run tests from Task 3 to verify implementation
 
-5. [ ] **Write tests for fixed stop + TP ambiguity detection**
+5. [ ] **Write tests for 1-minute tie-breaking ambiguity detection**
    - File: `tests/risk_manager/test_trailing_stop_ambiguity.py` (extend existing file)
-   - Test function: `is_ambiguous_fixed_stops(bar: pd.Series, stop_loss_level: float, take_profit_level: float) -> bool`
-   - Test: Both stop and TP between bar high/low → True
-   - Test: Only stop between high/low → False
-   - Test: Only TP between high/low → False
-   - Test: Both outside range → False
-   - Target: 100% coverage
+   - Test function: `both_exits_in_same_bar(bar: pd.Series, stop_loss_level: float, take_profit_level: float) -> bool`
+   - Test Case 1 (Both in range): Both stop and TP between bar high/low → `True`
+   - Test Case 2 (Only stop): Only stop between high/low → `False`
+   - Test Case 3 (Only TP): Only TP between high/low → `False`
+   - Test Case 4 (Neither): Both outside range → `False`
+   - Test Case 5 (Edge): Stop exactly at low, TP at high → `True`
+   - Note: This function is used at 1-minute resolution as a tie-breaker when both exits are detected on the same 1-minute bar
+   - Target: 100% coverage of tie-breaking logic
 
-6. [ ] **Implement fixed stop + TP ambiguity detection**
-   - File: `src/trading_platform/risk_manager/trailing_stop_utils.py`
-   - Function: `is_ambiguous_fixed_stops(bar: pd.Series, stop_loss_level: float, take_profit_level: float) -> bool`
-   - Logic:
+6. [ ] **Implement 1-minute tie-breaking ambiguity detection**
+   - File: `src/trading_platform/risk_manager/exit_utils.py`
+   - Function: `both_exits_in_same_bar(bar: pd.Series, stop_loss_level: float, take_profit_level: float) -> bool`
+   - Purpose: Determines if we need to apply tie-breaker policy when processing 1-minute bars
+   - Logic: Both exit levels must be within the bar's range to require tie-breaking
      ```python
      stop_in_range = bar['low'] <= stop_loss_level <= bar['high']
      tp_in_range = bar['low'] <= take_profit_level <= bar['high']
@@ -119,7 +117,8 @@ When ambiguity is detected on the primary timeframe:
 
 7. [ ] **Write tests for 1-minute trailing stop processor**
    - File: `tests/risk_manager/test_1min_trailing_stop.py` (create new file)
-   - Test function: `process_1min_bars_for_trailing_stop(bars_1min: pd.DataFrame, entry_price: float, side: str, trailing_stop_pips: float, take_profit_price: float | None, tie_break_policy: str) -> dict`
+   - Test function: `process_1min_bars_for_trailing_stop(bars_1min: pd.DataFrame, entry_price: float, side: str, trailing_stop_offset: float, take_profit_price: float | None, tie_break_policy: str) -> dict`
+   - Note: `trailing_stop_offset` is in canonical price units (e.g., 0.0020 for EUR/USD), maintaining instrument agnosticism per [SYS-1.3]
    - Return dict format: `{'exit_occurred': bool, 'exit_bar_index': int | None, 'exit_price': float | None, 'exit_reason': str | None}`
    - Test Case 1: Trailing stop hit on minute 15, no TP → exit at stop level
    - Test Case 2: TP hit on minute 20, no stop hit → exit at TP level
@@ -138,18 +137,18 @@ When ambiguity is detected on the primary timeframe:
    - Logic:
      ```python
      peak_or_trough = entry_price
-     stop_level = entry_price - trailing_stop_pips if side == 'long' else entry_price + trailing_stop_pips
+     stop_level = entry_price - trailing_stop_offset if side == 'long' else entry_price + trailing_stop_offset
 
      for idx, bar in bars_1min.iterrows():
          # Update peak/trough
          if side == 'long':
              if bar['high'] > peak_or_trough:
                  peak_or_trough = bar['high']
-                 stop_level = peak_or_trough - trailing_stop_pips
+                 stop_level = peak_or_trough - trailing_stop_offset
          else:
              if bar['low'] < peak_or_trough:
                  peak_or_trough = bar['low']
-                 stop_level = peak_or_trough + trailing_stop_pips
+                 stop_level = peak_or_trough + trailing_stop_offset
 
          # Check if stop hit
          stop_hit = (bar['low'] <= stop_level) if side == 'long' else (bar['high'] >= stop_level)
@@ -160,7 +159,7 @@ When ambiguity is detected on the primary timeframe:
          # Determine exit
          if stop_hit and tp_hit:
              # Both hit - check if ambiguous on this 1min bar
-             if is_ambiguous_fixed_stops(bar, stop_level, take_profit_price):
+             if both_exits_in_same_bar(bar, stop_level, take_profit_price):
                  # Use tie breaker
                  if tie_break_policy == 'stop_then_tp':
                      return {'exit_occurred': True, 'exit_bar_index': idx, 'exit_price': stop_level, 'exit_reason': 'stop-loss'}
@@ -191,15 +190,18 @@ When ambiguity is detected on the primary timeframe:
 10. [ ] **Integrate 1-minute resolution logic into DynamicREM**
     - File: `src/trading_platform/risk_manager/dynamic_rem.py`
     - In the `check_exit()` method (or equivalent), after calculating trailing stop level:
-    - Check if ambiguous using `is_ambiguous_trailing_stop()` from Task 4
+    - Check if ambiguous using `is_trailing_stop_ambiguous()` from Task 4
+    - Note: The REM must convert its pip-based configuration to canonical price units before calling the processor (maintaining instrument agnosticism per [SYS-1.3])
     - If ambiguous:
       ```python
       bars_1min = self.data_handler.get_1min_bars_for_hour(current_bar_timestamp)
+      # Convert pips to price units (instrument-specific conversion happens here in REM)
+      trailing_stop_offset = self.trailing_stop_distance  # Already in price units
       result = process_1min_bars_for_trailing_stop(
           bars_1min=bars_1min,
           entry_price=position.entry_price,
           side=position.side,
-          trailing_stop_pips=self.trailing_stop_distance,
+          trailing_stop_offset=trailing_stop_offset,
           take_profit_price=self.take_profit_level,
           tie_break_policy=self.config.get('exit_tie_break', 'stop_then_tp')
       )
@@ -218,7 +220,7 @@ When ambiguity is detected on the primary timeframe:
 12. [ ] **Implement fixed stop + TP 1-minute zoom in REM**
     - File: `src/trading_platform/risk_manager/dynamic_rem.py`
     - In `check_exit()` method, before returning exit signals:
-    - If fixed stop and TP both exist, check `is_ambiguous_fixed_stops()`
+    - If fixed stop and TP both exist, check `both_exits_in_same_bar()` from Task 6
     - If ambiguous, zoom to 1-minute and process chronologically
     - Use similar logic to Task 8 but without trailing (stop level is fixed)
     - Run tests from Task 11 to verify implementation
@@ -227,12 +229,13 @@ When ambiguity is detected on the primary timeframe:
 
 13. [ ] **Write end-to-end integration tests for 1-minute resolution**
     - File: `tests/integration/test_1min_resolution_integration.py` (create new file)
-    - Test full backtest with trailing stop strategy that has ambiguous bars
-    - Verify trades exit at correct prices when 1-minute resolution is used
-    - Compare results with and without 1-minute resolution enabled
-    - Test performance: ensure 1-minute zoom doesn't cause significant slowdown
-    - Mock realistic OHLC data with known ambiguous scenarios
-    - Target: Verify entire pipeline works end-to-end
+    - Test full backtest with trailing stop strategy that has ambiguous bars.
+    - Verify trades exit at correct prices when 1-minute resolution is used.
+    - **Crucially, assert that the `PortfolioManager` trade log contains the trade with the precise exit price and reason determined by the 1-minute analysis.**
+    - Compare results with and without 1-minute resolution enabled.
+    - Test performance: ensure 1-minute zoom doesn't cause significant slowdown.
+    - Mock realistic OHLC data with known ambiguous scenarios.
+    - Target: Verify entire pipeline works end-to-end.
 
 14. [ ] **Run integration tests and verify all tests pass**
     - Command: `pytest tests/integration/test_1min_resolution_integration.py -v`
@@ -302,3 +305,4 @@ When ambiguity is detected on the primary timeframe:
 - **Data Handler Verification**: ✅ **CONFIRMED** - DataHandler already loads and caches 1-minute data at initialization (see `src/trading_platform/data/handler.py:115-118`). The base timeframe is 1-minute, loaded once from disk and stored in `self._cache["1min"]`. No additional data loading infrastructure is needed.
 - **Performance**: 1-minute resolution should only be invoked when ambiguity is detected, minimizing performance impact. Since 1-minute data is already in memory, the only overhead is the additional Python loops to process up to 60 bars per ambiguous hour.
 - **Future Work**: Pyramiding support is deferred. When pyramiding is implemented, each position's trailing stop must be checked independently.
+- **Instrument Agnosticism**: All core processing functions use canonical price units (e.g., 0.0020 for EUR/USD) rather than instrument-specific terms like "pips". The translation from pips to price units happens at the REM/strategy configuration level per [SYS-1.3].
