@@ -163,6 +163,15 @@ class RunConfig(BaseModel):
             "for details."
         ),
     )
+    exit_tie_break: Literal["stop_then_tp", "tp_then_stop"] = Field(
+        "stop_then_tp",
+        description=(
+            "Exit tie-break policy when both stop-loss and take-profit are hit "
+            "on the same bar. 'stop_then_tp' (default) checks stop-loss first, "
+            "'tp_then_stop' checks take-profit first. This matters for intra-bar "
+            "exits where both levels are breached."
+        ),
+    )
     daily_loss_cap: float | None = Field(
         default=None, description="Portfolio-level daily loss cap in base currency."
     )

@@ -18,7 +18,10 @@ class RiskExitManager:
     """
 
     def __init__(
-        self, config: dict[str, Any] | None = None, instrument: dict | None = None
+        self,
+        config: dict[str, Any] | None = None,
+        instrument: dict | None = None,
+        exit_tie_break: str = "stop_then_tp",
     ):
         """
         Initializes the RiskExitManager with a given risk configuration.
@@ -27,9 +30,13 @@ class RiskExitManager:
             config: A dictionary representing the REM configuration, conforming
                     to the schema defined in the project requirements.
             instrument: A dictionary with instrument-specific metadata.
+            exit_tie_break: Policy for when both SL and TP are hit on same bar.
+                          "stop_then_tp" (default): Check stop-loss first
+                          "tp_then_stop": Check take-profit first
         """
         self.config = config or {}
         self.instrument = instrument or {}
+        self.exit_tie_break = exit_tie_break
 
     def check_exits(
         self, position: Position, current_bar: pd.Series, signal: Any = None
@@ -177,10 +184,24 @@ class RiskExitManager:
                     eff_sl = v
                 else:
                     eff_sl = max(eff_sl, v)
-            if eff_sl is not None and current_bar["low"] <= eff_sl:
-                return {"exit_price": eff_sl, "reason": "stop-loss"}
-            if tp_price is not None and current_bar["high"] >= tp_price:
-                return {"exit_price": tp_price, "reason": "take-profit"}
+
+            # Check if both SL and TP are hit on same bar
+            sl_hit = eff_sl is not None and current_bar["low"] <= eff_sl
+            tp_hit = tp_price is not None and current_bar["high"] >= tp_price
+
+            # Apply exit_tie_break policy
+            if self.exit_tie_break == "stop_then_tp":
+                # Check stop-loss first (default behavior)
+                if sl_hit:
+                    return {"exit_price": eff_sl, "reason": "stop-loss"}
+                if tp_hit:
+                    return {"exit_price": tp_price, "reason": "take-profit"}
+            else:  # "tp_then_stop"
+                # Check take-profit first
+                if tp_hit:
+                    return {"exit_price": tp_price, "reason": "take-profit"}
+                if sl_hit:
+                    return {"exit_price": eff_sl, "reason": "stop-loss"}
         else:
             eff_sl = None
             for v in (sl_price, trail_price):
@@ -190,10 +211,24 @@ class RiskExitManager:
                     eff_sl = v
                 else:
                     eff_sl = min(eff_sl, v)
-            if eff_sl is not None and current_bar["high"] >= eff_sl:
-                return {"exit_price": eff_sl, "reason": "stop-loss"}
-            if tp_price is not None and current_bar["low"] <= tp_price:
-                return {"exit_price": tp_price, "reason": "take-profit"}
+
+            # Check if both SL and TP are hit on same bar
+            sl_hit = eff_sl is not None and current_bar["high"] >= eff_sl
+            tp_hit = tp_price is not None and current_bar["low"] <= tp_price
+
+            # Apply exit_tie_break policy
+            if self.exit_tie_break == "stop_then_tp":
+                # Check stop-loss first (default behavior)
+                if sl_hit:
+                    return {"exit_price": eff_sl, "reason": "stop-loss"}
+                if tp_hit:
+                    return {"exit_price": tp_price, "reason": "take-profit"}
+            else:  # "tp_then_stop"
+                # Check take-profit first
+                if tp_hit:
+                    return {"exit_price": tp_price, "reason": "take-profit"}
+                if sl_hit:
+                    return {"exit_price": eff_sl, "reason": "stop-loss"}
 
         return None
 

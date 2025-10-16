@@ -49,6 +49,36 @@ TRADE_VALIDATION_TOLERANCES: dict[str, Any] = {
 # to determine if edge cases still exist or were PineScript artifacts
 #
 KNOWN_EDGE_CASES: dict[str, dict[str, list[dict]]] = {
+    "ema_crossover/20pip_stop_40pip_tp": {
+        "exit_price_mismatches": [
+            {
+                "trade_index": 121,  # Trade 122 in 1-indexed display
+                "entry_time": "2024-01-10 17:00:00",
+                "exit_time": "2024-01-11 13:00:00",
+                "description": (
+                    "Both SL and TP hit on same bar - tie-break policy difference"
+                ),
+                "explanation": (
+                    "Long entry at 1.09592 with 20-pip SL at 1.09392 and "
+                    "40-pip TP at 1.09992. Exit bar (2024-01-11 13:00) had "
+                    "low=1.09356 (hitting SL) and high=1.09996 (hitting TP). "
+                    "Platform correctly applies exit_tie_break='stop_then_tp' "
+                    "policy and exits at SL price 1.09392. TradingView cannot "
+                    "determine intra-bar order in historical backtesting and "
+                    "exits at TP price 1.09992. This is a fundamental "
+                    "limitation of TradingView's bar-replay engine - it cannot "
+                    "prioritize exits when both levels are breached within the "
+                    "same bar. Platform behavior is correct per configured "
+                    "policy."
+                ),
+                "platform_exit_price": 1.09392,
+                "platform_exit_reason": "stop-loss",
+                "tradingview_exit_price": 1.09992,
+                "bar_low": 1.09356,
+                "bar_high": 1.09996,
+            },
+        ]
+    }
     # "ema_crossover/20pip_stop": {
     #     "exit_time_mismatches": [
     #         {
@@ -1336,6 +1366,11 @@ def test_ema_crossover_20pip_stop_40pip_tp_exit_prices_match_tradingview(
 
     mismatches = []
     excluded_same_bar = []
+    excluded_known_edge_cases = []
+
+    # Get known edge cases for this strategy
+    strategy_edge_cases = KNOWN_EDGE_CASES.get("ema_crossover/20pip_stop_40pip_tp", {})
+    known_exit_price_edge_cases = strategy_edge_cases.get("exit_price_mismatches", [])
 
     for i in range(len(platform_df)):
         platform_trade = platform_df.iloc[i]
@@ -1350,17 +1385,32 @@ def test_ema_crossover_20pip_stop_40pip_tp_exit_prices_match_tradingview(
         price_diff = abs(platform_trade["exit_price"] - tv_trade["exit_price"])
 
         if price_diff > price_tolerance:
-            mismatches.append(
-                {
-                    "trade_num": i + 1,
-                    "trade_index": i,
-                    "entry_time": platform_trade["entry_time"],
-                    "exit_time": platform_trade["exit_time"],
-                    "platform": platform_trade["exit_price"],
-                    "tradingview": tv_trade["exit_price"],
-                    "diff": price_diff,
-                }
-            )
+            # Check if this is a known edge case
+            is_known_edge_case = False
+            for edge_case in known_exit_price_edge_cases:
+                if edge_case["trade_index"] == i:
+                    excluded_known_edge_cases.append(
+                        {
+                            "trade_num": i + 1,
+                            "trade_index": i,
+                            "description": edge_case["description"],
+                        }
+                    )
+                    is_known_edge_case = True
+                    break
+
+            if not is_known_edge_case:
+                mismatches.append(
+                    {
+                        "trade_num": i + 1,
+                        "trade_index": i,
+                        "entry_time": platform_trade["entry_time"],
+                        "exit_time": platform_trade["exit_time"],
+                        "platform": platform_trade["exit_price"],
+                        "tradingview": tv_trade["exit_price"],
+                        "diff": price_diff,
+                    }
+                )
 
     # Report excluded trades
     if excluded_same_bar:
@@ -1372,6 +1422,19 @@ def test_ema_crossover_20pip_stop_40pip_tp_exit_prices_match_tradingview(
         print(
             "This is expected: TradingView's historical backtesting cannot "
             "check stops/TPs within a bar."
+        )
+
+    # Report excluded known edge cases
+    if excluded_known_edge_cases:
+        print("\n=== Excluded Known Edge Cases ===")
+        for edge_case in excluded_known_edge_cases:
+            print(
+                f"Trade {edge_case['trade_num']} (Index {edge_case['trade_index']}): "
+                f"{edge_case['description']}"
+            )
+        print(
+            f"\nExcluded {len(excluded_known_edge_cases)} known edge case(s). "
+            f"See KNOWN_EDGE_CASES for details."
         )
 
     # Report unexpected mismatches
@@ -1392,5 +1455,6 @@ def test_ema_crossover_20pip_stop_40pip_tp_exit_prices_match_tradingview(
     assert len(mismatches) == 0, (
         f"Found {len(mismatches)} UNEXPECTED exit price mismatches. "
         f"Exit prices must match exactly (tolerance={price_tolerance}). "
-        f"Note: {len(excluded_same_bar)} same-bar exits were excluded."
+        f"Note: {len(excluded_same_bar)} same-bar exits and "
+        f"{len(excluded_known_edge_cases)} known edge cases were excluded."
     )

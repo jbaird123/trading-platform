@@ -111,7 +111,11 @@ def strategy_name(request) -> str:
     # Default strategies for common test names
     if "ema_crossover" in test_name:
         # Check for variation in test name
-        if "20pip_stop" in test_name:
+        # IMPORTANT: Check more specific variations first
+        # (e.g., 20pip_stop_40pip_tp before 20pip_stop)
+        if "20pip_stop_40pip_tp" in test_name:
+            return "ema_crossover/20pip_stop_40pip_tp"
+        elif "20pip_stop" in test_name:
             return "ema_crossover/20pip_stop"
         elif "baseline" in test_name or "_ema_crossover_" in test_name:
             # Default to baseline for backward compatibility

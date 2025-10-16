@@ -89,7 +89,10 @@ def run_backtest_from_config(
         instrument_dict = None
 
     rem_cfg = config.rem_config or {}
-    rem = RiskExitManager(config=rem_cfg, instrument=instrument_dict)
+    exit_tie_break = getattr(config, "exit_tie_break", "stop_then_tp")
+    rem = RiskExitManager(
+        config=rem_cfg, instrument=instrument_dict, exit_tie_break=exit_tie_break
+    )
 
     # Run backtest
     trades = run_backtest(
