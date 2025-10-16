@@ -1,0 +1,304 @@
+# 1-Minute Resolution for Trailing Stop Ambiguity - Implementation Plan
+
+## Overview
+This document provides a detailed, step-by-step implementation plan for resolving intra-bar ambiguity in trailing stop execution by zooming to 1-minute resolution when needed.
+
+## Problem Statement
+When using OHLC bar data (e.g., hourly bars), trailing stops suffer from intra-bar ambiguity:
+- If a bar makes a new peak/trough that causes the trailing stop to move into the current bar's low-high range, we cannot determine from OHLC data alone whether the stop was actually hit
+- We cannot determine the order of price movements within the bar (did price hit the peak first, or the trough first?)
+
+## Solution
+When ambiguity is detected on the primary timeframe:
+1. Request 1-minute OHLC data for that bar from the data handler
+2. Process the 60 1-minute bars chronologically, tracking trailing stop updates
+3. Exit at the stop/TP level when hit (not next bar open)
+4. If ambiguity still exists on a 1-minute bar, use conservative resolution rules
+
+## Branch Name
+`feature/1min-resolution-trailing-stops`
+
+---
+
+## Tasks
+
+### Phase 1: Data Handler Enhancement
+
+**Note**: DataHandler already caches 1-minute data at initialization (`self._base_timeframe = "1min"`, see `src/trading_platform/data/handler.py:115-118`). The raw 1-minute data is loaded once and stored in `self._cache["1min"]`. We only need to add a convenience method for retrieving 1-minute bars for a specific hour.
+
+1. [ ] **Write tests for DataHandler 1-minute bar retrieval for specific hour**
+   - File: `tests/data/test_data_handler_1min_bars.py` (create new file)
+   - Test that DataHandler can return 1-minute bars for a specific hourly timestamp
+   - Test edge cases: missing data, partial hour, market gaps
+   - Verify that method correctly filters cached 1-minute data by time range
+   - Verify that returned DataFrame has correct shape (up to 60 rows for a full hour)
+   - Verify that no disk reads occur (data is already cached)
+   - Target: 100% coverage of new convenience method
+
+2. [ ] **Implement DataHandler convenience method to retrieve 1-minute bars for specific hour**
+   - File: `src/trading_platform/data/handler.py`
+   - Add method: `get_1min_bars_for_hour(timestamp: pd.Timestamp) -> pd.DataFrame`
+   - Implementation leverages existing `get_data()` method:
+     ```python
+     def get_1min_bars_for_hour(self, timestamp: pd.Timestamp) -> pd.DataFrame:
+         """Get 1-minute bars for the hour containing the given timestamp.
+
+         Args:
+             timestamp: Any timestamp within the target hour
+
+         Returns:
+             DataFrame with 1-minute OHLCV bars for that hour
+
+         Note:
+             This is a convenience wrapper around get_data() that:
+             - Uses the already-cached 1-minute base data
+             - Filters to the specific hour range
+             - Returns up to 60 bars (or fewer if data missing/gaps)
+         """
+         hour_start = timestamp.floor('H')
+         hour_end = hour_start + pd.Timedelta(hours=1)
+         return self.get_data(timeframe="1min", start=hour_start, end=hour_end)
+     ```
+   - Run tests from Task 1 to verify implementation
+
+### Phase 2: Ambiguity Detection Logic
+
+3. [ ] **Write tests for ambiguity detection helper function**
+   - File: `tests/risk_manager/test_trailing_stop_ambiguity.py` (create new file)
+   - Test function: `is_ambiguous_trailing_stop(bar: pd.Series, trailing_stop_level: float, take_profit_level: float | None) -> bool`
+   - Test Case 1: Trailing stop between bar high/low, no TP → True
+   - Test Case 2: Trailing stop between bar high/low, TP also between → True
+   - Test Case 3: Trailing stop between bar high/low, TP outside → True
+   - Test Case 4: Both trailing stop and TP outside bar range → False
+   - Test Case 5: Fixed stop (no trailing) and TP both between high/low → True
+   - Test Case 6: Only stop OR only TP between high/low (not both) → False
+   - Test edge cases: stop exactly at high, stop exactly at low
+   - Target: 100% coverage of ambiguity detection logic
+
+4. [ ] **Implement ambiguity detection helper function**
+   - File: `src/trading_platform/risk_manager/trailing_stop_utils.py` (create new file)
+   - Function: `is_ambiguous_trailing_stop(bar: pd.Series, trailing_stop_level: float, take_profit_level: float | None) -> bool`
+   - Logic:
+     ```python
+     # Ambiguous if trailing stop is between bar's high and low
+     if bar['low'] <= trailing_stop_level <= bar['high']:
+         return True
+
+     # Ambiguous if both stop and TP are between bar's high and low
+     if take_profit_level is not None:
+         stop_in_range = bar['low'] <= trailing_stop_level <= bar['high']
+         tp_in_range = bar['low'] <= take_profit_level <= bar['high']
+         if stop_in_range and tp_in_range:
+             return True
+
+     return False
+     ```
+   - Run tests from Task 3 to verify implementation
+
+5. [ ] **Write tests for fixed stop + TP ambiguity detection**
+   - File: `tests/risk_manager/test_trailing_stop_ambiguity.py` (extend existing file)
+   - Test function: `is_ambiguous_fixed_stops(bar: pd.Series, stop_loss_level: float, take_profit_level: float) -> bool`
+   - Test: Both stop and TP between bar high/low → True
+   - Test: Only stop between high/low → False
+   - Test: Only TP between high/low → False
+   - Test: Both outside range → False
+   - Target: 100% coverage
+
+6. [ ] **Implement fixed stop + TP ambiguity detection**
+   - File: `src/trading_platform/risk_manager/trailing_stop_utils.py`
+   - Function: `is_ambiguous_fixed_stops(bar: pd.Series, stop_loss_level: float, take_profit_level: float) -> bool`
+   - Logic:
+     ```python
+     stop_in_range = bar['low'] <= stop_loss_level <= bar['high']
+     tp_in_range = bar['low'] <= take_profit_level <= bar['high']
+     return stop_in_range and tp_in_range
+     ```
+   - Run tests from Task 5 to verify implementation
+
+### Phase 3: 1-Minute Resolution Processing
+
+7. [ ] **Write tests for 1-minute trailing stop processor**
+   - File: `tests/risk_manager/test_1min_trailing_stop.py` (create new file)
+   - Test function: `process_1min_bars_for_trailing_stop(bars_1min: pd.DataFrame, entry_price: float, side: str, trailing_stop_pips: float, take_profit_price: float | None, tie_break_policy: str) -> dict`
+   - Return dict format: `{'exit_occurred': bool, 'exit_bar_index': int | None, 'exit_price': float | None, 'exit_reason': str | None}`
+   - Test Case 1: Trailing stop hit on minute 15, no TP → exit at stop level
+   - Test Case 2: TP hit on minute 20, no stop hit → exit at TP level
+   - Test Case 3: Stop hit on minute 10, TP hit on minute 20 → exit at stop (first)
+   - Test Case 4: Both stop and TP hit on same minute bar, tie_break='stop_then_tp' → exit at stop
+   - Test Case 5: Both stop and TP hit on same minute bar, tie_break='tp_then_stop' → exit at TP
+   - Test Case 6: No stop or TP hit in any minute bar → no exit
+   - Test Case 7: Stop trails up/down correctly across multiple minute bars
+   - Test Case 8: Long position - stop moves up with favorable movement
+   - Test Case 9: Short position - stop moves down with favorable movement
+   - Target: 100% coverage of 1-minute processing logic
+
+8. [ ] **Implement 1-minute trailing stop processor**
+   - File: `src/trading_platform/risk_manager/trailing_stop_utils.py`
+   - Function signature from Task 7
+   - Logic:
+     ```python
+     peak_or_trough = entry_price
+     stop_level = entry_price - trailing_stop_pips if side == 'long' else entry_price + trailing_stop_pips
+
+     for idx, bar in bars_1min.iterrows():
+         # Update peak/trough
+         if side == 'long':
+             if bar['high'] > peak_or_trough:
+                 peak_or_trough = bar['high']
+                 stop_level = peak_or_trough - trailing_stop_pips
+         else:
+             if bar['low'] < peak_or_trough:
+                 peak_or_trough = bar['low']
+                 stop_level = peak_or_trough + trailing_stop_pips
+
+         # Check if stop hit
+         stop_hit = (bar['low'] <= stop_level) if side == 'long' else (bar['high'] >= stop_level)
+         tp_hit = False
+         if take_profit_price is not None:
+             tp_hit = (bar['high'] >= take_profit_price) if side == 'long' else (bar['low'] <= take_profit_price)
+
+         # Determine exit
+         if stop_hit and tp_hit:
+             # Both hit - check if ambiguous on this 1min bar
+             if is_ambiguous_fixed_stops(bar, stop_level, take_profit_price):
+                 # Use tie breaker
+                 if tie_break_policy == 'stop_then_tp':
+                     return {'exit_occurred': True, 'exit_bar_index': idx, 'exit_price': stop_level, 'exit_reason': 'stop-loss'}
+                 else:
+                     return {'exit_occurred': True, 'exit_bar_index': idx, 'exit_price': take_profit_price, 'exit_reason': 'take-profit'}
+             # Not ambiguous - need to determine which was hit first (implementation detail: assume stop first for now)
+             return {'exit_occurred': True, 'exit_bar_index': idx, 'exit_price': stop_level, 'exit_reason': 'stop-loss'}
+         elif stop_hit:
+             return {'exit_occurred': True, 'exit_bar_index': idx, 'exit_price': stop_level, 'exit_reason': 'stop-loss'}
+         elif tp_hit:
+             return {'exit_occurred': True, 'exit_bar_index': idx, 'exit_price': take_profit_price, 'exit_reason': 'take-profit'}
+
+     return {'exit_occurred': False, 'exit_bar_index': None, 'exit_price': None, 'exit_reason': None}
+     ```
+   - Run tests from Task 7 to verify implementation
+
+### Phase 4: REM Integration
+
+9. [ ] **Write tests for REM ambiguity detection and 1-minute zoom**
+   - File: `tests/risk_manager/test_rem_1min_zoom.py` (create new file)
+   - Test that REM detects ambiguity on hourly bar with trailing stop
+   - Test that REM requests 1-minute data from DataHandler when ambiguous
+   - Test that REM processes 1-minute bars and returns correct exit signal
+   - Test that REM does NOT zoom to 1-minute when no ambiguity detected
+   - Mock DataHandler's `get_1min_bars_for_hour` method appropriately
+   - Target: 100% coverage of REM's new 1-minute zoom logic
+
+10. [ ] **Integrate 1-minute resolution logic into DynamicREM**
+    - File: `src/trading_platform/risk_manager/dynamic_rem.py`
+    - In the `check_exit()` method (or equivalent), after calculating trailing stop level:
+    - Check if ambiguous using `is_ambiguous_trailing_stop()` from Task 4
+    - If ambiguous:
+      ```python
+      bars_1min = self.data_handler.get_1min_bars_for_hour(current_bar_timestamp)
+      result = process_1min_bars_for_trailing_stop(
+          bars_1min=bars_1min,
+          entry_price=position.entry_price,
+          side=position.side,
+          trailing_stop_pips=self.trailing_stop_distance,
+          take_profit_price=self.take_profit_level,
+          tie_break_policy=self.config.get('exit_tie_break', 'stop_then_tp')
+      )
+      if result['exit_occurred']:
+          return {'should_exit': True, 'exit_reason': result['exit_reason'], 'exit_price': result['exit_price']}
+      ```
+    - Run tests from Task 9 to verify implementation
+
+11. [ ] **Write tests for fixed stop + TP 1-minute zoom**
+    - File: `tests/risk_manager/test_rem_1min_zoom.py` (extend)
+    - Test REM with fixed stop (no trailing) and TP both between bar high/low
+    - Verify REM zooms to 1-minute resolution
+    - Test tie-breaker rules at 1-minute level
+    - Target: 100% coverage of fixed stop + TP ambiguity resolution
+
+12. [ ] **Implement fixed stop + TP 1-minute zoom in REM**
+    - File: `src/trading_platform/risk_manager/dynamic_rem.py`
+    - In `check_exit()` method, before returning exit signals:
+    - If fixed stop and TP both exist, check `is_ambiguous_fixed_stops()`
+    - If ambiguous, zoom to 1-minute and process chronologically
+    - Use similar logic to Task 8 but without trailing (stop level is fixed)
+    - Run tests from Task 11 to verify implementation
+
+### Phase 5: Integration Testing
+
+13. [ ] **Write end-to-end integration tests for 1-minute resolution**
+    - File: `tests/integration/test_1min_resolution_integration.py` (create new file)
+    - Test full backtest with trailing stop strategy that has ambiguous bars
+    - Verify trades exit at correct prices when 1-minute resolution is used
+    - Compare results with and without 1-minute resolution enabled
+    - Test performance: ensure 1-minute zoom doesn't cause significant slowdown
+    - Mock realistic OHLC data with known ambiguous scenarios
+    - Target: Verify entire pipeline works end-to-end
+
+14. [ ] **Run integration tests and verify all tests pass**
+    - Command: `pytest tests/integration/test_1min_resolution_integration.py -v`
+    - Verify all tests pass
+    - Check code coverage: `pytest --cov=src/trading_platform --cov-report=term-missing`
+    - Ensure 100% coverage of all new code
+
+### Phase 6: Golden Validation Update
+
+15. [ ] **Re-run golden validation tests for 20pip_trailing_stop strategy**
+    - Command: `pytest tests/validation/test_strategy_validation.py::test_ema_crossover_20pip_trailing_stop_exit_prices_match_tradingview -v -s`
+    - Document which of the 65 discrepancies are resolved by 1-minute resolution
+    - Document which discrepancies remain and why (TradingView limitations)
+    - Expected: Many of the "ENTRY_BAR_CONTRIBUTED_MFE" discrepancies should be resolved
+
+16. [ ] **Update TrailingStopDiscrepancyAnalyzer with new known edge cases**
+    - File: `tests/validation/trailing_stop_discrepancy_analyzer.py`
+    - Add new category: `OHLC_VS_1MIN_RESOLUTION` for cases where platform uses 1-min but TradingView doesn't
+    - Update categorization logic to identify these cases
+    - Add detailed explanations for why these discrepancies exist
+    - Update acceptable categories list
+
+17. [ ] **Document 1-minute resolution behavior in README**
+    - File: `configs/golden_strategies/ema_crossover/20pip_trailing_stop/README.md`
+    - Add section explaining 1-minute resolution logic
+    - Document known edge cases where platform behavior differs from TradingView
+    - Explain why platform is more accurate than TradingView in these cases
+
+### Phase 7: Configuration and Documentation
+
+18. [ ] **Add configuration flag to enable/disable 1-minute resolution**
+    - File: `src/trading_platform/risk_manager/dynamic_rem.py`
+    - Add config parameter: `use_1min_resolution: bool = True`
+    - Allow users to disable 1-minute resolution if desired (for performance or testing)
+    - Update REM logic to check this flag before zooming to 1-minute
+    - Document in code comments when users might want to disable this
+
+19. [ ] **Update architecture documentation**
+    - File: `docs/architecture/trailing_stops_1min_resolution.md` (create new file)
+    - Document the design decision and rationale
+    - Explain ambiguity detection criteria
+    - Provide examples of ambiguous vs non-ambiguous scenarios
+    - Document performance characteristics
+    - Include diagrams showing intra-bar ambiguity problem and solution
+
+20. [ ] **Run full test suite and verify 100% coverage**
+    - Command: `pytest --cov=src/trading_platform --cov-report=html`
+    - Verify all tests pass
+    - Verify 100% coverage of all modified and new code
+    - Review HTML coverage report to identify any missed lines
+    - Fix any coverage gaps
+
+---
+
+## Completion Criteria
+
+- [ ] All 20 tasks completed in order
+- [ ] All tests pass: `pytest`
+- [ ] 100% test coverage maintained: `pytest --cov`
+- [ ] Golden validation tests document expected discrepancies
+- [ ] Code reviewed and approved
+- [ ] Documentation updated and complete
+- [ ] Branch merged to main after approval
+
+## Notes
+
+- **Data Handler Verification**: ✅ **CONFIRMED** - DataHandler already loads and caches 1-minute data at initialization (see `src/trading_platform/data/handler.py:115-118`). The base timeframe is 1-minute, loaded once from disk and stored in `self._cache["1min"]`. No additional data loading infrastructure is needed.
+- **Performance**: 1-minute resolution should only be invoked when ambiguity is detected, minimizing performance impact. Since 1-minute data is already in memory, the only overhead is the additional Python loops to process up to 60 bars per ambiguous hour.
+- **Future Work**: Pyramiding support is deferred. When pyramiding is implemented, each position's trailing stop must be checked independently.

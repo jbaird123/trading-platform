@@ -115,6 +115,8 @@ def strategy_name(request) -> str:
         # (e.g., 20pip_stop_40pip_tp before 20pip_stop)
         if "20pip_stop_40pip_tp" in test_name:
             return "ema_crossover/20pip_stop_40pip_tp"
+        elif "20pip_trailing_stop" in test_name:
+            return "ema_crossover/20pip_trailing_stop"
         elif "20pip_stop" in test_name:
             return "ema_crossover/20pip_stop"
         elif "baseline" in test_name or "_ema_crossover_" in test_name:
