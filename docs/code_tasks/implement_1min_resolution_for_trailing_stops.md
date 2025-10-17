@@ -198,7 +198,7 @@ When ambiguity is detected on the primary timeframe:
 
 ### Phase 4: REM Integration
 
-11. [ ] **Write tests for REM ambiguity detection and 1-minute zoom**
+11. [x] **Write tests for REM ambiguity detection and 1-minute zoom**
    - File: `tests/risk_manager/test_rem_1min_zoom.py` (create new file)
    - Test that REM detects ambiguity on hourly bar with trailing stop
    - Test that REM requests 1-minute data from DataHandler when ambiguous
