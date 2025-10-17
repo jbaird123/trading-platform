@@ -6,8 +6,12 @@ import pandas as pd
 
 from trading_platform.core.signal import Signal
 from trading_platform.portfolio.position import Position
-from trading_platform.risk_manager.exit_utils import is_trailing_stop_ambiguous
+from trading_platform.risk_manager.exit_utils import (
+    is_fixed_stops_ambiguous,
+    is_trailing_stop_ambiguous,
+)
 from trading_platform.risk_manager.trailing_stop_utils import (
+    process_1min_bars_for_fixed_stops,
     process_1min_bars_for_trailing_stop,
 )
 
@@ -210,6 +214,36 @@ class RiskExitManager:
                     # If no exit in 1-minute data, return None (no exit)
                     # Don't fall through to OHLC checking - we've resolved the ambiguity
                     return None
+
+        # Check for fixed stop + TP ambiguity and zoom to 1-minute if needed
+        # This handles the case where BOTH fixed stop AND TP are in the bar's range
+        if (
+            sl_price is not None
+            and tp_price is not None
+            and data_handler is not None
+            and trail_price is None  # Only for fixed stops (no trailing)
+            and is_fixed_stops_ambiguous(current_bar, sl_price, tp_price)
+        ):
+            # Zoom to 1-minute resolution
+            bars_1min = data_handler.get_1min_bars_for_hour(current_bar.name)
+
+            # Process 1-minute bars
+            result = process_1min_bars_for_fixed_stops(
+                bars_1min=bars_1min,
+                side=position.side,
+                stop_loss_level=sl_price,
+                take_profit_level=tp_price,
+                tie_break_policy=self.exit_tie_break,
+            )
+
+            # If exit occurred, return it
+            if result["exit_occurred"]:
+                return {
+                    "exit_price": result["exit_price"],
+                    "reason": result["exit_reason"],
+                }
+            # If no exit in 1-minute data, return None
+            return None
 
         # For longs, the effective stop is the highest of (sl, trail) below price;
         # for shorts, the lowest of (sl, trail) above price.

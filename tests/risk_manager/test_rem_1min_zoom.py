@@ -301,3 +301,129 @@ def test_rem_short_position_trailing_stop_zoom(mock_instrument, mock_data_handle
     assert result is not None
     assert result["reason"] == "stop-loss"
     assert result["exit_price"] == 1.0580
+
+
+def test_rem_fixed_stop_and_tp_both_ambiguous_zooms_to_1min(
+    mock_instrument, mock_data_handler
+):
+    """Test that REM zooms when both fixed stop and TP are in bar's range."""
+    position = Position(
+        symbol="EUR_USD",
+        entry_time=pd.Timestamp("2023-01-01 10:00:00", tz="UTC"),
+        entry_price=1.0600,
+        entry_mid_price=1.0600,
+        side="long",
+        size=1.0,
+        mfe_currency=0.0,
+    )
+
+    # Ambiguous bar - both stop (1.0580) and TP (1.0650) are in range
+    current_bar = pd.Series(
+        {
+            "timestamp": pd.Timestamp("2023-01-01 11:00:00", tz="UTC"),
+            "open": 1.0600,
+            "high": 1.0655,  # Above TP
+            "low": 1.0575,  # Below stop
+            "close": 1.0620,
+        },
+        name=pd.Timestamp("2023-01-01 11:00:00", tz="UTC"),
+    )
+
+    # 1-minute bars: stop hit first on bar 15
+    bars_1min_data = []
+    for i in range(60):
+        if i < 15:
+            bars_1min_data.append(
+                {"open": 1.0600, "high": 1.0605, "low": 1.0595, "close": 1.0600}
+            )
+        elif i == 15:
+            # Stop hit first
+            bars_1min_data.append(
+                {"open": 1.0600, "high": 1.0600, "low": 1.0575, "close": 1.0580}
+            )
+        else:
+            bars_1min_data.append(
+                {"open": 1.0620, "high": 1.0655, "low": 1.0615, "close": 1.0630}
+            )
+
+    bars_1min = pd.DataFrame(bars_1min_data)
+    bars_1min.index = pd.date_range(
+        "2023-01-01 11:00:00", periods=60, freq="1min", tz="UTC"
+    )
+    mock_data_handler.get_1min_bars_for_hour.return_value = bars_1min
+
+    # Configure with both fixed stop and TP
+    config = {"stop_loss": {"pips": 20}, "take_profit": {"pips": 50}}
+    rem = RiskExitManager(config=config, instrument=mock_instrument)
+
+    result = rem.check_exits(position, current_bar, data_handler=mock_data_handler)
+
+    # Should zoom and detect stop hit first
+    mock_data_handler.get_1min_bars_for_hour.assert_called_once()
+    assert result is not None
+    assert result["reason"] == "stop-loss"
+    assert result["exit_price"] == 1.0580
+
+
+def test_rem_fixed_stop_tp_ambiguous_tp_hits_first(mock_instrument, mock_data_handler):
+    """Test that REM correctly detects TP hit first when both are ambiguous."""
+    position = Position(
+        symbol="EUR_USD",
+        entry_time=pd.Timestamp("2023-01-01 10:00:00", tz="UTC"),
+        entry_price=1.0600,
+        entry_mid_price=1.0600,
+        side="long",
+        size=1.0,
+        mfe_currency=0.0,
+    )
+
+    # Ambiguous bar
+    current_bar = pd.Series(
+        {
+            "timestamp": pd.Timestamp("2023-01-01 11:00:00", tz="UTC"),
+            "open": 1.0600,
+            "high": 1.0655,
+            "low": 1.0575,
+            "close": 1.0640,
+        },
+        name=pd.Timestamp("2023-01-01 11:00:00", tz="UTC"),
+    )
+
+    # 1-minute bars: TP hit first on bar 20
+    bars_1min_data = []
+    for i in range(60):
+        if i < 20:
+            # Rally to TP
+            bars_1min_data.append(
+                {
+                    "open": 1.0600 + i * 0.0002,
+                    "high": 1.0610 + i * 0.0002,
+                    "low": 1.0595 + i * 0.0002,
+                    "close": 1.0605 + i * 0.0002,
+                }
+            )
+        elif i == 20:
+            # TP hit
+            bars_1min_data.append(
+                {"open": 1.0645, "high": 1.0655, "low": 1.0640, "close": 1.0650}
+            )
+        else:
+            bars_1min_data.append(
+                {"open": 1.0640, "high": 1.0645, "low": 1.0635, "close": 1.0640}
+            )
+
+    bars_1min = pd.DataFrame(bars_1min_data)
+    bars_1min.index = pd.date_range(
+        "2023-01-01 11:00:00", periods=60, freq="1min", tz="UTC"
+    )
+    mock_data_handler.get_1min_bars_for_hour.return_value = bars_1min
+
+    config = {"stop_loss": {"pips": 20}, "take_profit": {"pips": 50}}
+    rem = RiskExitManager(config=config, instrument=mock_instrument)
+
+    result = rem.check_exits(position, current_bar, data_handler=mock_data_handler)
+
+    # Should detect TP hit first
+    assert result is not None
+    assert result["reason"] == "take-profit"
+    assert result["exit_price"] == 1.0650

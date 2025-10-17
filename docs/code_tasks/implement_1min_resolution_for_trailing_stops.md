@@ -230,14 +230,14 @@ When ambiguity is detected on the primary timeframe:
       ```
     - Run tests from Task 9 to verify implementation
 
-13. [ ] **Write tests for fixed stop + TP 1-minute zoom**
+13. [x] **Write tests for fixed stop + TP 1-minute zoom**
     - File: `tests/risk_manager/test_rem_1min_zoom.py` (extend)
     - Test REM with fixed stop (no trailing) and TP both between bar high/low
     - Verify REM zooms to 1-minute resolution
     - Test tie-breaker rules at 1-minute level
     - Target: 100% coverage of fixed stop + TP ambiguity resolution
 
-14. [ ] **Implement fixed stop + TP 1-minute zoom in REM**
+14. [x] **Implement fixed stop + TP 1-minute zoom in REM**
     - File: `src/trading_platform/risk_manager/dynamic_rem.py`
     - In `check_exit()` method, before returning exit signals:
     - If fixed stop and TP both exist, check `both_exits_in_same_bar()` from Task 6

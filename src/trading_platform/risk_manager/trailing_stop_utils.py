@@ -1,8 +1,8 @@
 """
-1-Minute resolution trailing stop processor.
+1-Minute resolution exit processors.
 
 This module provides the core logic for processing 1-minute bars chronologically
-to determine trailing stop and take-profit exits with precise timing.
+to determine trailing stop, fixed stop, and take-profit exits with precise timing.
 """
 
 from __future__ import annotations
@@ -10,6 +10,96 @@ from __future__ import annotations
 import pandas as pd
 
 from .exit_utils import both_exits_in_same_bar
+
+
+def process_1min_bars_for_fixed_stops(
+    bars_1min: pd.DataFrame,
+    side: str,
+    stop_loss_level: float,
+    take_profit_level: float | None,
+    tie_break_policy: str,
+) -> dict:
+    """Process 1-minute bars for fixed stop-loss and take-profit exits.
+
+    Args:
+        bars_1min: DataFrame with 1-minute OHLC data
+        side: Position side ("long" or "short")
+        stop_loss_level: Fixed stop-loss price level
+        take_profit_level: Fixed take-profit price level (or None)
+        tie_break_policy: "stop_then_tp" or "tp_then_stop"
+
+    Returns:
+        dict with keys:
+        - exit_occurred: bool
+        - exit_bar_index: int (index where exit occurred) or None
+        - exit_price: float (exit price) or None
+        - exit_reason: str ("stop-loss" or "take-profit") or None
+    """
+    # Process each 1-minute bar chronologically
+    for idx, bar in bars_1min.iterrows():
+        # Check if stop was hit
+        if side == "long":
+            stop_hit = bar["low"] <= stop_loss_level
+        else:
+            stop_hit = bar["high"] >= stop_loss_level
+
+        # Check if TP was hit
+        tp_hit = False
+        if take_profit_level is not None:
+            if side == "long":
+                tp_hit = bar["high"] >= take_profit_level
+            else:
+                tp_hit = bar["low"] <= take_profit_level
+
+        # Determine exit
+        if stop_hit and tp_hit:
+            # Both hit on same bar - check if truly ambiguous
+            if both_exits_in_same_bar(bar, stop_loss_level, take_profit_level):
+                # Use tie-breaker policy
+                if tie_break_policy == "stop_then_tp":
+                    return {
+                        "exit_occurred": True,
+                        "exit_bar_index": idx,
+                        "exit_price": stop_loss_level,
+                        "exit_reason": "stop-loss",
+                    }
+                else:
+                    return {
+                        "exit_occurred": True,
+                        "exit_bar_index": idx,
+                        "exit_price": take_profit_level,
+                        "exit_reason": "take-profit",
+                    }
+            else:
+                # Can determine order from OHLC - conservatively assume stop first
+                return {
+                    "exit_occurred": True,
+                    "exit_bar_index": idx,
+                    "exit_price": stop_loss_level,
+                    "exit_reason": "stop-loss",
+                }
+        elif stop_hit:
+            return {
+                "exit_occurred": True,
+                "exit_bar_index": idx,
+                "exit_price": stop_loss_level,
+                "exit_reason": "stop-loss",
+            }
+        elif tp_hit:
+            return {
+                "exit_occurred": True,
+                "exit_bar_index": idx,
+                "exit_price": take_profit_level,
+                "exit_reason": "take-profit",
+            }
+
+    # No exit occurred in any bar
+    return {
+        "exit_occurred": False,
+        "exit_bar_index": None,
+        "exit_price": None,
+        "exit_reason": None,
+    }
 
 
 def process_1min_bars_for_trailing_stop(
