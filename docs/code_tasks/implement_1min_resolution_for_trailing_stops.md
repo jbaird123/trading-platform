@@ -135,7 +135,7 @@ When ambiguity is detected on the primary timeframe:
 
 ### Phase 3: 1-Minute Resolution Processing
 
-9. [ ] **Write tests for 1-minute trailing stop processor**
+9. [x] **Write tests for 1-minute trailing stop processor**
    - File: `tests/risk_manager/test_1min_trailing_stop.py` (create new file)
    - Test function: `process_1min_bars_for_trailing_stop(bars_1min: pd.DataFrame, entry_price: float, side: str, trailing_stop_offset: float, take_profit_price: float | None, tie_break_policy: str) -> dict`
    - Note: `trailing_stop_offset` is in canonical price units (e.g., 0.0020 for EUR/USD), maintaining instrument agnosticism per [SYS-1.3]
@@ -151,7 +151,7 @@ When ambiguity is detected on the primary timeframe:
    - Test Case 9: Short position - stop moves down with favorable movement
    - Target: 100% coverage of 1-minute processing logic
 
-10. [ ] **Implement 1-minute trailing stop processor**
+10. [x] **Implement 1-minute trailing stop processor**
    - File: `src/trading_platform/risk_manager/trailing_stop_utils.py`
    - Function signature from Task 7
    - Logic:
