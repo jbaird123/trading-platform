@@ -22,6 +22,7 @@ def run_backtest_from_config(
     market_data: pd.DataFrame,
     strategy_config: dict[str, Any] | None = None,
     strategy_path: str | None = None,
+    data_handler: Any = None,
 ) -> dict[str, Any]:
     """Run a complete backtest from a RunConfig.
 
@@ -39,6 +40,8 @@ def run_backtest_from_config(
         strategy_config: Optional strategy configuration dict
         strategy_path: Optional path to strategy YAML file. If provided,
             will load strategy from this file
+        data_handler: Optional DataHandler for 1-minute resolution zoom.
+            If provided, enables intra-bar ambiguity resolution.
 
     Returns:
         Dictionary with keys:
@@ -104,6 +107,7 @@ def run_backtest_from_config(
         rmm_context=None,  # Simplified - no RMM for basic tests
         return_exposure=True,
         return_skips=False,
+        data_handler=data_handler,
     )
 
     # Handle return value (can be tuple or list)

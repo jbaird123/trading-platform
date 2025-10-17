@@ -305,7 +305,7 @@ class RiskExitManager:
         return None
 
     def check_exits_intrabar(
-        self, position: Position, current_bar: pd.Series
+        self, position: Position, current_bar: pd.Series, data_handler: Any = None
     ) -> dict[str, Any] | None:
         """
         Check if position should exit based on intrabar price action.
@@ -317,12 +317,15 @@ class RiskExitManager:
         Args:
             position: Current open position
             current_bar: Bar with OHLC data
+            data_handler: Optional DataHandler for 1-minute resolution zoom
 
         Returns:
             Action descriptor dict or None
         """
         # Call existing check_exits method
-        exit_details = self.check_exits(position, current_bar)
+        exit_details = self.check_exits(
+            position, current_bar, data_handler=data_handler
+        )
 
         if exit_details is None:
             return None

@@ -131,6 +131,7 @@ def run_backtest(
     rmm_context: dict[datetime, dict[str, Any]] | None = None,
     return_exposure: bool = False,
     return_skips: bool = False,
+    data_handler: Any = None,
 ) -> (
     list[Trade]
     | tuple[list[Trade], list[tuple[datetime, float]]]
@@ -146,6 +147,7 @@ def run_backtest(
         rem: The Risk & Exit Manager instance.
         return_exposure: If True, returns the exposure curve.
         return_skips: If True, returns a list of skipped trades.
+        data_handler: Optional DataHandler for 1-minute resolution zoom.
 
     Returns:
         A list of completed Trade objects, and optionally other artifacts.
@@ -342,7 +344,7 @@ def run_backtest(
         # The execution_model setting only applies to signal-based entries/exits.
         if portfolio.current_position and rem is not None:
             rem_result = rem.check_exits_intrabar(
-                portfolio.current_position, current_bar
+                portfolio.current_position, current_bar, data_handler=data_handler
             )
 
             if rem_result is not None and rem_result["action"] == "should_close":
@@ -632,6 +634,7 @@ def run_backtest(
                     cost_model=config.cost_model,
                     rem=rem,
                     symbol=symbol,
+                    data_handler=data_handler,
                 )
             s.update(cf)
 
@@ -729,6 +732,7 @@ def _simulate_counterfactual_exact(
     cost_model: dict | None,
     rem: RiskExitManager,
     symbol: str,
+    data_handler: Any = None,
 ) -> dict[str, Any]:
     """Exact counterfactual: bar-by-bar re-simulation with REM."""
     if start_index < 0 or start_index >= len(market_data):
@@ -758,7 +762,9 @@ def _simulate_counterfactual_exact(
         bars_touched += 1
         # Apply REM exits first for fidelity
         if pm.current_position:
-            exit_details = rem.check_exits(pm.current_position, cb)
+            exit_details = rem.check_exits(
+                pm.current_position, cb, data_handler=data_handler
+            )
             if exit_details:
                 pm.close_position(
                     exit_price=exit_details["exit_price"],

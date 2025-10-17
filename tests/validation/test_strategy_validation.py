@@ -209,9 +209,44 @@ def load_platform_trades(
     # Create RunConfig
     config = RunConfig.model_validate(config_dict)
 
+    # Create DataHandler for 1-minute resolution (if needed for trailing stops)
+    # This enables intra-bar ambiguity resolution
+    data_handler = None
+    if "trailing_stop" in str(strategy_name):
+        from pathlib import Path
+
+        from trading_platform.data.handler import DataHandler
+
+        # Use golden TradingView data directory for 1-minute resolution
+        # Matches same TradingView data source as hourly golden data
+        data_root = (
+            Path(__file__).parent.parent.parent
+            / "data"
+            / "dvc"
+            / "golden"
+            / "ohlcv"
+            / "tradingview"
+        )
+
+        # Create DataHandler with EUR/USD symbol
+        # This will load the 1-minute base data and cache it
+        if data_root.exists():
+            try:
+                data_handler = DataHandler(
+                    symbol="EUR_USD",
+                    data_root=data_root,
+                    instrument=config.instrument,
+                )
+            except FileNotFoundError:
+                # If 1-minute data not available, fall back to OHLC-only
+                data_handler = None
+
     # Run backtest on extended data
     results = run_backtest_from_config(
-        config=config, market_data=ohlcv_to_use, strategy_config=strategy_config
+        config=config,
+        market_data=ohlcv_to_use,
+        strategy_config=strategy_config,
+        data_handler=data_handler,
     )
 
     # Filter trades to validation range using utility function
