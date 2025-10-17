@@ -63,11 +63,12 @@ When ambiguity is detected on the primary timeframe:
 
 ### Phase 2: Ambiguity Detection Logic
 
-**Important Distinction**: There are TWO types of ambiguity to detect:
-1. **Primary Timeframe Ambiguity** - When trailing stop is in bar's range (requires 1-minute zoom)
-2. **1-Minute Tie-Breaking Ambiguity** - When both stop AND TP are in same 1-minute bar (requires policy)
+**Important Distinction**: There are THREE types of ambiguity to detect:
+1. **Primary Timeframe Ambiguity (Trailing Stop)** - When trailing stop is in bar's range (requires 1-minute zoom)
+2. **Primary Timeframe Ambiguity (Fixed Stops)** - When BOTH fixed stop AND TP are in bar's range (requires 1-minute zoom)
+3. **1-Minute Tie-Breaking Ambiguity** - When both exits are detected on same 1-minute bar (requires tie-breaker policy)
 
-3. [x] **Write tests for primary timeframe ambiguity detection**
+3. [x] **Write tests for trailing stop primary timeframe ambiguity detection**
    - File: `tests/risk_manager/test_trailing_stop_ambiguity.py` (create new file)
    - Test function: `is_trailing_stop_ambiguous(bar: pd.Series, trailing_stop_level: float) -> bool`
    - Test Case 1 (Ambiguous): Trailing stop is between bar high/low → `True`
@@ -78,10 +79,10 @@ When ambiguity is detected on the primary timeframe:
    - Note: This function does NOT consider take-profit level - it only determines if we need to zoom to 1-minute resolution
    - Target: 100% coverage of primary timeframe ambiguity detection
 
-4. [x] **Implement primary timeframe ambiguity detection**
+4. [x] **Implement trailing stop primary timeframe ambiguity detection**
    - File: `src/trading_platform/risk_manager/exit_utils.py` (create new file)
    - Function: `is_trailing_stop_ambiguous(bar: pd.Series, trailing_stop_level: float) -> bool`
-   - Purpose: Determines if we need to zoom to 1-minute resolution on the primary timeframe
+   - Purpose: Determines if we need to zoom to 1-minute resolution for trailing stops
    - Logic: If the trailing stop level is within the bar's range, we cannot determine from OHLC alone whether it was hit due to intra-bar movement ambiguity
      ```python
      # Ambiguous if trailing stop is between bar's high and low
@@ -90,18 +91,37 @@ When ambiguity is detected on the primary timeframe:
      ```
    - Run tests from Task 3 to verify implementation
 
-5. [x] **Write tests for 1-minute tie-breaking ambiguity detection**
+5. [x] **Write tests for fixed stops primary timeframe ambiguity detection**
    - File: `tests/risk_manager/test_trailing_stop_ambiguity.py` (extend existing file)
+   - Test function: `is_fixed_stops_ambiguous(bar: pd.Series, stop_loss_level: float, take_profit_level: float) -> bool`
+   - Test Case 1 (Ambiguous): Both stop and TP between bar high/low → `True`
+   - Test Case 2 (Not Ambiguous): Only stop in range → `False`
+   - Test Case 3 (Not Ambiguous): Only TP in range → `False`
+   - Test Case 4 (Not Ambiguous): Neither in range → `False`
+   - Test Case 5 (Edge): Stop at low, TP at high → `True`
+   - Note: This function determines if we need to zoom to 1-minute for FIXED (non-trailing) stops
+   - Target: 100% coverage of fixed stops ambiguity detection
+
+6. [x] **Implement fixed stops primary timeframe ambiguity detection**
+   - File: `src/trading_platform/risk_manager/exit_utils.py`
+   - Function: `is_fixed_stops_ambiguous(bar: pd.Series, stop_loss_level: float, take_profit_level: float) -> bool`
+   - Purpose: Determines if we need to zoom to 1-minute resolution for fixed stops
+   - Logic: Both stop and TP must be in range to be ambiguous (we don't know which was hit first)
+     ```python
+     stop_in_range = bar['low'] <= stop_loss_level <= bar['high']
+     tp_in_range = bar['low'] <= take_profit_level <= bar['high']
+     return stop_in_range and tp_in_range
+     ```
+   - Run tests from Task 5 to verify implementation
+
+7. [x] **Write tests for 1-minute tie-breaking ambiguity detection**
+   - File: `tests/risk_manager/test_trailing_stop_ambiguity.py` (already implemented in Task 5-6)
    - Test function: `both_exits_in_same_bar(bar: pd.Series, stop_loss_level: float, take_profit_level: float) -> bool`
-   - Test Case 1 (Both in range): Both stop and TP between bar high/low → `True`
-   - Test Case 2 (Only stop): Only stop between high/low → `False`
-   - Test Case 3 (Only TP): Only TP between high/low → `False`
-   - Test Case 4 (Neither): Both outside range → `False`
-   - Test Case 5 (Edge): Stop exactly at low, TP at high → `True`
-   - Note: This function is used at 1-minute resolution as a tie-breaker when both exits are detected on the same 1-minute bar
+   - Note: These tests were already written and use the SAME function signature as fixed stops ambiguity
+   - The difference is PURPOSE: fixed stops ambiguity is for PRIMARY timeframe, tie-breaking is for 1-MINUTE resolution
    - Target: 100% coverage of tie-breaking logic
 
-6. [x] **Implement 1-minute tie-breaking ambiguity detection**
+8. [x] **Implement 1-minute tie-breaking ambiguity detection**
    - File: `src/trading_platform/risk_manager/exit_utils.py`
    - Function: `both_exits_in_same_bar(bar: pd.Series, stop_loss_level: float, take_profit_level: float) -> bool`
    - Purpose: Determines if we need to apply tie-breaker policy when processing 1-minute bars
@@ -115,7 +135,7 @@ When ambiguity is detected on the primary timeframe:
 
 ### Phase 3: 1-Minute Resolution Processing
 
-7. [ ] **Write tests for 1-minute trailing stop processor**
+9. [ ] **Write tests for 1-minute trailing stop processor**
    - File: `tests/risk_manager/test_1min_trailing_stop.py` (create new file)
    - Test function: `process_1min_bars_for_trailing_stop(bars_1min: pd.DataFrame, entry_price: float, side: str, trailing_stop_offset: float, take_profit_price: float | None, tie_break_policy: str) -> dict`
    - Note: `trailing_stop_offset` is in canonical price units (e.g., 0.0020 for EUR/USD), maintaining instrument agnosticism per [SYS-1.3]
@@ -131,7 +151,7 @@ When ambiguity is detected on the primary timeframe:
    - Test Case 9: Short position - stop moves down with favorable movement
    - Target: 100% coverage of 1-minute processing logic
 
-8. [ ] **Implement 1-minute trailing stop processor**
+10. [ ] **Implement 1-minute trailing stop processor**
    - File: `src/trading_platform/risk_manager/trailing_stop_utils.py`
    - Function signature from Task 7
    - Logic:
@@ -174,11 +194,11 @@ When ambiguity is detected on the primary timeframe:
 
      return {'exit_occurred': False, 'exit_bar_index': None, 'exit_price': None, 'exit_reason': None}
      ```
-   - Run tests from Task 7 to verify implementation
+   - Run tests from Task 9 to verify implementation
 
 ### Phase 4: REM Integration
 
-9. [ ] **Write tests for REM ambiguity detection and 1-minute zoom**
+11. [ ] **Write tests for REM ambiguity detection and 1-minute zoom**
    - File: `tests/risk_manager/test_rem_1min_zoom.py` (create new file)
    - Test that REM detects ambiguity on hourly bar with trailing stop
    - Test that REM requests 1-minute data from DataHandler when ambiguous
@@ -187,7 +207,7 @@ When ambiguity is detected on the primary timeframe:
    - Mock DataHandler's `get_1min_bars_for_hour` method appropriately
    - Target: 100% coverage of REM's new 1-minute zoom logic
 
-10. [ ] **Integrate 1-minute resolution logic into DynamicREM**
+12. [ ] **Integrate 1-minute resolution logic into DynamicREM**
     - File: `src/trading_platform/risk_manager/dynamic_rem.py`
     - In the `check_exit()` method (or equivalent), after calculating trailing stop level:
     - Check if ambiguous using `is_trailing_stop_ambiguous()` from Task 4
@@ -210,24 +230,24 @@ When ambiguity is detected on the primary timeframe:
       ```
     - Run tests from Task 9 to verify implementation
 
-11. [ ] **Write tests for fixed stop + TP 1-minute zoom**
+13. [ ] **Write tests for fixed stop + TP 1-minute zoom**
     - File: `tests/risk_manager/test_rem_1min_zoom.py` (extend)
     - Test REM with fixed stop (no trailing) and TP both between bar high/low
     - Verify REM zooms to 1-minute resolution
     - Test tie-breaker rules at 1-minute level
     - Target: 100% coverage of fixed stop + TP ambiguity resolution
 
-12. [ ] **Implement fixed stop + TP 1-minute zoom in REM**
+14. [ ] **Implement fixed stop + TP 1-minute zoom in REM**
     - File: `src/trading_platform/risk_manager/dynamic_rem.py`
     - In `check_exit()` method, before returning exit signals:
     - If fixed stop and TP both exist, check `both_exits_in_same_bar()` from Task 6
     - If ambiguous, zoom to 1-minute and process chronologically
     - Use similar logic to Task 8 but without trailing (stop level is fixed)
-    - Run tests from Task 11 to verify implementation
+    - Run tests from Task 13 to verify implementation
 
 ### Phase 5: Integration Testing
 
-13. [ ] **Write end-to-end integration tests for 1-minute resolution**
+15. [ ] **Write end-to-end integration tests for 1-minute resolution**
     - File: `tests/integration/test_1min_resolution_integration.py` (create new file)
     - Test full backtest with trailing stop strategy that has ambiguous bars.
     - Verify trades exit at correct prices when 1-minute resolution is used.
@@ -237,7 +257,7 @@ When ambiguity is detected on the primary timeframe:
     - Mock realistic OHLC data with known ambiguous scenarios.
     - Target: Verify entire pipeline works end-to-end.
 
-14. [ ] **Run integration tests and verify all tests pass**
+16. [ ] **Run integration tests and verify all tests pass**
     - Command: `pytest tests/integration/test_1min_resolution_integration.py -v`
     - Verify all tests pass
     - Check code coverage: `pytest --cov=src/trading_platform --cov-report=term-missing`
@@ -245,20 +265,20 @@ When ambiguity is detected on the primary timeframe:
 
 ### Phase 6: Golden Validation Update
 
-15. [ ] **Re-run golden validation tests for 20pip_trailing_stop strategy**
+17. [ ] **Re-run golden validation tests for 20pip_trailing_stop strategy**
     - Command: `pytest tests/validation/test_strategy_validation.py::test_ema_crossover_20pip_trailing_stop_exit_prices_match_tradingview -v -s`
     - Document which of the 65 discrepancies are resolved by 1-minute resolution
     - Document which discrepancies remain and why (TradingView limitations)
     - Expected: Many of the "ENTRY_BAR_CONTRIBUTED_MFE" discrepancies should be resolved
 
-16. [ ] **Update TrailingStopDiscrepancyAnalyzer with new known edge cases**
+18. [ ] **Update TrailingStopDiscrepancyAnalyzer with new known edge cases**
     - File: `tests/validation/trailing_stop_discrepancy_analyzer.py`
     - Add new category: `OHLC_VS_1MIN_RESOLUTION` for cases where platform uses 1-min but TradingView doesn't
     - Update categorization logic to identify these cases
     - Add detailed explanations for why these discrepancies exist
     - Update acceptable categories list
 
-17. [ ] **Document 1-minute resolution behavior in README**
+19. [ ] **Document 1-minute resolution behavior in README**
     - File: `configs/golden_strategies/ema_crossover/20pip_trailing_stop/README.md`
     - Add section explaining 1-minute resolution logic
     - Document known edge cases where platform behavior differs from TradingView
@@ -266,14 +286,14 @@ When ambiguity is detected on the primary timeframe:
 
 ### Phase 7: Configuration and Documentation
 
-18. [ ] **Add configuration flag to enable/disable 1-minute resolution**
+20. [ ] **Add configuration flag to enable/disable 1-minute resolution**
     - File: `src/trading_platform/risk_manager/dynamic_rem.py`
     - Add config parameter: `use_1min_resolution: bool = True`
     - Allow users to disable 1-minute resolution if desired (for performance or testing)
     - Update REM logic to check this flag before zooming to 1-minute
     - Document in code comments when users might want to disable this
 
-19. [ ] **Update architecture documentation**
+21. [ ] **Update architecture documentation**
     - File: `docs/architecture/trailing_stops_1min_resolution.md` (create new file)
     - Document the design decision and rationale
     - Explain ambiguity detection criteria
@@ -281,7 +301,7 @@ When ambiguity is detected on the primary timeframe:
     - Document performance characteristics
     - Include diagrams showing intra-bar ambiguity problem and solution
 
-20. [ ] **Run full test suite and verify 100% coverage**
+22. [ ] **Run full test suite and verify 100% coverage**
     - Command: `pytest --cov=src/trading_platform --cov-report=html`
     - Verify all tests pass
     - Verify 100% coverage of all modified and new code
@@ -292,7 +312,7 @@ When ambiguity is detected on the primary timeframe:
 
 ## Completion Criteria
 
-- [ ] All 20 tasks completed in order
+- [ ] All 22 tasks completed in order
 - [ ] All tests pass: `pytest`
 - [ ] 100% test coverage maintained: `pytest --cov`
 - [ ] Golden validation tests document expected discrepancies

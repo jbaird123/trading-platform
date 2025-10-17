@@ -82,6 +82,71 @@ def test_is_trailing_stop_ambiguous_does_not_consider_take_profit():
     assert is_trailing_stop_ambiguous(bar, trailing_stop_level)
 
 
+def test_is_fixed_stops_ambiguous_when_both_in_range():
+    """Test that both fixed stop and TP in range returns True (ambiguous)."""
+    from src.trading_platform.risk_manager.exit_utils import (
+        is_fixed_stops_ambiguous,
+    )
+
+    bar = pd.Series({"low": 1.0600, "high": 1.0650})
+    stop_level = 1.0610
+    tp_level = 1.0640
+
+    assert is_fixed_stops_ambiguous(bar, stop_level, tp_level)
+
+
+def test_is_fixed_stops_not_ambiguous_when_only_stop_in_range():
+    """Test that only stop in range returns False (not ambiguous)."""
+    from src.trading_platform.risk_manager.exit_utils import (
+        is_fixed_stops_ambiguous,
+    )
+
+    bar = pd.Series({"low": 1.0600, "high": 1.0650})
+    stop_level = 1.0610  # In range
+    tp_level = 1.0700  # Above high
+
+    assert not is_fixed_stops_ambiguous(bar, stop_level, tp_level)
+
+
+def test_is_fixed_stops_not_ambiguous_when_only_tp_in_range():
+    """Test that only TP in range returns False (not ambiguous)."""
+    from src.trading_platform.risk_manager.exit_utils import (
+        is_fixed_stops_ambiguous,
+    )
+
+    bar = pd.Series({"low": 1.0600, "high": 1.0650})
+    stop_level = 1.0550  # Below low
+    tp_level = 1.0640  # In range
+
+    assert not is_fixed_stops_ambiguous(bar, stop_level, tp_level)
+
+
+def test_is_fixed_stops_not_ambiguous_when_neither_in_range():
+    """Test that neither stop nor TP in range returns False (not ambiguous)."""
+    from src.trading_platform.risk_manager.exit_utils import (
+        is_fixed_stops_ambiguous,
+    )
+
+    bar = pd.Series({"low": 1.0600, "high": 1.0650})
+    stop_level = 1.0550  # Below low
+    tp_level = 1.0700  # Above high
+
+    assert not is_fixed_stops_ambiguous(bar, stop_level, tp_level)
+
+
+def test_is_fixed_stops_ambiguous_when_stop_at_low_tp_at_high():
+    """Test edge case with stop exactly at low and TP exactly at high."""
+    from src.trading_platform.risk_manager.exit_utils import (
+        is_fixed_stops_ambiguous,
+    )
+
+    bar = pd.Series({"low": 1.0600, "high": 1.0650})
+    stop_level = 1.0600  # Exactly at low
+    tp_level = 1.0650  # Exactly at high
+
+    assert is_fixed_stops_ambiguous(bar, stop_level, tp_level)
+
+
 def test_both_exits_in_same_bar_when_both_in_range():
     """Test that both stop and TP in range returns True."""
     from src.trading_platform.risk_manager.exit_utils import both_exits_in_same_bar

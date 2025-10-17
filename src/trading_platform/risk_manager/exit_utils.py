@@ -34,6 +34,34 @@ def is_trailing_stop_ambiguous(bar: pd.Series, trailing_stop_level: float) -> bo
     return bar["low"] <= trailing_stop_level <= bar["high"]
 
 
+def is_fixed_stops_ambiguous(
+    bar: pd.Series, stop_loss_level: float, take_profit_level: float
+) -> bool:
+    """Check if fixed stop and TP are ambiguous on primary timeframe.
+
+    Ambiguity exists when BOTH the fixed stop-loss and take-profit are within
+    the bar's range, because we cannot determine from OHLC alone which was hit
+    first due to the intra-bar order of price movements being unknown.
+
+    Args:
+        bar: OHLC bar data with 'low' and 'high' fields
+        stop_loss_level: The fixed stop-loss price level
+        take_profit_level: The take-profit price level
+
+    Returns:
+        True if both stop and TP are in bar's range (ambiguous),
+        False otherwise
+
+    Note:
+        This function is for FIXED (non-trailing) stops on the primary timeframe.
+        If only one exit level is in range, there's no ambiguity - we know which
+        was hit. Ambiguity only exists when BOTH are in range.
+    """
+    stop_in_range = bar["low"] <= stop_loss_level <= bar["high"]
+    tp_in_range = bar["low"] <= take_profit_level <= bar["high"]
+    return stop_in_range and tp_in_range
+
+
 def both_exits_in_same_bar(
     bar: pd.Series, stop_loss_level: float, take_profit_level: float
 ) -> bool:
@@ -51,6 +79,11 @@ def both_exits_in_same_bar(
     Returns:
         True if both stop and TP are within the bar's range (requires tie-breaking),
         False otherwise
+
+    Note:
+        This has the same implementation as is_fixed_stops_ambiguous(), but serves
+        a different purpose: this is for 1-MINUTE tie-breaking, while
+        is_fixed_stops_ambiguous() is for PRIMARY TIMEFRAME ambiguity detection.
     """
     stop_in_range = bar["low"] <= stop_loss_level <= bar["high"]
     tp_in_range = bar["low"] <= take_profit_level <= bar["high"]
