@@ -26,7 +26,7 @@ When ambiguity is detected on the primary timeframe:
 
 **Note**: DataHandler already caches 1-minute data at initialization (`self._base_timeframe = "1min"`, see `src/trading_platform/data/handler.py:115-118`). The raw 1-minute data is loaded once and stored in `self._cache["1min"]`. We only need to add a convenience method for retrieving 1-minute bars for a specific hour.
 
-1. [ ] **Write tests for DataHandler 1-minute bar retrieval for specific hour**
+1. [x] **Write tests for DataHandler 1-minute bar retrieval for specific hour**
    - File: `tests/data/test_data_handler_1min_bars.py` (create new file)
    - Test that DataHandler can return 1-minute bars for a specific hourly timestamp
    - Test edge cases: missing data, partial hour, market gaps
@@ -35,7 +35,7 @@ When ambiguity is detected on the primary timeframe:
    - Verify that no disk reads occur (data is already cached)
    - Target: 100% coverage of new convenience method
 
-2. [ ] **Implement DataHandler convenience method to retrieve 1-minute bars for specific hour**
+2. [x] **Implement DataHandler convenience method to retrieve 1-minute bars for specific hour**
    - File: `src/trading_platform/data/handler.py`
    - Add method: `get_1min_bars_for_hour(timestamp: pd.Timestamp) -> pd.DataFrame`
    - Implementation leverages existing `get_data()` method:
@@ -67,7 +67,7 @@ When ambiguity is detected on the primary timeframe:
 1. **Primary Timeframe Ambiguity** - When trailing stop is in bar's range (requires 1-minute zoom)
 2. **1-Minute Tie-Breaking Ambiguity** - When both stop AND TP are in same 1-minute bar (requires policy)
 
-3. [ ] **Write tests for primary timeframe ambiguity detection**
+3. [x] **Write tests for primary timeframe ambiguity detection**
    - File: `tests/risk_manager/test_trailing_stop_ambiguity.py` (create new file)
    - Test function: `is_trailing_stop_ambiguous(bar: pd.Series, trailing_stop_level: float) -> bool`
    - Test Case 1 (Ambiguous): Trailing stop is between bar high/low → `True`
@@ -78,7 +78,7 @@ When ambiguity is detected on the primary timeframe:
    - Note: This function does NOT consider take-profit level - it only determines if we need to zoom to 1-minute resolution
    - Target: 100% coverage of primary timeframe ambiguity detection
 
-4. [ ] **Implement primary timeframe ambiguity detection**
+4. [x] **Implement primary timeframe ambiguity detection**
    - File: `src/trading_platform/risk_manager/exit_utils.py` (create new file)
    - Function: `is_trailing_stop_ambiguous(bar: pd.Series, trailing_stop_level: float) -> bool`
    - Purpose: Determines if we need to zoom to 1-minute resolution on the primary timeframe
@@ -90,7 +90,7 @@ When ambiguity is detected on the primary timeframe:
      ```
    - Run tests from Task 3 to verify implementation
 
-5. [ ] **Write tests for 1-minute tie-breaking ambiguity detection**
+5. [x] **Write tests for 1-minute tie-breaking ambiguity detection**
    - File: `tests/risk_manager/test_trailing_stop_ambiguity.py` (extend existing file)
    - Test function: `both_exits_in_same_bar(bar: pd.Series, stop_loss_level: float, take_profit_level: float) -> bool`
    - Test Case 1 (Both in range): Both stop and TP between bar high/low → `True`
@@ -101,7 +101,7 @@ When ambiguity is detected on the primary timeframe:
    - Note: This function is used at 1-minute resolution as a tie-breaker when both exits are detected on the same 1-minute bar
    - Target: 100% coverage of tie-breaking logic
 
-6. [ ] **Implement 1-minute tie-breaking ambiguity detection**
+6. [x] **Implement 1-minute tie-breaking ambiguity detection**
    - File: `src/trading_platform/risk_manager/exit_utils.py`
    - Function: `both_exits_in_same_bar(bar: pd.Series, stop_loss_level: float, take_profit_level: float) -> bool`
    - Purpose: Determines if we need to apply tie-breaker policy when processing 1-minute bars

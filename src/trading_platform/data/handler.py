@@ -213,6 +213,28 @@ class DataHandler:
         """
         return list(self._cache.keys())
 
+    def get_1min_bars_for_hour(self, timestamp: pd.Timestamp) -> pd.DataFrame:
+        """Get 1-minute bars for the hour containing the given timestamp.
+
+        Args:
+            timestamp: Any timestamp within the target hour
+
+        Returns:
+            DataFrame with 1-minute OHLCV bars for that hour
+
+        Note:
+            This is a convenience wrapper around get_data() that:
+            - Uses the already-cached 1-minute base data
+            - Filters to the specific hour range
+            - Returns up to 60 bars (or fewer if data missing/gaps)
+        """
+        hour_start = timestamp.floor("h")
+        hour_end = hour_start + pd.Timedelta(hours=1)
+        # Use exclusive end by subtracting 1 nanosecond to avoid including
+        # the next hour's first bar
+        hour_end_exclusive = hour_end - pd.Timedelta(nanoseconds=1)
+        return self.get_data(timeframe="1min", start=hour_start, end=hour_end_exclusive)
+
     def get_rmm_context(
         self,
         rmm_config: dict,
