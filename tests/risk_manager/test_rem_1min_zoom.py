@@ -116,13 +116,14 @@ def test_rem_zooms_and_detects_trailing_stop_hit_on_1min_bar(
     bars_1min_data = []
     for i in range(60):
         if i < 30:
+            # Keep price at or below entry so stop doesn't trail
             bars_1min_data.append(
-                {"open": 1.0600, "high": 1.0605, "low": 1.0590, "close": 1.0600}
+                {"open": 1.0600, "high": 1.0600, "low": 1.0590, "close": 1.0600}
             )
         elif i == 30:
-            # Stop hit here
+            # Stop hit here at 1.0580 (entry - 20 pips)
             bars_1min_data.append(
-                {"open": 1.0590, "high": 1.0590, "low": 1.0575, "close": 1.0580}
+                {"open": 1.0600, "high": 1.0600, "low": 1.0575, "close": 1.0580}
             )
         else:
             bars_1min_data.append(

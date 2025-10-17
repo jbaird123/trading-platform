@@ -207,9 +207,9 @@ When ambiguity is detected on the primary timeframe:
    - Mock DataHandler's `get_1min_bars_for_hour` method appropriately
    - Target: 100% coverage of REM's new 1-minute zoom logic
 
-12. [ ] **Integrate 1-minute resolution logic into DynamicREM**
-    - File: `src/trading_platform/risk_manager/dynamic_rem.py`
-    - In the `check_exit()` method (or equivalent), after calculating trailing stop level:
+12. [x] **Integrate 1-minute resolution logic into RiskExitManager**
+    - File: `src/trading_platform/risk_manager/core.py`
+    - In the `check_exits()` method, after calculating trailing stop level:
     - Check if ambiguous using `is_trailing_stop_ambiguous()` from Task 4
     - Note: The REM must convert its pip-based configuration to canonical price units before calling the processor (maintaining instrument agnosticism per [SYS-1.3])
     - If ambiguous:

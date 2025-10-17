@@ -6,6 +6,10 @@ import pandas as pd
 
 from trading_platform.core.signal import Signal
 from trading_platform.portfolio.position import Position
+from trading_platform.risk_manager.exit_utils import is_trailing_stop_ambiguous
+from trading_platform.risk_manager.trailing_stop_utils import (
+    process_1min_bars_for_trailing_stop,
+)
 
 
 class RiskExitManager:
@@ -39,7 +43,11 @@ class RiskExitManager:
         self.exit_tie_break = exit_tie_break
 
     def check_exits(
-        self, position: Position, current_bar: pd.Series, signal: Any = None
+        self,
+        position: Position,
+        current_bar: pd.Series,
+        signal: Any = None,
+        data_handler: Any = None,
     ) -> dict[str, Any] | None:
         """
         Checks if any exit conditions are met for the given position.
@@ -48,6 +56,7 @@ class RiskExitManager:
             position: The current position to check exits for
             current_bar: The current market bar data
             signal: Optional Signal object with context data
+            data_handler: Optional DataHandler for 1-minute resolution zoom
 
         Returns:
             A dictionary with the exit details if an exit is triggered,
@@ -172,6 +181,35 @@ class RiskExitManager:
                     )
                     initial = position.entry_price + dist_t
                     trail_price = min(initial, trough + dist_t)
+
+                # Check for trailing stop ambiguity and zoom to 1-minute if needed
+                if (
+                    trail_price is not None
+                    and data_handler is not None
+                    and is_trailing_stop_ambiguous(current_bar, trail_price)
+                ):
+                    # Zoom to 1-minute resolution to resolve ambiguity
+                    bars_1min = data_handler.get_1min_bars_for_hour(current_bar.name)
+
+                    # Process 1-minute bars
+                    result = process_1min_bars_for_trailing_stop(
+                        bars_1min=bars_1min,
+                        entry_price=position.entry_price,
+                        side=position.side,
+                        trailing_stop_offset=dist_t,
+                        take_profit_price=tp_price,
+                        tie_break_policy=self.exit_tie_break,
+                    )
+
+                    # If exit occurred, return it
+                    if result["exit_occurred"]:
+                        return {
+                            "exit_price": result["exit_price"],
+                            "reason": result["exit_reason"],
+                        }
+                    # If no exit in 1-minute data, return None (no exit)
+                    # Don't fall through to OHLC checking - we've resolved the ambiguity
+                    return None
 
         # For longs, the effective stop is the highest of (sl, trail) below price;
         # for shorts, the lowest of (sl, trail) above price.
