@@ -193,7 +193,13 @@ class RiskExitManager:
                     and is_trailing_stop_ambiguous(current_bar, trail_price)
                 ):
                     # Zoom to 1-minute resolution to resolve ambiguity
-                    bars_1min = data_handler.get_1min_bars_for_hour(current_bar.name)
+                    hour_start = current_bar.name.floor("h")
+                    hour_end = (
+                        hour_start + pd.Timedelta(hours=1) - pd.Timedelta(nanoseconds=1)
+                    )
+                    bars_1min = data_handler.get_data(
+                        timeframe="1min", start=hour_start, end=hour_end
+                    )
 
                     # Process 1-minute bars
                     result = process_1min_bars_for_trailing_stop(
@@ -225,7 +231,11 @@ class RiskExitManager:
             and is_fixed_stops_ambiguous(current_bar, sl_price, tp_price)
         ):
             # Zoom to 1-minute resolution
-            bars_1min = data_handler.get_1min_bars_for_hour(current_bar.name)
+            hour_start = current_bar.name.floor("h")
+            hour_end = hour_start + pd.Timedelta(hours=1) - pd.Timedelta(nanoseconds=1)
+            bars_1min = data_handler.get_data(
+                timeframe="1min", start=hour_start, end=hour_end
+            )
 
             # Process 1-minute bars
             result = process_1min_bars_for_fixed_stops(

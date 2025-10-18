@@ -112,9 +112,8 @@ class DataHandler:
         # Caches regime classification results to avoid recomputation
         self._rmm_cache: dict[tuple[str, str], dict] = {}
 
-        # Store the base timeframe (assume raw data is 1min)
-        self._base_timeframe = "1min"
-        self._base_minutes = 1
+        # Detect base timeframe from raw data instead of assuming
+        self._base_timeframe, self._base_minutes = self._detect_base_timeframe()
         self._cache[self._base_timeframe] = self._raw_data
 
     def get_data(
@@ -167,6 +166,52 @@ class DataHandler:
 
         return df
 
+    def _detect_base_timeframe(self) -> tuple[str, int]:
+        """Detect the base timeframe of the raw data.
+
+        Analyzes the time differences between consecutive bars to determine
+        the native resolution of the loaded data.
+
+        Returns:
+            Tuple of (timeframe_string, minutes)
+
+        Raises:
+            ValueError: If timeframe cannot be detected or data is irregular
+        """
+        if len(self._raw_data) < 2:
+            raise ValueError(
+                f"Cannot detect base timeframe: need at least 2 bars, "
+                f"got {len(self._raw_data)}"
+            )
+
+        # Calculate time differences between consecutive bars
+        time_diffs = self._raw_data.index[1:] - self._raw_data.index[:-1]
+
+        # Get the most common difference (mode)
+        most_common_diff = time_diffs.value_counts().idxmax()
+
+        # Convert to minutes
+        minutes = int(most_common_diff.total_seconds() / 60)
+
+        # Map to standard timeframe string
+        if minutes == 1:
+            return ("1min", 1)
+        elif minutes == 5:
+            return ("5min", 5)
+        elif minutes == 15:
+            return ("15min", 15)
+        elif minutes == 60:
+            return ("1h", 60)
+        elif minutes == 240:
+            return ("4h", 240)
+        elif minutes == 1440:
+            return ("1d", 1440)
+        else:
+            raise ValueError(
+                f"Detected unusual timeframe: {minutes} minutes. "
+                f"Expected standard timeframes: 1min, 5min, 15min, 1h, 4h, or 1d"
+            )
+
     def _find_best_resample_source(self, target_timeframe: str) -> pd.DataFrame:
         """Find the largest cached timeframe that evenly divides into target.
 
@@ -178,8 +223,21 @@ class DataHandler:
 
         Returns:
             DataFrame from the best cached source for resampling
+
+        Raises:
+            ValueError: If no suitable source exists
+                (i.e., requesting higher resolution than base)
         """
         target_minutes = _parse_timeframe_to_minutes(target_timeframe)
+
+        # Check if requesting finer resolution than base data
+        if target_minutes < self._base_minutes:
+            raise ValueError(
+                f"Cannot resample to {target_timeframe} ({target_minutes} min): "
+                f"base data resolution is {self._base_timeframe} "
+                f"({self._base_minutes} min). Cannot create higher resolution "
+                f"data from lower resolution source."
+            )
 
         # Get all cached timeframes with their minute values
         cached_options = []
@@ -202,8 +260,13 @@ class DataHandler:
             ):
                 return self._cache[cached_tf]
 
-        # Fallback to raw data (should always work since base is 1min)
-        return self._raw_data
+        # Should never reach here since base data should always be in cache
+        # and should evenly divide into target (we checked above)
+        raise ValueError(
+            f"Internal error: no suitable resample source found for "
+            f"{target_timeframe}. Base timeframe: {self._base_timeframe}, "
+            f"cached: {list(self._cache.keys())}"
+        )
 
     def get_cached_timeframes(self) -> list[str]:
         """Get list of currently cached timeframes.
@@ -212,28 +275,6 @@ class DataHandler:
             List of timeframe strings currently in cache
         """
         return list(self._cache.keys())
-
-    def get_1min_bars_for_hour(self, timestamp: pd.Timestamp) -> pd.DataFrame:
-        """Get 1-minute bars for the hour containing the given timestamp.
-
-        Args:
-            timestamp: Any timestamp within the target hour
-
-        Returns:
-            DataFrame with 1-minute OHLCV bars for that hour
-
-        Note:
-            This is a convenience wrapper around get_data() that:
-            - Uses the already-cached 1-minute base data
-            - Filters to the specific hour range
-            - Returns up to 60 bars (or fewer if data missing/gaps)
-        """
-        hour_start = timestamp.floor("h")
-        hour_end = hour_start + pd.Timedelta(hours=1)
-        # Use exclusive end by subtracting 1 nanosecond to avoid including
-        # the next hour's first bar
-        hour_end_exclusive = hour_end - pd.Timedelta(nanoseconds=1)
-        return self.get_data(timeframe="1min", start=hour_start, end=hour_end_exclusive)
 
     def get_rmm_context(
         self,

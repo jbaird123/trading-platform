@@ -210,7 +210,7 @@ def load_platform_trades(
     config = RunConfig.model_validate(config_dict)
 
     # Create DataHandler for 1-minute resolution (if needed for trailing stops)
-    # This enables intra-bar ambiguity resolution
+    # This enables intra-bar ambiguity resolution AND provides resampled hourly data
     data_handler = None
     if "trailing_stop" in str(strategy_name):
         from pathlib import Path
@@ -237,9 +237,40 @@ def load_platform_trades(
                     data_root=data_root,
                     instrument=config.instrument,
                 )
-            except FileNotFoundError:
-                # If 1-minute data not available, fall back to OHLC-only
-                data_handler = None
+
+                # IMPORTANT: Use resampled 1H data from DataHandler instead of CSV
+                # This mirrors real-world usage where we load 1min raw data and resample
+                ohlcv_1h = data_handler.get_data(timeframe="1H")
+
+                # Apply same date filtering as before
+                if date_range:
+                    from datetime import timedelta
+
+                    end_date = pd.to_datetime(date_range["end"], utc=True) + timedelta(
+                        days=1, seconds=-1
+                    )
+                    warmup_start = pd.Timestamp("2022-12-01", tz="UTC")
+                    ohlcv_to_use = ohlcv_1h[
+                        (ohlcv_1h.index >= warmup_start) & (ohlcv_1h.index <= end_date)
+                    ].copy()
+                else:
+                    ohlcv_to_use = ohlcv_1h
+
+            except FileNotFoundError as e:
+                # For trailing stop strategies, 1-minute data is REQUIRED
+                # Fail loudly instead of silently falling back to CSV-only mode
+                raise FileNotFoundError(
+                    f"1-minute data is required for trailing stop strategy "
+                    f"validation.\nExpected data at: {data_root}/full/eur_usd/"
+                    f"eurusd_1min.csv\nOriginal error: {e}"
+                ) from e
+            except Exception as e:
+                # Re-raise other exceptions with context
+                raise RuntimeError(
+                    f"Failed to create DataHandler for trailing stop validation.\n"
+                    f"Data root: {data_root}\n"
+                    f"Error: {e}"
+                ) from e
 
     # Run backtest on extended data
     results = run_backtest_from_config(
