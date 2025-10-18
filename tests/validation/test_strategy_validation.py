@@ -927,12 +927,30 @@ def verify_golden_trades_hash(
     context_fields = sorted([f for f in all_fields if f.startswith("ctx_")])
     ordered_fields = base_fields + context_fields
 
+    # Convert numpy types to Python types for consistent serialization
+    def convert_types(obj):
+        """Convert numpy/pandas types to Python native types."""
+        import numpy as np
+        import pandas as pd
+        if isinstance(obj, (np.integer, np.floating)):
+            return obj.item()
+        elif isinstance(obj, pd.Timestamp):
+            return str(obj)
+        elif isinstance(obj, dict):
+            return {k: convert_types(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [convert_types(item) for item in obj]
+        return obj
+
+    # Convert all trades
+    converted_trades = [convert_types(trade) for trade in platform_trades]
+
     # Write current trades to temp file
     with tempfile.NamedTemporaryFile(mode="w", delete=False, newline="", suffix=".csv") as f:
         temp_path = f.name
         writer = csv.DictWriter(f, fieldnames=ordered_fields)
         writer.writeheader()
-        writer.writerows(platform_trades)
+        writer.writerows(converted_trades)
 
     try:
         # Calculate SHA256 hashes
