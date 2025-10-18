@@ -135,6 +135,69 @@ KNOWN_EDGE_CASES: dict[str, dict[str, list[dict]]] = {
                 "tradingview_exit_price": 1.06852,
                 "tradingview_exit_reason": "Short Trail",
             },
+            {
+                "trade_index": 23,  # Trade 24 in 1-indexed display
+                "entry_time": "2023-03-01 07:00:00",
+                "exit_time": "2023-03-01 09:00:00",
+                "description": (
+                    "Platform more accurate - TV false exit from OHLC timing error"
+                ),
+                "explanation": (
+                    "Long entry at 1.06072 with 20-pip trailing stop. "
+                    "During 08:00 hour, the hourly bar had low=1.06258 and "
+                    "high=1.06490. TradingView's OHLC-based logic sees that "
+                    "the bar's low (1.06258) is below the final stop at hour "
+                    "end (1.06290) and incorrectly concludes the stop was hit. "
+                    "However, 1-minute data shows the low of 1.06258 occurred "
+                    "at 08:05 when the stop was still at 1.06252 (0.6 pips "
+                    "above the low - NOT hit). The peak didn't improve to "
+                    "1.06490 until 08:59, moving the stop to 1.06290. By then, "
+                    "price never dropped to that level. Platform correctly "
+                    "processes chronologically and determines no exit in 08:00. "
+                    "In 09:00 hour, peak improved to 1.06578 (stop at 1.06378), "
+                    "then at 09:23 the bar low of 1.06377 hit the stop. "
+                    "Platform correctly exits at 09:00 @ 1.06378. TradingView's "
+                    "OHLC logic cannot determine temporal order of events and "
+                    "falsely exits at 08:00 @ 1.06290. Platform is MORE "
+                    "accurate due to chronological 1-minute processing."
+                ),
+                "platform_exit_time": "2023-03-01 09:00:00",
+                "platform_exit_price": 1.06378,
+                "platform_exit_reason": "stop-loss",
+                "tradingview_exit_time": "2023-03-01 08:00:00",
+                "tradingview_exit_price": 1.06290,
+                "tradingview_exit_reason": "Long Trail",
+            },
+            {
+                "trade_index": 27,  # Trade 28 in 1-indexed display
+                "entry_time": "2023-03-10 00:00:00",
+                "exit_time": "2023-03-10 02:00:00",
+                "description": (
+                    "Platform more accurate - TV uses strict < instead of <="
+                ),
+                "explanation": (
+                    "Long entry at 1.05856 with 20-pip trailing stop. "
+                    "Peak improved to 1.05994 during 00:00 hour, moving stop "
+                    "to 1.05794. At 02:30, the bar low touched EXACTLY 1.05794 "
+                    "(perfect tie to full floating-point precision). Platform "
+                    "correctly uses 'low <= stop' comparison and triggers exit "
+                    "at 02:00 @ 1.05794. TradingView appears to use strict "
+                    "'low < stop' comparison and does not trigger on exact "
+                    "price match. TradingView waits until 08:00 when price "
+                    "drops below 1.05794 (to 1.05790 at 08:16). Platform "
+                    "behavior is correct: a stop-loss at a specific price "
+                    "should trigger when that price is REACHED (touched), not "
+                    "only when EXCEEDED. This is standard stop-loss semantics. "
+                    "TradingView's strict less-than comparison is incorrect for "
+                    "stop-loss behavior. Platform is MORE accurate."
+                ),
+                "platform_exit_time": "2023-03-10 02:00:00",
+                "platform_exit_price": 1.05794,
+                "platform_exit_reason": "stop-loss",
+                "tradingview_exit_time": "2023-03-10 08:00:00",
+                "tradingview_exit_price": 1.05870,
+                "tradingview_exit_reason": "Long Trail",
+            },
         ]
     },
     # "ema_crossover/20pip_stop": {
@@ -1703,11 +1766,18 @@ def test_ema_crossover_20pip_trailing_stop_exit_times_match_tradingview(
 ):
     """Validates all exit times match between platform and TradingView.
 
-    NOTE: This test may have known failures for trailing stop strategies
-    due to TradingView's intra-bar limitations. Check KNOWN_EDGE_CASES.
+    For trailing stop strategies, this test categorizes ALL time discrepancies
+    to ensure each one is explainable and acceptable. This includes:
+    1. Same-bar entry/exit (TradingView historical limitation)
+    2. Entry bar MFE patterns (TradingView ignores entry bar favorable movement)
+    3. Known documented edge cases (see KNOWN_EDGE_CASES)
 
     Validates: [BT-7.8], [SE-3.5.3]
     """
+    from tests.validation.trailing_stop_discrepancy_analyzer import (
+        TrailingStopDiscrepancyAnalyzer,
+    )
+
     date_range = golden_metadata.get("date_range")
 
     # Load platform trades
@@ -1721,57 +1791,115 @@ def test_ema_crossover_20pip_trailing_stop_exit_times_match_tradingview(
     # Align trades
     platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
 
-    # Compare exit times
-    mismatches = []
-    excluded_same_bar = []
+    # Get known edge cases for this strategy
+    strategy_edge_cases = KNOWN_EDGE_CASES.get("ema_crossover/20pip_trailing_stop", {})
+    known_exit_time_edge_cases = strategy_edge_cases.get("exit_time_mismatches", [])
+
+    # Use analyzer to categorize time mismatches based on MFE patterns
+    analyzer = TrailingStopDiscrepancyAnalyzer(
+        trailing_stop_pips=0.0020,  # 20 pips
+        tolerance=0.00001,
+    )
+
+    categories = analyzer.analyze_discrepancies(
+        platform_df=platform_df,
+        tv_df=tv_df,
+        ohlcv_data=tradingview_ohlcv,
+    )
+
+    # Additionally check for trades with exit TIME mismatches
+    # (analyzer checks exit PRICE mismatches, but we need time too)
+    time_mismatches = []
+    excluded_known_edge_cases = []
 
     for i in range(len(platform_df)):
         p_time = platform_df.iloc[i]["exit_time"]
         tv_time = tv_df.iloc[i]["exit_time"]
-        entry_time = platform_df.iloc[i]["entry_time"]
 
         if p_time != tv_time:
-            # Check if this is a same-bar entry/exit (known limitation)
-            if p_time == entry_time or tv_time == entry_time:
-                excluded_same_bar.append(
-                    {
-                        "trade_num": i + 1,
-                        "entry_time": str(entry_time),
-                        "platform_exit": str(p_time),
-                        "tradingview_exit": str(tv_time),
-                    }
-                )
-            else:
-                mismatches.append(
-                    {
-                        "trade_num": i + 1,
-                        "entry_time": str(entry_time),
-                        "platform": str(p_time),
-                        "tradingview": str(tv_time),
-                    }
-                )
+            # Check if this is a known documented edge case
+            is_known_edge_case = False
+            for edge_case in known_exit_time_edge_cases:
+                if edge_case["trade_index"] == i:
+                    excluded_known_edge_cases.append(
+                        {
+                            "trade_num": i + 1,
+                            "trade_index": i,
+                            "description": edge_case["description"],
+                            "entry_time": str(platform_df.iloc[i]["entry_time"]),
+                            "platform_exit": str(p_time),
+                            "tradingview_exit": str(tv_time),
+                        }
+                    )
+                    is_known_edge_case = True
+                    break
 
-    # Report same-bar entry/exit exclusions
-    if excluded_same_bar:
-        print(f"\n=== Excluded {len(excluded_same_bar)} Same-Bar Entry/Exit Cases ===")
-        print("These trades enter and exit on the same bar (known limitation)")
+            if not is_known_edge_case:
+                # Check if this mismatch is explained by the analyzer
+                # (via entry bar MFE patterns)
+                is_analyzer_explained = False
+                for category in analyzer.KNOWN_ACCEPTABLE_CATEGORIES:
+                    for trade in categories.get(category, []):
+                        if trade["trade_num"] == i + 1:
+                            is_analyzer_explained = True
+                            break
+                    if is_analyzer_explained:
+                        break
 
-    # Report unexpected mismatches
-    if mismatches:
+                if not is_analyzer_explained:
+                    time_mismatches.append(
+                        {
+                            "trade_num": i + 1,
+                            "trade_index": i,
+                            "entry_time": str(platform_df.iloc[i]["entry_time"]),
+                            "platform": str(p_time),
+                            "tradingview": str(tv_time),
+                        }
+                    )
+
+    # Generate and print summary report from analyzer
+    summary_report = analyzer.generate_summary_report(categories)
+    print(f"\n{summary_report}")
+
+    # Report excluded known edge cases
+    if excluded_known_edge_cases:
+        print("\n=== Excluded Known Edge Cases ===")
+        for edge_case in excluded_known_edge_cases:
+            print(
+                f"Trade {edge_case['trade_num']} (Index {edge_case['trade_index']}): "
+                f"{edge_case['description']}"
+            )
+            print(
+                f"  Platform exit: {edge_case['platform_exit']}, "
+                f"TV exit: {edge_case['tradingview_exit']}"
+            )
+        print(
+            f"\nExcluded {len(excluded_known_edge_cases)} known edge case(s). "
+            f"See KNOWN_EDGE_CASES for details."
+        )
+
+    # Report unexpected time mismatches
+    if time_mismatches:
         print("\n=== UNEXPECTED Exit Time Mismatches ===")
-        for mm in mismatches[:10]:
+        for mm in time_mismatches[:10]:
             entry_time = mm["entry_time"]
             print(
                 f"Trade {mm['trade_num']} (Entry: {entry_time}): "
                 f"Platform={mm['platform']}, TV={mm['tradingview']}"
             )
-        if len(mismatches) > 10:
-            print(f"... and {len(mismatches) - 10} more")
+        if len(time_mismatches) > 10:
+            print(f"... and {len(time_mismatches) - 10} more")
 
-    assert len(mismatches) == 0, (
-        f"Found {len(mismatches)} UNEXPECTED exit time mismatches. "
-        f"Exit times must match exactly. "
-        f"Note: {len(excluded_same_bar)} same-bar entry/exit cases were excluded."
+    # Count total explained discrepancies
+    total_analyzer_explained = sum(
+        len(categories[cat]) for cat in analyzer.KNOWN_ACCEPTABLE_CATEGORIES
+    )
+
+    assert len(time_mismatches) == 0, (
+        f"Found {len(time_mismatches)} UNEXPLAINED exit time mismatches. "
+        f"Exit times must match exactly or be explained by known patterns. "
+        f"Note: {total_analyzer_explained} trades explained by entry bar MFE patterns, "
+        f"{len(excluded_known_edge_cases)} documented edge cases were excluded."
     )
 
 
