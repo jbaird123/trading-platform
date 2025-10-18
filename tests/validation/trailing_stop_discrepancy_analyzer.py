@@ -9,8 +9,6 @@ Known acceptable discrepancy categories:
 1. SAME_BAR_EXIT: Entry and exit on same bar (TradingView historical limitation)
 2. TV_IGNORED_ENTRY_BAR_PEAK_MFE: Entry bar had peak favorable movement
    (TV ignores it)
-3. TV_IGNORED_ENTRY_BAR_CONTRIBUTED_MFE: Entry bar contributed to MFE
-   (TV ignores entry bar portion)
 """
 
 from typing import Any, Dict, List, Tuple
@@ -38,7 +36,6 @@ class TrailingStopDiscrepancyAnalyzer:
         self.KNOWN_ACCEPTABLE_CATEGORIES = [
             "SAME_BAR_EXIT",
             "TV_IGNORED_ENTRY_BAR_PEAK_MFE",
-            "TV_IGNORED_ENTRY_BAR_CONTRIBUTED_MFE",
         ]
 
     def analyze_discrepancies(
@@ -196,21 +193,6 @@ class TrailingStopDiscrepancyAnalyzer:
                     f"limitation."
                 )
                 return "TV_IGNORED_ENTRY_BAR_PEAK_MFE"
-
-            # CATEGORY 3: Entry bar contributed to MFE
-            # (but later bar had more)
-            if entry_bar_mfe > self.tolerance:
-                trade_info["explanation"] = (
-                    f"Entry bar MFE: {entry_bar_mfe * 10000:.1f} pips. "
-                    f"Later bars had more favorable movement "
-                    f"({overall_mfe_excl_entry * 10000:.1f} pips). "
-                    f"Platform adjusted trailing stop for entry bar MFE. "
-                    f"TradingView ignored entry bar portion, "
-                    f"only trailed from later bars. "
-                    f"Both systems trailed correctly after entry bar, "
-                    f"but from different baselines."
-                )
-                return "TV_IGNORED_ENTRY_BAR_CONTRIBUTED_MFE"
 
         # Cannot explain - requires investigation
         trade_info["explanation"] = (
