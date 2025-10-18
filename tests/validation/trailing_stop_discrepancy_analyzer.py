@@ -11,6 +11,27 @@ Known acceptable discrepancy categories:
    (TV ignores it)
 3. TV_IGNORED_ENTRY_BAR_CONTRIBUTED_MFE: Entry bar contributed to MFE
    (TV ignores entry bar portion)
+
+MANUALLY VERIFIED TV_IGNORED_ENTRY_BAR_PEAK_MFE EXIT TIME DISCREPANCIES:
+The following trades have been manually inspected and verified to correctly
+exhibit the entry bar peak MFE pattern, where TradingView ignores favorable
+movement on the entry bar:
+
+Trade #39  - Entry: 2023-04-17 01:00, Platform exit: 02:00, TV exit: 05:00
+Trade #48  - Entry: 2023-04-26 11:00, Platform exit: 12:00, TV exit: 14:00
+Trade #66  - Entry: 2023-06-21 14:00, Platform exit: 15:00, TV exit: 2023-06-22 11:00
+Trade #78  - Entry: 2023-08-09 17:00, Platform exit: 20:00, TV exit: 2023-08-10 12:00
+Trade #80  - Entry: 2023-08-21 11:00, Platform exit: 12:00, TV exit: 13:00
+Trade #115 - Entry: 2023-12-18 12:00, Platform exit: 13:00, TV exit: 15:00
+Trade #117 - Entry: 2023-12-21 09:00, Platform exit: 10:00, TV exit: 11:00
+Trade #119 - Entry: 2023-12-29 09:00, Platform exit: 10:00, TV exit: 11:00
+Trade #167 - Entry: 2024-04-26 20:00, Platform exit: 2024-04-29 00:00, TV exit: 01:00
+Trade #169 - Entry: 2024-04-30 06:00, Platform exit: 07:00, TV exit: 09:00
+Trade #177 - Entry: 2024-05-21 13:00, Platform exit: 2024-05-22 02:00, TV exit: 15:00
+Trade #223 - Entry: 2024-09-30 19:00, Platform exit: 22:00, TV exit: 2024-10-01 09:00
+Trade #224 - Entry: 2024-10-20 23:00, Platform exit: 2024-10-21 06:00, TV exit: 07:00
+Trade #239 - Entry: 2024-12-02 05:00, Platform exit: 06:00, TV exit: 09:00
+Trade #242 - Entry: 2024-12-10 06:00, Platform exit: 07:00, TV exit: 08:00
 """
 
 from typing import Any, Dict, List, Tuple
