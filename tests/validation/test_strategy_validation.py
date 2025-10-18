@@ -78,7 +78,65 @@ KNOWN_EDGE_CASES: dict[str, dict[str, list[dict]]] = {
                 "bar_high": 1.09996,
             },
         ]
-    }
+    },
+    "ema_crossover/20pip_trailing_stop": {
+        "exit_time_mismatches": [
+            {
+                "trade_index": 2,  # Trade 3 in 1-indexed display
+                "entry_time": "2023-01-03 05:00:00",
+                "exit_time": "2023-01-03 08:00:00",
+                "description": "Platform more accurate - TV missed trailing stop hit",
+                "explanation": (
+                    "Short entry at 1.06674 with 20-pip trailing stop. "
+                    "During 08:00 hour, price dropped dramatically with trough "
+                    "improving from 1.06201 (at hour start) to 1.05571 at 08:32, "
+                    "moving trailing stop to 1.05771. At 08:38, price rallied "
+                    "with bar high of 1.05774, hitting the stop at 1.05771 "
+                    "(exceeded by 0.3 pips). Platform correctly detects this "
+                    "using 1-minute zoom and exits at 08:00 hourly bar with "
+                    "price 1.05771. TradingView's historical backtester failed "
+                    "to detect the trailing stop hit on the 08:00 hourly bar "
+                    "and didn't exit until 10:00 at price 1.05541 (2 hours late, "
+                    "23 pips better fill). Platform is MORE accurate than "
+                    "TradingView in this case due to superior intra-bar "
+                    "resolution via 1-minute zoom feature."
+                ),
+                "platform_exit_time": "2023-01-03 08:00:00",
+                "platform_exit_price": 1.05771,
+                "platform_exit_reason": "stop-loss",
+                "tradingview_exit_time": "2023-01-03 10:00:00",
+                "tradingview_exit_price": 1.05541,
+                "tradingview_exit_reason": "Short Trail",
+            },
+            {
+                "trade_index": 18,  # Trade 19 in 1-indexed display
+                "entry_time": "2023-02-15 12:00:00",
+                "exit_time": "2023-02-15 13:00:00",
+                "description": "Platform more accurate - TV missed trailing stop hit",
+                "explanation": (
+                    "Short entry at 1.07110 with 20-pip trailing stop. "
+                    "During 13:00 hour, price dropped to low of 1.06742 at "
+                    "13:30, moving trailing stop to 1.06945. Price continued "
+                    "to improve trough to 1.06742 at 13:39, moving stop to "
+                    "1.06942. At 13:45, price rallied with bar high of 1.06970, "
+                    "hitting the stop at 1.06942. Platform correctly detects "
+                    "this using 1-minute zoom and exits at 13:00 hourly bar "
+                    "with price 1.06942. TradingView's historical backtester "
+                    "failed to detect the trailing stop hit on the 13:00 "
+                    "hourly bar and didn't exit until 16:00 at price 1.06852 "
+                    "(3 hours late). Platform is MORE accurate than TradingView "
+                    "in this case due to superior intra-bar resolution via "
+                    "1-minute zoom feature."
+                ),
+                "platform_exit_time": "2023-02-15 13:00:00",
+                "platform_exit_price": 1.06942,
+                "platform_exit_reason": "stop-loss",
+                "tradingview_exit_time": "2023-02-15 16:00:00",
+                "tradingview_exit_price": 1.06852,
+                "tradingview_exit_reason": "Short Trail",
+            },
+        ]
+    },
     # "ema_crossover/20pip_stop": {
     #     "exit_time_mismatches": [
     #         {
@@ -335,8 +393,8 @@ def align_trades(
 
     # Parse TradingView trades using the golden utils function
     # The fixture passes raw CSV data, so we need to determine the file path
-    # For existing tests, we'll use the deprecated inline parsing for backward compatibility
-    # But raise a warning that this should be updated
+    # For existing tests, we'll use the deprecated inline parsing for
+    # backward compatibility. But raise a warning that this should be updated
 
     # Check if tv_trades is already parsed (has entry_time column)
     if "entry_time" in tv_trades.columns:
