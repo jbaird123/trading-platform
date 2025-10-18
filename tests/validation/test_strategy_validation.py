@@ -2148,9 +2148,7 @@ def test_ema_crossover_20pip_trailing_stop_exit_times_match_tradingview(
 
             if not is_known_edge_case:
                 # Check if this mismatch is explained by the analyzer
-                # (via entry bar MFE patterns)
-                # NOTE: Only check categories that explain exit TIME differences
-                # TV_IGNORED_ENTRY_BAR_CONTRIBUTED_MFE only explains PRICE differences
+                # (via entry bar MFE patterns or zoom discrepancies)
                 exit_time_categories = [
                     "SAME_BAR_EXIT",
                     "TV_IGNORED_ENTRY_BAR_PEAK_MFE_STRICT",
@@ -2237,9 +2235,12 @@ def test_ema_crossover_20pip_trailing_stop_exit_prices_match_tradingview(
 
     Known acceptable discrepancy categories:
     1. SAME_BAR_EXIT: Entry/exit on same bar (TradingView limitation)
-    2. ENTRY_BAR_PEAK_MFE: Entry bar had peak MFE (TV ignores it)
-    3. ENTRY_BAR_CONTRIBUTED_MFE: Entry bar contributed to MFE
-       (TV ignores entry bar portion)
+    2. TV_IGNORED_ENTRY_BAR_PEAK_MFE_STRICT: Entry bar had peak MFE
+       (TV ignores it) - strict mathematical verification
+    3. TV_IGNORED_ENTRY_BAR_PEAK_MFE_VERIFIED: Entry bar had peak MFE
+       (TV ignores it) - independent exit verification
+    4. PLATFORM_ZOOM_INTRABAR_STOP: Platform detected intrabar stop
+       via 1-minute zoom
 
     Any UNEXPLAINED discrepancies will cause the test to fail, indicating
     a potential bug or new TradingView behavior that needs investigation.

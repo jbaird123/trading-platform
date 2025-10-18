@@ -7,10 +7,11 @@ is explainable and acceptable, preventing regressions from future changes.
 
 Known acceptable discrepancy categories:
 1. SAME_BAR_EXIT: Entry and exit on same bar (TradingView historical limitation)
-2. TV_IGNORED_ENTRY_BAR_PEAK_MFE: Entry bar had peak favorable movement
-   (TV ignores it)
-3. TV_IGNORED_ENTRY_BAR_CONTRIBUTED_MFE: Entry bar contributed to MFE
-   (TV ignores entry bar portion)
+2. TV_IGNORED_ENTRY_BAR_PEAK_MFE_STRICT: Entry bar had peak favorable movement
+   (TV ignores it) - verified via strict mathematical equality
+3. TV_IGNORED_ENTRY_BAR_PEAK_MFE_VERIFIED: Entry bar had peak favorable movement
+   (TV ignores it) - verified via independent exit validation
+4. PLATFORM_ZOOM_INTRABAR_STOP: Platform detected intrabar stop via 1-minute zoom
 
 MANUALLY VERIFIED TV_IGNORED_ENTRY_BAR_PEAK_MFE EXIT TIME DISCREPANCIES:
 The following trades have been manually inspected and verified to correctly
@@ -61,7 +62,6 @@ class TrailingStopDiscrepancyAnalyzer:
             "SAME_BAR_EXIT",
             "TV_IGNORED_ENTRY_BAR_PEAK_MFE_STRICT",
             "TV_IGNORED_ENTRY_BAR_PEAK_MFE_VERIFIED",
-            "TV_IGNORED_ENTRY_BAR_CONTRIBUTED_MFE",
             "PLATFORM_ZOOM_INTRABAR_STOP",
         ]
 
@@ -328,26 +328,6 @@ class TrailingStopDiscrepancyAnalyzer:
             if zoom_result:
                 trade_info["explanation"] = zoom_result
                 return "PLATFORM_ZOOM_INTRABAR_STOP"
-
-        # CATEGORY 4: Entry bar contributed to MFE
-        # (but later bar had more)
-        if platform_is_stop or tv_is_stop:
-            # Re-check if we already calculated MFE
-            # (we should have if either exited via stop)
-            if "entry_bar_mfe_pips" in trade_info:
-                entry_bar_mfe = trade_info["entry_bar_mfe_pips"] / 10000
-                if entry_bar_mfe > self.tolerance:
-                    trade_info["explanation"] = (
-                        f"Entry bar MFE: {entry_bar_mfe * 10000:.1f} pips. "
-                        f"Later bars had more favorable movement "
-                        f"({trade_info['overall_mfe_excl_entry_pips']:.1f} pips). "
-                        f"Platform adjusted trailing stop for entry bar MFE. "
-                        f"TradingView ignored entry bar portion, "
-                        f"only trailed from later bars. "
-                        f"Both systems trailed correctly after entry bar, "
-                        f"but from different baselines."
-                    )
-                    return "TV_IGNORED_ENTRY_BAR_CONTRIBUTED_MFE"
 
         # Cannot explain - requires investigation
         trade_info["explanation"] = (
