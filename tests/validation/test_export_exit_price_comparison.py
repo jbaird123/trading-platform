@@ -66,11 +66,13 @@ def test_export_exit_price_comparison(
         ohlcv_data=tradingview_ohlcv,
     )
 
-    # Build lookup for categories by trade number
+    # Build lookup for categories and explanations by trade number
     category_lookup = {}
+    explanation_lookup = {}
     for category_name, trades in categories.items():
         for trade in trades:
             category_lookup[trade["trade_num"]] = category_name
+            explanation_lookup[trade["trade_num"]] = trade.get("explanation", "")
 
     # Build comparison data
     comparison_rows = []
@@ -118,6 +120,7 @@ def test_export_exit_price_comparison(
         # Only categorize exit price failures
         trade_num = i + 1
         discrepancy_category = ""
+        failure_explanation = ""
 
         if exit_price_failed:
             # Check if same-bar entry/exit (explains failure)
@@ -128,13 +131,20 @@ def test_export_exit_price_comparison(
             # Try to explain the failure
             if same_bar:
                 discrepancy_category = "SAME_BAR_EXIT"
+                failure_explanation = (
+                    "Entry and exit occurred on the same bar. "
+                    "Platform uses 1-minute data to determine exact exit price, "
+                    "while TradingView uses hourly bar OHLC."
+                )
             else:
                 # Check analyzer categories
                 discrepancy_category = category_lookup.get(trade_num, "")
+                failure_explanation = explanation_lookup.get(trade_num, "")
 
             # If still unexplained, mark as UNEXPLAINED
             if not discrepancy_category:
                 discrepancy_category = "UNEXPLAINED"
+                failure_explanation = "Exit price discrepancy requires investigation."
 
         comparison_rows.append(
             {
@@ -153,8 +163,9 @@ def test_export_exit_price_comparison(
                 "exit_price_match": exit_price_match,
                 "exit_price_diff_pips": exit_price_diff_pips,
                 "pnl_diff_pips": pnl_diff_pips,
-                # Failure explanation (only populated for failed trades)
-                "failure_explanation": discrepancy_category,
+                # Failure category and explanation (only populated for failed trades)
+                "failure_category": discrepancy_category,
+                "failure_explanation": failure_explanation,
             }
         )
 
@@ -181,8 +192,8 @@ def test_export_exit_price_comparison(
     if price_failures > 0:
         print("\nFailed trades breakdown:")
         failure_counts = (
-            comparison_df[comparison_df["failure_explanation"] != ""]
-            .groupby("failure_explanation")
+            comparison_df[comparison_df["failure_category"] != ""]
+            .groupby("failure_category")
             .size()
         )
         for category, count in failure_counts.items():
