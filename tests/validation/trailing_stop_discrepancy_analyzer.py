@@ -61,6 +61,7 @@ class TrailingStopDiscrepancyAnalyzer:
             "SAME_BAR_EXIT",
             "TV_IGNORED_ENTRY_BAR_PEAK_MFE",
             "TV_IGNORED_ENTRY_BAR_CONTRIBUTED_MFE",
+            "PLATFORM_ZOOM_INTRABAR_STOP",
         ]
 
     def analyze_discrepancies(
@@ -68,6 +69,7 @@ class TrailingStopDiscrepancyAnalyzer:
         platform_df: pd.DataFrame,
         tv_df: pd.DataFrame,
         ohlcv_data: pd.DataFrame,
+        ohlcv_1min: pd.DataFrame = None,
     ) -> Dict[str, List[Dict[str, Any]]]:
         """
         Analyze all exit price discrepancies and categorize them.
@@ -78,10 +80,13 @@ class TrailingStopDiscrepancyAnalyzer:
                 (aligned with platform_df)
             ohlcv_data: OHLCV data with columns:
                 open, high, low, close, ema_fast, ema_slow
+            ohlcv_1min: Optional 1-minute OHLCV data for zoom detection
 
         Returns:
             Dictionary mapping category names to lists of discrepancy details
         """
+        # Store 1-minute data for use in zoom detection
+        self.ohlcv_1min = ohlcv_1min
         categories: dict[str, list] = {
             cat: [] for cat in self.KNOWN_ACCEPTABLE_CATEGORIES
         }
@@ -239,32 +244,45 @@ class TrailingStopDiscrepancyAnalyzer:
                         f"limitation."
                     )
                     return "TV_IGNORED_ENTRY_BAR_PEAK_MFE"
-                # If TV exited via signal instead of stop, still might be explained
-                elif platform_is_stop and not tv_is_stop:
-                    trade_info["explanation"] = (
-                        f"Entry bar had peak favorable movement "
-                        f"({entry_bar_mfe * 10000:.1f} pips). "
-                        f"Platform exited via stop-loss. "
-                        f"TradingView exited via signal before stop was hit. "
-                        f"TradingView ignores entry bar MFE, so trailing stop "
-                        f"was at different level when signal triggered."
-                    )
-                    return "TV_IGNORED_ENTRY_BAR_PEAK_MFE"
 
-            # CATEGORY 3: Entry bar contributed to MFE
-            # (but later bar had more)
-            if entry_bar_mfe > self.tolerance:
-                trade_info["explanation"] = (
-                    f"Entry bar MFE: {entry_bar_mfe * 10000:.1f} pips. "
-                    f"Later bars had more favorable movement "
-                    f"({overall_mfe_excl_entry * 10000:.1f} pips). "
-                    f"Platform adjusted trailing stop for entry bar MFE. "
-                    f"TradingView ignored entry bar portion, "
-                    f"only trailed from later bars. "
-                    f"Both systems trailed correctly after entry bar, "
-                    f"but from different baselines."
-                )
-                return "TV_IGNORED_ENTRY_BAR_CONTRIBUTED_MFE"
+        # CATEGORY 3: Platform zoom detected intrabar stop hit
+        # Check if platform's 1-minute zoom feature detected a stop hit
+        # that TradingView couldn't see with hourly OHLC
+        # (Only check this if PEAK_MFE didn't explain it)
+        if platform_is_stop:
+            zoom_result = self._check_zoom_discrepancy(
+                trade_info,
+                entry_time,
+                exit_time,
+                entry_price,
+                direction,
+                p_row,
+                tv_row,
+                ohlcv_data,
+            )
+            if zoom_result:
+                trade_info["explanation"] = zoom_result
+                return "PLATFORM_ZOOM_INTRABAR_STOP"
+
+        # CATEGORY 4: Entry bar contributed to MFE
+        # (but later bar had more)
+        if platform_is_stop or tv_is_stop:
+            # Re-check if we already calculated MFE
+            # (we should have if either exited via stop)
+            if "entry_bar_mfe_pips" in trade_info:
+                entry_bar_mfe = trade_info["entry_bar_mfe_pips"] / 10000
+                if entry_bar_mfe > self.tolerance:
+                    trade_info["explanation"] = (
+                        f"Entry bar MFE: {entry_bar_mfe * 10000:.1f} pips. "
+                        f"Later bars had more favorable movement "
+                        f"({trade_info['overall_mfe_excl_entry_pips']:.1f} pips). "
+                        f"Platform adjusted trailing stop for entry bar MFE. "
+                        f"TradingView ignored entry bar portion, "
+                        f"only trailed from later bars. "
+                        f"Both systems trailed correctly after entry bar, "
+                        f"but from different baselines."
+                    )
+                    return "TV_IGNORED_ENTRY_BAR_CONTRIBUTED_MFE"
 
         # Cannot explain - requires investigation
         trade_info["explanation"] = (
@@ -312,6 +330,161 @@ class TrailingStopDiscrepancyAnalyzer:
             overall_mfe_excl_entry = 0.0
 
         return max(0.0, float(entry_bar_mfe)), max(0.0, overall_mfe_excl_entry)
+
+    def _simulate_trailing_stop_1min(
+        self,
+        entry_time: pd.Timestamp,
+        entry_price: float,
+        direction: str,
+        platform_exit_time: pd.Timestamp,
+    ) -> Tuple[pd.Timestamp | None, float | None]:
+        """
+        Simulate trailing stop using 1-minute data to find exact stop hit.
+
+        Args:
+            entry_time: Entry timestamp (hourly bar)
+            entry_price: Entry price
+            direction: "long" or "short"
+            platform_exit_time: Platform's exit time (hourly bar)
+
+        Returns:
+            Tuple of (exact_stop_hit_time, exact_stop_hit_price)
+            or (None, None) if stop not hit or data unavailable
+        """
+        if self.ohlcv_1min is None:
+            return None, None
+
+        # Get all 1-minute bars from entry through platform exit hour
+        try:
+            # Get bars from entry time through end of platform exit hour
+            exit_hour_end = platform_exit_time.floor("h") + pd.Timedelta(hours=1)
+            bars_1min = self.ohlcv_1min.loc[entry_time:exit_hour_end]
+
+            if len(bars_1min) == 0:
+                return None, None
+        except (KeyError, IndexError):
+            return None, None
+
+        # Initialize trailing stop tracking
+        # Start with entry price as the peak/trough
+        peak_or_trough = entry_price
+
+        if direction == "long":
+            stop_level = entry_price - self.trailing_stop_pips
+        else:  # short
+            stop_level = entry_price + self.trailing_stop_pips
+
+        # Process each 1-minute bar chronologically
+        for timestamp, bar in bars_1min.iterrows():
+            # Check if stop was hit on this bar
+            if direction == "long":
+                stop_hit = bar["low"] <= stop_level
+            else:  # short
+                stop_hit = bar["high"] >= stop_level
+
+            if stop_hit:
+                # Stop was hit - return exact time and price
+                return timestamp, stop_level
+
+            # No exit on this bar - update peak/trough and trailing stop
+            if direction == "long":
+                # For long: track peak high, stop trails below it
+                if bar["high"] > peak_or_trough:
+                    peak_or_trough = bar["high"]
+                    stop_level = peak_or_trough - self.trailing_stop_pips
+            else:
+                # For short: track trough low, stop trails above it
+                if bar["low"] < peak_or_trough:
+                    peak_or_trough = bar["low"]
+                    stop_level = peak_or_trough + self.trailing_stop_pips
+
+        # No stop hit detected
+        return None, None
+
+    def _check_zoom_discrepancy(
+        self,
+        trade_info: Dict[str, Any],
+        entry_time: pd.Timestamp,
+        exit_time: pd.Timestamp,
+        entry_price: float,
+        direction: str,
+        p_row: pd.Series,
+        tv_row: pd.Series,
+        ohlcv_data: pd.DataFrame,
+    ) -> str:
+        """
+        Check if discrepancy is due to platform's 1-minute zoom feature.
+
+        Uses 1-minute data simulation to verify that platform's exit matches
+        the exact trailing stop hit when using intra-bar resolution.
+
+        Returns explanation string if zoom discrepancy detected, None otherwise.
+        """
+        if self.ohlcv_1min is None:
+            return None  # Can't verify without 1-minute data
+
+        platform_exit_time = pd.Timestamp(p_row["exit_time"])
+        tv_exit_time = pd.Timestamp(tv_row["exit_time"])
+        platform_exit_price = p_row["exit_price"]
+        tv_exit_price = tv_row["exit_price"]
+
+        # Simulate trailing stop using 1-minute data
+        exact_stop_time, exact_stop_price = self._simulate_trailing_stop_1min(
+            entry_time=entry_time,
+            entry_price=entry_price,
+            direction=direction,
+            platform_exit_time=platform_exit_time,
+        )
+
+        if exact_stop_time is None or exact_stop_price is None:
+            return None  # Simulation failed or stop not hit
+
+        # Verify platform's exit matches the 1-minute simulation
+        platform_exit_matches = (
+            abs(platform_exit_price - exact_stop_price) < self.tolerance
+        )
+
+        if not platform_exit_matches:
+            return None  # Platform exit doesn't match zoom simulation
+
+        # Case A: Time difference - Platform exits earlier
+        # Platform detected stop hit during the hour, TV didn't see it until later
+        if platform_exit_time < tv_exit_time:
+            return (
+                f"Platform detected intra-bar stop hit via 1-minute zoom. "
+                f"{'Long' if direction == 'long' else 'Short'} entry at "
+                f"{entry_price:.5f}. "
+                f"1-minute simulation confirms stop hit at minute "
+                f"{exact_stop_time.strftime('%H:%M')} "
+                f"(bar {platform_exit_time.strftime('%Y-%m-%d %H:00')}) "
+                f"at price {exact_stop_price:.5f}. "
+                f"Platform exit matches simulation exactly. "
+                f"TradingView, using only hourly bars, couldn't detect this "
+                f"intra-bar stop hit and continued, exiting later at "
+                f"{tv_exit_time}."
+            )
+
+        # Case B: Same time, different price
+        # Both detected stop on same hour bar, but different prices due to resolution
+        elif platform_exit_time == tv_exit_time:
+            price_diff = abs(platform_exit_price - tv_exit_price)
+            if price_diff > self.tolerance:
+                return (
+                    f"Both platforms detected stop hit on same bar "
+                    f"({platform_exit_time}). "
+                    f"Platform used 1-minute zoom to determine exact stop price. "
+                    f"1-minute simulation confirms stop hit at minute "
+                    f"{exact_stop_time.strftime('%H:%M')} "
+                    f"at price {exact_stop_price:.5f}. "
+                    f"Platform exit matches simulation exactly. "
+                    f"TradingView used hourly bar "
+                    f"{'low' if direction == 'long' else 'high'}: "
+                    f"{tv_exit_price:.5f}. "
+                    f"Price difference ({price_diff * 10000:.1f} pips) due to "
+                    f"platform's superior intra-bar resolution."
+                )
+
+        return None  # Not a zoom discrepancy
 
     def generate_summary_report(self, categories: Dict[str, List]) -> str:
         """Generate a human-readable summary report."""

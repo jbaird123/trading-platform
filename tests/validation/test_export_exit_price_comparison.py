@@ -18,6 +18,7 @@ def test_export_exit_price_comparison(
     golden_strategy_config,
     tradingview_trades,
     tradingview_ohlcv,
+    tradingview_ohlcv_1min,
     golden_metadata,
 ):
     """Export all trades with exit price comparison details to CSV.
@@ -54,6 +55,23 @@ def test_export_exit_price_comparison(
     print(f"TradingView trades: {len(tv_df)}")
     print(f"Total trades to compare: {min(len(platform_df), len(tv_df))}\n")
 
+    # Get known edge cases for exit price mismatches
+    from tests.validation.test_strategy_validation import KNOWN_EDGE_CASES
+
+    strategy_edge_cases = KNOWN_EDGE_CASES.get("ema_crossover/20pip_trailing_stop", {})
+    known_exit_price_edge_cases = strategy_edge_cases.get("exit_price_mismatches", [])
+
+    # Build set of trade indices for known edge cases
+    known_edge_case_indices = {ec["trade_index"] for ec in known_exit_price_edge_cases}
+
+    print(f"Known exit price edge cases: {len(known_exit_price_edge_cases)}")
+    if known_exit_price_edge_cases:
+        print(
+            "  Trade indices:",
+            sorted([ec["trade_index"] + 1 for ec in known_exit_price_edge_cases]),
+        )
+    print()
+
     # Use analyzer to categorize exit PRICE discrepancies
     analyzer = TrailingStopDiscrepancyAnalyzer(
         trailing_stop_pips=0.0020,  # 20 pips
@@ -64,6 +82,7 @@ def test_export_exit_price_comparison(
         platform_df=platform_df,
         tv_df=tv_df,
         ohlcv_data=tradingview_ohlcv,
+        ohlcv_1min=tradingview_ohlcv_1min,
     )
 
     # Build lookup for categories, explanations, and MFE data by trade number
@@ -132,28 +151,46 @@ def test_export_exit_price_comparison(
         failure_explanation = ""
 
         if exit_price_failed:
-            # Check if same-bar entry/exit (explains failure)
-            same_bar = (p_row["exit_time"] == p_row["entry_time"]) or (
-                tv_row["exit_time"] == tv_row["entry_time"]
-            )
-
-            # Try to explain the failure
-            if same_bar:
-                discrepancy_category = "SAME_BAR_EXIT"
-                failure_explanation = (
-                    "Entry and exit occurred on the same bar. "
-                    "Platform uses 1-minute data to determine exact exit price, "
-                    "while TradingView uses hourly bar OHLC."
+            # Check if this is a known edge case
+            trade_index = i  # 0-indexed
+            if trade_index in known_edge_case_indices:
+                # Find the edge case details
+                edge_case = next(
+                    (
+                        ec
+                        for ec in known_exit_price_edge_cases
+                        if ec["trade_index"] == trade_index
+                    ),
+                    None,
                 )
+                if edge_case:
+                    discrepancy_category = "KNOWN_EDGE_CASE"
+                    failure_explanation = edge_case["explanation"]
             else:
-                # Check analyzer categories
-                discrepancy_category = category_lookup.get(trade_num, "")
-                failure_explanation = explanation_lookup.get(trade_num, "")
+                # Check if same-bar entry/exit (explains failure)
+                same_bar = (p_row["exit_time"] == p_row["entry_time"]) or (
+                    tv_row["exit_time"] == tv_row["entry_time"]
+                )
 
-            # If still unexplained, mark as UNEXPLAINED
-            if not discrepancy_category:
-                discrepancy_category = "UNEXPLAINED"
-                failure_explanation = "Exit price discrepancy requires investigation."
+                # Try to explain the failure
+                if same_bar:
+                    discrepancy_category = "SAME_BAR_EXIT"
+                    failure_explanation = (
+                        "Entry and exit occurred on the same bar. "
+                        "Platform uses 1-minute data to determine exact exit price, "
+                        "while TradingView uses hourly bar OHLC."
+                    )
+                else:
+                    # Check analyzer categories
+                    discrepancy_category = category_lookup.get(trade_num, "")
+                    failure_explanation = explanation_lookup.get(trade_num, "")
+
+                # If still unexplained, mark as UNEXPLAINED
+                if not discrepancy_category:
+                    discrepancy_category = "UNEXPLAINED"
+                    failure_explanation = (
+                        "Exit price discrepancy requires investigation."
+                    )
 
         # Get MFE data for this trade
         mfe_data = mfe_data_lookup.get(trade_num, {})

@@ -452,7 +452,63 @@ KNOWN_EDGE_CASES: dict[str, dict[str, list[dict]]] = {
                 "tradingview_exit_price": 1.05488,
                 "tradingview_exit_reason": "Close entry(s) order Long",
             },
-        ]
+        ],
+        "exit_price_mismatches": [
+            {
+                "trade_index": 114,  # Trade 115 in 1-indexed display
+                "entry_time": "2023-12-18 12:00:00",
+                "exit_time": "2023-12-18 13:00:00",
+                "description": (
+                    "TV exited via signal - entry bar peak MFE pattern, "
+                    "mathematically unverifiable"
+                ),
+                "explanation": (
+                    "Short entry at 1.09129 with 20-pip trailing stop. "
+                    "Entry bar had peak MFE of 3.7 pips (subsequent bars: 0.0 pips). "
+                    "Platform exited at 13:00 via stop-loss at 1.09292. "
+                    "TradingView exited at 15:00 via reversal signal at 1.09293. "
+                    "Entry bar peak MFE pattern explains the discrepancy: "
+                    "platform's trailing stop moved based on entry bar, "
+                    "TV's did not. When reversal signal triggered, TV hit "
+                    "the signal before its stop (which was further away). "
+                    "However, because TV exited via signal (not stop), we "
+                    "cannot mathematically verify that exit price difference "
+                    "equals MFE difference as we do for stop-to-stop exits. "
+                    "Manually verified."
+                ),
+                "platform_exit_price": 1.09292,
+                "platform_exit_reason": "stop-loss",
+                "tradingview_exit_price": 1.09293,
+                "tradingview_exit_reason": "Close entry(s) order Short",
+            },
+            {
+                "trade_index": 241,  # Trade 242 in 1-indexed display
+                "entry_time": "2024-12-10 06:00:00",
+                "exit_time": "2024-12-10 07:00:00",
+                "description": (
+                    "TV exited via signal - entry bar peak MFE pattern, "
+                    "mathematically unverifiable"
+                ),
+                "explanation": (
+                    "Long entry at 1.05622 with 20-pip trailing stop. "
+                    "Entry bar had peak MFE of 6.1 pips (subsequent bars: 4.4 pips). "
+                    "Platform exited at 07:00 via stop-loss at 1.05483. "
+                    "TradingView exited at 08:00 via reversal signal at 1.05488. "
+                    "Entry bar peak MFE pattern explains the discrepancy: "
+                    "platform's trailing stop moved based on entry bar, "
+                    "TV's did not. When reversal signal triggered, TV hit "
+                    "the signal before its stop (which was further away). "
+                    "However, because TV exited via signal (not stop), we "
+                    "cannot mathematically verify that exit price difference "
+                    "equals MFE difference as we do for stop-to-stop exits. "
+                    "Manually verified."
+                ),
+                "platform_exit_price": 1.05483,
+                "platform_exit_reason": "stop-loss",
+                "tradingview_exit_price": 1.05488,
+                "tradingview_exit_reason": "Close entry(s) order Long",
+            },
+        ],
     },
     # "ema_crossover/20pip_stop": {
     #     "exit_time_mismatches": [
@@ -2016,6 +2072,7 @@ def test_ema_crossover_20pip_trailing_stop_exit_times_match_tradingview(
     golden_strategy_config,
     tradingview_trades,
     tradingview_ohlcv,
+    tradingview_ohlcv_1min,
     golden_metadata,
 ):
     """Validates all exit times match between platform and TradingView.
@@ -2059,6 +2116,7 @@ def test_ema_crossover_20pip_trailing_stop_exit_times_match_tradingview(
         platform_df=platform_df,
         tv_df=tv_df,
         ohlcv_data=tradingview_ohlcv,
+        ohlcv_1min=tradingview_ohlcv_1min,
     )
 
     # Additionally check for trades with exit TIME mismatches
@@ -2167,6 +2225,7 @@ def test_ema_crossover_20pip_trailing_stop_exit_prices_match_tradingview(
     golden_strategy_config,
     tradingview_trades,
     tradingview_ohlcv,
+    tradingview_ohlcv_1min,
     golden_metadata,
 ):
     """Validates all exit prices match between platform and TradingView.
@@ -2213,6 +2272,7 @@ def test_ema_crossover_20pip_trailing_stop_exit_prices_match_tradingview(
         platform_df=platform_df,
         tv_df=tv_df,
         ohlcv_data=tradingview_ohlcv,
+        ohlcv_1min=tradingview_ohlcv_1min,
     )
 
     # Generate and print summary report
@@ -2240,8 +2300,7 @@ def test_ema_crossover_20pip_trailing_stop_exit_prices_match_tradingview(
                 f"({trade['platform_exit_reason']})"
             )
             print(
-                f"  TradingView: {trade['tv_exit']:.5f} "
-                f"(Signal: {trade['tv_exit_signal']})"
+                f"  TradingView: {trade['tv_exit']:.5f} " f"({trade['tv_exit_reason']})"
             )
             print(f"  Difference: {trade['price_diff_pips']:.1f} pips")
             if "entry_bar_mfe_pips" in trade:

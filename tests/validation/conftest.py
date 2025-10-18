@@ -506,3 +506,58 @@ def tradingview_ohlcv(
         df["volume"] = 1.0
 
     return df
+
+
+@pytest.fixture
+def tradingview_ohlcv_1min(
+    ensure_dvc_data_pulled: bool,
+) -> pd.DataFrame:
+    """Loads TradingView 1-minute OHLCV data for zoom validation.
+
+    Args:
+        ensure_dvc_data_pulled: Session fixture ensuring data exists
+
+    Returns:
+        DataFrame with 1-minute OHLCV data indexed by timestamp
+
+    Raises:
+        pytest.skip: If 1-minute data not found
+    """
+    # Path to 1-minute data
+    ohlcv_1min_path = (
+        GOLDEN_DATA_ROOT
+        / "ohlcv"
+        / "tradingview"
+        / "full"
+        / "eurusd"
+        / "eurusd_1min.csv"
+    )
+
+    if not ohlcv_1min_path.exists():
+        pytest.skip(
+            f"TradingView 1-minute OHLCV not found: {ohlcv_1min_path}. "
+            "1-minute data is required for zoom validation."
+        )
+
+    # Read CSV
+    df = pd.read_csv(ohlcv_1min_path)
+
+    # Standardize column names
+    df = df.rename(
+        columns={
+            "time": "timestamp",
+            "Time": "timestamp",
+            "Volume": "volume",
+        }
+    )
+
+    # Parse timestamp
+    if "timestamp" in df.columns:
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+        df = df.set_index("timestamp")
+
+    # Add dummy volume column if not present
+    if "volume" not in df.columns:
+        df["volume"] = 1.0
+
+    return df
