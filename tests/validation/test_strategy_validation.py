@@ -404,6 +404,54 @@ KNOWN_EDGE_CASES: dict[str, dict[str, list[dict]]] = {
                 "tradingview_exit_price": 1.05358,
                 "tradingview_exit_reason": "Short Trail",
             },
+            {
+                "trade_index": 114,  # Trade 115 in 1-indexed display
+                "entry_time": "2023-12-18 12:00:00",
+                "exit_time": "2023-12-18 13:00:00",
+                "description": (
+                    "TV exited via signal - entry bar peak MFE pattern verified"
+                ),
+                "explanation": (
+                    "Short entry at 1.09129 with 20-pip trailing stop. "
+                    "Entry bar had peak MFE of 3.7 pips (subsequent bars: 0.0 pips). "
+                    "Platform exited at 13:00 via stop-loss at 1.09292. "
+                    "TradingView exited at 15:00 via reversal signal at 1.09293. "
+                    "Entry bar peak MFE pattern is correct: platform's trailing stop "
+                    "moved based on entry bar, TV's did not. When reversal signal "
+                    "triggered, TV hit the signal before its stop (which was further "
+                    "away). Manually verified as TV_IGNORED_ENTRY_BAR_PEAK_MFE."
+                ),
+                "platform_exit_time": "2023-12-18 13:00:00",
+                "platform_exit_price": 1.09292,
+                "platform_exit_reason": "stop-loss",
+                "tradingview_exit_time": "2023-12-18 15:00:00",
+                "tradingview_exit_price": 1.09293,
+                "tradingview_exit_reason": "Close entry(s) order Short",
+            },
+            {
+                "trade_index": 241,  # Trade 242 in 1-indexed display
+                "entry_time": "2024-12-10 06:00:00",
+                "exit_time": "2024-12-10 07:00:00",
+                "description": (
+                    "TV exited via signal - entry bar peak MFE pattern verified"
+                ),
+                "explanation": (
+                    "Long entry at 1.05622 with 20-pip trailing stop. "
+                    "Entry bar had peak MFE of 6.1 pips (subsequent bars: 4.4 pips). "
+                    "Platform exited at 07:00 via stop-loss at 1.05483. "
+                    "TradingView exited at 08:00 via reversal signal at 1.05488. "
+                    "Entry bar peak MFE pattern is correct: platform's trailing stop "
+                    "moved based on entry bar, TV's did not. When reversal signal "
+                    "triggered, TV hit the signal before its stop (which was further "
+                    "away). Manually verified as TV_IGNORED_ENTRY_BAR_PEAK_MFE."
+                ),
+                "platform_exit_time": "2024-12-10 07:00:00",
+                "platform_exit_price": 1.05483,
+                "platform_exit_reason": "stop-loss",
+                "tradingview_exit_time": "2024-12-10 08:00:00",
+                "tradingview_exit_price": 1.05488,
+                "tradingview_exit_reason": "Close entry(s) order Long",
+            },
         ]
     },
     # "ema_crossover/20pip_stop": {
@@ -2043,8 +2091,14 @@ def test_ema_crossover_20pip_trailing_stop_exit_times_match_tradingview(
             if not is_known_edge_case:
                 # Check if this mismatch is explained by the analyzer
                 # (via entry bar MFE patterns)
+                # NOTE: Only check categories that explain exit TIME differences
+                # TV_IGNORED_ENTRY_BAR_CONTRIBUTED_MFE only explains PRICE differences
+                exit_time_categories = [
+                    "SAME_BAR_EXIT",
+                    "TV_IGNORED_ENTRY_BAR_PEAK_MFE",
+                ]
                 is_analyzer_explained = False
-                for category in analyzer.KNOWN_ACCEPTABLE_CATEGORIES:
+                for category in exit_time_categories:
                     for trade in categories.get(category, []):
                         if trade["trade_num"] == i + 1:
                             is_analyzer_explained = True

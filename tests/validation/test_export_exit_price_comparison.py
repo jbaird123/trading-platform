@@ -66,13 +66,22 @@ def test_export_exit_price_comparison(
         ohlcv_data=tradingview_ohlcv,
     )
 
-    # Build lookup for categories and explanations by trade number
+    # Build lookup for categories, explanations, and MFE data by trade number
     category_lookup = {}
     explanation_lookup = {}
+    mfe_data_lookup = {}
     for category_name, trades in categories.items():
         for trade in trades:
-            category_lookup[trade["trade_num"]] = category_name
-            explanation_lookup[trade["trade_num"]] = trade.get("explanation", "")
+            trade_num = trade["trade_num"]
+            category_lookup[trade_num] = category_name
+            explanation_lookup[trade_num] = trade.get("explanation", "")
+            # Extract MFE data if available
+            mfe_data_lookup[trade_num] = {
+                "entry_bar_mfe_pips": trade.get("entry_bar_mfe_pips", None),
+                "overall_mfe_excl_entry_pips": trade.get(
+                    "overall_mfe_excl_entry_pips", None
+                ),
+            }
 
     # Build comparison data
     comparison_rows = []
@@ -146,6 +155,17 @@ def test_export_exit_price_comparison(
                 discrepancy_category = "UNEXPLAINED"
                 failure_explanation = "Exit price discrepancy requires investigation."
 
+        # Get MFE data for this trade
+        mfe_data = mfe_data_lookup.get(trade_num, {})
+        entry_bar_mfe = mfe_data.get("entry_bar_mfe_pips")
+        subsequent_bars_mfe = mfe_data.get("overall_mfe_excl_entry_pips")
+
+        # Calculate MFE difference if both values available
+        if entry_bar_mfe is not None and subsequent_bars_mfe is not None:
+            mfe_diff = entry_bar_mfe - subsequent_bars_mfe
+        else:
+            mfe_diff = None
+
         comparison_rows.append(
             {
                 "trade_num": trade_num,
@@ -163,6 +183,10 @@ def test_export_exit_price_comparison(
                 "exit_price_match": exit_price_match,
                 "exit_price_diff_pips": exit_price_diff_pips,
                 "pnl_diff_pips": pnl_diff_pips,
+                # MFE analysis columns
+                "entry_bar_mfe_pips": entry_bar_mfe,
+                "subsequent_bars_mfe_pips": subsequent_bars_mfe,
+                "mfe_diff_pips": mfe_diff,
                 # Failure category and explanation (only populated for failed trades)
                 "failure_category": discrepancy_category,
                 "failure_explanation": failure_explanation,
