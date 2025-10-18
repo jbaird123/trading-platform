@@ -230,6 +230,39 @@ KNOWN_EDGE_CASES: dict[str, dict[str, list[dict]]] = {
                 "tradingview_exit_price": 1.08736,
                 "tradingview_exit_reason": "Short Trail",
             },
+            {
+                "trade_index": 52,  # Trade 53 in 1-indexed display
+                "entry_time": "2023-05-05 09:00:00",
+                "exit_time": "2023-05-05 12:00:00",
+                "description": (
+                    "Platform more accurate - intra-bar stop hit via 1-min zoom"
+                ),
+                "explanation": (
+                    "Short entry at 1.10284 with 20-pip trailing stop. "
+                    "Price dropped dramatically to 1.09716 at 12:30, moving "
+                    "trailing stop to 1.09916. At 12:31, price bounced to "
+                    "1.10000, hitting the stop at 1.09916. Platform correctly "
+                    "detects this using 1-minute zoom and exits at 12:00 hourly "
+                    "bar. The 12:00 hourly bar shows high=1.10186, which does "
+                    "NOT reach either platform's stop (1.10422) or TradingView's "
+                    "stop (1.10484) when calculated from hourly data alone. "
+                    "However, the 1-minute zoom reveals the true peak at 12:31 "
+                    "was 1.10000, and the true trough at 12:30 was 1.09716, "
+                    "making the actual stop level 1.09916. TradingView cannot "
+                    "see intra-bar movements on hourly bars, so it doesn't "
+                    "detect the stop hit until 13:00. Platform is MORE accurate "
+                    "due to 1-minute zoom detecting intra-bar stop hits that "
+                    "hourly bars miss. Note: Entry bar MFE (6.2 pips) is NOT "
+                    "the cause of the discrepancy here - it's purely the zoom "
+                    "feature revealing intra-bar price action."
+                ),
+                "platform_exit_time": "2023-05-05 12:00:00",
+                "platform_exit_price": 1.09916,
+                "platform_exit_reason": "stop-loss",
+                "tradingview_exit_time": "2023-05-05 13:00:00",
+                "tradingview_exit_price": 1.09867,
+                "tradingview_exit_reason": "Short Trail",
+            },
         ]
     },
     # "ema_crossover/20pip_stop": {
