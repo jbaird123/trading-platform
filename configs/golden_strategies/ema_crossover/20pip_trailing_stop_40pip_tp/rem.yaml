@@ -1,0 +1,15 @@
+name: "Trailing_20pip_Stop_40pip_TP"
+version: "1.0"
+description: "20-pip trailing stop loss + 40-pip take profit for golden validation"
+
+# Trailing stop loss: 20 pips
+# For EURUSD: 20 pips = 0.0020 in canonical price terms
+# Trails behind the peak (for longs) or trough (for shorts)
+trailing_stop:
+  price_offset: 0.0020
+
+# Take profit: 40 pips
+# For EURUSD: 40 pips = 0.0040 in canonical price terms
+# Fixed distance from entry price
+take_profit:
+  price_offset: 0.0040
