@@ -716,26 +716,77 @@ def load_platform_trades(
     # - Excluding "end_of_data" forced exits (TradingView doesn't close at end)
     # - Filtering by entry_time within validation range
     # - Converting Trade objects to dictionaries
+    # Helper function to convert Trade object to dict with all fields
+    def trade_to_dict(trade):
+        """Convert Trade to dict with all fields for hash verification."""
+        trade_dict = {
+            "symbol": trade.symbol,
+            "side": trade.side,
+            "size": trade.size,
+            "entry_time": trade.entry_time,
+            "exit_time": trade.exit_time,
+            "entry_price": trade.entry_price,
+            "exit_price": trade.exit_price,
+            "exit_reason": trade.exit_reason,
+            "pnl": trade.pnl,
+            "mfe_currency": trade.mfe_currency,
+            "mae_currency": trade.mae_currency,
+            "bars_held": trade.bars_held,
+            "cost_currency": trade.cost_currency,
+        }
+
+        # Add cost breakdown fields
+        if trade.cost_breakdown:
+            trade_dict["spread"] = trade.cost_breakdown.get("spread", 0.0)
+            trade_dict["commission"] = trade.cost_breakdown.get("commission", 0.0)
+            trade_dict["slippage"] = trade.cost_breakdown.get("slippage", 0.0)
+        else:
+            trade_dict["spread"] = 0.0
+            trade_dict["commission"] = 0.0
+            trade_dict["slippage"] = 0.0
+
+        # Add flattened context fields
+        if trade.context_at_entry:
+            for key, value in _flatten_context_for_verification(trade.context_at_entry).items():
+                trade_dict[f"ctx_{key}"] = value
+
+        return trade_dict
+
     if date_range:
-        trades_list = filter_platform_trades_to_validation_range(
-            results["trades"], date_range
-        )
+        # Filter to validation range
+        start_date = pd.to_datetime(date_range["start"], utc=True)
+        end_date = pd.to_datetime(date_range["end"], utc=True) + timedelta(days=1, seconds=-1)
+
+        trades_list = [
+            trade_to_dict(trade)
+            for trade in results["trades"]
+            if (
+                trade.exit_reason != "end_of_data"
+                and start_date <= trade.entry_time <= end_date
+            )
+        ]
     else:
         # No filtering, just convert and exclude end_of_data
         trades_list = [
-            {
-                "entry_time": trade.entry_time,
-                "exit_time": trade.exit_time,
-                "entry_price": trade.entry_price,
-                "exit_price": trade.exit_price,
-                "pnl": trade.pnl,
-                "side": trade.side,
-            }
+            trade_to_dict(trade)
             for trade in results["trades"]
             if trade.exit_reason != "end_of_data"
         ]
 
     return trades_list
+
+
+def _flatten_context_for_verification(ctx: dict, prefix: str = "") -> dict:
+    """Flatten nested context dict into dot-notation keys for hash verification."""
+    result = {}
+    for key, value in ctx.items():
+        new_key = f"{prefix}{key}" if prefix else key
+        if isinstance(value, dict):
+            # Recursively flatten nested dicts
+            result.update(_flatten_context_for_verification(value, f"{new_key}_"))
+        else:
+            result[new_key] = value
+    return result
 
 
 # DEPRECATED: This function has been removed.
