@@ -47,6 +47,7 @@ def test_trailing_stop_hit_on_specific_minute():
         trailing_stop_offset=0.0020,  # 20 pips
         take_profit_price=None,
         tie_break_policy="stop_then_tp",
+        current_peak_or_trough=1.0600,  # Starting from entry price
     )
 
     assert result["exit_occurred"] is True
@@ -94,6 +95,7 @@ def test_take_profit_hit_no_trailing_stop():
         trailing_stop_offset=0.0020,
         take_profit_price=1.0650,
         tie_break_policy="stop_then_tp",
+        current_peak_or_trough=1.0600,  # Starting from entry price
     )
 
     assert result["exit_occurred"] is True
@@ -135,6 +137,7 @@ def test_stop_hit_before_take_profit():
         trailing_stop_offset=0.0020,
         take_profit_price=1.0650,
         tie_break_policy="stop_then_tp",
+        current_peak_or_trough=1.0600,  # Starting from entry price
     )
 
     assert result["exit_occurred"] is True
@@ -176,6 +179,7 @@ def test_both_hit_same_bar_stop_then_tp_policy():
         trailing_stop_offset=0.0020,
         take_profit_price=1.0650,
         tie_break_policy="stop_then_tp",
+        current_peak_or_trough=1.0600,  # Starting from entry price
     )
 
     assert result["exit_occurred"] is True
@@ -216,6 +220,7 @@ def test_both_hit_same_bar_tp_then_stop_policy():
         trailing_stop_offset=0.0020,
         take_profit_price=1.0650,
         tie_break_policy="tp_then_stop",
+        current_peak_or_trough=1.0600,  # Starting from entry price
     )
 
     assert result["exit_occurred"] is True
@@ -244,6 +249,7 @@ def test_no_exit_in_any_bar():
         trailing_stop_offset=0.0020,
         take_profit_price=1.0700,  # Far away
         tie_break_policy="stop_then_tp",
+        current_peak_or_trough=1.0600,  # Starting from entry price
     )
 
     assert result["exit_occurred"] is False
@@ -295,6 +301,7 @@ def test_trailing_stop_moves_up_with_favorable_movement():
         trailing_stop_offset=0.0020,
         take_profit_price=None,
         tie_break_policy="stop_then_tp",
+        current_peak_or_trough=1.0600,  # Starting from entry price
     )
 
     assert result["exit_occurred"] is True
@@ -349,6 +356,7 @@ def test_short_position_trailing_stop():
         trailing_stop_offset=0.0020,
         take_profit_price=None,
         tie_break_policy="stop_then_tp",
+        current_peak_or_trough=1.0600,  # Starting from entry price
     )
 
     assert result["exit_occurred"] is True
@@ -396,6 +404,7 @@ def test_short_position_take_profit():
         trailing_stop_offset=0.0020,
         take_profit_price=1.0550,
         tie_break_policy="stop_then_tp",
+        current_peak_or_trough=1.0600,  # Starting from entry price
     )
 
     assert result["exit_occurred"] is True

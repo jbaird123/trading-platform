@@ -222,6 +222,8 @@ class RiskExitManager:
                     )
 
                     # Process 1-minute bars
+                    # CRITICAL: Pass current peak/trough to preserve trailing stop state
+                    current_peak_or_trough = peak if position.side == "long" else trough
                     result = process_1min_bars_for_trailing_stop(
                         bars_1min=bars_1min,
                         entry_price=position.entry_price,
@@ -229,6 +231,7 @@ class RiskExitManager:
                         trailing_stop_offset=dist_t,
                         take_profit_price=tp_price,
                         tie_break_policy=self.exit_tie_break,
+                        current_peak_or_trough=current_peak_or_trough,
                     )
 
                     # If exit occurred, return it

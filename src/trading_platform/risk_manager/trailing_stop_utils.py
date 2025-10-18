@@ -109,6 +109,7 @@ def process_1min_bars_for_trailing_stop(
     trailing_stop_offset: float,
     take_profit_price: float | None,
     tie_break_policy: str,
+    current_peak_or_trough: float,
 ) -> dict:
     """Process 1-minute bars chronologically for trailing stop exit detection.
 
@@ -120,6 +121,9 @@ def process_1min_bars_for_trailing_stop(
             (e.g., 0.0020 for 20 pips on EUR/USD)
         take_profit_price: Take-profit price level, or None if no TP
         tie_break_policy: "stop_then_tp" or "tp_then_stop" for ambiguous bars
+        current_peak_or_trough: Current peak (for LONG) or trough (for SHORT)
+            from previous bars. REQUIRED - must pass the actual state to preserve
+            trailing stop progress.
 
     Returns:
         Dictionary with:
@@ -132,14 +136,15 @@ def process_1min_bars_for_trailing_stop(
         - Trailing stop is tracked after each bar based on peak/trough
         - Exit occurs AT the stop/TP level (not next bar open)
         - If both stop and TP hit on same bar, tie_break_policy is applied
+        - CRITICAL: current_peak_or_trough must be passed to preserve trailing
+          stop state from previous bars. Failure to do so will cause incorrect exits.
     """
-    # Initialize trailing stop tracking
+    # Initialize trailing stop tracking with current state
+    peak_or_trough = current_peak_or_trough
     if side == "long":
-        peak_or_trough = entry_price
-        stop_level = entry_price - trailing_stop_offset
+        stop_level = max(entry_price - trailing_stop_offset, peak_or_trough - trailing_stop_offset)
     else:  # short
-        peak_or_trough = entry_price
-        stop_level = entry_price + trailing_stop_offset
+        stop_level = min(entry_price + trailing_stop_offset, peak_or_trough + trailing_stop_offset)
 
     # Process each 1-minute bar chronologically
     for idx, bar in bars_1min.iterrows():
