@@ -263,6 +263,147 @@ KNOWN_EDGE_CASES: dict[str, dict[str, list[dict]]] = {
                 "tradingview_exit_price": 1.09867,
                 "tradingview_exit_reason": "Short Trail",
             },
+            {
+                "trade_index": 100,  # Trade 101 in 1-indexed display
+                "entry_time": "2023-11-01 00:00:00",
+                "exit_time": "2023-11-01 12:00:00",
+                "description": (
+                    "TradingView false exit from OHLC timing error - high before low"
+                ),
+                "explanation": (
+                    "Short entry at 1.05780 with 20-pip trailing stop. "
+                    "During 12:00 hour, the HIGH (1.05577) occurred at 12:35, "
+                    "while the LOW (1.05369) occurred later at 12:58. When the "
+                    "high occurred, the trailing stop was at 1.05609 (based on "
+                    "trough of 1.05409 from previous hours), so the high of "
+                    "1.05577 was 32 pips below the stop - no exit. When the "
+                    "low occurred at 12:58, it moved the stop down to 1.05569, "
+                    "but the highest subsequent price was only 1.05449 (12 pips "
+                    "below the new stop) - still no exit. TradingView only sees "
+                    "hourly OHLC (Low=1.05369, High=1.05577) and cannot determine "
+                    "chronological order, so it incorrectly assumes the low came "
+                    "first (moving stop to 1.05569), then the high came second "
+                    "(1.05577 >= 1.05569, triggering exit). Platform is MORE "
+                    "accurate due to chronological 1-minute processing revealing "
+                    "the high occurred BEFORE the low."
+                ),
+                "platform_exit_time": "2023-11-01 14:00:00",
+                "platform_exit_price": 1.05414,
+                "platform_exit_reason": "stop-loss",
+                "tradingview_exit_time": "2023-11-01 12:00:00",
+                "tradingview_exit_price": 1.05569,
+                "tradingview_exit_reason": "Short Trail",
+            },
+            {
+                "trade_index": 157,  # Trade 158 in 1-indexed display
+                "entry_time": "2024-04-03 04:00:00",
+                "exit_time": "2024-04-03 14:00:00",
+                "description": (
+                    "Platform more accurate - intra-bar stop hit via 1-min zoom"
+                ),
+                "explanation": (
+                    "Long entry at 1.07773 with 20-pip trailing stop. "
+                    "During the 14:00 hour, price rallied dramatically with "
+                    "the peak reaching 1.08180 at 14:02, moving the trailing "
+                    "stop to 1.07980. At 14:10, price dropped with the bar low "
+                    "touching exactly 1.07980, hitting the stop. Platform correctly "
+                    "detects this using 1-minute zoom and exits at the 14:00 hourly "
+                    "bar. TradingView, using only hourly bars, cannot see this "
+                    "intra-bar stop hit during the 14:00 hour and doesn't exit "
+                    "until 18:00 on 2024-04-04 (28 hours later). Platform is MORE "
+                    "accurate due to 1-minute zoom detecting intra-bar stop hits "
+                    "that hourly bars miss."
+                ),
+                "platform_exit_time": "2024-04-03 14:00:00",
+                "platform_exit_price": 1.07980,
+                "platform_exit_reason": "stop-loss",
+                "tradingview_exit_time": "2024-04-04 18:00:00",
+                "tradingview_exit_price": 1.08566,
+                "tradingview_exit_reason": "Long Trail",
+            },
+            {
+                "trade_index": 197,  # Trade 198 in 1-indexed display
+                "entry_time": "2024-07-10 15:00:00",
+                "exit_time": "2024-07-11 12:00:00",
+                "description": (
+                    "Platform more accurate - intra-bar stop hit via 1-min zoom"
+                ),
+                "explanation": (
+                    "Long entry at 1.08233 with 20-pip trailing stop. "
+                    "During the 12:00 hour, price rallied dramatically at 12:30 "
+                    "with the peak reaching 1.08932, moving the trailing stop to "
+                    "1.08732. At 12:33, peak improved slightly to 1.08938, moving "
+                    "stop to 1.08738. Just 3 minutes later at 12:36, price dropped "
+                    "with the bar low touching 1.08736, hitting the stop at 1.08738. "
+                    "Platform correctly detects this using 1-minute zoom and exits "
+                    "at the 12:00 hourly bar. TradingView, using only hourly bars, "
+                    "cannot see this intra-bar stop hit during the 12:00 hour and "
+                    "doesn't exit until 13:00 (1 hour later). Platform is MORE "
+                    "accurate due to 1-minute zoom detecting intra-bar stop hits "
+                    "that hourly bars miss."
+                ),
+                "platform_exit_time": "2024-07-11 12:00:00",
+                "platform_exit_price": 1.08738,
+                "platform_exit_reason": "stop-loss",
+                "tradingview_exit_time": "2024-07-11 13:00:00",
+                "tradingview_exit_price": 1.08800,
+                "tradingview_exit_reason": "Long Trail",
+            },
+            {
+                "trade_index": 229,  # Trade 230 in 1-indexed display
+                "entry_time": "2024-10-29 23:00:00",
+                "exit_time": "2024-10-30 09:00:00",
+                "description": (
+                    "Platform more accurate - intra-bar stop hit via 1-min zoom"
+                ),
+                "explanation": (
+                    "Long entry at 1.08202 with 20-pip trailing stop. "
+                    "During the 09:00 hour, price rallied with the peak reaching "
+                    "1.08595 at 09:05, moving the trailing stop to 1.08395. "
+                    "Price then gradually declined over the next 17 minutes. "
+                    "At 09:22, price dropped with the bar low reaching 1.08368, "
+                    "hitting the stop at 1.08395. Platform correctly detects this "
+                    "using 1-minute zoom and exits at the 09:00 hourly bar. "
+                    "TradingView, using only hourly bars, cannot see this intra-bar "
+                    "stop hit during the 09:00 hour and doesn't exit until 10:00 "
+                    "(1 hour later). Platform is MORE accurate due to 1-minute zoom "
+                    "detecting intra-bar stop hits that hourly bars miss."
+                ),
+                "platform_exit_time": "2024-10-30 09:00:00",
+                "platform_exit_price": 1.08395,
+                "platform_exit_reason": "stop-loss",
+                "tradingview_exit_time": "2024-10-30 10:00:00",
+                "tradingview_exit_price": 1.08395,
+                "tradingview_exit_reason": "Long Trail",
+            },
+            {
+                "trade_index": 234,  # Trade 235 in 1-indexed display
+                "entry_time": "2024-11-20 13:00:00",
+                "exit_time": "2024-11-20 14:00:00",
+                "description": (
+                    "Platform more accurate - intra-bar stop hit via 1-min zoom"
+                ),
+                "explanation": (
+                    "Short entry at 1.05586 with 20-pip trailing stop. "
+                    "During the 14:00 hour, price dropped steadily with the trough "
+                    "reaching 1.05242 at 14:21 (a sharp 120-pip drop in one minute), "
+                    "moving the trailing stop to 1.05442. Price then bounced back "
+                    "over the next 10 minutes. At 14:31, price rallied with the bar "
+                    "high reaching 1.05444, hitting the stop at 1.05442. Platform "
+                    "correctly detects this using 1-minute zoom and exits at the "
+                    "14:00 hourly bar. TradingView, using only hourly bars, cannot "
+                    "see this intra-bar stop hit during the 14:00 hour and doesn't "
+                    "exit until 15:00 (1 hour later). Platform is MORE accurate due "
+                    "to 1-minute zoom detecting intra-bar stop hits that hourly "
+                    "bars miss."
+                ),
+                "platform_exit_time": "2024-11-20 14:00:00",
+                "platform_exit_price": 1.05442,
+                "platform_exit_reason": "stop-loss",
+                "tradingview_exit_time": "2024-11-20 15:00:00",
+                "tradingview_exit_price": 1.05358,
+                "tradingview_exit_reason": "Short Trail",
+            },
         ]
     },
     # "ema_crossover/20pip_stop": {
