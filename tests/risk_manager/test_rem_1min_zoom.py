@@ -162,13 +162,15 @@ def test_rem_does_not_zoom_when_no_ambiguity(mock_instrument, mock_data_handler)
         mfe_currency=0.0,
     )
 
-    # Non-ambiguous bar - low well above stop
+    # Non-ambiguous bar - low well above potential trailing stop
+    # Bar high (1.0610) creates potential peak, potential stop = 1.0590
+    # Bar low (1.0595) is above potential stop (1.0590), so not ambiguous
     current_bar = pd.Series(
         {
             "timestamp": pd.Timestamp("2023-01-01 11:00:00", tz="UTC"),
             "open": 1.0600,
             "high": 1.0610,
-            "low": 1.0590,  # Above stop at 1.0580
+            "low": 1.0595,  # Above potential trailing stop at 1.0590
             "close": 1.0605,
         },
         name=pd.Timestamp("2023-01-01 11:00:00", tz="UTC"),
