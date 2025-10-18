@@ -158,6 +158,11 @@ def test_export_all_trades_comparison(
         trade_num = i + 1
         discrepancy_category = category_lookup.get(trade_num, "")
 
+        # If not already categorized, check for same-bar exit
+        # (analyzer skips these if prices match)
+        if not discrepancy_category and same_bar:
+            discrepancy_category = "SAME_BAR_EXIT"
+
         # If no category but times/prices don't match, mark as UNEXPLAINED
         if not discrepancy_category and (
             not exit_time_match or exit_price_diff > 0.001
