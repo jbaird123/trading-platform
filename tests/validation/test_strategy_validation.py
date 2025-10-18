@@ -307,93 +307,8 @@ def load_platform_trades(
     return trades_list
 
 
-def parse_tradingview_trades(
-    tv_df: pd.DataFrame, validation_range: dict[str, str] | None = None
-) -> pd.DataFrame:
-    """Parses TradingView CSV format into trade objects.
-
-    DEPRECATED: Use load_and_validate_tradingview_trades() from golden_utils.py instead.
-    That function handles validation range filtering automatically.
-
-    TradingView exports have 2 rows per trade (entry + exit).
-    This function combines them into single trade rows.
-
-    Args:
-        tv_df: Raw TradingView CSV DataFrame
-        validation_range: Optional dict with 'start' and 'end' keys for filtering
-
-    Returns:
-        DataFrame with one row per trade
-    """
-    # Filter out open trades
-    if "Signal" in tv_df.columns:
-        tv_df = tv_df[tv_df["Signal"] != "Open"].copy()
-
-    # Group by Trade # to pair entries and exits
-    trades = []
-
-    # Get unique trade numbers
-    if "Trade #" in tv_df.columns:
-        trade_numbers = tv_df["Trade #"].unique()
-
-        for trade_num in trade_numbers:
-            trade_rows = tv_df[tv_df["Trade #"] == trade_num]
-
-            # Find entry and exit rows
-            entry_row = trade_rows[trade_rows["Type"].str.contains("Entry", case=False)]
-            exit_row = trade_rows[trade_rows["Type"].str.contains("Exit", case=False)]
-
-            if len(entry_row) == 0 or len(exit_row) == 0:
-                continue
-
-            entry_row = entry_row.iloc[0]
-            exit_row = exit_row.iloc[0]
-
-            # Determine side
-            signal = entry_row.get("Signal", "")
-            if "Long" in str(signal):
-                side = "long"
-            elif "Short" in str(signal):
-                side = "short"
-            else:
-                side = "unknown"
-
-            # Parse times
-            # TradingView exports are already in UTC (validated by golden test fixtures)
-            # and already use bar open times (matching our platform convention).
-            # No timezone conversion or timestamp adjustment needed.
-            entry_time = entry_row.get("Date/Time")
-            exit_time = exit_row.get("Date/Time")
-
-            if not pd.isna(entry_time) and isinstance(entry_time, str):
-                entry_time = pd.to_datetime(entry_time, utc=True)
-            if not pd.isna(exit_time) and isinstance(exit_time, str):
-                exit_time = pd.to_datetime(exit_time, utc=True)
-
-            # Filter by validation range if provided
-            # IMPORTANT: TradingView exports contain MORE trades than validation range
-            # We must filter to exact validation range to match platform trades
-            if validation_range:
-                start_date = pd.to_datetime(validation_range["start"], utc=True)
-                end_date = pd.to_datetime(validation_range["end"], utc=True)
-
-                if not (start_date <= entry_time <= end_date):
-                    # Skip trades outside validation period
-                    continue
-
-            trades.append(
-                {
-                    "trade_num": trade_num,
-                    "entry_time": entry_time,
-                    "exit_time": exit_time,
-                    "entry_price": entry_row.get("Price USD"),
-                    "exit_price": exit_row.get("Price USD"),
-                    "pnl": entry_row.get("Net P&L USD"),  # Both rows have same PnL
-                    "side": side,
-                }
-            )
-
-    return pd.DataFrame(trades)
+# DEPRECATED: This function has been removed.
+# Use load_and_validate_tradingview_trades() from golden_utils.py instead.
 
 
 def align_trades(
@@ -405,8 +320,8 @@ def align_trades(
 
     Matches trades by entry time and returns aligned DataFrames.
 
-    NOTE: Prefers using load_and_validate_tradingview_trades() from golden_utils.py
-    which handles validation range filtering automatically.
+    NOTE: This function is deprecated. New code should use
+    load_and_validate_tradingview_trades() from golden_utils.py directly.
 
     Args:
         our_trades: List of platform trade dictionaries (already filtered)
@@ -416,8 +331,42 @@ def align_trades(
     Returns:
         Tuple of (platform_df, tradingview_df) aligned by entry time
     """
-    # Parse TradingView trades (with optional validation range filtering)
-    tv_df = parse_tradingview_trades(tv_trades, validation_range)
+    from tests.validation.golden_utils import load_and_validate_tradingview_trades
+
+    # Parse TradingView trades using the golden utils function
+    # The fixture passes raw CSV data, so we need to determine the file path
+    # For existing tests, we'll use the deprecated inline parsing for backward compatibility
+    # But raise a warning that this should be updated
+
+    # Check if tv_trades is already parsed (has entry_time column)
+    if "entry_time" in tv_trades.columns:
+        # Already parsed - just filter and use it
+        tv_df = tv_trades
+        if validation_range:
+            start_date = pd.to_datetime(validation_range["start"], utc=True)
+            end_date = pd.to_datetime(validation_range["end"], utc=True)
+            tv_df = tv_df[
+                (tv_df["entry_time"] >= start_date) & (tv_df["entry_time"] <= end_date)
+            ].copy()
+    else:
+        # Raw CSV data - need to parse it
+        # Use inline parsing for backward compatibility
+        import os
+        import tempfile
+
+        from tests.validation.golden_utils import load_and_validate_tradingview_trades
+
+        # Write to temp file and use golden_utils to parse
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
+            tv_trades.to_csv(f, index=False)
+            temp_path = f.name
+
+        try:
+            tv_df = load_and_validate_tradingview_trades(
+                Path(temp_path), validation_range=validation_range
+            )
+        finally:
+            os.unlink(temp_path)
 
     # Convert platform trades to DataFrame
     if not our_trades:
@@ -469,10 +418,10 @@ def test_ema_crossover_trade_count_matches_tradingview(
     )
 
     # Compare counts
-    # Parse TradingView trades with validation range filtering
+    # Use align_trades to parse TradingView trades with validation range filtering
     # This filters to validation range AND excludes open trades
-    tv_trades_df = parse_tradingview_trades(
-        tradingview_trades, golden_metadata.get("date_range")
+    _, tv_trades_df = align_trades(
+        [], tradingview_trades, golden_metadata.get("date_range")
     )
 
     tv_trade_count = len(tv_trades_df)

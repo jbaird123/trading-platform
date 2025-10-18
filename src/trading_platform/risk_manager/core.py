@@ -186,11 +186,31 @@ class RiskExitManager:
                     initial = position.entry_price + dist_t
                     trail_price = min(initial, trough + dist_t)
 
+                # Calculate potential trailing stop if current bar's favorable move
+                # updates the peak/trough. This is needed to detect ambiguity correctly
+                # because the current bar might both move the stop AND hit it.
+                potential_trail_price = trail_price
+                if position.side == "long":
+                    # Check if current bar's high would update the peak
+                    potential_peak = max(peak, float(current_bar["high"]))
+                    potential_trail_price = max(initial, potential_peak - dist_t)
+                else:
+                    # Check if current bar's low would update the trough
+                    potential_trough = min(trough, float(current_bar["low"]))
+                    potential_trail_price = min(initial, potential_trough + dist_t)
+
                 # Check for trailing stop ambiguity and zoom to 1-minute if needed
+                # Check BOTH the trail_price (from previous bars) AND potential_trail_price
+                # (including current bar) to detect intra-bar ambiguity
                 if (
                     trail_price is not None
                     and data_handler is not None
-                    and is_trailing_stop_ambiguous(current_bar, trail_price)
+                    and (
+                        is_trailing_stop_ambiguous(current_bar, trail_price)
+                        or is_trailing_stop_ambiguous(
+                            current_bar, potential_trail_price
+                        )
+                    )
                 ):
                     # Zoom to 1-minute resolution to resolve ambiguity
                     hour_start = current_bar.name.floor("h")
