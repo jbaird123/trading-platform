@@ -198,6 +198,38 @@ KNOWN_EDGE_CASES: dict[str, dict[str, list[dict]]] = {
                 "tradingview_exit_price": 1.05870,
                 "tradingview_exit_reason": "Long Trail",
             },
+            {
+                "trade_index": 66,  # Trade 67 in 1-indexed display
+                "entry_time": "2023-06-23 05:00:00",
+                "exit_time": "2023-06-23 07:00:00",
+                "description": (
+                    "Platform more accurate - TV false exit from OHLC timing error"
+                ),
+                "explanation": (
+                    "Short entry at 1.09332 with 20-pip trailing stop. "
+                    "Price dropped dramatically during 07:00 hour, with trough "
+                    "improving from 1.09203 to 1.08536 at 07:30, moving trailing "
+                    "stop to 1.08736. At 07:54, price bounced with bar high of "
+                    "1.08742, hitting the stop at 1.08736. Platform correctly "
+                    "detects this using 1-minute zoom and exits at 07:00 hourly "
+                    "bar with price 1.08736. TradingView sees the 07:00 hourly "
+                    "bar (high=1.09261, low=1.08536) which clearly reached the "
+                    "stop level of 1.08736, but due to OHLC timing/ordering "
+                    "logic, it failed to detect the stop hit in this bar. "
+                    "TradingView instead exits at 08:00 at the same price "
+                    "(1.08736). Both exit at identical price but TradingView is "
+                    "1 hour late. Platform is MORE accurate due to chronological "
+                    "1-minute processing that detects the exact moment (07:54) "
+                    "when the stop was hit after the price made new low and "
+                    "retraced."
+                ),
+                "platform_exit_time": "2023-06-23 07:00:00",
+                "platform_exit_price": 1.08736,
+                "platform_exit_reason": "stop-loss",
+                "tradingview_exit_time": "2023-06-23 08:00:00",
+                "tradingview_exit_price": 1.08736,
+                "tradingview_exit_reason": "Short Trail",
+            },
         ]
     },
     # "ema_crossover/20pip_stop": {
