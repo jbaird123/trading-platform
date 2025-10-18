@@ -2153,7 +2153,8 @@ def test_ema_crossover_20pip_trailing_stop_exit_times_match_tradingview(
                 # TV_IGNORED_ENTRY_BAR_CONTRIBUTED_MFE only explains PRICE differences
                 exit_time_categories = [
                     "SAME_BAR_EXIT",
-                    "TV_IGNORED_ENTRY_BAR_PEAK_MFE",
+                    "TV_IGNORED_ENTRY_BAR_PEAK_MFE_STRICT",
+                    "TV_IGNORED_ENTRY_BAR_PEAK_MFE_VERIFIED",
                 ]
                 is_analyzer_explained = False
                 for category in exit_time_categories:
