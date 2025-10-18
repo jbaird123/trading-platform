@@ -7,9 +7,9 @@ is explainable and acceptable, preventing regressions from future changes.
 
 Known acceptable discrepancy categories:
 1. SAME_BAR_EXIT: Entry and exit on same bar (TradingView historical limitation)
-2. ENTRY_BAR_PEAK_MFE: Entry bar had peak favorable movement
+2. TV_IGNORED_ENTRY_BAR_PEAK_MFE: Entry bar had peak favorable movement
    (TV ignores it)
-3. ENTRY_BAR_CONTRIBUTED_MFE: Entry bar contributed to MFE
+3. TV_IGNORED_ENTRY_BAR_CONTRIBUTED_MFE: Entry bar contributed to MFE
    (TV ignores entry bar portion)
 """
 
@@ -37,8 +37,8 @@ class TrailingStopDiscrepancyAnalyzer:
         # Category definitions
         self.KNOWN_ACCEPTABLE_CATEGORIES = [
             "SAME_BAR_EXIT",
-            "ENTRY_BAR_PEAK_MFE",
-            "ENTRY_BAR_CONTRIBUTED_MFE",
+            "TV_IGNORED_ENTRY_BAR_PEAK_MFE",
+            "TV_IGNORED_ENTRY_BAR_CONTRIBUTED_MFE",
         ]
 
     def analyze_discrepancies(
@@ -195,7 +195,7 @@ class TrailingStopDiscrepancyAnalyzer:
                     f"This is a known TradingView historical backtesting "
                     f"limitation."
                 )
-                return "ENTRY_BAR_PEAK_MFE"
+                return "TV_IGNORED_ENTRY_BAR_PEAK_MFE"
 
             # CATEGORY 3: Entry bar contributed to MFE
             # (but later bar had more)
@@ -210,7 +210,7 @@ class TrailingStopDiscrepancyAnalyzer:
                     f"Both systems trailed correctly after entry bar, "
                     f"but from different baselines."
                 )
-                return "ENTRY_BAR_CONTRIBUTED_MFE"
+                return "TV_IGNORED_ENTRY_BAR_CONTRIBUTED_MFE"
 
         # Cannot explain - requires investigation
         trade_info["explanation"] = (
