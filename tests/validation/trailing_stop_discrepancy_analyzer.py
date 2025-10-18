@@ -208,16 +208,48 @@ class TrailingStopDiscrepancyAnalyzer:
 
             # CATEGORY 2: Entry bar had peak MFE
             if entry_bar_mfe > overall_mfe_excl_entry + self.tolerance:
-                trade_info["explanation"] = (
-                    f"Entry bar had peak favorable movement "
-                    f"({entry_bar_mfe * 10000:.1f} pips). "
-                    f"Platform adjusted trailing stop for entry bar MFE. "
-                    f"TradingView ignores favorable movement on entry bar, "
-                    f"never adjusted stop. "
-                    f"This is a known TradingView historical backtesting "
-                    f"limitation."
+                # Calculate expected price difference based on MFE difference
+                expected_price_diff = entry_bar_mfe - overall_mfe_excl_entry
+                actual_price_diff = abs(
+                    trade_info["platform_exit"] - trade_info["tv_exit"]
                 )
-                return "TV_IGNORED_ENTRY_BAR_PEAK_MFE"
+
+                trade_info["expected_price_diff_pips"] = expected_price_diff * 10000
+                trade_info["actual_price_diff_pips"] = actual_price_diff * 10000
+
+                # Verify that exit price difference matches MFE difference
+                # This confirms the discrepancy is truly due to entry bar MFE
+                price_diff_matches = (
+                    abs(expected_price_diff - actual_price_diff) < self.tolerance
+                )
+
+                # Only categorize if BOTH platform and TV exited via stop-loss
+                # AND the price difference matches expected
+                if platform_is_stop and tv_is_stop and price_diff_matches:
+                    trade_info["explanation"] = (
+                        f"Entry bar had peak favorable movement "
+                        f"({entry_bar_mfe * 10000:.1f} pips). "
+                        f"Platform adjusted trailing stop for entry bar MFE. "
+                        f"TradingView ignores favorable movement on entry bar, "
+                        f"never adjusted stop. "
+                        f"Exit price difference ({actual_price_diff * 10000:.1f} pips) "
+                        f"matches MFE difference "
+                        f"({expected_price_diff * 10000:.1f} pips). "
+                        f"This is a known TradingView historical backtesting "
+                        f"limitation."
+                    )
+                    return "TV_IGNORED_ENTRY_BAR_PEAK_MFE"
+                # If TV exited via signal instead of stop, still might be explained
+                elif platform_is_stop and not tv_is_stop:
+                    trade_info["explanation"] = (
+                        f"Entry bar had peak favorable movement "
+                        f"({entry_bar_mfe * 10000:.1f} pips). "
+                        f"Platform exited via stop-loss. "
+                        f"TradingView exited via signal before stop was hit. "
+                        f"TradingView ignores entry bar MFE, so trailing stop "
+                        f"was at different level when signal triggered."
+                    )
+                    return "TV_IGNORED_ENTRY_BAR_PEAK_MFE"
 
             # CATEGORY 3: Entry bar contributed to MFE
             # (but later bar had more)
