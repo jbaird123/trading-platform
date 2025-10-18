@@ -165,7 +165,7 @@ class TrailingStopDiscrepancyAnalyzer:
             "tv_exit": tv_exit_price,
             "price_diff_pips": abs(p_exit_price - tv_exit_price) * 10000,
             "platform_exit_reason": p_row.get("exit_reason", ""),
-            "tv_exit_signal": tv_row.get("exit_signal", ""),
+            "tv_exit_reason": tv_row.get("exit_reason", ""),
         }
 
     def _categorize_discrepancy(
@@ -187,7 +187,7 @@ class TrailingStopDiscrepancyAnalyzer:
         """
         # Determine exit types
         platform_is_stop = "stop" in str(p_row.get("exit_reason", "")).lower()
-        tv_is_stop = "trail" in str(trade_info["tv_exit_signal"]).lower()
+        tv_is_stop = "trail" in str(trade_info["tv_exit_reason"]).lower()
 
         # CATEGORY 1: Same-bar entry/exit
         if entry_time == exit_time:
