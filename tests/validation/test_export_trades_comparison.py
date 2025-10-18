@@ -95,10 +95,22 @@ def test_export_all_trades_comparison(
         p_row = platform_df.iloc[i]
         tv_row = tv_df.iloc[i]
 
+        # Calculate P&L in pips for both
+        # P&L = (exit_price - entry_price) * direction_multiplier * 10000
+        # For LONG: positive if exit > entry (profit)
+        # For SHORT: positive if exit < entry (profit)
+        direction_multiplier = 1 if p_row["side"] == "long" else -1
+        platform_pnl_pips = (
+            (p_row["exit_price"] - p_row["entry_price"]) * direction_multiplier * 10000
+        )
+        tv_pnl_pips = (
+            (tv_row["exit_price"] - tv_row["entry_price"]) * direction_multiplier * 10000
+        )
+
         # Calculate differences
         exit_time_match = p_row["exit_time"] == tv_row["exit_time"]
         exit_price_diff = abs(p_row["exit_price"] - tv_row["exit_price"]) * 10000
-        pnl_diff = p_row.get("pnl_pips", 0) - tv_row.get("pnl_pips", 0)
+        pnl_diff = platform_pnl_pips - tv_pnl_pips
 
         # Check if same-bar entry/exit
         same_bar = (p_row["exit_time"] == p_row["entry_time"]) or (
@@ -115,12 +127,12 @@ def test_export_all_trades_comparison(
             "platform_exit_time": str(p_row["exit_time"]),
             "platform_exit_price": p_row["exit_price"],
             "platform_exit_reason": p_row.get("exit_reason", "N/A"),
-            "platform_pnl_pips": p_row.get("pnl_pips", 0),
+            "platform_pnl_pips": platform_pnl_pips,
             # TradingView exit
             "tv_exit_time": str(tv_row["exit_time"]),
             "tv_exit_price": tv_row["exit_price"],
             "tv_exit_reason": tv_row.get("exit_reason", "N/A"),
-            "tv_pnl_pips": tv_row.get("pnl_pips", 0),
+            "tv_pnl_pips": tv_pnl_pips,
             # Differences
             "exit_time_match": exit_time_match,
             "exit_price_diff_pips": exit_price_diff,
