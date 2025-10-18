@@ -249,6 +249,10 @@ def load_and_validate_tradingview_trades(
         entry_time = entry_row.get("Date/Time")
         exit_time = exit_row.get("Date/Time")
 
+        # Extract exit reason from Signal column
+        # Signal values like "Long Trail", "Short Trail", "Long SL", "Short SL", etc.
+        exit_signal = exit_row.get("Signal", "")
+
         # CRITICAL: Filter by validation range BEFORE adding to trades list
         # This ensures we only compare trades that entered during validation
         if validation_range:
@@ -268,6 +272,7 @@ def load_and_validate_tradingview_trades(
                 "exit_price": exit_row.get("Price USD"),
                 "pnl": entry_row.get("Net P&L USD"),
                 "side": side,
+                "exit_reason": exit_signal,
             }
         )
 
