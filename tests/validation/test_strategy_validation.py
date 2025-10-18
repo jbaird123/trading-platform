@@ -19,9 +19,6 @@ import pandas as pd
 import pytest
 
 # Golden validation utilities (ALWAYS use these for golden tests)
-from tests.validation.golden_utils import (
-    filter_platform_trades_to_validation_range,
-)
 
 # Note: Backtester imports will be added when implementing
 # from trading_platform.backtester import run_backtest
@@ -747,7 +744,9 @@ def load_platform_trades(
 
         # Add flattened context fields
         if trade.context_at_entry:
-            for key, value in _flatten_context_for_verification(trade.context_at_entry).items():
+            for key, value in _flatten_context_for_verification(
+                trade.context_at_entry
+            ).items():
                 trade_dict[f"ctx_{key}"] = value
 
         return trade_dict
@@ -755,7 +754,9 @@ def load_platform_trades(
     if date_range:
         # Filter to validation range
         start_date = pd.to_datetime(date_range["start"], utc=True)
-        end_date = pd.to_datetime(date_range["end"], utc=True) + timedelta(days=1, seconds=-1)
+        end_date = pd.to_datetime(date_range["end"], utc=True) + timedelta(
+            days=1, seconds=-1
+        )
 
         trades_list = [
             trade_to_dict(trade)
@@ -919,10 +920,22 @@ def verify_golden_trades_hash(
 
     # Order fields: base fields first, then context fields sorted
     base_fields = [
-        "symbol", "side", "size", "entry_time", "exit_time",
-        "entry_price", "exit_price", "exit_reason", "pnl",
-        "mfe_currency", "mae_currency", "bars_held",
-        "cost_currency", "spread", "commission", "slippage"
+        "symbol",
+        "side",
+        "size",
+        "entry_time",
+        "exit_time",
+        "entry_price",
+        "exit_price",
+        "exit_reason",
+        "pnl",
+        "mfe_currency",
+        "mae_currency",
+        "bars_held",
+        "cost_currency",
+        "spread",
+        "commission",
+        "slippage",
     ]
     context_fields = sorted([f for f in all_fields if f.startswith("ctx_")])
     ordered_fields = base_fields + context_fields
@@ -932,6 +945,7 @@ def verify_golden_trades_hash(
         """Convert numpy/pandas types to Python native types."""
         import numpy as np
         import pandas as pd
+
         if isinstance(obj, (np.integer, np.floating)):
             return obj.item()
         elif isinstance(obj, pd.Timestamp):
@@ -946,7 +960,9 @@ def verify_golden_trades_hash(
     converted_trades = [convert_types(trade) for trade in platform_trades]
 
     # Write current trades to temp file
-    with tempfile.NamedTemporaryFile(mode="w", delete=False, newline="", suffix=".csv") as f:
+    with tempfile.NamedTemporaryFile(
+        mode="w", delete=False, newline="", suffix=".csv"
+    ) as f:
         temp_path = f.name
         writer = csv.DictWriter(f, fieldnames=ordered_fields)
         writer.writeheader()
@@ -964,11 +980,12 @@ def verify_golden_trades_hash(
         if current_hash != golden_hash:
             # Hashes don't match - show diff for debugging
             import subprocess
+
             try:
                 diff_output = subprocess.run(
                     ["diff", "-u", str(golden_path), temp_path],
                     capture_output=True,
-                    text=True
+                    text=True,
                 )
                 diff_msg = diff_output.stdout[:2000]  # Limit to first 2000 chars
             except Exception:
@@ -978,28 +995,32 @@ def verify_golden_trades_hash(
                 f"Platform trades hash mismatch for {strategy_name}!\n"
                 f"Golden hash: {golden_hash}\n"
                 f"Current hash: {current_hash}\n\n"
-                f"This indicates the platform is producing different output than expected.\n"
-                f"If this change is intentional, regenerate golden files with:\n"
-                f"  poetry run python tests/validation/generate_golden_trades.py\n\n"
+                "Platform output differs from expected. "
+                "If intentional, regenerate golden files:\n"
+                "  poetry run python tests/validation/generate_golden_trades.py\n\n"
                 f"First 2000 chars of diff:\n{diff_msg}"
             )
     finally:
         import os
+
         os.unlink(temp_path)
 
 
 def verify_golden_comparison_hash(
     strategy_name: str,
     comparison_file_path: Path,
+    golden_filename: str = "exit_price_comparison_golden.csv",
 ) -> None:
     """Verify comparison file matches golden reference via SHA256 hash.
 
-    For trailing stop strategies, this verifies the exit price comparison
-    analysis hasn't changed.
+    For trailing stop strategies, this verifies the exit price or exit time
+    comparison analysis hasn't changed.
 
     Args:
         strategy_name: Name like "ema_crossover/20pip_trailing_stop"
         comparison_file_path: Path to current comparison CSV file
+        golden_filename: Golden file name
+            (default: "exit_price_comparison_golden.csv")
 
     Raises:
         AssertionError: If hash doesn't match golden file
@@ -1011,17 +1032,20 @@ def verify_golden_comparison_hash(
         Path(__file__).parent.parent.parent
         / "data/dvc/golden/strategies"
         / strategy_name
-        / "exit_price_comparison_golden.csv"
+        / golden_filename
     )
 
     if not golden_path.exists():
         raise FileNotFoundError(
             f"Golden comparison file not found: {golden_path}\n"
-            f"For trailing stop tests, copy workspace/exit_price_comparison.csv to this location."
+            "Run export test to generate workspace file, "
+            "then copy to golden location."
         )
 
     if not comparison_file_path.exists():
-        raise FileNotFoundError(f"Current comparison file not found: {comparison_file_path}")
+        raise FileNotFoundError(
+            f"Current comparison file not found: {comparison_file_path}"
+        )
 
     # Calculate SHA256 hashes
     with open(comparison_file_path, "rb") as f:
@@ -1034,11 +1058,12 @@ def verify_golden_comparison_hash(
     if current_hash != golden_hash:
         # Hashes don't match - show diff for debugging
         import subprocess
+
         try:
             diff_output = subprocess.run(
                 ["diff", "-u", str(golden_path), str(comparison_file_path)],
                 capture_output=True,
-                text=True
+                text=True,
             )
             diff_msg = diff_output.stdout[:2000]  # Limit to first 2000 chars
         except Exception:

@@ -128,7 +128,7 @@ def test_export_exit_time_comparison(
                     time_mismatch_category = "KNOWN_EDGE_CASE"
                     time_mismatch_explanation = edge_case["description"]
             else:
-                # Check if explained by analyzer (MFE-based categories that explain time)
+                # Check if explained by analyzer
                 # Only certain categories explain exit TIME mismatches:
                 exit_time_categories = [
                     "SAME_BAR_EXIT",
@@ -171,46 +171,11 @@ def test_export_exit_time_comparison(
     # Verify comparison file hash matches golden reference
     from tests.validation.test_strategy_validation import verify_golden_comparison_hash
 
-    golden_comparison_path = (
-        Path(__file__).parent.parent.parent
-        / "data/dvc/golden/strategies/ema_crossover/20pip_trailing_stop"
-        / "exit_time_comparison_golden.csv"
+    verify_golden_comparison_hash(
+        "ema_crossover/20pip_trailing_stop",
+        output_path,
+        golden_filename="exit_time_comparison_golden.csv",
     )
-
-    # Only verify if golden file exists (it won't on first run)
-    if golden_comparison_path.exists():
-        # Use a modified version that checks time comparison
-        import hashlib
-
-        with open(output_path, "rb") as f:
-            current_hash = hashlib.sha256(f.read()).hexdigest()
-
-        with open(golden_comparison_path, "rb") as f:
-            golden_hash = hashlib.sha256(f.read()).hexdigest()
-
-        if current_hash != golden_hash:
-            import subprocess
-            try:
-                diff_output = subprocess.run(
-                    ["diff", "-u", str(golden_comparison_path), str(output_path)],
-                    capture_output=True,
-                    text=True
-                )
-                diff_msg = diff_output.stdout[:2000]
-            except Exception:
-                diff_msg = "(diff command failed)"
-
-            raise AssertionError(
-                f"Exit time comparison file hash mismatch!\n"
-                f"Golden hash: {golden_hash}\n"
-                f"Current hash: {current_hash}\n\n"
-                f"This indicates the exit time comparison analysis has changed.\n"
-                f"If this change is intentional, regenerate golden comparison file:\n"
-                f"  1. Run this test to generate workspace/exit_time_comparison.csv\n"
-                f"  2. Copy it to: {golden_comparison_path}\n"
-                f"  3. Add to DVC and commit\n\n"
-                f"First 2000 chars of diff:\n{diff_msg}"
-            )
 
     # Print summary statistics
     total_trades = len(comparison_df)
@@ -225,8 +190,8 @@ def test_export_exit_time_comparison(
     print(f"Exit times mismatch: {time_mismatches}")
 
     if time_mismatches > 0:
-        print(f"\nTime Mismatch Categories:")
-        category_counts = comparison_df[comparison_df["exit_time_match"] == False][
+        print("\nTime Mismatch Categories:")
+        category_counts = comparison_df[~comparison_df["exit_time_match"]][
             "time_mismatch_category"
         ].value_counts()
         for category, count in category_counts.items():
