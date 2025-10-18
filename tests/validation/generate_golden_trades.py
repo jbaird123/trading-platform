@@ -10,7 +10,8 @@ USAGE:
 
 WHEN TO RUN:
     - After adding a new golden strategy
-    - After intentionally changing platform behavior (and wanting to update golden files)
+    - After intentionally changing platform behavior (and wanting to update
+      golden files)
     - After modifying trade output fields
 
 OUTPUT:
@@ -65,8 +66,24 @@ def generate_golden_trades_for_strategy(
     print(f"Generating golden trades for: {strategy_name}")
     print(f"{'='*80}")
 
+    # SAFETY CHECK: Never overwrite existing golden files!
+    if output_path.exists():
+        raise FileExistsError(
+            f"Golden file already exists: {output_path}\n"
+            f"Golden files are immutable and should NEVER be regenerated.\n"
+            f"If you need to update this file, you must:\n"
+            f"  1. Manually delete the existing file\n"
+            f"  2. Remove it from DVC tracking\n"
+            f"  3. Re-run this script\n"
+            f"  4. Verify all tests still pass\n"
+            f"This is intentionally difficult to prevent accidental changes to "
+            f"golden data."
+        )
+
     # Load golden data
-    data_dir = Path(__file__).parent.parent / "data/dvc/golden/strategies" / strategy_name
+    # Navigate to project root: tests/validation -> tests -> project_root
+    project_root = Path(__file__).parent.parent.parent
+    data_dir = project_root / "data/dvc/golden/strategies" / strategy_name
 
     # Load TradingView OHLCV
     ohlcv_path = data_dir / "ohlcv.csv"
@@ -76,8 +93,8 @@ def generate_golden_trades_for_strategy(
     ohlcv = pd.read_csv(ohlcv_path, index_col=0, parse_dates=True)
     ohlcv.index = pd.to_datetime(ohlcv.index, utc=True)
 
-    # Add volume column if missing (not needed for strategies but required by backtester)
-    # Use 1.0 to match conftest.py fixture behavior
+    # Add volume column if missing (not needed for strategies but required
+    # by backtester). Use 1.0 to match conftest.py fixture behavior
     if "volume" not in ohlcv.columns:
         ohlcv["volume"] = 1.0
 
@@ -85,6 +102,7 @@ def generate_golden_trades_for_strategy(
     metadata_path = data_dir / "metadata.json"
     with open(metadata_path) as f:
         import json
+
         metadata = json.load(f)
 
     date_range = metadata.get("date_range")
@@ -92,14 +110,19 @@ def generate_golden_trades_for_strategy(
     # Filter OHLCV to extended range [warmup_start, validation_end]
     if date_range:
         from datetime import timedelta
-        end_date = pd.to_datetime(date_range["end"], utc=True) + timedelta(days=1, seconds=-1)
+
+        end_date = pd.to_datetime(date_range["end"], utc=True) + timedelta(
+            days=1, seconds=-1
+        )
         warmup_start = pd.Timestamp("2022-12-01", tz="UTC")
-        ohlcv_filtered = ohlcv[(ohlcv.index >= warmup_start) & (ohlcv.index <= end_date)].copy()
+        ohlcv_filtered = ohlcv[
+            (ohlcv.index >= warmup_start) & (ohlcv.index <= end_date)
+        ].copy()
     else:
         ohlcv_filtered = ohlcv
 
     # Load strategy config
-    strategy_dir = Path(__file__).parent.parent / f"configs/golden_strategies/{strategy_name}"
+    strategy_dir = project_root / f"configs/golden_strategies/{strategy_name}"
     strategy_path = strategy_dir / "strategy.yaml"
 
     with open(strategy_path) as f:
@@ -132,9 +155,7 @@ def generate_golden_trades_for_strategy(
     data_handler = None
     if "trailing_stop" in strategy_name:
         print("Loading 1-minute data for trailing stop strategy...")
-        data_root = (
-            Path(__file__).parent.parent / "data/dvc/golden/ohlcv/tradingview"
-        )
+        data_root = project_root / "data/dvc/golden/ohlcv/tradingview"
 
         if data_root.exists():
             data_handler = DataHandler(
@@ -166,7 +187,9 @@ def generate_golden_trades_for_strategy(
     trades_list = []
     if date_range:
         val_start = pd.to_datetime(date_range["start"], utc=True)
-        val_end = pd.to_datetime(date_range["end"], utc=True) + timedelta(days=1, seconds=-1)
+        val_end = pd.to_datetime(date_range["end"], utc=True) + timedelta(
+            days=1, seconds=-1
+        )
 
         for trade in results["trades"]:
             if trade.exit_reason == "end_of_data":
@@ -223,10 +246,22 @@ def generate_golden_trades_for_strategy(
 
         # Order fields: base fields first, then context fields sorted
         base_fields = [
-            "symbol", "side", "size", "entry_time", "exit_time",
-            "entry_price", "exit_price", "exit_reason", "pnl",
-            "mfe_currency", "mae_currency", "bars_held",
-            "cost_currency", "spread", "commission", "slippage"
+            "symbol",
+            "side",
+            "size",
+            "entry_time",
+            "exit_time",
+            "entry_price",
+            "exit_price",
+            "exit_reason",
+            "pnl",
+            "mfe_currency",
+            "mae_currency",
+            "bars_held",
+            "cost_currency",
+            "spread",
+            "commission",
+            "slippage",
         ]
         context_fields = sorted([f for f in all_fields if f.startswith("ctx_")])
         ordered_fields = base_fields + context_fields
@@ -257,16 +292,20 @@ def _flatten_context(ctx: dict, prefix: str = "") -> dict:
 
 def main():
     """Generate golden trades for all strategies."""
+    # Navigate to project root
+    project_root = Path(__file__).parent.parent.parent
+
     strategies = [
         "ema_crossover/baseline",
         "ema_crossover/20pip_stop",
         "ema_crossover/20pip_stop_40pip_tp",
         "ema_crossover/20pip_trailing_stop",
+        "ema_crossover/30pip_trailing_stop_20pip_tp",
     ]
 
     for strategy_name in strategies:
         output_path = (
-            Path(__file__).parent.parent
+            project_root
             / "data/dvc/golden/strategies"
             / strategy_name
             / "platform_trades_golden.csv"
@@ -277,6 +316,7 @@ def main():
         except Exception as e:
             print(f"✗ Failed to generate golden trades for {strategy_name}: {e}")
             import traceback
+
             traceback.print_exc()
             continue
 
