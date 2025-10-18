@@ -257,7 +257,11 @@ def load_and_validate_tradingview_trades(
         # This ensures we only compare trades that entered during validation
         if validation_range:
             start_date = pd.to_datetime(validation_range["start"], utc=True)
-            end_date = pd.to_datetime(validation_range["end"], utc=True)
+            # Set end_date to end of day (23:59:59) to include all trades
+            # on the end date
+            end_date = pd.to_datetime(validation_range["end"], utc=True) + pd.Timedelta(
+                hours=23, minutes=59, seconds=59
+            )
 
             if not (start_date <= entry_time <= end_date):
                 # Skip trades outside validation period

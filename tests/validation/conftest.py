@@ -113,7 +113,9 @@ def strategy_name(request) -> str:
         # Check for variation in test name
         # IMPORTANT: Check more specific variations first
         # (e.g., 20pip_stop_40pip_tp before 20pip_stop)
-        if "20pip_stop_40pip_tp" in test_name:
+        if "30pip_trailing_stop_20pip_tp" in test_name:
+            return "ema_crossover/30pip_trailing_stop_20pip_tp"
+        elif "20pip_stop_40pip_tp" in test_name:
             return "ema_crossover/20pip_stop_40pip_tp"
         elif "20pip_trailing_stop" in test_name:
             return "ema_crossover/20pip_trailing_stop"
@@ -350,7 +352,10 @@ def tradingview_trades(
     date_range = golden_metadata.get("date_range")
     if date_range and "Date/Time" in df.columns:
         start_date = pd.to_datetime(date_range["start"], utc=True)
-        end_date = pd.to_datetime(date_range["end"], utc=True)
+        # Set end_date to end of day (23:59:59) to include all trades on the end date
+        end_date = pd.to_datetime(date_range["end"], utc=True) + pd.Timedelta(
+            hours=23, minutes=59, seconds=59
+        )
 
         # Parse Date/Time column for filtering
         df["_filter_time"] = pd.to_datetime(df["Date/Time"], utc=True)
