@@ -238,6 +238,10 @@ def test_export_exit_price_comparison(
 
     print(f"✓ Exit price comparison exported to: {output_path}")
 
+    # Verify comparison file hash matches golden reference
+    from tests.validation.test_strategy_validation import verify_golden_comparison_hash
+    verify_golden_comparison_hash("ema_crossover/20pip_trailing_stop", output_path)
+
     # Print summary statistics
     total_trades = len(comparison_df)
     price_matches = comparison_df["exit_price_match"].sum()

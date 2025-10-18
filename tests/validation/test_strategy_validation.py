@@ -821,6 +821,173 @@ def align_trades(
     return platform_df, tv_df
 
 
+def verify_golden_trades_hash(
+    strategy_name: str,
+    platform_trades: list[dict],
+) -> None:
+    """Verify platform trades match golden reference file via SHA256 hash.
+
+    This ensures that ANY change in platform trade output causes tests to fail,
+    even if the TradingView comparison tests still pass. This catches subtle
+    bugs in calculations like MFE/MAE, exit_reason, bars_held, etc.
+
+    Args:
+        strategy_name: Name like "ema_crossover/baseline"
+        platform_trades: List of trade dicts from load_platform_trades()
+
+    Raises:
+        AssertionError: If hash doesn't match golden file
+    """
+    import csv
+    import hashlib
+    import tempfile
+
+    # Load golden trades file
+    golden_path = (
+        Path(__file__).parent.parent.parent
+        / "data/dvc/golden/strategies"
+        / strategy_name
+        / "platform_trades_golden.csv"
+    )
+
+    if not golden_path.exists():
+        raise FileNotFoundError(
+            f"Golden trades file not found: {golden_path}\n"
+            f"Run workspace/generate_golden_trades.py to create it."
+        )
+
+    # Convert platform trades to same CSV format as golden file
+    # (excluding r_multiple field)
+    if not platform_trades:
+        raise ValueError("No platform trades to verify!")
+
+    # Collect all field names (base + context fields)
+    all_fields = set()
+    for trade in platform_trades:
+        all_fields.update(trade.keys())
+
+    # Order fields: base fields first, then context fields sorted
+    base_fields = [
+        "symbol", "side", "size", "entry_time", "exit_time",
+        "entry_price", "exit_price", "exit_reason", "pnl",
+        "mfe_currency", "mae_currency", "bars_held",
+        "cost_currency", "spread", "commission", "slippage"
+    ]
+    context_fields = sorted([f for f in all_fields if f.startswith("ctx_")])
+    ordered_fields = base_fields + context_fields
+
+    # Write current trades to temp file
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, newline="", suffix=".csv") as f:
+        temp_path = f.name
+        writer = csv.DictWriter(f, fieldnames=ordered_fields)
+        writer.writeheader()
+        writer.writerows(platform_trades)
+
+    try:
+        # Calculate SHA256 hashes
+        with open(temp_path, "rb") as f:
+            current_hash = hashlib.sha256(f.read()).hexdigest()
+
+        with open(golden_path, "rb") as f:
+            golden_hash = hashlib.sha256(f.read()).hexdigest()
+
+        # Compare hashes
+        if current_hash != golden_hash:
+            # Hashes don't match - show diff for debugging
+            import subprocess
+            try:
+                diff_output = subprocess.run(
+                    ["diff", "-u", str(golden_path), temp_path],
+                    capture_output=True,
+                    text=True
+                )
+                diff_msg = diff_output.stdout[:2000]  # Limit to first 2000 chars
+            except Exception:
+                diff_msg = "(diff command failed)"
+
+            raise AssertionError(
+                f"Platform trades hash mismatch for {strategy_name}!\n"
+                f"Golden hash: {golden_hash}\n"
+                f"Current hash: {current_hash}\n\n"
+                f"This indicates the platform is producing different output than expected.\n"
+                f"If this change is intentional, regenerate golden files with:\n"
+                f"  poetry run python workspace/generate_golden_trades.py\n\n"
+                f"First 2000 chars of diff:\n{diff_msg}"
+            )
+    finally:
+        import os
+        os.unlink(temp_path)
+
+
+def verify_golden_comparison_hash(
+    strategy_name: str,
+    comparison_file_path: Path,
+) -> None:
+    """Verify comparison file matches golden reference via SHA256 hash.
+
+    For trailing stop strategies, this verifies the exit price comparison
+    analysis hasn't changed.
+
+    Args:
+        strategy_name: Name like "ema_crossover/20pip_trailing_stop"
+        comparison_file_path: Path to current comparison CSV file
+
+    Raises:
+        AssertionError: If hash doesn't match golden file
+    """
+    import hashlib
+
+    # Load golden comparison file
+    golden_path = (
+        Path(__file__).parent.parent.parent
+        / "data/dvc/golden/strategies"
+        / strategy_name
+        / "exit_price_comparison_golden.csv"
+    )
+
+    if not golden_path.exists():
+        raise FileNotFoundError(
+            f"Golden comparison file not found: {golden_path}\n"
+            f"For trailing stop tests, copy workspace/exit_price_comparison.csv to this location."
+        )
+
+    if not comparison_file_path.exists():
+        raise FileNotFoundError(f"Current comparison file not found: {comparison_file_path}")
+
+    # Calculate SHA256 hashes
+    with open(comparison_file_path, "rb") as f:
+        current_hash = hashlib.sha256(f.read()).hexdigest()
+
+    with open(golden_path, "rb") as f:
+        golden_hash = hashlib.sha256(f.read()).hexdigest()
+
+    # Compare hashes
+    if current_hash != golden_hash:
+        # Hashes don't match - show diff for debugging
+        import subprocess
+        try:
+            diff_output = subprocess.run(
+                ["diff", "-u", str(golden_path), str(comparison_file_path)],
+                capture_output=True,
+                text=True
+            )
+            diff_msg = diff_output.stdout[:2000]  # Limit to first 2000 chars
+        except Exception:
+            diff_msg = "(diff command failed)"
+
+        raise AssertionError(
+            f"Comparison file hash mismatch for {strategy_name}!\n"
+            f"Golden hash: {golden_hash}\n"
+            f"Current hash: {current_hash}\n\n"
+            f"This indicates the exit price comparison analysis has changed.\n"
+            f"If this change is intentional, regenerate golden comparison file:\n"
+            f"  1. Run the test to generate workspace/exit_price_comparison.csv\n"
+            f"  2. Copy it to: {golden_path}\n"
+            f"  3. Add to DVC and commit\n\n"
+            f"First 2000 chars of diff:\n{diff_msg}"
+        )
+
+
 # === VALIDATION MARKER ===
 
 
@@ -847,6 +1014,10 @@ def test_ema_crossover_trade_count_matches_tradingview(
         ohlcv_data=tradingview_ohlcv,
         date_range=golden_metadata.get("date_range"),
     )
+
+    # Verify platform trades hash matches golden reference
+    # This catches ANY changes in platform output (MFE/MAE, exit_reason, etc.)
+    verify_golden_trades_hash("ema_crossover/baseline", platform_trades)
 
     # Compare counts
     # Use align_trades to parse TradingView trades with validation range filtering
@@ -1168,6 +1339,9 @@ def test_ema_crossover_20pip_stop_trade_count_matches_tradingview(
         ohlcv_data=tradingview_ohlcv,
         date_range=golden_metadata.get("date_range"),
     )
+
+    # Verify platform trades hash matches golden reference
+    verify_golden_trades_hash("ema_crossover/20pip_stop", platform_trades)
 
     if "Signal" in tradingview_trades.columns:
         closed_trades = tradingview_trades[tradingview_trades["Signal"] != "Open"]
@@ -1529,6 +1703,9 @@ def test_ema_crossover_20pip_stop_40pip_tp_trade_count_matches_tradingview(
         ohlcv_data=tradingview_ohlcv,
         date_range=golden_metadata.get("date_range"),
     )
+
+    # Verify platform trades hash matches golden reference
+    verify_golden_trades_hash("ema_crossover/20pip_stop_40pip_tp", platform_trades)
 
     if "Signal" in tradingview_trades.columns:
         closed_trades = tradingview_trades[tradingview_trades["Signal"] != "Open"]
@@ -1943,6 +2120,9 @@ def test_ema_crossover_20pip_trailing_stop_trade_count_matches_tradingview(
         ohlcv_data=tradingview_ohlcv,
         date_range=date_range,
     )
+
+    # Verify platform trades hash matches golden reference
+    verify_golden_trades_hash("ema_crossover/20pip_trailing_stop", platform_trades)
 
     # Align trades
     platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
