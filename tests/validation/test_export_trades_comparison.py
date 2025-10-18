@@ -7,7 +7,13 @@ import pandas as pd
 import pytest
 
 from tests.validation.golden_utils import load_and_validate_tradingview_trades
-from tests.validation.test_strategy_validation import load_platform_trades
+from tests.validation.test_strategy_validation import (
+    KNOWN_EDGE_CASES,
+    load_platform_trades,
+)
+from tests.validation.trailing_stop_discrepancy_analyzer import (
+    TrailingStopDiscrepancyAnalyzer,
+)
 
 
 @pytest.mark.strategy_name("ema_crossover/20pip_trailing_stop")
@@ -29,7 +35,7 @@ def test_export_all_trades_comparison(
     )
 
     # Load TradingView trades using the correct golden_utils function
-    # Note: The fixture gives us the raw CSV DataFrame, but we need to parse and filter it
+    # Note: The fixture gives us raw CSV, we need to parse and filter it
     strategy_dir = Path("data/dvc/golden/strategies/ema_crossover/20pip_trailing_stop")
     tv_trades_path = strategy_dir / "trades.csv"
     tv_df = load_and_validate_tradingview_trades(
@@ -86,6 +92,35 @@ def test_export_all_trades_comparison(
         print(f"  TradingView: {len(tv_df)}")
         print(f"  Will only compare first {min(len(platform_df), len(tv_df))} trades\n")
 
+    # Use analyzer to categorize discrepancies
+    analyzer = TrailingStopDiscrepancyAnalyzer(
+        trailing_stop_pips=0.0020,  # 20 pips
+        tolerance=0.00001,
+    )
+
+    categories = analyzer.analyze_discrepancies(
+        platform_df=platform_df,
+        tv_df=tv_df,
+        ohlcv_data=tradingview_ohlcv,
+    )
+
+    # Get known edge cases
+    strategy_edge_cases = KNOWN_EDGE_CASES.get("ema_crossover/20pip_trailing_stop", {})
+    known_exit_time_edge_cases = strategy_edge_cases.get("exit_time_mismatches", [])
+
+    # Build category lookup by trade number
+    category_lookup = {}
+
+    # Add analyzer categories
+    for category_name in analyzer.KNOWN_ACCEPTABLE_CATEGORIES:
+        for trade in categories.get(category_name, []):
+            category_lookup[trade["trade_num"]] = category_name
+
+    # Add known edge cases
+    for edge_case in known_exit_time_edge_cases:
+        trade_num = edge_case["trade_index"] + 1  # Convert to 1-indexed
+        category_lookup[trade_num] = "KNOWN_EDGE_CASE"
+
     # Create comparison DataFrame
     comparisons = []
 
@@ -104,7 +139,9 @@ def test_export_all_trades_comparison(
             (p_row["exit_price"] - p_row["entry_price"]) * direction_multiplier * 10000
         )
         tv_pnl_pips = (
-            (tv_row["exit_price"] - tv_row["entry_price"]) * direction_multiplier * 10000
+            (tv_row["exit_price"] - tv_row["entry_price"])
+            * direction_multiplier
+            * 10000
         )
 
         # Calculate differences
@@ -117,8 +154,18 @@ def test_export_all_trades_comparison(
             tv_row["exit_time"] == tv_row["entry_time"]
         )
 
+        # Get discrepancy category for this trade
+        trade_num = i + 1
+        discrepancy_category = category_lookup.get(trade_num, "")
+
+        # If no category but times/prices don't match, mark as UNEXPLAINED
+        if not discrepancy_category and (
+            not exit_time_match or exit_price_diff > 0.001
+        ):
+            discrepancy_category = "UNEXPLAINED"
+
         comparison = {
-            "trade_num": i + 1,
+            "trade_num": trade_num,
             "direction": p_row["side"].upper(),
             # Entry
             "entry_time": str(p_row["entry_time"]),
@@ -138,6 +185,8 @@ def test_export_all_trades_comparison(
             "exit_price_diff_pips": exit_price_diff,
             "pnl_diff_pips": pnl_diff,
             "same_bar_entry_exit": same_bar,
+            # Discrepancy category
+            "discrepancy_category": discrepancy_category,
         }
 
         comparisons.append(comparison)
@@ -159,16 +208,23 @@ def test_export_all_trades_comparison(
     total = len(df)
     exit_time_matches = df["exit_time_match"].sum()
     exit_time_mismatches = total - exit_time_matches
-    same_bar = df["same_bar_entry_exit"].sum()
-    exit_time_mismatches_excluding_same_bar = (
-        ~df["exit_time_match"] & ~df["same_bar_entry_exit"]
-    ).sum()
 
     print(f"Total trades: {total}")
     print(f"Exit time matches: {exit_time_matches}")
     print(f"Exit time mismatches: {exit_time_mismatches}")
-    print(f"  - Same-bar entry/exit (excluded): {same_bar}")
-    print(f"  - Unexpected mismatches: {exit_time_mismatches_excluding_same_bar}")
+    print()
+
+    # Category breakdown
+    print("Discrepancy Categories:")
+    category_counts = df["discrepancy_category"].value_counts()
+    for category, count in category_counts.items():
+        if category:  # Skip empty categories
+            print(f"  - {category}: {count}")
+
+    # Count trades with no discrepancy
+    no_discrepancy = (df["discrepancy_category"] == "").sum()
+    if no_discrepancy > 0:
+        print(f"  - Perfect match (no discrepancy): {no_discrepancy}")
     print()
 
     # Exit price differences
