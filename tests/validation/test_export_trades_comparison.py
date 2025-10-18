@@ -149,25 +149,30 @@ def test_export_all_trades_comparison(
         exit_price_diff = abs(p_row["exit_price"] - tv_row["exit_price"]) * 10000
         pnl_diff = platform_pnl_pips - tv_pnl_pips
 
-        # Check if same-bar entry/exit
-        same_bar = (p_row["exit_time"] == p_row["entry_time"]) or (
-            tv_row["exit_time"] == tv_row["entry_time"]
-        )
+        # Determine if this trade FAILED exit TIME validation
+        # (We're only testing exit times, not prices)
+        exit_time_failed = not exit_time_match
 
-        # Get discrepancy category for this trade
+        # Only categorize exit time failures
         trade_num = i + 1
-        discrepancy_category = category_lookup.get(trade_num, "")
+        discrepancy_category = ""
 
-        # If not already categorized, check for same-bar exit
-        # (analyzer skips these if prices match)
-        if not discrepancy_category and same_bar:
-            discrepancy_category = "SAME_BAR_EXIT"
+        if exit_time_failed:
+            # Check if same-bar entry/exit (explains failure)
+            same_bar = (p_row["exit_time"] == p_row["entry_time"]) or (
+                tv_row["exit_time"] == tv_row["entry_time"]
+            )
 
-        # If no category but times/prices don't match, mark as UNEXPLAINED
-        if not discrepancy_category and (
-            not exit_time_match or exit_price_diff > 0.001
-        ):
-            discrepancy_category = "UNEXPLAINED"
+            # Try to explain the failure
+            if same_bar:
+                discrepancy_category = "SAME_BAR_EXIT"
+            else:
+                # Check analyzer categories
+                discrepancy_category = category_lookup.get(trade_num, "")
+
+            # If still unexplained, mark as UNEXPLAINED
+            if not discrepancy_category:
+                discrepancy_category = "UNEXPLAINED"
 
         comparison = {
             "trade_num": trade_num,
@@ -185,13 +190,12 @@ def test_export_all_trades_comparison(
             "tv_exit_price": tv_row["exit_price"],
             "tv_exit_reason": tv_row.get("exit_reason", "N/A"),
             "tv_pnl_pips": tv_pnl_pips,
-            # Differences
+            # Validation results
             "exit_time_match": exit_time_match,
             "exit_price_diff_pips": exit_price_diff,
             "pnl_diff_pips": pnl_diff,
-            "same_bar_entry_exit": same_bar,
-            # Discrepancy category
-            "discrepancy_category": discrepancy_category,
+            # Failure explanation (only populated for failed trades)
+            "failure_explanation": discrepancy_category,
         }
 
         comparisons.append(comparison)
@@ -219,17 +223,22 @@ def test_export_all_trades_comparison(
     print(f"Exit time mismatches: {exit_time_mismatches}")
     print()
 
-    # Category breakdown
-    print("Discrepancy Categories:")
-    category_counts = df["discrepancy_category"].value_counts()
-    for category, count in category_counts.items():
-        if category:  # Skip empty categories
-            print(f"  - {category}: {count}")
+    # Failure explanation breakdown
+    print("Validation Failures by Category:")
+    failure_counts = df[df["failure_explanation"] != ""][
+        "failure_explanation"
+    ].value_counts()
+    for category, count in failure_counts.items():
+        print(f"  - {category}: {count}")
 
-    # Count trades with no discrepancy
-    no_discrepancy = (df["discrepancy_category"] == "").sum()
-    if no_discrepancy > 0:
-        print(f"  - Perfect match (no discrepancy): {no_discrepancy}")
+    # Count trades that passed validation
+    passed_validation = (df["failure_explanation"] == "").sum()
+    print(f"\nPassed validation (perfect match): {passed_validation}")
+    explained = len(df) - passed_validation - failure_counts.get("UNEXPLAINED", 0)
+    print(f"Failed validation (explained): {explained}")
+    unexplained = failure_counts.get("UNEXPLAINED", 0)
+    if unexplained > 0:
+        print(f"Failed validation (UNEXPLAINED): {unexplained} ⚠️")
     print()
 
     # Exit price differences
@@ -250,15 +259,15 @@ def test_export_all_trades_comparison(
     print(f"  Median: {pnl_diffs.median():.2f}")
     print()
 
-    # Show first 10 mismatches
-    mismatches_df = df[~df["exit_time_match"] & ~df["same_bar_entry_exit"]]
-    if len(mismatches_df) > 0:
+    # Show first 10 unexplained failures
+    unexplained_df = df[df["failure_explanation"] == "UNEXPLAINED"]
+    if len(unexplained_df) > 0:
         print("=" * 80)
-        print("FIRST 10 EXIT TIME MISMATCHES (Excluding Same-Bar)")
+        print("UNEXPLAINED VALIDATION FAILURES (Require Investigation)")
         print("=" * 80)
         print()
 
-        for idx, row in mismatches_df.head(10).iterrows():
+        for idx, row in unexplained_df.head(10).iterrows():
             print(f"Trade #{row['trade_num']} ({row['direction']})")
             print(f"  Entry:    {row['entry_time']} @ {row['entry_price']:.5f}")
             print()
