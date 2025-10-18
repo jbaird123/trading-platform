@@ -17,21 +17,22 @@ The following trades have been manually inspected and verified to correctly
 exhibit the entry bar peak MFE pattern, where TradingView ignores favorable
 movement on the entry bar:
 
-Trade #39  - Entry: 2023-04-17 01:00, Platform exit: 02:00, TV exit: 05:00
-Trade #48  - Entry: 2023-04-26 11:00, Platform exit: 12:00, TV exit: 14:00
-Trade #66  - Entry: 2023-06-21 14:00, Platform exit: 15:00, TV exit: 2023-06-22 11:00
-Trade #78  - Entry: 2023-08-09 17:00, Platform exit: 20:00, TV exit: 2023-08-10 12:00
-Trade #80  - Entry: 2023-08-21 11:00, Platform exit: 12:00, TV exit: 13:00
-Trade #115 - Entry: 2023-12-18 12:00, Platform exit: 13:00, TV exit: 15:00
-Trade #117 - Entry: 2023-12-21 09:00, Platform exit: 10:00, TV exit: 11:00
-Trade #119 - Entry: 2023-12-29 09:00, Platform exit: 10:00, TV exit: 11:00
-Trade #167 - Entry: 2024-04-26 20:00, Platform exit: 2024-04-29 00:00, TV exit: 01:00
-Trade #169 - Entry: 2024-04-30 06:00, Platform exit: 07:00, TV exit: 09:00
-Trade #177 - Entry: 2024-05-21 13:00, Platform exit: 2024-05-22 02:00, TV exit: 15:00
-Trade #223 - Entry: 2024-09-30 19:00, Platform exit: 22:00, TV exit: 2024-10-01 09:00
-Trade #224 - Entry: 2024-10-20 23:00, Platform exit: 2024-10-21 06:00, TV exit: 07:00
-Trade #239 - Entry: 2024-12-02 05:00, Platform exit: 06:00, TV exit: 09:00
-Trade #242 - Entry: 2024-12-10 06:00, Platform exit: 07:00, TV exit: 08:00
+trade entry_time          platform_exit_time  tv_exit_time
+39    2023-04-17 01:00:00 2023-04-17 02:00:00 2023-04-17 05:00:00
+48    2023-04-26 11:00:00 2023-04-26 12:00:00 2023-04-26 14:00:00
+66    2023-06-21 14:00:00 2023-06-21 15:00:00 2023-06-22 11:00:00
+78    2023-08-09 17:00:00 2023-08-09 20:00:00 2023-08-10 12:00:00
+80    2023-08-21 11:00:00 2023-08-21 12:00:00 2023-08-21 13:00:00
+115   2023-12-18 12:00:00 2023-12-18 13:00:00 2023-12-18 15:00:00
+117   2023-12-21 09:00:00 2023-12-21 10:00:00 2023-12-21 11:00:00
+119   2023-12-29 09:00:00 2023-12-29 10:00:00 2023-12-29 11:00:00
+167   2024-04-26 20:00:00 2024-04-29 00:00:00 2024-04-29 01:00:00
+169   2024-04-30 06:00:00 2024-04-30 07:00:00 2024-04-30 09:00:00
+177   2024-05-21 13:00:00 2024-05-22 02:00:00 2024-05-22 15:00:00
+223   2024-09-30 19:00:00 2024-09-30 22:00:00 2024-10-01 09:00:00
+224   2024-10-20 23:00:00 2024-10-21 06:00:00 2024-10-21 07:00:00
+239   2024-12-02 05:00:00 2024-12-02 06:00:00 2024-12-02 09:00:00
+242   2024-12-10 06:00:00 2024-12-10 07:00:00 2024-12-10 08:00:00
 """
 
 from typing import Any, Dict, List, Tuple
