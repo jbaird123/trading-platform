@@ -1,5 +1,5 @@
-strategy_name: "EMA_Crossover_20pip_Trailing_Stop_40pip_TP_Golden"
-description: "EMA crossover with 20-pip trailing stop loss and 40-pip take profit for validation"
+strategy_name: "EMA_Crossover_30pip_Trailing_Stop_20pip_TP_Golden"
+description: "EMA crossover with 30-pip trailing stop loss and 20-pip take profit for validation"
 version: "1.0"
 
 parameters:
