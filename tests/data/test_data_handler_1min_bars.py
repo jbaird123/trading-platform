@@ -11,6 +11,18 @@ import pytest
 from src.trading_platform.data.handler import DataHandler
 
 
+def get_1min_bars_for_hour(
+    handler: DataHandler, timestamp: pd.Timestamp
+) -> pd.DataFrame:
+    """Helper function to get 1-minute bars for the hour containing timestamp.
+
+    This replicates the removed get_1min_bars_for_hour() method for testing.
+    """
+    hour_start = timestamp.floor("h")
+    hour_end = hour_start + pd.Timedelta(hours=1) - pd.Timedelta(nanoseconds=1)
+    return handler.get_data(timeframe="1min", start=hour_start, end=hour_end)
+
+
 @pytest.fixture
 def mock_data_root(tmp_path):
     """Create a temporary data directory with test data."""
@@ -49,7 +61,7 @@ def test_get_1min_bars_for_hour_returns_correct_shape(mock_data_root):
 
     # Get bars for the first hour (00:00-01:00)
     timestamp = pd.Timestamp("2023-01-01 00:30:00", tz="UTC")
-    bars = handler.get_1min_bars_for_hour(timestamp)
+    bars = get_1min_bars_for_hour(handler, timestamp)
 
     # Should have 60 bars for a full hour (00:00 to 00:59)
     assert len(bars) == 60
@@ -62,7 +74,7 @@ def test_get_1min_bars_for_hour_with_timestamp_at_hour_start(mock_data_root):
     handler = DataHandler("EUR_USD", mock_data_root)
 
     timestamp = pd.Timestamp("2023-01-01 01:00:00", tz="UTC")
-    bars = handler.get_1min_bars_for_hour(timestamp)
+    bars = get_1min_bars_for_hour(handler, timestamp)
 
     # Should get bars from 01:00 to 01:59
     assert len(bars) == 60
@@ -75,7 +87,7 @@ def test_get_1min_bars_for_hour_with_timestamp_at_hour_end(mock_data_root):
     handler = DataHandler("EUR_USD", mock_data_root)
 
     timestamp = pd.Timestamp("2023-01-01 00:59:00", tz="UTC")
-    bars = handler.get_1min_bars_for_hour(timestamp)
+    bars = get_1min_bars_for_hour(handler, timestamp)
 
     # Should get bars from 00:00 to 00:59 (the hour containing 00:59)
     assert len(bars) == 60
@@ -88,7 +100,7 @@ def test_get_1min_bars_for_hour_returns_correct_columns(mock_data_root):
     handler = DataHandler("EUR_USD", mock_data_root)
 
     timestamp = pd.Timestamp("2023-01-01 00:00:00", tz="UTC")
-    bars = handler.get_1min_bars_for_hour(timestamp)
+    bars = get_1min_bars_for_hour(handler, timestamp)
 
     expected_columns = ["open", "high", "low", "close", "volume"]
     assert list(bars.columns) == expected_columns
@@ -121,7 +133,7 @@ def test_get_1min_bars_for_hour_with_missing_data(mock_data_root):
 
     handler_with_gaps = DataHandler("GBP_USD", mock_data_root)
     timestamp = pd.Timestamp("2023-01-01 00:15:00", tz="UTC")
-    bars = handler_with_gaps.get_1min_bars_for_hour(timestamp)
+    bars = get_1min_bars_for_hour(handler_with_gaps, timestamp)
 
     # Should return only the available data (30 bars)
     assert len(bars) == 30
@@ -135,7 +147,7 @@ def test_get_1min_bars_for_hour_with_partial_hour_at_end(mock_data_root):
 
     # Request the last hour which only has data until 03:00
     timestamp = pd.Timestamp("2023-01-01 03:00:00", tz="UTC")
-    bars = handler.get_1min_bars_for_hour(timestamp)
+    bars = get_1min_bars_for_hour(handler, timestamp)
 
     # Should return only 1 bar (03:00:00)
     assert len(bars) == 1
@@ -148,7 +160,7 @@ def test_get_1min_bars_for_hour_uses_cached_data(mock_data_root):
 
     # First call - data is already loaded in __init__
     timestamp1 = pd.Timestamp("2023-01-01 00:00:00", tz="UTC")
-    bars1 = handler.get_1min_bars_for_hour(timestamp1)
+    bars1 = get_1min_bars_for_hour(handler, timestamp1)
 
     # Check that 1min is in cache
     cached_timeframes = handler.get_cached_timeframes()
@@ -156,7 +168,7 @@ def test_get_1min_bars_for_hour_uses_cached_data(mock_data_root):
 
     # Second call - should use cached data
     timestamp2 = pd.Timestamp("2023-01-01 01:00:00", tz="UTC")
-    bars2 = handler.get_1min_bars_for_hour(timestamp2)
+    bars2 = get_1min_bars_for_hour(handler, timestamp2)
 
     # Verify both calls succeeded
     assert len(bars1) == 60
@@ -172,7 +184,7 @@ def test_get_1min_bars_for_hour_with_timezone_aware_timestamp(mock_data_root):
     handler = DataHandler("EUR_USD", mock_data_root)
 
     timestamp = pd.Timestamp("2023-01-01 00:00:00", tz="UTC")
-    bars = handler.get_1min_bars_for_hour(timestamp)
+    bars = get_1min_bars_for_hour(handler, timestamp)
 
     # Verify all returned timestamps are timezone-aware UTC
     assert bars.index.tz is not None
@@ -184,18 +196,18 @@ def test_get_1min_bars_for_hour_consecutive_hours(mock_data_root):
     handler = DataHandler("EUR_USD", mock_data_root)
 
     # Get bars for hour 0
-    hour0 = handler.get_1min_bars_for_hour(
-        pd.Timestamp("2023-01-01 00:00:00", tz="UTC")
+    hour0 = get_1min_bars_for_hour(
+        handler, pd.Timestamp("2023-01-01 00:00:00", tz="UTC")
     )
 
     # Get bars for hour 1
-    hour1 = handler.get_1min_bars_for_hour(
-        pd.Timestamp("2023-01-01 01:00:00", tz="UTC")
+    hour1 = get_1min_bars_for_hour(
+        handler, pd.Timestamp("2023-01-01 01:00:00", tz="UTC")
     )
 
     # Get bars for hour 2
-    hour2 = handler.get_1min_bars_for_hour(
-        pd.Timestamp("2023-01-01 02:00:00", tz="UTC")
+    hour2 = get_1min_bars_for_hour(
+        handler, pd.Timestamp("2023-01-01 02:00:00", tz="UTC")
     )
 
     # Verify they're distinct and sequential

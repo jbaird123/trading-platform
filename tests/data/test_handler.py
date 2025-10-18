@@ -243,9 +243,11 @@ def test_get_data_with_date_filtering(tmp_path: Path) -> None:
         assert len(result) == 5  # Days 3-7
 
 
-def test_find_best_resample_source_uses_raw_data_fallback(tmp_path: Path) -> None:
-    """Test _find_best_resample_source falls back to raw data when no match."""
-    # Validates: [REQ-DATA-012] Fallback to raw data when no suitable cache
+def test_find_best_resample_source_uses_base_data_when_no_better_match(
+    tmp_path: Path,
+) -> None:
+    """Test _find_best_resample_source uses base data when no better cached match."""
+    # Validates: [REQ-DATA-012] Uses base data when it evenly divides into target
     from unittest.mock import patch
 
     import pandas as pd
@@ -268,12 +270,11 @@ def test_find_best_resample_source_uses_raw_data_fallback(tmp_path: Path) -> Non
 
         handler = DataHandler(symbol="TEST", data_root=tmp_path)
 
-        # Request timeframe with no suitable cached source (e.g., 7min from 1min base)
-        # 7min doesn't evenly divide from anything we have cached
-        handler._cache.clear()
-        handler._cache["5min"] = raw_data.copy()  # 7 doesn't divide from 5
+        # Add a cached 5min that doesn't divide evenly into 7min
+        handler._cache["5min"] = raw_data.copy()
 
-        # Should fall back to raw data
+        # Request 7min - should use base 1min data (which divides evenly)
         result = handler._find_best_resample_source("7min")
-        # Fallback line 199 should execute, returning _raw_data
+        # Should return the base 1min data (stored in _raw_data and cache)
+        assert result is handler._cache["1min"]
         assert result is handler._raw_data

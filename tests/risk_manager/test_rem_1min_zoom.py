@@ -69,7 +69,7 @@ def test_rem_detects_trailing_stop_ambiguity_and_zooms_to_1min(
     bars_1min.index = pd.date_range(
         "2023-01-01 11:00:00", periods=60, freq="1min", tz="UTC"
     )
-    mock_data_handler.get_1min_bars_for_hour.return_value = bars_1min
+    mock_data_handler.get_data.return_value = bars_1min
 
     # Configure REM with 20-pip trailing stop
     config = {"trailing_stop": {"pips": 20}}
@@ -80,7 +80,10 @@ def test_rem_detects_trailing_stop_ambiguity_and_zooms_to_1min(
     result = rem.check_exits(position, current_bar, data_handler=mock_data_handler)
 
     # Verify DataHandler was called for 1-minute data
-    mock_data_handler.get_1min_bars_for_hour.assert_called_once_with(current_bar.name)
+    # Verify get_data was called with correct timeframe and time range
+    mock_data_handler.get_data.assert_called_once()
+    call_args = mock_data_handler.get_data.call_args
+    assert call_args.kwargs["timeframe"] == "1min"
 
     # Should return None (no exit) because 1-minute resolution shows no hit
     assert result is None
@@ -134,7 +137,7 @@ def test_rem_zooms_and_detects_trailing_stop_hit_on_1min_bar(
     bars_1min.index = pd.date_range(
         "2023-01-01 11:00:00", periods=60, freq="1min", tz="UTC"
     )
-    mock_data_handler.get_1min_bars_for_hour.return_value = bars_1min
+    mock_data_handler.get_data.return_value = bars_1min
 
     config = {"trailing_stop": {"pips": 20}}
     rem = RiskExitManager(config=config, instrument=mock_instrument)
@@ -177,7 +180,7 @@ def test_rem_does_not_zoom_when_no_ambiguity(mock_instrument, mock_data_handler)
     result = rem.check_exits(position, current_bar, data_handler=mock_data_handler)
 
     # Should NOT call DataHandler (no zoom needed)
-    mock_data_handler.get_1min_bars_for_hour.assert_not_called()
+    mock_data_handler.get_data.assert_not_called()
 
     # Should return None (no exit)
     assert result is None
@@ -231,7 +234,7 @@ def test_rem_trailing_stop_with_favorable_movement_zooms_correctly(
     bars_1min.index = pd.date_range(
         "2023-01-01 11:00:00", periods=60, freq="1min", tz="UTC"
     )
-    mock_data_handler.get_1min_bars_for_hour.return_value = bars_1min
+    mock_data_handler.get_data.return_value = bars_1min
 
     config = {"trailing_stop": {"pips": 20}}
     rem = RiskExitManager(config=config, instrument=mock_instrument)
@@ -290,7 +293,7 @@ def test_rem_short_position_trailing_stop_zoom(mock_instrument, mock_data_handle
     bars_1min.index = pd.date_range(
         "2023-01-01 11:00:00", periods=60, freq="1min", tz="UTC"
     )
-    mock_data_handler.get_1min_bars_for_hour.return_value = bars_1min
+    mock_data_handler.get_data.return_value = bars_1min
 
     config = {"trailing_stop": {"pips": 20}}
     rem = RiskExitManager(config=config, instrument=mock_instrument)
@@ -350,7 +353,7 @@ def test_rem_fixed_stop_and_tp_both_ambiguous_zooms_to_1min(
     bars_1min.index = pd.date_range(
         "2023-01-01 11:00:00", periods=60, freq="1min", tz="UTC"
     )
-    mock_data_handler.get_1min_bars_for_hour.return_value = bars_1min
+    mock_data_handler.get_data.return_value = bars_1min
 
     # Configure with both fixed stop and TP
     config = {"stop_loss": {"pips": 20}, "take_profit": {"pips": 50}}
@@ -359,7 +362,7 @@ def test_rem_fixed_stop_and_tp_both_ambiguous_zooms_to_1min(
     result = rem.check_exits(position, current_bar, data_handler=mock_data_handler)
 
     # Should zoom and detect stop hit first
-    mock_data_handler.get_1min_bars_for_hour.assert_called_once()
+    mock_data_handler.get_data.assert_called_once()
     assert result is not None
     assert result["reason"] == "stop-loss"
     assert result["exit_price"] == 1.0580
@@ -416,7 +419,7 @@ def test_rem_fixed_stop_tp_ambiguous_tp_hits_first(mock_instrument, mock_data_ha
     bars_1min.index = pd.date_range(
         "2023-01-01 11:00:00", periods=60, freq="1min", tz="UTC"
     )
-    mock_data_handler.get_1min_bars_for_hour.return_value = bars_1min
+    mock_data_handler.get_data.return_value = bars_1min
 
     config = {"stop_loss": {"pips": 20}, "take_profit": {"pips": 50}}
     rem = RiskExitManager(config=config, instrument=mock_instrument)
