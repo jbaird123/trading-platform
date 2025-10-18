@@ -76,12 +76,19 @@ class TrailingStopDiscrepancyAnalyzer:
             entry_price = p_row["entry_price"]
             p_exit_price = p_row["exit_price"]
             tv_exit_price = tv_row["exit_price"]
+            tv_exit_time = pd.Timestamp(tv_row["exit_time"])
             direction = tv_row["side"]
 
             price_diff = abs(p_exit_price - tv_exit_price)
+            time_diff = exit_time != tv_exit_time
 
-            # Skip if prices match
-            if price_diff < self.tolerance * 10:
+            # Check if there's any discrepancy (price OR time)
+            # We analyze patterns even if discrepancies are small, because the
+            # patterns explain WHY discrepancies exist (e.g., entry bar MFE)
+            has_discrepancy = price_diff >= self.tolerance or time_diff
+
+            if not has_discrepancy:
+                # Perfect match - skip
                 continue
 
             # Create trade info
