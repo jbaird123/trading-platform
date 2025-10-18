@@ -904,7 +904,7 @@ def verify_golden_trades_hash(
     if not golden_path.exists():
         raise FileNotFoundError(
             f"Golden trades file not found: {golden_path}\n"
-            f"Run workspace/generate_golden_trades.py to create it."
+            f"Run tests/validation/generate_golden_trades.py to create it."
         )
 
     # Convert platform trades to same CSV format as golden file
@@ -980,7 +980,7 @@ def verify_golden_trades_hash(
                 f"Current hash: {current_hash}\n\n"
                 f"This indicates the platform is producing different output than expected.\n"
                 f"If this change is intentional, regenerate golden files with:\n"
-                f"  poetry run python workspace/generate_golden_trades.py\n\n"
+                f"  poetry run python tests/validation/generate_golden_trades.py\n\n"
                 f"First 2000 chars of diff:\n{diff_msg}"
             )
     finally:
