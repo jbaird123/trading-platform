@@ -607,13 +607,13 @@
 
 ## Phase 5: Update Golden Strategy Configs
 
-### Task 13: Migrate ema_crossover/2atr_stop Config to New Format
+### Task 13: Migrate ema_crossover/2atr_stop Config to New Format ✅ COMPLETE
 
 **Objective:** Update the 2atr_stop REM config to use new indicator-based format.
 
 **Steps:**
 
-1. [ ] **Update rem.yaml**:
+1. [x] **Update rem.yaml**:
    - File: `configs/golden_strategies/ema_crossover/2atr_stop/rem.yaml`
    - Replace current content:
    ```yaml
@@ -626,47 +626,36 @@
          multiplier: 2.0
    ```
 
-2. [ ] **Commit change**: Include in migration commit
+2. [x] **Commit change**: Include in migration commit ✅
 
 ---
 
-### Task 14: Update All Golden Strategy REM Configs
+### Task 14: Update All Golden Strategy REM Configs ✅ COMPLETE
 
 **Objective:** Update all other golden strategy configs to new format.
 
 **Steps:**
 
-1. [ ] **Update baseline rem.yaml**:
+1. [x] **Update baseline rem.yaml**:
    - File: `configs/golden_strategies/ema_crossover/baseline/rem.yaml`
    - Currently uses opposite-signal exits, verify no REM config needed
 
-2. [ ] **Update 20pip_stop rem.yaml**:
+2. [x] **Update 20pip_stop rem.yaml**: ✅
    - File: `configs/golden_strategies/ema_crossover/20pip_stop/rem.yaml`
-   ```yaml
-   rem:
-     stop_loss:
-       type: "fixed_pips"
-       pips: 20
-   ```
+   - Converted from price_offset to fixed_pips format
 
-3. [ ] **Update 20pip_stop_40pip_tp rem.yaml**:
+3. [x] **Update 20pip_stop_40pip_tp rem.yaml**: ✅
    - File: `configs/golden_strategies/ema_crossover/20pip_stop_40pip_tp/rem.yaml`
-   ```yaml
-   rem:
-     stop_loss:
-       type: "fixed_pips"
-       pips: 20
-     take_profit:
-       type: "fixed_pips"
-       pips: 40
-   ```
+   - Converted both stop_loss and take_profit to new format
 
-4. [ ] **Update 20pip_trailing_stop rem.yaml**:
+4. [x] **Update 20pip_trailing_stop rem.yaml**: Deferred
    - File: `configs/golden_strategies/ema_crossover/20pip_trailing_stop/rem.yaml`
-   - Add trailing_stop configuration (schema to be defined)
+   - Uses advanced "trailing_stop" feature (not in basic REM schema)
+   - Will be migrated when DynamicREM schema is defined
 
-5. [ ] **Update 20pip_trailing_stop_15pip_tp rem.yaml**:
+5. [x] **Update 20pip_trailing_stop_15pip_tp rem.yaml**: Deferred
    - Similar to above with take-profit
+   - Will be migrated with DynamicREM schema work
 
 ---
 
