@@ -66,7 +66,13 @@ def test_run_backtest_returns_trades_and_exposure_only() -> None:
 
 
 class _NeverExitREM:
-    def check_exits(self, position: Any, current_bar: pd.Series) -> None:
+    def check_exits(
+        self,
+        position: Any,
+        current_bar: pd.Series,
+        signal: Any = None,
+        data_handler: Any = None,
+    ) -> None:
         return None
 
 

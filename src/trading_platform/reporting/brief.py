@@ -276,8 +276,25 @@ def _round_dict_features(d: dict[str, Any]) -> dict[str, Any]:
 
 
 def _to_jsonable(obj: Any) -> Any:
-    """Convert objects (dataclasses, datetimes) to JSON-serializable forms."""
-    # Handle NaN values - convert to null for valid JSON
+    """
+    Convert objects to JSON-serializable forms.
+
+    Handles dataclasses, datetimes, numpy types, and other common types.
+    """
+    # Handle numpy types first
+    if isinstance(obj, (np.integer, np.int64, np.int32)):
+        return int(obj)
+    if isinstance(obj, (np.floating, np.float64, np.float32)):
+        # Check for NaN/inf after conversion to Python float
+        import math
+
+        val = float(obj)
+        if math.isnan(val) or math.isinf(val):
+            return None
+        return val
+    if isinstance(obj, np.ndarray):
+        return [_to_jsonable(x) for x in obj.tolist()]
+    # Handle NaN values for Python floats
     if isinstance(obj, float):
         import math
 
@@ -1081,9 +1098,25 @@ def generate_brief(
     return placeholders
 
 
+def _numpy_json_encoder(obj: Any) -> Any:
+    """
+    Custom JSON encoder for numpy types.
+
+    Converts numpy integer and float types to Python native types
+    for JSON serialization.
+    """
+    if isinstance(obj, (np.integer, np.int64, np.int32)):
+        return int(obj)
+    if isinstance(obj, (np.floating, np.float64, np.float32)):
+        return float(obj)
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
+
 def save_brief(brief: dict[str, Any], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(brief, indent=2))
+    path.write_text(json.dumps(brief, indent=2, default=_numpy_json_encoder))
 
 
 def save_run_brief(

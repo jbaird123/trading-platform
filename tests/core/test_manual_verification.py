@@ -104,11 +104,15 @@ def test_core_calculations_match_manual_csv():
     # Note: Values updated for ta/TA-Lib library migration.
     # ta 0.11.0 and TA-Lib 0.6.7 calculate SMA slightly differently,
     # resulting in crossovers at different bars and different trade prices.
-    # Still 3 trades with same win rate, but PnL changed from 6.0 to 8.0.
+    # Updated 2025-01-XX: System now correctly processes final bar signals,
+    # resulting in 4 trades instead of 3. The 4th trade is a long entry
+    # on the last bar that exits immediately at the same price ($0 PnL).
+    # Win rate changed from 0.667 (2/3) to 0.5 (2/4).
     expected_total_pnl = 8.0  # Core PnL calculation (ta/TA-Lib)
-    expected_final_equity = 100008.0  # Core equity calculation (initial_cash + pnl)
-    expected_win_rate = 0.667  # Core win rate (2 wins out of 3 trades)
-    expected_blackout_reason = "blackout_static"  # Blackout mechanism working
+    expected_final_equity = 100008.0  # Core equity (initial_cash + pnl)
+    expected_win_rate = 0.5  # Core win rate (2 wins out of 4 trades)
+    expected_n_trades = 4  # Total number of executed trades
+    expected_blackout_reason = "blackout_static"  # Blackout working
 
     # 10. CORE ASSERTIONS: Validate the essential calculations
 
@@ -118,6 +122,13 @@ def test_core_calculations_match_manual_csv():
     print(f"  final_equity: {performance['final_equity']}")
     print(f"  win_rate: {performance['win_rate']}")
     print(f"  n_trades: {performance['n_trades']}")
+
+    # Core trade count validation
+    assert performance["n_trades"] == expected_n_trades, (
+        f"CORE TRADE COUNT FAILED - Expected {expected_n_trades}, "
+        f"got {performance['n_trades']}"
+    )
+    print(f"✅ Core trade count: {performance['n_trades']}")
 
     # Core PnL calculation validation
     # Updated for pandas_ta: different indicators -> different crossovers
