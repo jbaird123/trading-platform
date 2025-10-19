@@ -225,70 +225,77 @@ atr = ta.atr(atr_length)
 """
 
     # Entry logic
-    pinescript += """// ============================================================================  # noqa: E501
-// ENTRY LOGIC
-// ============================================================================
-
-long_signal = ta.crossover(ema_fast, ema_slow)
-short_signal = ta.crossunder(ema_fast, ema_slow)
-
-if (long_signal)
-    strategy.entry("Long", strategy.long)
-
-if (short_signal)
-    strategy.entry("Short", strategy.short)
-
-"""
+    pinescript += (
+        "// "
+        "========================================================================"
+        "\n"
+        "// ENTRY LOGIC\n"
+        "// "
+        "========================================================================"
+        "\n\n"
+        "long_signal = ta.crossover(ema_fast, ema_slow)\n"
+        "short_signal = ta.crossunder(ema_fast, ema_slow)\n\n"
+        "if (long_signal)\n"
+        '    strategy.entry("Long", strategy.long)\n\n'
+        "if (short_signal)\n"
+        '    strategy.entry("Short", strategy.short)\n\n'
+    )
 
     # Exit logic
     if exit_mechanism == "trailing_stop":
-        pinescript += """// ============================================================================  # noqa: E501
-// EXIT LOGIC - Trailing Stop
-// ============================================================================
-
-if (strategy.position_size > 0)  // Long position
-    strategy.exit("Exit Long", "Long", trail_offset=trailing_stop_price)
-
-if (strategy.position_size < 0)  // Short position
-    strategy.exit("Exit Short", "Short", trail_offset=trailing_stop_price)
-
-// TODO: If using take profit, update strategy.exit() with profit= parameter
-
-"""
+        pinescript += (
+            "// "
+            "===================================================================="
+            "\n"
+            "// EXIT LOGIC - Trailing Stop\n"
+            "// "
+            "===================================================================="
+            "\n\n"
+            "if (strategy.position_size > 0)  // Long position\n"
+            '    strategy.exit("Exit Long", "Long", '
+            "trail_offset=trailing_stop_price)\n\n"
+            "if (strategy.position_size < 0)  // Short position\n"
+            '    strategy.exit("Exit Short", "Short", '
+            "trail_offset=trailing_stop_price)\n\n"
+            "// TODO: If using take profit, update strategy.exit() with "
+            "profit= parameter\n\n"
+        )
 
     elif exit_mechanism == "indicator_stop" and indicator_type == "atr":
-        pinescript += """// ============================================================================  # noqa: E501
-// EXIT LOGIC - ATR-based Stop
-// ============================================================================
-
-var float stop_price = na
-
-if (long_signal)
-    stop_price := close - atr * atr_multiplier
-
-if (short_signal)
-    stop_price := close + atr * atr_multiplier
-
-// Update stop based on current ATR
-if (strategy.position_size > 0)  // Long position
-    stop_price := close - atr * atr_multiplier
-    strategy.exit("Exit Long", "Long", stop=stop_price)
-
-if (strategy.position_size < 0)  // Short position
-    stop_price := close + atr * atr_multiplier
-    strategy.exit("Exit Short", "Short", stop=stop_price)
-
-"""
+        pinescript += (
+            "// "
+            "===================================================================="
+            "\n"
+            "// EXIT LOGIC - ATR-based Stop\n"
+            "// "
+            "===================================================================="
+            "\n\n"
+            "var float stop_price = na\n\n"
+            "if (long_signal)\n"
+            "    stop_price := close - atr * atr_multiplier\n\n"
+            "if (short_signal)\n"
+            "    stop_price := close + atr * atr_multiplier\n\n"
+            "// Update stop based on current ATR\n"
+            "if (strategy.position_size > 0)  // Long position\n"
+            "    stop_price := close - atr * atr_multiplier\n"
+            '    strategy.exit("Exit Long", "Long", stop=stop_price)\n\n'
+            "if (strategy.position_size < 0)  // Short position\n"
+            "    stop_price := close + atr * atr_multiplier\n"
+            '    strategy.exit("Exit Short", "Short", stop=stop_price)\n\n'
+        )
 
     # Plotting
-    pinescript += """// ============================================================================  # noqa: E501
-// PLOTTING
-// ============================================================================
-
-plot(ema_fast, "Fast EMA", color=color.blue)
-plot(ema_slow, "Slow EMA", color=color.red)
-
-"""
+    pinescript += (
+        "// "
+        "========================================================================"
+        "\n"
+        "// PLOTTING\n"
+        "// "
+        "========================================================================"
+        "\n\n"
+        'plot(ema_fast, "Fast EMA", color=color.blue)\n'
+        'plot(ema_slow, "Slow EMA", color=color.red)\n\n'
+    )
 
     if exit_mechanism == "indicator_stop" and indicator_type == "atr":
         pinescript += 'plot(stop_price, "Stop Level", color=color.orange, style=plot.style_linebr)\n'  # noqa: E501
@@ -393,6 +400,11 @@ def print_next_steps(strategy_name: str, config_dir: Path, data_dir: Path) -> No
         config_dir: Config directory path
         data_dir: Data directory path
     """
+    # Extract strategy suffix for fixture naming
+    # (e.g., "20pip_stop" from "ema_crossover/20pip_stop")
+    strategy_suffix = strategy_name.split("/")[-1]
+    fixture_name = f"platform_trades_{strategy_suffix}"
+
     print(f"\n{'='*80}\n" f"✅ SCAFFOLD COMPLETE FOR: {strategy_name}\n" f"{'='*80}\n")
 
     print("📋 NEXT STEPS:\n")
@@ -426,27 +438,102 @@ def print_next_steps(strategy_name: str, config_dir: Path, data_dir: Path) -> No
     print("5. Generate platform golden trades:")
     print("   poetry run python tests/validation/generate_golden_trades.py\n")
 
-    print("6. Add strategy to test suite:")
+    print("6. Add session-scoped fixture to conftest.py:")
+    print("   - Edit: tests/validation/conftest.py")
+    print("   - Add this fixture after existing platform_trades fixtures:\n")
+    print(f"""   @pytest.fixture(scope="session")
+   def {fixture_name}(
+       shared_data_handler: Any,
+       ensure_dvc_data_pulled: bool,
+   ) -> list[dict]:
+       \"\"\"Session-scoped platform trades for {strategy_name} strategy.
+
+       Runs the backtest once per session and caches the results for all tests.
+       This avoids redundant backtest execution across multiple test functions.
+       \"\"\"
+       from tests.validation.test_strategy_validation import load_platform_trades
+
+       # Load strategy-specific data
+       strategy_name = "{strategy_name}"
+       strategy_data_dir = GOLDEN_STRATEGIES_ROOT / strategy_name
+       strategy_config_dir = GOLDEN_CONFIG_ROOT / strategy_name
+
+       # Load metadata
+       metadata_path = strategy_data_dir / "metadata.json"
+       with open(metadata_path) as f:
+           metadata = json.load(f)
+
+       # Load run_config
+       run_config_path = strategy_config_dir / "run_config.yaml"
+       with open(run_config_path) as f:
+           run_config = yaml.safe_load(f)
+
+       # Load OHLCV
+       ohlcv_path = strategy_data_dir / "ohlcv.csv"
+       ohlcv = pd.read_csv(ohlcv_path, index_col=0, parse_dates=True)
+
+       return load_platform_trades(
+           strategy_name=strategy_name,
+           run_config=run_config,
+           ohlcv_data=ohlcv,
+           data_handler=shared_data_handler,
+           date_range=metadata.get("date_range"),
+       )
+""")
+
+    print("7. Add to parametrized export tests:")
     print("   - Edit: tests/validation/test_export_exit_price_comparison.py")
     print(f"   - Add '{strategy_name}' to @pytest.mark.parametrize list")
     print("   - Do same for test_export_exit_time_comparison.py")
-    print("   - Do same for test_strategy_validation.py\n")
-
-    print("7. Run tests:")
     print(
-        f"   poetry run pytest tests/validation/ -k '{strategy_name.split('/')[-1]}' -v\n"  # noqa: E501
+        "   - These tests will automatically use your fixture via "  # noqa: E501
+        "request.getfixturevalue()\n"
     )
 
-    print("8. If tests pass, add to DVC and commit:")
+    print("8. Add strategy validation tests:")
+    print("   - Edit: tests/validation/test_strategy_validation.py")
+    print(
+        f"   - Copy existing strategy's test functions and modify for "  # noqa: E501
+        f"{strategy_suffix}"
+    )
+    print(
+        f"   - IMPORTANT: Use '{fixture_name}' fixture parameter, "  # noqa: E501
+        "NOT golden_strategy_config"
+    )
+    print("   - Example test function:")
+    print(f"""
+   def test_ema_crossover_{strategy_suffix}_trade_count_matches_tradingview(
+       tradingview_trades,
+       golden_metadata,
+       {fixture_name},  # <- Use your fixture here
+   ):
+       \"\"\"Validates {strategy_suffix} produces same number of trades.\"\"\"
+       platform_trades = {fixture_name}  # Use cached results
+
+       # Verify platform trades hash matches golden reference
+       verify_golden_trades_hash("{strategy_name}", platform_trades)
+
+       # ... rest of test logic
+""")
+
+    print("9. Run tests:")
+    print(f"   poetry run pytest tests/validation/ -k '{strategy_suffix}' -v\n")
+
+    print("10. If tests pass, add to DVC and commit:")
     print("   poetry run dvc add data/dvc/golden/strategies")
     print("   git add data/dvc/golden/strategies.dvc")
     print(f"   git add configs/golden_strategies/{strategy_name}")
+    print("   git add tests/validation/conftest.py")
+    print("   git add tests/validation/test_export_exit_price_comparison.py")
+    print("   git add tests/validation/test_export_exit_time_comparison.py")
+    print("   git add tests/validation/test_strategy_validation.py")
     print(f"   git commit -m 'test: Add {strategy_name} golden validation'")
     print("   poetry run dvc push")
     print("   git push\n")
 
     print(f"{'='*80}")
-    print("📖 For detailed instructions, see: tests/validation/README.md")
+    print("📖 For detailed instructions, see: tests/validation/README.md Step 8")
+    print("📖 Session-scoped fixtures ensure tests run 79% faster by caching backtests")
     print(f"{'='*80}\n")
 
 
