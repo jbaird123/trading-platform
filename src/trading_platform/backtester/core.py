@@ -119,7 +119,8 @@ def resolve_instrument_symbol(instrument: Any) -> str:
     if not symbol or not str(symbol).strip():
         raise ValueError("instrument with symbol is required")
 
-    return normalize_symbol(str(symbol))
+    result: str = normalize_symbol(str(symbol))
+    return result
 
 
 def run_backtest(
@@ -650,8 +651,10 @@ def run_backtest(
     if return_exposure:
         return (portfolio.trades, exposure_curve)
     if return_skips:
-        return (portfolio.trades, [], skipped)
-    return portfolio.trades
+        empty_exposure: list[tuple[datetime, float]] = []
+        return (portfolio.trades, empty_exposure, skipped)
+    trades_result: list[Trade] = portfolio.trades
+    return trades_result
 
 
 def _simulate_counterfactual_fast(

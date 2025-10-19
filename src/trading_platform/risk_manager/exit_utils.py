@@ -30,8 +30,9 @@ def is_trailing_stop_ambiguous(bar: pd.Series, trailing_stop_level: float) -> bo
         if we need to zoom to 1-minute resolution for trailing stop processing.
     """
     # Ambiguous if trailing stop is between bar's high and low
-    # This is the fundamental problem: we don't know the intra-bar order of movements
-    return bar["low"] <= trailing_stop_level <= bar["high"]
+    # This is the fundamental problem: we don't know intra-bar order
+    result: bool = bool(bar["low"] <= trailing_stop_level <= bar["high"])
+    return result
 
 
 def is_fixed_stops_ambiguous(
@@ -53,12 +54,12 @@ def is_fixed_stops_ambiguous(
         False otherwise
 
     Note:
-        This function is for FIXED (non-trailing) stops on the primary timeframe.
-        If only one exit level is in range, there's no ambiguity - we know which
-        was hit. Ambiguity only exists when BOTH are in range.
+        This function is for FIXED (non-trailing) stops on primary timeframe.
+        If only one exit level is in range, there's no ambiguity - we know
+        which was hit. Ambiguity only exists when BOTH are in range.
     """
-    stop_in_range = bar["low"] <= stop_loss_level <= bar["high"]
-    tp_in_range = bar["low"] <= take_profit_level <= bar["high"]
+    stop_in_range: bool = bool(bar["low"] <= stop_loss_level <= bar["high"])
+    tp_in_range: bool = bool(bar["low"] <= take_profit_level <= bar["high"])
     return stop_in_range and tp_in_range
 
 
@@ -81,10 +82,10 @@ def both_exits_in_same_bar(
         False otherwise
 
     Note:
-        This has the same implementation as is_fixed_stops_ambiguous(), but serves
-        a different purpose: this is for 1-MINUTE tie-breaking, while
-        is_fixed_stops_ambiguous() is for PRIMARY TIMEFRAME ambiguity detection.
+        Same implementation as is_fixed_stops_ambiguous(), but serves
+        different purpose: this is for 1-MINUTE tie-breaking, while
+        is_fixed_stops_ambiguous() is for PRIMARY TIMEFRAME ambiguity.
     """
-    stop_in_range = bar["low"] <= stop_loss_level <= bar["high"]
-    tp_in_range = bar["low"] <= take_profit_level <= bar["high"]
+    stop_in_range: bool = bool(bar["low"] <= stop_loss_level <= bar["high"])
+    tp_in_range: bool = bool(bar["low"] <= take_profit_level <= bar["high"])
     return stop_in_range and tp_in_range

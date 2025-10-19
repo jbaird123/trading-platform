@@ -5,6 +5,8 @@ These tests verify that the DataHandler can correctly retrieve 1-minute bars
 for a specific hour from the already-cached 1-minute base data.
 """
 
+from typing import cast
+
 import pandas as pd
 import pytest
 
@@ -19,7 +21,7 @@ def get_1min_bars_for_hour(
     This replicates the removed get_1min_bars_for_hour() method for testing.
     """
     hour_start = timestamp.floor("h")
-    hour_end = hour_start + pd.Timedelta(hours=1) - pd.Timedelta(nanoseconds=1)
+    hour_end = hour_start + pd.Timedelta(hours=1) - pd.Timedelta(1, unit="ns")
     return handler.get_data(timeframe="1min", start=hour_start, end=hour_end)
 
 
@@ -187,8 +189,9 @@ def test_get_1min_bars_for_hour_with_timezone_aware_timestamp(mock_data_root):
     bars = get_1min_bars_for_hour(handler, timestamp)
 
     # Verify all returned timestamps are timezone-aware UTC
-    assert bars.index.tz is not None
-    assert str(bars.index.tz) == "UTC"
+    index = cast(pd.DatetimeIndex, bars.index)
+    assert index.tz is not None
+    assert str(index.tz) == "UTC"
 
 
 def test_get_1min_bars_for_hour_consecutive_hours(mock_data_root):

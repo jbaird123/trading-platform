@@ -23,7 +23,7 @@ from trading_platform.reporting.html_export import save_html_report
 
 
 def initialize_run(config: RunConfig) -> Path:
-    run_path = config.runs_dir / config.user_id / config.run_id
+    run_path: Path = Path(config.runs_dir) / config.user_id / config.run_id
     run_path.mkdir(parents=True, exist_ok=True)
     config_path = run_path / "config.json"
     config_path.write_text(config.model_dump_json(indent=2))
@@ -154,7 +154,7 @@ def finalize_run(
         )
     )
 
-    brief_path = save_run_brief(
+    brief_path: Path = save_run_brief(
         run_path,
         meta=meta,
         params=params,

@@ -36,7 +36,7 @@ trade entry_time          platform_exit_time  tv_exit_time
 242   2024-12-10 06:00:00 2024-12-10 07:00:00 2024-12-10 08:00:00
 """
 
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 import pandas as pd
 
@@ -47,7 +47,7 @@ class TrailingStopDiscrepancyAnalyzer:
     def __init__(
         self,
         trailing_stop_pips: float = 0.0020,
-        take_profit_pips: float = None,
+        take_profit_pips: Optional[float] = None,
         tolerance: float = 0.00001,
     ):
         """
@@ -80,7 +80,7 @@ class TrailingStopDiscrepancyAnalyzer:
         platform_df: pd.DataFrame,
         tv_df: pd.DataFrame,
         ohlcv_data: pd.DataFrame,
-        ohlcv_1min: pd.DataFrame = None,
+        ohlcv_1min: Optional[pd.DataFrame] = None,
     ) -> Dict[str, List[Dict[str, Any]]]:
         """
         Analyze all exit price discrepancies and categorize them.
@@ -502,7 +502,7 @@ class TrailingStopDiscrepancyAnalyzer:
 
             if stop_hit:
                 # Stop was hit - return exact time and price
-                return timestamp, stop_level
+                return cast(pd.Timestamp, timestamp), stop_level
 
             # No exit on this bar - update peak/trough and trailing stop
             if direction == "long":
@@ -558,11 +558,11 @@ class TrailingStopDiscrepancyAnalyzer:
             if direction == "long":
                 # For long, TP is hit when high >= tp_level
                 if bar["high"] >= tp_level:
-                    return timestamp
+                    return cast(pd.Timestamp, timestamp)
             else:  # short
                 # For short, TP is hit when low <= tp_level
                 if bar["low"] <= tp_level:
-                    return timestamp
+                    return cast(pd.Timestamp, timestamp)
 
         # TP not found in 1-minute data
         return None
@@ -577,7 +577,7 @@ class TrailingStopDiscrepancyAnalyzer:
         p_row: pd.Series,
         tv_row: pd.Series,
         ohlcv_data: pd.DataFrame,
-    ) -> str:
+    ) -> Optional[str]:
         """
         Check if discrepancy is due to platform's 1-minute zoom feature.
 

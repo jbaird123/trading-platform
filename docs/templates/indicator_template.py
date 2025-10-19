@@ -69,7 +69,8 @@ def my_custom_indicator(
     distance_from_mean = (close - rolling_avg) / (rolling_high - rolling_low + 1e-10)
 
     # Step 4: Return the indicator
-    return distance_from_mean
+    result: pd.Series = distance_from_mean
+    return result
 
 
 # ============================================================================
@@ -103,7 +104,10 @@ def test_my_custom_indicator_no_bias() -> None:
 
     # Define wrapper function
     def indicator(df: pd.DataFrame) -> pd.Series:
-        return my_custom_indicator(df, param1=20, param2=2.0)
+        result = my_custom_indicator(df, param1=20, param2=2.0)
+        # Cast to Series (template always returns Series, not DataFrame)
+        assert isinstance(result, pd.Series), "Expected Series from template"
+        return result
 
     # Run bias detection
     result = detect_lookahead_bias(indicator, test_data)

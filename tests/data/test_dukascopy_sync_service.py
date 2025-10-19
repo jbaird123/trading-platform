@@ -26,7 +26,7 @@ def test_sync_service_initialization(tmp_path: Path):
 
     Validates: [DH-2.14]
     """
-    from trading_platform.data.sync import (  # type: ignore[attr-defined]
+    from trading_platform.data.sync import (
         DukascopySyncService,
     )
 
@@ -154,7 +154,7 @@ def test_sync_service_creates_data_directory(tmp_path: Path):
 
     Validates: [DH-2.14]
     """
-    from trading_platform.data.sync import (  # type: ignore[attr-defined]
+    from trading_platform.data.sync import (
         DukascopySyncService,
     )
 

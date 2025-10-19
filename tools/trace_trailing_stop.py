@@ -16,7 +16,7 @@ from pathlib import Path
 import pandas as pd
 
 
-def load_1min_data(data_dir: Path = None) -> pd.DataFrame:
+def load_1min_data(data_dir: Path | None = None) -> pd.DataFrame:
     """Load 1-minute OHLCV data."""
     if data_dir is None:
         data_dir = (
@@ -31,7 +31,7 @@ def load_1min_data(data_dir: Path = None) -> pd.DataFrame:
     return df
 
 
-def load_comparison_data(workspace_dir: Path = None) -> pd.DataFrame:
+def load_comparison_data(workspace_dir: Path | None = None) -> pd.DataFrame:
     """Load trade comparison CSV to get trade details."""
     if workspace_dir is None:
         workspace_dir = Path(__file__).parent.parent / "workspace"

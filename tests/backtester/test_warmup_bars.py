@@ -52,10 +52,10 @@ def test_warmup_delays_first_entry_until_threshold():
         return_exposure=True,
         return_skips=True,
     )
-    trades, _, _ = result  # type: ignore[misc]
+    trades, _, _ = result
     # One completed trade: entry at 4th bar, exit on 5th due to flat
-    assert len(trades) == 1  # type: ignore[arg-type]
-    assert trades[0].entry_time == df.index[3]  # type: ignore[index]
+    assert len(trades) == 1
+    assert trades[0].entry_time == df.index[3]
 
 
 @pytest.mark.req_BT_7_7
@@ -84,7 +84,7 @@ def test_no_warmup_allows_immediate_entry():
         return_exposure=True,
         return_skips=True,
     )
-    trades, _, _ = result  # type: ignore[misc]
+    trades, _, _ = result
     # First trade should enter at the first bar
-    assert len(trades) == 1  # type: ignore[arg-type]
-    assert trades[0].entry_time == df.index[0]  # type: ignore[index]
+    assert len(trades) == 1
+    assert trades[0].entry_time == df.index[0]

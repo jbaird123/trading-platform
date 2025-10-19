@@ -75,7 +75,7 @@ def test_instrument_and_session_models():
 
     # Test that InstrumentDefinition cannot be created without sessions field
     with pytest.raises(ValidationError):
-        InstrumentDefinition(  # type: ignore[call-arg]
+        InstrumentDefinition(
             asset_class="Forex",
             point_value=1.0,
             tick_size=0.00001,

@@ -22,11 +22,11 @@ def test_base_strategy_requires_implementation() -> None:
         pass  # No implementation of generate_signals
 
     with pytest.raises(TypeError, match="Can't instantiate abstract class"):
-        TrulyAbstractStrategy()  # type: ignore[abstract]
+        TrulyAbstractStrategy()
 
     class IncompleteStrategy(BaseStrategy):
         def generate_signals(self, data: pd.DataFrame) -> pd.Series:
-            return super().generate_signals(data)
+            return super().generate_signals(data)  # type: ignore[no-any-return]
 
     strategy = IncompleteStrategy()
     test_data = pd.DataFrame({"close": [1, 2, 3]})
@@ -35,7 +35,7 @@ def test_base_strategy_requires_implementation() -> None:
 
     class CompleteStrategy(BaseStrategy):
         def generate_signals(self, data: pd.DataFrame) -> pd.Series:
-            return pd.Series("flat", index=data.index)
+            return pd.Series("flat", index=data.index, dtype=object)
 
     complete_strategy = CompleteStrategy()
     assert complete_strategy is not None

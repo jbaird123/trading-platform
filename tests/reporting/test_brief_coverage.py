@@ -202,7 +202,7 @@ def test_serialize_trade_with_post_exit_dict() -> None:
     # Add post_exit_analysis using replace
     trade = replace(
         trade,
-        post_exit_analysis={  # type: ignore[arg-type]
+        post_exit_analysis={
             "5": {"mfe": 75.123456, "mae": -25.987654},
             "10": {"mfe": 100.567890, "mae": -15.234567},
         },

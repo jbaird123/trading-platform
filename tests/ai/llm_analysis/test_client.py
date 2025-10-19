@@ -38,7 +38,7 @@ def test_llm_client_invalid_provider():
         from trading_platform.ai.llm_analysis.client import LlmApiClient
 
         with pytest.raises(ValueError, match="Unknown provider: invalid"):
-            LlmApiClient(provider="invalid")  # type: ignore[arg-type]
+            LlmApiClient(provider="invalid")
 
 
 def test_init_gemini_success():

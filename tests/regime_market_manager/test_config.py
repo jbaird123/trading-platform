@@ -19,9 +19,9 @@ CONFIG_MODULE = "trading_platform.regime_market_manager.config"
 
 def test_validate_rmm_config_requires_regimes() -> None:
     with pytest.raises(ValueError, match="rmm config must be an object"):
-        validate_rmm_config("invalid")  # type: ignore[arg-type]
+        validate_rmm_config("invalid")
     with pytest.raises(ValueError, match="rmm config must be an object"):
-        validate_rmm_config(None)  # type: ignore[arg-type]
+        validate_rmm_config(None)
 
     with pytest.raises(ValueError):
         validate_rmm_config({})

@@ -66,10 +66,10 @@ def test_counterfactual_for_blackout_skip_with_tp():
         return_exposure=True,
         return_skips=True,
     )
-    trades, _exp, skips = result  # type: ignore[misc]
-    assert skips and "cf_exit_time" in skips[0]  # type: ignore[index]
+    trades, _exp, skips = result
+    assert skips and "cf_exit_time" in skips[0]
     # Entry at 100, TP 2 => pnl ~ 2 * size (size=10000)
-    assert skips[0]["cf_pnl_currency"] == approx(2.0 * 10000)  # type: ignore[index]
+    assert skips[0]["cf_pnl_currency"] == approx(2.0 * 10000)
 
 
 def test_rmm_skip_records_policy_snapshot() -> None:

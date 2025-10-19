@@ -320,7 +320,7 @@ def test_counterfactual_exact_rem_exit_breaks_loop() -> None:
         size=1.0,
         instrument=TEST_INSTRUMENT,
         cost_model={},
-        rem=StubREM(),  # type: ignore[arg-type]
+        rem=StubREM(),
         symbol="EURUSD",
     )
 
@@ -362,7 +362,7 @@ def test_counterfactual_exact_returns_empty_when_position_not_created(
         size=1.0,
         instrument=TEST_INSTRUMENT,
         cost_model={},
-        rem=NoExitREM(),  # type: ignore[arg-type]
+        rem=NoExitREM(),
         symbol="EURUSD",
     )
 

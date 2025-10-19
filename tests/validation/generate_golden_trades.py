@@ -236,7 +236,7 @@ def generate_golden_trades_for_strategy(
     # Save to CSV
     if rows:
         # Get all field names (base + context fields)
-        all_fields = set()
+        all_fields: set[str] = set()
         for row in rows:
             all_fields.update(row.keys())
 

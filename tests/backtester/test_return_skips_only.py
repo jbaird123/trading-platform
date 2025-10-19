@@ -57,5 +57,5 @@ def test_return_skips_without_exposure():
         return_exposure=False,
         return_skips=True,
     )
-    trades, exposure, skipped = result  # type: ignore[misc]
+    trades, exposure, skipped = result
     assert exposure == [] and isinstance(skipped, list)

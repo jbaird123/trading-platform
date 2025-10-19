@@ -109,7 +109,7 @@ def test_contextual_rem_with_order_block_strategy():
 
     # Type check: should be tuple of (trades, exposure)
     assert isinstance(result, tuple), "Expected tuple return"
-    trades, _ = result  # type: ignore[misc]
+    trades, _ = result
 
     # Assertions
     assert len(trades) >= 1, "At least one trade should be generated"

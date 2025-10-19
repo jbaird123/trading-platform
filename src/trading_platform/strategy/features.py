@@ -32,7 +32,7 @@ def ema_slope(series: pd.Series, length: int, slope_period: int = 1) -> pd.Serie
     """EMA Slope - wrapper for backwards compatibility."""
     # Create a minimal DataFrame for the implementation
     df = pd.DataFrame({"close": series})
-    result = _impl.compute_ema_slope(
+    result: pd.Series = _impl.compute_ema_slope(
         df, {"length": length, "slope_period": slope_period}, "close", None
     )
     return result
@@ -41,7 +41,9 @@ def ema_slope(series: pd.Series, length: int, slope_period: int = 1) -> pd.Serie
 def bb_width(series: pd.Series, length: int, ndev: float) -> pd.Series:
     """BB Width - wrapper for backwards compatibility."""
     df = pd.DataFrame({"close": series})
-    result = _impl.compute_bb_width(df, {"length": length, "ndev": ndev}, "close", None)
+    result: pd.Series = _impl.compute_bb_width(
+        df, {"length": length, "ndev": ndev}, "close", None
+    )
     return result
 
 

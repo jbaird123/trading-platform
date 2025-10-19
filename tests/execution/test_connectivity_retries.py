@@ -18,7 +18,7 @@ def test_api_connection_retry_on_network_error():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import (  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (
         execute_with_retry,
     )
 
@@ -41,7 +41,7 @@ def test_api_connection_exponential_backoff():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import (  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (
         execute_with_retry,
     )
 
@@ -68,7 +68,7 @@ def test_api_connection_max_retries_exceeded():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import (  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (
         execute_with_retry,
     )
 
@@ -86,7 +86,7 @@ def test_api_connection_timeout_handling():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import (  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (
         execute_with_retry,
     )
 
@@ -107,7 +107,7 @@ def test_api_connection_different_error_types():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import (  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (
         execute_with_retry,
     )
 
@@ -134,7 +134,7 @@ def test_api_connection_circuit_breaker():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import (  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (
         CircuitBreaker,
     )
 
@@ -162,7 +162,7 @@ def test_api_connection_health_check():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import (  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (
         check_api_health,
     )
 
@@ -180,7 +180,7 @@ def test_api_connection_fallback_endpoint():
 
     Validates: [EL-8.4]
     """
-    from trading_platform.execution.controller import (  # type: ignore[attr-defined]
+    from trading_platform.execution.controller import (
         execute_with_fallback,
     )
 

@@ -918,7 +918,7 @@ def verify_golden_trades_hash(
         raise ValueError("No platform trades to verify!")
 
     # Collect all field names (base + context fields)
-    all_fields = set()
+    all_fields: set[str] = set()
     for trade in platform_trades:
         all_fields.update(trade.keys())
 
@@ -974,11 +974,11 @@ def verify_golden_trades_hash(
 
     try:
         # Calculate SHA256 hashes
-        with open(temp_path, "rb") as f:
-            current_hash = hashlib.sha256(f.read()).hexdigest()
+        with open(temp_path, "rb") as f_current:
+            current_hash = hashlib.sha256(f_current.read()).hexdigest()
 
-        with open(golden_path, "rb") as f:
-            golden_hash = hashlib.sha256(f.read()).hexdigest()
+        with open(golden_path, "rb") as f_golden:
+            golden_hash = hashlib.sha256(f_golden.read()).hexdigest()
 
         # Compare hashes
         if current_hash != golden_hash:

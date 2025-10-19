@@ -520,7 +520,7 @@ def test_skipped_entry_index_conversion_error():
         return_exposure=False,
         return_skips=True,
     )
-    trades, _, skipped = result  # type: ignore[misc]
+    trades, _, skipped = result
 
     # Should have skipped trade with counterfactual analysis
     assert isinstance(skipped, list), "skipped should be a list"
@@ -721,7 +721,7 @@ def test_skipped_entry_index_invalid_conversion():
         return_exposure=False,
         return_skips=True,
     )
-    trades, _, skipped = result  # type: ignore[misc]
+    trades, _, skipped = result
 
     # Should have skipped trade with counterfactual analysis
     assert isinstance(skipped, list), "skipped should be a list"
@@ -885,7 +885,7 @@ def test_counterfactual_with_manual_invalid_entry_index():
             return_exposure=False,
             return_skips=True,
         )
-        trades, _, skipped = result  # type: ignore[misc]
+        trades, _, skipped = result
 
     # Should have skipped trades
     assert isinstance(skipped, list), "skipped should be a list"

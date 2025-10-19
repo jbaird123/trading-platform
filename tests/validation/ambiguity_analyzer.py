@@ -193,7 +193,10 @@ class AmbiguityAnalyzer(ABC):
             }
         """
         # Initialize result dictionary with all possible categories
-        categories = {cat: [] for cat in self.get_acceptable_categories()}
+        categories: dict[str, list[Dict[str, Any]]] = {
+            cat: []
+            for cat in self.get_acceptable_categories()  # noqa: E501
+        }
         categories["UNEXPLAINED"] = []
 
         # Analyze each trade pair
@@ -249,8 +252,8 @@ class AmbiguityAnalyzer(ABC):
         Returns:
             True if trades have a discrepancy
         """
-        price_diff = abs(platform_trade["exit_price"] - tv_trade["exit_price"])
-        return price_diff > tolerance
+        price_diff = float(abs(platform_trade["exit_price"] - tv_trade["exit_price"]))
+        return bool(price_diff > tolerance)
 
 
 class CompositeAmbiguityAnalyzer(AmbiguityAnalyzer):

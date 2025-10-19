@@ -672,7 +672,7 @@ def test_training_pipeline_coverage():
             # Exercise multiple model branches; ignore downstream dependency errors.
             for model_type in ("random_forest", "lightgbm"):
                 try:
-                    pipeline._train_model(  # type: ignore[call-arg]
+                    pipeline._train_model(
                         X_train=X_train,
                         y_train=y_train,
                         X_val=X_val,
@@ -804,7 +804,7 @@ def test_training_pipeline_error_handling():
 
         # Test evaluation without model
         try:
-            pipeline.evaluate_model(None, None)  # type: ignore[attr-defined]
+            pipeline.evaluate_model(None, None)
         except Exception as e:
             assert "No trained model available" in str(e) or isinstance(
                 e, AttributeError
@@ -812,7 +812,7 @@ def test_training_pipeline_error_handling():
 
         # Test ONNX export without model
         try:
-            pipeline.export_onnx_model("/tmp/test.onnx")  # type: ignore[attr-defined]
+            pipeline.export_onnx_model("/tmp/test.onnx")
         except Exception as e:
             assert "No trained model available" in str(e) or isinstance(
                 e, AttributeError
@@ -820,7 +820,7 @@ def test_training_pipeline_error_handling():
 
         # Test model saving without model
         try:
-            pipeline.save_model("/tmp/test.pkl")  # type: ignore[attr-defined]
+            pipeline.save_model("/tmp/test.pkl")
         except Exception as e:
             assert "No trained model available" in str(e) or isinstance(
                 e, AttributeError

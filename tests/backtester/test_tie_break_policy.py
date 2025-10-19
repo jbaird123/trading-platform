@@ -56,7 +56,7 @@ def test_tie_break_stop_then_tp_for_long():
         return_exposure=True,
         return_skips=True,
     )
-    trades, _, _ = result  # type: ignore[misc]
-    assert len(trades) == 1  # type: ignore[arg-type]
-    t = trades[0]  # type: ignore[index]
+    trades, _, _ = result
+    assert len(trades) == 1
+    t = trades[0]
     assert t.exit_price == 95.0 and t.exit_reason == "stop-loss"

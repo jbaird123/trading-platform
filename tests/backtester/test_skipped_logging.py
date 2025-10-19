@@ -61,10 +61,10 @@ def test_skip_logged_for_blackout():
         return_exposure=True,
         return_skips=True,
     )
-    trades, _exp, skips = result  # type: ignore[misc]
+    trades, _exp, skips = result
     assert skips is not None
-    assert len(skips) >= 1  # type: ignore[arg-type]
-    s0 = skips[0]  # type: ignore[index]
+    assert len(skips) >= 1
+    s0 = skips[0]
     assert s0["skip_reason"] in ("blackout_static", "blackout")
     assert "policy_snapshot" in s0
 
@@ -95,7 +95,7 @@ def test_skip_logged_for_position_cap():
         return_exposure=True,
         return_skips=True,
     )
-    trades, _exp, skips = result  # type: ignore[misc]
+    trades, _exp, skips = result
     # One entry, second long should be skipped due to cap
     assert skips is not None
     # TODO: Fix this test for command-based signals - position cap logic

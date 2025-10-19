@@ -100,7 +100,7 @@ def test_counterfactual_exact_exit_kind_end() -> None:
         size=1.0,
         instrument=TEST_INSTRUMENT,
         cost_model={},
-        rem=_NeverExitREM(),  # type: ignore[arg-type]
+        rem=_NeverExitREM(),
         symbol="EURUSD",
     )
 
