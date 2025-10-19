@@ -732,3 +732,55 @@ class TrailingStopDiscrepancyAnalyzer:
                 f"This may indicate a bug in the platform or a new "
                 f"TradingView behavior."
             )
+
+
+def create_analyzer_for_strategy(
+    golden_metadata: dict,
+    tolerance: float = 0.00001,
+) -> TrailingStopDiscrepancyAnalyzer:
+    """Factory to create analyzer configured from strategy metadata.
+
+    Reads the strategy metadata.json to determine trailing stop and
+    take profit parameters, ensuring analyzer is always configured
+    correctly for the strategy being tested.
+
+    Args:
+        golden_metadata: Metadata dict loaded from strategy's metadata.json
+        tolerance: Price tolerance for match comparisons (default: 1e-5)
+
+    Returns:
+        TrailingStopDiscrepancyAnalyzer configured for the strategy
+
+    Raises:
+        ValueError: If required parameters are missing from metadata
+
+    Example:
+        >>> from tests.validation.golden_utils import load_golden_metadata
+        >>> metadata = load_golden_metadata("ema_crossover/20pip_trailing_stop")
+        >>> analyzer = create_analyzer_for_strategy(metadata)
+        >>> analyzer.trailing_stop_pips  # 0.0020 (20 pips)
+        >>> analyzer.take_profit_pips  # None (no TP for this strategy)
+    """
+    # Extract trailing stop (required)
+    trailing_stop_pips_value = golden_metadata.get("trailing_stop_pips")
+    if trailing_stop_pips_value is None:
+        raise ValueError(
+            "Strategy metadata must contain 'trailing_stop_pips' field. "
+            f"Got metadata keys: {list(golden_metadata.keys())}"
+        )
+
+    # Convert from pips to price (divide by 10,000 for EURUSD)
+    trailing_stop_pips = trailing_stop_pips_value / 10000.0
+
+    # Extract take profit (optional)
+    take_profit_pips_value = golden_metadata.get("take_profit_pips")
+    if take_profit_pips_value is not None:
+        take_profit_pips = take_profit_pips_value / 10000.0
+    else:
+        take_profit_pips = None
+
+    return TrailingStopDiscrepancyAnalyzer(
+        trailing_stop_pips=trailing_stop_pips,
+        take_profit_pips=take_profit_pips,
+        tolerance=tolerance,
+    )

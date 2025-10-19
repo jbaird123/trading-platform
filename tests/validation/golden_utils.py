@@ -320,3 +320,53 @@ def filter_platform_trades_to_validation_range(
             )
 
     return filtered
+
+
+def load_and_prepare_trade_data(
+    strategy_name: str,
+    platform_trades: list[dict],
+    golden_metadata: dict,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Load and prepare both platform and TradingView trades for comparison.
+
+    This consolidates the common pattern of:
+    1. Loading TradingView trades from CSV
+    2. Converting platform trades to DataFrame
+    3. Sorting both by entry_time
+    4. Resetting index
+
+    Args:
+        strategy_name: Name like "ema_crossover/20pip_trailing_stop"
+        platform_trades: List of platform trade dicts (already filtered
+            to validation range)
+        golden_metadata: Golden metadata dict containing date_range
+
+    Returns:
+        Tuple of (platform_df, tv_df) both sorted by entry_time with reset index
+
+    Example:
+        >>> platform_df, tv_df = load_and_prepare_trade_data(
+        ...     "ema_crossover/20pip_trailing_stop",
+        ...     platform_trades,
+        ...     golden_metadata
+        ... )
+        >>> len(platform_df)  # 249
+        >>> len(tv_df)  # 249
+    """
+    date_range = golden_metadata.get("date_range")
+
+    # Load TradingView trades
+    strategy_dir = Path("data/dvc/golden/strategies") / strategy_name
+    tv_trades_path = strategy_dir / "trades.csv"
+    tv_df = load_and_validate_tradingview_trades(
+        tv_trades_path, validation_range=date_range
+    )
+
+    # Convert platform trades to DataFrame
+    platform_df = pd.DataFrame(platform_trades)
+
+    # Sort both by entry time for alignment
+    platform_df = platform_df.sort_values("entry_time").reset_index(drop=True)
+    tv_df = tv_df.sort_values("entry_time").reset_index(drop=True)
+
+    return platform_df, tv_df
