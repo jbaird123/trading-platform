@@ -212,10 +212,17 @@ def build_exit_price_comparison_row(
     else:
         mfe_diff = None
 
-    # Get category and explanation
-    # Use "failure_category" for backward compatibility with golden files
-    failure_category = category_lookup.get(trade_num, "")
-    failure_explanation = explanation_lookup.get(trade_num, "")
+    # Get category and explanation ONLY if prices don't match
+    # For exit price comparison, we only care about PRICE discrepancies
+    # (The analyzer may categorize trades with time mismatches but price matches,
+    # which shouldn't be treated as failures in exit price comparison)
+    if exit_price_match:
+        failure_category = ""
+        failure_explanation = ""
+    else:
+        # Use "failure_category" for backward compatibility with golden files
+        failure_category = category_lookup.get(trade_num, "")
+        failure_explanation = explanation_lookup.get(trade_num, "")
 
     return {
         "trade_num": trade_num,
