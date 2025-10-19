@@ -97,7 +97,7 @@ def test_export_exit_time_comparison(
     analyzer = create_analyzer_for_strategy(golden_metadata)
 
     # Analyze discrepancies
-    categories = analyzer.analyze_discrepancies(  # type: ignore[attr-defined]
+    categories = analyzer.analyze_discrepancies(
         platform_df=platform_df,
         tv_df=tv_df,
         ohlcv_data=tradingview_ohlcv,

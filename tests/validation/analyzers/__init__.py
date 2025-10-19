@@ -6,7 +6,7 @@ and categorize trade exit discrepancies between platform and TradingView.
 Usage:
     # Register a new analyzer
     @register_analyzer("my_mechanism")
-    class MyAnalyzer(AmbiguityAnalyzer):
+    class MyAnalyzer:
         ...
 
     # Create analyzer from strategy metadata
@@ -14,15 +14,10 @@ Usage:
     analyzer = create_analyzer_for_strategy(metadata)
 """
 
-from typing import Dict, Type
-
-from tests.validation.ambiguity_analyzer import (
-    AmbiguityAnalyzer,
-    CompositeAmbiguityAnalyzer,
-)
+from typing import Any, Dict, Type
 
 # Registry mapping exit mechanism types to analyzer classes
-ANALYZER_REGISTRY: Dict[str, Type[AmbiguityAnalyzer]] = {}
+ANALYZER_REGISTRY: Dict[str, Type[Any]] = {}
 
 
 def register_analyzer(exit_mechanism: str):
@@ -33,18 +28,18 @@ def register_analyzer(exit_mechanism: str):
 
     Example:
         >>> @register_analyzer("trailing_stop")
-        >>> class TrailingStopAnalyzer(AmbiguityAnalyzer):
+        >>> class TrailingStopAnalyzer:
         ...     pass
     """
 
-    def decorator(cls: Type[AmbiguityAnalyzer]):
+    def decorator(cls: Type[Any]):
         ANALYZER_REGISTRY[exit_mechanism] = cls
         return cls
 
     return decorator
 
 
-def create_analyzer_for_strategy(metadata: dict) -> AmbiguityAnalyzer:
+def create_analyzer_for_strategy(metadata: dict) -> Any:
     """Factory to create analyzer(s) based on strategy metadata.
 
     Reads metadata.json fields like:
@@ -92,10 +87,24 @@ def create_analyzer_for_strategy(metadata: dict) -> AmbiguityAnalyzer:
             )
 
         # Create analyzer with metadata
-        analyzer = analyzer_class.from_metadata(metadata)  # type: ignore[attr-defined]
+        analyzer = analyzer_class.from_metadata(metadata)
         analyzers.append(analyzer)
 
     if len(analyzers) == 1:
-        return analyzers[0]  # type: ignore[no-any-return]
+        return analyzers[0]
     else:
-        return CompositeAmbiguityAnalyzer(analyzers)
+        # TODO: Implement CompositeAnalyzer for multiple exit mechanisms
+        raise NotImplementedError(
+            f"Multiple exit mechanisms not yet supported: {exit_mechanisms}"
+        )
+
+
+# Import analyzer modules to register them
+# This must be at the end to avoid circular imports
+from tests.validation.analyzers import indicator_stop, trailing_stop  # noqa: E402, F401
+
+__all__ = [
+    "register_analyzer",
+    "create_analyzer_for_strategy",
+    "ANALYZER_REGISTRY",
+]
