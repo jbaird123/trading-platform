@@ -1031,24 +1031,16 @@ pytestmark = pytest.mark.validation
 
 
 def test_ema_crossover_trade_count_matches_tradingview(
-    golden_strategy_config,
     tradingview_trades,
-    tradingview_ohlcv,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_baseline,
 ):
     """Validates that EMA crossover produces same number of trades.
 
     # Validates: [SE-3.5.3], [BT-7.8]
     """
     # Load platform trades
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/baseline",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        data_handler=shared_data_handler,
-        date_range=golden_metadata.get("date_range"),
-    )
+    platform_trades = platform_trades_baseline
 
     # Verify platform trades hash matches golden reference
     # This catches ANY changes in platform output (MFE/MAE, exit_reason, etc.)
@@ -1084,24 +1076,16 @@ def test_ema_crossover_trade_count_matches_tradingview(
 
 
 def test_ema_crossover_entry_times_match_tradingview(
-    golden_strategy_config,
     tradingview_trades,
-    tradingview_ohlcv,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_baseline,
 ):
     """Validates that entry times match within tolerance.
 
     # Validates: [SE-3.5.3], [BT-7.8]
     """
     # Load platform trades
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/baseline",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        data_handler=shared_data_handler,
-        date_range=golden_metadata.get("date_range"),
-    )
+    platform_trades = platform_trades_baseline
 
     # Align trades (pass validation_range to ensure TV trades are filtered)
     platform_df, tv_df = align_trades(
@@ -1147,24 +1131,16 @@ def test_ema_crossover_entry_times_match_tradingview(
 
 
 def test_ema_crossover_exit_times_match_tradingview(
-    golden_strategy_config,
     tradingview_trades,
-    tradingview_ohlcv,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_baseline,
 ):
     """Validates that exit times match within tolerance.
 
     # Validates: [SE-3.5.3], [BT-7.8]
     """
     # Load platform trades
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/baseline",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        data_handler=shared_data_handler,
-        date_range=golden_metadata.get("date_range"),
-    )
+    platform_trades = platform_trades_baseline
 
     # Align trades (pass validation_range to ensure TV trades are filtered)
     platform_df, tv_df = align_trades(
@@ -1210,23 +1186,15 @@ def test_ema_crossover_exit_times_match_tradingview(
 
 
 def test_ema_crossover_entry_prices_match_tradingview(
-    golden_strategy_config,
     tradingview_trades,
-    tradingview_ohlcv,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_baseline,
 ):
     """Validates baseline entry prices match within tolerance.
 
     # Validates: [SE-3.5.3], [BT-7.8]
     """
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/baseline",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        data_handler=shared_data_handler,
-        date_range=golden_metadata.get("date_range"),
-    )
+    platform_trades = platform_trades_baseline
 
     platform_df, tv_df = align_trades(
         platform_trades, tradingview_trades, golden_metadata.get("date_range")
@@ -1270,23 +1238,15 @@ def test_ema_crossover_entry_prices_match_tradingview(
 
 
 def test_ema_crossover_exit_prices_match_tradingview(
-    golden_strategy_config,
     tradingview_trades,
-    tradingview_ohlcv,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_baseline,
 ):
     """Validates baseline exit prices match within tolerance.
 
     # Validates: [SE-3.5.3], [BT-7.8]
     """
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/baseline",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        data_handler=shared_data_handler,
-        date_range=golden_metadata.get("date_range"),
-    )
+    platform_trades = platform_trades_baseline
 
     platform_df, tv_df = align_trades(
         platform_trades, tradingview_trades, golden_metadata.get("date_range")
@@ -1367,23 +1327,15 @@ def test_ema_crossover_metadata_schema_validation(golden_metadata):
 
 
 def test_ema_crossover_20pip_stop_trade_count_matches_tradingview(
-    golden_strategy_config,
     tradingview_trades,
-    tradingview_ohlcv,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_20pip_stop,
 ):
     """Validates 20-pip stop variation produces same number of trades.
 
     # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
     """
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/20pip_stop",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        data_handler=shared_data_handler,
-        date_range=golden_metadata.get("date_range"),
-    )
+    platform_trades = platform_trades_20pip_stop
 
     # Verify platform trades hash matches golden reference
     verify_golden_trades_hash("ema_crossover/20pip_stop", platform_trades)
@@ -1413,23 +1365,15 @@ def test_ema_crossover_20pip_stop_trade_count_matches_tradingview(
 
 
 def test_ema_crossover_20pip_stop_entry_times_match_tradingview(
-    golden_strategy_config,
     tradingview_trades,
-    tradingview_ohlcv,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_20pip_stop,
 ):
     """Validates 20-pip stop entry times match within tolerance.
 
     # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
     """
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/20pip_stop",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        data_handler=shared_data_handler,
-        date_range=golden_metadata.get("date_range"),
-    )
+    platform_trades = platform_trades_20pip_stop
 
     platform_df, tv_df = align_trades(
         platform_trades, tradingview_trades, golden_metadata.get("date_range")
@@ -1472,11 +1416,9 @@ def test_ema_crossover_20pip_stop_entry_times_match_tradingview(
 
 
 def test_ema_crossover_20pip_stop_exit_times_match_tradingview(
-    golden_strategy_config,
     tradingview_trades,
-    tradingview_ohlcv,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_20pip_stop,
 ):
     """Validates 20-pip stop exit times match within tolerance.
 
@@ -1485,13 +1427,7 @@ def test_ema_crossover_20pip_stop_exit_times_match_tradingview(
 
     # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
     """
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/20pip_stop",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        data_handler=shared_data_handler,
-        date_range=golden_metadata.get("date_range"),
-    )
+    platform_trades = platform_trades_20pip_stop
 
     platform_df, tv_df = align_trades(
         platform_trades, tradingview_trades, golden_metadata.get("date_range")
@@ -1588,23 +1524,15 @@ def test_ema_crossover_20pip_stop_metadata_schema_validation(golden_metadata):
 
 
 def test_ema_crossover_20pip_stop_entry_prices_match_tradingview(
-    golden_strategy_config,
     tradingview_trades,
-    tradingview_ohlcv,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_20pip_stop,
 ):
     """Validates 20-pip stop entry prices match within tolerance.
 
     # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
     """
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/20pip_stop",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        data_handler=shared_data_handler,
-        date_range=golden_metadata.get("date_range"),
-    )
+    platform_trades = platform_trades_20pip_stop
 
     platform_df, tv_df = align_trades(
         platform_trades, tradingview_trades, golden_metadata.get("date_range")
@@ -1648,11 +1576,9 @@ def test_ema_crossover_20pip_stop_entry_prices_match_tradingview(
 
 
 def test_ema_crossover_20pip_stop_exit_prices_match_tradingview(
-    golden_strategy_config,
     tradingview_trades,
-    tradingview_ohlcv,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_20pip_stop,
 ):
     """Validates 20-pip stop exit prices match within tolerance.
 
@@ -1661,13 +1587,7 @@ def test_ema_crossover_20pip_stop_exit_prices_match_tradingview(
 
     # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
     """
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/20pip_stop",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        data_handler=shared_data_handler,
-        date_range=golden_metadata.get("date_range"),
-    )
+    platform_trades = platform_trades_20pip_stop
 
     platform_df, tv_df = align_trades(
         platform_trades, tradingview_trades, golden_metadata.get("date_range")
@@ -1741,23 +1661,15 @@ def test_ema_crossover_20pip_stop_exit_prices_match_tradingview(
 
 
 def test_ema_crossover_20pip_stop_40pip_tp_trade_count_matches_tradingview(
-    golden_strategy_config,
     tradingview_trades,
-    tradingview_ohlcv,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_20pip_stop_40pip_tp,
 ):
     """Validates 20-pip stop + 40-pip TP variation produces same number of trades.
 
     # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
     """
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/20pip_stop_40pip_tp",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        data_handler=shared_data_handler,
-        date_range=golden_metadata.get("date_range"),
-    )
+    platform_trades = platform_trades_20pip_stop_40pip_tp
 
     # Verify platform trades hash matches golden reference
     verify_golden_trades_hash("ema_crossover/20pip_stop_40pip_tp", platform_trades)
@@ -1787,23 +1699,15 @@ def test_ema_crossover_20pip_stop_40pip_tp_trade_count_matches_tradingview(
 
 
 def test_ema_crossover_20pip_stop_40pip_tp_entry_times_match_tradingview(
-    golden_strategy_config,
     tradingview_trades,
-    tradingview_ohlcv,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_20pip_stop_40pip_tp,
 ):
     """Validates 20-pip stop + 40-pip TP entry times match within tolerance.
 
     # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
     """
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/20pip_stop_40pip_tp",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        data_handler=shared_data_handler,
-        date_range=golden_metadata.get("date_range"),
-    )
+    platform_trades = platform_trades_20pip_stop_40pip_tp
 
     platform_df, tv_df = align_trades(
         platform_trades, tradingview_trades, golden_metadata.get("date_range")
@@ -1846,11 +1750,9 @@ def test_ema_crossover_20pip_stop_40pip_tp_entry_times_match_tradingview(
 
 
 def test_ema_crossover_20pip_stop_40pip_tp_exit_times_match_tradingview(
-    golden_strategy_config,
     tradingview_trades,
-    tradingview_ohlcv,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_20pip_stop_40pip_tp,
 ):
     """Validates 20-pip stop + 40-pip TP exit times match within tolerance.
 
@@ -1859,13 +1761,7 @@ def test_ema_crossover_20pip_stop_40pip_tp_exit_times_match_tradingview(
 
     # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
     """
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/20pip_stop_40pip_tp",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        data_handler=shared_data_handler,
-        date_range=golden_metadata.get("date_range"),
-    )
+    platform_trades = platform_trades_20pip_stop_40pip_tp
 
     platform_df, tv_df = align_trades(
         platform_trades, tradingview_trades, golden_metadata.get("date_range")
@@ -1964,23 +1860,15 @@ def test_ema_crossover_20pip_stop_40pip_tp_metadata_schema_validation(
 
 
 def test_ema_crossover_20pip_stop_40pip_tp_entry_prices_match_tradingview(
-    golden_strategy_config,
     tradingview_trades,
-    tradingview_ohlcv,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_20pip_stop_40pip_tp,
 ):
     """Validates 20-pip stop + 40-pip TP entry prices match within tolerance.
 
     # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
     """
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/20pip_stop_40pip_tp",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        data_handler=shared_data_handler,
-        date_range=golden_metadata.get("date_range"),
-    )
+    platform_trades = platform_trades_20pip_stop_40pip_tp
 
     platform_df, tv_df = align_trades(
         platform_trades, tradingview_trades, golden_metadata.get("date_range")
@@ -2024,11 +1912,9 @@ def test_ema_crossover_20pip_stop_40pip_tp_entry_prices_match_tradingview(
 
 
 def test_ema_crossover_20pip_stop_40pip_tp_exit_prices_match_tradingview(
-    golden_strategy_config,
     tradingview_trades,
-    tradingview_ohlcv,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_20pip_stop_40pip_tp,
 ):
     """Validates 20-pip stop + 40-pip TP exit prices match within tolerance.
 
@@ -2037,13 +1923,7 @@ def test_ema_crossover_20pip_stop_40pip_tp_exit_prices_match_tradingview(
 
     # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
     """
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/20pip_stop_40pip_tp",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        data_handler=shared_data_handler,
-        date_range=golden_metadata.get("date_range"),
-    )
+    platform_trades = platform_trades_20pip_stop_40pip_tp
 
     platform_df, tv_df = align_trades(
         platform_trades, tradingview_trades, golden_metadata.get("date_range")
@@ -2167,11 +2047,9 @@ def test_ema_crossover_20pip_trailing_stop_metadata_schema_validation(
 
 
 def test_ema_crossover_20pip_trailing_stop_trade_count_matches_tradingview(
-    golden_strategy_config,
     tradingview_trades,
-    tradingview_ohlcv,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_20pip_trailing_stop,
 ):
     """Validates platform generates same number of trades as TradingView.
 
@@ -2180,13 +2058,7 @@ def test_ema_crossover_20pip_trailing_stop_trade_count_matches_tradingview(
     date_range = golden_metadata.get("date_range")
 
     # Load platform trades
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/20pip_trailing_stop",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        date_range=date_range,
-        data_handler=shared_data_handler,
-    )
+    platform_trades = platform_trades_20pip_trailing_stop
 
     # Verify platform trades hash matches golden reference
     verify_golden_trades_hash("ema_crossover/20pip_trailing_stop", platform_trades)
@@ -2202,11 +2074,9 @@ def test_ema_crossover_20pip_trailing_stop_trade_count_matches_tradingview(
 
 
 def test_ema_crossover_20pip_trailing_stop_entry_times_match_tradingview(
-    golden_strategy_config,
     tradingview_trades,
-    tradingview_ohlcv,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_20pip_trailing_stop,
 ):
     """Validates all entry times match between platform and TradingView.
 
@@ -2215,13 +2085,7 @@ def test_ema_crossover_20pip_trailing_stop_entry_times_match_tradingview(
     date_range = golden_metadata.get("date_range")
 
     # Load platform trades
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/20pip_trailing_stop",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        date_range=date_range,
-        data_handler=shared_data_handler,
-    )
+    platform_trades = platform_trades_20pip_trailing_stop
 
     # Align trades
     platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
@@ -2258,11 +2122,9 @@ def test_ema_crossover_20pip_trailing_stop_entry_times_match_tradingview(
 
 
 def test_ema_crossover_20pip_trailing_stop_entry_prices_match_tradingview(
-    golden_strategy_config,
     tradingview_trades,
-    tradingview_ohlcv,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_20pip_trailing_stop,
 ):
     """Validates all entry prices match between platform and TradingView.
 
@@ -2272,13 +2134,7 @@ def test_ema_crossover_20pip_trailing_stop_entry_prices_match_tradingview(
     price_tolerance = 0.00001
 
     # Load platform trades
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/20pip_trailing_stop",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        date_range=date_range,
-        data_handler=shared_data_handler,
-    )
+    platform_trades = platform_trades_20pip_trailing_stop
 
     # Align trades
     platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
@@ -2320,12 +2176,11 @@ def test_ema_crossover_20pip_trailing_stop_entry_prices_match_tradingview(
 
 
 def test_ema_crossover_20pip_trailing_stop_exit_times_match_tradingview(
-    golden_strategy_config,
     tradingview_trades,
     tradingview_ohlcv,
     tradingview_ohlcv_1min,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_20pip_trailing_stop,
 ):
     """Validates all exit times match between platform and TradingView.
 
@@ -2344,13 +2199,7 @@ def test_ema_crossover_20pip_trailing_stop_exit_times_match_tradingview(
     date_range = golden_metadata.get("date_range")
 
     # Load platform trades
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/20pip_trailing_stop",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        date_range=date_range,
-        data_handler=shared_data_handler,
-    )
+    platform_trades = platform_trades_20pip_trailing_stop
 
     # Align trades
     platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
@@ -2477,12 +2326,11 @@ def test_ema_crossover_20pip_trailing_stop_exit_times_match_tradingview(
 
 
 def test_ema_crossover_20pip_trailing_stop_exit_prices_match_tradingview(
-    golden_strategy_config,
     tradingview_trades,
     tradingview_ohlcv,
     tradingview_ohlcv_1min,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_20pip_trailing_stop,
 ):
     """Validates all exit prices match between platform and TradingView.
 
@@ -2513,13 +2361,7 @@ def test_ema_crossover_20pip_trailing_stop_exit_prices_match_tradingview(
     date_range = golden_metadata.get("date_range")
 
     # Load platform trades
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/20pip_trailing_stop",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        date_range=date_range,
-        data_handler=shared_data_handler,
-    )
+    platform_trades = platform_trades_20pip_trailing_stop
 
     # Align trades
     platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
@@ -2599,11 +2441,9 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_metadata_schema_validation(
 
 
 def test_ema_crossover_20pip_trailing_stop_15pip_tp_trade_count_matches_tradingview(
-    golden_strategy_config,
     tradingview_trades,
-    tradingview_ohlcv,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_20pip_trailing_stop_15pip_tp,
 ):
     """Validates platform generates same number of trades as TradingView.
 
@@ -2612,13 +2452,7 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_trade_count_matches_tradingv
     date_range = golden_metadata.get("date_range")
 
     # Load platform trades
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/20pip_trailing_stop_15pip_tp",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        date_range=date_range,
-        data_handler=shared_data_handler,
-    )
+    platform_trades = platform_trades_20pip_trailing_stop_15pip_tp
 
     # Verify platform trades hash matches golden reference
     verify_golden_trades_hash(
@@ -2636,11 +2470,9 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_trade_count_matches_tradingv
 
 
 def test_ema_crossover_20pip_trailing_stop_15pip_tp_entry_times_match_tradingview(
-    golden_strategy_config,
     tradingview_trades,
-    tradingview_ohlcv,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_20pip_trailing_stop_15pip_tp,
 ):
     """Validates all entry times match between platform and TradingView.
 
@@ -2649,13 +2481,7 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_entry_times_match_tradingvie
     date_range = golden_metadata.get("date_range")
 
     # Load platform trades
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/20pip_trailing_stop_15pip_tp",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        date_range=date_range,
-        data_handler=shared_data_handler,
-    )
+    platform_trades = platform_trades_20pip_trailing_stop_15pip_tp
 
     # Align trades
     platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
@@ -2692,11 +2518,9 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_entry_times_match_tradingvie
 
 
 def test_ema_crossover_20pip_trailing_stop_15pip_tp_entry_prices_match_tradingview(
-    golden_strategy_config,
     tradingview_trades,
-    tradingview_ohlcv,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_20pip_trailing_stop_15pip_tp,
 ):
     """Validates all entry prices match between platform and TradingView.
 
@@ -2706,13 +2530,7 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_entry_prices_match_tradingvi
     price_tolerance = 0.00001
 
     # Load platform trades
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/20pip_trailing_stop_15pip_tp",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        date_range=date_range,
-        data_handler=shared_data_handler,
-    )
+    platform_trades = platform_trades_20pip_trailing_stop_15pip_tp
 
     # Align trades
     platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
@@ -2754,12 +2572,11 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_entry_prices_match_tradingvi
 
 
 def test_ema_crossover_20pip_trailing_stop_15pip_tp_exit_times_match_tradingview(
-    golden_strategy_config,
     tradingview_trades,
     tradingview_ohlcv,
     tradingview_ohlcv_1min,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_20pip_trailing_stop_15pip_tp,
 ):
     """Validates all exit times match between platform and TradingView.
 
@@ -2778,13 +2595,7 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_exit_times_match_tradingview
     date_range = golden_metadata.get("date_range")
 
     # Load platform trades
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/20pip_trailing_stop_15pip_tp",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        date_range=date_range,
-        data_handler=shared_data_handler,
-    )
+    platform_trades = platform_trades_20pip_trailing_stop_15pip_tp
 
     # Align trades
     platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
@@ -2913,12 +2724,11 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_exit_times_match_tradingview
 
 
 def test_ema_crossover_20pip_trailing_stop_15pip_tp_exit_prices_match_tradingview(
-    golden_strategy_config,
     tradingview_trades,
     tradingview_ohlcv,
     tradingview_ohlcv_1min,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_20pip_trailing_stop_15pip_tp,
 ):
     """Validates all exit prices match between platform and TradingView.
 
@@ -2949,13 +2759,7 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_exit_prices_match_tradingvie
     date_range = golden_metadata.get("date_range")
 
     # Load platform trades
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/20pip_trailing_stop_15pip_tp",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        date_range=date_range,
-        data_handler=shared_data_handler,
-    )
+    platform_trades = platform_trades_20pip_trailing_stop_15pip_tp
 
     # Align trades
     platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
