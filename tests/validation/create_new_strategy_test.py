@@ -432,8 +432,20 @@ def print_next_steps(strategy_name: str, config_dir: Path, data_dir: Path) -> No
 
     print("4. Update metadata.json:")
     print(f"   - Edit: {data_dir / 'metadata.json'}")
-    print("   - Update export_date, total_trades, validation_range_total_trades")
-    print("   - Add notes about warmup period and validation details\n")
+    print("   - Update export_date to actual export date (YYYY-MM-DD)")
+    print("   - Update total_trades (count Entry lines in trades.csv)")
+    print("     Command: grep -c '^[0-9]*,Entry' trades.csv")
+    print("     Expected: 261 for EMA crossover strategies")
+    print(
+        "   - Update validation_range_total_trades (entries 2023-01-01 to 2024-12-31)"
+    )
+    print(
+        "     Command: awk -F',' 'NR>1 && $2 ~ /Entry/ && "
+        '$3 >= "2023-01-01" && $3 <= "2024-12-31"\' trades.csv | wc -l'
+    )
+    print("     Expected: 249 (baseline has 248 due to force-closed end trade)")
+    print("   - Update closed_trades (same as total_trades - all should be closed)")
+    print("   - Add notes about warmup period and strategy behavior\n")
 
     print("5. Generate platform golden trades:")
     print("   poetry run python tests/validation/generate_golden_trades.py\n")
