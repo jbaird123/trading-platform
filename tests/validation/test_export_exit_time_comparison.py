@@ -74,6 +74,7 @@ def test_export_exit_time_comparison(
     # Use analyzer to categorize discrepancies (provides MFE-based categorization)
     analyzer = TrailingStopDiscrepancyAnalyzer(
         trailing_stop_pips=0.0020,  # 20 pips
+        take_profit_pips=0.0015,  # 15 pips
         tolerance=0.00001,
     )
 
@@ -84,14 +85,22 @@ def test_export_exit_time_comparison(
         ohlcv_1min=tradingview_ohlcv_1min,
     )
 
-    # Build lookup for categories and explanations by trade number
+    # Build lookup for categories, explanations, and MFE data by trade number
     category_lookup = {}
     explanation_lookup = {}
+    mfe_data_lookup = {}
     for category_name, trades in categories.items():
         for trade in trades:
             trade_num = trade["trade_num"]
             category_lookup[trade_num] = category_name
             explanation_lookup[trade_num] = trade.get("explanation", "")
+            # Extract MFE data if available
+            mfe_data_lookup[trade_num] = {
+                "entry_bar_mfe_pips": trade.get("entry_bar_mfe_pips", None),
+                "overall_mfe_excl_entry_pips": trade.get(
+                    "overall_mfe_excl_entry_pips", None
+                ),
+            }
 
     # Build comparison rows
     comparison_rows = []
@@ -103,6 +112,47 @@ def test_export_exit_time_comparison(
         # Extract times
         platform_exit_time = p_row["exit_time"]
         tv_exit_time = tv_row["exit_time"]
+
+        # Extract prices for price difference calculation
+        platform_exit_price = p_row["exit_price"]
+        tv_exit_price = tv_row["exit_price"]
+        entry_price = p_row["entry_price"]
+
+        # Get direction
+        p_direction = p_row.get("direction", p_row.get("side", "")).upper()
+
+        # Calculate exit price difference in pips
+        exit_price_diff_pips = abs(platform_exit_price - tv_exit_price) * 10000
+
+        # Calculate PnL in pips for both platforms
+        if "pnl_pips" in p_row:
+            platform_pnl_pips = p_row["pnl_pips"]
+        else:
+            price_diff = platform_exit_price - entry_price
+            if p_direction == "SHORT":
+                price_diff = -price_diff
+            platform_pnl_pips = price_diff * 10000
+
+        if "pnl_pips" in tv_row:
+            tv_pnl_pips = tv_row["pnl_pips"]
+        else:
+            price_diff = tv_exit_price - entry_price
+            if tv_row["side"] == "short":
+                price_diff = -price_diff
+            tv_pnl_pips = price_diff * 10000
+
+        pnl_diff_pips = platform_pnl_pips - tv_pnl_pips
+
+        # Get MFE data for this trade
+        mfe_data = mfe_data_lookup.get(trade_num, {})
+        entry_bar_mfe = mfe_data.get("entry_bar_mfe_pips")
+        subsequent_bars_mfe = mfe_data.get("overall_mfe_excl_entry_pips")
+
+        # Calculate MFE difference if both values available
+        if entry_bar_mfe is not None and subsequent_bars_mfe is not None:
+            mfe_diff = entry_bar_mfe - subsequent_bars_mfe
+        else:
+            mfe_diff = None
 
         # Check if times match
         exit_time_match = platform_exit_time == tv_exit_time
@@ -134,6 +184,8 @@ def test_export_exit_time_comparison(
                     "SAME_BAR_EXIT",
                     "TV_IGNORED_ENTRY_BAR_PEAK_MFE_STRICT",
                     "TV_IGNORED_ENTRY_BAR_PEAK_MFE_VERIFIED",
+                    "PLATFORM_ZOOM_INTRABAR_STOP",
+                    "PLATFORM_ZOOM_INTRABAR_TP",
                 ]
 
                 analyzer_category = category_lookup.get(trade_num, "")
@@ -150,11 +202,19 @@ def test_export_exit_time_comparison(
         comparison_rows.append(
             {
                 "trade_num": trade_num,
-                "direction": p_row["side"].upper(),
+                "direction": p_direction,
                 "entry_time": str(p_row["entry_time"]),
+                "entry_price": entry_price,
                 "platform_exit_time": str(platform_exit_time),
+                "platform_exit_price": platform_exit_price,
                 "tv_exit_time": str(tv_exit_time),
+                "tv_exit_price": tv_exit_price,
                 "exit_time_match": exit_time_match,
+                "exit_price_diff_pips": exit_price_diff_pips,
+                "pnl_diff_pips": pnl_diff_pips,
+                "entry_bar_mfe_pips": entry_bar_mfe,
+                "subsequent_bars_mfe_pips": subsequent_bars_mfe,
+                "mfe_diff_pips": mfe_diff,
                 "time_mismatch_category": time_mismatch_category,
                 "time_mismatch_explanation": time_mismatch_explanation,
             }
@@ -273,6 +333,7 @@ def test_export_exit_time_comparison_20pip_15pip(
     # Use analyzer to categorize discrepancies (provides MFE-based categorization)
     analyzer = TrailingStopDiscrepancyAnalyzer(
         trailing_stop_pips=0.0020,  # 20 pips
+        take_profit_pips=0.0015,  # 15 pips
         tolerance=0.00001,
     )
 
@@ -283,14 +344,22 @@ def test_export_exit_time_comparison_20pip_15pip(
         ohlcv_1min=tradingview_ohlcv_1min,
     )
 
-    # Build lookup for categories and explanations by trade number
+    # Build lookup for categories, explanations, and MFE data by trade number
     category_lookup = {}
     explanation_lookup = {}
+    mfe_data_lookup = {}
     for category_name, trades in categories.items():
         for trade in trades:
             trade_num = trade["trade_num"]
             category_lookup[trade_num] = category_name
             explanation_lookup[trade_num] = trade.get("explanation", "")
+            # Extract MFE data if available
+            mfe_data_lookup[trade_num] = {
+                "entry_bar_mfe_pips": trade.get("entry_bar_mfe_pips", None),
+                "overall_mfe_excl_entry_pips": trade.get(
+                    "overall_mfe_excl_entry_pips", None
+                ),
+            }
 
     # Build comparison rows
     comparison_rows = []
@@ -302,6 +371,47 @@ def test_export_exit_time_comparison_20pip_15pip(
         # Extract times
         platform_exit_time = p_row["exit_time"]
         tv_exit_time = tv_row["exit_time"]
+
+        # Extract prices for price difference calculation
+        platform_exit_price = p_row["exit_price"]
+        tv_exit_price = tv_row["exit_price"]
+        entry_price = p_row["entry_price"]
+
+        # Get direction
+        p_direction = p_row.get("direction", p_row.get("side", "")).upper()
+
+        # Calculate exit price difference in pips
+        exit_price_diff_pips = abs(platform_exit_price - tv_exit_price) * 10000
+
+        # Calculate PnL in pips for both platforms
+        if "pnl_pips" in p_row:
+            platform_pnl_pips = p_row["pnl_pips"]
+        else:
+            price_diff = platform_exit_price - entry_price
+            if p_direction == "SHORT":
+                price_diff = -price_diff
+            platform_pnl_pips = price_diff * 10000
+
+        if "pnl_pips" in tv_row:
+            tv_pnl_pips = tv_row["pnl_pips"]
+        else:
+            price_diff = tv_exit_price - entry_price
+            if tv_row["side"] == "short":
+                price_diff = -price_diff
+            tv_pnl_pips = price_diff * 10000
+
+        pnl_diff_pips = platform_pnl_pips - tv_pnl_pips
+
+        # Get MFE data for this trade
+        mfe_data = mfe_data_lookup.get(trade_num, {})
+        entry_bar_mfe = mfe_data.get("entry_bar_mfe_pips")
+        subsequent_bars_mfe = mfe_data.get("overall_mfe_excl_entry_pips")
+
+        # Calculate MFE difference if both values available
+        if entry_bar_mfe is not None and subsequent_bars_mfe is not None:
+            mfe_diff = entry_bar_mfe - subsequent_bars_mfe
+        else:
+            mfe_diff = None
 
         # Check if times match
         exit_time_match = platform_exit_time == tv_exit_time
@@ -333,6 +443,8 @@ def test_export_exit_time_comparison_20pip_15pip(
                     "SAME_BAR_EXIT",
                     "TV_IGNORED_ENTRY_BAR_PEAK_MFE_STRICT",
                     "TV_IGNORED_ENTRY_BAR_PEAK_MFE_VERIFIED",
+                    "PLATFORM_ZOOM_INTRABAR_STOP",
+                    "PLATFORM_ZOOM_INTRABAR_TP",
                 ]
 
                 analyzer_category = category_lookup.get(trade_num, "")
@@ -349,11 +461,19 @@ def test_export_exit_time_comparison_20pip_15pip(
         comparison_rows.append(
             {
                 "trade_num": trade_num,
-                "direction": p_row["side"].upper(),
+                "direction": p_direction,
                 "entry_time": str(p_row["entry_time"]),
+                "entry_price": entry_price,
                 "platform_exit_time": str(platform_exit_time),
+                "platform_exit_price": platform_exit_price,
                 "tv_exit_time": str(tv_exit_time),
+                "tv_exit_price": tv_exit_price,
                 "exit_time_match": exit_time_match,
+                "exit_price_diff_pips": exit_price_diff_pips,
+                "pnl_diff_pips": pnl_diff_pips,
+                "entry_bar_mfe_pips": entry_bar_mfe,
+                "subsequent_bars_mfe_pips": subsequent_bars_mfe,
+                "mfe_diff_pips": mfe_diff,
                 "time_mismatch_category": time_mismatch_category,
                 "time_mismatch_explanation": time_mismatch_explanation,
             }

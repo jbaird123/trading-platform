@@ -2432,6 +2432,8 @@ def test_ema_crossover_20pip_trailing_stop_exit_times_match_tradingview(
                     "SAME_BAR_EXIT",
                     "TV_IGNORED_ENTRY_BAR_PEAK_MFE_STRICT",
                     "TV_IGNORED_ENTRY_BAR_PEAK_MFE_VERIFIED",
+                    "PLATFORM_ZOOM_INTRABAR_STOP",
+                    "PLATFORM_ZOOM_INTRABAR_TP",
                 ]
                 is_analyzer_explained = False
                 for category in exit_time_categories:
@@ -2855,6 +2857,8 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_exit_times_match_tradingview
                     "SAME_BAR_EXIT",
                     "TV_IGNORED_ENTRY_BAR_PEAK_MFE_STRICT",
                     "TV_IGNORED_ENTRY_BAR_PEAK_MFE_VERIFIED",
+                    "PLATFORM_ZOOM_INTRABAR_STOP",
+                    "PLATFORM_ZOOM_INTRABAR_TP",
                 ]
                 is_analyzer_explained = False
                 for category in exit_time_categories:
