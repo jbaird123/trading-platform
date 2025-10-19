@@ -1,0 +1,8 @@
+strategy:
+  name: "ema_crossover"
+
+  params:
+    fast_length: 20
+    slow_length: 50
+    atr_length: 14
+    atr_multiplier: 2.0

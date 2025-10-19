@@ -1,0 +1,4 @@
+rem:
+  stop_loss:
+    atr_multiple: 2.0
+    atr_length: 14
