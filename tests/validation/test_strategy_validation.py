@@ -558,6 +558,7 @@ def load_platform_trades(
     run_config: dict[str, Any],
     ohlcv_data: pd.DataFrame,
     date_range: dict[str, str] | None = None,
+    data_handler: Any | None = None,
 ) -> list[dict]:
     """Runs backtest and returns platform trades filtered to validation range.
 
@@ -576,6 +577,9 @@ def load_platform_trades(
         ohlcv_data: OHLCV data (already filtered to extended range)
         date_range: Validation range dict with 'start' and 'end' keys
                     Used to filter trades to validation period
+        data_handler: Optional shared DataHandler instance with 1-minute data.
+                     If provided, reused instead of creating new,
+                     improving performance.
 
     Returns:
         List of trade dictionaries filtered to validation range
@@ -637,9 +641,6 @@ def load_platform_trades(
     # Create RunConfig
     config = RunConfig.model_validate(config_dict)
 
-    # Create DataHandler for 1-minute resolution
-    # (if needed for trailing stops or fixed stops)
-    # This enables intra-bar ambiguity resolution AND provides resampled data
     # Check if we need 1-minute data:
     # 1. Trailing stop strategies always need it
     # 2. Fixed stop strategies with BOTH stop and TP need it (for ambiguity resolution)
@@ -651,67 +652,66 @@ def load_platform_trades(
         if stop_loss is not None and take_profit is not None:
             needs_1min_data = True
 
-    data_handler = None
+    # Use shared data_handler if provided, otherwise create a new one
     if needs_1min_data:
-        from pathlib import Path
+        if data_handler is None:
+            # No shared data_handler provided - create a new one
+            # (This path is used by generate_golden_trades.py)
+            from pathlib import Path
 
-        from trading_platform.data.handler import DataHandler
+            from trading_platform.data.handler import DataHandler
 
-        # Use golden TradingView data directory for 1-minute resolution
-        # Matches same TradingView data source as hourly golden data
-        data_root = (
-            Path(__file__).parent.parent.parent
-            / "data"
-            / "dvc"
-            / "golden"
-            / "ohlcv"
-            / "tradingview"
-        )
+            data_root = (
+                Path(__file__).parent.parent.parent
+                / "data"
+                / "dvc"
+                / "golden"
+                / "ohlcv"
+                / "tradingview"
+            )
 
-        # Create DataHandler with EUR/USD symbol
-        # This will load the 1-minute base data and cache it
-        if data_root.exists():
-            try:
-                data_handler = DataHandler(
-                    symbol="EUR_USD",
-                    data_root=data_root,
-                    instrument=config.instrument,  # type: ignore[arg-type]
-                )
-
-                # IMPORTANT: Use resampled 1H data from DataHandler instead of CSV
-                # This mirrors real-world usage where we load 1min raw data and resample
-                ohlcv_1h = data_handler.get_data(timeframe="1H")
-
-                # Apply same date filtering as before
-                if date_range:
-                    from datetime import timedelta
-
-                    end_date = pd.to_datetime(date_range["end"], utc=True) + timedelta(
-                        days=1, seconds=-1
+            if data_root.exists():
+                try:
+                    data_handler = DataHandler(
+                        symbol="EUR_USD",
+                        data_root=data_root,
+                        instrument=config.instrument,  # type: ignore[arg-type]
                     )
-                    warmup_start = pd.Timestamp("2022-12-01", tz="UTC")
-                    ohlcv_to_use = ohlcv_1h[
-                        (ohlcv_1h.index >= warmup_start) & (ohlcv_1h.index <= end_date)
-                    ].copy()
-                else:
-                    ohlcv_to_use = ohlcv_1h
+                except FileNotFoundError as e:
+                    raise FileNotFoundError(
+                        f"1-minute data is required for strategy validation "
+                        f"(trailing stops or fixed stops with ambiguity "
+                        f"resolution).\n"
+                        f"Expected data at: {data_root}/full/eur_usd/"
+                        f"eurusd_1min.csv\nOriginal error: {e}"
+                    ) from e
+                except Exception as e:
+                    raise RuntimeError(
+                        f"Failed to create DataHandler for validation.\n"
+                        f"Data root: {data_root}\n"
+                        f"Error: {e}"
+                    ) from e
 
-            except FileNotFoundError as e:
-                # For strategies requiring 1-minute data, fail loudly
-                # instead of silently falling back to CSV-only mode
-                raise FileNotFoundError(
-                    f"1-minute data is required for strategy validation "
-                    f"(trailing stops or fixed stops with ambiguity resolution).\n"
-                    f"Expected data at: {data_root}/full/eur_usd/"
-                    f"eurusd_1min.csv\nOriginal error: {e}"
-                ) from e
-            except Exception as e:
-                # Re-raise other exceptions with context
-                raise RuntimeError(
-                    f"Failed to create DataHandler for trailing stop validation.\n"
-                    f"Data root: {data_root}\n"
-                    f"Error: {e}"
-                ) from e
+        # Use resampled 1H data from DataHandler instead of CSV
+        # This mirrors real-world usage where we load 1min raw data and resample
+        ohlcv_1h = data_handler.get_data(timeframe="1H")  # type: ignore
+
+        # Apply same date filtering as before
+        if date_range:
+            from datetime import timedelta
+
+            end_date = pd.to_datetime(date_range["end"], utc=True) + timedelta(
+                days=1, seconds=-1
+            )
+            warmup_start = pd.Timestamp("2022-12-01", tz="UTC")
+            ohlcv_to_use = ohlcv_1h[
+                (ohlcv_1h.index >= warmup_start) & (ohlcv_1h.index <= end_date)
+            ].copy()
+        else:
+            ohlcv_to_use = ohlcv_1h
+    else:
+        # Strategy doesn't need 1-minute data
+        data_handler = None
 
     # Run backtest on extended data
     results = run_backtest_from_config(
@@ -1113,6 +1113,7 @@ def test_ema_crossover_trade_count_matches_tradingview(
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates that EMA crossover produces same number of trades.
 
@@ -1164,6 +1165,7 @@ def test_ema_crossover_entry_times_match_tradingview(
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates that entry times match within tolerance.
 
@@ -1225,6 +1227,7 @@ def test_ema_crossover_exit_times_match_tradingview(
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates that exit times match within tolerance.
 
@@ -1286,6 +1289,7 @@ def test_ema_crossover_entry_prices_match_tradingview(
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates baseline entry prices match within tolerance.
 
@@ -1344,6 +1348,7 @@ def test_ema_crossover_exit_prices_match_tradingview(
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates baseline exit prices match within tolerance.
 
@@ -1439,6 +1444,7 @@ def test_ema_crossover_20pip_stop_trade_count_matches_tradingview(
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates 20-pip stop variation produces same number of trades.
 
@@ -1483,6 +1489,7 @@ def test_ema_crossover_20pip_stop_entry_times_match_tradingview(
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates 20-pip stop entry times match within tolerance.
 
@@ -1540,6 +1547,7 @@ def test_ema_crossover_20pip_stop_exit_times_match_tradingview(
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates 20-pip stop exit times match within tolerance.
 
@@ -1654,6 +1662,7 @@ def test_ema_crossover_20pip_stop_entry_prices_match_tradingview(
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates 20-pip stop entry prices match within tolerance.
 
@@ -1712,6 +1721,7 @@ def test_ema_crossover_20pip_stop_exit_prices_match_tradingview(
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates 20-pip stop exit prices match within tolerance.
 
@@ -1803,6 +1813,7 @@ def test_ema_crossover_20pip_stop_40pip_tp_trade_count_matches_tradingview(
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates 20-pip stop + 40-pip TP variation produces same number of trades.
 
@@ -1847,6 +1858,7 @@ def test_ema_crossover_20pip_stop_40pip_tp_entry_times_match_tradingview(
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates 20-pip stop + 40-pip TP entry times match within tolerance.
 
@@ -1904,6 +1916,7 @@ def test_ema_crossover_20pip_stop_40pip_tp_exit_times_match_tradingview(
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates 20-pip stop + 40-pip TP exit times match within tolerance.
 
@@ -1984,6 +1997,7 @@ def test_ema_crossover_20pip_stop_40pip_tp_exit_times_match_tradingview(
 
 def test_ema_crossover_20pip_stop_40pip_tp_metadata_schema_validation(
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates 20-pip stop + 40-pip TP metadata conforms to schema.
 
@@ -2019,6 +2033,7 @@ def test_ema_crossover_20pip_stop_40pip_tp_entry_prices_match_tradingview(
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates 20-pip stop + 40-pip TP entry prices match within tolerance.
 
@@ -2077,6 +2092,7 @@ def test_ema_crossover_20pip_stop_40pip_tp_exit_prices_match_tradingview(
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates 20-pip stop + 40-pip TP exit prices match within tolerance.
 
@@ -2201,6 +2217,7 @@ def test_ema_crossover_20pip_stop_40pip_tp_exit_prices_match_tradingview(
 
 def test_ema_crossover_20pip_trailing_stop_metadata_schema_validation(
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates metadata.json conforms to schema.
 
@@ -2217,6 +2234,7 @@ def test_ema_crossover_20pip_trailing_stop_trade_count_matches_tradingview(
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates platform generates same number of trades as TradingView.
 
@@ -2230,6 +2248,7 @@ def test_ema_crossover_20pip_trailing_stop_trade_count_matches_tradingview(
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
         date_range=date_range,
+        data_handler=shared_data_handler,
     )
 
     # Verify platform trades hash matches golden reference
@@ -2250,6 +2269,7 @@ def test_ema_crossover_20pip_trailing_stop_entry_times_match_tradingview(
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates all entry times match between platform and TradingView.
 
@@ -2263,6 +2283,7 @@ def test_ema_crossover_20pip_trailing_stop_entry_times_match_tradingview(
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
         date_range=date_range,
+        data_handler=shared_data_handler,
     )
 
     # Align trades
@@ -2304,6 +2325,7 @@ def test_ema_crossover_20pip_trailing_stop_entry_prices_match_tradingview(
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates all entry prices match between platform and TradingView.
 
@@ -2318,6 +2340,7 @@ def test_ema_crossover_20pip_trailing_stop_entry_prices_match_tradingview(
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
         date_range=date_range,
+        data_handler=shared_data_handler,
     )
 
     # Align trades
@@ -2365,6 +2388,7 @@ def test_ema_crossover_20pip_trailing_stop_exit_times_match_tradingview(
     tradingview_ohlcv,
     tradingview_ohlcv_1min,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates all exit times match between platform and TradingView.
 
@@ -2388,6 +2412,7 @@ def test_ema_crossover_20pip_trailing_stop_exit_times_match_tradingview(
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
         date_range=date_range,
+        data_handler=shared_data_handler,
     )
 
     # Align trades
@@ -2520,6 +2545,7 @@ def test_ema_crossover_20pip_trailing_stop_exit_prices_match_tradingview(
     tradingview_ohlcv,
     tradingview_ohlcv_1min,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates all exit prices match between platform and TradingView.
 
@@ -2555,6 +2581,7 @@ def test_ema_crossover_20pip_trailing_stop_exit_prices_match_tradingview(
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
         date_range=date_range,
+        data_handler=shared_data_handler,
     )
 
     # Align trades
@@ -2619,6 +2646,7 @@ def test_ema_crossover_20pip_trailing_stop_exit_prices_match_tradingview(
 
 def test_ema_crossover_20pip_trailing_stop_15pip_tp_metadata_schema_validation(
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates metadata.json conforms to schema.
 
@@ -2638,6 +2666,7 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_trade_count_matches_tradingv
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates platform generates same number of trades as TradingView.
 
@@ -2651,6 +2680,7 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_trade_count_matches_tradingv
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
         date_range=date_range,
+        data_handler=shared_data_handler,
     )
 
     # Verify platform trades hash matches golden reference
@@ -2673,6 +2703,7 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_entry_times_match_tradingvie
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates all entry times match between platform and TradingView.
 
@@ -2686,6 +2717,7 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_entry_times_match_tradingvie
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
         date_range=date_range,
+        data_handler=shared_data_handler,
     )
 
     # Align trades
@@ -2727,6 +2759,7 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_entry_prices_match_tradingvi
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates all entry prices match between platform and TradingView.
 
@@ -2741,6 +2774,7 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_entry_prices_match_tradingvi
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
         date_range=date_range,
+        data_handler=shared_data_handler,
     )
 
     # Align trades
@@ -2788,6 +2822,7 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_exit_times_match_tradingview
     tradingview_ohlcv,
     tradingview_ohlcv_1min,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates all exit times match between platform and TradingView.
 
@@ -2811,6 +2846,7 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_exit_times_match_tradingview
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
         date_range=date_range,
+        data_handler=shared_data_handler,
     )
 
     # Align trades
@@ -2945,6 +2981,7 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_exit_prices_match_tradingvie
     tradingview_ohlcv,
     tradingview_ohlcv_1min,
     golden_metadata,
+    shared_data_handler,
 ):
     """Validates all exit prices match between platform and TradingView.
 
@@ -2980,6 +3017,7 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_exit_prices_match_tradingvie
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
         date_range=date_range,
+        data_handler=shared_data_handler,
     )
 
     # Align trades

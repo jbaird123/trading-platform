@@ -22,6 +22,7 @@ def test_export_all_trades_comparison(
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
+    shared_data_handler,
 ):
     """Export all trades with full comparison details to CSV."""
     date_range = golden_metadata.get("date_range")
@@ -32,6 +33,7 @@ def test_export_all_trades_comparison(
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
         date_range=date_range,
+        data_handler=shared_data_handler,
     )
 
     # Load TradingView trades using the correct golden_utils function
@@ -302,6 +304,7 @@ def test_export_all_trades_comparison_20pip_15pip(
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
+    shared_data_handler,
 ):
     """Export all trades with full comparison details to CSV."""
     date_range = golden_metadata.get("date_range")
@@ -312,6 +315,7 @@ def test_export_all_trades_comparison_20pip_15pip(
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
         date_range=date_range,
+        data_handler=shared_data_handler,
     )
 
     # Load TradingView trades using the correct golden_utils function

@@ -513,11 +513,14 @@ def tradingview_ohlcv(
     return df
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def tradingview_ohlcv_1min(
     ensure_dvc_data_pulled: bool,
 ) -> pd.DataFrame:
     """Loads TradingView 1-minute OHLCV data for zoom validation.
+
+    This fixture is session-scoped to load the large 1-minute CSV only once
+    and share it across all tests for better performance.
 
     Args:
         ensure_dvc_data_pulled: Session fixture ensuring data exists
@@ -566,3 +569,54 @@ def tradingview_ohlcv_1min(
         df["volume"] = 1.0
 
     return df
+
+
+@pytest.fixture(scope="session")
+def shared_data_handler(
+    ensure_dvc_data_pulled: bool,
+) -> Any:
+    """Creates a session-scoped DataHandler for efficient 1-minute data loading.
+
+    This fixture creates a single DataHandler instance that loads the 1-minute
+    data once and caches all resampled timeframes. This dramatically improves
+    test performance by avoiding repeated CSV reads.
+
+    The DataHandler is session-scoped, so it's created once and shared across
+    all tests in the session. The internal cache persists for the entire session.
+
+    Args:
+        ensure_dvc_data_pulled: Session fixture ensuring data exists
+
+    Returns:
+        DataHandler instance with 1-minute EUR/USD data loaded
+
+    Raises:
+        pytest.skip: If 1-minute data not found
+    """
+    from trading_platform.data.handler import DataHandler
+
+    # Path to golden TradingView data
+    data_root = GOLDEN_DATA_ROOT / "ohlcv" / "tradingview"
+
+    if not data_root.exists():
+        pytest.skip(
+            f"Golden TradingView data directory not found: {data_root}. "
+            "1-minute data is required for validation tests."
+        )
+
+    # Check if 1-minute data exists
+    one_min_path = data_root / "full" / "eurusd" / "eurusd_1min.csv"
+    if not one_min_path.exists():
+        pytest.skip(
+            f"1-minute data not found: {one_min_path}. "
+            "Required for strategies with trailing stops or ambiguous fixed stops."
+        )
+
+    # Create DataHandler - this loads the 1-minute CSV once
+    # The DataHandler's internal cache will persist for the entire test session
+    data_handler = DataHandler(
+        symbol="EUR_USD",
+        data_root=data_root,
+    )
+
+    return data_handler

@@ -35,6 +35,7 @@ def test_export_exit_price_comparison(
     tradingview_ohlcv,
     tradingview_ohlcv_1min,
     golden_metadata,
+    shared_data_handler,
     request,
 ):
     """Export all trades with exit price comparison details to CSV.
@@ -62,6 +63,7 @@ def test_export_exit_price_comparison(
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
         date_range=date_range,
+        data_handler=shared_data_handler,
     )
 
     # Load and prepare trade data using utility function
