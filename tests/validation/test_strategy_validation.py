@@ -39,13 +39,22 @@ TRADE_VALIDATION_TOLERANCES: dict[str, Any] = {
 
 # === KNOWN EDGE CASES ===
 #
-# Documents trades with known, legitimate discrepancies that should not fail tests.
-# Each edge case must include a detailed explanation of why the discrepancy exists.
+# KNOWN_EDGE_CASES - Kept for historical reference but no longer used
 #
-# TEMPORARILY COMMENTED OUT - Re-investigating with new TradingView export
-# to determine if edge cases still exist or were PineScript artifacts
+# The analyzer now automatically categorizes all discrepancies that were
+# previously documented as KNOWN_EDGE_CASES. These manual edge cases are
+# preserved below for reference but are commented out. They can be removed
+# entirely in the future once we're confident the analyzer handles all cases.
 #
-KNOWN_EDGE_CASES: dict[str, dict[str, list[dict]]] = {
+# Previous edge cases are now categorized as:
+# - PLATFORM_ZOOM_INTRABAR_STOP: Platform detected stop via 1-min zoom
+# - TV_IGNORED_ENTRY_BAR_PEAK_MFE_STRICT: TV ignores entry bar MFE
+# - SAME_BAR_EXIT: Entry and exit on same bar
+#
+KNOWN_EDGE_CASES: dict[str, dict[str, list[dict]]] = {}
+"""
+# HISTORICAL KNOWN_EDGE_CASES - Preserved for reference, can be deleted later
+KNOWN_EDGE_CASES_BACKUP: dict[str, dict[str, list[dict]]] = {
     "ema_crossover/20pip_stop_40pip_tp": {
         "exit_price_mismatches": [
             {
@@ -548,6 +557,7 @@ KNOWN_EDGE_CASES: dict[str, dict[str, list[dict]]] = {
     #     ]
     # }
 }
+"""
 
 
 # === HELPER FUNCTIONS ===
