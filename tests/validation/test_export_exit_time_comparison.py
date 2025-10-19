@@ -74,7 +74,7 @@ def test_export_exit_time_comparison(
     # Use analyzer to categorize discrepancies (provides MFE-based categorization)
     analyzer = TrailingStopDiscrepancyAnalyzer(
         trailing_stop_pips=0.0020,  # 20 pips
-        take_profit_pips=0.0015,  # 15 pips
+        take_profit_pips=None,  # No take profit for this strategy
         tolerance=0.00001,
     )
 
