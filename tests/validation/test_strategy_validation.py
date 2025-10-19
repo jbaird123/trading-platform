@@ -2363,7 +2363,7 @@ def test_ema_crossover_20pip_trailing_stop_exit_times_match_tradingview(
 
     Validates: [BT-7.8], [SE-3.5.3]
     """
-    from tests.validation.trailing_stop_discrepancy_analyzer import (
+    from tests.validation.analyzers.trailing_stop import (
         TrailingStopDiscrepancyAnalyzer,
     )
 
@@ -2530,7 +2530,7 @@ def test_ema_crossover_20pip_trailing_stop_exit_prices_match_tradingview(
 
     Validates: [BT-7.8], [SE-3.5.3]
     """
-    from tests.validation.trailing_stop_discrepancy_analyzer import (
+    from tests.validation.analyzers.trailing_stop import (
         TrailingStopDiscrepancyAnalyzer,
     )
 
@@ -2786,7 +2786,7 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_exit_times_match_tradingview
 
     Validates: [BT-7.8], [SE-3.5.3]
     """
-    from tests.validation.trailing_stop_discrepancy_analyzer import (
+    from tests.validation.analyzers.trailing_stop import (
         TrailingStopDiscrepancyAnalyzer,
     )
 
@@ -2955,7 +2955,7 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_exit_prices_match_tradingvie
 
     Validates: [BT-7.8], [SE-3.5.3]
     """
-    from tests.validation.trailing_stop_discrepancy_analyzer import (
+    from tests.validation.analyzers.trailing_stop import (
         TrailingStopDiscrepancyAnalyzer,
     )
 

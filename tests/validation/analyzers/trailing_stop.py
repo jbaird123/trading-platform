@@ -40,7 +40,10 @@ from typing import Any, Dict, List, Optional, Tuple, cast
 
 import pandas as pd
 
+from tests.validation.analyzers import register_analyzer
 
+
+@register_analyzer("trailing_stop")
 class TrailingStopDiscrepancyAnalyzer:
     """Analyzes and categorizes trailing stop exit discrepancies."""
 
@@ -74,6 +77,32 @@ class TrailingStopDiscrepancyAnalyzer:
             "PLATFORM_ZOOM_INTRABAR_STOP",
             "PLATFORM_ZOOM_INTRABAR_TP",
         ]
+
+    @classmethod
+    def from_metadata(cls, metadata: dict) -> "TrailingStopDiscrepancyAnalyzer":
+        """Create analyzer from strategy metadata.
+
+        Args:
+            metadata: Strategy metadata dictionary containing:
+                - trailing_stop_pips: Trailing stop distance
+                - take_profit_pips: Optional take profit distance
+
+        Returns:
+            Configured TrailingStopDiscrepancyAnalyzer instance
+        """
+        trailing_stop_pips = metadata.get("trailing_stop_pips")
+        take_profit_pips = metadata.get("take_profit_pips")
+
+        if trailing_stop_pips is None:
+            raise ValueError(
+                "metadata.json must specify 'trailing_stop_pips' for "
+                "trailing_stop analyzer"
+            )
+
+        return cls(
+            trailing_stop_pips=trailing_stop_pips,
+            take_profit_pips=take_profit_pips,
+        )
 
     def analyze_discrepancies(
         self,

@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.validation.analyzers import create_analyzer_for_strategy
 from tests.validation.comparison_export import export_comparison_csv
 from tests.validation.comparison_utils import build_category_lookup
 from tests.validation.golden_utils import load_and_prepare_trade_data
@@ -16,9 +17,6 @@ from tests.validation.test_strategy_validation import (
     KNOWN_EDGE_CASES,
     load_platform_trades,
     verify_golden_comparison_hash,
-)
-from tests.validation.trailing_stop_discrepancy_analyzer import (
-    create_analyzer_for_strategy,
 )
 
 # Define allowed categories that explain exit TIME mismatches
@@ -99,7 +97,7 @@ def test_export_exit_time_comparison(
     analyzer = create_analyzer_for_strategy(golden_metadata)
 
     # Analyze discrepancies
-    categories = analyzer.analyze_discrepancies(
+    categories = analyzer.analyze_discrepancies(  # type: ignore[attr-defined]
         platform_df=platform_df,
         tv_df=tv_df,
         ohlcv_data=tradingview_ohlcv,

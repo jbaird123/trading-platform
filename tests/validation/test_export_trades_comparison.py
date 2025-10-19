@@ -6,13 +6,13 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from tests.validation.analyzers.trailing_stop import (
+    TrailingStopDiscrepancyAnalyzer,
+)
 from tests.validation.golden_utils import load_and_validate_tradingview_trades
 from tests.validation.test_strategy_validation import (
     KNOWN_EDGE_CASES,
     load_platform_trades,
-)
-from tests.validation.trailing_stop_discrepancy_analyzer import (
-    TrailingStopDiscrepancyAnalyzer,
 )
 
 
