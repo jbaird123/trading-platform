@@ -247,3 +247,4 @@ model.onnx
 
 
 .numba_cache/
+src/trading_platform/py.typed
