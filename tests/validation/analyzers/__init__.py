@@ -101,7 +101,11 @@ def create_analyzer_for_strategy(metadata: dict) -> Any:
 
 # Import analyzer modules to register them
 # This must be at the end to avoid circular imports
-from tests.validation.analyzers import indicator_stop, trailing_stop  # noqa: E402, F401
+from tests.validation.analyzers import (  # noqa: E402, F401
+    fixed_stop,
+    indicator_stop,
+    trailing_stop,
+)
 
 __all__ = [
     "register_analyzer",

@@ -250,10 +250,21 @@ class RiskExitManager:
         if (
             sl_price is not None
             and tp_price is not None
-            and data_handler is not None
             and trail_price is None  # Only for fixed stops (no trailing)
             and is_fixed_stops_ambiguous(current_bar, sl_price, tp_price)
         ):
+            # Ambiguity detected - 1-minute data is REQUIRED
+            if data_handler is None:
+                bar_timestamp = cast(pd.Timestamp, current_bar.name)
+                raise ValueError(
+                    f"Fixed stop-loss and take-profit both in bar range at "
+                    f"{bar_timestamp}, but no data_handler provided for 1-minute "
+                    f"resolution. This ambiguity cannot be resolved without "
+                    f"intrabar data. Either provide 1-minute data or adjust "
+                    f"strategy to avoid this scenario."
+                )
+
+            # data_handler is available - zoom to 1-minute resolution
             # Zoom to 1-minute resolution
             bar_timestamp = cast(pd.Timestamp, current_bar.name)
             hour_start = bar_timestamp.floor("h")

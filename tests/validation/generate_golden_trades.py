@@ -147,10 +147,20 @@ def generate_golden_trades_for_strategy(
     # Create RunConfig
     config = RunConfig.model_validate(run_config_dict)
 
-    # Create DataHandler for trailing stop strategies (need 1-minute data)
+    # Create DataHandler for strategies that need 1-minute data:
+    # 1. Trailing stop strategies always need it
+    # 2. Fixed stop strategies with BOTH stop and TP need it (for ambiguity resolution)
+    needs_1min_data = "trailing_stop" in strategy_name
+    if rem_config and not needs_1min_data:
+        # Check if fixed stop strategy with both SL and TP
+        stop_loss = rem_config.get("stop_loss")
+        take_profit = rem_config.get("take_profit")
+        if stop_loss is not None and take_profit is not None:
+            needs_1min_data = True
+
     data_handler = None
-    if "trailing_stop" in strategy_name:
-        print("Loading 1-minute data for trailing stop strategy...")
+    if needs_1min_data:
+        print("Loading 1-minute data for strategy (needed for ambiguity resolution)...")
         data_root = project_root / "data/dvc/golden/ohlcv/tradingview"
 
         if data_root.exists():

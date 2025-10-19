@@ -637,10 +637,22 @@ def load_platform_trades(
     # Create RunConfig
     config = RunConfig.model_validate(config_dict)
 
-    # Create DataHandler for 1-minute resolution (if needed for trailing stops)
-    # This enables intra-bar ambiguity resolution AND provides resampled hourly data
+    # Create DataHandler for 1-minute resolution
+    # (if needed for trailing stops or fixed stops)
+    # This enables intra-bar ambiguity resolution AND provides resampled data
+    # Check if we need 1-minute data:
+    # 1. Trailing stop strategies always need it
+    # 2. Fixed stop strategies with BOTH stop and TP need it (for ambiguity resolution)
+    needs_1min_data = "trailing_stop" in str(strategy_name)
+    if rem_config and not needs_1min_data:
+        # Check if fixed stop strategy with both SL and TP
+        stop_loss = rem_config.get("stop_loss")
+        take_profit = rem_config.get("take_profit")
+        if stop_loss is not None and take_profit is not None:
+            needs_1min_data = True
+
     data_handler = None
-    if "trailing_stop" in str(strategy_name):
+    if needs_1min_data:
         from pathlib import Path
 
         from trading_platform.data.handler import DataHandler
@@ -685,11 +697,12 @@ def load_platform_trades(
                     ohlcv_to_use = ohlcv_1h
 
             except FileNotFoundError as e:
-                # For trailing stop strategies, 1-minute data is REQUIRED
-                # Fail loudly instead of silently falling back to CSV-only mode
+                # For strategies requiring 1-minute data, fail loudly
+                # instead of silently falling back to CSV-only mode
                 raise FileNotFoundError(
-                    f"1-minute data is required for trailing stop strategy "
-                    f"validation.\nExpected data at: {data_root}/full/eur_usd/"
+                    f"1-minute data is required for strategy validation "
+                    f"(trailing stops or fixed stops with ambiguity resolution).\n"
+                    f"Expected data at: {data_root}/full/eur_usd/"
                     f"eurusd_1min.csv\nOriginal error: {e}"
                 ) from e
             except Exception as e:
