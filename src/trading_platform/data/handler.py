@@ -190,8 +190,9 @@ class DataHandler:
         # Get the most common difference (mode)
         most_common_diff = time_diffs.value_counts().idxmax()
 
-        # Convert to minutes
-        minutes = int(most_common_diff.total_seconds() / 60)
+        # Convert to minutes (cast to Timedelta for type safety)
+        timedelta = pd.Timedelta(most_common_diff)
+        minutes = int(timedelta.total_seconds() / 60)
 
         # Map to standard timeframe string
         if minutes == 1:

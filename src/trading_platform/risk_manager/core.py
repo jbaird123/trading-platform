@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 
@@ -199,9 +199,9 @@ class RiskExitManager:
                     potential_trough = min(trough, float(current_bar["low"]))
                     potential_trail_price = min(initial, potential_trough + dist_t)
 
-                # Check for trailing stop ambiguity and zoom to 1-minute if needed
-                # Check BOTH the trail_price (from previous bars) AND potential_trail_price
-                # (including current bar) to detect intra-bar ambiguity
+                # Check for trailing stop ambiguity, zoom to 1-min if needed
+                # Check BOTH trail_price (prior) AND potential_trail_price
+                # (current bar) to detect intra-bar ambiguity
                 if (
                     trail_price is not None
                     and data_handler is not None
@@ -213,9 +213,10 @@ class RiskExitManager:
                     )
                 ):
                     # Zoom to 1-minute resolution to resolve ambiguity
-                    hour_start = current_bar.name.floor("h")
+                    bar_timestamp = cast(pd.Timestamp, current_bar.name)
+                    hour_start = bar_timestamp.floor("h")
                     hour_end = (
-                        hour_start + pd.Timedelta(hours=1) - pd.Timedelta(nanoseconds=1)
+                        hour_start + pd.Timedelta(hours=1) - pd.Timedelta(1, unit="ns")
                     )
                     bars_1min = data_handler.get_data(
                         timeframe="1min", start=hour_start, end=hour_end
@@ -254,8 +255,9 @@ class RiskExitManager:
             and is_fixed_stops_ambiguous(current_bar, sl_price, tp_price)
         ):
             # Zoom to 1-minute resolution
-            hour_start = current_bar.name.floor("h")
-            hour_end = hour_start + pd.Timedelta(hours=1) - pd.Timedelta(nanoseconds=1)
+            bar_timestamp = cast(pd.Timestamp, current_bar.name)
+            hour_start = bar_timestamp.floor("h")
+            hour_end = hour_start + pd.Timedelta(hours=1) - pd.Timedelta(1, unit="ns")
             bars_1min = data_handler.get_data(
                 timeframe="1min", start=hour_start, end=hour_end
             )

@@ -54,6 +54,10 @@ def process_1min_bars_for_fixed_stops(
         # Determine exit
         if stop_hit and tp_hit:
             # Both hit on same bar - check if truly ambiguous
+            # Type narrowing: if tp_hit is True, take_profit_level must not be None
+            assert (
+                take_profit_level is not None
+            ), "take_profit_level cannot be None when tp_hit is True"
             if both_exits_in_same_bar(bar, stop_loss_level, take_profit_level):
                 # Use tie-breaker policy
                 if tie_break_policy == "stop_then_tp":
@@ -142,9 +146,13 @@ def process_1min_bars_for_trailing_stop(
     # Initialize trailing stop tracking with current state
     peak_or_trough = current_peak_or_trough
     if side == "long":
-        stop_level = max(entry_price - trailing_stop_offset, peak_or_trough - trailing_stop_offset)
+        stop_level = max(
+            entry_price - trailing_stop_offset, peak_or_trough - trailing_stop_offset
+        )
     else:  # short
-        stop_level = min(entry_price + trailing_stop_offset, peak_or_trough + trailing_stop_offset)
+        stop_level = min(
+            entry_price + trailing_stop_offset, peak_or_trough + trailing_stop_offset
+        )
 
     # Process each 1-minute bar chronologically
     for idx, bar in bars_1min.iterrows():
@@ -165,6 +173,10 @@ def process_1min_bars_for_trailing_stop(
         # Determine exit based on what was hit
         if stop_hit and tp_hit:
             # Both hit - check if ambiguous on this 1min bar
+            # Type narrowing: if tp_hit is True, take_profit_price must not be None
+            assert (
+                take_profit_price is not None
+            ), "take_profit_price cannot be None when tp_hit is True"
             if both_exits_in_same_bar(bar, stop_level, take_profit_price):
                 # Use tie-breaker policy
                 if tie_break_policy == "stop_then_tp":
