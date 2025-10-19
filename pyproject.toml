@@ -77,10 +77,12 @@ ignore = [
 python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
-mypy_path = "src"
+explicit_package_bases = true
+packages = ["trading_platform"]
 check_untyped_defs = true
 warn_unused_ignores = true
 show_error_codes = true
+exclude = "workspace"
 
 [[tool.mypy.overrides]]
 module = "trading_platform.strategy.indicator_implementations"
