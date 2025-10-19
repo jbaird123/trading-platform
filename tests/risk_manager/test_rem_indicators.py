@@ -6,7 +6,6 @@ and their associated calculator functions.
 
 import pandas as pd
 import pytest
-
 from trading_platform.risk_manager.rem_indicators import (
     REM_INDICATORS_REGISTRY,
     _calculate_atr_stop,
@@ -57,10 +56,12 @@ class TestATRStopCalculator:
         """Test ATR calculator prefers atr_{length} column over generic atr."""
         entry_price = 1.3000
         side = "long"
-        current_bar = pd.Series({
-            "atr_14": 0.0020,
-            "atr": 0.0010  # Should be ignored in favor of atr_14
-        })
+        current_bar = pd.Series(
+            {
+                "atr_14": 0.0020,
+                "atr": 0.0010,  # Should be ignored in favor of atr_14
+            }
+        )
         params = {"multiplier": 2.0, "length": 14}
 
         result = _calculate_atr_stop(entry_price, side, current_bar, params)

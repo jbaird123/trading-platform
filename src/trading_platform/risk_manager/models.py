@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal, Union
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 
 class FixedPipStop(BaseModel):
@@ -30,6 +30,7 @@ class FixedPipStop(BaseModel):
             "pips": 20
         }
     """
+
     model_config = {"extra": "forbid"}
 
     type: Literal["fixed_pips"]
@@ -48,10 +49,13 @@ class ATRStopParams(BaseModel):
             "multiplier": 2.0
         }
     """
+
     model_config = {"extra": "forbid"}
 
     length: Annotated[int, Field(ge=1, description="ATR lookback period in bars")] = 14
-    multiplier: Annotated[float, Field(gt=0, description="Multiplier applied to ATR value")]
+    multiplier: Annotated[
+        float, Field(gt=0, description="Multiplier applied to ATR value")
+    ]
 
 
 class IndicatorStop(BaseModel):
@@ -72,6 +76,7 @@ class IndicatorStop(BaseModel):
             }
         }
     """
+
     model_config = {"extra": "forbid"}
 
     type: Literal["indicator"]
@@ -112,14 +117,13 @@ class REMConfig(BaseModel):
             }
         }
     """
+
     model_config = {"extra": "forbid"}
 
     name: str | None = None
     version: str | None = None
-    stop_loss: Union[FixedPipStop, IndicatorStop] = Field(
-        ..., discriminator="type"
-    )
-    take_profit: Union[FixedPipStop, IndicatorStop, None] = Field(
+    stop_loss: FixedPipStop | IndicatorStop = Field(..., discriminator="type")
+    take_profit: FixedPipStop | IndicatorStop | None = Field(
         default=None, discriminator="type"
     )
 

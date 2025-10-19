@@ -8,6 +8,8 @@ These tests ensure that:
 4. Missing required fields are caught
 5. Old atr_multiple format is rejected
 """
+# mypy: disable-error-code="arg-type,union-attr"
+# Pydantic uses runtime validation, static type checking reports false positives
 
 import pytest
 from pydantic import ValidationError
@@ -25,10 +27,7 @@ class TestFixedPipStop:
 
     def test_valid_fixed_pip_stop(self):
         """Test valid fixed pip stop-loss configuration."""
-        data = {
-            "type": "fixed_pips",
-            "pips": 20
-        }
+        data = {"type": "fixed_pips", "pips": 20}
 
         stop = FixedPipStop(**data)
 
@@ -37,10 +36,7 @@ class TestFixedPipStop:
 
     def test_fixed_pip_stop_float_pips(self):
         """Test fixed pip stop with float pips value."""
-        data = {
-            "type": "fixed_pips",
-            "pips": 15.5
-        }
+        data = {"type": "fixed_pips", "pips": 15.5}
 
         stop = FixedPipStop(**data)
 
@@ -48,20 +44,14 @@ class TestFixedPipStop:
 
     def test_fixed_pip_stop_zero_pips_rejected(self):
         """Test that zero pips is rejected."""
-        data = {
-            "type": "fixed_pips",
-            "pips": 0
-        }
+        data = {"type": "fixed_pips", "pips": 0}
 
         with pytest.raises(ValidationError, match="greater than 0"):
             FixedPipStop(**data)
 
     def test_fixed_pip_stop_negative_pips_rejected(self):
         """Test that negative pips are rejected."""
-        data = {
-            "type": "fixed_pips",
-            "pips": -10
-        }
+        data = {"type": "fixed_pips", "pips": -10}
 
         with pytest.raises(ValidationError, match="greater than 0"):
             FixedPipStop(**data)
@@ -78,11 +68,7 @@ class TestFixedPipStop:
 
     def test_fixed_pip_stop_extra_field_rejected(self):
         """Test that extra fields are rejected."""
-        data = {
-            "type": "fixed_pips",
-            "pips": 20,
-            "unknown_field": "value"
-        }
+        data = {"type": "fixed_pips", "pips": 20, "unknown_field": "value"}
 
         with pytest.raises(ValidationError, match="extra"):
             FixedPipStop(**data)
@@ -93,10 +79,7 @@ class TestATRStopParams:
 
     def test_valid_atr_params(self):
         """Test valid ATR parameters."""
-        data = {
-            "length": 14,
-            "multiplier": 2.0
-        }
+        data = {"length": 14, "multiplier": 2.0}
 
         params = ATRStopParams(**data)
 
@@ -105,9 +88,7 @@ class TestATRStopParams:
 
     def test_atr_params_uses_default_length(self):
         """Test ATR params with default length."""
-        data = {
-            "multiplier": 2.5
-        }
+        data = {"multiplier": 2.5}
 
         params = ATRStopParams(**data)
 
@@ -126,30 +107,21 @@ class TestATRStopParams:
 
     def test_atr_params_zero_multiplier_rejected(self):
         """Test that zero multiplier is rejected."""
-        data = {
-            "multiplier": 0,
-            "length": 14
-        }
+        data = {"multiplier": 0, "length": 14}
 
         with pytest.raises(ValidationError, match="greater than 0"):
             ATRStopParams(**data)
 
     def test_atr_params_negative_multiplier_rejected(self):
         """Test that negative multiplier is rejected."""
-        data = {
-            "multiplier": -1.5,
-            "length": 14
-        }
+        data = {"multiplier": -1.5, "length": 14}
 
         with pytest.raises(ValidationError, match="greater than 0"):
             ATRStopParams(**data)
 
     def test_atr_params_zero_length_rejected(self):
         """Test that zero length is rejected."""
-        data = {
-            "multiplier": 2.0,
-            "length": 0
-        }
+        data = {"multiplier": 2.0, "length": 0}
 
         with pytest.raises(ValidationError, match="greater than or equal to 1"):
             ATRStopParams(**data)
@@ -159,7 +131,7 @@ class TestATRStopParams:
         data = {
             "multiplier": 2.0,
             "length": 14,
-            "smoothing": "ema"  # Not a valid field!
+            "smoothing": "ema",  # Not a valid field!
         }
 
         with pytest.raises(ValidationError, match="extra"):
@@ -174,10 +146,7 @@ class TestIndicatorStop:
         data = {
             "type": "indicator",
             "indicator": "atr",
-            "params": {
-                "length": 14,
-                "multiplier": 2.0
-            }
+            "params": {"length": 14, "multiplier": 2.0},
         }
 
         stop = IndicatorStop(**data)
@@ -193,7 +162,7 @@ class TestIndicatorStop:
         data = {
             "type": "indicator",
             "indicator": "rsi",  # NOT in whitelist!
-            "params": {"length": 14}
+            "params": {"length": 14},
         }
 
         with pytest.raises(ValidationError, match="Input should be 'atr'"):
@@ -203,7 +172,7 @@ class TestIndicatorStop:
         """Test that missing params field is rejected."""
         data = {
             "type": "indicator",
-            "indicator": "atr"
+            "indicator": "atr",
             # Missing params!
         }
 
@@ -218,7 +187,7 @@ class TestIndicatorStop:
             "params": {
                 "length": 14
                 # Missing required multiplier!
-            }
+            },
         }
 
         with pytest.raises(ValidationError, match="multiplier"):
@@ -229,11 +198,8 @@ class TestIndicatorStop:
         data = {
             "type": "indicator",
             "indicator": "atr",
-            "params": {
-                "multiplier": 2.0,
-                "length": 14
-            },
-            "trailing": True  # Not a valid field!
+            "params": {"multiplier": 2.0, "length": 14},
+            "trailing": True,  # Not a valid field!
         }
 
         with pytest.raises(ValidationError, match="extra"):
@@ -245,12 +211,7 @@ class TestREMConfig:
 
     def test_valid_fixed_pip_config(self):
         """Test valid fixed pip REM configuration."""
-        data = {
-            "stop_loss": {
-                "type": "fixed_pips",
-                "pips": 20
-            }
-        }
+        data = {"stop_loss": {"type": "fixed_pips", "pips": 20}}
 
         config = REMConfig(**data)
 
@@ -264,10 +225,7 @@ class TestREMConfig:
             "stop_loss": {
                 "type": "indicator",
                 "indicator": "atr",
-                "params": {
-                    "length": 14,
-                    "multiplier": 2.0
-                }
+                "params": {"length": 14, "multiplier": 2.0},
             }
         }
 
@@ -279,14 +237,8 @@ class TestREMConfig:
     def test_config_with_stop_and_tp(self):
         """Test config with both stop-loss and take-profit."""
         data = {
-            "stop_loss": {
-                "type": "fixed_pips",
-                "pips": 20
-            },
-            "take_profit": {
-                "type": "fixed_pips",
-                "pips": 40
-            }
+            "stop_loss": {"type": "fixed_pips", "pips": 20},
+            "take_profit": {"type": "fixed_pips", "pips": 40},
         }
 
         config = REMConfig(**data)
@@ -297,17 +249,12 @@ class TestREMConfig:
     def test_config_with_mixed_types(self):
         """Test config with fixed stop and ATR take-profit."""
         data = {
-            "stop_loss": {
-                "type": "fixed_pips",
-                "pips": 20
-            },
+            "stop_loss": {"type": "fixed_pips", "pips": 20},
             "take_profit": {
                 "type": "indicator",
                 "indicator": "atr",
-                "params": {
-                    "multiplier": 3.0
-                }
-            }
+                "params": {"multiplier": 3.0},
+            },
         }
 
         config = REMConfig(**data)
@@ -323,10 +270,8 @@ class TestREMConfig:
             "stop_loss": {
                 "type": "indicator",
                 "indicator": "atr",
-                "params": {
-                    "multiplier": 2.0
-                }
-            }
+                "params": {"multiplier": 2.0},
+            },
         }
 
         config = REMConfig(**data)
@@ -336,12 +281,7 @@ class TestREMConfig:
 
     def test_config_missing_stop_loss_rejected(self):
         """Test that missing stop_loss is rejected."""
-        data = {
-            "take_profit": {
-                "type": "fixed_pips",
-                "pips": 40
-            }
-        }
+        data = {"take_profit": {"type": "fixed_pips", "pips": 40}}
 
         with pytest.raises(ValidationError, match="stop_loss"):
             REMConfig(**data)
@@ -349,13 +289,10 @@ class TestREMConfig:
     def test_config_extra_field_rejected(self):
         """Test that extra/unknown fields are rejected."""
         data = {
-            "stop_loss": {
-                "type": "fixed_pips",
-                "pips": 20
-            },
+            "stop_loss": {"type": "fixed_pips", "pips": 20},
             "breakeven": {  # DynamicREM feature, not in basic REM!
                 "trigger": 1.0
-            }
+            },
         }
 
         with pytest.raises(ValidationError, match="extra"):
@@ -367,7 +304,7 @@ class TestREMConfig:
         data = {
             "stop_loss": {
                 "atr_multiple": 2.0,  # Old format
-                "atr_length": 14
+                "atr_length": 14,
             }
         }
 
@@ -376,12 +313,7 @@ class TestREMConfig:
 
     def test_config_dict_export(self):
         """Test that config can be exported to dict."""
-        data = {
-            "stop_loss": {
-                "type": "fixed_pips",
-                "pips": 20
-            }
-        }
+        data = {"stop_loss": {"type": "fixed_pips", "pips": 20}}
 
         config = REMConfig(**data)
         exported = config.model_dump()

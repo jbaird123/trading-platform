@@ -26,6 +26,7 @@ class REMIndicatorSpec:
         optional_params: Dict mapping optional param names to (type, default_value) tuples
         stop_calculator: Function that calculates stop price from indicator values
     """
+
     name: str
     description: str
     required_params: dict[str, type]

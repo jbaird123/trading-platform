@@ -39,6 +39,7 @@ from trading_platform.reporting.chart_export import (
 )
 from trading_platform.reporting.compare_html import save_comparison_report
 from trading_platform.reporting.csv_export import save_prices_csv
+from trading_platform.risk_manager import REMConfig
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
 from trading_platform.utils.cache import clear_numba_cache
@@ -280,7 +281,9 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     rem_cfg: dict[str, Any] | None = cfg_raw.get("rem_config")
     # Pass complete instrument definition with all metadata (asset_class, etc.)
     instrument_dict = instrument_def.model_dump() if instrument_def else None
-    rem = RiskExitManager(config=rem_cfg or {}, instrument=instrument_dict)
+    # Validate REM config using Pydantic model
+    validated_rem_config = REMConfig(**rem_cfg) if rem_cfg else None
+    rem = RiskExitManager(config=validated_rem_config, instrument=instrument_dict)
 
     # RMM optional for legacy configs; if present, build per-bar context
     rmm_context: dict[datetime, dict[str, Any]] | None = None
