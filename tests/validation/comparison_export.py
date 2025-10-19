@@ -213,8 +213,9 @@ def build_exit_price_comparison_row(
         mfe_diff = None
 
     # Get category and explanation
-    price_mismatch_category = category_lookup.get(trade_num, "")
-    price_mismatch_explanation = explanation_lookup.get(trade_num, "")
+    # Use "failure_category" for backward compatibility with golden files
+    failure_category = category_lookup.get(trade_num, "")
+    failure_explanation = explanation_lookup.get(trade_num, "")
 
     return {
         "trade_num": trade_num,
@@ -235,8 +236,8 @@ def build_exit_price_comparison_row(
         "entry_bar_mfe_pips": entry_bar_mfe,
         "subsequent_bars_mfe_pips": subsequent_bars_mfe,
         "mfe_diff_pips": mfe_diff,
-        "price_mismatch_category": price_mismatch_category,
-        "price_mismatch_explanation": price_mismatch_explanation,
+        "failure_category": failure_category,
+        "failure_explanation": failure_explanation,
     }
 
 
