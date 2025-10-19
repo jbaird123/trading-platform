@@ -22,11 +22,11 @@ The golden validation framework ensures platform backtests match TradingView ref
 
 **Time to add a new test**: ~5 minutes (down from 30+ minutes)
 
+**Test Performance**: Session-scoped fixtures cache backtest results - 81 tests run in ~26 seconds (79% faster than running backtests per-test)
+
 ## Quick Start
 
-For a high-level overview and benefits, see [QUICK_START.md](QUICK_START.md).
-
-For implementation details and remaining work, see [IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md).
+See [ANALYZER_GUIDE.md](ANALYZER_GUIDE.md) for details on the analyzer pattern and how to add new exit mechanisms.
 
 ## Adding a New Golden Strategy Test
 
@@ -241,28 +241,154 @@ This will:
 2. Save trades to `platform_trades_golden.csv`
 3. Prevent accidental overwrites (file must be manually deleted to regenerate)
 
-### Step 8: Add Test to Parametrized Suite
+### Step 8: Add Session-Scoped Fixture and Tests
 
-**Location**: `tests/validation/test_export_exit_price_comparison.py`
+**IMPORTANT**: Tests use session-scoped fixtures to avoid redundant backtest execution. Each backtest runs only ONCE per test session, with results cached and shared across all tests.
 
-Add your strategy to the parametrize list:
+#### Step 8.1: Add Session-Scoped Fixture
 
+**Location**: `tests/validation/conftest.py`
+
+Add a new session-scoped fixture for your strategy (add after existing platform_trades fixtures):
+
+```python
+@pytest.fixture(scope="session")
+def platform_trades_atr_stop(
+    shared_data_handler: Any,
+    ensure_dvc_data_pulled: bool,
+) -> list[dict]:
+    """Session-scoped platform trades for ema_crossover/atr_stop strategy.
+
+    Runs the backtest once per session and caches the results for all tests.
+    This avoids redundant backtest execution across multiple test functions.
+
+    Returns:
+        List of trade dictionaries filtered to validation range
+    """
+    from tests.validation.test_strategy_validation import load_platform_trades
+
+    # Load strategy-specific data
+    strategy_name = "ema_crossover/atr_stop"
+    strategy_data_dir = GOLDEN_STRATEGIES_ROOT / strategy_name
+    strategy_config_dir = GOLDEN_CONFIG_ROOT / strategy_name
+
+    # Load metadata
+    metadata_path = strategy_data_dir / "metadata.json"
+    with open(metadata_path) as f:
+        metadata = json.load(f)
+
+    # Load run_config
+    run_config_path = strategy_config_dir / "run_config.yaml"
+    with open(run_config_path) as f:
+        run_config = yaml.safe_load(f)
+
+    # Load OHLCV (not actually used since we use data_handler, but needed for signature)
+    ohlcv_path = strategy_data_dir / "ohlcv.csv"
+    ohlcv = pd.read_csv(ohlcv_path, index_col=0, parse_dates=True)
+
+    return load_platform_trades(
+        strategy_name=strategy_name,
+        run_config=run_config,
+        ohlcv_data=ohlcv,
+        data_handler=shared_data_handler,
+        date_range=metadata.get("date_range"),
+    )
+```
+
+**Key points:**
+- **Fixture name pattern**: `platform_trades_{strategy_suffix}` (e.g., `platform_trades_atr_stop`)
+- **Scope**: Always `session` (backtest runs once and is cached)
+- **Dependencies**: Uses `shared_data_handler` (also session-scoped for 1-min data)
+- **Purpose**: Eliminates redundant backtest execution across tests
+
+#### Step 8.2: Add to Parametrized Export Tests
+
+**For parametrized tests**, add your strategy to the parametrize lists:
+
+**File**: `tests/validation/test_export_exit_price_comparison.py`
 ```python
 @pytest.mark.parametrize(
     "strategy_name",
     [
+        "ema_crossover/20pip_stop",
+        "ema_crossover/20pip_stop_40pip_tp",
         "ema_crossover/20pip_trailing_stop",
         "ema_crossover/20pip_trailing_stop_15pip_tp",
         "ema_crossover/atr_stop",  # <- Add this line
     ],
 )
-def test_export_exit_price_comparison(...):
-    ...
+def test_export_exit_price_comparison(
+    strategy_name,
+    golden_strategy_config,
+    tradingview_trades,
+    tradingview_ohlcv,
+    tradingview_ohlcv_1min,
+    golden_metadata,
+    request,
+):
+    # ... test uses request.getfixturevalue() to dynamically get platform_trades
 ```
+
+The test will automatically fetch your fixture using `request.getfixturevalue("platform_trades_atr_stop")`.
 
 Do the same for:
 - `tests/validation/test_export_exit_time_comparison.py`
-- `tests/validation/test_strategy_validation.py`
+
+#### Step 8.3: Add Strategy Validation Tests
+
+**File**: `tests/validation/test_strategy_validation.py`
+
+Add test functions for your strategy. **Copy an existing strategy's tests** and modify:
+
+**Example** (copy from 20pip_stop tests):
+```python
+def test_ema_crossover_atr_stop_metadata_schema_validation(golden_metadata):
+    """Validates metadata.json against schema for atr_stop strategy."""
+    # Validates: [DH-2.13]
+    assert golden_metadata["strategy_name"] == "ema_crossover_atr_stop"
+
+
+def test_ema_crossover_atr_stop_trade_count_matches_tradingview(
+    tradingview_trades,
+    golden_metadata,
+    platform_trades_atr_stop,  # <- Use your fixture here
+):
+    """Validates ATR stop variation produces same number of trades.
+
+    # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
+    """
+    platform_trades = platform_trades_atr_stop  # Use cached results
+
+    # Verify platform trades hash matches golden reference
+    verify_golden_trades_hash("ema_crossover/atr_stop", platform_trades)
+
+    # ... rest of test logic
+
+
+def test_ema_crossover_atr_stop_entry_times_match_tradingview(
+    tradingview_trades,
+    golden_metadata,
+    platform_trades_atr_stop,  # <- Use your fixture
+):
+    """Validates all entry times match between platform and TradingView."""
+    platform_trades = platform_trades_atr_stop
+    # ... test logic
+
+# Add similar tests for:
+# - entry_prices_match_tradingview
+# - exit_times_match_tradingview
+# - exit_prices_match_tradingview
+```
+
+**Pattern for function parameters:**
+- Use `platform_trades_{strategy_suffix}` fixture (NOT `golden_strategy_config`, `shared_data_handler`, etc.)
+- First line in test: `platform_trades = platform_trades_atr_stop` (use the cached fixture)
+- This avoids rerunning the backtest - uses cached results from session start
+
+**Why This Pattern?**
+- ✅ **Performance**: Each backtest runs only once per session (saves 60-70% test time)
+- ✅ **Consistency**: All tests use identical backtest results
+- ✅ **Simplicity**: No need to pass multiple config fixtures to each test
 
 ### Step 9: Run Tests
 

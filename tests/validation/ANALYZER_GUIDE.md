@@ -1,8 +1,10 @@
-# Golden Validation Framework - Implementation Guide
+# Analyzer Pattern Guide
 
 ## Overview
 
-This guide provides step-by-step instructions to complete the golden validation framework refactoring. The goal is to make adding new strategy tests a **5-minute process** instead of 30+ minutes.
+This guide documents the analyzer registry pattern used for exit mechanism validation. This is a reference for understanding how analyzers work and how to add new exit mechanisms (ATR stops, Bollinger stops, etc.).
+
+**Note**: For adding a new strategy test, see [README.md](README.md) instead.
 
 ## What's Already Done ✅
 
