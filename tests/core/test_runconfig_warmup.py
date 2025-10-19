@@ -12,6 +12,8 @@ def test_runconfig_has_warmup_bars_field():
         initial_cash=1000.0,
         position_size=1.0,
         allow_flip_on_bar=False,
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
         instrument={"symbol": "EURUSD"},
     )
     assert hasattr(cfg, "warmup_bars")
@@ -23,6 +25,8 @@ def test_runconfig_has_warmup_bars_field():
         initial_cash=1000.0,
         position_size=1.0,
         allow_flip_on_bar=False,
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
         instrument={"symbol": "EURUSD"},
         warmup_bars=5,
     )

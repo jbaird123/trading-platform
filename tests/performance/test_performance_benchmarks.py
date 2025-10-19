@@ -182,7 +182,14 @@ def test_sys_1_9_2_multi_year_backtest_performance():
 
     # Simple EMA crossover strategy config
     instrument = get_instrument_definition("EURUSD")
-    config = RunConfig(  # type: ignore[call-arg]
+    config = RunConfig(
+        user_id="test_user",
+        run_seed=42,
+        log_level="INFO",
+        position_size=1.0,
+        allow_flip_on_bar=False,
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
         instrument=instrument.model_dump(),
         initial_cash=100000,
         warmup_bars=50,
@@ -347,7 +354,14 @@ def test_backtest_execution_time_1m_bars():
     )
 
     instrument = get_instrument_definition("EURUSD")
-    config = RunConfig(  # type: ignore[call-arg]
+    config = RunConfig(
+        user_id="test_user",
+        run_seed=42,
+        log_level="INFO",
+        position_size=1.0,
+        allow_flip_on_bar=False,
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
         instrument=instrument.model_dump(),
         initial_cash=100000,
         warmup_bars=50,

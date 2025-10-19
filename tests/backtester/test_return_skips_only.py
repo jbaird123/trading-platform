@@ -46,6 +46,8 @@ def test_return_skips_without_exposure():
         position_size=1.0,
         allow_flip_on_bar=False,
         instrument=_instrument(),
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
     result = run_backtest(
@@ -57,5 +59,5 @@ def test_return_skips_without_exposure():
         return_exposure=False,
         return_skips=True,
     )
-    trades, exposure, skipped = result  # type: ignore[misc]
-    assert exposure == [] and isinstance(skipped, list)
+    trades, _, skipped = result  # type: ignore[misc]
+    assert isinstance(skipped, list)

@@ -70,6 +70,8 @@ def test_finalize_run_monte_carlo_exception_propagates():
             log_level="INFO",
             allow_flip_on_bar=False,
             instrument=_instrument(),
+            execution_model="next_bar_open",
+            exit_tie_break="stop_then_tp",
             monte_carlo={
                 "enabled": True,
                 "trials": 10,
@@ -124,6 +126,8 @@ def test_finalize_run_walk_forward_exception_handling_line_127():
             log_level="INFO",
             allow_flip_on_bar=False,
             instrument=_instrument(),
+            execution_model="next_bar_open",
+            exit_tie_break="stop_then_tp",
             walk_forward={"train_bars": 30, "test_bars": 10, "step_bars": 10},
         )
 
@@ -189,6 +193,8 @@ def test_finalize_run_walk_forward_invalid_config_branch_121_to_130():
             log_level="INFO",
             allow_flip_on_bar=False,
             instrument=_instrument(),
+            execution_model="next_bar_open",
+            exit_tie_break="stop_then_tp",
             walk_forward={"train_bars": 0, "test_bars": 0, "step_bars": 0},  # Invalid
         )
 
@@ -257,6 +263,8 @@ def test_finalize_run_parameter_search_exception_propagates():
             log_level="INFO",
             allow_flip_on_bar=False,
             instrument=_instrument(),
+            execution_model="next_bar_open",
+            exit_tie_break="stop_then_tp",
             parameter_search={
                 "grid": {"param1": [1, 2, 3]},
                 "objective": "total_pnl",
@@ -527,6 +535,8 @@ def test_finalize_run_walk_forward_non_dict_config():
             log_level="INFO",
             allow_flip_on_bar=False,
             instrument=_instrument(),
+            execution_model="next_bar_open",
+            exit_tie_break="stop_then_tp",
             # walk_forward defaults to empty dict
         )
 
@@ -579,6 +589,8 @@ def test_finalize_run_walk_forward_param_not_none():
             log_level="INFO",
             allow_flip_on_bar=False,
             instrument=_instrument(),
+            execution_model="next_bar_open",
+            exit_tie_break="stop_then_tp",
             walk_forward={"train_bars": 30, "test_bars": 10, "step_bars": 10},
         )
 
@@ -639,6 +651,8 @@ def test_initialize_run_creates_directory_and_config(monkeypatch):
             run_seed=42,
             allow_flip_on_bar=False,
             instrument=_instrument(),
+            execution_model="next_bar_open",
+            exit_tie_break="stop_then_tp",
             log_level="INFO",
             initial_cash=10000.0,
             position_size=100.0,
@@ -689,6 +703,8 @@ def test_finalize_run_monte_carlo_enabled():
             log_level="INFO",
             allow_flip_on_bar=False,
             instrument=_instrument(),
+            execution_model="next_bar_open",
+            exit_tie_break="stop_then_tp",
             monte_carlo={
                 "enabled": True,
                 "trials": 50,
@@ -753,6 +769,8 @@ def test_finalize_run_walk_forward_enabled():
             log_level="INFO",
             allow_flip_on_bar=False,
             instrument=_instrument(),
+            execution_model="next_bar_open",
+            exit_tie_break="stop_then_tp",
             walk_forward={"train_bars": 30, "test_bars": 10, "step_bars": 5},
         )
 
@@ -816,6 +834,8 @@ def test_finalize_run_parameter_search_enabled():
             log_level="INFO",
             allow_flip_on_bar=False,
             instrument=_instrument(),
+            execution_model="next_bar_open",
+            exit_tie_break="stop_then_tp",
             parameter_search={
                 "grid": {"param1": [1, 2, 3]},
                 "objective": "total_pnl",
@@ -881,6 +901,8 @@ def test_finalize_run_parameter_search_random_space():
             log_level="INFO",
             allow_flip_on_bar=False,
             instrument=_instrument(),
+            execution_model="next_bar_open",
+            exit_tie_break="stop_then_tp",
             parameter_search={
                 "random_space": {"param1": [1.0, 2.0, 3.0]},
                 "n_samples": 10,
@@ -942,6 +964,8 @@ def test_finalize_run_parameter_search_export_csv():
             log_level="INFO",
             allow_flip_on_bar=False,
             instrument=_instrument(),
+            execution_model="next_bar_open",
+            exit_tie_break="stop_then_tp",
         )
 
         # Mock parameter search results with detailed structure
@@ -1009,6 +1033,8 @@ def test_finalize_run_exception_handling():
             log_level="INFO",
             allow_flip_on_bar=False,
             instrument=_instrument(),
+            execution_model="next_bar_open",
+            exit_tie_break="stop_then_tp",
         )
 
         # Test Monte Carlo exception handling
@@ -1062,6 +1088,8 @@ def test_finalize_run_parameter_search_csv_export_exception():
             log_level="INFO",
             allow_flip_on_bar=False,
             instrument=_instrument(),
+            execution_model="next_bar_open",
+            exit_tie_break="stop_then_tp",
         )
 
         # Create malformed parameter search payload to trigger exception
@@ -1402,6 +1430,8 @@ def test_finalize_run_uses_config_snapshots(tmp_path):
         cost_model={"type": "none"},
         fill_policy={"policy": "market"},
         tie_break_policy={"rule": "stop_then_tp"},
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
 
     out_path = finalize_run(
@@ -1466,6 +1496,8 @@ def test_finalize_run_populates_mc_wfe_paramsearch(tmp_path):
         monte_carlo={"trials": 50, "seed": 123},
         walk_forward={"train_bars": 2, "test_bars": 1, "step_bars": 1},
         parameter_search={"grid": {"a": [1, 2]}, "objective": "total_pnl"},
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     out = finalize_run(
         run_path,
@@ -1514,6 +1546,8 @@ def test_finalize_run_prefers_explicit_mc_over_config(tmp_path):
         allow_flip_on_bar=False,
         instrument=_instrument(),
         monte_carlo={"trials": 1},
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     brief_path = finalize_run(
         run_path,

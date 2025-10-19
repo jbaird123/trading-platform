@@ -119,7 +119,8 @@ def resolve_instrument_symbol(instrument: Any) -> str:
     if not symbol or not str(symbol).strip():
         raise ValueError("instrument with symbol is required")
 
-    return normalize_symbol(str(symbol))
+    result: str = normalize_symbol(str(symbol))
+    return result
 
 
 def run_backtest(
@@ -131,6 +132,7 @@ def run_backtest(
     rmm_context: dict[datetime, dict[str, Any]] | None = None,
     return_exposure: bool = False,
     return_skips: bool = False,
+    data_handler: Any = None,
 ) -> (
     list[Trade]
     | tuple[list[Trade], list[tuple[datetime, float]]]
@@ -146,6 +148,7 @@ def run_backtest(
         rem: The Risk & Exit Manager instance.
         return_exposure: If True, returns the exposure curve.
         return_skips: If True, returns a list of skipped trades.
+        data_handler: Optional DataHandler for 1-minute resolution zoom.
 
     Returns:
         A list of completed Trade objects, and optionally other artifacts.
@@ -336,32 +339,29 @@ def run_backtest(
             context = {"strategy_features": strategy_features}
 
         # === REM EXIT PHASE: Check risk-based exits ===
-        # REM exits (stop-loss, take-profit) are ALWAYS allowed
-        # regardless of min_hold_bars (protective risk management)
+        # REM exits (stop-loss, take-profit) are ALWAYS executed immediately
+        # at the intra-bar price when hit, regardless of execution_model.
+        # This is realistic behavior - protective orders execute intra-bar.
+        # The execution_model setting only applies to signal-based entries/exits.
         if portfolio.current_position and rem is not None:
             rem_result = rem.check_exits_intrabar(
-                portfolio.current_position, current_bar
+                portfolio.current_position, current_bar, data_handler=data_handler
             )
 
             if rem_result is not None and rem_result["action"] == "should_close":
-                if config.execution_model == "current_bar_close":
-                    # Immediate execution at REM-calculated price
-                    portfolio.close_position(
-                        exit_price=rem_result["exit_price"],
-                        exit_time=cast(datetime, current_bar.name),
-                        exit_reason=rem_result["reason"],
-                        context_at_exit=context,
-                    )
-                    if return_exposure:
-                        exposure_curve.append((cast(datetime, current_bar.name), 0.0))
-                    continue
-                else:  # next_bar_open
-                    # Defer execution to next bar's open
-                    pending_exit = {
-                        "reason": rem_result["reason"],
-                        "context": context,
-                    }
-                    continue
+                # ALWAYS execute REM exits immediately at intra-bar price
+                # Stop-loss and take-profit orders don't wait for bar close
+                portfolio.close_position(
+                    exit_price=rem_result["exit_price"],
+                    exit_time=cast(datetime, current_bar.name),
+                    exit_reason=rem_result["reason"],
+                    context_at_exit=context,
+                )
+                if return_exposure:
+                    exposure_curve.append((cast(datetime, current_bar.name), 0.0))
+                # Don't continue - allow entry signals to be processed on same bar
+                # after stop loss exit (realistic: stop hits early in bar, signal
+                # triggers later in bar)
 
         # === STRATEGY COMMAND PHASE: Process strategy signals ===
         result = portfolio.process_command(
@@ -387,7 +387,23 @@ def run_backtest(
                 )
                 if return_exposure:
                     exposure_curve.append((cast(datetime, current_bar.name), 0.0))
-                continue
+
+                # For flips: open entry window for opposite side (don't continue)
+                # This allows the entry logic below to process the flip on same bar
+                if "entry_side" in result:
+                    portfolio.complete_pending_exit_and_open_entry_window(
+                        result["entry_side"], i
+                    )
+                    # Update result to reflect the open entry window
+                    result = {
+                        "action": "open_entry_window",
+                        "side": result["entry_side"],
+                        "bar_index": i,
+                    }
+                    # Don't continue - fall through to entry logic
+                else:
+                    # Not a flip - just a regular exit, skip rest of bar
+                    continue
             else:  # next_bar_open
                 # Defer execution to next bar's open
                 pending_exit = {
@@ -619,6 +635,7 @@ def run_backtest(
                     cost_model=config.cost_model,
                     rem=rem,
                     symbol=symbol,
+                    data_handler=data_handler,
                 )
             s.update(cf)
 
@@ -634,8 +651,10 @@ def run_backtest(
     if return_exposure:
         return (portfolio.trades, exposure_curve)
     if return_skips:
-        return (portfolio.trades, [], skipped)
-    return portfolio.trades
+        empty_exposure: list[tuple[datetime, float]] = []
+        return (portfolio.trades, empty_exposure, skipped)
+    trades_result: list[Trade] = portfolio.trades
+    return trades_result
 
 
 def _simulate_counterfactual_fast(
@@ -716,6 +735,7 @@ def _simulate_counterfactual_exact(
     cost_model: dict | None,
     rem: RiskExitManager,
     symbol: str,
+    data_handler: Any = None,
 ) -> dict[str, Any]:
     """Exact counterfactual: bar-by-bar re-simulation with REM."""
     if start_index < 0 or start_index >= len(market_data):
@@ -745,7 +765,9 @@ def _simulate_counterfactual_exact(
         bars_touched += 1
         # Apply REM exits first for fidelity
         if pm.current_position:
-            exit_details = rem.check_exits(pm.current_position, cb)
+            exit_details = rem.check_exits(
+                pm.current_position, cb, data_handler=data_handler
+            )
             if exit_details:
                 pm.close_position(
                     exit_price=exit_details["exit_price"],

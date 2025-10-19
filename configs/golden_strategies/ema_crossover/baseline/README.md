@@ -55,12 +55,14 @@ When exporting trade data from TradingView, you MUST set the export start date *
 
 1. **Indicator Warmup Period**: Strategies need historical data to warm up indicators (EMAs, etc.) before the validation period begins
 2. **TradingView Filter Behavior**: TradingView may filter out trades that occur near the start date even if they're technically within range
-3. **Recommended Buffer**: Set export start date **at least 100 bars (for hourly data: ~5-7 days) before** the validation start date
+3. **Required Buffer**: Set export start date **at least 1 month before** the validation start date (for hourly data: ~720 bars)
+   - **Note**: The old "100 bars" guidance was insufficient - golden validation testing proved that exactly 1 month of warmup is required for perfect matching with TradingView
 
 **Example for this strategy:**
 - Validation period: 2023-01-01 to 2024-12-31
-- Export start date: 2022-12-01 (1 month before validation start)
+- Export start date: 2022-12-01 (exactly 1 month before validation start - REQUIRED)
 - This ensures trades from early January 2023 are included in the export
+- Using this exact date produces perfect matching with TradingView (verified in testing)
 
 The test suite will automatically filter trades to the validation range, but the raw export must include the warmup period.
 
@@ -142,7 +144,7 @@ git commit -m "data: Add EMA crossover golden validation dataset"
 - **Prices (0.1 pip)**: Minor differences in EMA calculation precision with `next_bar_open` execution model
 - **PnL ($5/trade)**: Timing differences of 1 hour can result in ~4-5 pip price differences, translating to $4-5 PnL difference on 10,000 unit positions
 - **Total PnL ($10)**: Small rounding differences accumulate across 248 trades
-- **Trade Count (exact)**: With extended warmup (100 bars before validation start), both systems should detect the same number of crossovers
+- **Trade Count (exact)**: With extended warmup (1 month / ~720 bars before validation start), both systems should detect the same number of crossovers
 
 ## Regeneration Schedule
 

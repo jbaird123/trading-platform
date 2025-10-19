@@ -193,7 +193,7 @@ def compute_sma(
     length = int(params.get("length", 14))
     series = _price_series(df, source)
     try:
-        result = talib.SMA(series.values, timeperiod=length)
+        result = talib.SMA(series.to_numpy(dtype="float64"), timeperiod=length)
         return pd.Series(result, index=df.index, dtype="float64")
     except (IndexError, ValueError, TypeError, KeyError):
         return _empty_series(df)
@@ -209,7 +209,7 @@ def compute_wma(
     length = int(params.get("length", 14))
     series = _price_series(df, source)
     try:
-        result = talib.WMA(series.values, timeperiod=length)
+        result = talib.WMA(series.to_numpy(dtype="float64"), timeperiod=length)
         return pd.Series(result, index=df.index, dtype="float64")
     except (IndexError, ValueError, TypeError, KeyError):
         return _empty_series(df)
@@ -865,7 +865,8 @@ def compute_swing_high(
         right_bars=right_bars,
         return_prices=True,  # Return actual price values, not 1.0/0.0 flags
     )
-    return swings["swing_high"]
+    result: pd.Series = swings["swing_high"]
+    return result
 
 
 def compute_swing_low(
@@ -887,7 +888,8 @@ def compute_swing_low(
         right_bars=right_bars,
         return_prices=True,  # Return actual price values, not 1.0/0.0 flags
     )
-    return swings["swing_low"]
+    result: pd.Series = swings["swing_low"]
+    return result
 
 
 # ==============================================================================
@@ -907,10 +909,10 @@ def compute_cdl_doji(
     """
     try:
         result = talib.CDLDOJI(
-            df["open"].values,
-            df["high"].values,
-            df["low"].values,
-            df["close"].values,
+            df["open"].to_numpy(dtype="float64"),
+            df["high"].to_numpy(dtype="float64"),
+            df["low"].to_numpy(dtype="float64"),
+            df["close"].to_numpy(dtype="float64"),
         )
         return pd.Series(result, index=df.index, dtype="float64")
     except (IndexError, ValueError, TypeError, KeyError):
@@ -929,10 +931,10 @@ def compute_cdl_hammer(
     """
     try:
         result = talib.CDLHAMMER(
-            df["open"].values,
-            df["high"].values,
-            df["low"].values,
-            df["close"].values,
+            df["open"].to_numpy(dtype="float64"),
+            df["high"].to_numpy(dtype="float64"),
+            df["low"].to_numpy(dtype="float64"),
+            df["close"].to_numpy(dtype="float64"),
         )
         return pd.Series(result, index=df.index, dtype="float64")
     except (IndexError, ValueError, TypeError, KeyError):
@@ -951,10 +953,10 @@ def compute_cdl_engulfing(
     """
     try:
         result = talib.CDLENGULFING(
-            df["open"].values,
-            df["high"].values,
-            df["low"].values,
-            df["close"].values,
+            df["open"].to_numpy(dtype="float64"),
+            df["high"].to_numpy(dtype="float64"),
+            df["low"].to_numpy(dtype="float64"),
+            df["close"].to_numpy(dtype="float64"),
         )
         return pd.Series(result, index=df.index, dtype="float64")
     except (IndexError, ValueError, TypeError, KeyError):
@@ -973,10 +975,10 @@ def compute_cdl_morningstar(
     """
     try:
         result = talib.CDLMORNINGSTAR(
-            df["open"].values,
-            df["high"].values,
-            df["low"].values,
-            df["close"].values,
+            df["open"].to_numpy(dtype="float64"),
+            df["high"].to_numpy(dtype="float64"),
+            df["low"].to_numpy(dtype="float64"),
+            df["close"].to_numpy(dtype="float64"),
         )
         return pd.Series(result, index=df.index, dtype="float64")
     except (IndexError, ValueError, TypeError, KeyError):
@@ -995,10 +997,10 @@ def compute_cdl_eveningstar(
     """
     try:
         result = talib.CDLEVENINGSTAR(
-            df["open"].values,
-            df["high"].values,
-            df["low"].values,
-            df["close"].values,
+            df["open"].to_numpy(dtype="float64"),
+            df["high"].to_numpy(dtype="float64"),
+            df["low"].to_numpy(dtype="float64"),
+            df["close"].to_numpy(dtype="float64"),
         )
         return pd.Series(result, index=df.index, dtype="float64")
     except (IndexError, ValueError, TypeError, KeyError):
@@ -1017,10 +1019,10 @@ def compute_cdl_harami(
     """
     try:
         result = talib.CDLHARAMI(
-            df["open"].values,
-            df["high"].values,
-            df["low"].values,
-            df["close"].values,
+            df["open"].to_numpy(dtype="float64"),
+            df["high"].to_numpy(dtype="float64"),
+            df["low"].to_numpy(dtype="float64"),
+            df["close"].to_numpy(dtype="float64"),
         )
         return pd.Series(result, index=df.index, dtype="float64")
     except (IndexError, ValueError, TypeError, KeyError):

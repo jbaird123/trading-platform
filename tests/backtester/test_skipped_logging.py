@@ -50,6 +50,8 @@ def test_skip_logged_for_blackout():
         allow_flip_on_bar=False,
         blackout_utc=[("00:00", "00:30")],
         instrument=_instrument(),
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
     result = run_backtest(
@@ -84,6 +86,8 @@ def test_skip_logged_for_position_cap():
         allow_flip_on_bar=False,
         pm_limits={"max_open_long": 1, "max_open_short": 1},
         instrument=_instrument(),
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
     result = run_backtest(

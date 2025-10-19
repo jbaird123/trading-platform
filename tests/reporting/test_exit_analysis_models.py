@@ -66,7 +66,7 @@ class TestSimulatedHold:
                 hold_bars=10,
                 simulated_pnl=45.5,
                 pnl_change_vs_actual=30.2,
-                simulated_exit_reason="invalid_reason",  # type: ignore
+                simulated_exit_reason="invalid_reason",  # type: ignore[arg-type]
                 simulated_exit_bar_offset=7,
                 mfe_during_hold=50.0,
                 mfe_bar_offset=3,

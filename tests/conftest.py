@@ -69,6 +69,8 @@ def when_backtest_is_run(shared_context: dict) -> None:
         allow_flip_on_bar=True,
         rem_config=rem_config,
         instrument=_instrument(),
+        execution_model="current_bar_close",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config=config.rem_config or {})
     trades = run_backtest(

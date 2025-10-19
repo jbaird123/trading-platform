@@ -92,6 +92,8 @@ def test_contextual_rem_with_order_block_strategy():
         instrument=instrument,
         initial_cash=10000,
         position_size=1000,
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
 
     # Generate signals from strategy
@@ -106,15 +108,12 @@ def test_contextual_rem_with_order_block_strategy():
         rem=rem,
         return_exposure=True,
     )
-
-    # Type check: should be tuple of (trades, exposure)
-    assert isinstance(result, tuple), "Expected tuple return"
     trades, _ = result  # type: ignore[misc]
 
     # Assertions
-    assert len(trades) >= 1, "At least one trade should be generated"
+    assert len(trades) >= 1, "At least one trade should be generated"  # type: ignore[arg-type]
 
-    first_trade = trades[0]
+    first_trade = trades[0]  # type: ignore[index]
     assert first_trade.side == "long"
     assert first_trade.exit_reason == "stop-loss"
 

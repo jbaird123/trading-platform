@@ -1,11 +1,19 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 
 from trading_platform.core.signal import Signal
 from trading_platform.portfolio.position import Position
+from trading_platform.risk_manager.exit_utils import (
+    is_fixed_stops_ambiguous,
+    is_trailing_stop_ambiguous,
+)
+from trading_platform.risk_manager.trailing_stop_utils import (
+    process_1min_bars_for_fixed_stops,
+    process_1min_bars_for_trailing_stop,
+)
 
 
 class RiskExitManager:
@@ -18,7 +26,10 @@ class RiskExitManager:
     """
 
     def __init__(
-        self, config: dict[str, Any] | None = None, instrument: dict | None = None
+        self,
+        config: dict[str, Any] | None = None,
+        instrument: dict | None = None,
+        exit_tie_break: str = "stop_then_tp",
     ):
         """
         Initializes the RiskExitManager with a given risk configuration.
@@ -27,12 +38,20 @@ class RiskExitManager:
             config: A dictionary representing the REM configuration, conforming
                     to the schema defined in the project requirements.
             instrument: A dictionary with instrument-specific metadata.
+            exit_tie_break: Policy for when both SL and TP are hit on same bar.
+                          "stop_then_tp" (default): Check stop-loss first
+                          "tp_then_stop": Check take-profit first
         """
         self.config = config or {}
         self.instrument = instrument or {}
+        self.exit_tie_break = exit_tie_break
 
     def check_exits(
-        self, position: Position, current_bar: pd.Series, signal: Any = None
+        self,
+        position: Position,
+        current_bar: pd.Series,
+        signal: Any = None,
+        data_handler: Any = None,
     ) -> dict[str, Any] | None:
         """
         Checks if any exit conditions are met for the given position.
@@ -41,6 +60,7 @@ class RiskExitManager:
             position: The current position to check exits for
             current_bar: The current market bar data
             signal: Optional Signal object with context data
+            data_handler: Optional DataHandler for 1-minute resolution zoom
 
         Returns:
             A dictionary with the exit details if an exit is triggered,
@@ -166,6 +186,100 @@ class RiskExitManager:
                     initial = position.entry_price + dist_t
                     trail_price = min(initial, trough + dist_t)
 
+                # Calculate potential trailing stop if current bar's favorable move
+                # updates the peak/trough. This is needed to detect ambiguity correctly
+                # because the current bar might both move the stop AND hit it.
+                potential_trail_price = trail_price
+                if position.side == "long":
+                    # Check if current bar's high would update the peak
+                    potential_peak = max(peak, float(current_bar["high"]))
+                    potential_trail_price = max(initial, potential_peak - dist_t)
+                else:
+                    # Check if current bar's low would update the trough
+                    potential_trough = min(trough, float(current_bar["low"]))
+                    potential_trail_price = min(initial, potential_trough + dist_t)
+
+                # Check for trailing stop ambiguity, zoom to 1-min if needed
+                # Check BOTH trail_price (prior) AND potential_trail_price
+                # (current bar) to detect intra-bar ambiguity
+                if (
+                    trail_price is not None
+                    and data_handler is not None
+                    and (
+                        is_trailing_stop_ambiguous(current_bar, trail_price)
+                        or is_trailing_stop_ambiguous(
+                            current_bar, potential_trail_price
+                        )
+                    )
+                ):
+                    # Zoom to 1-minute resolution to resolve ambiguity
+                    bar_timestamp = cast(pd.Timestamp, current_bar.name)
+                    hour_start = bar_timestamp.floor("h")
+                    hour_end = (
+                        hour_start + pd.Timedelta(hours=1) - pd.Timedelta(1, unit="ns")
+                    )
+                    bars_1min = data_handler.get_data(
+                        timeframe="1min", start=hour_start, end=hour_end
+                    )
+
+                    # Process 1-minute bars
+                    # CRITICAL: Pass current peak/trough to preserve trailing stop state
+                    current_peak_or_trough = peak if position.side == "long" else trough
+                    result = process_1min_bars_for_trailing_stop(
+                        bars_1min=bars_1min,
+                        entry_price=position.entry_price,
+                        side=position.side,
+                        trailing_stop_offset=dist_t,
+                        take_profit_price=tp_price,
+                        tie_break_policy=self.exit_tie_break,
+                        current_peak_or_trough=current_peak_or_trough,
+                    )
+
+                    # If exit occurred, return it
+                    if result["exit_occurred"]:
+                        return {
+                            "exit_price": result["exit_price"],
+                            "reason": result["exit_reason"],
+                        }
+                    # If no exit in 1-minute data, return None (no exit)
+                    # Don't fall through to OHLC checking - we've resolved the ambiguity
+                    return None
+
+        # Check for fixed stop + TP ambiguity and zoom to 1-minute if needed
+        # This handles the case where BOTH fixed stop AND TP are in the bar's range
+        if (
+            sl_price is not None
+            and tp_price is not None
+            and data_handler is not None
+            and trail_price is None  # Only for fixed stops (no trailing)
+            and is_fixed_stops_ambiguous(current_bar, sl_price, tp_price)
+        ):
+            # Zoom to 1-minute resolution
+            bar_timestamp = cast(pd.Timestamp, current_bar.name)
+            hour_start = bar_timestamp.floor("h")
+            hour_end = hour_start + pd.Timedelta(hours=1) - pd.Timedelta(1, unit="ns")
+            bars_1min = data_handler.get_data(
+                timeframe="1min", start=hour_start, end=hour_end
+            )
+
+            # Process 1-minute bars
+            result = process_1min_bars_for_fixed_stops(
+                bars_1min=bars_1min,
+                side=position.side,
+                stop_loss_level=sl_price,
+                take_profit_level=tp_price,
+                tie_break_policy=self.exit_tie_break,
+            )
+
+            # If exit occurred, return it
+            if result["exit_occurred"]:
+                return {
+                    "exit_price": result["exit_price"],
+                    "reason": result["exit_reason"],
+                }
+            # If no exit in 1-minute data, return None
+            return None
+
         # For longs, the effective stop is the highest of (sl, trail) below price;
         # for shorts, the lowest of (sl, trail) above price.
         if position.side == "long":
@@ -177,10 +291,24 @@ class RiskExitManager:
                     eff_sl = v
                 else:
                     eff_sl = max(eff_sl, v)
-            if eff_sl is not None and current_bar["low"] <= eff_sl:
-                return {"exit_price": eff_sl, "reason": "stop-loss"}
-            if tp_price is not None and current_bar["high"] >= tp_price:
-                return {"exit_price": tp_price, "reason": "take-profit"}
+
+            # Check if both SL and TP are hit on same bar
+            sl_hit = eff_sl is not None and current_bar["low"] <= eff_sl
+            tp_hit = tp_price is not None and current_bar["high"] >= tp_price
+
+            # Apply exit_tie_break policy
+            if self.exit_tie_break == "stop_then_tp":
+                # Check stop-loss first (default behavior)
+                if sl_hit:
+                    return {"exit_price": eff_sl, "reason": "stop-loss"}
+                if tp_hit:
+                    return {"exit_price": tp_price, "reason": "take-profit"}
+            else:  # "tp_then_stop"
+                # Check take-profit first
+                if tp_hit:
+                    return {"exit_price": tp_price, "reason": "take-profit"}
+                if sl_hit:
+                    return {"exit_price": eff_sl, "reason": "stop-loss"}
         else:
             eff_sl = None
             for v in (sl_price, trail_price):
@@ -190,15 +318,29 @@ class RiskExitManager:
                     eff_sl = v
                 else:
                     eff_sl = min(eff_sl, v)
-            if eff_sl is not None and current_bar["high"] >= eff_sl:
-                return {"exit_price": eff_sl, "reason": "stop-loss"}
-            if tp_price is not None and current_bar["low"] <= tp_price:
-                return {"exit_price": tp_price, "reason": "take-profit"}
+
+            # Check if both SL and TP are hit on same bar
+            sl_hit = eff_sl is not None and current_bar["high"] >= eff_sl
+            tp_hit = tp_price is not None and current_bar["low"] <= tp_price
+
+            # Apply exit_tie_break policy
+            if self.exit_tie_break == "stop_then_tp":
+                # Check stop-loss first (default behavior)
+                if sl_hit:
+                    return {"exit_price": eff_sl, "reason": "stop-loss"}
+                if tp_hit:
+                    return {"exit_price": tp_price, "reason": "take-profit"}
+            else:  # "tp_then_stop"
+                # Check take-profit first
+                if tp_hit:
+                    return {"exit_price": tp_price, "reason": "take-profit"}
+                if sl_hit:
+                    return {"exit_price": eff_sl, "reason": "stop-loss"}
 
         return None
 
     def check_exits_intrabar(
-        self, position: Position, current_bar: pd.Series
+        self, position: Position, current_bar: pd.Series, data_handler: Any = None
     ) -> dict[str, Any] | None:
         """
         Check if position should exit based on intrabar price action.
@@ -210,12 +352,15 @@ class RiskExitManager:
         Args:
             position: Current open position
             current_bar: Bar with OHLC data
+            data_handler: Optional DataHandler for 1-minute resolution zoom
 
         Returns:
             Action descriptor dict or None
         """
         # Call existing check_exits method
-        exit_details = self.check_exits(position, current_bar)
+        exit_details = self.check_exits(
+            position, current_bar, data_handler=data_handler
+        )
 
         if exit_details is None:
             return None

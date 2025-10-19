@@ -101,15 +101,29 @@ def strategy_name(request) -> str:
     """Extracts strategy name from test name or marker.
 
     Returns:
-        Strategy name (e.g., 'ema_crossover')
+        Strategy name (e.g., 'ema_crossover/baseline',
+        'ema_crossover/20pip_stop')
     """
     # Try to extract from test name
-    # Convention: test_<strategy_name>_<test_description>
+    # Convention: test_<strategy_name>_<variation>_<test_description>
     test_name = request.node.name
 
     # Default strategies for common test names
     if "ema_crossover" in test_name:
-        return "ema_crossover"
+        # Check for variation in test name
+        # IMPORTANT: Check more specific variations first
+        # (e.g., 20pip_stop_40pip_tp before 20pip_stop)
+        if "20pip_trailing_stop_15pip_tp" in test_name:
+            return "ema_crossover/20pip_trailing_stop_15pip_tp"
+        elif "20pip_stop_40pip_tp" in test_name:
+            return "ema_crossover/20pip_stop_40pip_tp"
+        elif "20pip_trailing_stop" in test_name:
+            return "ema_crossover/20pip_trailing_stop"
+        elif "20pip_stop" in test_name:
+            return "ema_crossover/20pip_stop"
+        elif "baseline" in test_name or "_ema_crossover_" in test_name:
+            # Default to baseline for backward compatibility
+            return "ema_crossover/baseline"
     elif "bb_mean_reversion" in test_name:
         return "bb_mean_reversion"
     elif "multi_indicator" in test_name:
@@ -120,8 +134,8 @@ def strategy_name(request) -> str:
     if marker and marker.args:
         return str(marker.args[0])
 
-    # Default
-    return "ema_crossover"
+    # Default to baseline
+    return "ema_crossover/baseline"
 
 
 @pytest.fixture
@@ -129,7 +143,9 @@ def golden_strategy_paths(strategy_name: str) -> dict[str, Path]:
     """Returns all relevant paths for a golden strategy.
 
     Args:
-        strategy_name: Name of strategy (e.g., 'ema_crossover')
+        strategy_name: Name of strategy with optional variation
+                       (e.g., 'ema_crossover/baseline',
+                       'ema_crossover/20pip_stop')
 
     Returns:
         Dictionary with paths to data and config files
@@ -336,7 +352,10 @@ def tradingview_trades(
     date_range = golden_metadata.get("date_range")
     if date_range and "Date/Time" in df.columns:
         start_date = pd.to_datetime(date_range["start"], utc=True)
-        end_date = pd.to_datetime(date_range["end"], utc=True)
+        # Set end_date to end of day (23:59:59) to include all trades on the end date
+        end_date = pd.to_datetime(date_range["end"], utc=True) + pd.Timedelta(
+            hours=23, minutes=59, seconds=59
+        )
 
         # Parse Date/Time column for filtering
         df["_filter_time"] = pd.to_datetime(df["Date/Time"], utc=True)
@@ -488,6 +507,61 @@ def tradingview_ohlcv(
         df = df.set_index("timestamp")
 
     # Add dummy volume column if not present (TradingView forex data often lacks volume)
+    if "volume" not in df.columns:
+        df["volume"] = 1.0
+
+    return df
+
+
+@pytest.fixture
+def tradingview_ohlcv_1min(
+    ensure_dvc_data_pulled: bool,
+) -> pd.DataFrame:
+    """Loads TradingView 1-minute OHLCV data for zoom validation.
+
+    Args:
+        ensure_dvc_data_pulled: Session fixture ensuring data exists
+
+    Returns:
+        DataFrame with 1-minute OHLCV data indexed by timestamp
+
+    Raises:
+        pytest.skip: If 1-minute data not found
+    """
+    # Path to 1-minute data
+    ohlcv_1min_path = (
+        GOLDEN_DATA_ROOT
+        / "ohlcv"
+        / "tradingview"
+        / "full"
+        / "eurusd"
+        / "eurusd_1min.csv"
+    )
+
+    if not ohlcv_1min_path.exists():
+        pytest.skip(
+            f"TradingView 1-minute OHLCV not found: {ohlcv_1min_path}. "
+            "1-minute data is required for zoom validation."
+        )
+
+    # Read CSV
+    df = pd.read_csv(ohlcv_1min_path)
+
+    # Standardize column names
+    df = df.rename(
+        columns={
+            "time": "timestamp",
+            "Time": "timestamp",
+            "Volume": "volume",
+        }
+    )
+
+    # Parse timestamp
+    if "timestamp" in df.columns:
+        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+        df = df.set_index("timestamp")
+
+    # Add dummy volume column if not present
     if "volume" not in df.columns:
         df["volume"] = 1.0
 

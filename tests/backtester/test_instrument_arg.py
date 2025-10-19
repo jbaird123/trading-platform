@@ -34,6 +34,8 @@ def test_backtester_uses_provided_instrument_symbol():
         allow_flip_on_bar=False,
         pm_limits={"max_open_long": 0},  # Force a skip
         instrument={"symbol": "GBPUSD"},  # Use a non-default symbol
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
 

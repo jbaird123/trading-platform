@@ -41,6 +41,8 @@ def when_backtest_is_run(shared_context: dict) -> None:
             "take_profit": {"price_offset": tp},
         },
         instrument={"symbol": "EURUSD"},
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config=config.rem_config or {})
     trades = run_backtest(

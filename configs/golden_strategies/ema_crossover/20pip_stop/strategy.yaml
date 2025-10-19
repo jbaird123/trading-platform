@@ -1,0 +1,54 @@
+strategy_name: "EMA_Crossover_20pip_Stop_Golden"
+description: "EMA crossover with 20-pip fixed stop loss for validation"
+version: "1.0"
+
+parameters:
+  ema_fast_length: 20
+  ema_slow_length: 50
+
+features:
+  - name: ema_fast
+    type: EMA
+    params:
+      length: ${ema_fast_length}
+    source: close
+
+  - name: ema_slow
+    type: EMA
+    params:
+      length: ${ema_slow_length}
+    source: close
+
+overlays: [ema_fast, ema_slow]
+
+long_entry_rules:
+  - all_of:
+      - condition: cross_above
+        left:
+          ref: ema_fast
+        right:
+          ref: ema_slow
+
+long_exit_rules:
+  - any_of:
+      - condition: cross_below
+        left:
+          ref: ema_fast
+        right:
+          ref: ema_slow
+
+short_entry_rules:
+  - all_of:
+      - condition: cross_below
+        left:
+          ref: ema_fast
+        right:
+          ref: ema_slow
+
+short_exit_rules:
+  - any_of:
+      - condition: cross_above
+        left:
+          ref: ema_fast
+        right:
+          ref: ema_slow

@@ -40,7 +40,7 @@ def generate_demo_run(user_id: str = "demo_user", runs_dir: Path | None = None) 
         cfg_dict["runs_dir"] = runs_dir
 
     cfg = RunConfig.model_validate(cfg_dict)
-    run_path = initialize_run(cfg)
+    run_path: Path = initialize_run(cfg)
 
     # Minimal instrument/policy snapshots are provided via RunConfig
 

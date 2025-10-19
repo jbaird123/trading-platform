@@ -183,7 +183,7 @@ class RMMEngine:
             confs.loc[update_mask] = confidence
 
         # Include computed features alongside label and confidence
-        out = df.copy()
+        out: pd.DataFrame = df.copy()
         out["label"] = labels
         out["confidence"] = confs
         return out

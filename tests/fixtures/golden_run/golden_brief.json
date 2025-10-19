@@ -1,6 +1,23 @@
 {
-  "activity": {},
-  "timing_buckets": {},
+  "activity": {
+    "average_trades_per_day": 1.0
+  },
+  "timing_buckets": {
+    "hour_of_day": {
+      "9": {
+        "n_trades": 1,
+        "total_pnl": 6.0,
+        "win_rate": 1.0
+      }
+    },
+    "day_of_week": {
+      "0": {
+        "n_trades": 1,
+        "total_pnl": 6.0,
+        "win_rate": 1.0
+      }
+    }
+  },
   "costs": {
     "total_costs": 0.0,
     "avg_cost_per_trade": 0.0,
@@ -11,11 +28,43 @@
     }
   },
   "exposure": {
-    "average_gross_exposure": 19.25,
+    "average_gross_exposure": 16.58,
     "peak_gross_exposure": 113.0
   },
-  "contrasts": {},
-  "stop_tp_candidates": {},
+  "contrasts": {
+    "long_trades": {
+      "n_trades": 0,
+      "win_rate": 0.0,
+      "avg_pnl": 0.0,
+      "total_pnl": 0.0,
+      "avg_win": 0.0,
+      "avg_loss": 0.0,
+      "avg_win_movement": 0.0,
+      "avg_loss_movement": 0.0
+    },
+    "short_trades": {
+      "n_trades": 1,
+      "win_rate": 1.0,
+      "avg_pnl": 6.0,
+      "total_pnl": 6.0,
+      "avg_win": 6.0,
+      "avg_loss": 0.0,
+      "avg_win_movement": 6.0,
+      "avg_loss_movement": 0.0
+    }
+  },
+  "stop_tp_candidates": {
+    "mfe_percentiles": {
+      "25th": 7.0,
+      "50th": 7.0,
+      "75th": 7.0
+    },
+    "mae_percentiles": {
+      "25th": 1.0,
+      "50th": 1.0,
+      "75th": 1.0
+    }
+  },
   "exit_efficiency": {},
   "parameter_search": {
     "top": {
@@ -37,42 +86,42 @@
   "feature_analysis": {},
   "checksums": {
     "instrument_defs_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-    "config_snapshot_hash": "1b2f953a3f926f7a6daba881d5e1e8eb7a8cece57f617747caf298e50478c6e9"
+    "config_snapshot_hash": "5624e84a6bb3935bead87a1a9c7ecf7b9667ae7f772041eb310b8158f4bb359a"
   },
   "meta": {
     "strategy_name": "Golden_EMA_Crossover",
     "run_id": "golden_run_test",
-    "git_commit": "0b184a5",
+    "git_commit": "b7f9d46",
     "run_seed": 42
   },
   "strategy_params": {},
   "overall_performance": {
-    "n_trades": 0,
-    "total_pnl": 0.0,
-    "total_pnl_movement": 0.0,
+    "n_trades": 1,
+    "total_pnl": 6.0,
+    "total_pnl_movement": 6.0,
     "total_costs": 0.0,
     "cost_breakdown": {
       "spread": 0.0,
       "commission": 0.0,
       "slippage": 0.0
     },
-    "mean_pnl": 0.0,
-    "median_pnl": 0.0,
+    "mean_pnl": 6.0,
+    "median_pnl": 6.0,
     "by_side_total_pnl": {
       "long": 0.0,
-      "short": 0.0
+      "short": 6.0
     },
-    "win_rate": 0.0,
+    "win_rate": 1.0,
     "initial_equity": 100000.0,
-    "final_equity": 100000.0
+    "final_equity": 100006.0
   },
   "risk_snapshot": {
-    "win_rate": 0.0,
-    "avg_win": 0.0,
+    "win_rate": 1.0,
+    "avg_win": 6.0,
     "avg_loss": 0.0,
-    "avg_win_movement": 0.0,
+    "avg_win_movement": 6.0,
     "avg_loss_movement": 0.0,
-    "max_win": 0.0,
+    "max_win": 6.0,
     "max_loss": 0.0
   },
   "equity_stats": {
@@ -80,11 +129,19 @@
       [
         "0001-01-01T00:00:00",
         100000.0
+      ],
+      [
+        "2023-01-02T15:00:00+00:00",
+        100006.0
       ]
     ],
     "drawdown_curve": [
       [
         "0001-01-01T00:00:00",
+        0.0
+      ],
+      [
+        "2023-01-02T15:00:00+00:00",
         0.0
       ]
     ],
@@ -93,21 +150,44 @@
     "sharpe_ratio": 0.0
   },
   "distribution": {
-    "pnl_mean": 0.0,
-    "pnl_median": 0.0,
+    "pnl_mean": 6.0,
+    "pnl_median": 6.0,
     "pnl_std": 0.0,
-    "p05": 0.0,
-    "p95": 0.0
+    "p05": 6.0,
+    "p95": 6.0
   },
   "streaks": {
-    "longest_win_streak": 0,
+    "longest_win_streak": 1,
     "longest_loss_streak": 0,
-    "current_streak": 0
+    "current_streak": 1
   },
   "holding_time": {
-    "median_secs": 0.0
+    "median_secs": 21600.0
   },
-  "monte_carlo": {},
+  "monte_carlo": {
+    "mode": "bootstrap_trades",
+    "trials": 100,
+    "final_equity": {
+      "mean": 100006.0,
+      "p05": 100006.0,
+      "p95": 100006.0
+    },
+    "total_pnl": {
+      "mean": 6.0,
+      "p05": 6.0,
+      "p95": 6.0
+    },
+    "max_drawdown": {
+      "mean": 0.0,
+      "p05": 0.0,
+      "p95": 0.0
+    },
+    "win_rate": {
+      "mean": 1.0,
+      "p05": 1.0,
+      "p95": 1.0
+    }
+  },
   "walk_forward": {
     "splits": [
       {
@@ -164,7 +244,7 @@
     "take_profit_pips": "10000000000 pips"
   },
   "environment": {
-    "python_version": "3.13.7",
+    "python_version": "3.13.8",
     "platform": "macOS-26.0.1-arm64-arm-64bit-Mach-O",
     "timezone": "EDT",
     "dependency_versions": {
@@ -175,15 +255,24 @@
   "provenance": {
     "run_id": "golden_run_test",
     "strategy_name": "Golden_EMA_Crossover",
-    "data_start": null,
-    "data_end": null,
-    "symbols": [],
+    "data_start": "2023-01-02T09:00:00+00:00",
+    "data_end": "2023-01-02T15:00:00+00:00",
+    "symbols": [
+      "GOLDENTICKER"
+    ],
     "app_version": "0.0.1",
-    "git_commit": "0b184a5",
+    "git_commit": "b7f9d46",
     "run_seed": 42
   },
   "artifacts": {},
   "field_definitions": {
+    "activity.average_trades_per_day": "Average number of trades executed per day over the backtest period.",
+    "timing_buckets.hour_of_day.9.n_trades": "Number of trades that entered during this hour.",
+    "timing_buckets.hour_of_day.9.total_pnl": "Total PnL for trades entered during this hour.",
+    "timing_buckets.hour_of_day.9.win_rate": "Win rate for trades entered during this hour.",
+    "timing_buckets.day_of_week.0.n_trades": "Number of trades that entered during this day of week.",
+    "timing_buckets.day_of_week.0.total_pnl": "Total PnL for trades entered during this day of week.",
+    "timing_buckets.day_of_week.0.win_rate": "Win rate for trades entered during this day of week.",
     "costs.total_costs": "Total sum of all trading costs (spread, commission, slippage).",
     "costs.avg_cost_per_trade": "Average cost incurred per trade.",
     "costs.breakdown.spread": "Total cost due to bid-ask spread.",
@@ -191,6 +280,28 @@
     "costs.breakdown.slippage": "Total cost due to slippage.",
     "exposure.average_gross_exposure": "Average absolute value of open position size during the run.",
     "exposure.peak_gross_exposure": "Maximum absolute value of open position size during the run.",
+    "contrasts.long_trades.n_trades": "Number of long trades executed.",
+    "contrasts.long_trades.win_rate": "Win rate for long trades.",
+    "contrasts.long_trades.avg_pnl": "Average PnL per long trade.",
+    "contrasts.long_trades.total_pnl": "Total PnL for long trades.",
+    "contrasts.long_trades.avg_win": "Average net PnL of winning long trades (after costs).",
+    "contrasts.long_trades.avg_loss": "Average net PnL of losing long trades (after costs).",
+    "contrasts.long_trades.avg_win_movement": "Average PnL movement of winning long trades (mid-to-mid, excluding costs).",
+    "contrasts.long_trades.avg_loss_movement": "Average PnL movement of losing long trades (mid-to-mid, excluding costs).",
+    "contrasts.short_trades.n_trades": "Number of short trades executed.",
+    "contrasts.short_trades.win_rate": "Win rate for short trades.",
+    "contrasts.short_trades.avg_pnl": "Average PnL per short trade.",
+    "contrasts.short_trades.total_pnl": "Total PnL for short trades.",
+    "contrasts.short_trades.avg_win": "Average net PnL of winning short trades (after costs).",
+    "contrasts.short_trades.avg_loss": "Average net PnL of losing short trades (after costs).",
+    "contrasts.short_trades.avg_win_movement": "Performance metrics for short trades.",
+    "contrasts.short_trades.avg_loss_movement": "Performance metrics for short trades.",
+    "stop_tp_candidates.mfe_percentiles.25th": "25th percentile of MFE values.",
+    "stop_tp_candidates.mfe_percentiles.50th": "50th percentile (median) of MFE values.",
+    "stop_tp_candidates.mfe_percentiles.75th": "75th percentile of MFE values.",
+    "stop_tp_candidates.mae_percentiles.25th": "25th percentile of MAE values.",
+    "stop_tp_candidates.mae_percentiles.50th": "50th percentile (median) of MAE values.",
+    "stop_tp_candidates.mae_percentiles.75th": "75th percentile of MAE values.",
     "parameter_search.top.params.fast": "Nested field of the best candidate.",
     "parameter_search.top.score": "Top-level field of the best candidate.",
     "parameter_search.results": "All candidate parameter sets with scores.",
@@ -235,6 +346,20 @@
     "streaks.longest_loss_streak": "Longest consecutive losing trades.",
     "streaks.current_streak": "Current consecutive winning or losing trades.",
     "holding_time.median_secs": "Median trade holding time in seconds.",
+    "monte_carlo.mode": "MC engine mode (e.g., bootstrap_trades, block_bootstrap_trades, bar_bootstrap, bar_resimulation).",
+    "monte_carlo.trials": "Number of Monte Carlo trials executed.",
+    "monte_carlo.final_equity.mean": "Mean final equity.",
+    "monte_carlo.final_equity.p05": "5th percentile of final equity.",
+    "monte_carlo.final_equity.p95": "95th percentile of final equity.",
+    "monte_carlo.total_pnl.mean": "Mean total PnL.",
+    "monte_carlo.total_pnl.p05": "5th percentile of total PnL.",
+    "monte_carlo.total_pnl.p95": "95th percentile of total PnL.",
+    "monte_carlo.max_drawdown.mean": "Mean max drawdown.",
+    "monte_carlo.max_drawdown.p05": "5th percentile of max drawdown.",
+    "monte_carlo.max_drawdown.p95": "95th percentile of max drawdown.",
+    "monte_carlo.win_rate.mean": "Mean win rate (0\u20131).",
+    "monte_carlo.win_rate.p05": "5th percentile of win rate.",
+    "monte_carlo.win_rate.p95": "95th percentile of win rate.",
     "walk_forward.splits": "List of train/test split results and chosen parameters.",
     "data_quality.index_monotonic_increasing": "True if the data index (timestamps) is strictly increasing.",
     "data_quality.duplicate_bars_count": "Number of duplicate timestamp entries found in the data.",
@@ -301,7 +426,41 @@
     "exit_efficiency.simulated_hold_analysis.by_hold_period.*.avg_pnl_change_by_original_exit_reason": "Average PnL change broken down by the trade's original exit reason (e.g., 'opposite_signal', 'stop-loss', 'signal').",
     "exit_efficiency.simulated_hold_analysis.by_hold_period.*.avg_pnl_change_by_original_exit_reason.*": "Average PnL change for trades that originally exited with this specific exit reason."
   },
-  "trades": [],
+  "trades": [
+    {
+      "symbol": "GOLDENTICKER",
+      "side": "short",
+      "size": 1.0,
+      "entry_time": "2023-01-02T09:00:00+00:00",
+      "exit_time": "2023-01-02T15:00:00+00:00",
+      "entry_price": 113.0,
+      "exit_price": 107.0,
+      "pnl": 6.0,
+      "pnl_movement": 6.0,
+      "exit_reason": "end_of_data",
+      "r_multiple": null,
+      "mfe_currency": 7.0,
+      "mae_currency": 1.0,
+      "bars_held": 6,
+      "context_at_entry": {
+        "strategy_features": {
+          "sma_fast": 117.5,
+          "sma_slow": 118.0,
+          "ctx_atr": 2.523401,
+          "ctx_rsi": 42.69,
+          "ctx_ema_slow": null,
+          "volume": 1000
+        }
+      },
+      "context_at_exit": null,
+      "cost_breakdown": {
+        "spread": 0.0,
+        "commission": 0.0,
+        "slippage": 0.0
+      },
+      "post_exit_analysis": null
+    }
+  ],
   "recommendations": [
     {
       "id": "consider_adx_filter_for_entries",
@@ -316,10 +475,10 @@
     "regime_labels": [],
     "allowed_labels": [],
     "regime_counts": {},
-    "n_trades": 0,
+    "n_trades": 1,
     "n_skipped_trades": 0,
     "n_long": 0,
-    "n_short": 0,
+    "n_short": 1,
     "n_long_skipped": 0,
     "n_short_skipped": 0,
     "n_allowed_regimes": 0,
@@ -328,10 +487,10 @@
     "n_trades_in_disallowed_regimes": 0
   },
   "policy_effects": {
-    "n_trades": 0,
+    "n_trades": 1,
     "n_skipped_trades": 0,
     "n_long": 0,
-    "n_short": 0,
+    "n_short": 1,
     "n_long_skipped": 0,
     "n_short_skipped": 0
   },

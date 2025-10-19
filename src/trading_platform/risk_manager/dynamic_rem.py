@@ -172,6 +172,9 @@ class DynamicREM:
         if not position.initial_risk_ccy or position.initial_risk_ccy == 0:
             return 0.0
 
+        # Type narrowing: initial_risk_ccy is now known to be non-zero float
+        initial_risk: float = position.initial_risk_ccy
+
         # Calculate unrealized PnL
         if position.side == "long":
             pnl = (current_price - position.entry_price) * position.size
@@ -179,7 +182,7 @@ class DynamicREM:
             pnl = (position.entry_price - current_price) * position.size
 
         # R-multiple = PnL / Risk
-        r_multiple = pnl / position.initial_risk_ccy
+        r_multiple: float = pnl / initial_risk
         return r_multiple
 
     def check_partial_exits(

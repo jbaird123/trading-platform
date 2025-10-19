@@ -133,8 +133,14 @@ def test_next_bar_open_execution_model_complete_flow():
 
     # Create config with next_bar_open execution model
     config = RunConfig(
+        user_id="test",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=10000.0,
+        position_size=1.0,
         instrument=TEST_INSTRUMENT,
         execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
         entry_window_bars=0,  # Immediate execution on entry window open
         warmup_bars=0,
         min_hold_bars=0,
@@ -148,7 +154,7 @@ def test_next_bar_open_execution_model_complete_flow():
     result = run_backtest(
         market_data=df,
         signals=signals,
-        strategy=strategy,
+        strategy=strategy,  # type: ignore[arg-type]
         config=config,
         rem=rem,
         rmm_context=None,
@@ -233,17 +239,24 @@ def test_next_bar_open_vs_current_bar_close_comparison():
 
     # Test current_bar_close (legacy)
     config_legacy = RunConfig(
+        user_id="test",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=10000.0,
+        position_size=1.0,
         instrument=TEST_INSTRUMENT,
         execution_model="current_bar_close",
+        exit_tie_break="stop_then_tp",
         entry_window_bars=0,
         warmup_bars=0,
         min_hold_bars=0,
+        allow_flip_on_bar=False,
     )
 
     result_legacy = run_backtest(
         market_data=df,
         signals=signals,
-        strategy=strategy,
+        strategy=strategy,  # type: ignore[arg-type]
         config=config_legacy,
         rem=rem,
     )
@@ -253,17 +266,24 @@ def test_next_bar_open_vs_current_bar_close_comparison():
 
     # Test next_bar_open (realistic)
     config_realistic = RunConfig(
+        user_id="test",
+        run_seed=42,
+        log_level="INFO",
+        initial_cash=10000.0,
+        position_size=1.0,
         instrument=TEST_INSTRUMENT,
         execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
         entry_window_bars=0,
         warmup_bars=0,
         min_hold_bars=0,
+        allow_flip_on_bar=False,
     )
 
     result_realistic = run_backtest(
         market_data=df,
         signals=signals,
-        strategy=strategy,
+        strategy=strategy,  # type: ignore[arg-type]
         config=config_realistic,
         rem=rem,
     )

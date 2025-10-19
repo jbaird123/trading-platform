@@ -74,7 +74,8 @@ def test_safe_rolling_max_no_bias(test_ohlcv_data: pd.DataFrame) -> None:
     """safe_rolling_max should have no look-ahead bias."""
 
     def indicator(df: pd.DataFrame) -> pd.Series:
-        return safe_rolling_max(df["close"], window=20)
+        result: pd.Series = safe_rolling_max(df["close"], window=20)
+        return result
 
     result = detect_lookahead_bias(indicator, test_ohlcv_data)
     assert not result.has_bias, str(result)
@@ -84,7 +85,8 @@ def test_safe_rolling_min_no_bias(test_ohlcv_data: pd.DataFrame) -> None:
     """safe_rolling_min should have no look-ahead bias."""
 
     def indicator(df: pd.DataFrame) -> pd.Series:
-        return safe_rolling_min(df["close"], window=20)
+        result: pd.Series = safe_rolling_min(df["close"], window=20)
+        return result
 
     result = detect_lookahead_bias(indicator, test_ohlcv_data)
     assert not result.has_bias, str(result)
@@ -94,7 +96,8 @@ def test_safe_rolling_mean_no_bias(test_ohlcv_data: pd.DataFrame) -> None:
     """safe_rolling_mean should have no look-ahead bias."""
 
     def indicator(df: pd.DataFrame) -> pd.Series:
-        return safe_rolling_mean(df["close"], window=20)
+        result: pd.Series = safe_rolling_mean(df["close"], window=20)
+        return result
 
     result = detect_lookahead_bias(indicator, test_ohlcv_data)
     assert not result.has_bias, str(result)
@@ -104,7 +107,8 @@ def test_hhv_no_bias(test_ohlcv_data: pd.DataFrame) -> None:
     """HHV (highest high value) should have no bias."""
 
     def indicator(df: pd.DataFrame) -> pd.Series:
-        return hhv(df["high"], length=50)
+        result: pd.Series = hhv(df["high"], length=50)
+        return result
 
     result = detect_lookahead_bias(indicator, test_ohlcv_data)
     assert not result.has_bias, str(result)
@@ -114,7 +118,8 @@ def test_llv_no_bias(test_ohlcv_data: pd.DataFrame) -> None:
     """LLV (lowest low value) should have no bias."""
 
     def indicator(df: pd.DataFrame) -> pd.Series:
-        return llv(df["low"], length=50)
+        result: pd.Series = llv(df["low"], length=50)
+        return result
 
     result = detect_lookahead_bias(indicator, test_ohlcv_data)
     assert not result.has_bias, str(result)
@@ -127,11 +132,13 @@ def test_donchian_channels_no_bias(
 
     def indicator_upper(df: pd.DataFrame) -> pd.Series:
         dc = donchian_channels(df["high"], df["low"], length=20)
-        return dc["upper"]
+        result: pd.Series = dc["upper"]
+        return result
 
     def indicator_lower(df: pd.DataFrame) -> pd.Series:
         dc = donchian_channels(df["high"], df["low"], length=20)
-        return dc["lower"]
+        result: pd.Series = dc["lower"]
+        return result
 
     result_upper = detect_lookahead_bias(indicator_upper, test_ohlcv_data)
     result_lower = detect_lookahead_bias(indicator_lower, test_ohlcv_data)
@@ -149,7 +156,8 @@ def test_ema_no_bias(test_ohlcv_data: pd.DataFrame) -> None:
     """EMA should have no look-ahead bias."""
 
     def indicator(df: pd.DataFrame) -> pd.Series:
-        return ema(df["close"], length=20)
+        result: pd.Series = ema(df["close"], length=20)
+        return result
 
     result = detect_lookahead_bias(indicator, test_ohlcv_data)
     assert not result.has_bias, str(result)
@@ -159,7 +167,8 @@ def test_ema_slope_no_bias(test_ohlcv_data: pd.DataFrame) -> None:
     """EMA slope should have no look-ahead bias."""
 
     def indicator(df: pd.DataFrame) -> pd.Series:
-        return ema_slope(df["close"], length=20, slope_period=1)
+        result: pd.Series = ema_slope(df["close"], length=20, slope_period=1)
+        return result
 
     result = detect_lookahead_bias(indicator, test_ohlcv_data)
     assert not result.has_bias, str(result)
@@ -169,7 +178,8 @@ def test_rsi_no_bias(test_ohlcv_data: pd.DataFrame) -> None:
     """RSI should have no look-ahead bias."""
 
     def indicator(df: pd.DataFrame) -> pd.Series:
-        return rsi(df["close"], length=14)
+        result: pd.Series = rsi(df["close"], length=14)
+        return result
 
     result = detect_lookahead_bias(indicator, test_ohlcv_data)
     assert not result.has_bias, str(result)
@@ -179,7 +189,8 @@ def test_atr_no_bias(test_ohlcv_data: pd.DataFrame) -> None:
     """ATR should have no look-ahead bias."""
 
     def indicator(df: pd.DataFrame) -> pd.Series:
-        return atr(df, length=14)
+        result: pd.Series = atr(df, length=14)
+        return result
 
     result = detect_lookahead_bias(indicator, test_ohlcv_data)
     assert not result.has_bias, str(result)
@@ -190,7 +201,8 @@ def test_adx_no_bias(test_ohlcv_data: pd.DataFrame) -> None:
 
     def indicator(df: pd.DataFrame) -> pd.Series:
         adx_df = adx(df, length=14)
-        return adx_df["ADX"]  # Return just the ADX column
+        result: pd.Series = adx_df["ADX"]  # Return just the ADX column
+        return result
 
     result = detect_lookahead_bias(indicator, test_ohlcv_data)
     assert not result.has_bias, str(result)
@@ -211,7 +223,8 @@ def test_swing_high_no_bias(test_ohlcv_data: pd.DataFrame) -> None:
     """
 
     def indicator(df: pd.DataFrame) -> pd.DataFrame:
-        return find_swing_points(df, left_bars=10, right_bars=10)
+        result: pd.DataFrame = find_swing_points(df, left_bars=10, right_bars=10)
+        return result
 
     result = detect_lookahead_bias_multicolumn(indicator, test_ohlcv_data, "swing_high")
 
@@ -226,7 +239,8 @@ def test_swing_low_no_bias(test_ohlcv_data: pd.DataFrame) -> None:
     """
 
     def indicator(df: pd.DataFrame) -> pd.DataFrame:
-        return find_swing_points(df, left_bars=10, right_bars=10)
+        result: pd.DataFrame = find_swing_points(df, left_bars=10, right_bars=10)
+        return result
 
     result = detect_lookahead_bias_multicolumn(indicator, test_ohlcv_data, "swing_low")
 
@@ -248,7 +262,8 @@ def test_swing_points_with_different_params_no_bias(
     for left, right in param_combinations:
 
         def indicator(df: pd.DataFrame) -> pd.DataFrame:
-            return find_swing_points(df, left_bars=left, right_bars=right)
+            result: pd.DataFrame = find_swing_points(df, left, right)
+            return result
 
         result_high = detect_lookahead_bias_multicolumn(
             indicator, test_ohlcv_data, "swing_high"
@@ -274,7 +289,8 @@ def test_chop_no_bias(test_ohlcv_data: pd.DataFrame) -> None:
     from trading_platform.strategy.indicator_implementations import compute_chop
 
     def indicator(df: pd.DataFrame) -> pd.Series:
-        return compute_chop(df, {"length": 14}, "close")
+        result: pd.Series = compute_chop(df, {"length": 14}, "close")
+        return result
 
     result = detect_lookahead_bias(indicator, test_ohlcv_data)
     assert not result.has_bias, str(result)
@@ -291,7 +307,8 @@ def test_supertrend_no_bias(test_ohlcv_data: pd.DataFrame) -> None:
 
     def indicator(df: pd.DataFrame) -> pd.Series:
         result_dict = compute_supertrend(df, {"length": 7, "multiplier": 3.0})
-        return result_dict[""]  # Main SuperTrend value
+        result: pd.Series = result_dict[""]  # Main SuperTrend value
+        return result
 
     result = detect_lookahead_bias(indicator, test_ohlcv_data)
     assert not result.has_bias, str(result)
@@ -309,7 +326,8 @@ def test_fib_no_bias(test_ohlcv_data: pd.DataFrame) -> None:
     def indicator(df: pd.DataFrame) -> pd.Series:
         result_dict = compute_fib(df, {"left_bars": 5, "right_bars": 5})
         # Test the 61.8% Fibonacci level (golden ratio)
-        return result_dict["0.618"]
+        result: pd.Series = result_dict["0.618"]
+        return result
 
     result = detect_lookahead_bias(indicator, test_ohlcv_data)
     assert not result.has_bias, str(result)
@@ -385,7 +403,8 @@ def test_bias_detection_with_all_nan_indicator(
     """Test behavior when indicator returns all NaN."""
 
     def all_nan_indicator(df: pd.DataFrame) -> pd.Series:
-        return pd.Series([np.nan] * len(df), index=df.index)
+        result: pd.Series = pd.Series([np.nan] * len(df), index=df.index)
+        return result
 
     result = detect_lookahead_bias(all_nan_indicator, test_ohlcv_data)
 
@@ -460,7 +479,8 @@ def test_bias_detection_performance(
     import time
 
     def indicator(df: pd.DataFrame) -> pd.Series:
-        return ema(df["close"], length=20)
+        result: pd.Series = ema(df["close"], length=20)
+        return result
 
     start = time.time()
     result = detect_lookahead_bias(indicator, test_ohlcv_data)

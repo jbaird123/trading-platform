@@ -45,6 +45,8 @@ def test_tie_break_stop_then_tp_for_long():
             "take_profit": {"absolute_price": 105.0},
         },
         instrument=_instrument(),
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config=config.rem_config or {})
     result = run_backtest(
@@ -56,7 +58,7 @@ def test_tie_break_stop_then_tp_for_long():
         return_exposure=True,
         return_skips=True,
     )
-    trades, _, _ = result  # type: ignore[misc]
+    trades = result[0]
     assert len(trades) == 1  # type: ignore[arg-type]
     t = trades[0]  # type: ignore[index]
     assert t.exit_price == 95.0 and t.exit_reason == "stop-loss"

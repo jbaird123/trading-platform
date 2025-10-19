@@ -46,6 +46,8 @@ def test_run_backtest_returns_trades_and_exposure_only() -> None:
         position_size=1.0,
         allow_flip_on_bar=False,
         instrument={"symbol": "EURUSD"},
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
 
@@ -66,7 +68,13 @@ def test_run_backtest_returns_trades_and_exposure_only() -> None:
 
 
 class _NeverExitREM:
-    def check_exits(self, position: Any, current_bar: pd.Series) -> None:
+    def check_exits(
+        self,
+        position: Any,
+        current_bar: pd.Series,
+        signal: Any = None,
+        data_handler: Any = None,
+    ) -> None:
         return None
 
 

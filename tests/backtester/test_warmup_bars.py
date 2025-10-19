@@ -41,6 +41,8 @@ def test_warmup_delays_first_entry_until_threshold():
         allow_flip_on_bar=False,
         warmup_bars=3,
         instrument=_instrument(),
+        execution_model="current_bar_close",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
     result = run_backtest(
@@ -52,7 +54,7 @@ def test_warmup_delays_first_entry_until_threshold():
         return_exposure=True,
         return_skips=True,
     )
-    trades, _, _ = result  # type: ignore[misc]
+    trades = result[0]
     # One completed trade: entry at 4th bar, exit on 5th due to flat
     assert len(trades) == 1  # type: ignore[arg-type]
     assert trades[0].entry_time == df.index[3]  # type: ignore[index]
@@ -73,6 +75,8 @@ def test_no_warmup_allows_immediate_entry():
         allow_flip_on_bar=False,
         warmup_bars=0,
         instrument=_instrument(),
+        execution_model="current_bar_close",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
     result = run_backtest(
@@ -84,7 +88,7 @@ def test_no_warmup_allows_immediate_entry():
         return_exposure=True,
         return_skips=True,
     )
-    trades, _, _ = result  # type: ignore[misc]
+    trades = result[0]
     # First trade should enter at the first bar
     assert len(trades) == 1  # type: ignore[arg-type]
     assert trades[0].entry_time == df.index[0]  # type: ignore[index]

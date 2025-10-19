@@ -407,12 +407,15 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
     )
 
     if isinstance(first_trade.post_exit_analysis, PostExitAnalysis):
-        # New format - the old exit_efficiency metrics are being replaced
-        # by simulated_hold_analysis, so return empty dict
-        return {}
-
-    # Legacy format - proceed with old metrics
-    horizons = sorted([int(h) for h in first_trade.post_exit_analysis.keys()])
+        # New format - use simulated_holds data
+        horizons = sorted(
+            set(h.hold_bars for h in first_trade.post_exit_analysis.simulated_holds)
+        )
+        use_new_format = True
+    else:
+        # Legacy format - proceed with old metrics
+        horizons = sorted([int(h) for h in first_trade.post_exit_analysis.keys()])
+        use_new_format = False
 
     def analyze_by_exit_reason(reason: str) -> dict:
         """Analyze trades that exited for a specific reason."""
@@ -434,9 +437,25 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
             for t in reason_trades:
                 # post_exit_analysis is guaranteed non-None due to filter
                 assert t.post_exit_analysis is not None
-                post_data = t.post_exit_analysis.get(h_key, {})
-                post_mfe = post_data.get("mfe", 0.0)
-                post_data.get("mae", 0.0)
+
+                if use_new_format:
+                    # Get data from simulated_holds for this horizon
+                    matching_holds = [
+                        h
+                        for h in t.post_exit_analysis.simulated_holds
+                        if h.hold_bars == horizon
+                    ]
+                    if matching_holds:
+                        hold = matching_holds[0]
+                        post_mfe = hold.mfe_during_hold
+                    else:
+                        post_mfe = 0.0
+                else:
+                    # Legacy format
+                    assert isinstance(t.post_exit_analysis, dict)
+                    post_data = t.post_exit_analysis.get(h_key, {})
+                    post_mfe = post_data.get("mfe", 0.0)
+                    post_data.get("mae", 0.0)
 
                 # Opportunity cost = what we left on the table
                 opp_cost = post_mfe  # Positive if price continued favorably
@@ -503,8 +522,25 @@ def compute_exit_efficiency(trades: list[Trade]) -> dict:
         for t in trades_with_analysis:
             # post_exit_analysis is guaranteed non-None due to filter
             assert t.post_exit_analysis is not None
-            post_data = t.post_exit_analysis.get(h_key, {})
-            post_mfe = post_data.get("mfe", 0.0)
+
+            if use_new_format:
+                # Get data from simulated_holds for this horizon
+                matching_holds = [
+                    h
+                    for h in t.post_exit_analysis.simulated_holds
+                    if h.hold_bars == horizon
+                ]
+                if matching_holds:
+                    hold = matching_holds[0]
+                    post_mfe = hold.mfe_during_hold
+                else:
+                    post_mfe = 0.0
+            else:
+                # Legacy format
+                assert isinstance(t.post_exit_analysis, dict)
+                post_data = t.post_exit_analysis.get(h_key, {})
+                post_mfe = post_data.get("mfe", 0.0)
+
             # If we had held longer, we could have captured this extra profit
             # But we also pay costs on the original trade
             hypothetical_pnl = t.pnl + post_mfe

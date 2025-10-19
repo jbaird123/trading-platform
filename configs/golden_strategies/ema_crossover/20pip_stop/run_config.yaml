@@ -1,0 +1,32 @@
+run_name: "EMA_Crossover_20pip_Stop_Golden_Validation"
+
+# Match TradingView backtest configuration exactly
+initial_capital: 100000.0
+position_size: 10000.0  # $10k per trade
+
+# Instrument configuration
+instrument:
+  symbol: "EURUSD"
+  timeframe: "1H"
+
+# No costs for baseline validation
+costs:
+  spread_per_unit: 0.0
+  commission: 0.0
+  slippage_per_unit: 0.0
+
+# Execution model (how entries/exits are filled)
+execution_model: "next_bar_open"  # REQUIRED - matches TradingView behavior
+
+# Standard fill policy
+fill_policy:
+  type: "next_bar_open"
+
+# Exit tie-break: stop-loss has priority over take-profit
+exit_tie_break: "stop_then_tp"
+
+# Warmup period (bars to skip before generating trades)
+warmup_bars: 100
+
+# Random seed for reproducibility
+seed: 42

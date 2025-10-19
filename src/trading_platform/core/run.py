@@ -23,7 +23,7 @@ from trading_platform.reporting.html_export import save_html_report
 
 
 def initialize_run(config: RunConfig) -> Path:
-    run_path = config.runs_dir / config.user_id / config.run_id
+    run_path: Path = Path(config.runs_dir) / config.user_id / config.run_id
     run_path.mkdir(parents=True, exist_ok=True)
     config_path = run_path / "config.json"
     config_path.write_text(config.model_dump_json(indent=2))
@@ -39,6 +39,8 @@ if __name__ == "__main__":  # pragma: no cover
         initial_cash=100000.0,
         allow_flip_on_bar=True,
         position_size=10000.0,
+        execution_model="current_bar_close",
+        exit_tie_break="stop_then_tp",
     )  # pragma: no cover
     initialize_run(default_config)  # pragma: no cover
 
@@ -154,7 +156,7 @@ def finalize_run(
         )
     )
 
-    brief_path = save_run_brief(
+    brief_path: Path = save_run_brief(
         run_path,
         meta=meta,
         params=params,

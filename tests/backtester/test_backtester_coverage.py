@@ -305,6 +305,8 @@ def test_post_exit_analysis_integration():
         instrument=_instrument(),
         allow_flip_on_bar=False,
         post_exit_analysis={"enabled": True, "horizons": [3, 5]},
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
 
@@ -382,6 +384,8 @@ def test_rmm_context_feature_rounding():
         position_size=100.0,
         instrument=_instrument(),
         allow_flip_on_bar=False,
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
 
@@ -452,6 +456,8 @@ def test_rmm_context_feature_rounding_edge_cases():
         position_size=100.0,
         instrument=_instrument(),
         allow_flip_on_bar=False,
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
 
@@ -507,6 +513,8 @@ def test_skipped_entry_index_conversion_error():
         instrument=_instrument(),
         allow_flip_on_bar=False,
         counterfactual_mode="fast",
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
 
@@ -521,7 +529,6 @@ def test_skipped_entry_index_conversion_error():
         return_skips=True,
     )
     trades, _, skipped = result  # type: ignore[misc]
-
     # Should have skipped trade with counterfactual analysis
     assert isinstance(skipped, list), "skipped should be a list"
     assert len(skipped) == 1
@@ -560,6 +567,8 @@ def test_post_exit_analysis_disabled():
         instrument=_instrument(),
         allow_flip_on_bar=False,
         # No post_exit_analysis config
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
 
@@ -610,6 +619,8 @@ def test_post_exit_analysis_enabled_false():
         instrument=_instrument(),
         allow_flip_on_bar=False,
         post_exit_analysis={"enabled": False, "horizons": [10]},
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
 
@@ -708,6 +719,8 @@ def test_skipped_entry_index_invalid_conversion():
         instrument=_instrument(),
         allow_flip_on_bar=False,
         counterfactual_mode="exact",  # Use exact mode for broader coverage
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
 
@@ -722,12 +735,12 @@ def test_skipped_entry_index_invalid_conversion():
         return_skips=True,
     )
     trades, _, skipped = result  # type: ignore[misc]
-
     # Should have skipped trade with counterfactual analysis
     assert isinstance(skipped, list), "skipped should be a list"
     assert len(skipped) == 1
-    assert skipped[0]["skip_reason"] == "rmm_block"
-    # Exact mode should provide detailed counterfactual info
+    assert (
+        skipped[0]["skip_reason"] == "rmm_block"
+    )  # Exact mode should provide detailed counterfactual info
     assert "counterfactual_pnl" in skipped[0]
     assert "cf_mode" in skipped[0]
     assert skipped[0]["cf_mode"] == "exact"
@@ -808,6 +821,8 @@ def test_rmm_context_feature_rounding_with_strategy_features():
         position_size=100.0,
         instrument=_instrument(),
         allow_flip_on_bar=False,
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
 
@@ -868,6 +883,8 @@ def test_counterfactual_with_manual_invalid_entry_index():
         instrument=_instrument(),
         allow_flip_on_bar=False,
         counterfactual_mode="fast",
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
 
@@ -886,7 +903,6 @@ def test_counterfactual_with_manual_invalid_entry_index():
             return_skips=True,
         )
         trades, _, skipped = result  # type: ignore[misc]
-
     # Should have skipped trades
     assert isinstance(skipped, list), "skipped should be a list"
     assert len(skipped) >= 1

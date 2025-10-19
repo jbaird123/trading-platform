@@ -35,7 +35,7 @@ def test_base_strategy_requires_implementation() -> None:
 
     class CompleteStrategy(BaseStrategy):
         def generate_signals(self, data: pd.DataFrame) -> pd.Series:
-            return pd.Series("flat", index=data.index)
+            return pd.Series("flat", index=data.index, dtype=object)
 
     complete_strategy = CompleteStrategy()
     assert complete_strategy is not None

@@ -41,7 +41,8 @@ class RuleTranslator:
             0.20
         """
         assert self.instrument.pip_location is not None
-        return pips * self.instrument.pip_location
+        result: float = float(pips * self.instrument.pip_location)
+        return result
 
     def price_offset_to_pips(self, price_offset: float) -> float:
         """Convert a canonical price offset to pips.
@@ -64,7 +65,8 @@ class RuleTranslator:
             20.0
         """
         assert self.instrument.pip_location is not None
-        return price_offset / self.instrument.pip_location
+        result: float = float(price_offset / self.instrument.pip_location)
+        return result
 
     def points_to_price_offset(self, points: float) -> float:
         """Convert points to canonical price offset.

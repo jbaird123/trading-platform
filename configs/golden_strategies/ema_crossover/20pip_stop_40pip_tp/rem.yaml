@@ -1,0 +1,13 @@
+name: "Fixed_20pip_Stop_40pip_TP"
+version: "1.0"
+description: "Fixed 20-pip stop loss and 40-pip take profit for golden validation"
+
+# Fixed stop loss: 20 pips
+# For EURUSD: 20 pips = 0.0020 in canonical price terms
+stop_loss:
+  price_offset: 0.0020
+
+# Fixed take profit: 40 pips
+# For EURUSD: 40 pips = 0.0040 in canonical price terms
+take_profit:
+  price_offset: 0.0040

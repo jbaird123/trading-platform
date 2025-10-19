@@ -5,6 +5,10 @@ from datetime import datetime
 
 from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.analytics import compute_exit_efficiency
+from trading_platform.reporting.models.exit_analysis import (
+    PostExitAnalysis,
+    SimulatedHold,
+)
 
 
 def _mock_trade(pnl: float, ts: datetime | None = None) -> Trade:
@@ -36,9 +40,21 @@ def test_compute_exit_efficiency_no_trades_for_exit_reason() -> None:
         trade,
         exit_reason="take_profit",
         pnl_movement=50.0,
-        post_exit_analysis={  # type: ignore[arg-type]
-            "5": {"mfe": 10.0, "mae": -5.0},
-        },
+        post_exit_analysis=PostExitAnalysis(
+            simulated_holds=[
+                SimulatedHold(
+                    hold_bars=5,
+                    simulated_pnl=10.0,
+                    pnl_change_vs_actual=0.0,
+                    simulated_exit_reason="held_full_period",
+                    simulated_exit_bar_offset=5,
+                    mfe_during_hold=10.0,
+                    mfe_bar_offset=0,
+                    mae_during_hold=-5.0,
+                    mae_bar_offset=0,
+                ),
+            ]
+        ),
     )
 
     result = compute_exit_efficiency([trade])
@@ -171,9 +187,21 @@ def test_compute_exit_efficiency_empty_reason_analysis() -> None:
         trade,
         exit_reason="take_profit",
         pnl_movement=50.0,
-        post_exit_analysis={  # type: ignore[arg-type]
-            "5": {"mfe": 10.0, "mae": -5.0},
-        },
+        post_exit_analysis=PostExitAnalysis(
+            simulated_holds=[
+                SimulatedHold(
+                    hold_bars=5,
+                    simulated_pnl=10.0,
+                    pnl_change_vs_actual=0.0,
+                    simulated_exit_reason="held_full_period",
+                    simulated_exit_bar_offset=5,
+                    mfe_during_hold=10.0,
+                    mfe_bar_offset=0,
+                    mae_during_hold=-5.0,
+                    mae_bar_offset=0,
+                ),
+            ]
+        ),
     )
 
     # Patch the inner function to return empty dict
@@ -191,9 +219,21 @@ def test_compute_exit_efficiency_empty_reason_analysis() -> None:
         trade_empty_reason,
         exit_reason="",  # Empty string
         pnl_movement=50.0,
-        post_exit_analysis={  # type: ignore[arg-type]
-            "5": {"mfe": 10.0, "mae": -5.0},
-        },
+        post_exit_analysis=PostExitAnalysis(
+            simulated_holds=[
+                SimulatedHold(
+                    hold_bars=5,
+                    simulated_pnl=10.0,
+                    pnl_change_vs_actual=0.0,
+                    simulated_exit_reason="held_full_period",
+                    simulated_exit_bar_offset=5,
+                    mfe_during_hold=10.0,
+                    mfe_bar_offset=0,
+                    mae_during_hold=-5.0,
+                    mae_bar_offset=0,
+                ),
+            ]
+        ),
     )
 
     result = compute_exit_efficiency([trade_empty_reason])
