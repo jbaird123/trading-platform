@@ -802,7 +802,7 @@ def test_entry_window_allows_delayed_entry():
         allow_flip_on_bar=False,
         instrument=_instrument(),
         entry_window_bars=3,  # Allow 3 bars for entry after signal transition
-        execution_model="next_bar_open",
+        execution_model="current_bar_close",
         exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
@@ -968,7 +968,7 @@ def test_entry_window_prevents_reentry_after_rem_exit():
         allow_flip_on_bar=False,
         instrument=_instrument(),
         entry_window_bars=5,  # Large window
-        execution_model="next_bar_open",
+        execution_model="current_bar_close",
         exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})

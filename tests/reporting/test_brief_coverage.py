@@ -249,11 +249,22 @@ def test_serialize_trade_with_post_exit_dict() -> None:
     serialized_trade = brief["trades"][0]
     assert "post_exit_analysis" in serialized_trade
 
-    # Check rounding was applied
+    # Check new PostExitAnalysis format was serialized correctly
     post_exit = serialized_trade["post_exit_analysis"]
-    assert "5" in post_exit
-    assert post_exit["5"]["mfe"] == 75.12  # Rounded to 2 decimals
-    assert post_exit["5"]["mae"] == -25.99
+    assert "simulated_holds" in post_exit
+    assert len(post_exit["simulated_holds"]) == 2
+
+    # Verify the first simulated hold (5 bars)
+    hold_5 = post_exit["simulated_holds"][0]
+    assert hold_5["hold_bars"] == 5
+    assert hold_5["mfe_during_hold"] == 75.123456
+    assert hold_5["mae_during_hold"] == -25.987654
+
+    # Verify the second simulated hold (10 bars)
+    hold_10 = post_exit["simulated_holds"][1]
+    assert hold_10["hold_bars"] == 10
+    assert hold_10["mfe_during_hold"] == 100.567890
+    assert hold_10["mae_during_hold"] == -15.234567
 
 
 def test_generate_brief_with_rem_policy() -> None:

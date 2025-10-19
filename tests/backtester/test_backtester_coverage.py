@@ -528,12 +528,11 @@ def test_skipped_entry_index_conversion_error():
         return_exposure=False,
         return_skips=True,
     )
-    trades, skipped = result  # type: ignore[misc]
-
+    trades, _, skipped = result  # type: ignore[misc]
     # Should have skipped trade with counterfactual analysis
     assert isinstance(skipped, list), "skipped should be a list"
     assert len(skipped) == 1
-    assert skipped[0]["skip_reason"] == "rmm_block"  # type: ignore[call-overload]
+    assert skipped[0]["skip_reason"] == "rmm_block"
     assert "counterfactual_pnl" in skipped[0]
 
 
@@ -735,16 +734,16 @@ def test_skipped_entry_index_invalid_conversion():
         return_exposure=False,
         return_skips=True,
     )
-    trades, skipped = result  # type: ignore[misc]
-
+    trades, _, skipped = result  # type: ignore[misc]
     # Should have skipped trade with counterfactual analysis
     assert isinstance(skipped, list), "skipped should be a list"
     assert len(skipped) == 1
-    assert skipped[0]["skip_reason"] == "rmm_block"  # type: ignore[call-overload]
-    # Exact mode should provide detailed counterfactual info
+    assert (
+        skipped[0]["skip_reason"] == "rmm_block"
+    )  # Exact mode should provide detailed counterfactual info
     assert "counterfactual_pnl" in skipped[0]
     assert "cf_mode" in skipped[0]
-    assert skipped[0]["cf_mode"] == "exact"  # type: ignore[call-overload]
+    assert skipped[0]["cf_mode"] == "exact"
 
 
 def test_rmm_context_feature_rounding_with_strategy_features():
@@ -903,8 +902,7 @@ def test_counterfactual_with_manual_invalid_entry_index():
             return_exposure=False,
             return_skips=True,
         )
-        trades, skipped = result  # type: ignore[misc]
-
+        trades, _, skipped = result  # type: ignore[misc]
     # Should have skipped trades
     assert isinstance(skipped, list), "skipped should be a list"
     assert len(skipped) >= 1
@@ -913,15 +911,15 @@ def test_counterfactual_with_manual_invalid_entry_index():
     # This tests lines 451-454 exception handling
     for s in skipped:
         # Temporarily set entry_index to something non-convertible
-        original_idx = s.get("entry_index")  # type: ignore[union-attr]
-        s["entry_index"] = "not_a_number_at_all"  # type: ignore[index]
+        original_idx = s.get("entry_index")
+        s["entry_index"] = "not_a_number_at_all"
 
         # Try to convert - should handle exception
         try:
-            int(str(s["entry_index"]))  # type: ignore[call-overload]
+            int(str(s["entry_index"]))
         except Exception:
             # This is the path we want to test (lines 451-454)
             pass
 
         # Restore
-        s["entry_index"] = original_idx  # type: ignore[index]
+        s["entry_index"] = original_idx

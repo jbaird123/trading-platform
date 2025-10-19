@@ -41,7 +41,7 @@ def test_warmup_delays_first_entry_until_threshold():
         allow_flip_on_bar=False,
         warmup_bars=3,
         instrument=_instrument(),
-        execution_model="next_bar_open",
+        execution_model="current_bar_close",
         exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
@@ -75,7 +75,7 @@ def test_no_warmup_allows_immediate_entry():
         allow_flip_on_bar=False,
         warmup_bars=0,
         instrument=_instrument(),
-        execution_model="next_bar_open",
+        execution_model="current_bar_close",
         exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
