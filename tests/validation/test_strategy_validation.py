@@ -557,29 +557,26 @@ def load_platform_trades(
     strategy_name: str,
     run_config: dict[str, Any],
     ohlcv_data: pd.DataFrame,
+    data_handler: Any,
     date_range: dict[str, str] | None = None,
-    data_handler: Any | None = None,
 ) -> list[dict]:
     """Runs backtest and returns platform trades filtered to validation range.
 
     This function handles the complete golden validation workflow:
     1. Loads strategy and REM configs
-    2. Runs backtest on OHLCV data (already filtered to warmup → validation end)
+    2. Runs backtest using 1-min data resampled to 1H (always)
     3. Filters trades to validation range by entry_time
     4. Excludes "end_of_data" forced exits
 
-    NOTE: The OHLCV data passed in should already be filtered to the extended range
-    (warmup_start → validation_end). Use load_and_validate_ohlcv() for this.
+    ALL strategies use 1-minute data resampled to 1H for consistency.
+    This ensures all tests use the same data processing pipeline as production.
 
     Args:
         strategy_name: Name of strategy (e.g., "ema_crossover/20pip_stop")
         run_config: Run configuration dictionary
-        ohlcv_data: OHLCV data (already filtered to extended range)
+        ohlcv_data: OHLCV data (ignored - kept for backward compatibility)
+        data_handler: Session-scoped DataHandler with 1-minute data (required)
         date_range: Validation range dict with 'start' and 'end' keys
-                    Used to filter trades to validation period
-        data_handler: Optional shared DataHandler instance with 1-minute data.
-                     If provided, reused instead of creating new,
-                     improving performance.
 
     Returns:
         List of trade dictionaries filtered to validation range
@@ -591,22 +588,6 @@ def load_platform_trades(
     import yaml
     from trading_platform.backtester.orchestrator import run_backtest_from_config
     from trading_platform.core.config import RunConfig
-
-    # Filter OHLCV data to extended range [warmup_start, validation_end]
-    # Even though caller may pass full OHLCV, we must filter it
-    if date_range:
-        from datetime import timedelta
-
-        end_date = pd.to_datetime(date_range["end"], utc=True) + timedelta(
-            days=1, seconds=-1
-        )
-        # Use hardcoded warmup start (1 month before validation on 2023-01-01)
-        warmup_start = pd.Timestamp("2022-12-01", tz="UTC")
-        ohlcv_to_use = ohlcv_data[
-            (ohlcv_data.index >= warmup_start) & (ohlcv_data.index <= end_date)
-        ].copy()
-    else:
-        ohlcv_to_use = ohlcv_data
 
     # Load strategy config
     strategy_dir = Path(f"configs/golden_strategies/{strategy_name}")
@@ -633,87 +614,30 @@ def load_platform_trades(
         config_dict["rem_config"] = rem_config
 
     # Override warmup_bars to 0 when using extended data
-    # Since we already extended the data by 100 bars, we don't want
-    # the backtester to skip additional bars
     if date_range:
         config_dict["warmup_bars"] = 0
 
     # Create RunConfig
     config = RunConfig.model_validate(config_dict)
 
-    # Check if we need 1-minute data:
-    # 1. Trailing stop strategies always need it
-    # 2. Fixed stop strategies with BOTH stop and TP need it (for ambiguity resolution)
-    needs_1min_data = "trailing_stop" in str(strategy_name)
-    if rem_config and not needs_1min_data:
-        # Check if fixed stop strategy with both SL and TP
-        stop_loss = rem_config.get("stop_loss")
-        take_profit = rem_config.get("take_profit")
-        if stop_loss is not None and take_profit is not None:
-            needs_1min_data = True
+    # ALL strategies use 1-minute data resampled to 1H
+    ohlcv_1h = data_handler.get_data(timeframe="1H")
 
-    # Use shared data_handler if provided, otherwise create a new one
-    if needs_1min_data:
-        if data_handler is None:
-            # No shared data_handler provided - create a new one
-            # (This path is used by generate_golden_trades.py)
-            from pathlib import Path
+    # Apply date filtering to extended range
+    if date_range:
+        from datetime import timedelta
 
-            from trading_platform.data.handler import DataHandler
-
-            data_root = (
-                Path(__file__).parent.parent.parent
-                / "data"
-                / "dvc"
-                / "golden"
-                / "ohlcv"
-                / "tradingview"
-            )
-
-            if data_root.exists():
-                try:
-                    data_handler = DataHandler(
-                        symbol="EUR_USD",
-                        data_root=data_root,
-                        instrument=config.instrument,  # type: ignore[arg-type]
-                    )
-                except FileNotFoundError as e:
-                    raise FileNotFoundError(
-                        f"1-minute data is required for strategy validation "
-                        f"(trailing stops or fixed stops with ambiguity "
-                        f"resolution).\n"
-                        f"Expected data at: {data_root}/full/eur_usd/"
-                        f"eurusd_1min.csv\nOriginal error: {e}"
-                    ) from e
-                except Exception as e:
-                    raise RuntimeError(
-                        f"Failed to create DataHandler for validation.\n"
-                        f"Data root: {data_root}\n"
-                        f"Error: {e}"
-                    ) from e
-
-        # Use resampled 1H data from DataHandler instead of CSV
-        # This mirrors real-world usage where we load 1min raw data and resample
-        ohlcv_1h = data_handler.get_data(timeframe="1H")  # type: ignore
-
-        # Apply same date filtering as before
-        if date_range:
-            from datetime import timedelta
-
-            end_date = pd.to_datetime(date_range["end"], utc=True) + timedelta(
-                days=1, seconds=-1
-            )
-            warmup_start = pd.Timestamp("2022-12-01", tz="UTC")
-            ohlcv_to_use = ohlcv_1h[
-                (ohlcv_1h.index >= warmup_start) & (ohlcv_1h.index <= end_date)
-            ].copy()
-        else:
-            ohlcv_to_use = ohlcv_1h
+        end_date = pd.to_datetime(date_range["end"], utc=True) + timedelta(
+            days=1, seconds=-1
+        )
+        warmup_start = pd.Timestamp("2022-12-01", tz="UTC")
+        ohlcv_to_use = ohlcv_1h[
+            (ohlcv_1h.index >= warmup_start) & (ohlcv_1h.index <= end_date)
+        ].copy()
     else:
-        # Strategy doesn't need 1-minute data
-        data_handler = None
+        ohlcv_to_use = ohlcv_1h
 
-    # Run backtest on extended data
+    # Run backtest with 1-min data handler (for zoom capability)
     results = run_backtest_from_config(
         config=config,
         market_data=ohlcv_to_use,
@@ -721,11 +645,7 @@ def load_platform_trades(
         data_handler=data_handler,
     )
 
-    # Filter trades to validation range using utility function
-    # This handles:
-    # - Excluding "end_of_data" forced exits (TradingView doesn't close at end)
-    # - Filtering by entry_time within validation range
-    # - Converting Trade objects to dictionaries
+    # Filter trades to validation range
     # Helper function to convert Trade object to dict with all fields
     def trade_to_dict(trade):
         """Convert Trade to dict with all fields for hash verification."""
@@ -765,6 +685,8 @@ def load_platform_trades(
         return trade_dict
 
     if date_range:
+        from datetime import timedelta
+
         # Filter to validation range
         start_date = pd.to_datetime(date_range["start"], utc=True)
         end_date = pd.to_datetime(date_range["end"], utc=True) + timedelta(
@@ -1124,6 +1046,7 @@ def test_ema_crossover_trade_count_matches_tradingview(
         strategy_name="ema_crossover/baseline",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
+        data_handler=shared_data_handler,
         date_range=golden_metadata.get("date_range"),
     )
 
@@ -1176,6 +1099,7 @@ def test_ema_crossover_entry_times_match_tradingview(
         strategy_name="ema_crossover/baseline",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
+        data_handler=shared_data_handler,
         date_range=golden_metadata.get("date_range"),
     )
 
@@ -1238,6 +1162,7 @@ def test_ema_crossover_exit_times_match_tradingview(
         strategy_name="ema_crossover/baseline",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
+        data_handler=shared_data_handler,
         date_range=golden_metadata.get("date_range"),
     )
 
@@ -1299,6 +1224,7 @@ def test_ema_crossover_entry_prices_match_tradingview(
         strategy_name="ema_crossover/baseline",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
+        data_handler=shared_data_handler,
         date_range=golden_metadata.get("date_range"),
     )
 
@@ -1358,6 +1284,7 @@ def test_ema_crossover_exit_prices_match_tradingview(
         strategy_name="ema_crossover/baseline",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
+        data_handler=shared_data_handler,
         date_range=golden_metadata.get("date_range"),
     )
 
@@ -1454,6 +1381,7 @@ def test_ema_crossover_20pip_stop_trade_count_matches_tradingview(
         strategy_name="ema_crossover/20pip_stop",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
+        data_handler=shared_data_handler,
         date_range=golden_metadata.get("date_range"),
     )
 
@@ -1499,6 +1427,7 @@ def test_ema_crossover_20pip_stop_entry_times_match_tradingview(
         strategy_name="ema_crossover/20pip_stop",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
+        data_handler=shared_data_handler,
         date_range=golden_metadata.get("date_range"),
     )
 
@@ -1560,6 +1489,7 @@ def test_ema_crossover_20pip_stop_exit_times_match_tradingview(
         strategy_name="ema_crossover/20pip_stop",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
+        data_handler=shared_data_handler,
         date_range=golden_metadata.get("date_range"),
     )
 
@@ -1672,6 +1602,7 @@ def test_ema_crossover_20pip_stop_entry_prices_match_tradingview(
         strategy_name="ema_crossover/20pip_stop",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
+        data_handler=shared_data_handler,
         date_range=golden_metadata.get("date_range"),
     )
 
@@ -1734,6 +1665,7 @@ def test_ema_crossover_20pip_stop_exit_prices_match_tradingview(
         strategy_name="ema_crossover/20pip_stop",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
+        data_handler=shared_data_handler,
         date_range=golden_metadata.get("date_range"),
     )
 
@@ -1823,6 +1755,7 @@ def test_ema_crossover_20pip_stop_40pip_tp_trade_count_matches_tradingview(
         strategy_name="ema_crossover/20pip_stop_40pip_tp",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
+        data_handler=shared_data_handler,
         date_range=golden_metadata.get("date_range"),
     )
 
@@ -1868,6 +1801,7 @@ def test_ema_crossover_20pip_stop_40pip_tp_entry_times_match_tradingview(
         strategy_name="ema_crossover/20pip_stop_40pip_tp",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
+        data_handler=shared_data_handler,
         date_range=golden_metadata.get("date_range"),
     )
 
@@ -1929,6 +1863,7 @@ def test_ema_crossover_20pip_stop_40pip_tp_exit_times_match_tradingview(
         strategy_name="ema_crossover/20pip_stop_40pip_tp",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
+        data_handler=shared_data_handler,
         date_range=golden_metadata.get("date_range"),
     )
 
@@ -2043,6 +1978,7 @@ def test_ema_crossover_20pip_stop_40pip_tp_entry_prices_match_tradingview(
         strategy_name="ema_crossover/20pip_stop_40pip_tp",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
+        data_handler=shared_data_handler,
         date_range=golden_metadata.get("date_range"),
     )
 
@@ -2105,6 +2041,7 @@ def test_ema_crossover_20pip_stop_40pip_tp_exit_prices_match_tradingview(
         strategy_name="ema_crossover/20pip_stop_40pip_tp",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
+        data_handler=shared_data_handler,
         date_range=golden_metadata.get("date_range"),
     )
 

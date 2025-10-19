@@ -147,38 +147,29 @@ def generate_golden_trades_for_strategy(
     # Create RunConfig
     config = RunConfig.model_validate(run_config_dict)
 
-    # Create DataHandler for strategies that need 1-minute data:
-    # 1. Trailing stop strategies always need it
-    # 2. Fixed stop strategies with BOTH stop and TP need it (for ambiguity resolution)
-    needs_1min_data = "trailing_stop" in strategy_name
-    if rem_config and not needs_1min_data:
-        # Check if fixed stop strategy with both SL and TP
-        stop_loss = rem_config.get("stop_loss")
-        take_profit = rem_config.get("take_profit")
-        if stop_loss is not None and take_profit is not None:
-            needs_1min_data = True
+    # ALL strategies now use 1-minute data resampled to 1H for consistency
+    # This ensures all tests use the same data processing pipeline as production
+    print("Loading 1-minute data for strategy...")
+    data_root = project_root / "data/dvc/golden/ohlcv/tradingview"
 
-    data_handler = None
-    if needs_1min_data:
-        print("Loading 1-minute data for strategy (needed for ambiguity resolution)...")
-        data_root = project_root / "data/dvc/golden/ohlcv/tradingview"
+    if not data_root.exists():
+        raise FileNotFoundError(f"Data root not found: {data_root}")
 
-        if data_root.exists():
-            data_handler = DataHandler(
-                symbol="EUR_USD",
-                data_root=data_root,
-            )
+    data_handler = DataHandler(
+        symbol="EUR_USD",
+        data_root=data_root,
+    )
 
-            # Use resampled 1H data from DataHandler
-            ohlcv_1h = data_handler.get_data(timeframe="1H")
+    # Use resampled 1H data from DataHandler (includes actual volume)
+    ohlcv_1h = data_handler.get_data(timeframe="1H")
 
-            # Apply same date filtering
-            if date_range:
-                ohlcv_filtered = ohlcv_1h[
-                    (ohlcv_1h.index >= warmup_start) & (ohlcv_1h.index <= end_date)
-                ].copy()
-            else:
-                ohlcv_filtered = ohlcv_1h
+    # Apply same date filtering
+    if date_range:
+        ohlcv_filtered = ohlcv_1h[
+            (ohlcv_1h.index >= warmup_start) & (ohlcv_1h.index <= end_date)
+        ].copy()
+    else:
+        ohlcv_filtered = ohlcv_1h
 
     # Run backtest
     print(f"Running backtest with {len(ohlcv_filtered)} bars...")
