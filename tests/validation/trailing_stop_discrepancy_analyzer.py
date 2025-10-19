@@ -44,17 +44,26 @@ import pandas as pd
 class TrailingStopDiscrepancyAnalyzer:
     """Analyzes and categorizes trailing stop exit discrepancies."""
 
-    def __init__(self, trailing_stop_pips: float = 0.0020, tolerance: float = 0.00001):
+    def __init__(
+        self,
+        trailing_stop_pips: float = 0.0020,
+        take_profit_pips: float = None,
+        tolerance: float = 0.00001,
+    ):
         """
         Initialize the analyzer.
 
         Args:
             trailing_stop_pips: Trailing stop distance in price terms
                 (e.g., 0.0020 for 20 pips)
+            take_profit_pips: Take profit distance in price terms
+                (e.g., 0.0015 for 15 pips). Optional - only needed for
+                strategies with both trailing stop and take profit.
             tolerance: Price tolerance for considering matches
                 (default: 1e-5)
         """
         self.trailing_stop_pips = trailing_stop_pips
+        self.take_profit_pips = take_profit_pips
         self.tolerance = tolerance
 
         # Category definitions
@@ -63,6 +72,7 @@ class TrailingStopDiscrepancyAnalyzer:
             "TV_IGNORED_ENTRY_BAR_PEAK_MFE_STRICT",
             "TV_IGNORED_ENTRY_BAR_PEAK_MFE_VERIFIED",
             "PLATFORM_ZOOM_INTRABAR_STOP",
+            "PLATFORM_ZOOM_INTRABAR_TP",
         ]
 
     def analyze_discrepancies(
@@ -329,6 +339,69 @@ class TrailingStopDiscrepancyAnalyzer:
                 trade_info["explanation"] = zoom_result
                 return "PLATFORM_ZOOM_INTRABAR_STOP"
 
+        # CATEGORY 4: Platform zoom detected intrabar take-profit hit
+        # Check if platform exited at TP while TV exited at trailing stop
+        # This happens when both TP and trailing stop are within the same bar's range
+        # but TP was hit first chronologically (detected via 1-minute zoom)
+        platform_is_tp = "take-profit" in str(p_row.get("exit_reason", "")).lower()
+        if platform_is_tp and tv_is_stop and self.take_profit_pips is not None:
+            # Calculate TP level
+            if direction == "long":
+                tp_level = entry_price + self.take_profit_pips
+            else:  # short
+                tp_level = entry_price - self.take_profit_pips
+
+            # Verify platform exited at TP level
+            platform_exit_matches_tp = (
+                abs(trade_info["platform_exit"] - tp_level) < self.tolerance
+            )
+
+            if platform_exit_matches_tp:
+                # Find the exact minute when TP was hit using 1-minute data
+                exact_tp_time = self._find_tp_hit_time_1min(
+                    entry_time=entry_time,
+                    entry_price=entry_price,
+                    tp_level=tp_level,
+                    direction=direction,
+                    exit_time=exit_time,
+                )
+
+                if exact_tp_time:
+                    minute_str = exact_tp_time.strftime("%H:%M")
+                    tv_exit = trade_info["tv_exit"]
+                    trade_info["explanation"] = (
+                        f"Platform detected intra-bar take-profit hit "
+                        f"via 1-minute zoom. "
+                        f"{'Long' if direction == 'long' else 'Short'} entry "
+                        f"at {entry_price:.5f} with TP at {tp_level:.5f}. "
+                        f"Platform used 1-minute data to detect TP hit "
+                        f"at minute {minute_str} within the {exit_time} bar "
+                        f"and correctly exited at TP price {tp_level:.5f}. "
+                        f"TradingView, using only hourly bars, could not "
+                        f"determine intra-bar sequence and exited at trailing "
+                        f"stop {tv_exit:.5f} instead. "
+                        f"Platform is MORE accurate due to 1-minute zoom "
+                        f"detecting exact moment when TP was hit."
+                    )
+                else:
+                    # Fallback if we can't find exact minute
+                    tv_exit = trade_info["tv_exit"]
+                    trade_info["explanation"] = (
+                        f"Platform detected intra-bar take-profit hit "
+                        f"via 1-minute zoom. "
+                        f"{'Long' if direction == 'long' else 'Short'} entry "
+                        f"at {entry_price:.5f} with TP at {tp_level:.5f}. "
+                        f"Platform used 1-minute data to detect TP hit "
+                        f"within the {exit_time} bar and correctly exited "
+                        f"at TP price {tp_level:.5f}. "
+                        f"TradingView, using only hourly bars, could not "
+                        f"determine intra-bar sequence and exited at trailing "
+                        f"stop {tv_exit:.5f} instead. "
+                        f"Platform is MORE accurate due to 1-minute zoom "
+                        f"detecting exact moment when TP was hit."
+                    )
+                return "PLATFORM_ZOOM_INTRABAR_TP"
+
         # Cannot explain - requires investigation
         trade_info["explanation"] = (
             'Unable to categorize this discrepancy. Requires investigation. '
@@ -445,6 +518,54 @@ class TrailingStopDiscrepancyAnalyzer:
 
         # No stop hit detected
         return None, None
+
+    def _find_tp_hit_time_1min(
+        self,
+        entry_time: pd.Timestamp,
+        entry_price: float,
+        tp_level: float,
+        direction: str,
+        exit_time: pd.Timestamp,
+    ) -> pd.Timestamp | None:
+        """
+        Find the exact 1-minute timestamp when take-profit was hit.
+
+        Args:
+            entry_time: Entry timestamp (hourly bar)
+            entry_price: Entry price
+            tp_level: Take-profit price level
+            direction: "long" or "short"
+            exit_time: Exit time (hourly bar)
+
+        Returns:
+            Exact timestamp when TP was hit, or None if not found
+        """
+        if self.ohlcv_1min is None:
+            return None
+
+        # Get all 1-minute bars from entry through exit hour
+        try:
+            exit_hour_end = exit_time.floor("h") + pd.Timedelta(hours=1)
+            bars_1min = self.ohlcv_1min.loc[entry_time:exit_hour_end]
+
+            if len(bars_1min) == 0:
+                return None
+        except (KeyError, IndexError):
+            return None
+
+        # Process each 1-minute bar to find when TP was hit
+        for timestamp, bar in bars_1min.iterrows():
+            if direction == "long":
+                # For long, TP is hit when high >= tp_level
+                if bar["high"] >= tp_level:
+                    return timestamp
+            else:  # short
+                # For short, TP is hit when low <= tp_level
+                if bar["low"] <= tp_level:
+                    return timestamp
+
+        # TP not found in 1-minute data
+        return None
 
     def _check_zoom_discrepancy(
         self,

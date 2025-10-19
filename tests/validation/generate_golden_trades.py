@@ -300,7 +300,7 @@ def main():
         "ema_crossover/20pip_stop",
         "ema_crossover/20pip_stop_40pip_tp",
         "ema_crossover/20pip_trailing_stop",
-        "ema_crossover/30pip_trailing_stop_20pip_tp",
+        "ema_crossover/20pip_trailing_stop_15pip_tp",
     ]
 
     for strategy_name in strategies:

@@ -211,8 +211,8 @@ def test_export_exit_time_comparison(
     )
 
 
-@pytest.mark.strategy_name("ema_crossover/30pip_trailing_stop_20pip_tp")
-def test_export_exit_time_comparison_30pip(
+@pytest.mark.strategy_name("ema_crossover/20pip_trailing_stop_15pip_tp")
+def test_export_exit_time_comparison_20pip_15pip(
     golden_strategy_config,
     tradingview_trades,
     tradingview_ohlcv,
@@ -227,7 +227,7 @@ def test_export_exit_time_comparison_30pip(
 
     # Load platform trades
     platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/30pip_trailing_stop_20pip_tp",
+        strategy_name="ema_crossover/20pip_trailing_stop_15pip_tp",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
         date_range=date_range,
@@ -235,7 +235,7 @@ def test_export_exit_time_comparison_30pip(
 
     # Load TradingView trades
     strategy_dir = Path(
-        "data/dvc/golden/strategies/ema_crossover/30pip_trailing_stop_20pip_tp"
+        "data/dvc/golden/strategies/ema_crossover/20pip_trailing_stop_15pip_tp"
     )
     tv_trades_path = strategy_dir / "trades.csv"
     tv_df = load_and_validate_tradingview_trades(
@@ -255,7 +255,7 @@ def test_export_exit_time_comparison_30pip(
 
     # Get known edge cases for exit time mismatches
     strategy_edge_cases = KNOWN_EDGE_CASES.get(
-        "ema_crossover/30pip_trailing_stop_20pip_tp", {}
+        "ema_crossover/20pip_trailing_stop_15pip_tp", {}
     )
     known_exit_time_edge_cases = strategy_edge_cases.get("exit_time_mismatches", [])
 
@@ -272,7 +272,7 @@ def test_export_exit_time_comparison_30pip(
 
     # Use analyzer to categorize discrepancies (provides MFE-based categorization)
     analyzer = TrailingStopDiscrepancyAnalyzer(
-        trailing_stop_pips=0.0030,  # 30 pips
+        trailing_stop_pips=0.0020,  # 20 pips
         tolerance=0.00001,
     )
 
@@ -371,7 +371,7 @@ def test_export_exit_time_comparison_30pip(
     from tests.validation.test_strategy_validation import verify_golden_comparison_hash
 
     verify_golden_comparison_hash(
-        "ema_crossover/30pip_trailing_stop_20pip_tp",
+        "ema_crossover/20pip_trailing_stop_15pip_tp",
         output_path,
         golden_filename="exit_time_comparison_golden.csv",
     )

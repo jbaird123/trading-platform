@@ -113,8 +113,8 @@ def strategy_name(request) -> str:
         # Check for variation in test name
         # IMPORTANT: Check more specific variations first
         # (e.g., 20pip_stop_40pip_tp before 20pip_stop)
-        if "30pip_trailing_stop_20pip_tp" in test_name:
-            return "ema_crossover/30pip_trailing_stop_20pip_tp"
+        if "20pip_trailing_stop_15pip_tp" in test_name:
+            return "ema_crossover/20pip_trailing_stop_15pip_tp"
         elif "20pip_stop_40pip_tp" in test_name:
             return "ema_crossover/20pip_stop_40pip_tp"
         elif "20pip_trailing_stop" in test_name:

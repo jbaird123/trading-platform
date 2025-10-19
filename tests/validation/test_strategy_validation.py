@@ -2387,6 +2387,7 @@ def test_ema_crossover_20pip_trailing_stop_exit_times_match_tradingview(
     # Use analyzer to categorize time mismatches based on MFE patterns
     analyzer = TrailingStopDiscrepancyAnalyzer(
         trailing_stop_pips=0.0020,  # 20 pips
+        take_profit_pips=0.0015,  # 15 pips
         tolerance=0.00001,
     )
 
@@ -2519,6 +2520,8 @@ def test_ema_crossover_20pip_trailing_stop_exit_prices_match_tradingview(
        (TV ignores it) - independent exit verification
     4. PLATFORM_ZOOM_INTRABAR_STOP: Platform detected intrabar stop
        via 1-minute zoom
+    5. PLATFORM_ZOOM_INTRABAR_TP: Platform detected intrabar take-profit
+       via 1-minute zoom
 
     Any UNEXPLAINED discrepancies will cause the test to fail, indicating
     a potential bug or new TradingView behavior that needs investigation.
@@ -2545,6 +2548,7 @@ def test_ema_crossover_20pip_trailing_stop_exit_prices_match_tradingview(
     # Analyze discrepancies using the discrepancy analyzer
     analyzer = TrailingStopDiscrepancyAnalyzer(
         trailing_stop_pips=0.0020,  # 20 pips
+        take_profit_pips=0.0015,  # 15 pips
         tolerance=0.00001,
     )
 
@@ -2598,7 +2602,7 @@ def test_ema_crossover_20pip_trailing_stop_exit_prices_match_tradingview(
     analyzer.assert_all_explained(categories)
 
 
-def test_ema_crossover_30pip_trailing_stop_20pip_tp_metadata_schema_validation(
+def test_ema_crossover_20pip_trailing_stop_15pip_tp_metadata_schema_validation(
     golden_metadata,
 ):
     """Validates metadata.json conforms to schema.
@@ -2610,11 +2614,11 @@ def test_ema_crossover_30pip_trailing_stop_20pip_tp_metadata_schema_validation(
     assert golden_metadata.get("dataset_type") == "strategy"
     assert (
         golden_metadata.get("strategy_name")
-        == "ema_crossover_30pip_trailing_stop_20pip_tp"
+        == "ema_crossover_20pip_trailing_stop_15pip_tp"
     )
 
 
-def test_ema_crossover_30pip_trailing_stop_20pip_tp_trade_count_matches_tradingview(
+def test_ema_crossover_20pip_trailing_stop_15pip_tp_trade_count_matches_tradingview(
     golden_strategy_config,
     tradingview_trades,
     tradingview_ohlcv,
@@ -2628,7 +2632,7 @@ def test_ema_crossover_30pip_trailing_stop_20pip_tp_trade_count_matches_tradingv
 
     # Load platform trades
     platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/30pip_trailing_stop_20pip_tp",
+        strategy_name="ema_crossover/20pip_trailing_stop_15pip_tp",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
         date_range=date_range,
@@ -2636,7 +2640,7 @@ def test_ema_crossover_30pip_trailing_stop_20pip_tp_trade_count_matches_tradingv
 
     # Verify platform trades hash matches golden reference
     verify_golden_trades_hash(
-        "ema_crossover/30pip_trailing_stop_20pip_tp", platform_trades
+        "ema_crossover/20pip_trailing_stop_15pip_tp", platform_trades
     )
 
     # Align trades
@@ -2649,7 +2653,7 @@ def test_ema_crossover_30pip_trailing_stop_20pip_tp_trade_count_matches_tradingv
     )
 
 
-def test_ema_crossover_30pip_trailing_stop_20pip_tp_entry_times_match_tradingview(
+def test_ema_crossover_20pip_trailing_stop_15pip_tp_entry_times_match_tradingview(
     golden_strategy_config,
     tradingview_trades,
     tradingview_ohlcv,
@@ -2663,7 +2667,7 @@ def test_ema_crossover_30pip_trailing_stop_20pip_tp_entry_times_match_tradingvie
 
     # Load platform trades
     platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/30pip_trailing_stop_20pip_tp",
+        strategy_name="ema_crossover/20pip_trailing_stop_15pip_tp",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
         date_range=date_range,
@@ -2703,7 +2707,7 @@ def test_ema_crossover_30pip_trailing_stop_20pip_tp_entry_times_match_tradingvie
     )
 
 
-def test_ema_crossover_30pip_trailing_stop_20pip_tp_entry_prices_match_tradingview(
+def test_ema_crossover_20pip_trailing_stop_15pip_tp_entry_prices_match_tradingview(
     golden_strategy_config,
     tradingview_trades,
     tradingview_ohlcv,
@@ -2718,7 +2722,7 @@ def test_ema_crossover_30pip_trailing_stop_20pip_tp_entry_prices_match_tradingvi
 
     # Load platform trades
     platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/30pip_trailing_stop_20pip_tp",
+        strategy_name="ema_crossover/20pip_trailing_stop_15pip_tp",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
         date_range=date_range,
@@ -2763,7 +2767,7 @@ def test_ema_crossover_30pip_trailing_stop_20pip_tp_entry_prices_match_tradingvi
     )
 
 
-def test_ema_crossover_30pip_trailing_stop_20pip_tp_exit_times_match_tradingview(
+def test_ema_crossover_20pip_trailing_stop_15pip_tp_exit_times_match_tradingview(
     golden_strategy_config,
     tradingview_trades,
     tradingview_ohlcv,
@@ -2788,7 +2792,7 @@ def test_ema_crossover_30pip_trailing_stop_20pip_tp_exit_times_match_tradingview
 
     # Load platform trades
     platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/30pip_trailing_stop_20pip_tp",
+        strategy_name="ema_crossover/20pip_trailing_stop_15pip_tp",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
         date_range=date_range,
@@ -2799,13 +2803,14 @@ def test_ema_crossover_30pip_trailing_stop_20pip_tp_exit_times_match_tradingview
 
     # Get known edge cases for this strategy
     strategy_edge_cases = KNOWN_EDGE_CASES.get(
-        "ema_crossover/30pip_trailing_stop_20pip_tp", {}
+        "ema_crossover/20pip_trailing_stop_15pip_tp", {}
     )
     known_exit_time_edge_cases = strategy_edge_cases.get("exit_time_mismatches", [])
 
     # Use analyzer to categorize time mismatches based on MFE patterns
     analyzer = TrailingStopDiscrepancyAnalyzer(
-        trailing_stop_pips=0.0030,  # 30 pips
+        trailing_stop_pips=0.0020,  # 20 pips
+        take_profit_pips=0.0015,  # 15 pips
         tolerance=0.00001,
     )
 
@@ -2917,7 +2922,7 @@ def test_ema_crossover_30pip_trailing_stop_20pip_tp_exit_times_match_tradingview
     )
 
 
-def test_ema_crossover_30pip_trailing_stop_20pip_tp_exit_prices_match_tradingview(
+def test_ema_crossover_20pip_trailing_stop_15pip_tp_exit_prices_match_tradingview(
     golden_strategy_config,
     tradingview_trades,
     tradingview_ohlcv,
@@ -2938,6 +2943,8 @@ def test_ema_crossover_30pip_trailing_stop_20pip_tp_exit_prices_match_tradingvie
        (TV ignores it) - independent exit verification
     4. PLATFORM_ZOOM_INTRABAR_STOP: Platform detected intrabar stop
        via 1-minute zoom
+    5. PLATFORM_ZOOM_INTRABAR_TP: Platform detected intrabar take-profit
+       via 1-minute zoom
 
     Any UNEXPLAINED discrepancies will cause the test to fail, indicating
     a potential bug or new TradingView behavior that needs investigation.
@@ -2952,7 +2959,7 @@ def test_ema_crossover_30pip_trailing_stop_20pip_tp_exit_prices_match_tradingvie
 
     # Load platform trades
     platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/30pip_trailing_stop_20pip_tp",
+        strategy_name="ema_crossover/20pip_trailing_stop_15pip_tp",
         run_config=golden_strategy_config["run_config"],
         ohlcv_data=tradingview_ohlcv,
         date_range=date_range,
@@ -2963,7 +2970,8 @@ def test_ema_crossover_30pip_trailing_stop_20pip_tp_exit_prices_match_tradingvie
 
     # Analyze discrepancies using the discrepancy analyzer
     analyzer = TrailingStopDiscrepancyAnalyzer(
-        trailing_stop_pips=0.0030,  # 30 pips
+        trailing_stop_pips=0.0020,  # 20 pips
+        take_profit_pips=0.0015,  # 15 pips
         tolerance=0.00001,
     )
 
