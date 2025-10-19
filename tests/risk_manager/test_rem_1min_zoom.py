@@ -13,9 +13,8 @@ from unittest.mock import Mock
 
 import pandas as pd
 import pytest
-
-from src.trading_platform.portfolio.position import Position
-from src.trading_platform.risk_manager.core import RiskExitManager
+from trading_platform.portfolio.position import Position
+from trading_platform.risk_manager.core import RiskExitManager
 
 
 @pytest.fixture

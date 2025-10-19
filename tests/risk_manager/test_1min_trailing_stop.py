@@ -13,7 +13,7 @@ import pandas as pd
 
 def test_trailing_stop_hit_on_specific_minute():
     """Test that stop is hit on correct minute bar and returns stop level."""
-    from src.trading_platform.risk_manager.trailing_stop_utils import (
+    from trading_platform.risk_manager.trailing_stop_utils import (
         process_1min_bars_for_trailing_stop,
     )
 
@@ -58,7 +58,7 @@ def test_trailing_stop_hit_on_specific_minute():
 
 def test_take_profit_hit_no_trailing_stop():
     """Test that TP is hit and returned when no stop hit."""
-    from src.trading_platform.risk_manager.trailing_stop_utils import (
+    from trading_platform.risk_manager.trailing_stop_utils import (
         process_1min_bars_for_trailing_stop,
     )
 
@@ -106,7 +106,7 @@ def test_take_profit_hit_no_trailing_stop():
 
 def test_stop_hit_before_take_profit():
     """Test that stop hit first when both eventually hit."""
-    from src.trading_platform.risk_manager.trailing_stop_utils import (
+    from trading_platform.risk_manager.trailing_stop_utils import (
         process_1min_bars_for_trailing_stop,
     )
 
@@ -148,7 +148,7 @@ def test_stop_hit_before_take_profit():
 
 def test_both_hit_same_bar_stop_then_tp_policy():
     """Test tie-breaker: stop_then_tp policy when both hit on same bar."""
-    from src.trading_platform.risk_manager.trailing_stop_utils import (
+    from trading_platform.risk_manager.trailing_stop_utils import (
         process_1min_bars_for_trailing_stop,
     )
 
@@ -190,7 +190,7 @@ def test_both_hit_same_bar_stop_then_tp_policy():
 
 def test_both_hit_same_bar_tp_then_stop_policy():
     """Test tie-breaker: tp_then_stop policy when both hit on same bar."""
-    from src.trading_platform.risk_manager.trailing_stop_utils import (
+    from trading_platform.risk_manager.trailing_stop_utils import (
         process_1min_bars_for_trailing_stop,
     )
 
@@ -231,7 +231,7 @@ def test_both_hit_same_bar_tp_then_stop_policy():
 
 def test_no_exit_in_any_bar():
     """Test that no exit when neither stop nor TP hit."""
-    from src.trading_platform.risk_manager.trailing_stop_utils import (
+    from trading_platform.risk_manager.trailing_stop_utils import (
         process_1min_bars_for_trailing_stop,
     )
 
@@ -260,7 +260,7 @@ def test_no_exit_in_any_bar():
 
 def test_trailing_stop_moves_up_with_favorable_movement():
     """Test that trailing stop correctly trails upward for long position."""
-    from src.trading_platform.risk_manager.trailing_stop_utils import (
+    from trading_platform.risk_manager.trailing_stop_utils import (
         process_1min_bars_for_trailing_stop,
     )
 
@@ -313,7 +313,7 @@ def test_trailing_stop_moves_up_with_favorable_movement():
 
 def test_short_position_trailing_stop():
     """Test trailing stop for short position (stop trails down)."""
-    from src.trading_platform.risk_manager.trailing_stop_utils import (
+    from trading_platform.risk_manager.trailing_stop_utils import (
         process_1min_bars_for_trailing_stop,
     )
 
@@ -368,7 +368,7 @@ def test_short_position_trailing_stop():
 
 def test_short_position_take_profit():
     """Test take-profit for short position."""
-    from src.trading_platform.risk_manager.trailing_stop_utils import (
+    from trading_platform.risk_manager.trailing_stop_utils import (
         process_1min_bars_for_trailing_stop,
     )
 

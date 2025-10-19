@@ -9,8 +9,7 @@ from typing import cast
 
 import pandas as pd
 import pytest
-
-from src.trading_platform.data.handler import DataHandler
+from trading_platform.data.handler import DataHandler
 
 
 def get_1min_bars_for_hour(
