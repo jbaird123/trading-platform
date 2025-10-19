@@ -238,7 +238,7 @@ def test_main_handles_compatibility_issue(monkeypatch, capsys):
         def _boom(*_args, **_kwargs):
             raise TypeError("compatibility boom")
 
-        df.set_index = _boom
+        df.set_index = _boom  # type: ignore[method-assign]
         return df
 
     monkeypatch.setattr(data_labeling.pd, "DataFrame", boom_dataframe)

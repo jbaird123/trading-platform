@@ -55,6 +55,8 @@ def test_counterfactual_for_blackout_skip_with_tp():
         allow_flip_on_bar=False,
         blackout_utc=[("00:00", "00:30")],
         instrument=_instrument(),
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
     result = run_backtest(
@@ -66,10 +68,10 @@ def test_counterfactual_for_blackout_skip_with_tp():
         return_exposure=True,
         return_skips=True,
     )
-    trades, _exp, skips = result
-    assert skips and "cf_exit_time" in skips[0]
+    trades, _exp, skips = result  # type: ignore[misc]
+    assert skips and "cf_exit_time" in skips[0]  # type: ignore[index]
     # Entry at 100, TP 2 => pnl ~ 2 * size (size=10000)
-    assert skips[0]["cf_pnl_currency"] == approx(2.0 * 10000)
+    assert skips[0]["cf_pnl_currency"] == approx(2.0 * 10000)  # type: ignore[index]
 
 
 def test_rmm_skip_records_policy_snapshot() -> None:
@@ -85,6 +87,8 @@ def test_rmm_skip_records_policy_snapshot() -> None:
         initial_cash=1000.0,
         position_size=1.0,
         instrument=_instrument(),
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
     rmm_ctx = {
@@ -127,6 +131,8 @@ def test_run_backtest_returns_exposure_without_skips() -> None:
         initial_cash=1000.0,
         position_size=1.0,
         instrument=_instrument(),
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
     result = run_backtest(
@@ -166,6 +172,8 @@ def test_corrupted_skipped_entry_raises_error() -> None:
         position_size=1.0,
         blackout_utc=[("00:00", "23:59")],  # Block all entries
         instrument=_instrument(),
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
 

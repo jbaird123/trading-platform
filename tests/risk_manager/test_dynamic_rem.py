@@ -401,7 +401,7 @@ def test_create_rem_factory():
 
     # Invalid config type
     try:
-        create_rem("invalid_string")
+        create_rem("invalid_string")  # type: ignore[arg-type]
         assert False, "Should have raised ValueError"
     except ValueError as e:
         assert "must be a dictionary" in str(e)

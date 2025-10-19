@@ -663,7 +663,7 @@ def load_platform_trades(
                 data_handler = DataHandler(
                     symbol="EUR_USD",
                     data_root=data_root,
-                    instrument=config.instrument,
+                    instrument=config.instrument,  # type: ignore[arg-type]
                 )
 
                 # IMPORTANT: Use resampled 1H data from DataHandler instead of CSV

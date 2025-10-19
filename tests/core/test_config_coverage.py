@@ -18,6 +18,8 @@ def test_data_request_without_symbol() -> None:
             initial_cash=10000,
             position_size=1000,
             allow_flip_on_bar=False,
+            execution_model="next_bar_open",
+            exit_tie_break="stop_then_tp",
             data_request={"timeframe": "1H"},  # No 'symbol' key
         )
 
@@ -34,6 +36,8 @@ def test_data_request_with_symbol_auto_populates_instrument() -> None:
         initial_cash=10000,
         position_size=1000,
         allow_flip_on_bar=False,
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
         data_request={"symbol": "EUR_USD", "timeframe": "1H"},
     )
 

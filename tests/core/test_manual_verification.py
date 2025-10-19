@@ -71,6 +71,8 @@ def test_core_calculations_match_manual_csv():
         # Critical: Add blackout rule for 08:00-10:00 UTC
         blackout_utc=[("08:00", "10:00")],
         allow_flip_on_bar=True,
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
 
     # 5. Create REM (Risk Exit Manager)

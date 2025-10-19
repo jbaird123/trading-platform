@@ -50,6 +50,8 @@ def test_skip_logged_for_blackout():
         allow_flip_on_bar=False,
         blackout_utc=[("00:00", "00:30")],
         instrument=_instrument(),
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
     result = run_backtest(
@@ -61,10 +63,10 @@ def test_skip_logged_for_blackout():
         return_exposure=True,
         return_skips=True,
     )
-    trades, _exp, skips = result
+    trades, _exp, skips = result  # type: ignore[misc]
     assert skips is not None
-    assert len(skips) >= 1
-    s0 = skips[0]
+    assert len(skips) >= 1  # type: ignore[arg-type]
+    s0 = skips[0]  # type: ignore[index]
     assert s0["skip_reason"] in ("blackout_static", "blackout")
     assert "policy_snapshot" in s0
 
@@ -84,6 +86,8 @@ def test_skip_logged_for_position_cap():
         allow_flip_on_bar=False,
         pm_limits={"max_open_long": 1, "max_open_short": 1},
         instrument=_instrument(),
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
     result = run_backtest(
@@ -95,7 +99,7 @@ def test_skip_logged_for_position_cap():
         return_exposure=True,
         return_skips=True,
     )
-    trades, _exp, skips = result
+    trades, _exp, skips = result  # type: ignore[misc]
     # One entry, second long should be skipped due to cap
     assert skips is not None
     # TODO: Fix this test for command-based signals - position cap logic

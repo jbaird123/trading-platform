@@ -39,6 +39,8 @@ if __name__ == "__main__":  # pragma: no cover
         initial_cash=100000.0,
         allow_flip_on_bar=True,
         position_size=10000.0,
+        execution_model="current_bar_close",
+        exit_tie_break="stop_then_tp",
     )  # pragma: no cover
     initialize_run(default_config)  # pragma: no cover
 

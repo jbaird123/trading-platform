@@ -588,7 +588,7 @@ def test_reconcile_error_on_position_mismatch():
             "realized_pnl_today": 0.0,
         }
 
-    adapter.account_snapshot = mock_account_snapshot
+    adapter.account_snapshot = mock_account_snapshot  # type: ignore[method-assign]
     rep = reconcile_report(pm, adapter)
     assert rep.severity == "error" and rep.position_diffs
 
@@ -639,7 +639,7 @@ def test_reconcile_warn_on_cash_delta():
             "realized_pnl_today": 0.0,
         }
 
-    adapter.account_snapshot = mock_account_snapshot
+    adapter.account_snapshot = mock_account_snapshot  # type: ignore[method-assign]
     rep = reconcile_report(pm, adapter, cash_tolerance=1.0)
     assert rep.severity == "warn"
 

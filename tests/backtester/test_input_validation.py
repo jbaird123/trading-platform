@@ -58,6 +58,8 @@ def test_validation_missing_columns():
         position_size=1.0,
         allow_flip_on_bar=False,
         instrument=_instrument(),
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
     with pytest.raises(ValueError, match="missing required columns"):
@@ -76,6 +78,8 @@ def test_validation_close_has_nans():
         position_size=1.0,
         allow_flip_on_bar=False,
         instrument=_instrument(),
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
     with pytest.raises(ValueError, match="close has NaNs"):
@@ -93,6 +97,8 @@ def test_validation_length_mismatch():
         position_size=1.0,
         allow_flip_on_bar=False,
         instrument=_instrument(),
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
     with pytest.raises(ValueError, match="signals length "):
@@ -111,6 +117,8 @@ def test_validation_invalid_signal_value():
         position_size=1.0,
         allow_flip_on_bar=False,
         instrument=_instrument(),
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
     with pytest.raises(ValueError, match="invalid command values"):

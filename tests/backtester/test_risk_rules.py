@@ -67,6 +67,8 @@ def test_daily_loss_cap_blocks_new_entries():
         daily_loss_cap=5.0,
         allow_flip_on_bar=False,
         instrument=_instrument(),
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
 
@@ -108,6 +110,8 @@ def test_exposure_curve_tracks_gross_notional():
         position_size=10000.0,
         allow_flip_on_bar=False,
         instrument=_instrument(),
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
 
@@ -152,6 +156,8 @@ def test_position_cap_skips_same_direction_entry():
         allow_flip_on_bar=False,
         pm_limits={"max_open_long": 1},
         instrument=_instrument(),
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
 
@@ -199,6 +205,8 @@ def test_position_cap_not_reached_when_already_open():
         pm_limits={"max_open_long": 2},
         allow_flip_on_bar=False,
         instrument=_instrument(),
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
 
@@ -247,6 +255,8 @@ def test_position_cap_zero_blocks_new_entry():
         pm_limits={"max_open_long": 0},
         allow_flip_on_bar=False,
         instrument=_instrument(),
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
 
@@ -288,6 +298,8 @@ def test_rmm_blocks_disallowed_side():
         position_size=1.0,
         allow_flip_on_bar=False,
         instrument=_instrument(),
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
     rmm_ctx = {

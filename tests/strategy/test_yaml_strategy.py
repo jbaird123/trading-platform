@@ -655,15 +655,15 @@ def test_validate_strategy_config_invalid_type():
     """Test validate_strategy_config with non-dict input. Covers line 34."""
     # Test with string input (invalid)
     with pytest.raises(ValueError, match="strategy must be an object"):
-        validate_strategy_config("invalid_string_config")
+        validate_strategy_config("invalid_string_config")  # type: ignore[arg-type]
 
     # Test with list input (invalid)
     with pytest.raises(ValueError, match="strategy must be an object"):
-        validate_strategy_config([1, 2, 3])
+        validate_strategy_config([1, 2, 3])  # type: ignore[arg-type]
 
     # Test with None input (invalid)
     with pytest.raises(ValueError, match="strategy must be an object"):
-        validate_strategy_config(None)
+        validate_strategy_config(None)  # type: ignore[arg-type]
 
 
 def test_validate_strategy_config_with_jsonschema():

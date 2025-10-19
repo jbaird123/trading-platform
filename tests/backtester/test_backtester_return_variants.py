@@ -46,6 +46,8 @@ def test_run_backtest_returns_trades_and_exposure_only() -> None:
         position_size=1.0,
         allow_flip_on_bar=False,
         instrument={"symbol": "EURUSD"},
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config={})
 
@@ -100,7 +102,7 @@ def test_counterfactual_exact_exit_kind_end() -> None:
         size=1.0,
         instrument=TEST_INSTRUMENT,
         cost_model={},
-        rem=_NeverExitREM(),
+        rem=_NeverExitREM(),  # type: ignore[arg-type]
         symbol="EURUSD",
     )
 

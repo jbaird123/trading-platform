@@ -9,6 +9,10 @@ from datetime import datetime, timedelta
 
 from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.analytics import compute_stationarity
+from trading_platform.reporting.models.exit_analysis import (
+    PostExitAnalysis,
+    SimulatedHold,
+)
 
 
 def _mock_trade(pnl: float, ts: datetime | None = None) -> Trade:
@@ -23,6 +27,27 @@ def _mock_trade(pnl: float, ts: datetime | None = None) -> Trade:
         side="long" if pnl >= 0 else "short",
         size=1.0,
         pnl=pnl,
+    )
+
+
+def _make_post_exit_analysis(
+    mfe: float, mae: float, hold_bars: int = 5
+) -> PostExitAnalysis:
+    """Helper to create PostExitAnalysis objects."""
+    return PostExitAnalysis(
+        simulated_holds=[
+            SimulatedHold(
+                hold_bars=hold_bars,
+                simulated_pnl=mfe,
+                pnl_change_vs_actual=0.0,
+                simulated_exit_reason="held_full_period",
+                simulated_exit_bar_offset=hold_bars,
+                mfe_during_hold=mfe,
+                mfe_bar_offset=0,
+                mae_during_hold=mae,
+                mae_bar_offset=0,
+            )
+        ]
     )
 
 
@@ -230,7 +255,7 @@ def test_compute_activity_handles_bad_trade():
 
     bad_trades = [BadTrade(), BadTrade()]
 
-    result = analytics.compute_activity(bad_trades)
+    result = analytics.compute_activity(bad_trades)  # type: ignore[arg-type]
 
     assert result == {}
 
@@ -300,7 +325,7 @@ def test_compute_timing_buckets_handles_bad_trade():
             self.entry_time = None
             self.pnl = 0.0
 
-    result = analytics.compute_timing_buckets([BadTrade()])
+    result = analytics.compute_timing_buckets([BadTrade()])  # type: ignore[list-item]
 
     assert result == {}
 
@@ -577,7 +602,7 @@ def test_compute_contrasts_handles_bad_trade():
         def pnl(self) -> float:
             raise ValueError("pnl unavailable")
 
-    result = analytics.compute_contrasts([BadTrade()])
+    result = analytics.compute_contrasts([BadTrade()])  # type: ignore[list-item]
 
     assert result == {}
 
@@ -644,7 +669,7 @@ def test_compute_stop_tp_candidates_handles_bad_trade():
         def mae_currency(self) -> float:
             return 0.0
 
-    result = analytics.compute_stop_tp_candidates([BadTrade()])
+    result = analytics.compute_stop_tp_candidates([BadTrade()])  # type: ignore[list-item]
 
     assert result == {}
 
@@ -706,10 +731,32 @@ def test_compute_exit_efficiency_take_profit_premature() -> None:
         trade,
         exit_reason="take_profit",
         pnl_movement=100.0,
-        post_exit_analysis={
-            "5": {"mfe": 250.0, "mae": -10.0},  # MFE > 2x profit = premature
-            "10": {"mfe": 300.0, "mae": -20.0},
-        },
+        post_exit_analysis=PostExitAnalysis(
+            simulated_holds=[
+                SimulatedHold(
+                    hold_bars=5,
+                    simulated_pnl=250.0,
+                    pnl_change_vs_actual=0.0,
+                    simulated_exit_reason="held_full_period",
+                    simulated_exit_bar_offset=5,
+                    mfe_during_hold=250.0,
+                    mfe_bar_offset=0,
+                    mae_during_hold=-10.0,
+                    mae_bar_offset=0,
+                ),
+                SimulatedHold(
+                    hold_bars=10,
+                    simulated_pnl=300.0,
+                    pnl_change_vs_actual=0.0,
+                    simulated_exit_reason="held_full_period",
+                    simulated_exit_bar_offset=10,
+                    mfe_during_hold=300.0,
+                    mfe_bar_offset=0,
+                    mae_during_hold=-20.0,
+                    mae_bar_offset=0,
+                ),
+            ]
+        ),
     )
 
     from trading_platform.reporting.analytics import compute_exit_efficiency
@@ -736,10 +783,32 @@ def test_compute_exit_efficiency_stop_loss_false() -> None:
         exit_reason="stop_loss",
         pnl_movement=-50.0,
         initial_risk_ccy=50.0,
-        post_exit_analysis={
-            "5": {"mfe": 60.0, "mae": -10.0},  # MFE > initial_risk = false
-            "10": {"mfe": 80.0, "mae": -15.0},
-        },
+        post_exit_analysis=PostExitAnalysis(
+            simulated_holds=[
+                SimulatedHold(
+                    hold_bars=5,
+                    simulated_pnl=60.0,
+                    pnl_change_vs_actual=0.0,
+                    simulated_exit_reason="held_full_period",
+                    simulated_exit_bar_offset=5,
+                    mfe_during_hold=60.0,
+                    mfe_bar_offset=0,
+                    mae_during_hold=-10.0,
+                    mae_bar_offset=0,
+                ),
+                SimulatedHold(
+                    hold_bars=10,
+                    simulated_pnl=80.0,
+                    pnl_change_vs_actual=0.0,
+                    simulated_exit_reason="held_full_period",
+                    simulated_exit_bar_offset=10,
+                    mfe_during_hold=80.0,
+                    mfe_bar_offset=0,
+                    mae_during_hold=-15.0,
+                    mae_bar_offset=0,
+                ),
+            ]
+        ),
     )
 
     from trading_platform.reporting.analytics import compute_exit_efficiency
@@ -765,10 +834,32 @@ def test_compute_exit_efficiency_signal_suboptimal() -> None:
         trade,
         exit_reason="signal",
         pnl_movement=50.0,
-        post_exit_analysis={
-            "5": {"mfe": 80.0, "mae": -5.0},  # MFE > 1.5x profit = suboptimal
-            "10": {"mfe": 100.0, "mae": -10.0},
-        },
+        post_exit_analysis=PostExitAnalysis(
+            simulated_holds=[
+                SimulatedHold(
+                    hold_bars=5,
+                    simulated_pnl=80.0,
+                    pnl_change_vs_actual=0.0,
+                    simulated_exit_reason="held_full_period",
+                    simulated_exit_bar_offset=5,
+                    mfe_during_hold=80.0,
+                    mfe_bar_offset=0,
+                    mae_during_hold=-5.0,
+                    mae_bar_offset=0,
+                ),
+                SimulatedHold(
+                    hold_bars=10,
+                    simulated_pnl=100.0,
+                    pnl_change_vs_actual=0.0,
+                    simulated_exit_reason="held_full_period",
+                    simulated_exit_bar_offset=10,
+                    mfe_during_hold=100.0,
+                    mfe_bar_offset=0,
+                    mae_during_hold=-10.0,
+                    mae_bar_offset=0,
+                ),
+            ]
+        ),
     )
 
     from trading_platform.reporting.analytics import compute_exit_efficiency
@@ -792,20 +883,64 @@ def test_compute_exit_efficiency_optimal_hold_duration() -> None:
     trade1 = replace(
         trade1,
         exit_reason="signal",
-        post_exit_analysis={
-            "5": {"mfe": 20.0, "mae": -5.0},
-            "10": {"mfe": 40.0, "mae": -10.0},
-        },
+        post_exit_analysis=PostExitAnalysis(
+            simulated_holds=[
+                SimulatedHold(
+                    hold_bars=5,
+                    simulated_pnl=20.0,
+                    pnl_change_vs_actual=0.0,
+                    simulated_exit_reason="held_full_period",
+                    simulated_exit_bar_offset=5,
+                    mfe_during_hold=20.0,
+                    mfe_bar_offset=0,
+                    mae_during_hold=-5.0,
+                    mae_bar_offset=0,
+                ),
+                SimulatedHold(
+                    hold_bars=10,
+                    simulated_pnl=40.0,
+                    pnl_change_vs_actual=0.0,
+                    simulated_exit_reason="held_full_period",
+                    simulated_exit_bar_offset=10,
+                    mfe_during_hold=40.0,
+                    mfe_bar_offset=0,
+                    mae_during_hold=-10.0,
+                    mae_bar_offset=0,
+                ),
+            ]
+        ),
     )
 
     trade2 = _mock_trade(30.0, datetime(2024, 1, 3))
     trade2 = replace(
         trade2,
         exit_reason="signal",
-        post_exit_analysis={
-            "5": {"mfe": 10.0, "mae": -3.0},
-            "10": {"mfe": 20.0, "mae": -5.0},
-        },
+        post_exit_analysis=PostExitAnalysis(
+            simulated_holds=[
+                SimulatedHold(
+                    hold_bars=5,
+                    simulated_pnl=10.0,
+                    pnl_change_vs_actual=0.0,
+                    simulated_exit_reason="held_full_period",
+                    simulated_exit_bar_offset=5,
+                    mfe_during_hold=10.0,
+                    mfe_bar_offset=0,
+                    mae_during_hold=-3.0,
+                    mae_bar_offset=0,
+                ),
+                SimulatedHold(
+                    hold_bars=10,
+                    simulated_pnl=20.0,
+                    pnl_change_vs_actual=0.0,
+                    simulated_exit_reason="held_full_period",
+                    simulated_exit_bar_offset=10,
+                    mfe_during_hold=20.0,
+                    mfe_bar_offset=0,
+                    mae_during_hold=-5.0,
+                    mae_bar_offset=0,
+                ),
+            ]
+        ),
     )
 
     from trading_platform.reporting.analytics import compute_exit_efficiency
@@ -834,9 +969,7 @@ def test_compute_exit_efficiency_no_matching_exit_reason() -> None:
         trade,
         exit_reason="signal",
         pnl_movement=50.0,
-        post_exit_analysis={
-            "5": {"mfe": 10.0, "mae": -5.0},
-        },
+        post_exit_analysis=_make_post_exit_analysis(10.0, -5.0),
     )
 
     from trading_platform.reporting.analytics import compute_exit_efficiency
@@ -863,7 +996,7 @@ def test_compute_exit_efficiency_all_trades_different_exit_reasons() -> None:
         trade1,
         exit_reason="take_profit",
         pnl_movement=50.0,
-        post_exit_analysis={"5": {"mfe": 10.0, "mae": -5.0}},
+        post_exit_analysis=_make_post_exit_analysis(10.0, -5.0),
     )
 
     trade2 = _mock_trade(-30.0, datetime(2024, 1, 2))
@@ -872,7 +1005,7 @@ def test_compute_exit_efficiency_all_trades_different_exit_reasons() -> None:
         exit_reason="stop_loss",
         pnl_movement=-30.0,
         initial_risk_ccy=30.0,
-        post_exit_analysis={"5": {"mfe": 5.0, "mae": -10.0}},
+        post_exit_analysis=_make_post_exit_analysis(5.0, -10.0),
     )
 
     trade3 = _mock_trade(20.0, datetime(2024, 1, 3))
@@ -880,7 +1013,7 @@ def test_compute_exit_efficiency_all_trades_different_exit_reasons() -> None:
         trade3,
         exit_reason="time_exit",
         pnl_movement=20.0,
-        post_exit_analysis={"5": {"mfe": 8.0, "mae": -3.0}},
+        post_exit_analysis=_make_post_exit_analysis(8.0, -3.0),
     )
 
     from trading_platform.reporting.analytics import compute_exit_efficiency

@@ -17,6 +17,8 @@ def test_config_snapshot_hash_stable_for_same_runconfig():
         initial_cash=10000.0,
         position_size=1.0,
         allow_flip_on_bar=False,
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
         instrument={"symbol": "EURUSD"},
     )
     t = Trade(

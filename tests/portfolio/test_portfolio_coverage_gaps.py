@@ -24,7 +24,7 @@ def test_portfolio_hit_daily_loss_cap_none_cap():
     ts = datetime(2024, 1, 1, 10)
 
     # Test with None cap - should return False (line 76)
-    result = pm.hit_daily_loss_cap(ts, None)
+    result = pm.hit_daily_loss_cap(ts, None)  # type: ignore[arg-type]
     assert result is False
 
 

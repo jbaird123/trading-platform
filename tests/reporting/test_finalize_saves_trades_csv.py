@@ -35,6 +35,8 @@ def test_finalize_run_writes_trades_csv(tmp_path):
         position_size=1.0,
         allow_flip_on_bar=False,
         instrument={"symbol": "EURUSD"},
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
     out = finalize_run(
         run_path,

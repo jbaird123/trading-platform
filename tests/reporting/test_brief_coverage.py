@@ -10,6 +10,10 @@ from trading_platform.reporting.brief import (
     _to_jsonable,
     generate_brief,
 )
+from trading_platform.reporting.models.exit_analysis import (
+    PostExitAnalysis,
+    SimulatedHold,
+)
 
 
 def test_extract_rem_policy_with_price_offsets() -> None:
@@ -202,10 +206,32 @@ def test_serialize_trade_with_post_exit_dict() -> None:
     # Add post_exit_analysis using replace
     trade = replace(
         trade,
-        post_exit_analysis={
-            "5": {"mfe": 75.123456, "mae": -25.987654},
-            "10": {"mfe": 100.567890, "mae": -15.234567},
-        },
+        post_exit_analysis=PostExitAnalysis(
+            simulated_holds=[
+                SimulatedHold(
+                    hold_bars=5,
+                    simulated_pnl=75.123456,
+                    pnl_change_vs_actual=0.0,
+                    simulated_exit_reason="held_full_period",
+                    simulated_exit_bar_offset=5,
+                    mfe_during_hold=75.123456,
+                    mfe_bar_offset=0,
+                    mae_during_hold=-25.987654,
+                    mae_bar_offset=0,
+                ),
+                SimulatedHold(
+                    hold_bars=10,
+                    simulated_pnl=100.567890,
+                    pnl_change_vs_actual=0.0,
+                    simulated_exit_reason="held_full_period",
+                    simulated_exit_bar_offset=10,
+                    mfe_during_hold=100.567890,
+                    mfe_bar_offset=0,
+                    mae_during_hold=-15.234567,
+                    mae_bar_offset=0,
+                ),
+            ]
+        ),
     )
 
     # Generate brief with this trade

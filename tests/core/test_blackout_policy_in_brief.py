@@ -38,6 +38,8 @@ def test_blackout_policy_snapshot_appears_in_brief(tmp_path):
         blackout_events=[
             {"start": datetime(2023, 1, 1, 11), "end": datetime(2023, 1, 1, 12)}
         ],
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
     )
 
     brief_path = finalize_run(

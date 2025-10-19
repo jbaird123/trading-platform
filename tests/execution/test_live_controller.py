@@ -86,7 +86,7 @@ def test_live_controller_dry_run_and_kill_switch():
         market_data=df,
         strategy_cfg=_strat(),
         adapter=adapter2,
-        pm=adapter2.pm,
+        pm=adapter2.pm,  # type: ignore[arg-type]
         max_orders=1,
     )
     assert res2.orders == 1
