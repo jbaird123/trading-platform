@@ -12,29 +12,21 @@ from tests.validation.analyzers.trailing_stop import (
 from tests.validation.golden_utils import load_and_validate_tradingview_trades
 from tests.validation.test_strategy_validation import (
     KNOWN_EDGE_CASES,
-    load_platform_trades,
 )
 
 
 @pytest.mark.strategy_name("ema_crossover/20pip_trailing_stop")
 def test_export_all_trades_comparison(
-    golden_strategy_config,
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_20pip_trailing_stop,
 ):
     """Export all trades with full comparison details to CSV."""
     date_range = golden_metadata.get("date_range")
 
-    # Load platform trades (already filtered to validation range)
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/20pip_trailing_stop",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        date_range=date_range,
-        data_handler=shared_data_handler,
-    )
+    # Use session-scoped platform trades fixture (already filtered to validation range)
+    platform_trades = platform_trades_20pip_trailing_stop
 
     # Load TradingView trades using the correct golden_utils function
     # Note: The fixture gives us raw CSV, we need to parse and filter it
@@ -300,23 +292,16 @@ def test_export_all_trades_comparison(
 
 @pytest.mark.strategy_name("ema_crossover/20pip_trailing_stop_15pip_tp")
 def test_export_all_trades_comparison_20pip_15pip(
-    golden_strategy_config,
     tradingview_trades,
     tradingview_ohlcv,
     golden_metadata,
-    shared_data_handler,
+    platform_trades_20pip_trailing_stop_15pip_tp,
 ):
     """Export all trades with full comparison details to CSV."""
     date_range = golden_metadata.get("date_range")
 
-    # Load platform trades (already filtered to validation range)
-    platform_trades = load_platform_trades(
-        strategy_name="ema_crossover/20pip_trailing_stop_15pip_tp",
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        date_range=date_range,
-        data_handler=shared_data_handler,
-    )
+    # Use session-scoped platform trades fixture (already filtered to validation range)
+    platform_trades = platform_trades_20pip_trailing_stop_15pip_tp
 
     # Load TradingView trades using the correct golden_utils function
     # Note: The fixture gives us raw CSV, we need to parse and filter it
