@@ -34,7 +34,7 @@ def test_rmm_context_with_data_handler_cache_hit():
     mock_handler = Mock()
     cached_ctx = {datetime(2024, 1, 1): {"label": "cached", "confidence": 0.9}}
     mock_handler.get_rmm_context.return_value = cached_ctx
-    # Mock get_data to return a dataframe with the same index as df, so the cache is used
+    # Mock get_data to return same-index df, so cache is used
     mock_handler.get_data.return_value = df.copy()
 
     cfg_raw = {"rmm_config": rmm_cfg}
@@ -105,7 +105,7 @@ def test_rmm_context_with_data_handler_cache_miss():
         # Should have called get_data to check for full dataset
         mock_handler.get_data.assert_called_once_with(timeframe="1D")
 
-        # Should have called classify_regime with the original df and already_resampled=False
+        # Should call classify_regime with df and already_resampled=False
         mock_engine.classify_regime.assert_called_once_with(
             df, timeframe="1D", already_resampled=False
         )
