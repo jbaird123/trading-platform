@@ -18,11 +18,6 @@ __all__ = [
     "ATRStopParams",
 ]
 
-try:
-    import jsonschema
-except ImportError:
-    jsonschema = None  # type: ignore[assignment]
-
 
 def create_rem(config: dict[str, Any]) -> DynamicREM:
     """Factory function to create DynamicREM with schema validation.
@@ -42,20 +37,9 @@ def create_rem(config: dict[str, Any]) -> DynamicREM:
     if not isinstance(config, dict):
         raise ValueError("REM config must be a dictionary")
 
-    # Validate against DynamicREM schema if jsonschema available
-    if jsonschema is not None:
-        schema_path = (
-            Path(__file__).resolve().parents[3]
-            / "docs"
-            / "schemas"
-            / "rem_dynamic.schema.json"
-        )
-        try:
-            schema = json.loads(schema_path.read_text())
-            jsonschema.validate(config, schema)
-        except jsonschema.ValidationError as e:
-            raise ValueError(
-                f"DynamicREM config schema validation failed: {e.message}"
-            ) from e
+    # Note: JSON schema validation removed. Pydantic will be the validation
+    # source when DynamicREM Pydantic model is implemented. JSON schemas are
+    # for documentation only.
+    # TODO: Replace with Pydantic validation when DynamicREM model is implemented
 
     return DynamicREM(config)

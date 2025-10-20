@@ -128,7 +128,7 @@ def test_combined_time_and_indicator_regime() -> None:
                 "conditions": {
                     "all_of": [
                         {"condition": "hour_is_in", "values": [14, 15, 16]},
-                        {"condition": "is_above", "left": "strength", "right": 50},
+                        {"condition": "is_above", "left": {"ref": "strength"}, "right": {"value": 50}},
                     ]
                 },
             }

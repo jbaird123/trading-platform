@@ -100,11 +100,23 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     if rem_path:
         loaded_rem_cfg = _load_config(Path(str(rem_path)))
         cfg_raw["rem_config"] = loaded_rem_cfg
+        # Remove the path key after loading since it's not part of the schema
+        cfg_raw.pop("rem_path", None)
 
     rmm_path = cfg_raw.get("rmm_path")
     if rmm_path:
         loaded_rmm_cfg = _load_config(Path(str(rmm_path)))
         cfg_raw["rmm_config"] = loaded_rmm_cfg
+        # Remove the path key after loading since it's not part of the schema
+        cfg_raw.pop("rmm_path", None)
+
+    # Remove CLI-only fields that aren't part of RunConfig schema
+    cfg_raw.pop("fast_mode", None)  # Removed - not needed
+    cfg_raw.pop("rmm", None)  # Legacy field - not part of schema
+    cfg_raw.pop("data", None)  # Legacy - use data_request instead
+    cfg_raw.pop("strategy_overrides", None)  # CLI-only - handled separately
+    strategy_path = cfg_raw.pop("strategy_path", None)  # Extract for later use
+    strategy_params = cfg_raw.pop("strategy_params", None)  # CLI-only - handled separately
 
     cfg = RunConfig.model_validate(cfg_raw)
     run_path = initialize_run(cfg)
@@ -160,8 +172,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     # Strategy can be embedded or referenced via a separate YAML/JSON file
     strat_cfg = cfg_raw.get("strategy")
     if not strat_cfg:
-        # Try loading from strategy_path if provided
-        strategy_path = cfg_raw.get("strategy_path")
+        # Try loading from strategy_path if provided (extracted earlier before validation)
         if strategy_path:
             strat_cfg = _load_config(Path(strategy_path))
         else:
@@ -169,24 +180,6 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                 "No strategy provided. Specify 'strategy_path' in config "
                 "or embed 'strategy' definition."
             )
-    # Optional fast-mode: limit dataset for quicker iterations
-    fast_mode = cfg_raw.get("fast_mode") or {}
-    if isinstance(fast_mode, dict):
-        try:
-            from datetime import timedelta
-
-            last_days = int(fast_mode.get("last_days", 0) or 0)
-            limit_bars = int(fast_mode.get("limit_bars", 0) or 0)
-        except Exception as e:  # pragma: no cover
-            # Safe to continue: fast_mode parsing, defaults to 0
-            logger.debug(f"Failed to parse fast_mode values: {e}")  # pragma: no cover
-            last_days = 0  # pragma: no cover
-            limit_bars = 0  # pragma: no cover
-        if last_days > 0 and isinstance(df.index, pd.DatetimeIndex):
-            cutoff = df.index.max() - timedelta(days=last_days)
-            df = df.loc[cutoff:]
-        elif limit_bars > 0:
-            df = df.tail(limit_bars)
 
     if isinstance(strat_cfg, dict) and "file_path" in strat_cfg:
         # Resolve file_path relative to the main config file

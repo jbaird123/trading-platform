@@ -17,12 +17,7 @@ from trading_platform.risk_manager.core import RiskExitManager
 
 # Test instrument
 TEST_INSTRUMENT = {
-    "symbol": "EURUSD",
-    "tick_size": 0.00001,
-    "point_value": 1.0,
-    "base_currency": "USD",
-    "quote_currency": "USD",
-    "margin_requirement": 0.02,
+    "symbol": "EUR_USD",  # Use registered instrument name
 }
 
 

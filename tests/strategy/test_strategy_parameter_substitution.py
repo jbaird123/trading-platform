@@ -24,10 +24,10 @@ def test_feature_params_resolve_from_named_parameters():
             },
         ],
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": "close", "right": 1}]}
+            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1}}]}
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": "close", "right": 0}]}
+            {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 0}}]}
         ],
     }
     s = compile_strategy(cfg)

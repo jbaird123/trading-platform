@@ -1,161 +1,158 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://example.com/schemas/rem.schema.json",
-  "title": "Risk and Exit Manager (REM) Configuration",
-  "type": "object",
-  "additionalProperties": false,
-  "properties": {
-    "name": {
-      "type": "string",
-      "description": "Human-friendly name for this REM configuration."
-    },
-    "version": {
-      "type": "string",
-      "description": "Optional version tag for this REM config."
-    },
-    "stop_loss": { "$ref": "#/$defs/exitRule" },
-    "take_profit": { "$ref": "#/$defs/exitRule" }
-  },
-  "required": ["stop_loss"],
   "$defs": {
-    "exitRule": {
-      "oneOf": [
-        { "$ref": "#/$defs/fixedPipRule" },
-        { "$ref": "#/$defs/indicatorRule" }
-      ]
-    },
-    "fixedPipRule": {
-      "type": "object",
+    "ATRStopParams": {
       "additionalProperties": false,
+      "description": "Parameters for ATR-based stops.\n\nATR (Average True Range) is a volatility indicator. The stop distance is\ncalculated as: distance = ATR(length) * multiplier\n\nExample:\n    {\n        \"length\": 14,\n        \"multiplier\": 2.0\n    }",
+      "properties": {
+        "length": {
+          "default": 14,
+          "description": "ATR lookback period in bars",
+          "minimum": 1,
+          "title": "Length",
+          "type": "integer"
+        },
+        "multiplier": {
+          "description": "Multiplier applied to ATR value",
+          "exclusiveMinimum": 0,
+          "title": "Multiplier",
+          "type": "number"
+        }
+      },
+      "required": [
+        "multiplier"
+      ],
+      "title": "ATRStopParams",
+      "type": "object"
+    },
+    "FixedPipStop": {
+      "additionalProperties": false,
+      "description": "Fixed pip-based stop or take-profit rule.\n\nThis rule defines an exit at a fixed pip distance from entry price.\nThe platform will convert pips to price units based on the instrument's pip size.\n\nExample:\n    {\n        \"type\": \"fixed_pips\",\n        \"pips\": 20\n    }",
       "properties": {
         "type": {
           "const": "fixed_pips",
-          "description": "Fixed pip-based stop or take-profit."
+          "title": "Type",
+          "type": "string"
         },
         "pips": {
-          "type": "number",
-          "minimum": 0,
+          "description": "Distance in pips from entry price",
           "exclusiveMinimum": 0,
-          "description": "Distance in pips from entry price."
+          "title": "Pips",
+          "type": "number"
         }
       },
-      "required": ["type", "pips"]
+      "required": [
+        "type",
+        "pips"
+      ],
+      "title": "FixedPipStop",
+      "type": "object"
     },
-    "indicatorRule": {
-      "type": "object",
+    "IndicatorStop": {
       "additionalProperties": false,
+      "description": "Indicator-based stop or take-profit rule.\n\nUses a whitelisted indicator to calculate stop distance dynamically based on\nmarket conditions (e.g., volatility).\n\nOnly indicators explicitly registered in REM_INDICATORS_REGISTRY are allowed.\n\nExample:\n    {\n        \"type\": \"indicator\",\n        \"indicator\": \"atr\",\n        \"params\": {\n            \"length\": 14,\n            \"multiplier\": 2.0\n        }\n    }",
       "properties": {
         "type": {
           "const": "indicator",
-          "description": "Indicator-based stop or take-profit."
+          "title": "Type",
+          "type": "string"
         },
         "indicator": {
-          "enum": ["atr", "bollinger", "keltner"],
-          "description": "Indicator type to use for exit calculation. Only whitelisted indicators are allowed."
+          "enum": [
+            "atr",
+            "bollinger",
+            "keltner"
+          ],
+          "title": "Indicator",
+          "type": "string"
         },
         "params": {
-          "type": "object",
-          "description": "Indicator-specific parameters."
+          "$ref": "#/$defs/ATRStopParams"
         }
       },
-      "required": ["type", "indicator", "params"],
-      "allOf": [
-        {
-          "if": {
-            "properties": { "indicator": { "const": "atr" } }
-          },
-          "then": {
-            "properties": {
-              "params": { "$ref": "#/$defs/atrParams" }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": { "indicator": { "const": "bollinger" } }
-          },
-          "then": {
-            "properties": {
-              "params": { "$ref": "#/$defs/bollingerParams" }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": { "indicator": { "const": "keltner" } }
-          },
-          "then": {
-            "properties": {
-              "params": { "$ref": "#/$defs/keltnerParams" }
-            }
-          }
-        }
-      ]
-    },
-    "atrParams": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "length": {
-          "type": "integer",
-          "minimum": 1,
-          "default": 14,
-          "description": "ATR lookback period in bars."
-        },
-        "multiplier": {
-          "type": "number",
-          "minimum": 0,
-          "exclusiveMinimum": 0,
-          "description": "Multiplier applied to ATR value."
-        }
-      },
-      "required": ["multiplier"]
-    },
-    "bollingerParams": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "length": {
-          "type": "integer",
-          "minimum": 1,
-          "default": 20,
-          "description": "Bollinger Bands lookback period."
-        },
-        "num_std": {
-          "type": "number",
-          "minimum": 0,
-          "exclusiveMinimum": 0,
-          "default": 2.0,
-          "description": "Number of standard deviations for band width."
-        }
-      },
-      "required": []
-    },
-    "keltnerParams": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "length": {
-          "type": "integer",
-          "minimum": 1,
-          "default": 20,
-          "description": "Keltner Channel lookback period."
-        },
-        "atr_length": {
-          "type": "integer",
-          "minimum": 1,
-          "default": 10,
-          "description": "ATR period for channel width."
-        },
-        "multiplier": {
-          "type": "number",
-          "minimum": 0,
-          "exclusiveMinimum": 0,
-          "default": 2.0,
-          "description": "Multiplier applied to ATR for channel width."
-        }
-      },
-      "required": []
+      "required": [
+        "type",
+        "indicator",
+        "params"
+      ],
+      "title": "IndicatorStop",
+      "type": "object"
     }
-  }
+  },
+  "additionalProperties": false,
+  "description": "Risk and Exit Manager configuration.\n\nDefines stop-loss and optional take-profit rules for position management.\n\nAt minimum, a stop_loss rule must be provided. Take-profit is optional.\n\nExample (fixed pips):\n    {\n        \"stop_loss\": {\n            \"type\": \"fixed_pips\",\n            \"pips\": 20\n        }\n    }\n\nExample (ATR-based):\n    {\n        \"name\": \"Conservative ATR\",\n        \"version\": \"1.0\",\n        \"stop_loss\": {\n            \"type\": \"indicator\",\n            \"indicator\": \"atr\",\n            \"params\": {\n                \"length\": 14,\n                \"multiplier\": 2.0\n            }\n        },\n        \"take_profit\": {\n            \"type\": \"fixed_pips\",\n            \"pips\": 40\n        }\n    }",
+  "properties": {
+    "name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Name"
+    },
+    "version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Version"
+    },
+    "stop_loss": {
+      "discriminator": {
+        "mapping": {
+          "fixed_pips": "#/$defs/FixedPipStop",
+          "indicator": "#/$defs/IndicatorStop"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/FixedPipStop"
+        },
+        {
+          "$ref": "#/$defs/IndicatorStop"
+        }
+      ],
+      "title": "Stop Loss"
+    },
+    "take_profit": {
+      "anyOf": [
+        {
+          "discriminator": {
+            "mapping": {
+              "fixed_pips": "#/$defs/FixedPipStop",
+              "indicator": "#/$defs/IndicatorStop"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/FixedPipStop"
+            },
+            {
+              "$ref": "#/$defs/IndicatorStop"
+            }
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Take Profit"
+    }
+  },
+  "required": [
+    "stop_loss"
+  ],
+  "title": "REMConfig",
+  "type": "object"
 }

@@ -1,0 +1,63 @@
+{
+  "additionalProperties": false,
+  "description": "Configuration for a single technical indicator/feature.",
+  "properties": {
+    "name": {
+      "description": "Local identifier for the feature.",
+      "title": "Name",
+      "type": "string"
+    },
+    "type": {
+      "description": "Indicator type (e.g., SMA, EMA, ATR).",
+      "title": "Type",
+      "type": "string"
+    },
+    "params": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Indicator-specific parameters.",
+      "title": "Params"
+    },
+    "source": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Input price series (e.g., open, high, low, close, hl2).",
+      "title": "Source"
+    },
+    "source_ref": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Reference another feature as input series.",
+      "title": "Source Ref"
+    }
+  },
+  "required": [
+    "name",
+    "type"
+  ],
+  "title": "FeatureConfig",
+  "type": "object"
+}

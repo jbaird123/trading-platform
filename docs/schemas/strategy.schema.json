@@ -1,209 +1,283 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://example.com/schemas/strategy.schema.json",
-  "title": "Declarative Strategy",
-  "type": "object",
-  "additionalProperties": false,
-  "properties": {
-    "strategy_name": {
-      "type": "string",
-      "description": "Human-friendly name shown across the UI."
-    },
-    "description": {
-      "type": "string",
-      "description": "Short summary of what the strategy does."
-    },
-    "version": {
-      "type": "string",
-      "description": "Optional version tag for this strategy definition."
-    },
-    "metadata": {
-      "type": "object",
-      "description": "Miscellaneous info to show or track with the strategy."
-    },
-    "parameters": {
-      "type": "object",
-      "description": "Tunable parameters referenced by rules or features.",
-      "additionalProperties": {
-        "anyOf": [
-          { "type": "integer" },
-          { "type": "number" },
-          { "type": "string" },
-          { "type": "boolean" }
-        ]
-      }
-    },
-    "features": {
-      "type": "array",
-      "description": "Indicators/features to compute before evaluating rules.",
-      "items": { "$ref": "#/$defs/feature" }
-    },
-    "overlays": {
-      "type": "array",
-      "description": "Series names to render on the price chart as overlays.",
-      "items": { "type": "string" }
-    },
-    "long_entry_rules": {
-      "$ref": "#/$defs/rule_block_array"
-    },
-    "long_exit_rules": {
-      "$ref": "#/$defs/rule_block_array"
-    },
-    "short_entry_rules": {
-      "$ref": "#/$defs/rule_block_array"
-    },
-    "short_exit_rules": {
-      "$ref": "#/$defs/rule_block_array"
-    }
-  },
-  "required": ["strategy_name"],
-  "anyOf": [
-    { "required": ["long_entry_rules"] },
-    { "required": ["short_entry_rules"] }
-  ],
   "$defs": {
-    "feature": {
-      "type": "object",
+    "FeatureConfig": {
       "additionalProperties": false,
+      "description": "Configuration for a single technical indicator/feature.",
       "properties": {
         "name": {
-          "type": "string",
-          "description": "Local identifier used by rules (e.g., ema_fast)."
+          "description": "Local identifier for the feature.",
+          "title": "Name",
+          "type": "string"
         },
         "type": {
-          "type": "string",
-          "enum": [
-            "SMA",
-            "EMA",
-            "EMASlope",
-            "WMA",
-            "MACD",
-            "PSAR",
-            "ADX",
-            "RSI",
-            "STOCH",
-            "CCI",
-            "ROC",
-            "BB",
-            "BBWidth",
-            "ATR",
-            "ATRPercentile",
-            "HHV",
-            "CHOP",
-            "ICHIMOKU",
-            "SUPERTREND",
-            "LLV",
-            "DC",
-            "KC",
-            "OBV",
-            "CMF",
-            "RealizedVolatility",
-            "VolumeZScore",
-            "VWAP",
-            "FIB",
-            "CDL_DOJI",
-            "CDL_HAMMER",
-            "CDL_ENGULFING",
-            "CDL_MORNINGSTAR",
-            "CDL_EVENINGSTAR",
-            "CDL_HARAMI",
-            "SWING_HIGH",
-            "SWING_LOW"
-          ],
-          "description": "Indicator type to compute."
+          "description": "Indicator type (e.g., SMA, EMA, ATR).",
+          "title": "Type",
+          "type": "string"
         },
         "params": {
-          "type": "object",
-          "description": "Indicator-specific parameters (e.g., length)."
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Indicator-specific parameters.",
+          "title": "Params"
         },
         "source": {
-          "type": "string",
-          "enum": ["open", "high", "low", "close", "hl2", "ohlc4"],
-          "description": "Input price series used by the indicator."
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Input price series (e.g., open, high, low, close, hl2).",
+          "title": "Source"
         },
         "source_ref": {
-          "type": "object",
-          "description": "Reference another computed feature as the input series.",
-          "properties": { "ref": { "type": "string" } },
-          "required": ["ref"]
-        },
-        "timeframe": {
-          "type": "string",
-          "description": "Optional higher timeframe for this feature (e.g., '1h', '4h', '1D')."
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Reference another feature as input series.",
+          "title": "Source Ref"
         }
       },
-      "required": ["name", "type"]
+      "required": [
+        "name",
+        "type"
+      ],
+      "title": "FeatureConfig",
+      "type": "object"
     },
-    "rule_block_array": {
-      "type": "array",
-      "description": "Ordered list of rule blocks; each must evaluate true.",
-      "items": { "$ref": "#/$defs/rule_block" },
-      "minItems": 0
-    },
-    "rule_block": {
-      "type": "object",
-      "properties": {
-        "all_of": {
-          "$ref": "#/$defs/predicate_array",
-          "description": "All predicates must be true."
-        },
-        "any_of": {
-          "$ref": "#/$defs/predicate_array",
-          "description": "At least one predicate must be true."
-        }
-      },
-      "oneOf": [{ "required": ["all_of"] }, { "required": ["any_of"] }]
-    },
-    "predicate_array": {
-      "type": "array",
-      "description": "List of conditions used inside a rule block.",
-      "items": { "$ref": "#/$defs/predicate" },
-      "minItems": 1
-    },
-    "predicate": {
-      "type": "object",
+    "Predicate": {
+      "additionalProperties": false,
+      "description": "A single condition in a rule (e.g., ema_fast > ema_slow).",
       "properties": {
         "condition": {
-          "type": "string",
-          "enum": ["cross_above", "cross_below", "is_above", "is_below", "slope_is_above", "roc_is_above"]
+          "description": "Comparison operator (e.g., cross_above, cross_below, gt, lt, gte, lte, eq)",
+          "title": "Condition",
+          "type": "string"
         },
         "left": {
-          "$ref": "#/$defs/operand",
-          "description": "Left-hand side (indicator/price/number)."
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "description": "Left operand (feature ref, constant, or field)",
+          "title": "Left"
         },
         "right": {
-          "$ref": "#/$defs/operand",
-          "description": "Right-hand side (indicator/price/number)."
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "description": "Right operand (feature ref, constant, or field)",
+          "title": "Right"
         }
       },
-      "required": ["condition", "left", "right"]
+      "required": [
+        "condition",
+        "left",
+        "right"
+      ],
+      "title": "Predicate",
+      "type": "object"
     },
-    "operand": {
-      "oneOf": [
-        {
-          "$ref": "#/$defs/indicator_ref"
-        },
-        {
-          "type": "number",
-          "description": "Literal numeric value."
-        },
-        {
-          "type": "string",
-          "enum": ["open", "high", "low", "close"],
-          "description": "Reference to an OHLC price field."
-        }
-      ]
-    },
-    "indicator_ref": {
-      "type": "object",
+    "RuleBlock": {
       "additionalProperties": false,
+      "description": "A rule block containing predicates combined with all_of or any_of logic.",
       "properties": {
-        "ref": {
-          "type": "string",
-          "description": "Name of a feature defined in the features list."
+        "all_of": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Predicate"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "All predicates must be true (AND logic)",
+          "title": "All Of"
+        },
+        "any_of": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Predicate"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "At least one predicate must be true (OR logic)",
+          "title": "Any Of"
         }
       },
-      "required": ["ref"]
+      "title": "RuleBlock",
+      "type": "object"
     }
-  }
+  },
+  "additionalProperties": false,
+  "description": "Strategy configuration defining entry/exit rules and features.\n\nA strategy consists of:\n- Features: Technical indicators to compute\n- Entry/Exit Rules: Conditions for opening and closing positions\n- Parameters: Configurable values that can be overridden\n\nExample:\n    {\n        \"strategy_name\": \"EMA Crossover\",\n        \"description\": \"Simple moving average crossover strategy\",\n        \"version\": \"1.0\",\n        \"parameters\": {\"ema_fast_length\": 20, \"ema_slow_length\": 50},\n        \"features\": [\n            {\"name\": \"ema_fast\", \"type\": \"EMA\", \"params\": {\"length\": 20}, \"source\": \"close\"},\n            {\"name\": \"ema_slow\", \"type\": \"EMA\", \"params\": {\"length\": 50}, \"source\": \"close\"}\n        ],\n        \"overlays\": [\"ema_fast\", \"ema_slow\"],\n        \"long_entry_rules\": [\n            {\"all_of\": [{\"condition\": \"cross_above\", \"left\": {\"ref\": \"ema_fast\"}, \"right\": {\"ref\": \"ema_slow\"}}]}\n        ],\n        \"long_exit_rules\": [\n            {\"any_of\": [{\"condition\": \"cross_below\", \"left\": {\"ref\": \"ema_fast\"}, \"right\": {\"ref\": \"ema_slow\"}}]}\n        ]\n    }",
+  "properties": {
+    "strategy_name": {
+      "description": "Human-readable name for the strategy",
+      "title": "Strategy Name",
+      "type": "string"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional description of the strategy",
+      "title": "Description"
+    },
+    "version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Strategy version string",
+      "title": "Version"
+    },
+    "parameters": {
+      "additionalProperties": true,
+      "description": "Strategy parameters that can be overridden (e.g., indicator lengths)",
+      "title": "Parameters",
+      "type": "object"
+    },
+    "features": {
+      "description": "List of technical indicators/features to compute",
+      "items": {
+        "$ref": "#/$defs/FeatureConfig"
+      },
+      "title": "Features",
+      "type": "array"
+    },
+    "overlays": {
+      "description": "List of feature names to overlay on price chart for visualization",
+      "items": {
+        "type": "string"
+      },
+      "title": "Overlays",
+      "type": "array"
+    },
+    "long_entry_rules": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/RuleBlock"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Rules for entering long positions",
+      "title": "Long Entry Rules"
+    },
+    "long_exit_rules": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/RuleBlock"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Rules for exiting long positions",
+      "title": "Long Exit Rules"
+    },
+    "short_entry_rules": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/RuleBlock"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Rules for entering short positions",
+      "title": "Short Entry Rules"
+    },
+    "short_exit_rules": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/RuleBlock"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Rules for exiting short positions",
+      "title": "Short Exit Rules"
+    }
+  },
+  "required": [
+    "strategy_name"
+  ],
+  "title": "StrategyConfig",
+  "type": "object"
 }

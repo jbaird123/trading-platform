@@ -73,12 +73,12 @@ def test_adaptive_trend_full_integration() -> None:
                     {
                         "condition": "is_above",
                         "left": {"ref": "ema_fast"},
-                        "right": 100,
+                        "right": {"value": 100},
                     },
                     {
                         "condition": "slope_is_above",
                         "left": {"ref": "ema_slope_fast"},
-                        "right": 0.01,
+                        "right": {"value": 0.01},
                     },
                 ]
             }
@@ -127,7 +127,7 @@ def test_adaptive_trend_full_integration() -> None:
                         {
                             "condition": "percentile_is_above",
                             "left": {"ref": "atr_pct"},
-                            "right": 75,
+                            "right": {"value": 75},
                         },
                         {
                             "condition": "volatility_is_between",
@@ -146,7 +146,7 @@ def test_adaptive_trend_full_integration() -> None:
                         {
                             "condition": "is_above",
                             "left": {"ref": "vol_z"},
-                            "right": 0,
+                            "right": {"value": 0},
                         }
                     ]
                 },

@@ -107,19 +107,20 @@ def test_brief_matches_golden_master(tmp_path: Path, request):
 
     initial_cash = 100000.0
     cfg_for_validation = cfg_raw.copy()
+
+    # Remove CLI-only/legacy fields
+    cfg_for_validation.pop("rem", None)
+    cfg_for_validation.pop("regime_market_manager", None)
+    cfg_for_validation.pop("data", None)
+    cfg_for_validation.pop("costs", None)
+
     cfg_for_validation["strategy"] = strat_cfg
     cfg_for_validation["rem_config"] = rem_cfg
     cfg_for_validation["run_id"] = "golden_run_test"  # Use a different run_id
     cfg_for_validation["initial_cash"] = initial_cash
-    # Provide complete instrument definition for test symbol
+    # Provide instrument using registered name
     cfg_for_validation["instrument"] = {
-        "symbol": "GOLDEN_TICKER",
-        "asset_class": "Stock",
-        "point_value": 1.0,
-        "tick_size": 0.01,
-        "pip_location": None,
-        "commission_model": {"type": "fixed"},
-        "sessions": [],
+        "symbol": "EUR_USD",
     }
     run_config = RunConfig.model_validate(cfg_for_validation)
 

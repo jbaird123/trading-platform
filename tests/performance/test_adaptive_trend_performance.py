@@ -69,7 +69,7 @@ def profile_strategy_features(ohlc: pd.DataFrame) -> tuple[pd.DataFrame, pstats.
         "long_entry_rules": [
             {
                 "all_of": [
-                    {"condition": "is_above", "left": {"ref": "ema_fast"}, "right": 100}
+                    {"condition": "is_above", "left": {"ref": "ema_fast"}, "right": {"value": 100}}
                 ]
             }
         ],
@@ -110,7 +110,7 @@ def profile_rmm_features(ohlc: pd.DataFrame) -> tuple[pd.DataFrame, pstats.Stats
                         {
                             "condition": "percentile_is_above",
                             "left": {"ref": "atr_pct"},
-                            "right": 75,
+                            "right": {"value": 75},
                         }
                     ]
                 },

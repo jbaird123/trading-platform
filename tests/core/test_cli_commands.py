@@ -47,8 +47,8 @@ def test_cmd_run_backtest_config_minimal(
                     "any_of": [
                         {
                             "condition": "is_above",
-                            "left": "close",
-                            "right": 1.5,
+                            "left": {"field": "close"},
+                            "right": {"value": 1.5},
                         }
                     ]
                 }
@@ -58,8 +58,8 @@ def test_cmd_run_backtest_config_minimal(
                     "any_of": [
                         {
                             "condition": "is_below",
-                            "left": "close",
-                            "right": 1.5,
+                            "left": {"field": "close"},
+                            "right": {"value": 1.5},
                         }
                     ]
                 }
@@ -95,10 +95,10 @@ def test_cmd_run_backtest_saves_signals_artifact(
         "strategy": {
             "strategy_name": "TestStrat",
             "long_entry_rules": [
-                {"any_of": [{"condition": "is_above", "left": "close", "right": 0}]}
+                {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 0}}]}
             ],
             "long_exit_rules": [
-                {"any_of": [{"condition": "is_below", "left": "close", "right": 0}]}
+                {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 0}}]}
             ],
         },
     }
@@ -138,10 +138,10 @@ def test_cmd_run_backtest_saves_rmm_spans_artifact(
         "strategy": {
             "strategy_name": "TestStrat",
             "long_entry_rules": [
-                {"any_of": [{"condition": "is_above", "left": "close", "right": 0}]}
+                {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 0}}]}
             ],
             "long_exit_rules": [
-                {"any_of": [{"condition": "is_below", "left": "close", "right": 0}]}
+                {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 0}}]}
             ],
         },
         "rmm_config": {
@@ -150,7 +150,7 @@ def test_cmd_run_backtest_saves_rmm_spans_artifact(
                     "label": "daily_trend",
                     "conditions": {
                         "all_of": [
-                            {"condition": "is_above", "left": "close", "right": 0}
+                            {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 0}}
                         ]
                     },
                     "confidence": 1.0,

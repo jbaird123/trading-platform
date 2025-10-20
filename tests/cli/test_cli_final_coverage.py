@@ -34,10 +34,10 @@ def test_cli_data_request_with_start_end_filtering(tmp_path):
     mock_strategy = {
         "strategy_name": "test_strategy",
         "long_entry_rules": [
-            {"all_of": [{"condition": "cross_above", "left": "close", "right": 1.1}]}
+            {"all_of": [{"condition": "cross_above", "left": {"field": "close"}, "right": {"value": 1.1}}]}
         ],
         "long_exit_rules": [
-            {"all_of": [{"condition": "cross_below", "left": "close", "right": 1.0}]}
+            {"all_of": [{"condition": "cross_below", "left": {"field": "close"}, "right": {"value": 1.0}}]}
         ],
     }
 
@@ -49,6 +49,7 @@ def test_cli_data_request_with_start_end_filtering(tmp_path):
         "trading_platform.cli.run_backtest", return_value=(Mock(), Mock(), Mock())
     ), patch("trading_platform.cli.finalize_run"), patch("builtins.print"), patch(
         "yaml.safe_load", return_value=mock_strategy
-    ), patch("trading_platform.strategy.yaml_strategy.jsonschema", None):
+    ):
+        # jsonschema patch removed - no longer used for validation
         result = cmd_run_backtest(args)
         assert result == 0

@@ -49,28 +49,28 @@ def test_eval_pred_known_conditions() -> None:
     )
 
     result = _eval_pred(
-        df, {"condition": "is_above", "left": "price", "right": "threshold"}
+        df, {"condition": "is_above", "left": {"ref": "price"}, "right": {"ref": "threshold"}}
     )
     pd.testing.assert_series_equal(
         result, pd.Series([False, True, True, True], index=df.index)
     )
 
     result = _eval_pred(
-        df, {"condition": "is_below", "left": "price", "right": "threshold"}
+        df, {"condition": "is_below", "left": {"ref": "price"}, "right": {"ref": "threshold"}}
     )
     pd.testing.assert_series_equal(
         result, pd.Series([True, False, False, False], index=df.index)
     )
 
     result = _eval_pred(
-        df, {"condition": "cross_above", "left": "price", "right": "threshold"}
+        df, {"condition": "cross_above", "left": {"ref": "price"}, "right": {"ref": "threshold"}}
     )
     pd.testing.assert_series_equal(
         result, pd.Series([False, True, False, False], index=df.index)
     )
 
     result = _eval_pred(
-        df, {"condition": "cross_below", "left": "price", "right": "threshold"}
+        df, {"condition": "cross_below", "left": {"ref": "price"}, "right": {"ref": "threshold"}}
     )
     pd.testing.assert_series_equal(
         result, pd.Series([False, False, False, False], index=df.index)
@@ -82,13 +82,13 @@ def test_eval_pred_unknown_condition_defaults_false() -> None:
         {"price": [1.0, 1.5], "threshold": [1.2, 1.2]},
         index=pd.date_range("2024-01-01", periods=2),
     )
-    pred = {"condition": "unknown_condition", "left": "price", "right": "threshold"}
+    pred = {"condition": "unknown_condition", "left": {"ref": "price"}, "right": {"ref": "threshold"}}
     # Implementation raises ValueError for safety (fail loudly)
     with pytest.raises(ValueError, match="Unrecognized RMM condition"):
         _eval_pred(df, pred)
     # Missing condition key also raises
     with pytest.raises(ValueError, match="Unrecognized RMM condition"):
-        _eval_pred(df, {"left": "price", "right": "threshold"})
+        _eval_pred(df, {"left": {"ref": "price"}, "right": {"ref": "threshold"}})
 
 
 def test_eval_block_any_of() -> None:
@@ -98,8 +98,8 @@ def test_eval_block_any_of() -> None:
     )
     block = {
         "any_of": [
-            {"condition": "is_above", "left": "indicator1", "right": "threshold"},
-            {"condition": "is_above", "left": "indicator2", "right": "threshold"},
+            {"condition": "is_above", "left": {"ref": "indicator1"}, "right": {"ref": "threshold"}},
+            {"condition": "is_above", "left": {"ref": "indicator2"}, "right": {"ref": "threshold"}},
         ]
     }
     result = _eval_block(df, block)
@@ -128,7 +128,7 @@ def _engine_config() -> dict:
                 "confidence": 0.8,
                 "conditions": {
                     "all_of": [
-                        {"condition": "is_above", "left": "ADX(14)", "right": 25.0}
+                        {"condition": "is_above", "left": {"ref": "ADX(14)"}, "right": {"value": 25.0}}
                     ]
                 },
             },
@@ -137,7 +137,7 @@ def _engine_config() -> dict:
                 "confidence": 0.6,
                 "conditions": {
                     "all_of": [
-                        {"condition": "is_below", "left": "ADX(14)", "right": 15.0}
+                        {"condition": "is_below", "left": {"ref": "ADX(14)"}, "right": {"value": 15.0}}
                     ]
                 },
             },
@@ -145,10 +145,11 @@ def _engine_config() -> dict:
     }
 
 
-def test_rmm_engine_validate_config_requires_jsonschema() -> None:
-    with patch("trading_platform.regime_market_manager.engine.jsonschema", None):
-        with pytest.raises(ValueError, match="jsonschema is required for RMM"):
-            RMMEngine.validate_config({"regimes": []})
+def test_rmm_engine_validate_config_without_jsonschema() -> None:
+    """Test that RMM engine validation works without jsonschema (no longer required)."""
+    # Empty regimes should still raise error from basic validation
+    with pytest.raises(ValueError, match="regimes must be a non-empty array"):
+        RMMEngine.validate_config({"regimes": []})
 
 
 def test_rmm_engine_classify_daily_matches_regime() -> None:
@@ -554,7 +555,7 @@ def test_predicate_percentile_is_above() -> None:
                         {
                             "condition": "percentile_is_above",
                             "left": {"ref": "atr_pct"},
-                            "right": 90,
+                            "right": {"value": 90},
                         }
                     ]
                 },

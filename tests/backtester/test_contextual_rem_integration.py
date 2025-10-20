@@ -30,7 +30,7 @@ def test_contextual_rem_with_order_block_strategy():
         ],
         "long_entry_rules": [
             {
-                "all_of": [{"condition": "is_above", "left": "close", "right": 1.0}],
+                "all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}],
                 "context": {"order_block_low": {"ref": "ob_low"}},
             }
         ],
@@ -38,7 +38,7 @@ def test_contextual_rem_with_order_block_strategy():
             {
                 "any_of": [
                     # Exit will be handled by REM, so use impossible condition
-                    {"condition": "is_below", "left": "close", "right": 0.0}
+                    {"condition": "is_below", "left": {"field": "close"}, "right": {"value": 0.0}}
                 ]
             }
         ],
@@ -59,10 +59,10 @@ def test_contextual_rem_with_order_block_strategy():
     }
 
     # EUR/USD instrument
+    # Note: When passing directly to REM (not through RunConfig), need pip_location
     instrument = {
         "symbol": "EUR_USD",
-        "pip_location": 0.0001,
-        "point_value": 1.0,
+        "pip_location": 0.0001,  # EUR/USD has 4 decimal places
     }
 
     rem = RiskExitManager(config=rem_config, instrument=instrument)

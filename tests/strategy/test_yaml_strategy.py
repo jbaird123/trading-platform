@@ -52,40 +52,40 @@ Lines 13-14, 88, 104, 148-152, 156-198, 215->218, 216->218, 223-228
 """
 
 
-class TestJsonschemaImportFallback:
-    """Test lines 13-14: jsonschema import fallback."""
+class TestPydanticValidation:
+    """Test Pydantic-based strategy validation."""
 
-    def test_jsonschema_none_import_fallback(self):
-        """Test when jsonschema import fails, it's set to None - covers lines 13-14."""
-        # This is already covered by test_validate_strategy_config_missing_jsonschema
-        # in test_yaml_strategy_coverage_gaps.py, so we just need a simple test
-        # to ensure we can handle the case when jsonschema is None
-        with patch("trading_platform.strategy.yaml_strategy.jsonschema", None):
-            config = {"strategy_name": "test"}
-            # Should not raise when jsonschema is None
-            validate_strategy_config(config)
+    def test_pydantic_validation_with_valid_config(self):
+        """Test that valid config passes Pydantic validation."""
+        config = {
+            "strategy_name": "test",
+            "long_entry_rules": [
+                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
+            ],
+        }
+        # Should not raise
+        validate_strategy_config(config)
 
 
 class TestEvalPredicateEdgeCases:
-    """Test line 88: _eval_predicate fallback condition."""
+    """Test _eval_predicate fail-loud behavior for unknown conditions."""
 
     def test_eval_predicate_unknown_condition(self):
-        """Test _eval_predicate with unsupported condition - covers line 88."""
+        """Test _eval_predicate with unsupported condition - should raise ValueError."""
         df = pd.DataFrame(
             {"close": [1.0, 2.0, 3.0], "sma": [1.1, 1.9, 2.8]},
             index=pd.date_range("2024-01-01", periods=3),
         )
 
-        # Test unsupported condition - should return all False
+        # Test unsupported condition - should raise ValueError (fail loudly)
         predicate = {
             "condition": "unsupported_condition",
-            "left": "close",
-            "right": "sma",
+            "left": {"field": "close"},
+            "right": {"ref": "sma"},
         }
 
-        result = _eval_predicate(df, predicate)
-        expected = pd.Series([False, False, False], index=df.index)
-        pd.testing.assert_series_equal(result, expected)
+        with pytest.raises(ValueError, match="Unknown predicate condition"):
+            _eval_predicate(df, predicate)
 
 
 class TestEvalRuleBlockFallback:
@@ -134,10 +134,10 @@ class TestSlopeFilterLogic:
                 }
             ],
             "long_entry_rules": [
-                {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
             ],
             "long_exit_rules": [
-                {"all_of": [{"condition": "is_below", "left": "close", "right": 1.0}]}
+                {"all_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.0}}]}
             ],
             "parameters": {"slope_filter": True, "slope_feature": "ema_slow"},
         }
@@ -174,7 +174,7 @@ class TestSlopeFilterLogic:
             "strategy_name": "MissingSlopeStrategy",
             "features": [],
             "long_entry_rules": [
-                {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
             ],
             "long_exit_rules": [],
             "parameters": {"slope_filter": True, "slope_feature": "missing_column"},
@@ -213,11 +213,11 @@ class TestAIFilterLogic:
             overlays=[],
             features=[],
             long_entry_blocks=[
-                {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
             ],
             long_exit_blocks=[],
             short_entry_blocks=[
-                {"all_of": [{"condition": "is_below", "left": "close", "right": 1.5}]}
+                {"all_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.5}}]}
             ],
             short_exit_blocks=[],
             parameters={},
@@ -253,7 +253,7 @@ class TestAIFilterLogic:
             "strategy_name": "AIFilterMissingFeatures",
             "features": [],
             "long_entry_rules": [
-                {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
             ],
             "long_exit_rules": [],
             "ai_filter": {
@@ -267,29 +267,27 @@ class TestAIFilterLogic:
         }
 
         with patch("trading_platform.strategy.yaml_strategy.validate_strategy_config"):
+            # jsonschema patch removed - no longer used
             with patch(
-                "trading_platform.strategy.yaml_strategy.jsonschema", spec=object()
-            ):
+                "trading_platform.strategy.yaml_strategy.AIInferenceClient"
+            ) as mock_ai_client_class:
+                mock_ai_client = Mock()
+                mock_ai_client_class.return_value = mock_ai_client
+
                 with patch(
-                    "trading_platform.strategy.yaml_strategy.AIInferenceClient"
-                ) as mock_ai_client_class:
-                    mock_ai_client = Mock()
-                    mock_ai_client_class.return_value = mock_ai_client
+                    "trading_platform.strategy.features.compute_features"
+                ) as mock_compute:
+                    mock_compute.return_value = df.copy()
 
                     with patch(
-                        "trading_platform.strategy.features.compute_features"
-                    ) as mock_compute:
-                        mock_compute.return_value = df.copy()
+                        "trading_platform.strategy.yaml_strategy.logger"
+                    ) as mock_logger:
+                        compiled_strategy = compile_strategy(strategy_config)
+                        signals = compiled_strategy.generate_signals(df)
 
-                        with patch(
-                            "trading_platform.strategy.yaml_strategy.logger"
-                        ) as mock_logger:
-                            compiled_strategy = compile_strategy(strategy_config)
-                            signals = compiled_strategy.generate_signals(df)
-
-                            # Should log warning about missing features
-                            mock_logger.warning.assert_called()
-                            assert isinstance(signals, pd.Series)
+                        # Should log warning about missing features
+                        mock_logger.warning.assert_called()
+                        assert isinstance(signals, pd.Series)
 
     def test_generate_signals_ai_filter_no_predictions(self):
         """Test AI filter when no predictions returned - covers else branch."""
@@ -301,7 +299,7 @@ class TestAIFilterLogic:
             overlays=[],
             features=[],
             long_entry_blocks=[
-                {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
             ],
             long_exit_blocks=[],
             short_entry_blocks=[],
@@ -340,7 +338,7 @@ class TestAIFilterLogic:
             "strategy_name": "AIFilterException",
             "features": [],
             "long_entry_rules": [
-                {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
             ],
             "long_exit_rules": [],
             "ai_filter": {
@@ -351,32 +349,30 @@ class TestAIFilterLogic:
         }
 
         with patch("trading_platform.strategy.yaml_strategy.validate_strategy_config"):
+            # jsonschema patch removed - no longer used
             with patch(
-                "trading_platform.strategy.yaml_strategy.jsonschema", spec=object()
-            ):
+                "trading_platform.strategy.yaml_strategy.AIInferenceClient"
+            ) as mock_ai_client_class:
+                mock_ai_client = Mock()
+                mock_ai_client.predict.side_effect = RuntimeError(
+                    "AI service unavailable"
+                )
+                mock_ai_client_class.return_value = mock_ai_client
+
                 with patch(
-                    "trading_platform.strategy.yaml_strategy.AIInferenceClient"
-                ) as mock_ai_client_class:
-                    mock_ai_client = Mock()
-                    mock_ai_client.predict.side_effect = RuntimeError(
-                        "AI service unavailable"
-                    )
-                    mock_ai_client_class.return_value = mock_ai_client
+                    "trading_platform.strategy.features.compute_features"
+                ) as mock_compute:
+                    mock_compute.return_value = df.copy()
 
                     with patch(
-                        "trading_platform.strategy.features.compute_features"
-                    ) as mock_compute:
-                        mock_compute.return_value = df.copy()
+                        "trading_platform.strategy.yaml_strategy.logger"
+                    ) as mock_logger:
+                        compiled_strategy = compile_strategy(strategy_config)
+                        signals = compiled_strategy.generate_signals(df)
 
-                        with patch(
-                            "trading_platform.strategy.yaml_strategy.logger"
-                        ) as mock_logger:
-                            compiled_strategy = compile_strategy(strategy_config)
-                            signals = compiled_strategy.generate_signals(df)
-
-                            # Should log error about AI exception
-                            mock_logger.error.assert_called()
-                            assert isinstance(signals, pd.Series)
+                        # Should log error about AI exception
+                        mock_logger.error.assert_called()
+                        assert isinstance(signals, pd.Series)
 
     def test_generate_signals_ai_filter_no_input_features(self):
         """Test AI filter when ai_input_features is None - covers lines 159->171."""
@@ -390,7 +386,7 @@ class TestAIFilterLogic:
             overlays=[],
             features=[],
             long_entry_blocks=[
-                {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
             ],
             long_exit_blocks=[],
             short_entry_blocks=[],
@@ -430,10 +426,10 @@ class TestSignalStateMachine:
             long_entry_blocks=[],
             long_exit_blocks=[],
             short_entry_blocks=[
-                {"all_of": [{"condition": "is_below", "left": "close", "right": 0.9}]}
+                {"all_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 0.9}}]}
             ],
             short_exit_blocks=[
-                {"all_of": [{"condition": "is_above", "left": "close", "right": 1.1}]}
+                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.1}}]}
             ],
             parameters={},
         )
@@ -464,16 +460,16 @@ class TestSignalStateMachine:
             overlays=[],
             features=[],
             long_entry_blocks=[
-                {"all_of": [{"condition": "is_above", "left": "close", "right": 1.1}]}
+                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.1}}]}
             ],
             long_exit_blocks=[
-                {"all_of": [{"condition": "is_below", "left": "close", "right": 1.0}]}
+                {"all_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.0}}]}
             ],
             short_entry_blocks=[
-                {"all_of": [{"condition": "is_below", "left": "close", "right": 0.9}]}
+                {"all_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 0.9}}]}
             ],
             short_exit_blocks=[
-                {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
             ],
             parameters={},
         )
@@ -534,7 +530,7 @@ class TestSignalStateMachine:
                 }
             ],
             "long_entry_rules": [
-                {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
             ],
             "long_exit_rules": [],
         }
@@ -602,34 +598,31 @@ class TestLoadStrategyFromFile:
 
 
 class TestSeriesForOperandEdgeCases:
-    """Test edge cases in _series_for_operand function."""
+    """Test fail-loud behavior for invalid operands in _series_for_operand."""
 
     def test_series_for_operand_dict_without_ref(self):
-        """Test _series_for_operand with dict that doesn't have 'ref' key."""
+        """Test _series_for_operand with dict that doesn't have required keys - should raise ValueError."""
         df = pd.DataFrame(
             {"close": [1.0, 1.1, 1.2]}, index=pd.date_range("2024-01-01", periods=3)
         )
 
-        # Dict without 'ref' key should return zeros
-        result = _series_for_operand(df, {"other_key": "value"})
-        expected = pd.Series([0.0, 0.0, 0.0], index=df.index)
-        pd.testing.assert_series_equal(result, expected)
+        # Dict without 'ref', 'field', or 'value' should raise ValueError (fail loudly)
+        with pytest.raises(ValueError, match="Invalid operand dict"):
+            _series_for_operand(df, {"other_key": "value"})
 
     def test_series_for_operand_other_types(self):
-        """Test _series_for_operand with other unsupported types."""
+        """Test _series_for_operand with unsupported types - should raise ValueError."""
         df = pd.DataFrame(
             {"close": [1.0, 1.1, 1.2]}, index=pd.date_range("2024-01-01", periods=3)
         )
 
-        # List should return zeros (unsupported type)
-        result = _series_for_operand(df, [1, 2, 3])
-        expected = pd.Series([0.0, 0.0, 0.0], index=df.index)
-        pd.testing.assert_series_equal(result, expected)
+        # List is unsupported - should raise ValueError (fail loudly)
+        with pytest.raises(ValueError, match="Invalid operand type"):
+            _series_for_operand(df, [1, 2, 3])
 
-        # None should return zeros
-        result = _series_for_operand(df, None)
-        expected = pd.Series([0.0, 0.0, 0.0], index=df.index)
-        pd.testing.assert_series_equal(result, expected)
+        # None is unsupported - should raise ValueError (fail loudly)
+        with pytest.raises(ValueError, match="Invalid operand type"):
+            _series_for_operand(df, None)
 
 
 # --- test_yaml_strategy_coverage_gaps.py ---
@@ -641,14 +634,18 @@ Targets specific missing lines in strategy/yaml_strategy.py to improve coverage.
 """
 
 
-def test_validate_strategy_config_missing_jsonschema():
-    """Test validate_strategy_config when jsonschema unavailable. Covers lines 13-14."""
-    valid_config: dict[str, list[str]] = {"entry_signals": [], "exit_signals": []}
-
-    # Mock jsonschema as None to simulate import error scenario
-    with patch("trading_platform.strategy.yaml_strategy.jsonschema", None):
-        # Should not raise exception when jsonschema is None
-        validate_strategy_config(valid_config)
+def test_validate_strategy_config_with_pydantic():
+    """Test validate_strategy_config uses Pydantic validation."""
+    valid_config = {
+        "strategy_name": "test_strategy",
+        "features": [],
+        "long_entry_rules": [
+            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
+        ],
+        "long_exit_rules": [],
+    }
+    # Should not raise exception with valid config
+    validate_strategy_config(valid_config)
 
 
 def test_validate_strategy_config_invalid_type():
@@ -666,70 +663,43 @@ def test_validate_strategy_config_invalid_type():
         validate_strategy_config(None)  # type: ignore[arg-type]
 
 
-def test_validate_strategy_config_with_jsonschema():
-    """Test validate_strategy_config with jsonschema. Covers lines 35->exit, 50-57."""
+def test_validate_strategy_config_with_pydantic_features():
+    """Test validate_strategy_config accepts features and rules."""
     valid_config = {
-        "entry_signals": [
-            {
-                "rules": [
-                    {"all_of": [{"condition": "gt", "left": "close", "right": 1.0}]}
-                ]
-            }
+        "strategy_name": "test_with_features",
+        "features": [
+            {"name": "sma_20", "type": "SMA", "params": {"length": 20}}
         ],
-        "exit_signals": [],
-    }
-
-    # Test with valid jsonschema available
-    with patch("trading_platform.strategy.yaml_strategy.jsonschema") as mock_jsonschema:
-        mock_jsonschema.validate.return_value = None  # No exception = valid
-
-        # Create a mock schema file
-        with patch("pathlib.Path.read_text") as mock_read:
-            mock_read.return_value = json.dumps({"type": "object"})
-
-            # Should not raise exception
-            validate_strategy_config(valid_config)
-
-            # Verify jsonschema.validate was called
-            mock_jsonschema.validate.assert_called_once()
-
-
-def test_validate_strategy_config_schema_validation_error():
-    """Test validate_strategy_config schema validation fails. Covers lines 44->46."""
-    invalid_config = {"invalid_field": "value"}
-
-    # Test with jsonschema validation error
-    with patch("trading_platform.strategy.yaml_strategy.jsonschema") as mock_jsonschema:
-        from jsonschema import ValidationError
-
-        mock_jsonschema.ValidationError = ValidationError
-        mock_jsonschema.validate.side_effect = ValidationError("Schema failed")
-
-        # Create a mock schema file
-        with patch("pathlib.Path.read_text") as mock_read:
-            mock_read.return_value = json.dumps({"type": "object"})
-
-            # Should raise ValueError
-            with pytest.raises(ValueError, match="Strategy schema validation error"):
-                validate_strategy_config(invalid_config)
-
-
-def test_validate_strategy_config_missing_schema_file():
-    """Test validate_strategy_config schema file read fails. Covers error handling."""
-    valid_config = {
-        "strategy_name": "test",
-        "long_entry_rules": [],
+        "long_entry_rules": [
+            {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
+        ],
         "long_exit_rules": [],
     }
+    # Should not raise exception
+    validate_strategy_config(valid_config)
 
-    with patch("trading_platform.strategy.yaml_strategy.jsonschema"):
-        # Simulate FileNotFoundError when reading schema - caught and handled
-        with patch(
-            "pathlib.Path.read_text", side_effect=FileNotFoundError("Schema not found")
-        ):
-            # Should raise the FileNotFoundError since there's no try/catch around it
-            with pytest.raises(FileNotFoundError):
-                validate_strategy_config(valid_config)
+
+def test_validate_strategy_config_pydantic_validation_error():
+    """Test validate_strategy_config Pydantic validation fails."""
+    # Missing required field strategy_name
+    invalid_config = {"invalid_field": "value"}
+
+    # Should raise ValueError with Pydantic error message
+    with pytest.raises(ValueError, match="Strategy validation error"):
+        validate_strategy_config(invalid_config)
+
+
+def test_validate_strategy_config_extra_fields_forbidden():
+    """Test that Pydantic rejects extra fields with extra='forbid'."""
+    config_with_extra = {
+        "strategy_name": "test",
+        "long_entry_rules": [],
+        "unknown_extra_field": "should_be_rejected",
+    }
+
+    # Should raise ValueError due to extra='forbid' in Pydantic model
+    with pytest.raises(ValueError, match="Strategy validation error"):
+        validate_strategy_config(config_with_extra)
 
 
 def test_load_strategy_config_from_dict():
@@ -747,7 +717,7 @@ def test_load_strategy_config_from_file_path():
         "entry_signals": [
             {
                 "rules": [
-                    {"all_of": [{"condition": "gt", "left": "close", "right": 1.1000}]}
+                    {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.1000}}]}
                 ]
             }
         ],
@@ -814,10 +784,9 @@ def test_series_for_operand_string():
     expected = pd.Series(df["volume"], dtype="float64")
     pd.testing.assert_series_equal(result, expected)
 
-    # Test with invalid column name - should return zeros
-    result = _series_for_operand(df, "invalid_column")
-    expected = pd.Series([0.0] * len(df), index=df.index)
-    pd.testing.assert_series_equal(result, expected)
+    # Test with invalid column name - should raise KeyError (fail loudly)
+    with pytest.raises(KeyError, match="Operand field 'invalid_column' not found"):
+        _series_for_operand(df, "invalid_column")
 
     # Test with dict ref operand
     result = _series_for_operand(df, {"ref": "close"})
@@ -831,7 +800,7 @@ def test_compile_strategy_edge_cases():
     strategy_config = {
         "strategy_name": "TestStrategy",
         "long_entry_rules": [
-            {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+            {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
         ],
         "long_exit_rules": [],
         "parameters": {"param1": 1.5},
@@ -932,38 +901,29 @@ def _base_config() -> dict[str, Any]:
     return {
         "strategy_name": "Test",
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": 1, "right": 0}]}
+            {"any_of": [{"condition": "is_above", "left": {"value": 1}, "right": {"value": 0}}]}
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": 1, "right": 2}]}
+            {"any_of": [{"condition": "is_below", "left": {"value": 1}, "right": {"value": 2}}]}
         ],
     }
 
 
-def test_validate_strategy_config_jsonschema_failure(monkeypatch):
+def test_validate_strategy_config_pydantic_strict_validation():
+    """Test that Pydantic performs strict validation."""
     cfg = _base_config()
-
-    class DummyValidationError(Exception):
-        def __init__(self, msg: str) -> None:
-            super().__init__(msg)
-            self.message = msg
-
-    def fake_validate(config: dict[str, Any], schema: dict[str, Any]) -> None:
-        raise DummyValidationError("bad field")
-
-    fake_jsonschema = SimpleNamespace(
-        validate=fake_validate, ValidationError=DummyValidationError
-    )
-    monkeypatch.setattr(ys, "jsonschema", fake_jsonschema)
-
-    with pytest.raises(ValueError, match="bad field"):
-        ys.validate_strategy_config(cfg)
-
-
-def test_validate_strategy_config_without_jsonschema(monkeypatch):
-    cfg = _base_config()
-    monkeypatch.setattr(ys, "jsonschema", None)
+    # Should pass validation with valid base config
     ys.validate_strategy_config(cfg)
+
+    # Test with invalid predicate structure
+    invalid_cfg = {
+        "strategy_name": "invalid",
+        "long_entry_rules": [
+            {"all_of": [{"bad_field": "invalid"}]}  # Missing required predicate fields
+        ],
+    }
+    with pytest.raises(ValueError, match="Strategy validation error"):
+        ys.validate_strategy_config(invalid_cfg)
 
 
 def test_load_strategy_config_from_path(tmp_path):
@@ -979,31 +939,34 @@ def test_series_for_operand_variants():
     assert list(ys._series_for_operand(df, 5.0)) == [5.0, 5.0]
     assert list(ys._series_for_operand(df, "close")) == [1.0, 2.0]
     assert list(ys._series_for_operand(df, {"ref": "feat"})) == [3.0, 4.0]
-    assert list(ys._series_for_operand(df, {"bad": 1})) == [0.0, 0.0]
+    # Dict without required keys should raise ValueError (fail loudly)
+    with pytest.raises(ValueError, match="Invalid operand dict"):
+        ys._series_for_operand(df, {"bad": 1})
 
 
 def test_eval_predicate_all_conditions():
     df = pd.DataFrame({"a": [1, 2, 3], "b": [3, 2, 1]})
-    above = ys._eval_predicate(df, {"condition": "is_above", "left": "b", "right": "a"})
-    below = ys._eval_predicate(df, {"condition": "is_below", "left": "a", "right": "b"})
+    above = ys._eval_predicate(df, {"condition": "is_above", "left": {"ref": "b"}, "right": {"ref": "a"}})
+    below = ys._eval_predicate(df, {"condition": "is_below", "left": {"ref": "a"}, "right": {"ref": "b"}})
     cross_up = ys._eval_predicate(
-        df, {"condition": "cross_above", "left": "a", "right": "b"}
+        df, {"condition": "cross_above", "left": {"ref": "a"}, "right": {"ref": "b"}}
     )
     cross_down = ys._eval_predicate(
-        df, {"condition": "cross_below", "left": "b", "right": "a"}
+        df, {"condition": "cross_below", "left": {"ref": "b"}, "right": {"ref": "a"}}
     )
-    default = ys._eval_predicate(df, {"condition": "unknown"})
+    # Unknown condition should raise ValueError (fail loudly)
     assert list(above) == [True, False, False]
     assert list(below) == [True, False, False]
     assert list(cross_up) == [False, False, True]
     assert list(cross_down) == [False, False, True]
-    assert not default.any()
+    with pytest.raises(ValueError, match="Unknown predicate condition"):
+        ys._eval_predicate(df, {"condition": "unknown", "left": {"ref": "a"}, "right": {"ref": "b"}})
 
 
 def test_eval_rule_block_branches():
     df = pd.DataFrame({"x": [2, 3, 4], "y": [0, 1, 2]})
-    all_block = {"all_of": [{"condition": "is_above", "left": "x", "right": "y"}]}
-    any_block = {"any_of": [{"condition": "is_below", "left": "y", "right": "x"}]}
+    all_block = {"all_of": [{"condition": "is_above", "left": {"ref": "x"}, "right": {"ref": "y"}}]}
+    any_block = {"any_of": [{"condition": "is_below", "left": {"ref": "y"}, "right": {"ref": "x"}}]}
     none_block: dict[str, Any] = {}
     assert ys._eval_rule_block(df, all_block).all()
     assert ys._eval_rule_block(df, any_block).iloc[0]
@@ -1042,10 +1005,10 @@ def test_compiled_strategy_generate_signals_basic(monkeypatch):
         overlays=[],
         features=[{"name": "feat"}],
         long_entry_blocks=[
-            {"any_of": [{"condition": "is_above", "left": "close", "right": 1.5}]}
+            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.5}}]}
         ],
         long_exit_blocks=[
-            {"any_of": [{"condition": "is_below", "left": "close", "right": 1.5}]}
+            {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.5}}]}
         ],
         short_entry_blocks=[],
         short_exit_blocks=[],
@@ -1073,8 +1036,8 @@ def test_compiled_strategy_short_exit_branch(monkeypatch):
                 "any_of": [
                     {
                         "condition": "is_below",
-                        "left": "close",
-                        "right": 9,
+                        "left": {"field": "close"},
+                        "right": {"value": 9},
                     }
                 ]
             }
@@ -1084,8 +1047,8 @@ def test_compiled_strategy_short_exit_branch(monkeypatch):
                 "any_of": [
                     {
                         "condition": "is_above",
-                        "left": "close",
-                        "right": 10,
+                        "left": {"field": "close"},
+                        "right": {"value": 10},
                     }
                 ]
             }
@@ -1117,8 +1080,8 @@ def test_compiled_strategy_short_exit_never_triggers(monkeypatch):
                 "any_of": [
                     {
                         "condition": "is_below",
-                        "left": "close",
-                        "right": 9,
+                        "left": {"field": "close"},
+                        "right": {"value": 9},
                     }
                 ]
             }
@@ -1153,16 +1116,16 @@ def test_compiled_strategy_slope_and_ai_filter(monkeypatch):
         overlays=[],
         features=[{"name": "fast"}],
         long_entry_blocks=[
-            {"any_of": [{"condition": "is_above", "left": "close", "right": 0.5}]}
+            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 0.5}}]}
         ],
         long_exit_blocks=[
-            {"any_of": [{"condition": "is_below", "left": "close", "right": 3.5}]}
+            {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 3.5}}]}
         ],
         short_entry_blocks=[
-            {"any_of": [{"condition": "is_below", "left": "close", "right": 3.5}]}
+            {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 3.5}}]}
         ],
         short_exit_blocks=[
-            {"any_of": [{"condition": "is_above", "left": "close", "right": 3.5}]}
+            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 3.5}}]}
         ],
         parameters={"slope_filter": True, "slope_feature": "ema_slow"},
         slope_filter=True,
@@ -1190,10 +1153,10 @@ def test_compiled_strategy_slope_filter_missing_column(monkeypatch):
         overlays=[],
         features=[],
         long_entry_blocks=[
-            {"any_of": [{"condition": "is_above", "left": "close", "right": 0}]}
+            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 0}}]}
         ],
         long_exit_blocks=[
-            {"any_of": [{"condition": "is_below", "left": "close", "right": 5}]}
+            {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 5}}]}
         ],
         short_entry_blocks=[],
         short_exit_blocks=[],
@@ -1217,7 +1180,7 @@ def test_compiled_strategy_ai_filter_missing_features(monkeypatch, caplog):
         overlays=[],
         features=[{"name": "fast"}],
         long_entry_blocks=[
-            {"any_of": [{"condition": "is_above", "left": "close", "right": 0}]}
+            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 0}}]}
         ],
         long_exit_blocks=[],
         short_entry_blocks=[],
@@ -1242,7 +1205,7 @@ def test_compiled_strategy_ai_filter_exception(monkeypatch, caplog):
         overlays=[],
         features=[],
         long_entry_blocks=[
-            {"any_of": [{"condition": "is_above", "left": "close", "right": 0}]}
+            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 0}}]}
         ],
         long_exit_blocks=[],
         short_entry_blocks=[],
@@ -1281,7 +1244,7 @@ def test_compiled_strategy_ai_filter_with_inputs(monkeypatch):
         overlays=[],
         features=[{"name": "fast"}],
         long_entry_blocks=[
-            {"any_of": [{"condition": "is_above", "left": "close", "right": 0}]}
+            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 0}}]}
         ],
         long_exit_blocks=[],
         short_entry_blocks=[],
@@ -1298,13 +1261,14 @@ def test_compiled_strategy_ai_filter_with_inputs(monkeypatch):
 
 
 def test_compile_strategy_ai_enabled(monkeypatch):
+    """Test compile_strategy with AI enabled (Pydantic validation)."""
     cfg = {
         "strategy_name": "compile",
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": 1, "right": 0}]}
+            {"any_of": [{"condition": "is_above", "left": {"value": 1}, "right": {"value": 0}}]}
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": 1, "right": 2}]}
+            {"any_of": [{"condition": "is_below", "left": {"value": 1}, "right": {"value": 2}}]}
         ],
         "features": [],
         "parameters": {"slope_filter": True, "slope_feature": "custom"},
@@ -1314,15 +1278,7 @@ def test_compile_strategy_ai_enabled(monkeypatch):
             "input_features": ["fast"],
         },
     }
-
-    class DummyValidationError(Exception):
-        pass
-
-    fake_jsonschema = SimpleNamespace(
-        validate=lambda cfg, schema: None,
-        ValidationError=DummyValidationError,
-    )
-    monkeypatch.setattr(ys, "jsonschema", fake_jsonschema)
+    # No need to monkeypatch jsonschema - using Pydantic now
     strat = ys.compile_strategy(cfg)
     assert strat.slope_filter is True
     assert strat.slope_feature == "custom"
@@ -1330,137 +1286,27 @@ def test_compile_strategy_ai_enabled(monkeypatch):
     assert strat.ai_inference_client is not None
 
 
-def test_compile_strategy_ai_disabled_without_jsonschema(monkeypatch):
+def test_compile_strategy_ai_filter_enabled_independently():
+    """Test that AI filter can be enabled without JSON schema."""
     cfg = {
         "strategy_name": "no-ai",
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": 1, "right": 0}]}
+            {"any_of": [{"condition": "is_above", "left": {"value": 1}, "right": {"value": 0}}]}
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": 1, "right": 2}]}
+            {"any_of": [{"condition": "is_below", "left": {"value": 1}, "right": {"value": 2}}]}
         ],
         "ai_filter": {"enabled": True},
-        "parameters": "not-a-dict",
+        "parameters": {},
     }
-    monkeypatch.setattr(ys, "jsonschema", None)
     strat = ys.compile_strategy(cfg)
-    assert strat.ai_filter_enabled is False
+    # AI filter can be enabled independently of JSON schema validation
+    assert strat.ai_filter_enabled is True
     assert strat.parameters == {}
 
 
-def test_reload_without_jsonschema(monkeypatch):
-    import builtins
-    import importlib
-
-    original_import = builtins.__import__
-
-    def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
-        if name == "jsonschema":
-            raise ImportError
-        return original_import(name, globals, locals, fromlist, level)
-
-    monkeypatch.setattr(builtins, "__import__", fake_import)
-    module = importlib.reload(ys)
-    assert module.jsonschema is None
-    monkeypatch.setattr(builtins, "__import__", original_import)
-    module = importlib.reload(module)
-    globals()["ys"] = module
-    target = globals()["ys"]
-
-    df = pd.DataFrame({"close": [0.0, 0.2, 1.0], "fast": [1.0, 1.5, 2.0]})
-    monkeypatch.setattr(
-        target,
-        "compute_features",
-        lambda frame, feats, params: df.copy(),
-    )
-    ai_client = DummyAIClient(
-        [
-            {"prediction": "short", "confidence": 0.9},
-            {"prediction": "short", "confidence": 0.9},
-            {"prediction": "flat", "confidence": 0.9},
-        ]
-    )
-    strat = target.CompiledStrategy(
-        name="reload",
-        overlays=[],
-        features=[{"name": "fast"}],
-        long_entry_blocks=[],
-        long_exit_blocks=[],
-        short_entry_blocks=[
-            {"any_of": [{"condition": "is_below", "left": "close", "right": 0.5}]}
-        ],
-        short_exit_blocks=[
-            {"any_of": [{"condition": "is_above", "left": "close", "right": 0.5}]}
-        ],
-        parameters={},
-        ai_filter_enabled=True,
-        ai_inference_client=ai_client,
-        ai_confidence_threshold=0.5,
-        ai_input_features=["fast"],
-    )
-    strat.generate_signals(df)
-    target._series_for_operand(df, "fast")
-    target._series_for_operand(df, "missing")
-    no_ai = target.CompiledStrategy(
-        name="branch-no-ai",
-        overlays=[],
-        features=[],
-        long_entry_blocks=[],
-        long_exit_blocks=[],
-        short_entry_blocks=[],
-        short_exit_blocks=[],
-        parameters={},
-    )
-    no_ai.generate_signals(df)
-    half_ai = target.CompiledStrategy(
-        name="branch-half",
-        overlays=[],
-        features=[],
-        long_entry_blocks=[],
-        long_exit_blocks=[],
-        short_entry_blocks=[],
-        short_exit_blocks=[],
-        parameters={},
-        ai_filter_enabled=True,
-        ai_inference_client=None,
-    )
-    half_ai.generate_signals(df)
-
-    empty_ai = target.CompiledStrategy(
-        name="branch-empty",
-        overlays=[],
-        features=[{"name": "fast"}],
-        long_entry_blocks=[
-            {"any_of": [{"condition": "is_above", "left": "close", "right": -1}]}
-        ],
-        long_exit_blocks=[],
-        short_entry_blocks=[],
-        short_exit_blocks=[],
-        parameters={},
-        ai_filter_enabled=True,
-        ai_inference_client=DummyAIClient([]),
-        ai_confidence_threshold=0.5,
-        ai_input_features=["fast"],
-    )
-    empty_ai.generate_signals(df)
-
-    missing_ai = target.CompiledStrategy(
-        name="branch-missing",
-        overlays=[],
-        features=[{"name": "fast"}],
-        long_entry_blocks=[
-            {"any_of": [{"condition": "is_above", "left": "close", "right": -1}]}
-        ],
-        long_exit_blocks=[],
-        short_entry_blocks=[],
-        short_exit_blocks=[],
-        parameters={},
-        ai_filter_enabled=True,
-        ai_inference_client=DummyAIClient([]),
-        ai_confidence_threshold=0.5,
-        ai_input_features=["missing"],
-    )
-    missing_ai.generate_signals(df)
+# test_reload_without_jsonschema removed - no longer relevant since jsonschema
+# import fallback was removed in favor of Pydantic validation
 
 
 def test_load_strategy_config_returns_dict():
@@ -1481,10 +1327,10 @@ def test_yaml_strategy_compile_and_signals_is_above_below():
         "overlays": ["ema_fast", "ema_slow"],
         "features": [],
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": "close", "right": 1.5}]}
+            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.5}}]}
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": "close", "right": 1.5}]}
+            {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.5}}]}
         ],
     }
     strat = compile_strategy(cfg)
@@ -1565,13 +1411,13 @@ def test_yaml_strategy_all_of_and_short_side():
         "short_entry_rules": [
             {
                 "all_of": [
-                    {"condition": "is_below", "left": "close", "right": 1.5},
-                    {"condition": "is_above", "left": "close", "right": 0},
+                    {"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.5}},
+                    {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 0}},
                 ]
             }
         ],
         "short_exit_rules": [
-            {"any_of": [{"condition": "is_above", "left": "close", "right": 1.5}]}
+            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.5}}]}
         ],
     }
     strat = compile_strategy(cfg)
@@ -1603,16 +1449,16 @@ def test_same_bar_exit_and_opposite_entry():
         "strategy_name": "CrossoverTest",
         "features": [],
         "long_entry_rules": [
-            {"all_of": [{"condition": "cross_above", "left": "close", "right": 10.0}]}
+            {"all_of": [{"condition": "cross_above", "left": {"field": "close"}, "right": {"value": 10.0}}]}
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "cross_below", "left": "close", "right": 10.0}]}
+            {"any_of": [{"condition": "cross_below", "left": {"field": "close"}, "right": {"value": 10.0}}]}
         ],
         "short_entry_rules": [
-            {"all_of": [{"condition": "cross_below", "left": "close", "right": 10.0}]}
+            {"all_of": [{"condition": "cross_below", "left": {"field": "close"}, "right": {"value": 10.0}}]}
         ],
         "short_exit_rules": [
-            {"any_of": [{"condition": "cross_above", "left": "close", "right": 10.0}]}
+            {"any_of": [{"condition": "cross_above", "left": {"field": "close"}, "right": {"value": 10.0}}]}
         ],
     }
     strat = compile_strategy(cfg)
@@ -1666,7 +1512,7 @@ def test_yaml_strategy_context_parsing():
         ],
         "long_entry_rules": [
             {
-                "all_of": [{"condition": "is_above", "left": "close", "right": 1.0}],
+                "all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}],
                 "context": {"order_block_low": {"ref": "order_block_low"}},
             }
         ],
@@ -1704,7 +1550,7 @@ def test_yaml_strategy_signal_object_generation():
         ],
         "long_entry_rules": [
             {
-                "all_of": [{"condition": "is_above", "left": "close", "right": 1.0}],
+                "all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}],
                 "context": {"order_block_low": {"ref": "order_block_low"}},
             }
         ],
@@ -1775,10 +1621,10 @@ def test_load_strategy_with_new_indicators():
             },
         ],
         "long_entry_rules": [
-            {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+            {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
         ],
         "long_exit_rules": [
-            {"all_of": [{"condition": "is_below", "left": "close", "right": 1.0}]}
+            {"all_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.0}}]}
         ],
     }
 
@@ -1826,10 +1672,10 @@ def test_new_indicator_schema_validation():
             },
         ],
         "long_entry_rules": [
-            {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+            {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
         ],
         "long_exit_rules": [
-            {"all_of": [{"condition": "is_below", "left": "close", "right": 1.0}]}
+            {"all_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.0}}]}
         ],
     }
 
@@ -1872,12 +1718,12 @@ def test_new_predicate_schema_validation():
                     {
                         "condition": "slope_is_above",
                         "left": {"ref": "ema_slope_14"},
-                        "right": 0.001,
+                        "right": {"value": 0.001},
                     },
                     {
                         "condition": "roc_is_above",
                         "left": {"ref": "roc_12"},
-                        "right": 0.5,
+                        "right": {"value": 0.5},
                     },
                 ]
             }
@@ -1925,14 +1771,14 @@ def test_predicate_slope_is_above():
                 "all_of": [
                     {
                         "condition": "slope_is_above",
-                        "left": "ema_slope_14",
-                        "right": 0.5,
+                        "left": {"ref": "ema_slope_14"},
+                        "right": {"value": 0.5},
                     }
                 ]
             }
         ],
         "long_exit_rules": [
-            {"all_of": [{"condition": "is_below", "left": "close", "right": 5.0}]}
+            {"all_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 5.0}}]}
         ],
     }
 

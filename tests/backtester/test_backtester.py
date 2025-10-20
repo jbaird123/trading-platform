@@ -387,7 +387,7 @@ def test_backtester_with_rem_pips_stop_loss():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
         rem_config={"stop_loss": {"pips": 50}},
-        instrument={"symbol": "EURUSD", "pip_location": 0.0001},
+        instrument=_instrument("EURUSD"),
     )
     rem = RiskExitManager(config=config.rem_config or {}, instrument=config.instrument)
     entry_price = 1.20000
@@ -465,7 +465,7 @@ class TestBacktesterCoreCoverage:
             position_size=1.0,
             execution_model="next_bar_open",
             exit_tie_break="stop_then_tp",
-            instrument={"symbol": "EURUSD", "multiplier": 1.0, "min_size": 0.01},
+            instrument={"symbol": "EURUSD"},
             cost_model={"type": "percentage", "rate": 0.001},
         )
 

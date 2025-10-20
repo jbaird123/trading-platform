@@ -6,7 +6,6 @@ execution_model: "next_bar_open"  # Realistic execution model (matches TradingVi
 
 instrument:
   symbol: "EUR_USD"
-  timeframe: "1H"
 
 # No transaction costs for baseline validation
 cost_model:
@@ -19,10 +18,6 @@ data_request:
   timeframe: "1H"
   start: "2023-01-01"
   end: "2024-12-31"
-
-# Strategy and REM paths
-strategy_path: "configs/golden_strategies/ema_crossover/strategy.yaml"
-rem_path: "configs/golden_strategies/ema_crossover/rem.yaml"
 
 tie_break_policy:
   rule: "stop_then_tp"

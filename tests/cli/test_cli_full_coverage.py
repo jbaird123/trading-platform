@@ -168,7 +168,6 @@ def test_cmd_run_backtest_full_branch(cli_stubs, tmp_path):
         "run_id": "rid",
         "run_seed": 5,
         "data_request": {"symbol": "EURUSD"},
-        "fast_mode": {"last_days": 1},
         "strategy_path": str(strat_path),
         "strategy_overrides": {
             "parameters": {"p": 2},
@@ -261,7 +260,6 @@ def test_cmd_run_backtest_fast_mode_last_days_and_overrides(
     cfg = {
         "run_id": "rid",
         "data_request": {"symbol": "EURUSD"},
-        "fast_mode": {"last_days": 1},
         "rmm_config": {"regimes": ["a"], "policy": {}},
         "strategy": {
             "strategy_name": "S",
@@ -292,13 +290,14 @@ def test_cmd_run_backtest_fast_mode_last_days_and_overrides(
     assert {item["mode"] for item in spans} >= {"both", "long_only", "short_only"}
     market_data = calls["run_backtest"]["market_data"]
     assert isinstance(market_data.index, pd.DatetimeIndex)
-    assert market_data.index.max() - market_data.index.min() <= pd.Timedelta("1 day")
+    # fast_mode removed - no longer filtering by last_days
     assert "rmm_transition" in calls
 
 
 def test_cmd_run_backtest_fast_mode_limit_and_exception(
     cli_stubs, tmp_path, monkeypatch
 ):
+    """Test basic backtest run - fast_mode removed."""
     cli, _, calls = cli_stubs
 
     class MockDataHandler:
@@ -333,25 +332,18 @@ def test_cmd_run_backtest_fast_mode_limit_and_exception(
 
     monkeypatch.setattr(cli, "compile_strategy", lambda cfg: MatchingStrategy())
 
-    for idx, fast_mode in enumerate(
-        [
-            {"last_days": "oops"},
-            {"limit_bars": 2},
-        ]
-    ):
-        cfg = {
-            "run_id": f"rid_{idx}",
-            "data_request": {"symbol": "EURUSD"},
-            "fast_mode": fast_mode,
-            "strategy": strategy_cfg,
-        }
-        cfg_path = tmp_path / f"cfg_limit_{idx}.json"
-        cfg_path.write_text(json.dumps(cfg))
-        ns = Namespace(demo=False, user="user", config=str(cfg_path))
-        assert cli.cmd_run_backtest(ns) == 0
+    cfg = {
+        "run_id": "rid_simple",
+        "data_request": {"symbol": "EURUSD"},
+        "strategy": strategy_cfg,
+    }
+    cfg_path = tmp_path / "cfg_simple.json"
+    cfg_path.write_text(json.dumps(cfg))
+    ns = Namespace(demo=False, user="user", config=str(cfg_path))
+    assert cli.cmd_run_backtest(ns) == 0
 
     market_data = calls["run_backtest"]["market_data"]
-    assert len(market_data) == 2
+    assert len(market_data) == 6  # No filtering without fast_mode
 
 
 def test_cmd_run_backtest_tuple_variants(cli_stubs, tmp_path, monkeypatch):
@@ -396,6 +388,7 @@ def test_cmd_run_backtest_tuple_variants(cli_stubs, tmp_path, monkeypatch):
 
 
 def test_cmd_run_backtest_fast_mode_not_dict(cli_stubs, tmp_path, monkeypatch):
+    """Test basic backtest - fast_mode removed."""
     cli, _, _ = cli_stubs
     monkeypatch.setattr(
         pd.DataFrame,
@@ -407,14 +400,13 @@ def test_cmd_run_backtest_fast_mode_not_dict(cli_stubs, tmp_path, monkeypatch):
     cfg = {
         "run_id": "rid",
         "data_request": {"symbol": "EURUSD"},
-        "fast_mode": "skip",
         "strategy": {
             "strategy_name": "S",
             "long_entry_rules": [{"any_of": []}],
             "long_exit_rules": [{"any_of": []}],
         },
     }
-    cfg_path = tmp_path / "cfg_fast_mode.json"
+    cfg_path = tmp_path / "cfg_simple_2.json"
     cfg_path.write_text(json.dumps(cfg))
     ns = Namespace(demo=False, user="user", config=str(cfg_path))
 
@@ -506,7 +498,6 @@ def test_cmd_run_backtest_with_paths_and_failures(tmp_path, monkeypatch):
     config = {
         "run_id": "rid",
         "data_request": {"symbol": "EURUSD"},
-        "fast_mode": {"limit_bars": 2},
         "strategy": {
             "strategy_name": "S",
             "long_entry_rules": [{"any_of": []}],
@@ -642,7 +633,7 @@ def test_cmd_run_backtest_with_paths_and_failures(tmp_path, monkeypatch):
 
     ns = Namespace(demo=False, user="user", config=str(cfg_path))
     assert cli.cmd_run_backtest(ns) == 0
-    assert state["market_len"] == 2
+    assert state["market_len"] == 6  # No filtering without fast_mode
     assert state["params"] == {"length": 1}
     assert compiled_cfg["features"][0]["params"]["length"] == 2
 

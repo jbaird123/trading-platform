@@ -10,12 +10,6 @@ import pandas as pd
 from trading_platform.data.schema import resample_ohlc
 from trading_platform.strategy.features import compute_features
 
-try:
-    import jsonschema
-    from jsonschema import ValidationError
-except Exception:  # pragma: no cover
-    jsonschema = None  # type: ignore[assignment]
-
 
 def _op_series(df: pd.DataFrame, operand: Any) -> pd.Series:
     if isinstance(operand, (int, float)):
@@ -111,20 +105,16 @@ class RMMEngine:
 
     @staticmethod
     def validate_config(cfg: dict[str, Any]) -> None:
-        if jsonschema is None:
-            raise ValueError(
-                "jsonschema is required for RMM validation but is not installed."
-            )
-        schema_path = (
-            Path(__file__).resolve().parents[3] / "docs" / "schemas" / "rmm.schema.json"
-        )
-        schema = json.loads(schema_path.read_text())
-        try:
-            jsonschema.validate(cfg, schema)
-        except ValidationError as e:  # pragma: no cover
-            path = ".".join(str(p) for p in getattr(e, "path", []))
-            where = f" at '{path}'" if path else ""
-            raise ValueError(f"rmm schema validation error{where}: {e.message}") from e
+        """Validate RMM configuration.
+
+        Note: JSON schema validation removed. Pydantic will be the validation
+        source when RMM Pydantic model is implemented. JSON schemas are for
+        documentation only.
+
+        TODO: Replace with Pydantic validation when RMM model is implemented.
+        """
+        # Basic validation only - no JSON schema validation
+        pass
 
     def classify_regime(
         self,

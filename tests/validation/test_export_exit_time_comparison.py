@@ -35,6 +35,7 @@ EXIT_TIME_CATEGORIES = [
         "ema_crossover/20pip_stop_40pip_tp",
         "ema_crossover/20pip_trailing_stop",
         "ema_crossover/20pip_trailing_stop_15pip_tp",
+        "ema_crossover/2atr_stop",
     ],
 )
 def test_export_exit_time_comparison(
