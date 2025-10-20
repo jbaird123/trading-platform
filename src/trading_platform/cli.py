@@ -114,7 +114,9 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     cfg_raw.pop("fast_mode", None)  # Removed - not needed
     cfg_raw.pop("rmm", None)  # Legacy field - not part of schema
     cfg_raw.pop("data", None)  # Legacy - use data_request instead
-    strategy_overrides = cfg_raw.pop("strategy_overrides", None)  # Extract for later use
+    strategy_overrides = cfg_raw.pop(
+        "strategy_overrides", None
+    )  # Extract for later use
     strategy_path = cfg_raw.pop("strategy_path", None)  # Extract for later use
     strategy_params = cfg_raw.pop("strategy_params", None)  # Extract for later use
 

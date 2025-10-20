@@ -30,7 +30,13 @@ def test_contextual_rem_with_order_block_strategy():
         ],
         "long_entry_rules": [
             {
-                "all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}],
+                "all_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 1.0},
+                    }
+                ],
                 "context": {"order_block_low": {"ref": "ob_low"}},
             }
         ],
@@ -38,7 +44,11 @@ def test_contextual_rem_with_order_block_strategy():
             {
                 "any_of": [
                     # Exit will be handled by REM, so use impossible condition
-                    {"condition": "is_below", "left": {"field": "close"}, "right": {"value": 0.0}}
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 0.0},
+                    }
                 ]
             }
         ],

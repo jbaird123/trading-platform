@@ -455,10 +455,26 @@ def test_live_controller_flat_with_no_position():
         "strategy_name": "FlatTest",
         "parameters": {},
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 10.0}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 10.0},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 10.0}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 10.0},
+                    }
+                ]
+            }
         ],
     }
 
@@ -498,10 +514,26 @@ def test_live_controller_max_orders_kill_switch():
         "strategy_name": "AlternatingTest",
         "parameters": {},
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 0.5}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 0.5},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 0.1}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 0.1},
+                    }
+                ]
+            }
         ],
     }
 
@@ -551,10 +583,26 @@ def test_live_controller_empty_market_data():
         "strategy_name": "EmptyTest",
         "parameters": {},
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 10.0}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 10.0},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 10.0}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 10.0},
+                    }
+                ]
+            }
         ],
     }
     pm = PortfolioManager(
@@ -614,10 +662,26 @@ def test_controller_flat_desired_continues_loop():
         "strategy_name": "FlatAlways",
         "parameters": {},
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 2.0}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 2.0},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 0.5}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 0.5},
+                    }
+                ]
+            }
         ],
     }
     pm = PortfolioManager(
@@ -669,10 +733,26 @@ def test_controller_mark_price_equity_path():
         "strategy_name": "S",
         "parameters": {},
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.5}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 1.5},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 0.5}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 0.5},
+                    }
+                ]
+            }
         ],
     }
     res = run_live_controller(market_data=df, strategy_cfg=cfg, adapter=adapter, pm=pm)

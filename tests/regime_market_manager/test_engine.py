@@ -49,28 +49,48 @@ def test_eval_pred_known_conditions() -> None:
     )
 
     result = _eval_pred(
-        df, {"condition": "is_above", "left": {"ref": "price"}, "right": {"ref": "threshold"}}
+        df,
+        {
+            "condition": "is_above",
+            "left": {"ref": "price"},
+            "right": {"ref": "threshold"},
+        },
     )
     pd.testing.assert_series_equal(
         result, pd.Series([False, True, True, True], index=df.index)
     )
 
     result = _eval_pred(
-        df, {"condition": "is_below", "left": {"ref": "price"}, "right": {"ref": "threshold"}}
+        df,
+        {
+            "condition": "is_below",
+            "left": {"ref": "price"},
+            "right": {"ref": "threshold"},
+        },
     )
     pd.testing.assert_series_equal(
         result, pd.Series([True, False, False, False], index=df.index)
     )
 
     result = _eval_pred(
-        df, {"condition": "cross_above", "left": {"ref": "price"}, "right": {"ref": "threshold"}}
+        df,
+        {
+            "condition": "cross_above",
+            "left": {"ref": "price"},
+            "right": {"ref": "threshold"},
+        },
     )
     pd.testing.assert_series_equal(
         result, pd.Series([False, True, False, False], index=df.index)
     )
 
     result = _eval_pred(
-        df, {"condition": "cross_below", "left": {"ref": "price"}, "right": {"ref": "threshold"}}
+        df,
+        {
+            "condition": "cross_below",
+            "left": {"ref": "price"},
+            "right": {"ref": "threshold"},
+        },
     )
     pd.testing.assert_series_equal(
         result, pd.Series([False, False, False, False], index=df.index)
@@ -82,7 +102,11 @@ def test_eval_pred_unknown_condition_defaults_false() -> None:
         {"price": [1.0, 1.5], "threshold": [1.2, 1.2]},
         index=pd.date_range("2024-01-01", periods=2),
     )
-    pred = {"condition": "unknown_condition", "left": {"ref": "price"}, "right": {"ref": "threshold"}}
+    pred = {
+        "condition": "unknown_condition",
+        "left": {"ref": "price"},
+        "right": {"ref": "threshold"},
+    }
     # Implementation raises ValueError for safety (fail loudly)
     with pytest.raises(ValueError, match="Unrecognized RMM condition"):
         _eval_pred(df, pred)
@@ -98,8 +122,16 @@ def test_eval_block_any_of() -> None:
     )
     block = {
         "any_of": [
-            {"condition": "is_above", "left": {"ref": "indicator1"}, "right": {"ref": "threshold"}},
-            {"condition": "is_above", "left": {"ref": "indicator2"}, "right": {"ref": "threshold"}},
+            {
+                "condition": "is_above",
+                "left": {"ref": "indicator1"},
+                "right": {"ref": "threshold"},
+            },
+            {
+                "condition": "is_above",
+                "left": {"ref": "indicator2"},
+                "right": {"ref": "threshold"},
+            },
         ]
     }
     result = _eval_block(df, block)
@@ -128,7 +160,11 @@ def _engine_config() -> dict:
                 "confidence": 0.8,
                 "conditions": {
                     "all_of": [
-                        {"condition": "is_above", "left": {"ref": "ADX(14)"}, "right": {"value": 25.0}}
+                        {
+                            "condition": "is_above",
+                            "left": {"ref": "ADX(14)"},
+                            "right": {"value": 25.0},
+                        }
                     ]
                 },
             },
@@ -137,7 +173,11 @@ def _engine_config() -> dict:
                 "confidence": 0.6,
                 "conditions": {
                     "all_of": [
-                        {"condition": "is_below", "left": {"ref": "ADX(14)"}, "right": {"value": 15.0}}
+                        {
+                            "condition": "is_below",
+                            "left": {"ref": "ADX(14)"},
+                            "right": {"value": 15.0},
+                        }
                     ]
                 },
             },

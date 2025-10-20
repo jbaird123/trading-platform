@@ -34,10 +34,26 @@ def test_cli_data_request_with_start_end_filtering(tmp_path):
     mock_strategy = {
         "strategy_name": "test_strategy",
         "long_entry_rules": [
-            {"all_of": [{"condition": "cross_above", "left": {"field": "close"}, "right": {"value": 1.1}}]}
+            {
+                "all_of": [
+                    {
+                        "condition": "cross_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 1.1},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": [
-            {"all_of": [{"condition": "cross_below", "left": {"field": "close"}, "right": {"value": 1.0}}]}
+            {
+                "all_of": [
+                    {
+                        "condition": "cross_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 1.0},
+                    }
+                ]
+            }
         ],
     }
 
@@ -48,7 +64,9 @@ def test_cli_data_request_with_start_end_filtering(tmp_path):
         else:
             return mock_run_config
 
-    with patch("trading_platform.cli._load_config", side_effect=load_config_side_effect), patch(
+    with patch(
+        "trading_platform.cli._load_config", side_effect=load_config_side_effect
+    ), patch(
         "trading_platform.cli.RunConfig.model_validate", return_value=Mock()
     ), patch(
         "trading_platform.cli.initialize_run", return_value=tmp_path / "test_run"
