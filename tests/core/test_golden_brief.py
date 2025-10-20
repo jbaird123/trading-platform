@@ -118,10 +118,8 @@ def test_brief_matches_golden_master(tmp_path: Path, request):
     cfg_for_validation["rem_config"] = rem_cfg
     cfg_for_validation["run_id"] = "golden_run_test"  # Use a different run_id
     cfg_for_validation["initial_cash"] = initial_cash
-    # Provide instrument using registered name
-    cfg_for_validation["instrument"] = {
-        "symbol": "EUR_USD",
-    }
+    # Keep the original instrument from config (don't override symbol)
+    # The symbol from the fixture config file will be used
     run_config = RunConfig.model_validate(cfg_for_validation)
 
     # 4. Run the backtest

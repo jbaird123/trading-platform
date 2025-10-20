@@ -258,7 +258,7 @@
     "data_start": "2023-01-02T09:00:00+00:00",
     "data_end": "2023-01-02T15:00:00+00:00",
     "symbols": [
-      "GOLDENTICKER"
+      "EURUSD"
     ],
     "app_version": "0.0.1",
     "git_commit": "b7f9d46",
@@ -428,7 +428,7 @@
   },
   "trades": [
     {
-      "symbol": "GOLDENTICKER",
+      "symbol": "EURUSD",
       "side": "short",
       "size": 1.0,
       "entry_time": "2023-01-02T09:00:00+00:00",

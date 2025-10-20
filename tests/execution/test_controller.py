@@ -540,7 +540,12 @@ def test_live_controller_max_orders_kill_switch():
 
 
 def test_live_controller_empty_market_data():
-    """Test run_live_controller with empty market data for mark price calculation."""
+    """Test run_live_controller with empty market data.
+
+    After strict validation was added, empty market data now fails loudly
+    with KeyError instead of silently proceeding. This is correct behavior
+    (fail-fast principle). Updated test to expect the error.
+    """
     market_data = pd.DataFrame()
     strategy_cfg = {
         "strategy_name": "EmptyTest",
@@ -566,11 +571,11 @@ def test_live_controller_empty_market_data():
         "realized_pnl_today": 0.0,
     }
 
-    result = run_live_controller(
-        market_data=market_data, strategy_cfg=strategy_cfg, pm=pm, adapter=adapter
-    )
-
-    assert any(log.get("event") == "reconcile" for log in result.logs)
+    # Empty market data should raise KeyError due to strict validation
+    with pytest.raises(KeyError, match="Operand field 'close' not found"):
+        run_live_controller(
+            market_data=market_data, strategy_cfg=strategy_cfg, pm=pm, adapter=adapter
+        )
 
 
 def test_reconcile_error_on_position_mismatch():

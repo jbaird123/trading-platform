@@ -59,13 +59,13 @@ def test_contextual_rem_with_order_block_strategy():
     }
 
     # EUR/USD instrument
-    # Note: When passing directly to REM (not through RunConfig), need pip_location
-    instrument = {
+    # When passing to REM directly, include pip_location for pip calculations
+    instrument_for_rem = {
         "symbol": "EUR_USD",
         "pip_location": 0.0001,  # EUR/USD has 4 decimal places
     }
 
-    rem = RiskExitManager(config=rem_config, instrument=instrument)
+    rem = RiskExitManager(config=rem_config, instrument=instrument_for_rem)
 
     # Create test data:
     # Bar 0: close=0.9, low=0.85 -> No entry
@@ -83,13 +83,14 @@ def test_contextual_rem_with_order_block_strategy():
         index=pd.date_range("2024-01-01", periods=4, freq="h"),
     )
 
+    # For RunConfig, only pass symbol (pip_location auto-populated from registry)
     run_config = RunConfig(
         user_id="test",
         run_id="ob_test",
         run_seed=42,
         log_level="INFO",
         allow_flip_on_bar=False,
-        instrument=instrument,
+        instrument={"symbol": "EUR_USD"},  # Only symbol, no pip_location
         initial_cash=10000,
         position_size=1000,
         execution_model="next_bar_open",

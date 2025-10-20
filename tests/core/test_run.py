@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
-import jsonschema
 import pytest
 from trading_platform.core.config import RunConfig
 from trading_platform.core.run import finalize_run, initialize_run
@@ -1121,99 +1120,83 @@ def test_finalize_run_parameter_search_csv_export_exception():
             # Test should complete successfully despite CSV export exception
 
 
-# --- test_run_config_schema.py ---
+# --- test_run_config_pydantic_validation.py ---
 
-# Validates: [SYS-1.7.3]
-
-SCHEMA_PATH = (
-    Path(__file__).parent.parent.parent / "docs/schemas/run_config.schema.json"
-)
+# Validates: [SYS-1.7.3], [SYS-1.3.3]
 
 
-@pytest.fixture(scope="module")
-def run_config_schema():
-    """Loads the RunConfig JSON schema."""
-    with open(SCHEMA_PATH) as f:
-        return json.load(f)
+def test_valid_run_configs_pydantic():
+    """Test that valid RunConfig configurations validate with Pydantic.
+
+    After the Pydantic migration, RunConfig validation is done by Pydantic
+    models with extra='forbid', not JSON Schema. This test validates that
+    the Pydantic model accepts valid configurations.
+
+    Also validates [SYS-1.3.5]: Symbols are normalized to uppercase
+    without separators.
+    """
+    # Minimal valid config
+    config1 = RunConfig(
+        instrument=_instrument("EUR_USD"),
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
+    )
+    # [SYS-1.3.5]: Symbol normalized to "EURUSD" (no separator)
+    assert config1.instrument["symbol"] == "EURUSD"
+
+    # Config with all common optional fields
+    config2 = RunConfig(
+        run_id="my_test_run_123",
+        user_id="test_user",
+        run_seed=42,
+        initial_cash=10000.0,
+        position_size=100.0,
+        instrument=_instrument("GBP_JPY"),
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
+        warmup_bars=50,
+        entry_window_bars=3,
+        allow_flip_on_bar=True,
+    )
+    assert config2.run_id == "my_test_run_123"
+    assert config2.warmup_bars == 50
+    # [SYS-1.3.5]: Symbol normalized to "GBPJPY"
+    assert config2.instrument["symbol"] == "GBPJPY"
 
 
-def test_schema_is_valid_json(run_config_schema):
-    """Ensure the schema itself is a valid JSON document."""
-    assert isinstance(run_config_schema, dict)
+def test_invalid_run_configs_pydantic():
+    """Test that invalid RunConfig configurations fail Pydantic validation.
 
+    Validates [SYS-1.3.3]: extra='forbid' prevents typos and unimplemented
+    features from being silently ignored.
+    """
+    from pydantic import ValidationError
 
-def test_valid_run_configs(run_config_schema):
-    """Test that valid RunConfig configurations validate successfully."""
-    valid_configs = [
-        # Minimal required config
-        {
-            "strategy": "config/strategy/ema_crossover.yaml",
-            "instrument": {"symbol": "EUR_USD", "timeframe": "H1"},
-            "data": {
-                "source": "dukascopy",
-                "start_date": "2023-01-01",
-                "end_date": "2023-12-31",
-            },
-        },
-        # Config with all optional components
-        {
-            "run_id": "my_test_run_123",
-            "strategy": "config/strategy/ema_crossover.yaml",
-            "rem": "config/rem/basic_price_exits.yaml",
-            "rmm": "config/rmm/daily_trend.yaml",
-            "instrument": {"symbol": "GBP_JPY", "timeframe": "D1"},
-            "data": {
-                "source": "oanda",
-                "start_date": "2020-01-01",
-                "end_date": "2024-01-01",
-            },
-        },
-    ]
+    # Test: Extra unknown property should be rejected (extra='forbid')
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        RunConfig(
+            instrument=_instrument(),
+            execution_model="next_bar_open",
+            exit_tie_break="stop_then_tp",
+            unknown_field=True,  # This should be rejected
+        )
 
-    for config in valid_configs:
-        try:
-            jsonschema.validate(instance=config, schema=run_config_schema)
-        except jsonschema.ValidationError as e:
-            pytest.fail(f"Valid config failed validation: {config}\n{e}")
+    # Test: Invalid enum value should be rejected
+    with pytest.raises(ValidationError):
+        RunConfig(
+            instrument=_instrument(),
+            execution_model="invalid_model",  # Invalid enum value
+            exit_tie_break="stop_then_tp",
+        )
 
-
-def test_invalid_run_configs(run_config_schema):
-    """Test that invalid RunConfig configurations fail validation."""
-    invalid_configs = [
-        # Missing required 'instrument'
-        {
-            "strategy": "config/strategy/ema_crossover.yaml",
-            "data": {
-                "source": "dukascopy",
-                "start_date": "2023-01-01",
-                "end_date": "2023-12-31",
-            },
-        },
-        # Missing required 'strategy'
-        {
-            "instrument": {"symbol": "EUR_USD", "timeframe": "H1"},
-            "data": {
-                "source": "dukascopy",
-                "start_date": "2023-01-01",
-                "end_date": "2023-12-31",
-            },
-        },
-        # Extra unknown property
-        {
-            "strategy": "config/strategy/ema_crossover.yaml",
-            "instrument": {"symbol": "EUR_USD", "timeframe": "H1"},
-            "data": {
-                "source": "dukascopy",
-                "start_date": "2023-01-01",
-                "end_date": "2023-12-31",
-            },
-            "unknown_field": True,
-        },
-    ]
-
-    for config in invalid_configs:
-        with pytest.raises(jsonschema.ValidationError):
-            jsonschema.validate(instance=config, schema=run_config_schema)
+    # Test: Invalid type should be rejected
+    with pytest.raises(ValidationError):
+        RunConfig(
+            instrument=_instrument(),
+            execution_model="next_bar_open",
+            exit_tie_break="stop_then_tp",
+            warmup_bars="not_an_int",  # Should be int
+        )
 
 
 # --- test_finalize_run.py ---

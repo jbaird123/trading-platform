@@ -268,7 +268,7 @@ class TestWalkForwardOptimizeCoverage:
             # Call with seed to hit line 200
             result = walk_forward_optimize_and_test(
                 df=df,
-                base_cfg={"config": "test", "instrument": {"symbol": "EURUSD"}},
+                base_cfg={"instrument": {"symbol": "EURUSD"}},
                 strategy_cfg={"name": "test"},
                 grid={"test_param": [1]},
                 window=2,
@@ -1263,7 +1263,7 @@ class TestEdgeCasesAndHelperFunctions:
 
             result = monte_carlo_resimulation(
                 df=df,
-                base_cfg={"config": "test", "instrument": {"symbol": "EURUSD"}},
+                base_cfg={"instrument": {"symbol": "EURUSD"}},
                 strategy_cfg={"name": "test"},
                 trials=1,
                 perturbation={"mode": "gaussian", "std_pct": 0.1},

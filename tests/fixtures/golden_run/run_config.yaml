@@ -3,7 +3,7 @@ strategy: "./strategy.yaml"
 rem: "./rem.yaml"
 regime_market_manager: "./rem.yaml"
 instrument:
-  symbol: "GOLDEN_TICKER"
+  symbol: "EURUSD"
   timeframe: "1H"
 data:
   source: "./data.csv"

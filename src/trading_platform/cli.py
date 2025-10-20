@@ -114,9 +114,9 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     cfg_raw.pop("fast_mode", None)  # Removed - not needed
     cfg_raw.pop("rmm", None)  # Legacy field - not part of schema
     cfg_raw.pop("data", None)  # Legacy - use data_request instead
-    cfg_raw.pop("strategy_overrides", None)  # CLI-only - handled separately
+    strategy_overrides = cfg_raw.pop("strategy_overrides", None)  # Extract for later use
     strategy_path = cfg_raw.pop("strategy_path", None)  # Extract for later use
-    strategy_params = cfg_raw.pop("strategy_params", None)  # CLI-only - handled separately
+    strategy_params = cfg_raw.pop("strategy_params", None)  # Extract for later use
 
     cfg = RunConfig.model_validate(cfg_raw)
     run_path = initialize_run(cfg)
@@ -188,25 +188,23 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
 
     # Apply strategy_params from config (used for parameter sweeps)
     # This allows the config to override strategy defaults
-    strategy_params_from_cfg = cfg_raw.get("strategy_params")
-    if isinstance(strategy_params_from_cfg, dict):
+    if isinstance(strategy_params, dict):
         base_params = strat_cfg.get("parameters") or {}
         if isinstance(base_params, dict):
-            base_params.update({k: v for k, v in strategy_params_from_cfg.items()})
+            base_params.update({k: v for k, v in strategy_params.items()})
             strat_cfg["parameters"] = base_params
 
     # Apply optional per-run overrides for strategy tunables
-    overrides = cfg_raw.get("strategy_overrides") or {}
-    if isinstance(overrides, dict):
+    if isinstance(strategy_overrides, dict):
         # 1) Parameter-level overrides (e.g., slope_filter)
-        param_over = overrides.get("parameters") or {}
+        param_over = strategy_overrides.get("parameters") or {}
         if isinstance(param_over, dict):
             base_params = strat_cfg.get("parameters") or {}
             if isinstance(base_params, dict):
                 base_params.update({k: v for k, v in param_over.items()})
                 strat_cfg["parameters"] = base_params
         # 2) Feature-level overrides (existing behavior)
-        feat_over = (overrides.get("features") or {}) if overrides else {}
+        feat_over = strategy_overrides.get("features") or {}
         if isinstance(feat_over, dict) and isinstance(strat_cfg.get("features"), list):
             for f in strat_cfg["features"]:
                 name = str(f.get("name", ""))
