@@ -13,7 +13,6 @@ These tests ensure that:
 
 import pytest
 from pydantic import ValidationError
-
 from trading_platform.risk_manager.models import (
     ATRStopParams,
     FixedPipStop,
