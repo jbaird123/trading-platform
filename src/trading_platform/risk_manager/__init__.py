@@ -6,8 +6,17 @@ from typing import Any
 
 from .core import RiskExitManager
 from .dynamic_rem import DynamicREM
+from .models import ATRStopParams, FixedPipStop, IndicatorStop, REMConfig
 
-__all__ = ["RiskExitManager", "DynamicREM", "create_rem"]
+__all__ = [
+    "RiskExitManager",
+    "DynamicREM",
+    "create_rem",
+    "REMConfig",
+    "FixedPipStop",
+    "IndicatorStop",
+    "ATRStopParams",
+]
 
 try:
     import jsonschema

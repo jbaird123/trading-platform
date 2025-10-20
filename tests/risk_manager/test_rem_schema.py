@@ -24,25 +24,43 @@ def test_schema_is_valid_json(rem_schema):
 def test_valid_rem_configs(rem_schema):
     """Test that valid REM configurations validate successfully."""
     valid_configs = [
-        # Pips-based stop only
-        {"stop_loss": {"pips": 50}},
-        # Price-offset-based stop and take-profit
+        # Fixed pips-based stop only (new format)
+        {"stop_loss": {"type": "fixed_pips", "pips": 50}},
+        # Fixed pips stop and take-profit (new format)
         {
-            "stop_loss": {"price_offset": 0.0050},
-            "take_profit": {"price_offset": 0.0100},
+            "stop_loss": {"type": "fixed_pips", "pips": 20},
+            "take_profit": {"type": "fixed_pips", "pips": 40},
         },
-        # ATR-based stop and take-profit
+        # ATR indicator-based stop and take-profit (new format)
         {
-            "stop_loss": {"atr_multiple": 2.5, "atr_length": 14},
-            "take_profit": {"atr_multiple": 5.0},
+            "stop_loss": {
+                "type": "indicator",
+                "indicator": "atr",
+                "params": {"multiplier": 2.5, "length": 14},
+            },
+            "take_profit": {
+                "type": "indicator",
+                "indicator": "atr",
+                "params": {"multiplier": 5.0},
+            },
         },
-        # Absolute stop
-        {"stop_loss": {"absolute_price": 1.0950}},
-        # With trailing stop
+        # ATR with default length
         {
-            "stop_loss": {"price_offset": 0.0020},
-            "take_profit": {"price_offset": 0.0040},
-            "trailing_stop": {"price_offset": 0.0015, "update": "bar"},
+            "stop_loss": {
+                "type": "indicator",
+                "indicator": "atr",
+                "params": {"multiplier": 2.0},
+            }
+        },
+        # With name and version metadata
+        {
+            "name": "Conservative ATR",
+            "version": "1.0",
+            "stop_loss": {
+                "type": "indicator",
+                "indicator": "atr",
+                "params": {"multiplier": 2.0, "length": 14},
+            },
         },
     ]
 
@@ -58,14 +76,40 @@ def test_invalid_rem_configs(rem_schema):
     invalid_configs = [
         # Missing stop_loss
         {},
-        # Empty stop_loss
-        {"stop_loss": {}},
-        # Too many fields in stop_loss
-        {"stop_loss": {"pips": 10, "price_offset": 0.0010}},
-        # Unknown top-level field
-        {"stop_loss": {"pips": 10}, "unknown_field": "x"},
-        # Trailing without any distance
-        {"stop_loss": {"price_offset": 0.0010}, "trailing_stop": {"update": "bar"}},
+        # Missing type field (old format no longer valid)
+        {"stop_loss": {"pips": 50}},
+        # Missing required pips field
+        {"stop_loss": {"type": "fixed_pips"}},
+        # Zero pips (must be > 0)
+        {"stop_loss": {"type": "fixed_pips", "pips": 0}},
+        # Negative pips
+        {"stop_loss": {"type": "fixed_pips", "pips": -10}},
+        # Unknown top-level field (additionalProperties: false)
+        {"stop_loss": {"type": "fixed_pips", "pips": 10}, "unknown_field": "x"},
+        # Unknown indicator (not in whitelist)
+        {
+            "stop_loss": {
+                "type": "indicator",
+                "indicator": "rsi",  # Not whitelisted!
+                "params": {"length": 14},
+            }
+        },
+        # ATR without required multiplier
+        {
+            "stop_loss": {
+                "type": "indicator",
+                "indicator": "atr",
+                "params": {"length": 14},  # Missing multiplier!
+            }
+        },
+        # Extra field in ATR params
+        {
+            "stop_loss": {
+                "type": "indicator",
+                "indicator": "atr",
+                "params": {"multiplier": 2.0, "unknown_param": 123},
+            }
+        },
     ]
 
     for config in invalid_configs:

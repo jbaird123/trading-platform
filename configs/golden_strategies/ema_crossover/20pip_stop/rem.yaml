@@ -1,8 +1,6 @@
 name: "Fixed_20pip_Stop"
-version: "1.0"
-description: "Fixed 20-pip stop loss for golden validation"
+version: "2.0"
 
-# Fixed stop loss: 20 pips
-# For EURUSD: 20 pips = 0.0020 in canonical price terms
 stop_loss:
-  price_offset: 0.0020
+  type: "fixed_pips"
+  pips: 20

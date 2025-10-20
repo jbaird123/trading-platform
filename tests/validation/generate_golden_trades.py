@@ -147,28 +147,29 @@ def generate_golden_trades_for_strategy(
     # Create RunConfig
     config = RunConfig.model_validate(run_config_dict)
 
-    # Create DataHandler for trailing stop strategies (need 1-minute data)
-    data_handler = None
-    if "trailing_stop" in strategy_name:
-        print("Loading 1-minute data for trailing stop strategy...")
-        data_root = project_root / "data/dvc/golden/ohlcv/tradingview"
+    # ALL strategies now use 1-minute data resampled to 1H for consistency
+    # This ensures all tests use the same data processing pipeline as production
+    print("Loading 1-minute data for strategy...")
+    data_root = project_root / "data/dvc/golden/ohlcv/tradingview"
 
-        if data_root.exists():
-            data_handler = DataHandler(
-                symbol="EUR_USD",
-                data_root=data_root,
-            )
+    if not data_root.exists():
+        raise FileNotFoundError(f"Data root not found: {data_root}")
 
-            # Use resampled 1H data from DataHandler
-            ohlcv_1h = data_handler.get_data(timeframe="1H")
+    data_handler = DataHandler(
+        symbol="EUR_USD",
+        data_root=data_root,
+    )
 
-            # Apply same date filtering
-            if date_range:
-                ohlcv_filtered = ohlcv_1h[
-                    (ohlcv_1h.index >= warmup_start) & (ohlcv_1h.index <= end_date)
-                ].copy()
-            else:
-                ohlcv_filtered = ohlcv_1h
+    # Use resampled 1H data from DataHandler (includes actual volume)
+    ohlcv_1h = data_handler.get_data(timeframe="1H")
+
+    # Apply same date filtering
+    if date_range:
+        ohlcv_filtered = ohlcv_1h[
+            (ohlcv_1h.index >= warmup_start) & (ohlcv_1h.index <= end_date)
+        ].copy()
+    else:
+        ohlcv_filtered = ohlcv_1h
 
     # Run backtest
     print(f"Running backtest with {len(ohlcv_filtered)} bars...")

@@ -513,11 +513,14 @@ def tradingview_ohlcv(
     return df
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def tradingview_ohlcv_1min(
     ensure_dvc_data_pulled: bool,
 ) -> pd.DataFrame:
     """Loads TradingView 1-minute OHLCV data for zoom validation.
+
+    This fixture is session-scoped to load the large 1-minute CSV only once
+    and share it across all tests for better performance.
 
     Args:
         ensure_dvc_data_pulled: Session fixture ensuring data exists
@@ -566,3 +569,271 @@ def tradingview_ohlcv_1min(
         df["volume"] = 1.0
 
     return df
+
+
+@pytest.fixture(scope="session")
+def shared_data_handler(
+    ensure_dvc_data_pulled: bool,
+) -> Any:
+    """Creates a session-scoped DataHandler for efficient 1-minute data loading.
+
+    This fixture creates a single DataHandler instance that loads the 1-minute
+    data once and caches all resampled timeframes. This dramatically improves
+    test performance by avoiding repeated CSV reads.
+
+    The DataHandler is session-scoped, so it's created once and shared across
+    all tests in the session. The internal cache persists for the entire session.
+
+    Args:
+        ensure_dvc_data_pulled: Session fixture ensuring data exists
+
+    Returns:
+        DataHandler instance with 1-minute EUR/USD data loaded
+
+    Raises:
+        pytest.skip: If 1-minute data not found
+    """
+    from trading_platform.data.handler import DataHandler
+
+    # Path to golden TradingView data
+    data_root = GOLDEN_DATA_ROOT / "ohlcv" / "tradingview"
+
+    if not data_root.exists():
+        pytest.skip(
+            f"Golden TradingView data directory not found: {data_root}. "
+            "1-minute data is required for validation tests."
+        )
+
+    # Check if 1-minute data exists
+    one_min_path = data_root / "full" / "eurusd" / "eurusd_1min.csv"
+    if not one_min_path.exists():
+        pytest.skip(
+            f"1-minute data not found: {one_min_path}. "
+            "Required for strategies with trailing stops or ambiguous fixed stops."
+        )
+
+    # Create DataHandler - this loads the 1-minute CSV once
+    # The DataHandler's internal cache will persist for the entire test session
+    data_handler = DataHandler(
+        symbol="EUR_USD",
+        data_root=data_root,
+    )
+
+    return data_handler
+
+
+@pytest.fixture(scope="session")
+def platform_trades_baseline(
+    shared_data_handler: Any,
+    ensure_dvc_data_pulled: bool,
+) -> list[dict]:
+    """Session-scoped platform trades for ema_crossover/baseline strategy.
+
+    Runs the backtest once per session and caches the results for all tests.
+    This avoids redundant backtest execution across multiple test functions.
+
+    Returns:
+        List of trade dictionaries filtered to validation range
+    """
+    from tests.validation.test_strategy_validation import load_platform_trades
+
+    # Load strategy-specific data
+    strategy_name = "ema_crossover/baseline"
+    strategy_data_dir = GOLDEN_STRATEGIES_ROOT / strategy_name
+    strategy_config_dir = GOLDEN_CONFIG_ROOT / strategy_name
+
+    # Load metadata
+    metadata_path = strategy_data_dir / "metadata.json"
+    with open(metadata_path) as f:
+        metadata = json.load(f)
+
+    # Load run_config
+    run_config_path = strategy_config_dir / "run_config.yaml"
+    with open(run_config_path) as f:
+        run_config = yaml.safe_load(f)
+
+    # Load OHLCV (not actually used since we use data_handler, but needed for signature)
+    ohlcv_path = strategy_data_dir / "ohlcv.csv"
+    ohlcv = pd.read_csv(ohlcv_path, index_col=0, parse_dates=True)
+
+    return load_platform_trades(
+        strategy_name=strategy_name,
+        run_config=run_config,
+        ohlcv_data=ohlcv,
+        data_handler=shared_data_handler,
+        date_range=metadata.get("date_range"),
+    )
+
+
+@pytest.fixture(scope="session")
+def platform_trades_20pip_stop(
+    shared_data_handler: Any,
+    ensure_dvc_data_pulled: bool,
+) -> list[dict]:
+    """Session-scoped platform trades for ema_crossover/20pip_stop strategy.
+
+    Runs the backtest once per session and caches the results for all tests.
+    This avoids redundant backtest execution across multiple test functions.
+
+    Returns:
+        List of trade dictionaries filtered to validation range
+    """
+    from tests.validation.test_strategy_validation import load_platform_trades
+
+    # Load strategy-specific data
+    strategy_name = "ema_crossover/20pip_stop"
+    strategy_data_dir = GOLDEN_STRATEGIES_ROOT / strategy_name
+    strategy_config_dir = GOLDEN_CONFIG_ROOT / strategy_name
+
+    # Load metadata
+    metadata_path = strategy_data_dir / "metadata.json"
+    with open(metadata_path) as f:
+        metadata = json.load(f)
+
+    # Load run_config
+    run_config_path = strategy_config_dir / "run_config.yaml"
+    with open(run_config_path) as f:
+        run_config = yaml.safe_load(f)
+
+    # Load OHLCV (not actually used since we use data_handler, but needed for signature)
+    ohlcv_path = strategy_data_dir / "ohlcv.csv"
+    ohlcv = pd.read_csv(ohlcv_path, index_col=0, parse_dates=True)
+
+    return load_platform_trades(
+        strategy_name=strategy_name,
+        run_config=run_config,
+        ohlcv_data=ohlcv,
+        data_handler=shared_data_handler,
+        date_range=metadata.get("date_range"),
+    )
+
+
+@pytest.fixture(scope="session")
+def platform_trades_20pip_stop_40pip_tp(
+    shared_data_handler: Any,
+    ensure_dvc_data_pulled: bool,
+) -> list[dict]:
+    """Session-scoped platform trades for ema_crossover/20pip_stop_40pip_tp strategy.
+
+    Runs the backtest once per session and caches the results for all tests.
+    This avoids redundant backtest execution across multiple test functions.
+
+    Returns:
+        List of trade dictionaries filtered to validation range
+    """
+    from tests.validation.test_strategy_validation import load_platform_trades
+
+    # Load strategy-specific data
+    strategy_name = "ema_crossover/20pip_stop_40pip_tp"
+    strategy_data_dir = GOLDEN_STRATEGIES_ROOT / strategy_name
+    strategy_config_dir = GOLDEN_CONFIG_ROOT / strategy_name
+
+    # Load metadata
+    metadata_path = strategy_data_dir / "metadata.json"
+    with open(metadata_path) as f:
+        metadata = json.load(f)
+
+    # Load run_config
+    run_config_path = strategy_config_dir / "run_config.yaml"
+    with open(run_config_path) as f:
+        run_config = yaml.safe_load(f)
+
+    # Load OHLCV (not actually used since we use data_handler, but needed for signature)
+    ohlcv_path = strategy_data_dir / "ohlcv.csv"
+    ohlcv = pd.read_csv(ohlcv_path, index_col=0, parse_dates=True)
+
+    return load_platform_trades(
+        strategy_name=strategy_name,
+        run_config=run_config,
+        ohlcv_data=ohlcv,
+        data_handler=shared_data_handler,
+        date_range=metadata.get("date_range"),
+    )
+
+
+@pytest.fixture(scope="session")
+def platform_trades_20pip_trailing_stop(
+    shared_data_handler: Any,
+    ensure_dvc_data_pulled: bool,
+) -> list[dict]:
+    """Session-scoped platform trades for ema_crossover/20pip_trailing_stop strategy.
+
+    Runs the backtest once per session and caches the results for all tests.
+    This avoids redundant backtest execution across multiple test functions.
+
+    Returns:
+        List of trade dictionaries filtered to validation range
+    """
+    from tests.validation.test_strategy_validation import load_platform_trades
+
+    # Load strategy-specific data
+    strategy_name = "ema_crossover/20pip_trailing_stop"
+    strategy_data_dir = GOLDEN_STRATEGIES_ROOT / strategy_name
+    strategy_config_dir = GOLDEN_CONFIG_ROOT / strategy_name
+
+    # Load metadata
+    metadata_path = strategy_data_dir / "metadata.json"
+    with open(metadata_path) as f:
+        metadata = json.load(f)
+
+    # Load run_config
+    run_config_path = strategy_config_dir / "run_config.yaml"
+    with open(run_config_path) as f:
+        run_config = yaml.safe_load(f)
+
+    # Load OHLCV (not actually used since we use data_handler, but needed for signature)
+    ohlcv_path = strategy_data_dir / "ohlcv.csv"
+    ohlcv = pd.read_csv(ohlcv_path, index_col=0, parse_dates=True)
+
+    return load_platform_trades(
+        strategy_name=strategy_name,
+        run_config=run_config,
+        ohlcv_data=ohlcv,
+        data_handler=shared_data_handler,
+        date_range=metadata.get("date_range"),
+    )
+
+
+@pytest.fixture(scope="session")
+def platform_trades_20pip_trailing_stop_15pip_tp(
+    shared_data_handler: Any,
+    ensure_dvc_data_pulled: bool,
+) -> list[dict]:
+    """Session-scoped platform trades for ema_crossover/20pip_trailing_stop_15pip_tp.
+
+    Strategy: ema_crossover/20pip_trailing_stop_15pip_tp
+
+    Runs the backtest once per session and caches the results for all tests.
+    This avoids redundant backtest execution across multiple test functions.
+
+    Returns:
+        List of trade dictionaries filtered to validation range
+    """
+    from tests.validation.test_strategy_validation import load_platform_trades
+
+    # Load strategy-specific data
+    strategy_name = "ema_crossover/20pip_trailing_stop_15pip_tp"
+    strategy_data_dir = GOLDEN_STRATEGIES_ROOT / strategy_name
+    strategy_config_dir = GOLDEN_CONFIG_ROOT / strategy_name
+
+    # Load metadata
+    metadata_path = strategy_data_dir / "metadata.json"
+    with open(metadata_path) as f:
+        metadata = json.load(f)
+
+    # Load run_config
+    run_config_path = strategy_config_dir / "run_config.yaml"
+    with open(run_config_path) as f:
+        run_config = yaml.safe_load(f)
+
+    # Load OHLCV (not actually used since we use data_handler, but needed for signature)
+    ohlcv_path = strategy_data_dir / "ohlcv.csv"
+    ohlcv = pd.read_csv(ohlcv_path, index_col=0, parse_dates=True)
+
+    return load_platform_trades(
+        strategy_name=strategy_name,
+        run_config=run_config,
+        ohlcv_data=ohlcv,
+        data_handler=shared_data_handler,
+        date_range=metadata.get("date_range"),
+    )

@@ -40,7 +40,10 @@ from typing import Any, Dict, List, Optional, Tuple, cast
 
 import pandas as pd
 
+from tests.validation.analyzers import register_analyzer
 
+
+@register_analyzer("trailing_stop")
 class TrailingStopDiscrepancyAnalyzer:
     """Analyzes and categorizes trailing stop exit discrepancies."""
 
@@ -74,6 +77,39 @@ class TrailingStopDiscrepancyAnalyzer:
             "PLATFORM_ZOOM_INTRABAR_STOP",
             "PLATFORM_ZOOM_INTRABAR_TP",
         ]
+
+    @classmethod
+    def from_metadata(cls, metadata: dict) -> "TrailingStopDiscrepancyAnalyzer":
+        """Create analyzer from strategy metadata.
+
+        Args:
+            metadata: Strategy metadata dictionary containing:
+                - trailing_stop_pips: Trailing stop distance (in pips, e.g., 20)
+                - take_profit_pips: Optional take profit distance (in pips)
+
+        Returns:
+            Configured TrailingStopDiscrepancyAnalyzer instance
+        """
+        trailing_stop_pips_val = metadata.get("trailing_stop_pips")
+        take_profit_pips_val = metadata.get("take_profit_pips")
+
+        if trailing_stop_pips_val is None:
+            raise ValueError(
+                "metadata.json must specify 'trailing_stop_pips' for "
+                "trailing_stop analyzer"
+            )
+
+        # Convert pips to price terms (e.g., 20 pips -> 0.0020 for EUR/USD)
+        # Assuming 4-decimal pip location (-4)
+        trailing_stop_price = trailing_stop_pips_val * 0.0001
+        take_profit_price = (
+            take_profit_pips_val * 0.0001 if take_profit_pips_val is not None else None
+        )
+
+        return cls(
+            trailing_stop_pips=trailing_stop_price,
+            take_profit_pips=take_profit_price,
+        )
 
     def analyze_discrepancies(
         self,

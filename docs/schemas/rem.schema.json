@@ -13,82 +13,149 @@
       "type": "string",
       "description": "Optional version tag for this REM config."
     },
-    "stop_loss": { "$ref": "#/$defs/levelRule" },
-    "take_profit": { "$ref": "#/$defs/levelRule" },
-    "trailing_stop": { "$ref": "#/$defs/trailingRule" }
+    "stop_loss": { "$ref": "#/$defs/exitRule" },
+    "take_profit": { "$ref": "#/$defs/exitRule" }
   },
   "required": ["stop_loss"],
   "$defs": {
-    "levelRule": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "absolute_price": {
-          "type": "number",
-          "description": "Exit at this exact price level."
-        },
-        "price_offset": {
-          "type": "number",
-          "description": "Exit at entry_price ± price_offset (canonical units)."
-        },
-        "pips": {
-          "type": "number",
-          "description": "Exit at entry_price ± pips×pip_size(symbol)."
-        },
-        "atr_multiple": {
-          "type": "number",
-          "description": "Exit at entry_price ± atr_multiple×ATR."
-        },
-        "atr_length": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "ATR window length (default 14) if atr_multiple used."
-        }
-      },
+    "exitRule": {
       "oneOf": [
-        { "required": ["absolute_price"], "description": "Absolute price." },
-        { "required": ["price_offset"], "description": "Fixed price distance." },
-        { "required": ["pips"], "description": "Instrument-native pips distance." },
-        { "required": ["atr_multiple"], "description": "ATR-multiple distance." }
+        { "$ref": "#/$defs/fixedPipRule" },
+        { "$ref": "#/$defs/indicatorRule" }
       ]
     },
-    "trailingRule": {
+    "fixedPipRule": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "price_offset": {
-          "type": "number",
-          "description": "Trail distance in price units."
+        "type": {
+          "const": "fixed_pips",
+          "description": "Fixed pip-based stop or take-profit."
         },
         "pips": {
           "type": "number",
-          "description": "Trail distance in pips (instrument-aware)."
+          "minimum": 0,
+          "exclusiveMinimum": 0,
+          "description": "Distance in pips from entry price."
+        }
+      },
+      "required": ["type", "pips"]
+    },
+    "indicatorRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "indicator",
+          "description": "Indicator-based stop or take-profit."
         },
-        "atr_multiple": {
+        "indicator": {
+          "enum": ["atr", "bollinger", "keltner"],
+          "description": "Indicator type to use for exit calculation. Only whitelisted indicators are allowed."
+        },
+        "params": {
+          "type": "object",
+          "description": "Indicator-specific parameters."
+        }
+      },
+      "required": ["type", "indicator", "params"],
+      "allOf": [
+        {
+          "if": {
+            "properties": { "indicator": { "const": "atr" } }
+          },
+          "then": {
+            "properties": {
+              "params": { "$ref": "#/$defs/atrParams" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "indicator": { "const": "bollinger" } }
+          },
+          "then": {
+            "properties": {
+              "params": { "$ref": "#/$defs/bollingerParams" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "indicator": { "const": "keltner" } }
+          },
+          "then": {
+            "properties": {
+              "params": { "$ref": "#/$defs/keltnerParams" }
+            }
+          }
+        }
+      ]
+    },
+    "atrParams": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "length": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 14,
+          "description": "ATR lookback period in bars."
+        },
+        "multiplier": {
           "type": "number",
-          "description": "Trail distance as multiples of ATR."
+          "minimum": 0,
+          "exclusiveMinimum": 0,
+          "description": "Multiplier applied to ATR value."
+        }
+      },
+      "required": ["multiplier"]
+    },
+    "bollingerParams": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "length": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 20,
+          "description": "Bollinger Bands lookback period."
+        },
+        "num_std": {
+          "type": "number",
+          "minimum": 0,
+          "exclusiveMinimum": 0,
+          "default": 2.0,
+          "description": "Number of standard deviations for band width."
+        }
+      },
+      "required": []
+    },
+    "keltnerParams": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "length": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 20,
+          "description": "Keltner Channel lookback period."
         },
         "atr_length": {
           "type": "integer",
           "minimum": 1,
-          "description": "ATR window length (default 14) if atr_multiple used."
+          "default": 10,
+          "description": "ATR period for channel width."
         },
-        "step": {
+        "multiplier": {
           "type": "number",
           "minimum": 0,
-          "description": "Minimum improvement required to tighten (optional)."
-        },
-        "update": {
-          "type": "string",
-          "enum": ["bar", "tick"],
-          "description": "Update cadence hint; 'bar' by default."
+          "exclusiveMinimum": 0,
+          "default": 2.0,
+          "description": "Multiplier applied to ATR for channel width."
         }
       },
-      "oneOf": [
-        { "required": ["price_offset"] },
-        { "required": ["pips"] },
-        { "required": ["atr_multiple"] }
-      ]
+      "required": []
     }
   }
 }

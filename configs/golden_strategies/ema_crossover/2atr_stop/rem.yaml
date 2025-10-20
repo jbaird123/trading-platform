@@ -1,0 +1,9 @@
+name: "ATR_2x_Stop"
+version: "2.0"
+
+stop_loss:
+  type: "indicator"
+  indicator: "atr"
+  params:
+    length: 14
+    multiplier: 2.0

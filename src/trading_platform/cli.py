@@ -280,7 +280,9 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     rem_cfg: dict[str, Any] | None = cfg_raw.get("rem_config")
     # Pass complete instrument definition with all metadata (asset_class, etc.)
     instrument_dict = instrument_def.model_dump() if instrument_def else None
-    rem = RiskExitManager(config=rem_cfg or {}, instrument=instrument_dict)
+    # Pass dict directly - RiskExitManager will validate new-format configs
+    # and allow legacy configs to bypass validation
+    rem = RiskExitManager(config=rem_cfg, instrument=instrument_dict)
 
     # RMM optional for legacy configs; if present, build per-bar context
     rmm_context: dict[datetime, dict[str, Any]] | None = None

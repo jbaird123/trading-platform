@@ -9,16 +9,13 @@ from pathlib import Path
 
 import pytest
 
+from tests.validation.analyzers import create_analyzer_for_strategy
 from tests.validation.comparison_export import export_comparison_csv
 from tests.validation.comparison_utils import build_category_lookup
 from tests.validation.golden_utils import load_and_prepare_trade_data
 from tests.validation.test_strategy_validation import (
     KNOWN_EDGE_CASES,
-    load_platform_trades,
     verify_golden_comparison_hash,
-)
-from tests.validation.trailing_stop_discrepancy_analyzer import (
-    create_analyzer_for_strategy,
 )
 
 # Define allowed categories that explain exit TIME mismatches
@@ -34,6 +31,8 @@ EXIT_TIME_CATEGORIES = [
 @pytest.mark.parametrize(
     "strategy_name",
     [
+        "ema_crossover/20pip_stop",
+        "ema_crossover/20pip_stop_40pip_tp",
         "ema_crossover/20pip_trailing_stop",
         "ema_crossover/20pip_trailing_stop_15pip_tp",
     ],
@@ -45,6 +44,7 @@ def test_export_exit_time_comparison(
     tradingview_ohlcv,
     tradingview_ohlcv_1min,
     golden_metadata,
+    shared_data_handler,
     request,
 ):
     """Export all trades with exit time comparison details to CSV.
@@ -64,15 +64,22 @@ def test_export_exit_time_comparison(
     # Mark this test with the strategy name for fixture selection
     request.node.add_marker(pytest.mark.strategy_name(strategy_name))
 
-    date_range = golden_metadata.get("date_range")
-
-    # Load platform trades
-    platform_trades = load_platform_trades(
-        strategy_name=strategy_name,
-        run_config=golden_strategy_config["run_config"],
-        ohlcv_data=tradingview_ohlcv,
-        date_range=date_range,
-    )
+    # Get platform trades from session-scoped fixture based on strategy
+    fixture_map = {
+        "ema_crossover/20pip_stop": request.getfixturevalue(
+            "platform_trades_20pip_stop"
+        ),
+        "ema_crossover/20pip_stop_40pip_tp": request.getfixturevalue(
+            "platform_trades_20pip_stop_40pip_tp"
+        ),
+        "ema_crossover/20pip_trailing_stop": request.getfixturevalue(
+            "platform_trades_20pip_trailing_stop"
+        ),
+        "ema_crossover/20pip_trailing_stop_15pip_tp": request.getfixturevalue(
+            "platform_trades_20pip_trailing_stop_15pip_tp"
+        ),
+    }
+    platform_trades = fixture_map[strategy_name]
 
     # Load and prepare trade data using utility function
     platform_df, tv_df = load_and_prepare_trade_data(
