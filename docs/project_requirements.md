@@ -55,7 +55,7 @@ _Last updated: 2025-09-16_
 - **[SYS-1.3] Instrument Agnostic Architecture**:
   - **[SYS-1.3.1]** The core engine (Portfolio Manager) must operate on a canonical representation of trades, positions, and performance.
   - **[SYS-1.3.2]** An **Instrument Definition** (part of the Data Handler) provides rich metadata for each symbol required for runtime translation (e.g., `point_value`, `tick_size`).
-  - **[SYS-1.3.3]** User-facing components (e.g., Risk & Exit Manager configuration) may allow inputs in native terms (pips, points), but these **must be translated** into the canonical model by the Backtester or Execution Layer at runtime before being passed to the Portfolio Manager.
+  - **[SYS-1.3.3]** User-facing components (e.g., Risk & Exit Manager configuration) may allow inputs in native terms (pips, points), but these **must be translated** into the canonical model by the Backtester or Execution Layer at runtime before being passed to the Portfolio Manager. All user-facing configurations must use Pydantic models with `extra="forbid"` for strict validation to prevent silent failures from typos or unimplemented features.
   - **[SYS-1.3.4]** All core PnL calculations must be performed in a consistent base currency.
   - **[SYS-1.3.5]** The canonical internal representation for instrument symbols is all-uppercase with no separators (e.g., 'EURUSD', 'SPY'). A normalization utility at 'src/trading_platform/core/utils.py' must be used at all system boundaries to enforce this standard.
 - **[SYS-1.4] Strategy Comparison & A/B Testing**:
@@ -249,6 +249,8 @@ _Last updated: 2025-09-16_
 - **[REM-6.2]** REM configurations will be defined in a declarative YAML format, validated against a JSON Schema.
 - **[REM-6.3]** The REM must support multiple types of exit rules, including static (e.g., fixed pips) and dynamic (e.g., ATR-based) rules.
 - **[REM-6.4]** The REM must be a pluggable component, allowing different risk models to be tested with the same strategy.
+- **[REM-6.5]** **Strict Validation**: All REM configurations must be validated using Pydantic models with `extra="forbid"` to prevent silent failures from unimplemented features, typos, or invalid field names. Configs with unknown fields must be rejected with clear error messages.
+- **[REM-6.6]** **Indicator Whitelist**: Only indicators explicitly registered in `REM_INDICATORS_REGISTRY` may be used for stop-loss and take-profit calculations. This prevents users from specifying unsupported indicators (e.g., RSI, MACD) that would be silently ignored.
 
 ---
 

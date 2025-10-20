@@ -13,7 +13,6 @@ import pandas as pd
 from trading_platform.backtester.core import run_backtest
 from trading_platform.core.config import RunConfig
 from trading_platform.portfolio.trade import Trade
-from trading_platform.risk_manager import REMConfig
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
 
@@ -94,10 +93,10 @@ def run_backtest_from_config(
 
     rem_cfg = config.rem_config or {}
     exit_tie_break = getattr(config, "exit_tie_break", "stop_then_tp")
-    # Validate REM config using Pydantic model
-    validated_rem_config = REMConfig(**rem_cfg) if rem_cfg else None
+    # Pass dict directly - RiskExitManager will validate new-format configs
+    # and allow legacy configs to bypass validation
     rem = RiskExitManager(
-        config=validated_rem_config, instrument=instrument_dict, exit_tie_break=exit_tie_break
+        config=rem_cfg if rem_cfg else None, instrument=instrument_dict, exit_tie_break=exit_tie_break
     )
 
     # Run backtest

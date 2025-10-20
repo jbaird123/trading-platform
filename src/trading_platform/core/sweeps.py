@@ -12,7 +12,6 @@ from trading_platform.core.config import RunConfig
 from trading_platform.core.robustness import walk_forward_splits
 from trading_platform.portfolio.trade import Trade
 from trading_platform.regime_market_manager.engine import RMMEngine
-from trading_platform.risk_manager import REMConfig
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
 
@@ -181,9 +180,8 @@ def run_parameter_sweep(
             if str(rem_path).endswith((".yaml", ".yml"))
             else json.loads(txt)
         )
-    # Validate REM config using Pydantic model
-    validated_rem_config = REMConfig(**rem_cfg) if rem_cfg else None
-    rem = RiskExitManager(config=validated_rem_config)
+    # Pass dict directly - RiskExitManager will validate new-format configs
+    rem = RiskExitManager(config=rem_cfg if rem_cfg else None)
 
     results: list[dict[str, Any]] = []
     log_file: Path | None = None
@@ -403,8 +401,7 @@ def walk_forward_optimize_and_test(
         scfg["parameters"] = p
         cfg = RunConfig.model_validate(base_cfg)
         rem_cfg = base_cfg.get("rem_config") or {}
-        validated_rem_config = REMConfig(**rem_cfg) if rem_cfg else None
-        rem = RiskExitManager(config=validated_rem_config)
+        rem = RiskExitManager(config=rem_cfg if rem_cfg else None)
         strat = compile_strategy(scfg)
         sig = strat.generate_signals(test)
         _res2 = run_backtest(
@@ -508,9 +505,8 @@ def walk_forward_analysis(
     instrument_dict = instrument_def.model_dump() if instrument_def else None
 
     rem_cfg = base_cfg.get("rem_config") or {}
-    validated_rem_config = REMConfig(**rem_cfg) if rem_cfg else None
     rem = RiskExitManager(
-        config=validated_rem_config, instrument=instrument_dict
+        config=rem_cfg if rem_cfg else None, instrument=instrument_dict
     )
     strat = compile_strategy(strategy_cfg)
 
@@ -677,8 +673,7 @@ def monte_carlo_resimulation(
 
     cfg = RunConfig.model_validate(base_cfg)
     rem_cfg = base_cfg.get("rem_config") or {}
-    validated_rem_config = REMConfig(**rem_cfg) if rem_cfg else None
-    rem = RiskExitManager(config=validated_rem_config)
+    rem = RiskExitManager(config=rem_cfg if rem_cfg else None)
 
     # PERFORMANCE FIX: Compute RMM context once before loop instead of
     # per trial. For bar_resimulation mode, the index doesn't change, so we
