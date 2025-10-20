@@ -180,7 +180,8 @@ def run_parameter_sweep(
             if str(rem_path).endswith((".yaml", ".yml"))
             else json.loads(txt)
         )
-    rem = RiskExitManager(config=rem_cfg)
+    # Pass dict directly - RiskExitManager will validate new-format configs
+    rem = RiskExitManager(config=rem_cfg if rem_cfg else None)
 
     results: list[dict[str, Any]] = []
     log_file: Path | None = None
@@ -399,7 +400,8 @@ def walk_forward_optimize_and_test(
         p.update(best)
         scfg["parameters"] = p
         cfg = RunConfig.model_validate(base_cfg)
-        rem = RiskExitManager(config=(base_cfg.get("rem_config") or {}))
+        rem_cfg = base_cfg.get("rem_config") or {}
+        rem = RiskExitManager(config=rem_cfg if rem_cfg else None)
         strat = compile_strategy(scfg)
         sig = strat.generate_signals(test)
         _res2 = run_backtest(
@@ -502,8 +504,9 @@ def walk_forward_analysis(
     instrument_def = get_instrument_definition(symbol) if symbol else None
     instrument_dict = instrument_def.model_dump() if instrument_def else None
 
+    rem_cfg = base_cfg.get("rem_config") or {}
     rem = RiskExitManager(
-        config=(base_cfg.get("rem_config") or {}), instrument=instrument_dict
+        config=rem_cfg if rem_cfg else None, instrument=instrument_dict
     )
     strat = compile_strategy(strategy_cfg)
 
@@ -669,7 +672,8 @@ def monte_carlo_resimulation(
         return float(d0 + d1)
 
     cfg = RunConfig.model_validate(base_cfg)
-    rem = RiskExitManager(config=(base_cfg.get("rem_config") or {}))
+    rem_cfg = base_cfg.get("rem_config") or {}
+    rem = RiskExitManager(config=rem_cfg if rem_cfg else None)
 
     # PERFORMANCE FIX: Compute RMM context once before loop instead of
     # per trial. For bar_resimulation mode, the index doesn't change, so we

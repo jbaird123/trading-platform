@@ -1,0 +1,15 @@
+warmup_bars: 100  # Enough for indicators to stabilize
+execution_model: "next_bar_open"  # Match TradingView
+exit_tie_break: "stop_then_tp"  # If both hit same bar
+
+instrument:
+  symbol: "EUR_USD"
+  base_currency: "EUR"
+  quote_currency: "USD"
+  pip_location: -4
+  contract_size: 100000
+
+costs:
+  spread_pips: 0.0
+  commission_per_trade: 0.0
+  slippage_pips: 0.0

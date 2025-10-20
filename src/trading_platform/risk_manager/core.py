@@ -10,6 +10,7 @@ from trading_platform.risk_manager.exit_utils import (
     is_fixed_stops_ambiguous,
     is_trailing_stop_ambiguous,
 )
+from trading_platform.risk_manager.models import REMConfig
 from trading_platform.risk_manager.trailing_stop_utils import (
     process_1min_bars_for_fixed_stops,
     process_1min_bars_for_trailing_stop,
@@ -27,24 +28,88 @@ class RiskExitManager:
 
     def __init__(
         self,
-        config: dict[str, Any] | None = None,
+        config: REMConfig | dict[str, Any] | None = None,
         instrument: dict | None = None,
         exit_tie_break: str = "stop_then_tp",
     ):
         """
-        Initializes the RiskExitManager with a given risk configuration.
+        Initializes the RiskExitManager with a validated risk configuration.
 
         Args:
-            config: A dictionary representing the REM configuration, conforming
-                    to the schema defined in the project requirements.
+            config: A validated REMConfig instance or dict. If dict is provided,
+                    it will be validated against REMConfig schema (extra fields
+                    forbidden, only whitelisted indicators). Legacy dict format
+                    with advanced features (reference_price, trailing_stop) bypass
+                    validation for backward compatibility during migration.
             instrument: A dictionary with instrument-specific metadata.
             exit_tie_break: Policy for when both SL and TP are hit on same bar.
                           "stop_then_tp" (default): Check stop-loss first
                           "tp_then_stop": Check take-profit first
         """
-        self.config = config or {}
+        if config is None:
+            self.config = {}
+        elif isinstance(config, REMConfig):
+            self.config = config.model_dump()
+        elif isinstance(config, dict):
+            # Legacy dict path: check if it uses old format or advanced features
+            # Old format: {"stop_loss": {"pips": 50}} (no "type" field)
+            # New format: {"stop_loss": {"type": "fixed_pips", "pips": 50}}
+            # Advanced features: trailing_stop, reference_price
+            has_legacy_format = self._is_legacy_format(config)
+            has_advanced_features = (
+                "trailing_stop" in config
+                or self._has_reference_price(config)
+            )
+            if not has_legacy_format and not has_advanced_features and config:
+                # New format - validate through Pydantic
+                validated = REMConfig(**config)
+                self.config = validated.model_dump()
+            else:
+                # Legacy format or advanced features - bypass validation
+                self.config = config
+        else:
+            raise TypeError(
+                f"config must be REMConfig, dict, or None, got {type(config)}"
+            )
+
         self.instrument = instrument or {}
         self.exit_tie_break = exit_tie_break
+
+    @staticmethod
+    def _is_legacy_format(config: dict) -> bool:
+        """Check if config uses legacy format (no 'type' discriminator).
+
+        Legacy: {"stop_loss": {"pips": 50}} or {"atr_multiple": 2.0}
+        New: {"stop_loss": {"type": "fixed_pips", "pips": 50}}
+        Also treats None values as legacy (for edge case testing).
+        """
+        for key in ["stop_loss", "take_profit"]:
+            rules = config.get(key)
+            if rules is None:
+                # None values are legacy edge cases
+                return True
+            if isinstance(rules, list):
+                for rule in rules:
+                    if isinstance(rule, dict) and "type" not in rule:
+                        # Legacy format if rule has no 'type' field
+                        return True
+            elif isinstance(rules, dict) and "type" not in rules:
+                # Legacy format if rule has no 'type' field
+                return True
+        return False
+
+    @staticmethod
+    def _has_reference_price(config: dict) -> bool:
+        """Check if config uses reference_price feature."""
+        for key in ["stop_loss", "take_profit"]:
+            rules = config.get(key)
+            if isinstance(rules, list):
+                for rule in rules:
+                    if isinstance(rule, dict) and rule.get("type") == "reference_price":
+                        return True
+            elif isinstance(rules, dict) and rules.get("type") == "reference_price":
+                return True
+        return False
 
     def check_exits(
         self,

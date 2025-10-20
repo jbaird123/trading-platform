@@ -117,40 +117,99 @@ plot(stop_price, "Stop", color=color.orange, style=plot.style_linebr)
 ### Step 3: Export TradingView Data
 
 1. **Run strategy** in TradingView on EUR/USD 1H chart
-2. **Set date range**: 2023-01-01 to 2024-12-31 (or desired period)
-3. **Export trades**: Strategy Tester → List of Trades → Export (CSV)
-4. **Export OHLCV**: Chart → ... → Export chart data → CSV
+2. **Set timezone**: 'UTC (Reykjavik)' (NOT 'UTC (Azores)')
+3. **Set date range**: 2022-12-01 to 2024-12-31 (includes warmup period before validation range)
+4. **Export trades**: Strategy Tester → List of Trades → Export (CSV)
+5. **Export OHLCV**: Chart → ... → Export chart data → CSV
 
 **Save as**:
 - `data/dvc/golden/strategies/ema_crossover/atr_stop/trades.csv`
 - `data/dvc/golden/strategies/ema_crossover/atr_stop/ohlcv.csv`
 
+**Understanding TradingView Trades CSV Format**:
+
+TradingView exports **2 lines per trade** (Entry + Exit):
+```csv
+Trade #,Type,Date/Time,Signal,Price USD,...
+1,Entry long,2022-12-07 18:00,Long,1.05181,...
+1,Exit long,2022-12-08 09:00,Exit Long,1.04941,...
+2,Entry short,2022-12-12 04:00,Short,1.05151,...
+2,Exit short,2022-12-12 11:00,Close entry(s) order Short,1.05646,...
+```
+
+- Each trade has 2 rows (entry + exit)
+- `Type` column contains "Entry" or "Exit"
+- Trade count = (total lines - 1 header) / 2
+- For 522 lines: (522-1)/2 = **260.5**, but we count **Entry lines = 261 trades**
+
+**Date Ranges**:
+- **Export range**: 2022-12-01 to 2024-12-31 (includes warmup)
+- **Validation range**: 2023-01-01 to 2024-12-31 (actual test range)
+- **Warmup period**: 2022-12-01 to 2022-12-31 (for indicator stability)
+
+**Expected Counts for EMA Crossover Strategies**:
+- **Total trades**: 261 (all strategies use same entry signals)
+- **Validation trades**: 249 (entries with date >= 2023-01-01)
+- **Baseline validation**: 248 (1 less due to force-closed end trade)
+
 ### Step 4: Create Metadata File
 
 **Location**: `data/dvc/golden/strategies/ema_crossover/atr_stop/metadata.json`
 
+The scaffold script creates this file with placeholder values. **You must update it after TradingView export.**
+
 ```json
 {
-  "description": "EMA crossover with ATR-based stop-loss",
-  "symbol": "EUR_USD",
-  "timeframe": "1H",
+  "dataset_type": "strategy",
+  "strategy_name": "ema_crossover_atr_stop",
+  "tradingview_version": "TradingView 2025",
+  "export_date": "2025-10-19",  // UPDATE: Date you exported from TradingView
+  "timezone": "UTC (Reykjavik)",
   "date_range": {
-    "start": "2023-01-01",
-    "end": "2024-12-31"
+    "start": "2023-01-01",      // Validation range start
+    "end": "2024-12-31"          // Validation range end
   },
+  "instrument": "OANDA:EURUSD",
+  "timeframe": "1H",
+  "position_size": 10000.0,
+  "commission": 0.0,
+  "initial_capital": 100000.0,
   "exit_mechanisms": ["indicator_stop"],
   "indicator_stop_type": "atr",
   "indicator_stop_params": {
     "length": 14
   },
   "stop_distance_multiplier": 2.0,
-  "tradingview_timezone": "UTC (Reykjavik)",
-  "tradingview_version": "5",
-  "platform_config": {
-    "config_path": "configs/golden_strategies/ema_crossover/atr_stop"
-  }
+
+  // UPDATE THESE AFTER EXPORT:
+  "total_trades": 261,           // Total trades in CSV (count entry lines)
+  "closed_trades": 261,          // Same as total (all trades closed)
+  "open_trades": 0,              // Should be 0
+  "validation_range_total_trades": 249,    // Entries >= 2023-01-01 AND <= 2024-12-31
+  "validation_range_closed_trades": 249,   // Same as validation_range_total
+  "net_profit": 0.0,
+  "net_profit_percent": 0.0,
+  "notes": "EMA crossover (20/50) with dynamic ATR-based stops. Warmup: 2022-12-01 to 2022-12-31."
 }
 ```
+
+**How to populate trade counts**:
+
+1. **total_trades**: Count "Entry" lines in trades.csv
+   ```bash
+   grep -c "^[0-9]*,Entry" trades.csv
+   ```
+   Expected: **261** (all EMA crossover strategies have same entry signals)
+
+2. **validation_range_total_trades**: Count entries where date >= 2023-01-01 AND <= 2024-12-31
+   ```bash
+   awk -F',' 'NR>1 && $2 ~ /Entry/ && $3 >= "2023-01-01" && $3 <= "2024-12-31"' trades.csv | wc -l
+   ```
+   Expected: **249** (baseline has 248 due to force-closed trade at end)
+
+3. **closed_trades**: Same as total_trades (all trades should be closed)
+
+4. **export_date**: Date you exported from TradingView (format: YYYY-MM-DD)
 
 **Exit Mechanisms** (choose one or more):
 - `"trailing_stop"`: Fixed pip trailing stop
