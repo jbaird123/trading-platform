@@ -68,8 +68,12 @@ class RMMRuleBlock(BaseModel):
 
     model_config = {"extra": "forbid"}
 
-    all_of: list[RMMPredicate] | None = None
-    any_of: list[RMMPredicate] | None = None
+    all_of: list[RMMPredicate] | None = Field(
+        default=None, description="A list of predicate conditions that must ALL be met."
+    )
+    any_of: list[RMMPredicate] | None = Field(
+        default=None, description="A list of predicate conditions where AT LEAST ONE must be met."
+    )
 
     @model_validator(mode='before')
     @classmethod
@@ -135,7 +139,7 @@ class RMMConfig(BaseModel):
     version: str | None = Field(default=None, description="Optional version tag for this RMM config.")
     timeframe: str | None = Field(
         default=None,
-        description="Timeframe for regime classification (e.g., '1D', '4H').",
+        description="Timeframe for regime classification (e.g., '1D', '4H', '1H', '15min', '5T'). Must be a valid pandas resample frequency.",
         pattern=r"^\d*(?:[DHMS]|[mM][iI][nN]|[tT])$",
     )
     features: list[RMMFeatureConfig] | None = Field(
@@ -143,7 +147,7 @@ class RMMConfig(BaseModel):
     )
     hysteresis: RMMHysteresis | None = None
     policy: RMMPolicy | None = None
-    regimes: list[RMMRegime] = Field(min_length=1)
+    regimes: list[RMMRegime] = Field(description="List of regime definitions and their conditions.", min_length=1)
 
 
 __all__ = [
