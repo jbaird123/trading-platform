@@ -68,17 +68,19 @@ class RiskExitManager:
                 # Legacy format or advanced features - bypass validation
                 self.config = config
         else:
-            raise TypeError(f"config must be REMConfig, dict, or None, got {type(config)}")
+            raise TypeError(
+                f"config must be REMConfig, dict, or None, got {type(config)}"
+            )
 
         self.instrument = instrument or {}
         self.exit_tie_break = exit_tie_break
 
     @staticmethod
     def _is_legacy_format(config: dict) -> bool:
-        """Check if config uses legacy format (no 'type' discriminator field).
+        """Check if config uses legacy format (no 'type' discriminator).
 
-        Legacy format: {"stop_loss": {"pips": 50}} or {"stop_loss": {"atr_multiple": 2.0}}
-        New format: {"stop_loss": {"type": "fixed_pips", "pips": 50}}
+        Legacy: {"stop_loss": {"pips": 50}} or {"atr_multiple": 2.0}
+        New: {"stop_loss": {"type": "fixed_pips", "pips": 50}}
         Also treats None values as legacy (for edge case testing).
         """
         for key in ["stop_loss", "take_profit"]:

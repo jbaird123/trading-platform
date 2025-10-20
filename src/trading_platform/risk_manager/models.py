@@ -81,7 +81,8 @@ class IndicatorStop(BaseModel):
 
     type: Literal["indicator"]
     indicator: Literal["atr", "bollinger", "keltner"]
-    params: ATRStopParams  # Future: Change to Union[ATRStopParams, BollingerStopParams, KeltnerStopParams] when implemented
+    # Future: Union[ATRStopParams, BollingerStopParams, KeltnerStopParams]
+    params: ATRStopParams
 
 
 class REMConfig(BaseModel):

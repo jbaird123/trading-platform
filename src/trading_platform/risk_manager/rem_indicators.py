@@ -20,11 +20,11 @@ class REMIndicatorSpec:
     """Specification for an indicator usable in REM.
 
     Attributes:
-        name: Unique identifier for the indicator (e.g., "atr", "bollinger")
-        description: Human-readable description of what the indicator does
-        required_params: Dict mapping parameter names to their expected types
-        optional_params: Dict mapping optional param names to (type, default_value) tuples
-        stop_calculator: Function that calculates stop price from indicator values
+        name: Unique identifier (e.g., "atr", "bollinger")
+        description: Human-readable description
+        required_params: Dict mapping param names to expected types
+        optional_params: Dict mapping names to (type, default) tuples
+        stop_calculator: Function that calculates stop price
     """
 
     name: str

@@ -96,7 +96,9 @@ def run_backtest_from_config(
     # Pass dict directly - RiskExitManager will validate new-format configs
     # and allow legacy configs to bypass validation
     rem = RiskExitManager(
-        config=rem_cfg if rem_cfg else None, instrument=instrument_dict, exit_tie_break=exit_tie_break
+        config=rem_cfg if rem_cfg else None,
+        instrument=instrument_dict,
+        exit_tie_break=exit_tie_break,
     )
 
     # Run backtest
