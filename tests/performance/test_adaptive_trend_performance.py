@@ -14,6 +14,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 from trading_platform.regime_market_manager.engine import RMMEngine
+from trading_platform.regime_market_manager.models import RMMConfig
 from trading_platform.risk_manager.dynamic_rem import DynamicREM
 from trading_platform.strategy.features import compute_features
 from trading_platform.strategy.yaml_strategy import compile_strategy
@@ -110,7 +111,7 @@ def profile_rmm_features(ohlc: pd.DataFrame) -> tuple[pd.DataFrame, pstats.Stats
                         {
                             "condition": "percentile_is_above",
                             "left": {"ref": "atr_pct"},
-                            "right": {"value": 75},
+                            "right": 75,
                         }
                     ]
                 },
@@ -121,7 +122,7 @@ def profile_rmm_features(ohlc: pd.DataFrame) -> tuple[pd.DataFrame, pstats.Stats
     profiler = cProfile.Profile()
     profiler.enable()
 
-    rmm_engine = RMMEngine(config=rmm_config)
+    rmm_engine = RMMEngine(config=RMMConfig(**rmm_config))
     rmm_result = rmm_engine.classify_regime(
         ohlc, timeframe="1D", already_resampled=False
     )

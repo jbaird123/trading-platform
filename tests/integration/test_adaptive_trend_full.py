@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import pandas as pd
 from trading_platform.regime_market_manager.engine import RMMEngine
+from trading_platform.regime_market_manager.models import RMMConfig
 from trading_platform.risk_manager.dynamic_rem import DynamicREM
 from trading_platform.strategy.features import compute_features
 from trading_platform.strategy.yaml_strategy import compile_strategy
@@ -124,11 +125,11 @@ def test_adaptive_trend_full_integration() -> None:
                 "confidence": 0.9,
                 "conditions": {
                     "all_of": [
-                        {
-                            "condition": "percentile_is_above",
-                            "left": {"ref": "atr_pct"},
-                            "right": {"value": 75},
-                        },
+                            {
+                                "condition": "percentile_is_above",
+                                "left": {"ref": "atr_pct"},
+                                "right": 75,
+                            },
                         {
                             "condition": "volatility_is_between",
                             "left": {"ref": "rvol"},
@@ -143,18 +144,18 @@ def test_adaptive_trend_full_integration() -> None:
                 "confidence": 0.7,
                 "conditions": {
                     "all_of": [
-                        {
-                            "condition": "is_above",
-                            "left": {"ref": "vol_z"},
-                            "right": {"value": 0},
-                        }
+                            {
+                                "condition": "is_above",
+                                "left": {"ref": "vol_z"},
+                                "right": 0,
+                            }
                     ]
                 },
             },
         ],
     }
 
-    rmm_engine = RMMEngine(config=rmm_config)
+    rmm_engine = RMMEngine(config=RMMConfig(**rmm_config))
     rmm_result = rmm_engine.classify_regime(
         ohlc, timeframe="1D", already_resampled=False
     )

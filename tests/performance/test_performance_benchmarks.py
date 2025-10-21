@@ -16,7 +16,6 @@ import pandas as pd
 import pytest
 from trading_platform.backtester.orchestrator import run_backtest_from_config
 from trading_platform.core.config import RunConfig
-from trading_platform.data.instrument import get_instrument_definition
 from trading_platform.strategy.features import compute_features
 
 # SYS-1.9.1: Vectorized operations on multi-year data
@@ -181,7 +180,6 @@ def test_sys_1_9_2_multi_year_backtest_performance():
     )
 
     # Simple EMA crossover strategy config
-    instrument = get_instrument_definition("EURUSD")
     config = RunConfig(
         user_id="test_user",
         run_seed=42,
@@ -190,7 +188,7 @@ def test_sys_1_9_2_multi_year_backtest_performance():
         allow_flip_on_bar=False,
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
-        instrument=instrument.model_dump(),
+        data_request={"symbol": "EURUSD", "timeframe": "1min"},
         initial_cash=100000,
         warmup_bars=50,
         entry_window_bars=0,
@@ -353,7 +351,6 @@ def test_backtest_execution_time_1m_bars():
         index=index,
     )
 
-    instrument = get_instrument_definition("EURUSD")
     config = RunConfig(
         user_id="test_user",
         run_seed=42,
@@ -362,7 +359,7 @@ def test_backtest_execution_time_1m_bars():
         allow_flip_on_bar=False,
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
-        instrument=instrument.model_dump(),
+        data_request={"symbol": "EURUSD", "timeframe": "5min"},
         initial_cash=100000,
         warmup_bars=50,
         entry_window_bars=0,

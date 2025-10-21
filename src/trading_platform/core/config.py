@@ -52,6 +52,13 @@ class FeatureConfig(BaseModel):
     source_ref: dict[str, Any] | None = Field(
         default=None, description="Reference another feature as input series."
     )
+    timeframe: str | None = Field(
+        default=None,
+        description=(
+            "Optional pandas offset alias for higher-timeframe resampling. "
+            "When provided, the feature will be computed on resampled data."
+        ),
+    )
 
     @field_validator("type")
     @classmethod
