@@ -31,6 +31,7 @@ from trading_platform.execution.oanda_stub import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
 from trading_platform.regime_market_manager.engine import RMMEngine
+from trading_platform.regime_market_manager.models import RMMConfig
 from trading_platform.reporting.brief import compute_data_quality
 from trading_platform.reporting.chart_export import (
     save_chart_from_brief,

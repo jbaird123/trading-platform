@@ -8,6 +8,7 @@ from typing import Any
 import pandas as pd
 
 from trading_platform.data.schema import resample_ohlc
+from trading_platform.regime_market_manager.models import RMMConfig
 from trading_platform.strategy.features import compute_features
 
 

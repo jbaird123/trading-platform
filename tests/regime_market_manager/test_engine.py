@@ -16,8 +16,25 @@ from trading_platform.regime_market_manager.engine import (
     _eval_pred,
     _op_series,
 )
+from trading_platform.regime_market_manager.models import RMMConfig
 
 # --- Helper utilities -----------------------------------------------------------
+
+
+def _make_config(config_dict: dict) -> RMMConfig:
+    """Helper to convert dict to RMMConfig for testing.
+
+    Automatically adds a dummy regime if regimes list is empty, since
+    RMMConfig requires at least one regime.
+    """
+    if "regimes" not in config_dict or not config_dict["regimes"]:
+        config_dict = config_dict.copy()
+        config_dict["regimes"] = [{
+            "label": "dummy",
+            "confidence": 0.5,
+            "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 0.0}]}
+        }]
+    return RMMConfig(**config_dict)
 
 
 def _sample_df() -> pd.DataFrame:
@@ -151,10 +168,13 @@ def test_eval_block_empty_conditions() -> None:
 # --- Engine-level behaviour -----------------------------------------------------
 
 
-def _engine_config() -> dict:
-    return {
-        "features": ["EMA(20)", "ADX(14)"],
-        "regimes": [
+def _engine_config() -> RMMConfig:
+    return RMMConfig(
+        features=[
+            {"name": "EMA(20)", "type": "EMA", "params": {"length": 20}},
+            {"name": "ADX(14)", "type": "ADX", "params": {"length": 14}},
+        ],
+        regimes=[
             {
                 "label": "trend_up",
                 "confidence": 0.8,
@@ -163,7 +183,7 @@ def _engine_config() -> dict:
                         {
                             "condition": "is_above",
                             "left": {"ref": "ADX(14)"},
-                            "right": {"value": 25.0},
+                            "right": 25.0,
                         }
                     ]
                 },
@@ -176,26 +196,37 @@ def _engine_config() -> dict:
                         {
                             "condition": "is_below",
                             "left": {"ref": "ADX(14)"},
-                            "right": {"value": 15.0},
+                            "right": 15.0,
                         }
                     ]
                 },
             },
         ],
-    }
+    )
 
 
 def test_rmm_engine_validate_config_without_jsonschema() -> None:
-    """Test that RMM engine validation works without jsonschema (no longer required).
+    """Test that RMM engine validation now uses Pydantic models.
 
-    Note: After Pydantic migration, validate_config is currently a no-op.
-    This is a TODO until RMM Pydantic model is implemented.
-    For now, we just verify it doesn't raise an error.
+    Validation happens automatically when creating an RMMConfig Pydantic model.
+    Invalid configs will raise pydantic ValidationError.
     """
-    # Validation is currently a no-op (pass), so this should not raise
-    RMMEngine.validate_config({"regimes": []})
-    # If empty config passes, that's expected behavior for now
-    assert True
+    # Valid config should create successfully
+    valid_config = RMMConfig(
+        regimes=[
+            {
+                "label": "test",
+                "confidence": 0.5,
+                "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+            }
+        ]
+    )
+    engine = RMMEngine(config=valid_config)
+    assert engine.config is not None
+
+    # Invalid config should raise ValidationError
+    with pytest.raises(Exception):  # Will be pydantic ValidationError
+        RMMConfig(regimes=[])
 
 
 def test_rmm_engine_classify_daily_matches_regime() -> None:
@@ -272,9 +303,10 @@ def test_rmm_engine_classify_daily_unknown_regime() -> None:
 
         result = engine.classify_daily(hourly_data)
         assert len(result) == 1
-        # TODO: Investigate why this returns 'trend_up' instead of 'unknown'
-        assert result.iloc[0]["label"] == "trend_up"
-        assert result.iloc[0]["confidence"] == 0.8
+        # ADX is 20, which is between trend_up (>25) and range (<15) thresholds
+        # So it should return 'unknown' with confidence 0.0
+        assert result.iloc[0]["label"] == "unknown"
+        assert result.iloc[0]["confidence"] == 0.0
 
 
 def test_rmm_engine_allowed_sides_for() -> None:
@@ -294,7 +326,15 @@ def test_rmm_engine_allowed_sides_for() -> None:
 
 
 def test_rmm_engine_project_to_index_empty_daily() -> None:
-    engine = RMMEngine(config={})
+    # Need a minimal valid config with at least one regime
+    minimal_config = _make_config({
+        "regimes": [{
+            "label": "test",
+            "confidence": 0.5,
+            "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+        }]
+    })
+    engine = RMMEngine(config=minimal_config)
     target_index = pd.date_range("2024-01-01", periods=3, freq="h")
     empty_daily = pd.DataFrame(columns=["label", "confidence"])
 
@@ -312,7 +352,15 @@ def test_rmm_engine_project_to_index_empty_daily() -> None:
 
 
 def test_rmm_engine_project_to_index_with_daily_data() -> None:
-    engine = RMMEngine(config={})
+    # Need a minimal valid config with at least one regime
+    minimal_config = _make_config({
+        "regimes": [{
+            "label": "test",
+            "confidence": 0.5,
+            "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+        }]
+    })
+    engine = RMMEngine(config=minimal_config)
     # Target index on 2024-01-02 (second day)
     target_index = pd.date_range("2024-01-02 00:00", periods=6, freq="h")
     # Daily data for 2024-01-01 and 2024-01-02
@@ -378,8 +426,7 @@ def test_rmm_engine_classify_daily_end_to_end() -> None:
         ],
     }
 
-    engine = RMMEngine(config=config)
-    RMMEngine.validate_config(config)
+    engine = RMMEngine(config=_make_config(config))
 
     start = pd.Timestamp("2023-01-01")
     idx = [start + pd.Timedelta(hours=i) for i in range(48)]
@@ -412,12 +459,16 @@ def test_classify_regime_with_already_resampled_data() -> None:
     config = {
         "features": [],
         "regimes": [
-            {"label": "default", "conditions": [], "allowed_sides": ["long", "short"]}
+            {
+                "label": "default",
+                "confidence": 0.5,
+                "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 0.0}]}
+            }
         ],
         "timeframe": "1D",
     }
 
-    engine = RMMEngine(config=config)
+    engine = RMMEngine(config=_make_config(config))
 
     # Already resampled daily data
     df = pd.DataFrame(
@@ -447,12 +498,16 @@ def test_classify_regime_without_explicit_timeframe() -> None:
     config = {
         "features": [],
         "regimes": [
-            {"label": "default", "conditions": [], "allowed_sides": ["long", "short"]}
+            {
+                "label": "default",
+                "confidence": 0.5,
+                "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 0.0}]}
+            }
         ],
         "timeframe": "1H",
     }
 
-    engine = RMMEngine(config=config)
+    engine = RMMEngine(config=_make_config(config))
 
     df = pd.DataFrame(
         {
@@ -488,7 +543,7 @@ def test_calculates_atr_percentile() -> None:
         "regimes": [],
     }
 
-    engine = RMMEngine(config=config)
+    engine = RMMEngine(config=_make_config(config))
 
     # Create test data with known ATR pattern
     df = pd.DataFrame(
@@ -525,7 +580,7 @@ def test_calculates_realized_volatility() -> None:
         "regimes": [],
     }
 
-    engine = RMMEngine(config=config)
+    engine = RMMEngine(config=_make_config(config))
 
     # Create test data with varying returns
     close_prices = [100.0]
@@ -562,7 +617,7 @@ def test_calculates_volume_zscore() -> None:
         "regimes": [],
     }
 
-    engine = RMMEngine(config=config)
+    engine = RMMEngine(config=_make_config(config))
 
     # Create test data with spike in volume at the end
     volumes = [1000.0] * 40 + [3000.0] * 10  # Volume spike in last 10 bars
@@ -610,7 +665,7 @@ def test_predicate_percentile_is_above() -> None:
                         {
                             "condition": "percentile_is_above",
                             "left": {"ref": "atr_pct"},
-                            "right": {"value": 90},
+                            "right": 90,
                         }
                     ]
                 },
@@ -618,7 +673,7 @@ def test_predicate_percentile_is_above() -> None:
         ],
     }
 
-    engine = RMMEngine(config=config)
+    engine = RMMEngine(config=_make_config(config))
 
     # Create test data with dramatically increasing volatility at end
     highs = [101.0] * 30 + [101.0 + (i - 30) * 0.5 for i in range(30, 50)]
@@ -673,7 +728,7 @@ def test_predicate_volatility_is_between() -> None:
         ],
     }
 
-    engine = RMMEngine(config=config)
+    engine = RMMEngine(config=_make_config(config))
 
     # Create test data with moderate volatility
     close_prices = [100.0]

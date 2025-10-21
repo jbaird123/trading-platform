@@ -13,7 +13,7 @@ from trading_platform.core.config import FeatureType, PriceSource
 class RMMFeatureConfig(BaseModel):
     """Configuration for a single technical indicator/feature for RMM."""
 
-    model_config = {"extra": "forbid"}
+    model_config = {"extra": "forbid", "use_enum_values": True}
 
     name: str = Field(
         description="Local identifier used by conditions (e.g., ema_slope)."
