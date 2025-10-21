@@ -50,8 +50,8 @@ def when_backtest_is_run(shared_context: dict) -> None:
     if sl is not None or tp is not None:
         strategy = _dummy_strategy_with_sl_tp(float(sl or 0.0), float(tp or 0.0))
         rem_config = {
-            "stop_loss": {"price_offset": sl},
-            "take_profit": {"price_offset": tp},
+            "stop_loss": {"type": "offset", "price_offset": sl},
+            "take_profit": {"type": "offset", "price_offset": tp},
         }
     else:
         strategy = _dummy_strategy_cfg()
@@ -72,7 +72,7 @@ def when_backtest_is_run(shared_context: dict) -> None:
         execution_model="current_bar_close",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config=config.rem_config or {})
+    rem = RiskExitManager(config=config.rem_config or None)
     trades = run_backtest(
         market_data=shared_context["market_data"],
         signals=shared_context["signals"],

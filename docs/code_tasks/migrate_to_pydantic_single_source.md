@@ -58,12 +58,10 @@ def main():
     schemas_dir = Path("docs/schemas")
     schemas_dir.mkdir(exist_ok=True)
 
-    # Generate schemas
-    generate_schema(RunConfig, schemas_dir / "run_config.schema.json")
-    generate_schema(FeatureConfig, schemas_dir / "feature_config.schema.json")
+    # Generate schemas (currently only REMConfig requires a JSON export)
     generate_schema(REMConfig, schemas_dir / "rem.schema.json")
 
-    print("\n✅ All schemas generated from Pydantic models")
+    print("\n✅ Schema generated from Pydantic models")
 
 if __name__ == "__main__":
     main()

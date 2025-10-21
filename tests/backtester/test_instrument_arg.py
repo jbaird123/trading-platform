@@ -37,7 +37,7 @@ def test_backtester_uses_provided_instrument_symbol():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
 
     result = run_backtest(
         market_data=df,

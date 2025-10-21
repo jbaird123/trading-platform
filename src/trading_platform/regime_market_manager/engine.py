@@ -8,6 +8,7 @@ from typing import Any
 import pandas as pd
 
 from trading_platform.data.schema import resample_ohlc
+from trading_platform.regime_market_manager.models import RMMConfig
 from trading_platform.strategy.features import compute_features
 
 
@@ -101,20 +102,7 @@ def _eval_block(df: pd.DataFrame, block: dict[str, Any]) -> pd.Series:
 
 @dataclass(frozen=True)
 class RMMEngine:
-    config: dict[str, Any]
-
-    @staticmethod
-    def validate_config(cfg: dict[str, Any]) -> None:
-        """Validate RMM configuration.
-
-        Note: JSON schema validation removed. Pydantic will be the validation
-        source when RMM Pydantic model is implemented. JSON schemas are for
-        documentation only.
-
-        TODO: Replace with Pydantic validation when RMM model is implemented.
-        """
-        # Basic validation only - no JSON schema validation
-        pass
+    config: RMMConfig
 
     def classify_regime(
         self,
@@ -136,7 +124,7 @@ class RMMEngine:
         Returns:
             DataFrame with: label, confidence, and all computed regime features.
         """
-        cfg = self.config
+        cfg = self.config.model_dump(exclude_none=True)
         feats = list(cfg.get("features") or [])
         regimes = list(cfg.get("regimes") or [])
 

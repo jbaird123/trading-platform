@@ -1984,7 +1984,7 @@ def test_run_parameter_sweep_returns_top_and_results():
         "position_size": 10000.0,
         "warmup_bars": 0,
         "tie_break_policy": {"rule": "stop_then_tp"},
-        "rem_config": {"stop_loss": {"price_offset": 0.002}},
+        "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
         "instrument": {"symbol": "EURUSD"},
     }
     strat_cfg = _strategy_cfg()
@@ -2008,7 +2008,7 @@ def test_parameter_sweep_pnl_minus_dd_objective():
         "position_size": 10000.0,
         "warmup_bars": 0,
         "tie_break_policy": {"rule": "stop_then_tp"},
-        "rem_config": {"stop_loss": {"price_offset": 0.002}},
+        "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
         "instrument": {"symbol": "EURUSD"},
     }
     strat_cfg = _strategy_cfg()
@@ -2030,7 +2030,7 @@ def test_parameter_sweep_pnl_dd_vol_objective():
         "position_size": 10000.0,
         "warmup_bars": 0,
         "tie_break_policy": {"rule": "stop_then_tp"},
-        "rem_config": {"stop_loss": {"price_offset": 0.002}},
+        "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
         "instrument": {"symbol": "EURUSD"},
     }
     strat_cfg = _strategy_cfg()

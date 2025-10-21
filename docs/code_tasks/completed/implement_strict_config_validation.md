@@ -15,6 +15,11 @@
 
 ## Phase 1: Schema Audit & Gap Analysis
 
+> **Note:** The legacy JSON schemas referenced in this section have since been
+> replaced by the `StrategyConfig` Pydantic model in
+> `src/trading_platform/strategy/models.py`. The audit details are kept for
+> historical context.
+
 ### Task 1: Audit strategy.schema.json Against Implementation
 
 **Objective:** Verify that every feature, condition, and predicate defined in `docs/schemas/strategy.schema.json` is actually implemented in `src/trading_platform/strategy/`.
@@ -81,14 +86,14 @@
 
 ### Task 3: Audit rem.schema.json Against Implementation ✅ COMPLETE
 
-**Objective:** Verify that every REM exit rule type defined in `docs/schemas/rem.schema.json` is implemented in `src/trading_platform/risk_manager/core.py`.
+**Objective:** Verify that every REM exit rule type defined in `REMConfig.model_json_schema()` (legacy file removed) is implemented in `src/trading_platform/risk_manager/core.py`.
 
 **Steps:**
 
 1. [x] **Create audit document**: Create `docs/schema_audits/rem_schema_audit.md`
 
 2. [x] **List all exit rule types from schema**:
-   - Read `docs/schemas/rem.schema.json`
+   - Read `REMConfig.model_json_schema()` (legacy file removed)
    - Extract: `absolute_price`, `price_offset`, `pips`, `atr_multiple`, etc.
 
 3. [x] **Cross-reference with RiskExitManager**:
@@ -120,7 +125,7 @@
 1. [x] **Create audit document**: Create `docs/schema_audits/rem_dynamic_schema_audit.md`
 
 2. [x] **List all DynamicREM features**:
-   - Read `docs/schemas/rem_dynamic.schema.json`
+   - Read `DynamicREMConfig.model_json_schema()` (legacy file removed)
    - List: breakeven, partial_exits, trailing_stop, volatility_tightening, etc.
 
 3. [x] **Cross-reference with DynamicREM class**:
@@ -134,7 +139,7 @@
 
 ---
 
-### Task 5: Audit run_config.schema.json Against Implementation ✅ COMPLETE
+### Task 5: Audit run_config.schema.json Against Implementation ✅ COMPLETE (Historical)
 
 **Objective:** Verify RunConfig schema against `src/trading_platform/core/config.py`.
 
@@ -143,7 +148,7 @@
 1. [x] **Create audit document**: Create `docs/schema_audits/run_config_schema_audit.md`
 
 2. [x] **List all RunConfig properties**:
-   - Read `docs/schemas/run_config.schema.json`
+   - Read `docs/schemas/run_config.schema.json` (legacy – validation now handled by `RunConfig` Pydantic model)
    - List all top-level properties and their types
 
 3. [x] **Cross-reference with RunConfig dataclass**:
@@ -172,7 +177,7 @@
    ```
 
 2. [x] **Replace rem.schema.json** with new design:
-   - File: `docs/schemas/rem.schema.json`
+   - File: `REMConfig.model_json_schema()` (legacy file removed)
    - Use the schema design from our discussion above
    - Key changes:
      - Remove `atr_multiple`, `atr_length` from levelRule

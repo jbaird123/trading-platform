@@ -13,8 +13,6 @@ import json
 from pathlib import Path
 
 from trading_platform.core.config import FeatureConfig, RunConfig
-from trading_platform.risk_manager.models import REMConfig
-from trading_platform.strategy.models import StrategyConfig
 
 
 def generate_schema(model_class, output_path: Path) -> None:
@@ -46,12 +44,7 @@ def main() -> None:
 
     # Generate schemas for each model
     # Order matters - dependencies should come first
-    schemas_to_generate = [
-        (FeatureConfig, "feature_config.schema.json"),
-        (RunConfig, "run_config.schema.json"),
-        (REMConfig, "rem.schema.json"),
-        (StrategyConfig, "strategy.schema.json"),
-    ]
+    schemas_to_generate = []
 
     for model_class, filename in schemas_to_generate:
         output_path = schemas_dir / filename

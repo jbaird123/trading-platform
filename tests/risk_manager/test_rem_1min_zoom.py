@@ -71,7 +71,12 @@ def test_rem_detects_trailing_stop_ambiguity_and_zooms_to_1min(
     mock_data_handler.get_data.return_value = bars_1min
 
     # Configure REM with 20-pip trailing stop
-    config = {"trailing_stop": {"pips": 20}}
+    config = {
+        "stop_loss": {"type": "fixed_pips", "pips": 50},
+        "trailing_stop": {
+            "distance": {"type": "fixed_pips", "pips": 20},
+        },
+    }
 
     rem = RiskExitManager(config=config, instrument=mock_instrument)
 
@@ -138,7 +143,12 @@ def test_rem_zooms_and_detects_trailing_stop_hit_on_1min_bar(
     )
     mock_data_handler.get_data.return_value = bars_1min
 
-    config = {"trailing_stop": {"pips": 20}}
+    config = {
+        "stop_loss": {"type": "fixed_pips", "pips": 50},
+        "trailing_stop": {
+            "distance": {"type": "fixed_pips", "pips": 20},
+        },
+    }
     rem = RiskExitManager(config=config, instrument=mock_instrument)
 
     result = rem.check_exits(position, current_bar, data_handler=mock_data_handler)
@@ -175,7 +185,12 @@ def test_rem_does_not_zoom_when_no_ambiguity(mock_instrument, mock_data_handler)
         name=pd.Timestamp("2023-01-01 11:00:00", tz="UTC"),
     )
 
-    config = {"trailing_stop": {"pips": 20}}
+    config = {
+        "stop_loss": {"type": "fixed_pips", "pips": 50},
+        "trailing_stop": {
+            "distance": {"type": "fixed_pips", "pips": 20},
+        },
+    }
     rem = RiskExitManager(config=config, instrument=mock_instrument)
 
     result = rem.check_exits(position, current_bar, data_handler=mock_data_handler)
@@ -237,7 +252,12 @@ def test_rem_trailing_stop_with_favorable_movement_zooms_correctly(
     )
     mock_data_handler.get_data.return_value = bars_1min
 
-    config = {"trailing_stop": {"pips": 20}}
+    config = {
+        "stop_loss": {"type": "fixed_pips", "pips": 50},
+        "trailing_stop": {
+            "distance": {"type": "fixed_pips", "pips": 20},
+        },
+    }
     rem = RiskExitManager(config=config, instrument=mock_instrument)
 
     result = rem.check_exits(position, current_bar, data_handler=mock_data_handler)
@@ -296,7 +316,12 @@ def test_rem_short_position_trailing_stop_zoom(mock_instrument, mock_data_handle
     )
     mock_data_handler.get_data.return_value = bars_1min
 
-    config = {"trailing_stop": {"pips": 20}}
+    config = {
+        "stop_loss": {"type": "fixed_pips", "pips": 50},
+        "trailing_stop": {
+            "distance": {"type": "fixed_pips", "pips": 20},
+        },
+    }
     rem = RiskExitManager(config=config, instrument=mock_instrument)
 
     result = rem.check_exits(position, current_bar, data_handler=mock_data_handler)
@@ -357,7 +382,10 @@ def test_rem_fixed_stop_and_tp_both_ambiguous_zooms_to_1min(
     mock_data_handler.get_data.return_value = bars_1min
 
     # Configure with both fixed stop and TP
-    config = {"stop_loss": {"pips": 20}, "take_profit": {"pips": 50}}
+    config = {
+        "stop_loss": {"type": "fixed_pips", "pips": 20},
+        "take_profit": {"type": "fixed_pips", "pips": 50},
+    }
     rem = RiskExitManager(config=config, instrument=mock_instrument)
 
     result = rem.check_exits(position, current_bar, data_handler=mock_data_handler)
@@ -422,7 +450,10 @@ def test_rem_fixed_stop_tp_ambiguous_tp_hits_first(mock_instrument, mock_data_ha
     )
     mock_data_handler.get_data.return_value = bars_1min
 
-    config = {"stop_loss": {"pips": 20}, "take_profit": {"pips": 50}}
+    config = {
+        "stop_loss": {"type": "fixed_pips", "pips": 20},
+        "take_profit": {"type": "fixed_pips", "pips": 50},
+    }
     rem = RiskExitManager(config=config, instrument=mock_instrument)
 
     result = rem.check_exits(position, current_bar, data_handler=mock_data_handler)

@@ -91,7 +91,7 @@ def test_rmm_blocks_signal_not_in_allowed_sides():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
 
     trades_list, _, skipped_list = cast(
         BacktestTriple,
@@ -148,7 +148,7 @@ def test_rmm_allows_signal_opens_position() -> None:
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
 
     trades = run_backtest(
         market_data=df,
@@ -190,7 +190,7 @@ def test_return_skips_only():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
 
     result = run_backtest(
         market_data=df,
@@ -386,7 +386,7 @@ def test_backtester_with_rem_pips_stop_loss():
         position_size=1.0,
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
-        rem_config={"stop_loss": {"pips": 50}},
+        rem_config={"stop_loss": {"type": "fixed_pips", "pips": 50}},
         instrument=_instrument("EURUSD"),
     )
     rem = RiskExitManager(config=config.rem_config or {}, instrument=config.instrument)
@@ -636,7 +636,7 @@ def test_rmm_context_enrichment_in_trades_and_skips():
         exit_tie_break="stop_then_tp",
     )
 
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
 
     # Run backtest with RMM context - signals are passed directly to run_backtest
     trades_list, _, skipped_list = cast(
@@ -805,7 +805,7 @@ def test_entry_window_allows_delayed_entry():
         execution_model="current_bar_close",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
 
     trades_list, _, skipped_list = cast(
         BacktestTriple,
@@ -899,7 +899,7 @@ def test_entry_window_expires():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
 
     trades_list, _, skipped_list = cast(
         BacktestTriple,
@@ -971,7 +971,7 @@ def test_entry_window_prevents_reentry_after_rem_exit():
         execution_model="current_bar_close",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
 
     result = run_backtest(
         market_data=df,
@@ -1047,7 +1047,7 @@ def test_backtester_executes_pending_exit_at_next_bar_open():
     # Create a minimal REM (required parameter)
     from trading_platform.risk_manager.core import RiskExitManager
 
-    rem = RiskExitManager(config={}, instrument=TEST_INSTRUMENT)
+    rem = RiskExitManager(config=None, instrument=TEST_INSTRUMENT)
 
     # Run backtest
     result = run_backtest(
@@ -1127,7 +1127,7 @@ def test_backtester_handles_flip_with_next_bar_open():
     # Create a minimal REM
     from trading_platform.risk_manager.core import RiskExitManager
 
-    rem = RiskExitManager(config={}, instrument=TEST_INSTRUMENT)
+    rem = RiskExitManager(config=None, instrument=TEST_INSTRUMENT)
 
     # Run backtest
     result = run_backtest(

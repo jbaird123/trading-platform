@@ -1,10 +1,9 @@
 # Validates: [SE-3.3]
-import json
-from pathlib import Path
-
 import pytest
 import yaml
-from jsonschema import ValidationError, validate
+from pydantic import ValidationError
+
+from trading_platform.strategy.models import StrategyConfig
 
 # A strategy that violates SE-3.3 by including a risk management block.
 INVALID_STRATEGY_YAML = """
@@ -34,31 +33,17 @@ risk:
     type: fixed
     value: 100
 """
-
-
-def get_strategy_schema():
-    """Loads the strategy JSON schema."""
-    schema_path = (
-        Path(__file__).resolve().parents[2]
-        / "docs"
-        / "schemas"
-        / "strategy.schema.json"
-    )
-    return json.loads(schema_path.read_text())
-
-
 def test_strategy_with_risk_block_fails_validation():
     """
     Tests that a strategy definition with a 'risk' block fails validation
-    against the strategy schema, enforcing SE-3.3.
+    against the StrategyConfig Pydantic model, enforcing SE-3.3.
     """
-    strategy_schema = get_strategy_schema()
     invalid_strategy_config = yaml.safe_load(INVALID_STRATEGY_YAML)
 
     with pytest.raises(ValidationError) as excinfo:
-        validate(instance=invalid_strategy_config, schema=strategy_schema)
+        StrategyConfig.model_validate(invalid_strategy_config)
 
     # Check that the error is about the unexpected 'risk' property
-    assert "Additional properties are not allowed ('risk' was unexpected)" in str(
-        excinfo.value
-    )
+    message = str(excinfo.value)
+    assert "risk" in message
+    assert "Extra inputs are not permitted" in message

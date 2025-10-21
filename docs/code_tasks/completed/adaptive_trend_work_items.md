@@ -25,12 +25,12 @@ that cannot be expressed with current YAML predicates.
 1. **Indicator Registry Extension:**
    - Add EMA slope, higher-timeframe EMA, RSI, and rate-of-change indicators to
      `src/trading_platform/strategy/indicators_registry.py`.
-   - Update `docs/schemas/strategy.schema.json` and loader logic so new features
-     validate and expose config knobs (`slope_window`, `roc_period`, etc.).
+   - Update the indicator registry and associated loaders so new features validate
+     and expose config knobs (`slope_window`, `roc_period`, etc.) via `StrategyConfig`.
 2. **Strategy Predicate Expansion:**
    - Support predicates like `slope_is_above` or `roc_is_above` within
      `yaml_strategy.py`, enabling slope/ROC gating without hardcoded logic.
-   - Ensure schema and unit tests cover these new predicates.
+   - Ensure `StrategyConfig` validation and unit tests cover these new predicates.
 3. **Higher Timeframe Trend Feature (optional):**
    - Add utility to compute a higher-timeframe EMA/ADX and expose it as a
      contextual feature (requires multi-resolution caching in DataHandler or a

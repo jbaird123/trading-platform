@@ -5,71 +5,12 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from . import paths
 from .utils import gen_run_id, normalize_symbol
 
 logger = logging.getLogger(__name__)
-
-
-class FeatureType(str, Enum):
-    """Valid technical indicator types.
-
-    STRICT VALIDATION: Only these indicator types are supported.
-    Unknown types will be rejected at config load time.
-    """
-    # Moving Averages
-    SMA = "SMA"
-    EMA = "EMA"
-    EMA_SLOPE = "EMASlope"
-    WMA = "WMA"
-
-    # Trend Indicators
-    MACD = "MACD"
-    PSAR = "PSAR"
-    ADX = "ADX"
-    SUPERTREND = "SUPERTREND"
-    ICHIMOKU = "ICHIMOKU"
-
-    # Oscillators
-    RSI = "RSI"
-    STOCH = "STOCH"
-    CCI = "CCI"
-    ROC = "ROC"
-
-    # Volatility
-    BB = "BB"
-    BB_WIDTH = "BBWidth"
-    ATR = "ATR"
-    ATR_PERCENTILE = "ATRPercentile"
-    CHOP = "CHOP"
-    KC = "KC"
-    DC = "DC"
-    REALIZED_VOLATILITY = "RealizedVolatility"
-
-    # Volume
-    OBV = "OBV"
-    CMF = "CMF"
-    VOLUME_ZSCORE = "VolumeZScore"
-    VWAP = "VWAP"
-
-    # Price Patterns
-    HHV = "HHV"
-    LLV = "LLV"
-    FIB = "FIB"
-
-    # Candlestick Patterns
-    CDL_DOJI = "CDL_DOJI"
-    CDL_HAMMER = "CDL_HAMMER"
-    CDL_ENGULFING = "CDL_ENGULFING"
-    CDL_MORNINGSTAR = "CDL_MORNINGSTAR"
-    CDL_EVENINGSTAR = "CDL_EVENINGSTAR"
-    CDL_HARAMI = "CDL_HARAMI"
-
-    # Swing Points
-    SWING_HIGH = "SWING_HIGH"
-    SWING_LOW = "SWING_LOW"
 
 
 class PriceSource(str, Enum):
@@ -89,14 +30,18 @@ class FeatureConfig(BaseModel):
     """Configuration for a single technical indicator/feature.
 
     STRICT VALIDATION:
-    - type must be from FeatureType enum (no typos allowed)
+    - type must exist in the unified indicator registry
     - source must be from PriceSource enum if provided
     """
 
     model_config = {"extra": "forbid"}
 
     name: str = Field(description="Local identifier for the feature.")
-    type: FeatureType = Field(description="Indicator type from FeatureType enum.")
+    type: str = Field(
+        description=(
+            "Indicator type registered in the unified indicator registry (e.g., 'EMA')."
+        )
+    )
     params: dict[str, Any] | None = Field(
         default=None, description="Indicator-specific parameters."
     )
@@ -107,13 +52,32 @@ class FeatureConfig(BaseModel):
     source_ref: dict[str, Any] | None = Field(
         default=None, description="Reference another feature as input series."
     )
+    timeframe: str | None = Field(
+        default=None,
+        description=(
+            "Optional pandas offset alias for higher-timeframe resampling. "
+            "When provided, the feature will be computed on resampled data."
+        ),
+    )
+
+    @field_validator("type")
+    @classmethod
+    def validate_indicator_type(cls, value: str) -> str:
+        from trading_platform.strategy.indicators_registry import INDICATORS
+
+        if value not in INDICATORS:
+            allowed = ", ".join(sorted(INDICATORS))
+            raise ValueError(
+                f"Unknown indicator type '{value}'. Must be one of: {allowed}."
+            )
+        return value
 
 
 # Default contextual features computed on every run
 DEFAULT_CONTEXTUAL_FEATURES: list[FeatureConfig] = [
-    FeatureConfig(name="ctx_atr", type=FeatureType.ATR, params={"length": 14}),
-    FeatureConfig(name="ctx_rsi", type=FeatureType.RSI, params={"length": 14}),
-    FeatureConfig(name="ctx_ema_slow", type=FeatureType.EMA, params={"length": 200}),
+    FeatureConfig(name="ctx_atr", type="ATR", params={"length": 14}),
+    FeatureConfig(name="ctx_rsi", type="RSI", params={"length": 14}),
+    FeatureConfig(name="ctx_ema_slow", type="EMA", params={"length": 200}),
 ]
 
 

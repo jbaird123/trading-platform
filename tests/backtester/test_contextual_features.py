@@ -60,7 +60,9 @@ def test_backtester_adds_contextual_features_to_trade_context() -> None:
     )
 
     # Create a basic REM (risk exit manager)
-    rem = RiskExitManager(config={"stop_loss_points": 10.0})
+    rem = RiskExitManager(
+        config={"stop_loss": {"type": "offset", "price_offset": 0.0010}}
+    )
 
     # Run backtest
     trades = run_backtest(
@@ -145,7 +147,9 @@ def test_trade_context_always_includes_volume() -> None:
     )
 
     # Create a basic REM
-    rem = RiskExitManager(config={"stop_loss_points": 10.0})
+    rem = RiskExitManager(
+        config={"stop_loss": {"type": "offset", "price_offset": 0.0010}}
+    )
 
     # Run backtest
     trades = run_backtest(

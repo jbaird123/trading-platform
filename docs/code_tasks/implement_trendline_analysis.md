@@ -79,6 +79,6 @@ Before starting, create and switch to the specified branch:
     -   For each candle, it will calculate the trendline's value at that point in time and compare it to the candle's price to detect a cross.
     -   This may require adding a new function to a file like `src/trading_platform/strategy/features/signal_functions.py`.
 
-12. [ ] **Update Indicator Registry and Schema:**
+12. [ ] **Update Indicator Registry and Validation:**
     -   In `src/trading_platform/strategy/indicators_registry.py`, add `TRENDLINE_BREAK` as a new available feature.
-    -   In `docs/schemas/strategy.schema.json`, update the feature type enum to include `TRENDLINE_BREAK`, allowing it to be used in strategy YAML files.
+    -   The `FeatureConfig` Pydantic model validates against the registry, so no additional schema updates are required.

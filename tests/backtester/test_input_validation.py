@@ -61,7 +61,7 @@ def test_validation_missing_columns():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
     with pytest.raises(ValueError, match="missing required columns"):
         run_backtest(df, sig, strategy=_dummy_strategy(), config=config, rem=rem)
 
@@ -81,7 +81,7 @@ def test_validation_close_has_nans():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
     with pytest.raises(ValueError, match="close has NaNs"):
         run_backtest(df, sig, strategy=_dummy_strategy(), config=config, rem=rem)
 
@@ -100,7 +100,7 @@ def test_validation_length_mismatch():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
     with pytest.raises(ValueError, match="signals length "):
         run_backtest(df, sig, strategy=_dummy_strategy(), config=config, rem=rem)
 
@@ -120,6 +120,6 @@ def test_validation_invalid_signal_value():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
     with pytest.raises(ValueError, match="invalid command values"):
         run_backtest(df, sig, strategy=_dummy_strategy(), config=config, rem=rem)

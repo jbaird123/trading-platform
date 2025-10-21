@@ -1,7 +1,7 @@
 # Strategy Schema Audit
 
 **Date:** 2025-10-19
-**Schema File:** `docs/schemas/strategy.schema.json`
+**Status:** Legacy JSON schema (replaced by the `StrategyConfig` Pydantic model in `src/trading_platform/strategy/models.py`).
 **Implementation Files:**
 - `src/trading_platform/strategy/indicators_registry.py`
 - `src/trading_platform/strategy/yaml_strategy.py`

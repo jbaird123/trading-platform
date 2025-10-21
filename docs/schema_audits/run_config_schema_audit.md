@@ -1,7 +1,7 @@
 # RunConfig Schema Audit
 
 **Date:** 2025-10-19
-**Schema File:** `docs/schemas/run_config.schema.json`
+**Status:** Legacy JSON schema (replaced by the `RunConfig` Pydantic model in `src/trading_platform/core/config.py`).
 **Implementation File:** `src/trading_platform/core/config.py`
 
 ---

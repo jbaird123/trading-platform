@@ -15,6 +15,14 @@ from typing import Any
 
 from trading_platform.portfolio.position import Position
 
+from trading_platform.risk_manager.models import (
+    ATRDistanceRule,
+    DynamicREMConfig,
+    DynamicTrailingStopRule,
+    PartialExitRule,
+    PriceOffsetRule,
+)
+
 
 class DynamicREM:
     """Dynamic Risk & Exit Manager with advanced position management.
@@ -26,24 +34,35 @@ class DynamicREM:
     - Volatility-aware stop adjustments
     """
 
-    def __init__(self, config: dict[str, Any]):
+    def __init__(self, config: DynamicREMConfig | dict[str, Any]):
         """Initialize DynamicREM with configuration.
 
         Args:
-            config: Configuration dictionary with:
-                - stop_loss: dict with atr_multiple or price_offset
-                - take_profit: dict with atr_multiple or price_offset
+            config: Configuration validated by DynamicREMConfig with:
+                - stop_loss: REM stop rule payload (see `StopRule`)
+                - take_profit: Optional REM stop rule payload
                 - breakeven_threshold: R-multiple to trigger breakeven (optional)
-                - partial_exits: list of {r_multiple, fraction} (optional)
-                - trailing_stop: dict with atr_multiple (optional)
+                - partial_exits: Sequence of {r_multiple, fraction}
+                - trailing_stop: Distance definition (`offset` or `atr`) with
+                  optional `activate_after_partial`
                 - volatility_threshold: ADX threshold for tightening (optional)
+                - low_volatility_multiplier: Multiplier applied when ADX < threshold
         """
-        self.config = config
-        self.breakeven_threshold = config.get("breakeven_threshold")
-        self.partial_exits = config.get("partial_exits", [])
-        self.trailing_config = config.get("trailing_stop")
-        self.volatility_threshold = config.get("volatility_threshold")
-        self.low_volatility_multiplier = config.get("low_volatility_multiplier", 1.0)
+        if isinstance(config, DynamicREMConfig):
+            model = config
+        elif isinstance(config, dict):
+            model = DynamicREMConfig(**config)
+        else:
+            raise TypeError(
+                f"config must be DynamicREMConfig or dict, got {type(config)}"
+            )
+
+        self.config = model
+        self.breakeven_threshold = model.breakeven_threshold
+        self.partial_exits: list[PartialExitRule] = list(model.partial_exits)
+        self.trailing_config: DynamicTrailingStopRule | None = model.trailing_stop
+        self.volatility_threshold = model.volatility_threshold
+        self.low_volatility_multiplier = model.low_volatility_multiplier
 
         # Task 34: Statistics tracking
         self.stats = {
@@ -55,6 +74,36 @@ class DynamicREM:
 
         # Track which partial exits have already been triggered per position
         self._triggered_partial_exits: dict[str, set[float]] = {}
+
+    def _distance_value(
+        self,
+        rule: PriceOffsetRule | ATRDistanceRule,
+        atr: float | None,
+    ) -> float | None:
+        """Resolve trailing distance into canonical price units."""
+
+        if isinstance(rule, PriceOffsetRule):
+            return float(rule.price_offset)
+        if isinstance(rule, ATRDistanceRule):
+            if atr is None:
+                return None
+            return float(rule.multiplier) * float(atr)
+        raise TypeError(f"Unsupported distance rule: {type(rule)}")
+
+    def _apply_volatility_multiplier(
+        self,
+        distance: float,
+        context: dict[str, Any] | None,
+    ) -> float:
+        """Apply low-volatility tightening when ADX falls below threshold."""
+
+        if self.volatility_threshold is None or context is None:
+            return distance
+        adx = context.get("adx")
+        if adx is None or adx >= self.volatility_threshold:
+            return distance
+        self.stats["volatility_tightenings"] += 1
+        return distance * self.low_volatility_multiplier
 
     def manage_position(
         self,
@@ -97,63 +146,49 @@ class DynamicREM:
                 # Task 34: Track breakeven triggers
                 self.stats["breakeven_triggers"] += 1
 
-            # ATR trailing stop after partial exit (Task 17)
-            if (
-                self.trailing_config
-                and atr
-                and partial_exits_triggered
-                and self.trailing_config.get("activate_after_partial")
-            ):
-                atr_multiple = self.trailing_config.get("atr_multiple", 1.0)
+            trailing = self.trailing_config
+            if trailing:
+                activate_after_partial = trailing.activate_after_partial
+                should_activate = True
+                if activate_after_partial and not partial_exits_triggered:
+                    should_activate = False
 
-                # Volatility-aware adjustment (Task 21)
-                if self.volatility_threshold and context:
-                    adx = context.get("adx")
-                    if adx is not None and adx < self.volatility_threshold:
-                        # Tighten stop when volatility is low
-                        atr_multiple *= self.low_volatility_multiplier
-                        # Task 34: Track volatility tightenings
-                        self.stats["volatility_tightenings"] += 1
+                if should_activate:
+                    dist_raw = self._distance_value(trailing.distance, atr)
+                    if dist_raw is not None:
+                        dist_t = self._apply_volatility_multiplier(dist_raw, context)
 
-                if position.side == "long":
-                    trailing_stop = current_price - (atr_multiple * atr)
-                    # Only move stop up, never down
-                    if stop is None or trailing_stop > stop:
-                        stop = trailing_stop
-                        # Task 34: Track trailing stop activations
-                        self.stats["trailing_stop_activations"] += 1
-                else:  # short
-                    trailing_stop = current_price + (atr_multiple * atr)
-                    # Only move stop down, never up
-                    if stop is None or trailing_stop < stop:
-                        stop = trailing_stop
-                        # Task 34: Track trailing stop activations
-                        self.stats["trailing_stop_activations"] += 1
+                        size = float(position.size) if position.size else 1.0
+                        mfe = float(position.mfe_currency or 0.0) / size
 
-            # Simple trailing stop without partial exit requirement (Task 21)
-            elif self.trailing_config and atr:
-                atr_multiple = self.trailing_config.get("atr_multiple", 1.0)
+                        if position.side == "long":
+                            peak = float(
+                                max(position.entry_price, position.entry_price + mfe)
+                            )
+                            initial = position.entry_price - dist_t
+                            trail_price = max(initial, peak - dist_t)
+                            potential_peak = max(peak, float(current_price))
+                            potential_trail = max(initial, potential_peak - dist_t)
 
-                # Volatility-aware adjustment (Task 21)
-                if self.volatility_threshold and context:
-                    adx = context.get("adx")
-                    if adx is not None and adx < self.volatility_threshold:
-                        atr_multiple *= self.low_volatility_multiplier
-                        # Task 34: Track volatility tightenings
-                        self.stats["volatility_tightenings"] += 1
+                            if stop is None or trail_price > stop:
+                                stop = trail_price
+                                self.stats["trailing_stop_activations"] += 1
+                            if stop is not None and potential_trail > stop:
+                                stop = potential_trail
+                        else:
+                            trough = float(
+                                min(position.entry_price, position.entry_price - mfe)
+                            )
+                            initial = position.entry_price + dist_t
+                            trail_price = min(initial, trough + dist_t)
+                            potential_trough = min(trough, float(current_price))
+                            potential_trail = min(initial, potential_trough + dist_t)
 
-                if position.side == "long":
-                    trailing_stop = current_price - (atr_multiple * atr)
-                    if stop is None or trailing_stop > stop:
-                        stop = trailing_stop
-                        # Task 34: Track trailing stop activations
-                        self.stats["trailing_stop_activations"] += 1
-                else:  # short
-                    trailing_stop = current_price + (atr_multiple * atr)
-                    if stop is None or trailing_stop < stop:
-                        stop = trailing_stop
-                        # Task 34: Track trailing stop activations
-                        self.stats["trailing_stop_activations"] += 1
+                            if stop is None or trail_price < stop:
+                                stop = trail_price
+                                self.stats["trailing_stop_activations"] += 1
+                            if stop is not None and potential_trail < stop:
+                                stop = potential_trail
 
         return stop, tp
 
@@ -211,8 +246,8 @@ class DynamicREM:
 
         # Check each partial exit target (Task 15)
         for exit_config in self.partial_exits:
-            target_r = exit_config.get("r_multiple", 0)
-            fraction = exit_config.get("fraction", 0)
+            target_r = float(exit_config.r_multiple)
+            fraction = float(exit_config.fraction)
 
             # Use epsilon for floating point comparison
             # Only trigger if not already triggered

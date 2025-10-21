@@ -6,20 +6,37 @@ from typing import Any
 
 from .core import RiskExitManager
 from .dynamic_rem import DynamicREM
-from .models import ATRStopParams, FixedPipStop, IndicatorStop, REMConfig
+from .models import (
+    AbsoluteLevelRule,
+    ATRDistanceRule,
+    DynamicREMConfig,
+    DynamicTrailingStopRule,
+    FixedPipsRule,
+    IndicatorRule,
+    PriceOffsetRule,
+    ReferenceRule,
+    REMConfig,
+    TrailingStopRule,
+)
 
 __all__ = [
     "RiskExitManager",
     "DynamicREM",
     "create_rem",
     "REMConfig",
-    "FixedPipStop",
-    "IndicatorStop",
-    "ATRStopParams",
+    "AbsoluteLevelRule",
+    "PriceOffsetRule",
+    "FixedPipsRule",
+    "IndicatorRule",
+    "ReferenceRule",
+    "TrailingStopRule",
+    "ATRDistanceRule",
+    "DynamicTrailingStopRule",
+    "DynamicREMConfig",
 ]
 
 
-def create_rem(config: dict[str, Any]) -> DynamicREM:
+def create_rem(config: DynamicREMConfig | dict[str, Any]) -> DynamicREM:
     """Factory function to create DynamicREM with schema validation.
 
     Task 19: Wire DynamicREM into factory with schema validation.
@@ -34,12 +51,11 @@ def create_rem(config: dict[str, Any]) -> DynamicREM:
     Raises:
         ValueError: If config is invalid or fails schema validation
     """
-    if not isinstance(config, dict):
+    if isinstance(config, DynamicREMConfig):
+        model = config
+    elif isinstance(config, dict):
+        model = DynamicREMConfig(**config)
+    else:
         raise ValueError("REM config must be a dictionary")
 
-    # Note: JSON schema validation removed. Pydantic will be the validation
-    # source when DynamicREM Pydantic model is implemented. JSON schemas are
-    # for documentation only.
-    # TODO: Replace with Pydantic validation when DynamicREM model is implemented
-
-    return DynamicREM(config)
+    return DynamicREM(model)

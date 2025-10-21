@@ -150,7 +150,7 @@ def test_cmd_run_backtest_saves_rmm_spans_artifact(
                     "label": "daily_trend",
                     "conditions": {
                         "all_of": [
-                            {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 0}}
+                            {"condition": "is_above", "left": "close", "right": 0}
                         ]
                     },
                     "confidence": 1.0,

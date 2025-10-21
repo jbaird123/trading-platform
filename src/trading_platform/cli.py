@@ -31,6 +31,7 @@ from trading_platform.execution.oanda_stub import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
 from trading_platform.regime_market_manager.engine import RMMEngine
+from trading_platform.regime_market_manager.models import RMMConfig
 from trading_platform.reporting.brief import compute_data_quality
 from trading_platform.reporting.chart_export import (
     save_chart_from_brief,
@@ -282,30 +283,31 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     rmm_cfg: dict[str, Any] | None = cfg_raw.get("rmm_config")
     rmm_spans_path: Path | None = None
     if isinstance(rmm_cfg, dict) and rmm_cfg:
-        try:
-            RMMEngine.validate_config(rmm_cfg)
-        except Exception as exc:  # pragma: no cover
-            raise SystemExit(f"RMM config validation failed: {exc}") from exc
-        rmm_engine = RMMEngine(config=rmm_cfg)
-        regime_timeframe = rmm_cfg.get("timeframe", "1D")
+        # Validate and create the RMM engine using the Pydantic model
+        rmm_config = RMMConfig(**rmm_cfg)
+        rmm_engine = RMMEngine(config=rmm_config)
+
+        regime_timeframe = rmm_config.timeframe or "1D"
         classify_regime = getattr(rmm_engine, "classify_regime", None)
         if callable(classify_regime):
             regimes = classify_regime(df, timeframe=regime_timeframe)
         else:
+            # This path is for legacy compatibility, can be removed later
             classify_daily = getattr(rmm_engine, "classify_daily", None)
             if not callable(classify_daily):
                 raise SystemExit(
                     "RMM engine must implement classify_regime or classify_daily"
                 )
             regimes = classify_daily(df)
-        rmm_policy = rmm_cfg.get("policy") or {}
+
+        rmm_policy = rmm_config.policy.model_dump() if rmm_config.policy else {}
         per_bar = rmm_engine.project_to_index(
             regimes, cast(pd.DatetimeIndex, df.index), policy=rmm_policy
         )
         # Extract regime feature names from config
-        feature_names = [
-            f.get("name") for f in rmm_cfg.get("features", []) if f.get("name")
-        ]
+        feature_names = (
+            [f.name for f in rmm_config.features if f.name] if rmm_config.features else []
+        )
 
         # Build RMM context with full precision - rounding happens in brief.py
         rmm_context = {

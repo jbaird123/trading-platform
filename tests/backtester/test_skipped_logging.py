@@ -53,7 +53,7 @@ def test_skip_logged_for_blackout():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
     result = run_backtest(
         market_data=df,
         signals=sig,
@@ -89,7 +89,7 @@ def test_skip_logged_for_position_cap():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
     result = run_backtest(
         market_data=df,
         signals=sig,

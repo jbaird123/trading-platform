@@ -4,13 +4,21 @@ from typing import Any, cast
 
 import pandas as pd
 
+import trading_platform.risk_manager.rem_indicators as rem_indicators
 from trading_platform.core.signal import Signal
 from trading_platform.portfolio.position import Position
 from trading_platform.risk_manager.exit_utils import (
     is_fixed_stops_ambiguous,
     is_trailing_stop_ambiguous,
 )
-from trading_platform.risk_manager.models import REMConfig
+from trading_platform.risk_manager.models import (
+    AbsoluteLevelRule,
+    FixedPipsRule,
+    IndicatorRule,
+    PriceOffsetRule,
+    ReferenceRule,
+    REMConfig,
+)
 from trading_platform.risk_manager.trailing_stop_utils import (
     process_1min_bars_for_fixed_stops,
     process_1min_bars_for_trailing_stop,
@@ -47,26 +55,11 @@ class RiskExitManager:
                           "tp_then_stop": Check take-profit first
         """
         if config is None:
-            self.config = {}
+            self.config: REMConfig | None = None
         elif isinstance(config, REMConfig):
-            self.config = config.model_dump()
+            self.config = config
         elif isinstance(config, dict):
-            # Legacy dict path: check if it uses old format or advanced features
-            # Old format: {"stop_loss": {"pips": 50}} (no "type" field)
-            # New format: {"stop_loss": {"type": "fixed_pips", "pips": 50}}
-            # Advanced features: trailing_stop, reference_price
-            has_legacy_format = self._is_legacy_format(config)
-            has_advanced_features = (
-                "trailing_stop" in config
-                or self._has_reference_price(config)
-            )
-            if not has_legacy_format and not has_advanced_features and config:
-                # New format - validate through Pydantic
-                validated = REMConfig(**config)
-                self.config = validated.model_dump()
-            else:
-                # Legacy format or advanced features - bypass validation
-                self.config = config
+            self.config = REMConfig(**config)
         else:
             raise TypeError(
                 f"config must be REMConfig, dict, or None, got {type(config)}"
@@ -75,41 +68,105 @@ class RiskExitManager:
         self.instrument = instrument or {}
         self.exit_tie_break = exit_tie_break
 
-    @staticmethod
-    def _is_legacy_format(config: dict) -> bool:
-        """Check if config uses legacy format (no 'type' discriminator).
+    def _pip_size(self) -> float:
+        """Retrieve pip size from instrument metadata."""
+        pip_location = self.instrument.get("pip_location")
+        if pip_location is None:
+            raise ValueError(
+                "pip_location missing from instrument definition. "
+                "Cannot calculate pip-based offsets for non-Forex instruments."
+            )
+        return float(pip_location)
 
-        Legacy: {"stop_loss": {"pips": 50}} or {"atr_multiple": 2.0}
-        New: {"stop_loss": {"type": "fixed_pips", "pips": 50}}
-        Also treats None values as legacy (for edge case testing).
-        """
-        for key in ["stop_loss", "take_profit"]:
-            rules = config.get(key)
-            if rules is None:
-                # None values are legacy edge cases
-                return True
-            if isinstance(rules, list):
-                for rule in rules:
-                    if isinstance(rule, dict) and "type" not in rule:
-                        # Legacy format if rule has no 'type' field
-                        return True
-            elif isinstance(rules, dict) and "type" not in rules:
-                # Legacy format if rule has no 'type' field
-                return True
-        return False
+    def _distance_value(self, rule: PriceOffsetRule | FixedPipsRule) -> float:
+        """Resolve a distance rule into canonical price units."""
+        if isinstance(rule, PriceOffsetRule):
+            return float(rule.price_offset)
+        if isinstance(rule, FixedPipsRule):
+            return float(rule.pips) * self._pip_size()
+        raise TypeError(f"Unsupported distance rule type: {type(rule)}")
 
-    @staticmethod
-    def _has_reference_price(config: dict) -> bool:
-        """Check if config uses reference_price feature."""
-        for key in ["stop_loss", "take_profit"]:
-            rules = config.get(key)
-            if isinstance(rules, list):
-                for rule in rules:
-                    if isinstance(rule, dict) and rule.get("type") == "reference_price":
-                        return True
-            elif isinstance(rules, dict) and rules.get("type") == "reference_price":
-                return True
-        return False
+    def _context_value(
+        self, reference_point: str, signal_context: dict[str, Any]
+    ) -> float | None:
+        """Extract a contextual value using dot notation."""
+        if not reference_point.startswith("context."):
+            return None
+        key = reference_point.replace("context.", "", 1)
+        if "strategy_features" in signal_context:
+            val = signal_context["strategy_features"].get(key)
+            if val is not None:
+                return float(val)
+        val = signal_context.get(key)
+        return float(val) if val is not None else None
+
+    def _indicator_price(
+        self,
+        rule: IndicatorRule,
+        position: Position,
+        current_bar: pd.Series,
+    ) -> float:
+        """Compute price level using an indicator-driven stop calculator."""
+        spec = rem_indicators.REM_INDICATORS_REGISTRY.get(rule.indicator)
+        if spec is None:
+            raise ValueError(f"Indicator '{rule.indicator}' not registered")
+        price = spec.stop_calculator(
+            position.entry_price, position.side, current_bar, rule.params
+        )
+        return float(price)
+
+    def _resolve_stop_rule(
+        self,
+        rule: (
+            AbsoluteLevelRule
+            | PriceOffsetRule
+            | FixedPipsRule
+            | IndicatorRule
+            | ReferenceRule
+        ),
+        position: Position,
+        current_bar: pd.Series,
+        signal_context: dict[str, Any],
+        *,
+        is_stop: bool,
+    ) -> float | None:
+        """Convert a stop rule into a concrete price level."""
+        entry = float(position.entry_price)
+        side = position.side
+
+        if isinstance(rule, AbsoluteLevelRule):
+            return float(rule.price)
+
+        if isinstance(rule, PriceOffsetRule):
+            distance = self._distance_value(rule)
+        elif isinstance(rule, FixedPipsRule):
+            distance = self._distance_value(rule)
+        elif isinstance(rule, IndicatorRule):
+            return self._indicator_price(rule, position, current_bar)
+        elif isinstance(rule, ReferenceRule):
+            base_price = self._context_value(rule.reference_point, signal_context)
+            if base_price is None:
+                return None
+            if rule.offset is None:
+                return base_price
+            distance = self._distance_value(rule.offset)
+            if side == "long":
+                return (
+                    float(base_price) - distance
+                    if is_stop
+                    else float(base_price) + distance
+                )
+            return (
+                float(base_price) + distance
+                if is_stop
+                else float(base_price) - distance
+            )
+        else:
+            raise TypeError(f"Unsupported stop rule type: {type(rule)}")
+
+        if side == "long":
+            return entry - distance if is_stop else entry + distance
+        return entry + distance if is_stop else entry - distance
 
     def check_exits(
         self,
@@ -131,9 +188,12 @@ class RiskExitManager:
             A dictionary with the exit details if an exit is triggered,
             otherwise None.
         """
-        stop_loss = self.config.get("stop_loss", {}) or {}
-        take_profit = self.config.get("take_profit", {}) or {}
-        trailing = self.config.get("trailing_stop", {}) or {}
+        if self.config is None:
+            return None
+
+        stop_rule = self.config.stop_loss
+        take_profit_rule = self.config.take_profit
+        trailing_rule = self.config.trailing_stop
 
         # Extract signal context if available
         # Prefer position's entry context (persisted), fallback to current signal
@@ -143,100 +203,29 @@ class RiskExitManager:
         elif signal is not None and isinstance(signal, Signal):
             signal_context = signal.context or {}
 
-        def _pip_size() -> float:
-            """Get pip size from instrument. Fail loudly if missing."""
-            pip_location = self.instrument.get("pip_location")
-            if pip_location is None:
-                raise ValueError(
-                    "pip_location missing from instrument definition. "
-                    "Cannot calculate pip-based offsets for non-Forex instruments."
-                )
-            return float(pip_location)
-
-        def _atr_value(length: int | None) -> float | None:
-            # Try to get ATR from current_bar if it exists as a computed feature
-            atr_col = f"atr_{length}" if length else "atr"
-            if atr_col in current_bar.index:
-                return float(current_bar[atr_col])
-            # Fallback: check for generic 'atr' column
-            if "atr" in current_bar.index:
-                return float(current_bar["atr"])
-            return None
-
-        def _distance(rule: dict) -> float | None:
-            if "price_offset" in rule:
-                return float(rule["price_offset"])
-            if "pips" in rule:
-                return float(rule["pips"]) * _pip_size()
-            if "atr_multiple" in rule:
-                length = int(rule.get("atr_length", 14))
-                atr = _atr_value(length)
-                return float(rule["atr_multiple"]) * float(atr) if atr else None
-            return None
-
-        def _get_context_value(reference_point: str) -> float | None:
-            """Extract value from signal context using dot notation."""
-            if not reference_point.startswith("context."):
-                return None
-            key = reference_point.replace("context.", "")
-            # Support nested strategy_features structure
-            if "strategy_features" in signal_context:
-                val = signal_context["strategy_features"].get(key)
-                return float(val) if val is not None else None
-            # Fall back to flat structure for backward compatibility
-            val = signal_context.get(key)
-            return float(val) if val is not None else None
-
-        def _level_price(
-            side: str, entry: float, rule: dict, is_stop: bool
-        ) -> float | None:
-            # Handle reference_price type (contextual rules)
-            if rule.get("type") == "reference_price":
-                ref_point = rule.get("reference_point", "")
-                base_price = _get_context_value(ref_point)
-                if base_price is None:
-                    return None
-
-                # Get offset from the rule
-                offset_config = rule.get("offset", {})
-                offset = _distance(offset_config)
-                if offset is None:
-                    return float(base_price)
-
-                # Apply offset (negative offset for stop below, positive for TP above)
-                return float(base_price) + offset
-
-            # Legacy absolute_price rules
-            if "absolute_price" in rule:
-                return float(rule["absolute_price"])
-
-            # Legacy distance-based rules
-            dist = _distance(rule)
-            if dist is None:
-                return None
-            if side == "long":
-                return entry - dist if is_stop else entry + dist
-            return entry + dist if is_stop else entry - dist
-
-        def _process_rule_list(rules: Any, is_stop: bool) -> float | None:
-            """Process a rule or list of rules, return first valid price."""
-            if isinstance(rules, list):
-                for rule in rules:
-                    price = _level_price(
-                        position.side, position.entry_price, rule, is_stop
-                    )
-                    if price is not None:
-                        return price
-                return None
-            return _level_price(position.side, position.entry_price, rules, is_stop)
-
-        sl_price = _process_rule_list(stop_loss, True)
-        tp_price = _process_rule_list(take_profit, False)
+        sl_price = self._resolve_stop_rule(
+            stop_rule,
+            position,
+            current_bar,
+            signal_context,
+            is_stop=True,
+        )
+        tp_price = (
+            self._resolve_stop_rule(
+                take_profit_rule,
+                position,
+                current_bar,
+                signal_context,
+                is_stop=False,
+            )
+            if take_profit_rule is not None
+            else None
+        )
 
         # Trailing stop based on MFE; derived from Position.mfe_currency and size
         trail_price: float | None = None
-        if trailing:
-            dist_t = _distance(trailing)
+        if trailing_rule is not None:
+            dist_t = self._distance_value(trailing_rule.distance)
             if dist_t is not None:
                 size = float(position.size) if position.size else 1.0
                 mfe = float(position.mfe_currency or 0.0) / size
@@ -267,16 +256,15 @@ class RiskExitManager:
                 # Check for trailing stop ambiguity, zoom to 1-min if needed
                 # Check BOTH trail_price (prior) AND potential_trail_price
                 # (current bar) to detect intra-bar ambiguity
-                if (
-                    trail_price is not None
-                    and data_handler is not None
-                    and (
-                        is_trailing_stop_ambiguous(current_bar, trail_price)
-                        or is_trailing_stop_ambiguous(
-                            current_bar, potential_trail_price
-                        )
+                if trail_price is not None and data_handler is not None:
+                    ambiguous = is_trailing_stop_ambiguous(current_bar, trail_price)
+                    ambiguous = ambiguous or is_trailing_stop_ambiguous(
+                        current_bar, potential_trail_price
                     )
-                ):
+                else:
+                    ambiguous = False
+
+                if trail_price is not None and ambiguous and data_handler is not None:
                     # Zoom to 1-minute resolution to resolve ambiguity
                     bar_timestamp = cast(pd.Timestamp, current_bar.name)
                     hour_start = bar_timestamp.floor("h")

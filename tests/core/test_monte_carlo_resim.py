@@ -99,7 +99,7 @@ def test_monte_carlo_resimulation_returns_distributions_and_exemplars():
         "warmup_bars": 0,
         "instrument": {"symbol": "EURUSD"},
         "tie_break_policy": {"rule": "stop_then_tp"},
-        "rem_config": {"stop_loss": {"price_offset": 0.002}},
+        "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
     }
     strat_cfg = _strategy_cfg()
     mc = monte_carlo_resimulation(
@@ -126,7 +126,7 @@ def test_monte_carlo_resimulation_with_jitter_and_perturbation():
         "warmup_bars": 0,
         "instrument": {"symbol": "EURUSD"},
         "tie_break_policy": {"rule": "stop_then_tp"},
-        "rem_config": {"stop_loss": {"price_offset": 0.002}},
+        "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
         "cost_model": {"spread_per_unit": 0.0, "slippage_per_unit": 0.0},
     }
     strat_cfg = _strategy_cfg()
@@ -156,7 +156,7 @@ def test_monte_carlo_resimulation_block_perturbation():
         "warmup_bars": 0,
         "instrument": {"symbol": "EURUSD"},
         "tie_break_policy": {"rule": "stop_then_tp"},
-        "rem_config": {"stop_loss": {"price_offset": 0.002}},
+        "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
     }
     strat_cfg = _strategy_cfg()
     mc = monte_carlo_resimulation(

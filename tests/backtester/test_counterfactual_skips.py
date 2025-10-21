@@ -58,7 +58,7 @@ def test_counterfactual_for_blackout_skip_with_tp():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
     result = run_backtest(
         market_data=df,
         signals=sig,
@@ -90,7 +90,7 @@ def test_rmm_skip_records_policy_snapshot() -> None:
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
     rmm_ctx = {
         df.index[0]: {
             "allowed_sides": ["short"],
@@ -134,7 +134,7 @@ def test_run_backtest_returns_exposure_without_skips() -> None:
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
     result = run_backtest(
         market_data=df,
         signals=sig,
@@ -175,7 +175,7 @@ def test_corrupted_skipped_entry_raises_error() -> None:
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
 
     # Patch the skipped list to inject corrupted data
     with patch("trading_platform.backtester.core.run_backtest") as mock_run:

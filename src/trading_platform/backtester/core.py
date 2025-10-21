@@ -193,11 +193,10 @@ def run_backtest(
         from trading_platform.strategy.features import compute_features
 
         # Convert FeatureConfig objects to dict format for compute_features
-        # FeatureType enum must be converted to string value
         features_list = [
             {
                 "name": f.name,
-                "type": f.type.value if hasattr(f.type, "value") else f.type,
+                "type": f.type,
                 "params": f.params or {},
                 "source": f.source.value
                 if (f.source and hasattr(f.source, "value"))

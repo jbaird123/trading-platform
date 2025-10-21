@@ -397,7 +397,7 @@ jobs:
 ### Internal Documentation
 
 - [Project Requirements](../project_requirements.md)
-- [Strategy Schema](../schemas/strategy.schema.json)
+- Strategy validation model: `StrategyConfig` (see `src/trading_platform/strategy/models.py`)
 - [Golden Metadata Schema](../schemas/golden_metadata.schema.json)
 
 ### External Resources

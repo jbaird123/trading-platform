@@ -143,7 +143,7 @@ def test_next_bar_open_execution_model_complete_flow():
     )
 
     # Create minimal REM
-    rem = RiskExitManager(config={}, instrument=TEST_INSTRUMENT)
+    rem = RiskExitManager(config=None, instrument=TEST_INSTRUMENT)
 
     # Run backtest
     result = run_backtest(
@@ -230,7 +230,7 @@ def test_next_bar_open_vs_current_bar_close_comparison():
     # Signals: bar 0 enter_long, bar 2 exit_long
     signals = pd.Series(["enter_long", None, "exit_long", None, None], index=df.index)
 
-    rem = RiskExitManager(config={}, instrument=TEST_INSTRUMENT)
+    rem = RiskExitManager(config=None, instrument=TEST_INSTRUMENT)
 
     # Test current_bar_close (legacy)
     config_legacy = RunConfig(

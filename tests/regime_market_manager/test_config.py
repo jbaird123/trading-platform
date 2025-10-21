@@ -34,7 +34,7 @@ def test_validate_rmm_config_accepts_any_of_minimal_valid() -> None:
                 "label": "range",
                 "confidence": 0.5,
                 "conditions": {
-                    "any_of": [{"condition": "is_below", "left": {"value": 10}, "right": {"value": 20}}]
+                    "any_of": [{"condition": "is_below", "left": 10, "right": 20}]
                 },
             }
         ]

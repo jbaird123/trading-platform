@@ -59,13 +59,11 @@ def test_contextual_rem_with_order_block_strategy():
     # Define REM with reference_price rule
     rem_config = {
         "name": "Contextual Risk Test",
-        "stop_loss": [
-            {
-                "type": "reference_price",
-                "reference_point": "context.order_block_low",
-                "offset": {"pips": -10},  # 10 pips below order block
-            }
-        ],
+        "stop_loss": {
+            "type": "reference",
+            "reference_point": "context.order_block_low",
+            "offset": {"type": "fixed_pips", "pips": 10.0},
+        },
     }
 
     # EUR/USD instrument
