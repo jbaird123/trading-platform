@@ -48,8 +48,12 @@ class IndicatorRule(_StrictModel):
     """Exit distance calculated using a registered indicator."""
 
     type: Literal["indicator"]
-    indicator: str
-    params: dict[str, Any]
+    indicator: str = Field(
+        description="Name of the registered indicator providing the dynamic distance."
+    )
+    params: dict[str, Any] = Field(
+        description="Indicator-specific parameters validated against the registry."
+    )
 
     @field_validator("params")
     @classmethod
@@ -108,10 +112,20 @@ class ReferenceRule(_StrictModel):
         str,
         Field(
             min_length=1,
-            description="Dot-notation path into signal context (e.g. context.atr)",
+            description=(
+                "Dot-notation path into signal context (for example,"
+                " `context.order_block_low`)."
+            ),
         ),
     ]
-    offset: DistanceRule | None = None
+    offset: DistanceRule | None = Field(
+        default=None,
+        description=(
+            "Optional distance rule applied relative to the reference point"
+            " (positive moves price away for take-profit, negative toward"
+            " for stop-loss)."
+        ),
+    )
 
 
 StopRule = Annotated[
@@ -123,29 +137,55 @@ StopRule = Annotated[
 class TrailingStopRule(_StrictModel):
     """Trailing stop definition leveraging the distance union."""
 
-    distance: DistanceRule
+    distance: DistanceRule = Field(
+        description=(
+            "Distance rule describing how far the trailing stop should remain"
+            " from the favorable extreme (e.g., fixed pips)."
+        )
+    )
     step: Annotated[
         float | None,
         Field(
             default=None,
             ge=0,
-            description="Minimum improvement required before tightening",
+            description=(
+                "Minimum improvement required (in price units) before the"
+                " trailing stop tightens again."
+            ),
         ),
     ]
     update: Literal["bar", "tick"] | None = Field(
-        default=None, description="Cadence for stop updates"
+        default=None,
+        description="Cadence for trailing stop updates (bar-by-bar or tick).",
     )
 
 
 class REMConfig(_StrictModel):
     """Top-level configuration for the Risk Exit Manager."""
 
-    name: str | None = None
-    description: str | None = None
-    version: str | None = None
-    stop_loss: StopRule
-    take_profit: StopRule | None = None
-    trailing_stop: TrailingStopRule | None = None
+    name: str | None = Field(
+        default=None,
+        description="Optional human-readable name for this REM configuration.",
+    )
+    description: str | None = Field(
+        default=None,
+        description="Free-form description clarifying how the configuration is used.",
+    )
+    version: str | None = Field(
+        default=None,
+        description="Optional semantic version for the configuration document.",
+    )
+    stop_loss: StopRule = Field(
+        description="Primary stop-loss rule applied to every open position."
+    )
+    take_profit: StopRule | None = Field(
+        default=None,
+        description="Optional take-profit rule applied alongside the stop-loss.",
+    )
+    trailing_stop: TrailingStopRule | None = Field(
+        default=None,
+        description="Optional trailing-stop definition used to ratchet protective stops.",
+    )
 
 
 class ATRDistanceRule(_StrictModel):
@@ -185,7 +225,9 @@ class PartialExitRule(_StrictModel):
 class DynamicTrailingStopRule(_StrictModel):
     """Trailing stop configuration for DynamicREM."""
 
-    distance: DynamicDistanceRule
+    distance: DynamicDistanceRule = Field(
+        description="Distance rule (ATR-based or fixed offset) applied when trailing."
+    )
     activate_after_partial: bool = Field(
         default=False,
         description="Delay trailing activation until a partial exit occurs",
@@ -195,30 +237,50 @@ class DynamicTrailingStopRule(_StrictModel):
 class DynamicREMConfig(_StrictModel):
     """Configuration model for Dynamic Risk & Exit Manager."""
 
-    name: str | None = None
-    description: str | None = None
-    version: str | None = None
-    stop_loss: StopRule
-    take_profit: StopRule | None = None
+    name: str | None = Field(
+        default=None,
+        description="Optional human-readable name for the DynamicREM configuration.",
+    )
+    description: str | None = Field(
+        default=None,
+        description="Narrative description covering the risk approach this config encodes.",
+    )
+    version: str | None = Field(
+        default=None,
+        description="Optional semantic version for auditing DynamicREM configs.",
+    )
+    stop_loss: StopRule = Field(
+        description="Base stop-loss rule evaluated before dynamic adjustments."
+    )
+    take_profit: StopRule | None = Field(
+        default=None,
+        description="Optional take-profit rule evaluated alongside dynamic exits.",
+    )
     breakeven_threshold: Annotated[
         float | None,
         Field(
             default=None,
             ge=0,
-            description="R multiple at which stop is moved to breakeven",
+            description="R-multiple at which the stop-loss is lifted to the entry price.",
         ),
     ] = None
     partial_exits: list[PartialExitRule] = Field(
         default_factory=list,
-        description="Ordered list of partial exit targets",
+        description="Sequence of partial exit targets evaluated in order of appearance.",
     )
-    trailing_stop: DynamicTrailingStopRule | None = None
+    trailing_stop: DynamicTrailingStopRule | None = Field(
+        default=None,
+        description="Optional trailing-stop configuration activated by DynamicREM.",
+    )
     volatility_threshold: Annotated[
         float | None,
         Field(
             default=None,
             ge=0,
-            description="ADX threshold below which trailing distance tightens",
+            description=(
+                "ADX threshold below which the trailing stop distance should be"
+                " tightened."
+            ),
         ),
     ] = None
     low_volatility_multiplier: Annotated[
@@ -226,7 +288,10 @@ class DynamicREMConfig(_StrictModel):
         Field(
             ge=0,
             le=1,
-            description="Multiplier applied to trailing distance in low volatility",
+            description=(
+                "Factor applied to the trailing distance whenever volatility is"
+                " below the threshold (0 < multiplier ≤ 1)."
+            ),
         ),
     ] = 1.0
 
