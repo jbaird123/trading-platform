@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -142,9 +140,10 @@ class RMMEngine:
         df = compute_features(resampled, feats)
 
         # PERFORMANCE: Evaluate regime conditions vectorized (no per-bar loop)
-        # Initialize with unknown regime
-        labels = pd.Series(["unknown"] * len(df), index=df.index)
-        confs = pd.Series([0.0] * len(df), index=df.index)
+        raw_labels = pd.Series(
+            ["unknown"] * len(df), index=df.index, dtype="object"
+        )
+        raw_confs = pd.Series([0.0] * len(df), index=df.index, dtype="float64")
 
         # Evaluate each regime's conditions as vectorized boolean masks
         for r in regimes:
@@ -156,15 +155,104 @@ class RMMEngine:
             # Update labels/confidence where this regime's conditions are true
             # and no higher-priority regime has already been assigned
             # (regimes are checked in order, first match wins)
-            update_mask = mask & (labels == "unknown")
-            labels.loc[update_mask] = label
-            confs.loc[update_mask] = confidence
+            update_mask = mask & (raw_labels == "unknown")
+            raw_labels.loc[update_mask] = label
+            raw_confs.loc[update_mask] = confidence
+
+        hysteresis_cfg = cfg.get("hysteresis") or {}
+        (
+            adj_labels,
+            adj_confs,
+            bars_in_state,
+            cooldown_remaining,
+        ) = self._apply_hysteresis(raw_labels, raw_confs, hysteresis_cfg)
 
         # Include computed features alongside label and confidence
         out: pd.DataFrame = df.copy()
-        out["label"] = labels
-        out["confidence"] = confs
+        out["raw_label"] = raw_labels
+        out["raw_confidence"] = raw_confs
+        out["label"] = adj_labels
+        out["confidence"] = adj_confs
+        out["bars_in_state"] = bars_in_state
+        out["cooldown_remaining"] = cooldown_remaining
         return out
+
+    @staticmethod
+    def _apply_hysteresis(
+        raw_labels: pd.Series,
+        raw_confs: pd.Series,
+        cfg: dict[str, Any],
+    ) -> tuple[pd.Series, pd.Series, pd.Series, pd.Series]:
+        """Apply hysteresis rules to raw regime labels."""
+        if not isinstance(cfg, dict):
+            cfg = {}
+
+        min_bars = int(cfg.get("min_bars", 0) or 0)
+        cooldown_bars = int(cfg.get("cooldown_bars", 0) or 0)
+
+        if min_bars == 0 and cooldown_bars == 0:
+            zeros = pd.Series(
+                [0] * len(raw_labels), index=raw_labels.index, dtype="int64"
+            )
+            return (
+                raw_labels.copy(),
+                raw_confs.copy(),
+                zeros.copy(),
+                zeros.copy(),
+            )
+
+        adj_labels: list[str] = []
+        adj_confs: list[float] = []
+        bars_history: list[int] = []
+        cooldown_history: list[int] = []
+
+        active_label = "unknown"
+        active_conf = 0.0
+        bars_in_state = 0
+        cooldown_remaining = 0
+
+        for raw_label, raw_conf in zip(
+            raw_labels.tolist(),
+            raw_confs.tolist(),
+        ):
+            raw_conf_value = float(raw_conf)
+
+            if active_label == "unknown" and raw_label != "unknown":
+                active_label = raw_label
+                active_conf = raw_conf_value
+                bars_in_state = 0
+                cooldown_remaining = 0
+            elif raw_label == active_label:
+                active_conf = raw_conf_value
+                bars_in_state += 1
+                if cooldown_remaining > 0:
+                    cooldown_remaining -= 1
+            else:
+                if cooldown_remaining > 0:
+                    cooldown_remaining -= 1
+                    bars_in_state += 1
+                elif bars_in_state < min_bars:
+                    bars_in_state += 1
+                else:
+                    active_label = raw_label
+                    active_conf = raw_conf_value
+                    bars_in_state = 0
+                    cooldown_remaining = cooldown_bars
+
+            adj_labels.append(active_label)
+            adj_confs.append(active_conf)
+            bars_history.append(bars_in_state)
+            cooldown_history.append(cooldown_remaining)
+
+        index = raw_labels.index
+        labels_series = pd.Series(adj_labels, index=index, dtype="object")
+        confs_series = pd.Series(adj_confs, index=index, dtype="float64")
+        bars_series = pd.Series(bars_history, index=index, dtype="int64")
+        cooldown_series = pd.Series(
+            cooldown_history, index=index, dtype="int64"
+        )
+
+        return labels_series, confs_series, bars_series, cooldown_series
 
     def classify_daily(self, df_hourly: pd.DataFrame) -> pd.DataFrame:
         """Return daily regime labels/confidence based on RMM config rules.
@@ -227,7 +315,14 @@ class RMMEngine:
             df = pd.DataFrame(index=target_index)
             df["label"] = "unknown"
             df["confidence"] = 0.0
-            df["allowed_sides"] = [[] for _ in range(len(target_index))]  # pyright: ignore
+            df["raw_label"] = "unknown"
+            df["raw_confidence"] = 0.0
+            df["bars_in_state"] = 0
+            df["cooldown_remaining"] = 0
+            empty_allowed: list[list[str]] = [
+                [] for _ in range(len(target_index))
+            ]
+            df["allowed_sides"] = empty_allowed  # pyright: ignore
             return df
 
         # CRITICAL: Shift regime data by 1 bar to prevent lookahead bias
