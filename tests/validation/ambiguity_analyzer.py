@@ -160,7 +160,7 @@ class AmbiguityAnalyzer(ABC):
         """
         pass
 
-    def analyze_all_discrepancies(
+    def analyze_discrepancies(
         self,
         platform_df: pd.DataFrame,
         tv_df: pd.DataFrame,
@@ -170,9 +170,9 @@ class AmbiguityAnalyzer(ABC):
     ) -> Dict[str, List[Dict[str, Any]]]:
         """Analyze all discrepancies and group by category.
 
-        This is a convenience method that processes multiple trades and
-        groups results by category name. Most analyzers can use the default
-        implementation.
+        This is the standard batch analysis method that processes multiple
+        trades and groups results by category name. Most analyzers can use
+        the default implementation.
 
         Args:
             platform_df: DataFrame of platform trades
@@ -254,6 +254,118 @@ class AmbiguityAnalyzer(ABC):
         """
         price_diff = float(abs(platform_trade["exit_price"] - tv_trade["exit_price"]))
         return bool(price_diff > tolerance)
+
+    @property
+    def KNOWN_ACCEPTABLE_CATEGORIES(self) -> List[str]:
+        """Convenience property for accessing acceptable categories.
+
+        This provides compatibility with existing code that uses
+        KNOWN_ACCEPTABLE_CATEGORIES as an attribute.
+
+        Returns:
+            List of acceptable category names
+        """
+        return self.get_acceptable_categories()
+
+    def generate_summary_report(
+        self, categories: Dict[str, List[Dict[str, Any]]]
+    ) -> str:
+        """Generate a human-readable summary report of discrepancies.
+
+        Args:
+            categories: Dictionary of categorized discrepancies from
+                analyze_discrepancies()
+
+        Returns:
+            Formatted string report showing breakdown of discrepancies
+
+        Example output:
+            ========================================
+            VALIDATION - DISCREPANCY ANALYSIS
+            ========================================
+
+            Total discrepancies: 15
+            Explained (acceptable): 15
+            Unexplained (requires investigation): 0
+
+            ✓ PASS: All 15 discrepancies are explained and acceptable
+
+            Breakdown:
+              - SAME_BAR_EXIT: 8
+              - PLATFORM_ZOOM_INTRABAR_STOP: 7
+            ========================================
+        """
+        analyzer_type = self.get_analyzer_type()
+        total_discrepancies = sum(len(v) for v in categories.values())
+        total_explained = sum(
+            len(categories[cat])
+            for cat in self.get_acceptable_categories()
+        )
+        total_unexplained = len(categories.get("UNEXPLAINED", []))
+
+        report = []
+        report.append("=" * 100)
+        report.append(f"{analyzer_type.upper()} VALIDATION - "
+                     f"DISCREPANCY ANALYSIS")
+        report.append("=" * 100)
+        report.append(f"\nTotal discrepancies: {total_discrepancies}")
+        report.append(f"Explained (acceptable): {total_explained}")
+        report.append(
+            f"Unexplained (requires investigation): "
+            f"{total_unexplained}"
+        )
+
+        if total_unexplained == 0:
+            report.append(
+                f"\n✓ PASS: All {total_discrepancies} discrepancies "
+                f"are explained and acceptable"
+            )
+            report.append("\nBreakdown:")
+            for cat in self.get_acceptable_categories():
+                count = len(categories.get(cat, []))
+                if count > 0:
+                    report.append(f"  - {cat}: {count}")
+        else:
+            report.append(
+                f"\n✗ FAIL: {total_unexplained} unexplained "
+                f"discrepancies"
+            )
+            report.append("\nUnexplained trades:")
+            for trade in categories.get("UNEXPLAINED", []):
+                trade_num = trade.get("trade_num", "?")
+                direction = trade.get("direction", "?")
+                price_diff = trade.get("price_diff_pips", 0.0)
+                report.append(
+                    f"  - Trade #{trade_num}: {direction} "
+                    f"({price_diff:.1f} pips difference)"
+                )
+
+        report.append("=" * 100)
+        return "\n".join(report)
+
+    def assert_all_explained(
+        self, categories: Dict[str, List[Dict[str, Any]]]
+    ) -> None:
+        """Assert that all discrepancies are explained.
+
+        Args:
+            categories: Dictionary of categorized discrepancies
+
+        Raises:
+            AssertionError: If there are unexplained discrepancies
+        """
+        unexplained = categories.get("UNEXPLAINED", [])
+        if len(unexplained) > 0:
+            unexplained_trades = [t["trade_num"] for t in unexplained]
+            analyzer_type = self.get_analyzer_type()
+            raise AssertionError(
+                f"Found {len(unexplained)} unexplained {analyzer_type} "
+                f"discrepancies. "
+                f"All discrepancies must be categorized as acceptable. "
+                f"Unexplained trades: {unexplained_trades}. "
+                f"This may indicate a bug in the platform or a new "
+                f"TradingView behavior."
+            )
 
 
 class CompositeAmbiguityAnalyzer(AmbiguityAnalyzer):
