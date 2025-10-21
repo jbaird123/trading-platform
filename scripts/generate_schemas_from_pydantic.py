@@ -44,10 +44,7 @@ def main() -> None:
 
     # Generate schemas for each model
     # Order matters - dependencies should come first
-    schemas_to_generate = [
-        (FeatureConfig, "feature_config.schema.json"),
-        (RunConfig, "run_config.schema.json"),
-    ]
+    schemas_to_generate = []
 
     for model_class, filename in schemas_to_generate:
         output_path = schemas_dir / filename

@@ -118,25 +118,7 @@ rmm_config: RMMConfig | dict[str, Any] | None = Field(default=None, ...)
 
 ### Step 3: Update Schema File
 
-Update `docs/schemas/run_config.schema.json` to be comprehensive:
-
-**Current schema** (minimal, 63 lines):
-- Only covers: run_id, strategy, rem, rmm, instrument, data, contextual_features
-- Missing: 20+ fields from Pydantic model
-
-**Enhanced schema** should include all RunConfig fields:
-- user_id, run_id, run_seed, runs_dir, log_level
-- instrument_definitions, cost_model, fill_policy, tie_break_policy
-- monte_carlo, walk_forward, parameter_search
-- warmup_bars, entry_window_bars, min_hold_bars
-- blackout_utc, blackout_events
-- initial_cash, position_size, allow_flip_on_bar
-- execution_model, exit_tie_break, daily_loss_cap
-- data_request, pm_limits
-- counterfactual_mode, post_exit_analysis
-- contextual_features
-
-**Approach**: Generate schema from Pydantic model using `model_json_schema()`.
+The standalone JSON schema has been retired; `RunConfig` validation now relies directly on the Pydantic model (`src/trading_platform/core/config.py`). Historical notes about expanding `docs/schemas/run_config.schema.json` are kept here for completeness, but no further action is required.
 
 ### Step 4: Backward Compatibility Strategy
 
@@ -251,7 +233,7 @@ The following are **out of scope** for this migration:
 ## References
 
 - RunConfig Implementation: [src/trading_platform/core/config.py](../../src/trading_platform/core/config.py)
-- RunConfig Schema: [docs/schemas/run_config.schema.json](../schemas/run_config.schema.json)
+- RunConfig Pydantic model: [src/trading_platform/core/config.py](../../src/trading_platform/core/config.py)
 - RunConfig Audit: [run_config_schema_audit.md](run_config_schema_audit.md)
 - REM Migration Example: [docs/migration_guides/rem_config_v2.md](../migration_guides/rem_config_v2.md)
 

@@ -19,32 +19,11 @@ Please create and switch to a new branch named `feature/contextual-features` bef
         4.  Assert that the resulting `RunConfig` object has a `contextual_features` attribute.
         5.  Assert that this attribute is a list of `FeatureConfig` objects (you will define this model in the next step) and that its contents match the input dictionary.
 
-2.  [x] Task: Update the `RunConfig` model and `run_config.schema.json`.
+2.  [x] Task: Update the `RunConfig` model.
     *   **File to Modify**: `src/trading_platform/core/config.py`
     *   **Action**:
         1.  At the top of the file, add a new Pydantic model `FeatureConfig` that mirrors the structure of a feature (validated via the indicator registry). It should have fields: `name: str`, `type: str`, `params: dict[str, Any] | None = None`, `source: str | None = None`, and `source_ref: dict[str, Any] | None = None`.
         2.  In the `RunConfig` class, add the new optional field: `contextual_features: list[FeatureConfig] | None = Field(default=None, description="A list of indicators to compute for context, even if not used in strategy rules.")`.
-    *   **File to Modify**: `docs/schemas/run_config.schema.json`
-    *   **Action**:
-        1.  Add a new optional property `contextual_features` to the top-level `properties` object.
-        2.  The schema for this property should be:
-            ```json
-            "contextual_features": {
-              "type": "array",
-              "description": "A list of indicators to compute for context, even if not used in strategy rules.",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "name": { "type": "string" },
-                  "type": { "type": "string" },
-                  "params": { "type": "object" },
-                  "source": { "type": "string" },
-                  "source_ref": { "type": "object" }
-                },
-                "required": ["name", "type"]
-              }
-            }
-            ```
 
 #### II. Integrate Feature Calculation into Backtester
 

@@ -139,7 +139,7 @@
 
 ---
 
-### Task 5: Audit run_config.schema.json Against Implementation ✅ COMPLETE
+### Task 5: Audit run_config.schema.json Against Implementation ✅ COMPLETE (Historical)
 
 **Objective:** Verify RunConfig schema against `src/trading_platform/core/config.py`.
 
@@ -148,7 +148,7 @@
 1. [x] **Create audit document**: Create `docs/schema_audits/run_config_schema_audit.md`
 
 2. [x] **List all RunConfig properties**:
-   - Read `docs/schemas/run_config.schema.json`
+   - Read `docs/schemas/run_config.schema.json` (legacy – validation now handled by `RunConfig` Pydantic model)
    - List all top-level properties and their types
 
 3. [x] **Cross-reference with RunConfig dataclass**:
