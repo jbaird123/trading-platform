@@ -88,7 +88,7 @@ def test_risk_exit_manager_rejects_negative_trailing_distance():
 
 def test_risk_exit_manager_raises_on_missing_type_field():
     """Legacy payloads without a type discriminator are rejected."""
-    config = {"stop_loss": {"type": "offset", "price_offset": 0.001}}
+    config = {"stop_loss": {"price_offset": 0.001}}
 
     with pytest.raises(ValidationError, match="type"):
         RiskExitManager(config=config)
