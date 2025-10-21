@@ -22,6 +22,7 @@ from trading_platform.core.sweeps import (
     run_parameter_sweep,
     walk_forward_optimize_and_test,
 )
+from trading_platform.regime_market_manager.models import RMMConfig
 
 # --- test_sweeps_100_coverage.py ---
 
@@ -43,7 +44,24 @@ class TestRmmContextCoverage:
         )
 
         # Test .yml extension
-        rmm_config = {"engine_type": "test", "policy": {}}
+        rmm_config = {
+            "timeframe": "1D",
+            "regimes": [
+                {
+                    "label": "test",
+                    "confidence": 0.8,
+                    "conditions": {
+                        "all_of": [
+                            {
+                                "condition": "is_above",
+                                "left": "close",
+                                "right": 0.0,
+                            }
+                        ]
+                    },
+                }
+            ],
+        }
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
             yaml.dump(rmm_config, f)
             yml_path = f.name
@@ -1272,9 +1290,7 @@ class TestEdgeCasesAndHelperFunctions:
 
             assert result is not None
 
-    def test_monte_carlo_empty_equity_vals_edge_case_lines_324_325_331_364_387_432_442_467(  # noqa: E501
-        self,
-    ):
+    def test_monte_carlo_empty_equity_vals_edge_cases(self) -> None:
         """Test Monte Carlo edge cases for remaining missing lines."""
         df = pd.DataFrame(
             {"close": [1.0, 1.1]},
@@ -1586,9 +1602,23 @@ def test_rmm_context_with_yaml_path():
 
     # Create a temporary YAML file with RMM config
     rmm_config = {
-        "engine_type": "ml_classifier",
-        "model_path": "dummy_path",
+        "timeframe": "1D",
         "policy": {"min_confidence": 0.7},
+        "regimes": [
+            {
+                "label": "bullish",
+                "confidence": 0.8,
+                "conditions": {
+                    "all_of": [
+                        {
+                            "condition": "is_above",
+                            "left": "close",
+                            "right": 1.0,
+                        }
+                    ]
+                },
+            }
+        ],
     }
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
@@ -1599,6 +1629,8 @@ def test_rmm_context_with_yaml_path():
         cfg_raw = {"rmm_path": yaml_path}
 
         # Mock the RMMEngine to avoid complex dependencies
+        expected_cfg = RMMConfig(**rmm_config)
+
         with patch("trading_platform.core.sweeps.RMMEngine") as mock_engine_class:
             mock_engine = Mock()
             mock_engine_class.return_value = mock_engine
@@ -1627,7 +1659,10 @@ def test_rmm_context_with_yaml_path():
             # Verify YAML file was loaded and processed
             assert result is not None
             assert len(result) == 2
-            mock_engine_class.assert_called_once_with(config=rmm_config)
+            mock_engine_class.assert_called_once()
+            called_cfg = mock_engine_class.call_args.kwargs["config"]
+            assert isinstance(called_cfg, RMMConfig)
+            assert called_cfg.model_dump() == expected_cfg.model_dump()
 
     finally:
         # Clean up temp file
@@ -1650,9 +1685,23 @@ def test_rmm_context_with_json_path():
 
     # Create a temporary JSON file with RMM config
     rmm_config = {
-        "engine_type": "ml_classifier",
-        "model_path": "dummy_path",
+        "timeframe": "1D",
         "policy": {"min_confidence": 0.7},
+        "regimes": [
+            {
+                "label": "bullish",
+                "confidence": 0.8,
+                "conditions": {
+                    "all_of": [
+                        {
+                            "condition": "is_above",
+                            "left": "close",
+                            "right": 1.0,
+                        }
+                    ]
+                },
+            }
+        ],
     }
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
@@ -1661,6 +1710,7 @@ def test_rmm_context_with_json_path():
 
     try:
         cfg_raw = {"rmm_path": json_path}
+        expected_cfg = RMMConfig(**rmm_config)
 
         # Mock the RMMEngine to avoid complex dependencies
         with patch("trading_platform.core.sweeps.RMMEngine") as mock_engine_class:
@@ -1691,7 +1741,11 @@ def test_rmm_context_with_json_path():
             # Verify JSON file was loaded and processed
             assert result is not None
             assert len(result) == 2
-            mock_engine_class.assert_called_once_with(config=rmm_config)
+            mock_engine_class.assert_called_once()
+            called_cfg = mock_engine_class.call_args.kwargs["config"]
+            assert isinstance(called_cfg, RMMConfig)
+            assert called_cfg.model_dump() == expected_cfg.model_dump()
+            assert called_cfg.model_dump() == expected_cfg.model_dump()
 
     finally:
         # Clean up temp file

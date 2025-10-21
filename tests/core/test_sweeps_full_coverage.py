@@ -10,10 +10,8 @@ from unittest.mock import Mock, patch
 
 import pandas as pd
 import yaml
-from trading_platform.core.sweeps import (
-    _rmm_context,
-    run_parameter_sweep,
-)
+from trading_platform.core.sweeps import _rmm_context, run_parameter_sweep
+from trading_platform.regime_market_manager.models import RMMConfig
 
 
 def test_rmm_context_with_data_handler_cache_hit():
@@ -25,9 +23,23 @@ def test_rmm_context_with_data_handler_cache_hit():
     )
 
     rmm_cfg = {
-        "engine_type": "test",
         "policy": {},
         "timeframe": "1D",
+        "regimes": [
+            {
+                "label": "cached",
+                "confidence": 0.5,
+                "conditions": {
+                    "all_of": [
+                        {
+                            "condition": "is_above",
+                            "left": "close",
+                            "right": 0.0,
+                        }
+                    ]
+                },
+            }
+        ],
     }
 
     # Mock DataHandler with cached context
@@ -38,16 +50,17 @@ def test_rmm_context_with_data_handler_cache_hit():
     mock_handler.get_data.return_value = df.copy()
 
     cfg_raw = {"rmm_config": rmm_cfg}
+    expected_cfg = RMMConfig(**rmm_cfg).model_dump(exclude_none=True)
+    expected_cfg = RMMConfig(**rmm_cfg).model_dump(exclude_none=True)
+    expected_cfg = RMMConfig(**rmm_cfg).model_dump(exclude_none=True)
+    expected_cfg = RMMConfig(**rmm_cfg).model_dump(exclude_none=True)
 
     with patch("trading_platform.core.sweeps.RMMEngine") as mock_engine_class:
-        # Validate config should still be called
-        mock_engine_class.validate_config = Mock()
-
         result = _rmm_context(df, cfg_raw, data_handler=mock_handler)
 
         # Should return cached context
         assert result == cached_ctx
-        mock_handler.get_rmm_context.assert_called_once_with(rmm_cfg, "1D")
+        mock_handler.get_rmm_context.assert_called_once_with(expected_cfg, "1D")
         # get_data is now called once to check if the df is the full dataset
         mock_handler.get_data.assert_called_once_with(timeframe="1D")
         # Engine should not be instantiated since we got cached result
@@ -63,10 +76,31 @@ def test_rmm_context_with_data_handler_cache_miss():
     )
 
     rmm_cfg = {
-        "engine_type": "test",
         "policy": {"min_confidence": 0.5},
         "timeframe": "1D",
-        "features": [{"name": "volume"}],
+        "features": [
+            {
+                "name": "sma_short",
+                "type": "SMA",
+                "params": {"length": 3},
+                "source": "close",
+            }
+        ],
+        "regimes": [
+            {
+                "label": "bullish",
+                "confidence": 0.9,
+                "conditions": {
+                    "all_of": [
+                        {
+                            "condition": "is_above",
+                            "left": "close",
+                            "right": 0.0,
+                        }
+                    ]
+                },
+            }
+        ],
     }
 
     # Mock DataHandler - cache miss
@@ -76,6 +110,7 @@ def test_rmm_context_with_data_handler_cache_miss():
     mock_handler.get_data.return_value = df.copy()
 
     cfg_raw = {"rmm_config": rmm_cfg}
+    expected_cfg = RMMConfig(**rmm_cfg).model_dump(exclude_none=True)
 
     with patch("trading_platform.core.sweeps.RMMEngine") as mock_engine_class:
         mock_engine = Mock()
@@ -111,7 +146,15 @@ def test_rmm_context_with_data_handler_cache_miss():
         )
 
         # Should have cached the result
-        assert mock_handler.set_rmm_context.called
+        mock_handler.set_rmm_context.assert_called_once_with(
+            expected_cfg,
+            "1D",
+            result,
+        )
+        mock_engine_class.assert_called_once()
+        called_cfg = mock_engine_class.call_args.kwargs["config"]
+        assert isinstance(called_cfg, RMMConfig)
+        assert called_cfg.model_dump(exclude_none=True) == expected_cfg
         assert result is not None
         assert len(result) == 3  # One entry per hour
 

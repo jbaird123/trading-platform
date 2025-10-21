@@ -77,9 +77,17 @@ def test_trade_context_includes_new_features_in_brief() -> None:
 
     # Verify Epic 3 features: new RMM features
     assert "regime" in context
-    assert context["regime"]["atr_pct"] == 75.3
-    assert context["regime"]["rvol"] == 0.0145
-    assert context["regime"]["vol_z"] == 1.2
+    regime_ctx = context["regime"]
+    assert regime_ctx["atr_pct"] == 75.3
+    assert regime_ctx["rvol"] == 0.0145
+    assert regime_ctx["vol_z"] == 1.2
+    assert regime_ctx["raw_label"] == "trending"
+    assert regime_ctx["raw_confidence"] == 0.85
+    assert regime_ctx["allowed_sides"] == []
+    assert regime_ctx["bars_in_state"] == 0
+    assert regime_ctx["cooldown_remaining"] == 0
+    assert regime_ctx["hysteresis"]["bars_in_state"] == 0
+    assert regime_ctx["hysteresis"]["cooldown_remaining"] == 0
 
 
 def test_trade_context_includes_new_features_in_csv(tmp_path: Path) -> None:
@@ -142,6 +150,29 @@ def test_trade_context_includes_new_features_in_csv(tmp_path: Path) -> None:
 
     assert "ctx_regime_vol_z" in df.columns
     assert df.iloc[0]["ctx_regime_vol_z"] == 1.2
+
+    assert "ctx_regime_raw_label" in df.columns
+    assert df.iloc[0]["ctx_regime_raw_label"] == "trending"
+
+    assert "ctx_regime_raw_confidence" in df.columns
+    assert df.iloc[0]["ctx_regime_raw_confidence"] == 0.85
+
+    assert "ctx_regime_allowed_sides" in df.columns
+    assert df.iloc[0]["ctx_regime_allowed_sides"] == "[]"
+
+    assert "ctx_regime_bars_in_state" in df.columns
+    assert df.iloc[0]["ctx_regime_bars_in_state"] == 0
+
+    assert "ctx_regime_cooldown_remaining" in df.columns
+    assert df.iloc[0]["ctx_regime_cooldown_remaining"] == 0
+
+    assert "ctx_regime_hysteresis_bars_in_state" in df.columns
+    assert df.iloc[0]["ctx_regime_hysteresis_bars_in_state"] == 0
+
+    assert "ctx_regime_hysteresis_cooldown_remaining" in df.columns
+    assert (
+        df.iloc[0]["ctx_regime_hysteresis_cooldown_remaining"] == 0
+    )
 
 
 def test_context_at_entry_defaults_to_none_when_missing() -> None:
