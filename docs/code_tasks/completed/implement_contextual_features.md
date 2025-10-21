@@ -22,7 +22,7 @@ Please create and switch to a new branch named `feature/contextual-features` bef
 2.  [x] Task: Update the `RunConfig` model and `run_config.schema.json`.
     *   **File to Modify**: `src/trading_platform/core/config.py`
     *   **Action**:
-        1.  At the top of the file, add a new Pydantic model `FeatureConfig` that mirrors the structure of a feature in `strategy.schema.json`. It should have fields: `name: str`, `type: str`, `params: dict[str, Any] | None = None`, `source: str | None = None`, and `source_ref: dict[str, Any] | None = None`.
+        1.  At the top of the file, add a new Pydantic model `FeatureConfig` that mirrors the structure of a feature (validated via the indicator registry). It should have fields: `name: str`, `type: str`, `params: dict[str, Any] | None = None`, `source: str | None = None`, and `source_ref: dict[str, Any] | None = None`.
         2.  In the `RunConfig` class, add the new optional field: `contextual_features: list[FeatureConfig] | None = Field(default=None, description="A list of indicators to compute for context, even if not used in strategy rules.")`.
     *   **File to Modify**: `docs/schemas/run_config.schema.json`
     *   **Action**:

@@ -13,7 +13,6 @@ import json
 from pathlib import Path
 
 from trading_platform.core.config import FeatureConfig, RunConfig
-from trading_platform.strategy.models import StrategyConfig
 
 
 def generate_schema(model_class, output_path: Path) -> None:
@@ -48,7 +47,6 @@ def main() -> None:
     schemas_to_generate = [
         (FeatureConfig, "feature_config.schema.json"),
         (RunConfig, "run_config.schema.json"),
-        (StrategyConfig, "strategy.schema.json"),
     ]
 
     for model_class, filename in schemas_to_generate:

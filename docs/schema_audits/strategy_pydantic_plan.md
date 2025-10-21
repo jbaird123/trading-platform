@@ -1,12 +1,12 @@
 # Strategy Config Pydantic Migration Plan
 
-## Status: Future Work (Not Yet Implemented)
+## Status: Completed (StrategyConfig Pydantic validation in place)
 
-This document outlines the plan for migrating Strategy configurations to use Pydantic models with strict validation, similar to the REM config migration completed in Tasks 1-17.
+Strategy configurations are now validated via the `StrategyConfig` Pydantic model in `src/trading_platform/strategy/models.py`, with indicator types enforced directly against the unified registry. The details below are retained for historical context.
 
 ## Background
 
-Strategy configurations are currently validated against `docs/schemas/strategy.schema.json` but don't enforce validation at runtime. According to the Phase 1 audit ([strategy_schema_audit.md](strategy_schema_audit.md)), the Strategy schema has:
+Prior to the migration, strategy configurations were validated against `docs/schemas/strategy.schema.json`. That legacy schema has been retired in favour of runtime validation through `StrategyConfig`. According to the Phase 1 audit ([strategy_schema_audit.md](strategy_schema_audit.md)), the schema previously had:
 - **Grade: A+** (perfect alignment)
 - All 37 indicators implemented
 - All 6 conditions implemented
@@ -159,7 +159,7 @@ Strategy has both "parameters" (tunable) and "features" (computed indicators).
 
 ## References
 
-- Strategy Schema: [docs/schemas/strategy.schema.json](../schemas/strategy.schema.json)
+- StrategyConfig Pydantic model: [src/trading_platform/strategy/models.py](../../src/trading_platform/strategy/models.py)
 - Strategy Audit: [strategy_schema_audit.md](strategy_schema_audit.md)
 - REM Migration Example: [docs/migration_guides/rem_config_v2.md](../migration_guides/rem_config_v2.md)
 - Current Implementation: [src/trading_platform/strategy/yaml_strategy.py](../../src/trading_platform/strategy/yaml_strategy.py)

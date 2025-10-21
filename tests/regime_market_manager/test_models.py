@@ -114,7 +114,7 @@ def test_rejects_invalid_feature_type(valid_rmm_config_dict: dict):
 
     with pytest.raises(ValidationError) as excinfo:
         RMMConfig(**invalid_config)
-    assert "Input should be" in str(excinfo.value)
+    assert "Unknown indicator type" in str(excinfo.value)
 
 
 def test_missing_required_regimes_field(valid_rmm_config_dict: dict):

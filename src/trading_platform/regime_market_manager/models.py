@@ -4,21 +4,23 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal, Union
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
-# Re-using the FeatureType and PriceSource from core config for consistency
-from trading_platform.core.config import FeatureType, PriceSource
+from trading_platform.core.config import PriceSource
+from trading_platform.strategy.indicators_registry import INDICATORS
 
 
 class RMMFeatureConfig(BaseModel):
     """Configuration for a single technical indicator/feature for RMM."""
 
-    model_config = {"extra": "forbid", "use_enum_values": True}
+    model_config = {"extra": "forbid"}
 
     name: str = Field(
         description="Local identifier used by conditions (e.g., ema_slope)."
     )
-    type: FeatureType = Field(description="Indicator type to compute for regime logic.")
+    type: str = Field(
+        description="Indicator type to compute for regime logic (validated against registry)."
+    )
     params: dict[str, Any] | None = Field(
         default=None, description="Indicator-specific parameters (e.g., length)."
     )
@@ -29,6 +31,16 @@ class RMMFeatureConfig(BaseModel):
         default=None,
         description="Reference another computed feature as the input series.",
     )
+
+    @field_validator("type")
+    @classmethod
+    def validate_indicator_type(cls, value: str) -> str:
+        if value not in INDICATORS:
+            allowed = ", ".join(sorted(INDICATORS))
+            raise ValueError(
+                f"Unknown indicator type '{value}'. Must be one of: {allowed}."
+            )
+        return value
 
 
 class RMMIndicatorRef(BaseModel):

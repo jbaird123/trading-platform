@@ -15,6 +15,11 @@
 
 ## Phase 1: Schema Audit & Gap Analysis
 
+> **Note:** The legacy JSON schemas referenced in this section have since been
+> replaced by the `StrategyConfig` Pydantic model in
+> `src/trading_platform/strategy/models.py`. The audit details are kept for
+> historical context.
+
 ### Task 1: Audit strategy.schema.json Against Implementation
 
 **Objective:** Verify that every feature, condition, and predicate defined in `docs/schemas/strategy.schema.json` is actually implemented in `src/trading_platform/strategy/`.

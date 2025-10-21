@@ -80,7 +80,7 @@ When I do a Requirements Check, I want you to:
 ## Context Warm‑Up (Every New Conversation)
 - Index the repo; re‑read:
   - `docs/project_requirements.md`.
-  - `docs/schemas/strategy.schema.json`, `docs/schemas/rmm.schema.json`.
+  - `src/trading_platform/strategy/models.py` (`StrategyConfig` Pydantic schema) and `docs/schemas/rmm.schema.json`.
   - `src/trading_platform/strategy/indicators_registry.py` (single source of truth).
 - Confirm environment assumptions:
   - Use Poetry; dependencies installed; `ta` is required.
