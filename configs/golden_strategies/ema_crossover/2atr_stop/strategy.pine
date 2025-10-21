@@ -73,3 +73,4 @@ plot(ema_fast, "Fast EMA", color=color.blue)
 plot(ema_slow, "Slow EMA", color=color.red)
 
 plot(stop_price, "Stop Level", color=color.orange, style=plot.style_linebr)
+plot(atr, "ATR", color=color.gray, display=display.data_window)
