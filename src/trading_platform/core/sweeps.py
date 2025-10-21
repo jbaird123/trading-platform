@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import random
 from copy import deepcopy
 from pathlib import Path
@@ -12,6 +13,7 @@ from trading_platform.core.config import RunConfig
 from trading_platform.core.robustness import walk_forward_splits
 from trading_platform.portfolio.trade import Trade
 from trading_platform.regime_market_manager.engine import RMMEngine
+from trading_platform.regime_market_manager.models import RMMConfig
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
 
@@ -40,9 +42,10 @@ def _rmm_context(
         return None
 
     # SAFETY: Validate RMM config schema before use
-    RMMEngine.validate_config(rmm_cfg)
+    rmm_model = RMMConfig(**rmm_cfg)
+    rmm_cfg_clean = rmm_model.model_dump(exclude_none=True)
 
-    regime_timeframe = rmm_cfg.get("timeframe", "1D")
+    regime_timeframe = rmm_model.timeframe or "1D"
 
     # PERFORMANCE: Check cache first if DataHandler is available
     # BUT: For WFE test windows, we must NOT use the cached full-dataset context
@@ -54,16 +57,22 @@ def _rmm_context(
         full_data = data_handler.get_data(timeframe=regime_timeframe)
         # Only use cached context if df appears to be the full dataset
         # (same start/end dates)
-        if (full_data is not None and len(df) > 0 and len(full_data) > 0 and
-            df.index[0] == full_data.index[0] and
-            df.index[-1] == full_data.index[-1]):
-            cached_context = data_handler.get_rmm_context(rmm_cfg, regime_timeframe)
+        if (
+            full_data is not None
+            and len(df) > 0
+            and len(full_data) > 0
+            and df.index[0] == full_data.index[0]
+            and df.index[-1] == full_data.index[-1]
+        ):
+            cached_context = data_handler.get_rmm_context(
+                rmm_cfg_clean, regime_timeframe
+            )
             if cached_context is not None:
                 use_cache = True
                 return dict(cached_context)
 
     # Not cached OR test window - compute regime classification
-    eng = RMMEngine(config=rmm_cfg)
+    eng = RMMEngine(config=rmm_model)
 
     # BUG FIX: Always use the provided df parameter (test window),
     # not the full dataset from DataHandler.
@@ -75,15 +84,38 @@ def _rmm_context(
     regimes = eng.classify_regime(
         df_resampled, timeframe=regime_timeframe, already_resampled=already_resampled
     )
-    pol = rmm_cfg.get("policy") or {}
+    pol = (
+        rmm_model.policy.model_dump(exclude_none=True)
+        if rmm_model.policy is not None
+        else {}
+    )
     from typing import cast as _cast
 
     proj = eng.project_to_index(regimes, _cast(pd.DatetimeIndex, df.index), policy=pol)
 
     # Extract regime feature names from config
     feature_names = [
-        f.get("name") for f in rmm_cfg.get("features", []) if f.get("name")
+        f.name for f in rmm_model.features or [] if f.name
     ]
+
+    def _safe_float(val: Any, default: float = 0.0) -> float:
+        if isinstance(val, (int, float)):
+            if isinstance(val, float) and math.isnan(val):
+                return default
+            return float(val)
+        return default
+
+    def _safe_int(val: Any, default: int = 0) -> int:
+        if isinstance(val, (int, float)):
+            if isinstance(val, float) and math.isnan(val):
+                return default
+            return int(val)
+        return default
+
+    def _safe_label(primary: Any, fallback: str) -> str:
+        if isinstance(primary, str) and primary:
+            return primary
+        return fallback
 
     # Build RMM context with full precision - rounding happens in brief.py
     rmm_context = {
@@ -96,18 +128,36 @@ def _rmm_context(
                 fname: row.get(fname) for fname in feature_names if fname in row.index
             },
             "timeframe": regime_timeframe,
+            "raw_label": _safe_label(row.get("raw_label"), str(row["label"])),
+            "raw_confidence": _safe_float(
+                row.get("raw_confidence"), float(row["confidence"])
+            ),
+            "bars_in_state": _safe_int(row.get("bars_in_state")),
+            "cooldown_remaining": _safe_int(row.get("cooldown_remaining")),
         }
         for ts, row in proj.iterrows()
     }
+
+    for ctx in rmm_context.values():
+        ctx["hysteresis"] = {
+            "bars_in_state": _safe_int(ctx["bars_in_state"]),
+            "cooldown_remaining": _safe_int(ctx["cooldown_remaining"]),
+        }
 
     # Cache the result ONLY if this was for the full dataset, not a test window
     # This prevents WFE test window contexts from polluting the cache
     if data_handler is not None and not use_cache:
         # Only cache if we're working with the full dataset
-        if (full_data is not None and len(df) > 0 and len(full_data) > 0 and
-            df.index[0] == full_data.index[0] and
-            df.index[-1] == full_data.index[-1]):
-            data_handler.set_rmm_context(rmm_cfg, regime_timeframe, rmm_context)
+        if (
+            full_data is not None
+            and len(df) > 0
+            and len(full_data) > 0
+            and df.index[0] == full_data.index[0]
+            and df.index[-1] == full_data.index[-1]
+        ):
+            data_handler.set_rmm_context(
+                rmm_cfg_clean, regime_timeframe, rmm_context
+            )
 
     return rmm_context
 
@@ -167,7 +217,7 @@ def run_parameter_sweep(
 
     # Extract CLI-only fields before validation
     rem_path = base_cfg.pop("rem_path", None)
-    strategy_path_for_sweep = base_cfg.pop("strategy_path", None)
+    base_cfg.pop("strategy_path", None)
 
     cfg = RunConfig.model_validate(base_cfg)
     rmm_ctx = _rmm_context(df, base_cfg, data_handler)

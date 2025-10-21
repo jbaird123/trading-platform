@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import math
 import subprocess
 import sys
 from copy import deepcopy
@@ -175,7 +176,8 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     # Strategy can be embedded or referenced via a separate YAML/JSON file
     strat_cfg = cfg_raw.get("strategy")
     if not strat_cfg:
-        # Try loading from strategy_path if provided (extracted earlier before validation)
+        # Try loading from strategy_path if provided
+        # (extracted earlier before validation)
         if strategy_path:
             strat_cfg = _load_config(Path(strategy_path))
         else:
@@ -306,8 +308,29 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         )
         # Extract regime feature names from config
         feature_names = (
-            [f.name for f in rmm_config.features if f.name] if rmm_config.features else []
+            [f.name for f in rmm_config.features if f.name]
+            if rmm_config.features
+            else []
         )
+
+        def _safe_float(val: Any, default: float = 0.0) -> float:
+            if isinstance(val, (int, float)):
+                if isinstance(val, float) and math.isnan(val):
+                    return default
+                return float(val)
+            return default
+
+        def _safe_int(val: Any, default: int = 0) -> int:
+            if isinstance(val, (int, float)):
+                if isinstance(val, float) and math.isnan(val):
+                    return default
+                return int(val)
+            return default
+
+        def _safe_label(primary: Any, fallback: str) -> str:
+            if isinstance(primary, str) and primary:
+                return primary
+            return fallback
 
         # Build RMM context with full precision - rounding happens in brief.py
         rmm_context = {
@@ -322,9 +345,20 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                     if fname in row.index
                 },
                 "timeframe": regime_timeframe,
+                "raw_label": _safe_label(row.get("raw_label"), str(row["label"])),
+                "raw_confidence": _safe_float(
+                    row.get("raw_confidence"), float(row["confidence"])
+                ),
+                "bars_in_state": _safe_int(row.get("bars_in_state")),
+                "cooldown_remaining": _safe_int(row.get("cooldown_remaining")),
             }
             for ts, row in per_bar.iterrows()
         }
+        for ctx in rmm_context.values():
+            ctx["hysteresis"] = {
+                "bars_in_state": _safe_int(ctx["bars_in_state"]),
+                "cooldown_remaining": _safe_int(ctx["cooldown_remaining"]),
+            }
         # Persist RMM spans for chart shading
         try:
 

@@ -676,10 +676,12 @@ def test_rmm_context_enrichment_in_trades_and_skips():
         # Check that the skipped trade has regime information in its context
         # This may be in different places depending on implementation
         regime_found = False
+        regime_info: dict[str, Any] | None = None
 
         # Check if regime info is directly in the skip dict
-        if "regime" in skip and "label" in skip["regime"]:
+        if isinstance(skip.get("regime"), dict) and "label" in skip["regime"]:
             regime_label = skip["regime"]["label"]
+            regime_info = skip["regime"]
             regime_found = True
 
         # Check if there's a context field with regime info
@@ -697,11 +699,20 @@ def test_rmm_context_enrichment_in_trades_and_skips():
                 regime_found = True
 
         assert regime_found, f"Skipped trade missing regime context: {skip}"
+        assert regime_info is not None, f"Skipped trade missing regime details: {skip}"
         assert regime_label in [
             "trend_up",
             "trend_down",
             "range",
         ], f"Invalid regime label: {regime_label}"
+        assert "raw_label" in regime_info
+        assert "raw_confidence" in regime_info
+        hysteresis = regime_info.get("hysteresis")
+        assert isinstance(
+            hysteresis, dict
+        ), f"Hysteresis info missing for skipped trade: {skip}"
+        assert "bars_in_state" in hysteresis
+        assert "cooldown_remaining" in hysteresis
 
     # Acceptance Criteria 3: Executed trades contain regime context in context_at_entry
     assert (
@@ -717,14 +728,16 @@ def test_rmm_context_enrichment_in_trades_and_skips():
 
         # Check for regime_label in context_at_entry
         regime_found = False
+        regime_info = None
         if "regime_label" in context_at_entry:
             regime_label = context_at_entry["regime_label"]
             regime_found = True
         elif "regime" in context_at_entry and isinstance(
             context_at_entry["regime"], dict
         ):
-            if "label" in context_at_entry["regime"]:
-                regime_label = context_at_entry["regime"]["label"]
+            regime_info = context_at_entry["regime"]
+            if "label" in regime_info:
+                regime_label = regime_info["label"]
                 regime_found = True
 
         assert (
@@ -735,6 +748,17 @@ def test_rmm_context_enrichment_in_trades_and_skips():
             "trend_down",
             "range",
         ], f"Invalid regime label in trade: {regime_label}"
+        if regime_info is None and isinstance(context_at_entry.get("regime"), dict):
+            regime_info = context_at_entry["regime"]
+        if regime_info is not None:
+            assert "raw_label" in regime_info
+            assert "raw_confidence" in regime_info
+            hysteresis = regime_info.get("hysteresis", {})
+            assert isinstance(
+                hysteresis, dict
+            ), f"Hysteresis info missing in trade context: {regime_info}"
+            assert "bars_in_state" in hysteresis
+            assert "cooldown_remaining" in hysteresis
 
 
 def test_entry_window_allows_delayed_entry():

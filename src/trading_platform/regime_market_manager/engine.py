@@ -340,6 +340,27 @@ class RMMEngine:
             .ffill()
         )
         aligned = aligned.loc[target_index]
+        defaults: dict[str, Any] = {
+            "raw_label": "unknown",
+            "raw_confidence": 0.0,
+            "bars_in_state": 0,
+            "cooldown_remaining": 0,
+        }
+        for col, default in defaults.items():
+            if col not in aligned.columns:
+                aligned[col] = default
+
+        aligned["raw_label"] = aligned["raw_label"].fillna("unknown").astype("object")
+        aligned["raw_confidence"] = (
+            aligned["raw_confidence"].fillna(0.0).astype("float64")
+        )
+        aligned["bars_in_state"] = (
+            aligned["bars_in_state"].fillna(0).astype("int64")
+        )
+        aligned["cooldown_remaining"] = (
+            aligned["cooldown_remaining"].fillna(0).astype("int64")
+        )
+
         allowed = [
             self.allowed_sides_for(
                 str(row["label"]), float(row["confidence"]), policy or {}
