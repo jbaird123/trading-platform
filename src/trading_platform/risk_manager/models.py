@@ -147,6 +147,88 @@ class REMConfig(_StrictModel):
     trailing_stop: TrailingStopRule | None = None
 
 
+class ATRDistanceRule(_StrictModel):
+    """ATR-multiple distance expressed via multiplier."""
+
+    type: Literal["atr"]
+    multiplier: Annotated[
+        float,
+        Field(
+            gt=0,
+            description="ATR multiplier used to derive stop distance",
+        ),
+    ]
+
+
+DynamicDistanceRule = Annotated[
+    PriceOffsetRule | ATRDistanceRule, Field(discriminator="type")
+]
+
+
+class PartialExitRule(_StrictModel):
+    """Definition for partial exit targets."""
+
+    r_multiple: Annotated[
+        float, Field(ge=0, description="R-multiple threshold to trigger exit")
+    ]
+    fraction: Annotated[
+        float,
+        Field(
+            gt=0,
+            le=1,
+            description="Fraction of position to close (0.0 < fraction ≤ 1.0)",
+        ),
+    ]
+
+
+class DynamicTrailingStopRule(_StrictModel):
+    """Trailing stop configuration for DynamicREM."""
+
+    distance: DynamicDistanceRule
+    activate_after_partial: bool = Field(
+        default=False,
+        description="Delay trailing activation until a partial exit occurs",
+    )
+
+
+class DynamicREMConfig(_StrictModel):
+    """Configuration model for Dynamic Risk & Exit Manager."""
+
+    name: str | None = None
+    version: str | None = None
+    stop_loss: StopRule
+    take_profit: StopRule | None = None
+    breakeven_threshold: Annotated[
+        float | None,
+        Field(
+            default=None,
+            ge=0,
+            description="R multiple at which stop is moved to breakeven",
+        ),
+    ] = None
+    partial_exits: list[PartialExitRule] = Field(
+        default_factory=list,
+        description="Ordered list of partial exit targets",
+    )
+    trailing_stop: DynamicTrailingStopRule | None = None
+    volatility_threshold: Annotated[
+        float | None,
+        Field(
+            default=None,
+            ge=0,
+            description="ADX threshold below which trailing distance tightens",
+        ),
+    ] = None
+    low_volatility_multiplier: Annotated[
+        float,
+        Field(
+            ge=0,
+            le=1,
+            description="Multiplier applied to trailing distance in low volatility",
+        ),
+    ] = 1.0
+
+
 __all__ = [
     "REMConfig",
     "AbsoluteLevelRule",
@@ -156,4 +238,9 @@ __all__ = [
     "ReferenceRule",
     "DistanceRule",
     "TrailingStopRule",
+    "ATRDistanceRule",
+    "DynamicDistanceRule",
+    "PartialExitRule",
+    "DynamicTrailingStopRule",
+    "DynamicREMConfig",
 ]

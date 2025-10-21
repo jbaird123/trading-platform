@@ -174,21 +174,22 @@ def test_adaptive_trend_full_integration() -> None:
 
     # EPIC 2: DynamicREM with all features
     dynamic_rem_config = {
-        "stop_loss": {"atr_multiple": 2.0, "atr_length": 14},
+        "stop_loss": {
+            "type": "indicator",
+            "indicator": "atr",
+            "params": {"multiplier": 2.0, "length": 14},
+        },
         "breakeven_threshold": 0.5,
         "partial_exits": [
-            {"r_multiple": 1.0, "reduction_pct": 50},
-            {"r_multiple": 2.0, "reduction_pct": 25},
+            {"r_multiple": 1.0, "fraction": 0.5},
+            {"r_multiple": 2.0, "fraction": 0.25},
         ],
         "trailing_stop": {
-            "atr_multiple": 1.5,
-            "atr_length": 14,
+            "distance": {"type": "atr", "multiplier": 1.5},
             "activate_after_partial": True,
         },
-        "volatility_tightening": {
-            "adx_threshold": 20,
-            "tighten_multiplier": 0.75,
-        },
+        "volatility_threshold": 20.0,
+        "low_volatility_multiplier": 0.75,
     }
 
     rem = DynamicREM(config=dynamic_rem_config)

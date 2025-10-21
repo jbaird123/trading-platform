@@ -18,7 +18,7 @@ The lack of validation on the Regime Market Manager (RMM) is the most significan
 
 Next, we will restore the features that were removed from the Risk & Exit Manager (REM) during the faulty migration.
 
-1.  **Enhance REM Pydantic Models:** Update `src/trading_platform/risk_manager/models.py` by re-introducing models for the lost features, using the old `rem.schema.json.backup` and `rem_dynamic.schema.json` files as a reference. This includes adding back support for:
+1.  **Enhance REM Pydantic Models:** Update `src/trading_platform/risk_manager/models.py` by re-introducing models for the lost features, using the Pydantic definitions (`REMConfig` and `DynamicREMConfig`) as the reference point. This includes adding back support for:
     *   `trailing_stop` (including the logic that requires a `timeframe`)
     *   `breakeven_threshold`
     *   `partial_exits`
