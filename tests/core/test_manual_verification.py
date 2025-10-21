@@ -70,7 +70,7 @@ def test_core_calculations_match_manual_csv():
     )
 
     # 5. Create REM (Risk Exit Manager)
-    rem_config = {"stop_loss": {"absolute_price": 95.0}}
+    rem_config = {"stop_loss": {"type": "absolute", "price": 95.0}}
     rem = RiskExitManager(config=rem_config, instrument=run_config.instrument)
 
     # 6. Run backtest with skipped trades tracking

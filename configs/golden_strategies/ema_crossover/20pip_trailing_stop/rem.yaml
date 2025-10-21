@@ -5,5 +5,10 @@ description: "20-pip trailing stop loss for golden validation"
 # Trailing stop loss: 20 pips
 # For EURUSD: 20 pips = 0.0020 in canonical price terms
 # Trails behind the peak (for longs) or trough (for shorts)
+stop_loss:
+  type: fixed_pips
+  pips: 20.0
 trailing_stop:
-  price_offset: 0.0020
+  distance:
+    type: fixed_pips
+    pips: 20.0

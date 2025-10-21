@@ -1,137 +1,159 @@
-"""Pydantic models for REM configuration validation.
-
-This module provides strict validation for Risk and Exit Manager (REM)
-configurations using Pydantic with `extra="forbid"` to prevent silent failures
-from typos or unimplemented features.
-
-All REM configurations must be validated through these models to ensure:
-1. Only implemented indicators are allowed
-2. Required parameters are present
-3. Parameter types are correct
-4. No extra/unknown fields are present
-"""
+"""Pydantic models for strict REM configuration validation."""
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+import trading_platform.risk_manager.rem_indicators as rem_indicators
 
 
-class FixedPipStop(BaseModel):
-    """Fixed pip-based stop or take-profit rule.
-
-    This rule defines an exit at a fixed pip distance from entry price.
-    The platform will convert pips to price units based on the instrument's pip size.
-
-    Example:
-        {
-            "type": "fixed_pips",
-            "pips": 20
-        }
-    """
+class _StrictModel(BaseModel):
+    """Mixin enforcing `extra = forbid` on all REM models."""
 
     model_config = {"extra": "forbid"}
 
-    type: Literal["fixed_pips"]
-    pips: Annotated[float, Field(gt=0, description="Distance in pips from entry price")]
+
+class AbsoluteLevelRule(_StrictModel):
+    """Exit at an explicit price level."""
+
+    type: Literal["absolute"]
+    price: Annotated[float, Field(description="Absolute price level for exit")]
 
 
-class ATRStopParams(BaseModel):
-    """Parameters for ATR-based stops.
+class PriceOffsetRule(_StrictModel):
+    """Exit at entry_price ± price_offset (canonical units)."""
 
-    ATR (Average True Range) is a volatility indicator. The stop distance is
-    calculated as: distance = ATR(length) * multiplier
-
-    Example:
-        {
-            "length": 14,
-            "multiplier": 2.0
-        }
-    """
-
-    model_config = {"extra": "forbid"}
-
-    length: Annotated[int, Field(ge=1, description="ATR lookback period in bars")] = 14
-    multiplier: Annotated[
-        float, Field(gt=0, description="Multiplier applied to ATR value")
+    type: Literal["offset"]
+    price_offset: Annotated[
+        float,
+        Field(
+            gt=0,
+            description="Positive distance in canonical price units from entry price",
+        ),
     ]
 
 
-class IndicatorStop(BaseModel):
-    """Indicator-based stop or take-profit rule.
+class FixedPipsRule(_StrictModel):
+    """Exit at entry_price ± pips × instrument pip size."""
 
-    Uses a whitelisted indicator to calculate stop distance dynamically based on
-    market conditions (e.g., volatility).
+    type: Literal["fixed_pips"]
+    pips: Annotated[
+        float, Field(gt=0, description="Positive distance expressed in pips")
+    ]
 
-    Only indicators explicitly registered in REM_INDICATORS_REGISTRY are allowed.
 
-    Example:
-        {
-            "type": "indicator",
-            "indicator": "atr",
-            "params": {
-                "length": 14,
-                "multiplier": 2.0
-            }
-        }
-    """
-
-    model_config = {"extra": "forbid"}
+class IndicatorRule(_StrictModel):
+    """Exit distance calculated using a registered indicator."""
 
     type: Literal["indicator"]
-    indicator: Literal["atr", "bollinger", "keltner"]
-    # Future: Union[ATRStopParams, BollingerStopParams, KeltnerStopParams]
-    params: ATRStopParams
+    indicator: str
+    params: dict[str, Any]
+
+    @field_validator("params")
+    @classmethod
+    def _ensure_params_dict(cls, value: dict[str, Any]) -> dict[str, Any]:
+        if value is None:
+            raise ValueError("Indicator params cannot be null")
+        if not isinstance(value, dict):
+            raise ValueError("Indicator params must be an object")
+        return value
+
+    @model_validator(mode="after")
+    def _validate_against_registry(self) -> IndicatorRule:
+        spec = rem_indicators.REM_INDICATORS_REGISTRY.get(self.indicator)
+        if spec is None:
+            raise ValueError(f"Unknown REM indicator '{self.indicator}'")
+
+        params = dict(self.params)
+
+        # Required parameters
+        for key, expected_type in spec.required_params.items():
+            if key not in params:
+                raise ValueError(f"Missing required parameter '{key}'")
+            if not isinstance(params[key], expected_type):
+                raise TypeError(
+                    f"Parameter '{key}' must be of type {expected_type.__name__}"
+                )
+
+        # Optional parameters (apply defaults)
+        for key, (expected_type, default) in spec.optional_params.items():
+            if key not in params:
+                params[key] = default
+                continue
+            if not isinstance(params[key], expected_type):
+                raise TypeError(
+                    f"Parameter '{key}' must be of type {expected_type.__name__}"
+                )
+
+        allowed = set(spec.required_params) | set(spec.optional_params)
+        unknown = set(params) - allowed
+        if unknown:
+            unknown_list = ", ".join(sorted(unknown))
+            raise ValueError(f"Unknown parameter(s): {unknown_list}")
+
+        self.params = params
+        return self
 
 
-class REMConfig(BaseModel):
-    """Risk and Exit Manager configuration.
+DistanceRule = Annotated[PriceOffsetRule | FixedPipsRule, Field(discriminator="type")]
 
-    Defines stop-loss and optional take-profit rules for position management.
 
-    At minimum, a stop_loss rule must be provided. Take-profit is optional.
+class ReferenceRule(_StrictModel):
+    """Exit derived from a contextual reference point plus optional offset."""
 
-    Example (fixed pips):
-        {
-            "stop_loss": {
-                "type": "fixed_pips",
-                "pips": 20
-            }
-        }
+    type: Literal["reference"]
+    reference_point: Annotated[
+        str,
+        Field(
+            min_length=1,
+            description="Dot-notation path into signal context (e.g. context.atr)",
+        ),
+    ]
+    offset: DistanceRule | None = None
 
-    Example (ATR-based):
-        {
-            "name": "Conservative ATR",
-            "version": "1.0",
-            "stop_loss": {
-                "type": "indicator",
-                "indicator": "atr",
-                "params": {
-                    "length": 14,
-                    "multiplier": 2.0
-                }
-            },
-            "take_profit": {
-                "type": "fixed_pips",
-                "pips": 40
-            }
-        }
-    """
 
-    model_config = {"extra": "forbid"}
+StopRule = Annotated[
+    AbsoluteLevelRule | PriceOffsetRule | FixedPipsRule | IndicatorRule | ReferenceRule,
+    Field(discriminator="type"),
+]
+
+
+class TrailingStopRule(_StrictModel):
+    """Trailing stop definition leveraging the distance union."""
+
+    distance: DistanceRule
+    step: Annotated[
+        float | None,
+        Field(
+            default=None,
+            ge=0,
+            description="Minimum improvement required before tightening",
+        ),
+    ]
+    update: Literal["bar", "tick"] | None = Field(
+        default=None, description="Cadence for stop updates"
+    )
+
+
+class REMConfig(_StrictModel):
+    """Top-level configuration for the Risk Exit Manager."""
 
     name: str | None = None
     version: str | None = None
-    stop_loss: FixedPipStop | IndicatorStop = Field(..., discriminator="type")
-    take_profit: FixedPipStop | IndicatorStop | None = Field(
-        default=None, discriminator="type"
-    )
+    stop_loss: StopRule
+    take_profit: StopRule | None = None
+    trailing_stop: TrailingStopRule | None = None
 
 
 __all__ = [
     "REMConfig",
-    "FixedPipStop",
-    "IndicatorStop",
-    "ATRStopParams",
+    "AbsoluteLevelRule",
+    "PriceOffsetRule",
+    "FixedPipsRule",
+    "IndicatorRule",
+    "ReferenceRule",
+    "DistanceRule",
+    "TrailingStopRule",
 ]

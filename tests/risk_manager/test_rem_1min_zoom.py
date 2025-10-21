@@ -357,7 +357,10 @@ def test_rem_fixed_stop_and_tp_both_ambiguous_zooms_to_1min(
     mock_data_handler.get_data.return_value = bars_1min
 
     # Configure with both fixed stop and TP
-    config = {"stop_loss": {"pips": 20}, "take_profit": {"pips": 50}}
+    config = {
+        "stop_loss": {"type": "fixed_pips", "pips": 20},
+        "take_profit": {"pips": 50},
+    }
     rem = RiskExitManager(config=config, instrument=mock_instrument)
 
     result = rem.check_exits(position, current_bar, data_handler=mock_data_handler)
@@ -422,7 +425,10 @@ def test_rem_fixed_stop_tp_ambiguous_tp_hits_first(mock_instrument, mock_data_ha
     )
     mock_data_handler.get_data.return_value = bars_1min
 
-    config = {"stop_loss": {"pips": 20}, "take_profit": {"pips": 50}}
+    config = {
+        "stop_loss": {"type": "fixed_pips", "pips": 20},
+        "take_profit": {"pips": 50},
+    }
     rem = RiskExitManager(config=config, instrument=mock_instrument)
 
     result = rem.check_exits(position, current_bar, data_handler=mock_data_handler)

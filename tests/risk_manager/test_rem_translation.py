@@ -12,7 +12,7 @@ def test_rem_translates_pips_rule_for_long_position():
     canonical price level for a long position.
     """
     # 1. Setup
-    rem_config = {"stop_loss": {"pips": 50}}
+    rem_config = {"stop_loss": {"type": "fixed_pips", "pips": 50}}
     instrument = {"pip_location": 0.0001}
     rem = RiskExitManager(config=rem_config, instrument=instrument)
 
@@ -52,7 +52,7 @@ def test_rem_translates_pips_rule_for_short_position():
     canonical price level for a short position.
     """
     # 1. Setup
-    rem_config = {"stop_loss": {"pips": 50}}
+    rem_config = {"stop_loss": {"type": "fixed_pips", "pips": 50}}
     instrument = {"pip_location": 0.01}  # For JPY pair
     rem = RiskExitManager(config=rem_config, instrument=instrument)
 

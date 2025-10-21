@@ -1,5 +1,7 @@
 name: "Golden_Static_REM"
 stop_loss:
+  type: offset
   price_offset: 1000000.0
 take_profit:
+  type: offset
   price_offset: 1000000.0

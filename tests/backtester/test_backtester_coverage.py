@@ -308,7 +308,7 @@ def test_post_exit_analysis_integration():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
 
     trades = run_backtest(
         market_data=df,
@@ -387,7 +387,7 @@ def test_rmm_context_feature_rounding():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
 
     trades = run_backtest(
         market_data=df,
@@ -459,7 +459,7 @@ def test_rmm_context_feature_rounding_edge_cases():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
 
     # Should not raise error, should handle invalid values gracefully
     trades = run_backtest(
@@ -516,7 +516,7 @@ def test_skipped_entry_index_conversion_error():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
 
     result = run_backtest(
         market_data=df,
@@ -570,7 +570,7 @@ def test_post_exit_analysis_disabled():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
 
     trades = run_backtest(
         market_data=df,
@@ -622,7 +622,7 @@ def test_post_exit_analysis_enabled_false():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
 
     trades = run_backtest(
         market_data=df,
@@ -722,7 +722,7 @@ def test_skipped_entry_index_invalid_conversion():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
 
     result = run_backtest(
         market_data=df,
@@ -824,7 +824,7 @@ def test_rmm_context_feature_rounding_with_strategy_features():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
 
     trades = run_backtest(
         market_data=df,
@@ -886,7 +886,7 @@ def test_counterfactual_with_manual_invalid_entry_index():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
 
     # Patch the skipped list to inject invalid entry_index
     (run_backtest.__wrapped__ if hasattr(run_backtest, "__wrapped__") else run_backtest)

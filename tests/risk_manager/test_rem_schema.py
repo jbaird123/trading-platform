@@ -77,7 +77,7 @@ def test_invalid_rem_configs(rem_schema):
         # Missing stop_loss
         {},
         # Missing type field (old format no longer valid)
-        {"stop_loss": {"pips": 50}},
+        {"stop_loss": {"type": "fixed_pips", "pips": 50}},
         # Missing required pips field
         {"stop_loss": {"type": "fixed_pips"}},
         # Zero pips (must be > 0)

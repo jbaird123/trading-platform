@@ -6,6 +6,8 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
+from pydantic import ValidationError
 from trading_platform.core.signal import Signal
 from trading_platform.portfolio.position import Position
 from trading_platform.risk_manager.core import RiskExitManager
@@ -16,16 +18,14 @@ def test_contextual_stop_loss_rule():
 
     Task 2.1: Validates contextual stop-loss calculation.
     """
-    # Create REM config with reference_price type
+    # Create REM config with reference rule type
     config = {
         "name": "Contextual Risk Test",
-        "stop_loss": [
-            {
-                "type": "reference_price",
-                "reference_point": "context.order_block_low",
-                "offset": {"pips": -5},
-            }
-        ],
+        "stop_loss": {
+            "type": "reference",
+            "reference_point": "context.order_block_low",
+            "offset": {"type": "fixed_pips", "pips": 5.0},
+        },
     }
 
     # EUR/USD instrument with pip_location = 0.0001
@@ -57,3 +57,38 @@ def test_contextual_stop_loss_rule():
     assert exit_details is not None
     assert exit_details["reason"] == "stop-loss"
     assert exit_details["exit_price"] == 1.1995
+
+
+def test_risk_exit_manager_rejects_unknown_indicator():
+    """Ensure REM refuses configs referencing unregistered indicators."""
+    config = {
+        "stop_loss": {
+            "type": "indicator",
+            "indicator": "bollinger",
+            "params": {"multiplier": 2.0},
+        }
+    }
+
+    with pytest.raises(ValidationError, match="Unknown REM indicator"):
+        RiskExitManager(config=config)
+
+
+def test_risk_exit_manager_rejects_negative_trailing_distance():
+    """Trailing stop distances must be positive."""
+    config = {
+        "stop_loss": {"type": "fixed_pips", "pips": 20.0},
+        "trailing_stop": {
+            "distance": {"type": "offset", "price_offset": -0.001},
+        },
+    }
+
+    with pytest.raises(ValidationError, match="greater than 0"):
+        RiskExitManager(config=config)
+
+
+def test_risk_exit_manager_raises_on_missing_type_field():
+    """Legacy payloads without a type discriminator are rejected."""
+    config = {"stop_loss": {"type": "offset", "price_offset": 0.001}}
+
+    with pytest.raises(ValidationError, match="type"):
+        RiskExitManager(config=config)

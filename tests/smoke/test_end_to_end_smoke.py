@@ -73,7 +73,9 @@ def test_e2e_run_with_contextual_features(tmp_path):
     run_dir = initialize_run(config)
 
     # Run backtest
-    rem = RiskExitManager(config={"stop_loss_points": 10.0})
+    rem = RiskExitManager(
+        config={"stop_loss": {"type": "offset", "price_offset": 0.0010}}
+    )
     result = run_backtest(
         market_data=market_data,
         signals=signals,

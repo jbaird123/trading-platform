@@ -44,7 +44,7 @@ def test_warmup_delays_first_entry_until_threshold():
         execution_model="current_bar_close",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
     result = run_backtest(
         market_data=df,
         signals=sig,
@@ -78,7 +78,7 @@ def test_no_warmup_allows_immediate_entry():
         execution_model="current_bar_close",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
     result = run_backtest(
         market_data=df,
         signals=sig,
