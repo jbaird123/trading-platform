@@ -141,6 +141,7 @@ class REMConfig(_StrictModel):
     """Top-level configuration for the Risk Exit Manager."""
 
     name: str | None = None
+    description: str | None = None
     version: str | None = None
     stop_loss: StopRule
     take_profit: StopRule | None = None
@@ -195,6 +196,7 @@ class DynamicREMConfig(_StrictModel):
     """Configuration model for Dynamic Risk & Exit Manager."""
 
     name: str | None = None
+    description: str | None = None
     version: str | None = None
     stop_loss: StopRule
     take_profit: StopRule | None = None

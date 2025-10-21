@@ -394,13 +394,8 @@ class TestDynamicREMConfigModel:
 
     def test_dynamic_rem_config_json_schema_includes_trailing_fields(self):
         schema = DynamicREMConfig.model_json_schema()
-        assert "DynamicREMConfig" in schema["title"]
-
-        trailing = schema["properties"]["trailing_stop"]["properties"]
-        assert "distance" in trailing
-        distance_schema = trailing["properties"]["distance"]
-        assert "enum" in distance_schema["properties"]["type"]
-        assert set(distance_schema["properties"]["type"]["enum"]) == {
-            "offset",
-            "atr",
-        }
+        trailing_def = schema["$defs"]["DynamicTrailingStopRule"]["properties"][
+            "distance"
+        ]
+        mapping = trailing_def["discriminator"]["mapping"]
+        assert set(mapping.keys()) == {"offset", "atr"}

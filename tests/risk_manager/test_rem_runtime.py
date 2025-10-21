@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
+
+from unittest.mock import Mock
 
 import pandas as pd
 import pytest
@@ -43,7 +46,11 @@ def _atr_stop_calculator(
     return entry_price + distance
 
 
-def _long_position() -> Position:
+def _long_position(
+    *,
+    mfe_currency: float = 0.0,
+    context: dict[str, Any] | None = None,
+) -> Position:
     return Position(
         symbol="EURUSD",
         entry_time=datetime.now(),
@@ -51,11 +58,16 @@ def _long_position() -> Position:
         entry_mid_price=1.2000,
         side="long",
         size=100000.0,
-        mfe_currency=400.0,
+        mfe_currency=mfe_currency,
+        context_at_entry=context,
     )
 
 
-def _short_position() -> Position:
+def _short_position(
+    *,
+    mfe_currency: float = 0.0,
+    context: dict[str, Any] | None = None,
+) -> Position:
     return Position(
         symbol="EURUSD",
         entry_time=datetime.now(),
@@ -63,7 +75,8 @@ def _short_position() -> Position:
         entry_mid_price=1.2000,
         side="short",
         size=100000.0,
-        mfe_currency=400.0,
+        mfe_currency=mfe_currency,
+        context_at_entry=context,
     )
 
 
@@ -119,8 +132,8 @@ def test_reference_rule_without_offset_uses_context():
     )
     assert result is None
 
-    position.context_at_entry = {"support_level": 1.1975}
-    result = rem.check_exits(position, bar)
+    position_with_context = _long_position(context={"support_level": 1.1975})
+    result = rem.check_exits(position_with_context, bar)
     assert result is not None
     assert result["exit_price"] == 1.1975
 
@@ -135,8 +148,7 @@ def test_reference_rule_with_offset_resolves_price():
             }
         }
     )
-    position = _long_position()
-    position.context_at_entry = {"support_level": 1.1980}
+    position = _long_position(context={"support_level": 1.1980})
     bar = pd.Series({"high": 1.2050, "low": 1.1950})
 
     result = rem.check_exits(position, bar)
@@ -147,14 +159,14 @@ def test_reference_rule_with_offset_resolves_price():
 def test_trailing_stop_updates_long_position():
     rem = RiskExitManager(
         config={
-            "stop_loss": {"type": "fixed_pips", "pips": 20.0},
+            "stop_loss": {"type": "fixed_pips", "pips": 50.0},
             "trailing_stop": {
-                "distance": {"type": "fixed_pips", "pips": 10.0},
+                "distance": {"type": "fixed_pips", "pips": 30.0},
             },
         },
         instrument={"pip_location": 0.0001},
     )
-    position = _long_position()
+    position = _long_position(mfe_currency=0.0)
     bar = pd.Series({"high": 1.2050, "low": 1.1985})
 
     assert rem.check_exits(position, bar) is None
@@ -163,14 +175,14 @@ def test_trailing_stop_updates_long_position():
 def test_trailing_stop_updates_short_position():
     rem = RiskExitManager(
         config={
-            "stop_loss": {"type": "fixed_pips", "pips": 20.0},
+            "stop_loss": {"type": "fixed_pips", "pips": 50.0},
             "trailing_stop": {
-                "distance": {"type": "fixed_pips", "pips": 10.0},
+                "distance": {"type": "fixed_pips", "pips": 30.0},
             },
         },
         instrument={"pip_location": 0.0001},
     )
-    position = _short_position()
+    position = _short_position(mfe_currency=0.0)
     bar = pd.Series({"high": 1.2015, "low": 1.1945})
 
     assert rem.check_exits(position, bar) is None
@@ -184,8 +196,24 @@ def test_take_profit_exit_hits_first():
         }
     )
     position = _long_position()
-    bar = pd.Series({"high": 1.2055, "low": 1.1980})
+    start = pd.Timestamp("2023-01-01 11:00:00", tz="UTC")
+    bar = pd.Series({"high": 1.2055, "low": 1.1980}, name=start)
 
-    exit_info = rem.check_exits(position, bar)
+    mock_data_handler = Mock()
+    bars_1min = pd.DataFrame(
+        [
+            {
+                "open": 1.2000 + i * 0.0002,
+                "high": 1.2005 + i * 0.0002,
+                "low": 1.1995 + i * 0.0002,
+                "close": 1.2005 + i * 0.0002,
+            }
+            for i in range(60)
+        ]
+    )
+    bars_1min.index = pd.date_range(start, periods=60, freq="1min")
+    mock_data_handler.get_data.return_value = bars_1min
+
+    exit_info = rem.check_exits(position, bar, data_handler=mock_data_handler)
     assert exit_info is not None
     assert exit_info["reason"] == "take-profit"

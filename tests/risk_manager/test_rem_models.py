@@ -92,7 +92,7 @@ class TestREMConfigInvalidRules:
             REMConfig(stop_loss={"type": "offset", "price_offset": -0.5})
 
     def test_rem_config_rejects_missing_distance_fields(self):
-        with pytest.raises(ValidationError, match="field required"):
+        with pytest.raises(ValidationError, match="Field required"):
             REMConfig(stop_loss={"type": "offset"})
 
     def test_rem_config_rejects_unknown_indicator(self, monkeypatch):
