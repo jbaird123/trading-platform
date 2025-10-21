@@ -36,9 +36,7 @@ from trading_platform.reporting.analytics import (
 logger = logging.getLogger(__name__)
 
 # Path to the JSON Schema for brief field documentation
-SCHEMA_PATH = (
-    Path(__file__).resolve().parents[3] / "docs" / "schemas" / "brief.schema.json"
-)
+SCHEMA_PATH = Path(__file__).parent / "schemas" / "brief.schema.json"
 
 
 def _extract_rmm_policy(config_snapshot: dict[str, Any] | None) -> dict[str, Any]:

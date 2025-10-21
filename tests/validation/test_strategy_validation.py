@@ -1313,12 +1313,7 @@ def test_ema_crossover_metadata_schema_validation(golden_metadata):
 
     import jsonschema
 
-    schema_path = (
-        Path(__file__).parent.parent.parent
-        / "docs"
-        / "schemas"
-        / "golden_metadata.schema.json"
-    )
+    schema_path = Path(__file__).parent / "schemas" / "golden_metadata.schema.json"
 
     with open(schema_path) as f:
         schema = json.load(f)
@@ -1512,12 +1507,7 @@ def test_ema_crossover_20pip_stop_metadata_schema_validation(golden_metadata):
 
     import jsonschema
 
-    schema_path = (
-        Path(__file__).parent.parent.parent
-        / "docs"
-        / "schemas"
-        / "golden_metadata.schema.json"
-    )
+    schema_path = Path(__file__).parent / "schemas" / "golden_metadata.schema.json"
 
     with open(schema_path) as f:
         schema = json.load(f)
@@ -1849,12 +1839,7 @@ def test_ema_crossover_20pip_stop_40pip_tp_metadata_schema_validation(
 
     import jsonschema
 
-    schema_path = (
-        Path(__file__).parent.parent.parent
-        / "docs"
-        / "schemas"
-        / "golden_metadata.schema.json"
-    )
+    schema_path = Path(__file__).parent / "schemas" / "golden_metadata.schema.json"
 
     with open(schema_path) as f:
         schema = json.load(f)
