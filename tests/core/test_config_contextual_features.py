@@ -12,10 +12,7 @@ def test_run_config_loads_contextual_features() -> None:
         "user_id": "test_user",
         "run_id": "test_run_001",
         "instrument": {
-            "symbol": "EURUSD",
-            "asset_class": "Forex",
-            "point_value": 1.0,
-            "tick_size": 0.0001,
+            "symbol": "EUR_USD",  # Use registered instrument
         },
         "contextual_features": [
             {"name": "atr", "type": "ATR", "params": {"length": 14}},
@@ -59,10 +56,7 @@ def test_run_config_default_and_override_contextual_features() -> None:
         "user_id": "test_user",
         "run_id": "test_run_default",
         "instrument": {
-            "symbol": "EURUSD",
-            "asset_class": "Forex",
-            "point_value": 1.0,
-            "tick_size": 0.0001,
+            "symbol": "EUR_USD",  # Use registered instrument
         },
         # contextual_features key is intentionally missing
     }
@@ -85,10 +79,7 @@ def test_run_config_default_and_override_contextual_features() -> None:
         "user_id": "test_user",
         "run_id": "test_run_empty",
         "instrument": {
-            "symbol": "EURUSD",
-            "asset_class": "Forex",
-            "point_value": 1.0,
-            "tick_size": 0.0001,
+            "symbol": "EUR_USD",  # Use registered instrument
         },
         "contextual_features": [],  # Explicitly empty
     }
@@ -103,10 +94,7 @@ def test_run_config_default_and_override_contextual_features() -> None:
         "user_id": "test_user",
         "run_id": "test_run_custom",
         "instrument": {
-            "symbol": "EURUSD",
-            "asset_class": "Forex",
-            "point_value": 1.0,
-            "tick_size": 0.0001,
+            "symbol": "EUR_USD",  # Use registered instrument
         },
         "contextual_features": [
             {"name": "my_custom_feature", "type": "SMA", "params": {"length": 5}}

@@ -70,7 +70,7 @@ def test_daily_loss_cap_blocks_new_entries():
         execution_model="current_bar_close",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
 
     result = run_backtest(
         market_data=df,
@@ -113,7 +113,7 @@ def test_exposure_curve_tracks_gross_notional():
         execution_model="current_bar_close",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
 
     result = run_backtest(
         market_data=df,
@@ -159,7 +159,7 @@ def test_position_cap_skips_same_direction_entry():
         execution_model="current_bar_close",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
 
     result = run_backtest(
         market_data=df,
@@ -208,7 +208,7 @@ def test_position_cap_not_reached_when_already_open():
         execution_model="current_bar_close",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
 
     result = run_backtest(
         market_data=df,
@@ -258,7 +258,7 @@ def test_position_cap_zero_blocks_new_entry():
         execution_model="current_bar_close",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
 
     result = run_backtest(
         market_data=df,
@@ -301,7 +301,7 @@ def test_rmm_blocks_disallowed_side():
         execution_model="current_bar_close",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
     rmm_ctx = {
         df.index[0]: {
             "label": "trend_down",

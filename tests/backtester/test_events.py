@@ -54,7 +54,7 @@ def test_event_blackout_blocks_new_entries():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
     trades = run_backtest(
         market_data=df,
         signals=signals,
@@ -100,7 +100,7 @@ def test_static_blackout_blocks_new_entries():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config={})
+    rem = RiskExitManager(config=None)
     trades = run_backtest(
         market_data=df,
         signals=signals,

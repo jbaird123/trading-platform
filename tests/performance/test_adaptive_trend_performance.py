@@ -14,6 +14,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 from trading_platform.regime_market_manager.engine import RMMEngine
+from trading_platform.regime_market_manager.models import RMMConfig
 from trading_platform.risk_manager.dynamic_rem import DynamicREM
 from trading_platform.strategy.features import compute_features
 from trading_platform.strategy.yaml_strategy import compile_strategy
@@ -69,7 +70,7 @@ def profile_strategy_features(ohlc: pd.DataFrame) -> tuple[pd.DataFrame, pstats.
         "long_entry_rules": [
             {
                 "all_of": [
-                    {"condition": "is_above", "left": {"ref": "ema_fast"}, "right": 100}
+                    {"condition": "is_above", "left": {"ref": "ema_fast"}, "right": {"value": 100}}
                 ]
             }
         ],
@@ -121,7 +122,7 @@ def profile_rmm_features(ohlc: pd.DataFrame) -> tuple[pd.DataFrame, pstats.Stats
     profiler = cProfile.Profile()
     profiler.enable()
 
-    rmm_engine = RMMEngine(config=rmm_config)
+    rmm_engine = RMMEngine(config=RMMConfig(**rmm_config))
     rmm_result = rmm_engine.classify_regime(
         ohlc, timeframe="1D", already_resampled=False
     )
@@ -225,18 +226,22 @@ def test_dynamic_rem_performance_overhead() -> None:
     import time
 
     config = {
-        "stop_loss": {"atr_multiple": 2.0, "atr_length": 14},
+        "stop_loss": {
+            "type": "indicator",
+            "indicator": "atr",
+            "params": {"multiplier": 2.0, "length": 14},
+        },
         "breakeven_threshold": 0.5,
         "partial_exits": [
-            {"r_multiple": 1.0, "reduction_pct": 50},
-            {"r_multiple": 2.0, "reduction_pct": 25},
+            {"r_multiple": 1.0, "fraction": 0.5},
+            {"r_multiple": 2.0, "fraction": 0.25},
         ],
         "trailing_stop": {
-            "atr_multiple": 1.5,
-            "atr_length": 14,
+            "distance": {"type": "atr", "multiplier": 1.5},
             "activate_after_partial": True,
         },
-        "volatility_tightening": {"adx_threshold": 20, "tighten_multiplier": 0.75},
+        "volatility_threshold": 20.0,
+        "low_volatility_multiplier": 0.75,
     }
 
     start = time.perf_counter()

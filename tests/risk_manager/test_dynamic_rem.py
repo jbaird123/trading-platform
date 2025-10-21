@@ -8,17 +8,15 @@ and volatility-aware trailing stops.
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
-from pathlib import Path
+
+import pytest
+from pydantic import ValidationError
 
 from trading_platform.portfolio.position import Position
+from trading_platform.risk_manager import create_rem
 from trading_platform.risk_manager.dynamic_rem import DynamicREM
-
-try:
-    import jsonschema
-except ImportError:
-    jsonschema = None  # type: ignore[assignment]
+from trading_platform.risk_manager.models import DynamicREMConfig
 
 
 def test_breakeven_trigger():
@@ -30,8 +28,8 @@ def test_breakeven_trigger():
     """
     # Create DynamicREM with breakeven threshold
     config = {
-        "stop_loss": {"atr_multiple": 1.5},
-        "take_profit": {"atr_multiple": 3.0},
+        "stop_loss": {"type": "offset", "price_offset": 0.015},
+        "take_profit": {"type": "offset", "price_offset": 0.030},
         "breakeven_threshold": 0.75,  # Move to breakeven at +0.75R
     }
 
@@ -79,8 +77,8 @@ def test_partial_profit_trigger():
     """
     # Create DynamicREM with partial exit configuration
     config = {
-        "stop_loss": {"atr_multiple": 1.5},
-        "take_profit": {"atr_multiple": 3.0},
+        "stop_loss": {"type": "offset", "price_offset": 0.015},
+        "take_profit": {"type": "offset", "price_offset": 0.030},
         "partial_exits": [
             {"r_multiple": 1.0, "fraction": 0.5},  # Close 50% at 1R
             {"r_multiple": 2.0, "fraction": 0.5},  # Close 50% more at 2R
@@ -125,11 +123,11 @@ def test_atr_trailing_stop_after_partial_exit():
     """
     # Create DynamicREM with partial exit and trailing stop
     config = {
-        "stop_loss": {"atr_multiple": 1.5},
-        "take_profit": {"atr_multiple": 3.0},
+        "stop_loss": {"type": "offset", "price_offset": 0.015},
+        "take_profit": {"type": "offset", "price_offset": 0.030},
         "partial_exits": [{"r_multiple": 1.0, "fraction": 0.5}],
         "trailing_stop": {
-            "atr_multiple": 1.0,  # Trail at 1 ATR
+            "distance": {"type": "atr", "multiplier": 1.0},  # Trail at 1 ATR
             "activate_after_partial": True,
         },
     }
@@ -179,9 +177,11 @@ def test_stop_tightens_on_falling_adx():
     """
     # Create DynamicREM with volatility-aware trailing
     config = {
-        "stop_loss": {"atr_multiple": 1.5},
-        "take_profit": {"atr_multiple": 3.0},
-        "trailing_stop": {"atr_multiple": 1.5},  # Normal trailing distance
+        "stop_loss": {"type": "offset", "price_offset": 0.015},
+        "take_profit": {"type": "offset", "price_offset": 0.030},
+        "trailing_stop": {
+            "distance": {"type": "atr", "multiplier": 1.5}
+        },  # Normal trailing distance
         "volatility_threshold": 20.0,  # ADX threshold
         "low_volatility_multiplier": 0.75,  # Tighten to 0.75x when ADX < 20
     }
@@ -231,8 +231,8 @@ def test_partial_exit_fires_only_once():
     """
     # Create DynamicREM with multiple partial exit targets
     config = {
-        "stop_loss": {"atr_multiple": 1.5},
-        "take_profit": {"atr_multiple": 3.0},
+        "stop_loss": {"type": "offset", "price_offset": 0.015},
+        "take_profit": {"type": "offset", "price_offset": 0.030},
         "partial_exits": [
             {"r_multiple": 1.0, "fraction": 0.5},  # Close 50% at 1R
             {"r_multiple": 2.0, "fraction": 0.3},  # Close 30% at 2R
@@ -284,9 +284,11 @@ def test_stop_tightens_when_adx_is_zero():
     to trigger stop tightening in flat/low-volatility markets.
     """
     config = {
-        "stop_loss": {"atr_multiple": 1.5},
-        "take_profit": {"atr_multiple": 3.0},
-        "trailing_stop": {"atr_multiple": 1.5},
+        "stop_loss": {"type": "offset", "price_offset": 0.015},
+        "take_profit": {"type": "offset", "price_offset": 0.030},
+        "trailing_stop": {
+            "distance": {"type": "atr", "multiplier": 1.5}
+        },
         "volatility_threshold": 20.0,
         "low_volatility_multiplier": 0.75,
     }
@@ -329,67 +331,16 @@ def test_stop_tightens_when_adx_is_zero():
     assert rem.stats["volatility_tightenings"] == 1
 
 
-def test_dynamic_rem_schema_validation():
-    """Task 18: Test DynamicREM configuration against schema.
-
-    Validates: Epic 2.1, Feature 2.1, Task 18
-    Ensures DynamicREM config validates against rem_dynamic.schema.json
-    """
-    if jsonschema is None:
-        return  # Skip if jsonschema not installed
-
-    # Load schema
-    schema_path = (
-        Path(__file__).resolve().parents[2]
-        / "docs"
-        / "schemas"
-        / "rem_dynamic.schema.json"
-    )
-    schema = json.loads(schema_path.read_text())
-
-    # Valid configuration
-    valid_config = {
-        "name": "DynamicREM_Test",
-        "stop_loss": {"atr_multiple": 1.5},
-        "take_profit": {"atr_multiple": 3.0},
-        "breakeven_threshold": 0.75,
-        "partial_exits": [
-            {"r_multiple": 1.0, "fraction": 0.5},
-            {"r_multiple": 2.0, "fraction": 0.5},
-        ],
-        "trailing_stop": {
-            "atr_multiple": 1.0,
-            "activate_after_partial": True,
-        },
-        "volatility_threshold": 20.0,
-        "low_volatility_multiplier": 0.75,
-    }
-
-    # Should validate without error
-    jsonschema.validate(valid_config, schema)
-
-    # Invalid config (missing required field)
-    invalid_config = {"name": "Invalid"}
-
-    try:
-        jsonschema.validate(invalid_config, schema)
-        assert False, "Should have raised validation error"
-    except jsonschema.ValidationError:
-        pass  # Expected
-
-
 def test_create_rem_factory():
     """Task 19: Test REM factory creates DynamicREM with validation.
 
     Validates: Epic 2.1, Feature 2.1, Task 19
     Ensures create_rem factory validates config and instantiates DynamicREM
     """
-    from trading_platform.risk_manager import create_rem
-
     # Valid configuration
     valid_config = {
-        "stop_loss": {"atr_multiple": 1.5},
-        "take_profit": {"atr_multiple": 3.0},
+        "stop_loss": {"type": "offset", "price_offset": 0.015},
+        "take_profit": {"type": "offset", "price_offset": 0.030},
         "breakeven_threshold": 0.75,
         "partial_exits": [{"r_multiple": 1.0, "fraction": 0.5}],
     }
@@ -400,17 +351,51 @@ def test_create_rem_factory():
     assert rem.breakeven_threshold == 0.75
 
     # Invalid config type
-    try:
+    with pytest.raises(ValueError, match="must be a dictionary"):
         create_rem("invalid_string")  # type: ignore[arg-type]
-        assert False, "Should have raised ValueError"
-    except ValueError as e:
-        assert "must be a dictionary" in str(e)
 
-    # Schema validation failure (if jsonschema available)
-    if jsonschema is not None:
-        invalid_config = {"name": "Invalid"}  # Missing required fields
-        try:
-            create_rem(invalid_config)
-            assert False, "Should have raised ValueError for schema validation"
-        except ValueError as e:
-            assert "schema validation failed" in str(e)
+    # Invalid config data
+    with pytest.raises(ValidationError):
+        create_rem({"name": "Invalid"})
+
+
+class TestDynamicREMConfigModel:
+    """Tests for DynamicREMConfig Pydantic model."""
+
+    def test_dynamic_rem_config_accepts_valid_payload(self):
+        data = {
+            "name": "DynamicREM_Test",
+            "stop_loss": {"type": "offset", "price_offset": 0.015},
+            "take_profit": {"type": "offset", "price_offset": 0.030},
+            "breakeven_threshold": 0.5,
+            "partial_exits": [{"r_multiple": 1.0, "fraction": 0.5}],
+            "trailing_stop": {
+                "distance": {"type": "atr", "multiplier": 1.0},
+                "activate_after_partial": True,
+            },
+            "volatility_threshold": 15.0,
+            "low_volatility_multiplier": 0.8,
+        }
+
+        cfg = DynamicREMConfig(**data)
+
+        assert cfg.trailing_stop is not None
+        assert cfg.trailing_stop.distance.type == "atr"
+        assert cfg.partial_exits[0].fraction == 0.5
+
+    def test_dynamic_rem_config_rejects_invalid_fraction(self):
+        data = {
+            "stop_loss": {"type": "offset", "price_offset": 0.01},
+            "partial_exits": [{"r_multiple": 1.0, "fraction": 1.5}],
+        }
+
+        with pytest.raises(ValidationError, match="less than or equal to 1"):
+            DynamicREMConfig(**data)
+
+    def test_dynamic_rem_config_json_schema_includes_trailing_fields(self):
+        schema = DynamicREMConfig.model_json_schema()
+        trailing_def = schema["$defs"]["DynamicTrailingStopRule"]["properties"][
+            "distance"
+        ]
+        mapping = trailing_def["discriminator"]["mapping"]
+        assert set(mapping.keys()) == {"offset", "atr"}

@@ -45,86 +45,83 @@ def test_validate_rmm_config_accepts_any_of_minimal_valid() -> None:
 # --- Coverage of detailed error branches ----------------------------------------
 
 
-def test_validate_rmm_config_jsonschema_missing() -> None:
-    valid_config: dict[str, list[str]] = {"regimes": []}
-    with patch(f"{CONFIG_MODULE}.jsonschema", None):
-        with pytest.raises(ValueError, match="jsonschema is required for RMM"):
-            validate_rmm_config(valid_config)
+def test_validate_rmm_config_without_jsonschema() -> None:
+    """Test that RMM validation works without jsonschema (it's no longer required)."""
+    # Empty regimes should still raise error (basic validation)
+    invalid_config: dict[str, list[str]] = {"regimes": []}
+    with pytest.raises(ValueError, match="regimes must be a non-empty array"):
+        validate_rmm_config(invalid_config)
 
 
 def test_validate_rmm_config_regimes_must_be_non_empty_list() -> None:
-    with patch(f"{CONFIG_MODULE}.jsonschema") as mock_jsonschema:
-        mock_jsonschema.validate.return_value = None
-
-        payload: Any
-        for payload in ("invalid", []):
-            with pytest.raises(ValueError, match="regimes must be a non-empty array"):
-                validate_rmm_config({"regimes": payload})
+    """Test that regimes must be a non-empty list."""
+    payload: Any
+    for payload in ("invalid", []):
+        with pytest.raises(ValueError, match="regimes must be a non-empty array"):
+            validate_rmm_config({"regimes": payload})
 
 
 def test_validate_rmm_config_regime_structure() -> None:
-    with patch(f"{CONFIG_MODULE}.jsonschema") as mock_jsonschema:
-        mock_jsonschema.validate.return_value = None
+    """Test that regime structure is validated correctly."""
+    with pytest.raises(ValueError, match="regime must be an object"):
+        validate_rmm_config({"regimes": ["bad"]})
 
-        with pytest.raises(ValueError, match="regime must be an object"):
-            validate_rmm_config({"regimes": ["bad"]})
+    with pytest.raises(ValueError, match="regime.label must be a string"):
+        validate_rmm_config({"regimes": [{"label": 123}]})
 
-        with pytest.raises(ValueError, match="regime.label must be a string"):
-            validate_rmm_config({"regimes": [{"label": 123}]})
+    with pytest.raises(ValueError, match="regime.confidence must be 0..1"):
+        validate_rmm_config({"regimes": [{"label": "x", "confidence": "bad"}]})
 
-        with pytest.raises(ValueError, match="regime.confidence must be 0..1"):
-            validate_rmm_config({"regimes": [{"label": "x", "confidence": "bad"}]})
+    with pytest.raises(ValueError, match="regime.confidence must be 0..1"):
+        validate_rmm_config({"regimes": [{"label": "x", "confidence": 1.5}]})
 
-        with pytest.raises(ValueError, match="regime.confidence must be 0..1"):
-            validate_rmm_config({"regimes": [{"label": "x", "confidence": 1.5}]})
+    bad_conditions = {
+        "regimes": [{"label": "x", "conditions": "bad", "confidence": 0.5}]
+    }
+    with pytest.raises(ValueError, match="regime.conditions must be an object"):
+        validate_rmm_config(bad_conditions)
 
-        bad_conditions = {
-            "regimes": [{"label": "x", "conditions": "bad", "confidence": 0.5}]
-        }
-        with pytest.raises(ValueError, match="regime.conditions must be an object"):
-            validate_rmm_config(bad_conditions)
+    missing_clauses = {
+        "regimes": [
+            {
+                "label": "x",
+                "confidence": 0.5,
+                "conditions": {},
+            }
+        ]
+    }
+    with pytest.raises(
+        ValueError, match="regime.conditions requires all_of or any_of"
+    ):
+        validate_rmm_config(missing_clauses)
 
-        missing_clauses = {
-            "regimes": [
-                {
-                    "label": "x",
-                    "confidence": 0.5,
-                    "conditions": {},
-                }
-            ]
-        }
-        with pytest.raises(
-            ValueError, match="regime.conditions requires all_of or any_of"
-        ):
-            validate_rmm_config(missing_clauses)
+    empty_predicates = {
+        "regimes": [
+            {
+                "label": "x",
+                "confidence": 0.5,
+                "conditions": {"all_of": []},
+            }
+        ]
+    }
+    with pytest.raises(
+        ValueError, match="predicate list must be a non-empty array"
+    ):
+        validate_rmm_config(empty_predicates)
 
-        empty_predicates = {
-            "regimes": [
-                {
-                    "label": "x",
-                    "confidence": 0.5,
-                    "conditions": {"all_of": []},
-                }
-            ]
-        }
-        with pytest.raises(
-            ValueError, match="predicate list must be a non-empty array"
-        ):
-            validate_rmm_config(empty_predicates)
-
-        non_list_predicates = {
-            "regimes": [
-                {
-                    "label": "x",
-                    "confidence": 0.5,
-                    "conditions": {"any_of": "bad"},
-                }
-            ]
-        }
-        with pytest.raises(
-            ValueError, match="predicate list must be a non-empty array"
-        ):
-            validate_rmm_config(non_list_predicates)
+    non_list_predicates = {
+        "regimes": [
+            {
+                "label": "x",
+                "confidence": 0.5,
+                "conditions": {"any_of": "bad"},
+            }
+        ]
+    }
+    with pytest.raises(
+        ValueError, match="predicate list must be a non-empty array"
+    ):
+        validate_rmm_config(non_list_predicates)
 
 
 # --- Smoke coverage for dataclass wrapper ---------------------------------------

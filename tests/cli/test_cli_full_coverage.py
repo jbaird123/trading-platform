@@ -105,12 +105,14 @@ def cli_stubs(monkeypatch, tmp_path):
     )
 
     class DummyRMMEngine:
-        @staticmethod
-        def validate_config(cfg: dict[str, Any]) -> None:
-            calls["rmm_validated"] = cfg
-
-        def __init__(self, config: dict[str, Any]) -> None:
-            self.config = config
+        def __init__(self, config: Any) -> None:
+            # Accept either dict or Pydantic model for testing flexibility
+            if hasattr(config, 'model_dump'):
+                calls["rmm_validated"] = config.model_dump()
+                self.config = config
+            else:
+                calls["rmm_validated"] = config
+                self.config = config
 
         def classify_daily(self, df: pd.DataFrame) -> pd.DataFrame:
             return pd.DataFrame(
@@ -168,14 +170,21 @@ def test_cmd_run_backtest_full_branch(cli_stubs, tmp_path):
         "run_id": "rid",
         "run_seed": 5,
         "data_request": {"symbol": "EURUSD"},
-        "fast_mode": {"last_days": 1},
         "strategy_path": str(strat_path),
         "strategy_overrides": {
             "parameters": {"p": 2},
             "features": {"ema": {"length": 10}},
         },
         "rem_config": {"name": "rem"},
-        "rmm_config": {"regimes": ["x"], "policy": {"allow": []}},
+        "rmm_config": {
+            "regimes": [
+                {
+                    "label": "test",
+                    "confidence": 0.9,
+                    "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                }
+            ]
+        },
         "parameter_search": {"grid": {"p": [1, 2]}},
         "walk_forward": {"window": 1, "step": 1},
         "monte_carlo": {"mode": "bar_bootstrap", "trials": 2},
@@ -232,12 +241,14 @@ def test_cmd_run_backtest_fast_mode_last_days_and_overrides(
     monkeypatch.setattr(cli, "compile_strategy", capture_compile)
 
     class TransitionRMM:
-        @staticmethod
-        def validate_config(cfg: dict[str, Any]) -> None:
-            calls["rmm_transition"] = cfg
-
-        def __init__(self, config: dict[str, Any]) -> None:
-            self.config = config
+        def __init__(self, config: Any) -> None:
+            # Accept either dict or Pydantic model for testing flexibility
+            if hasattr(config, 'model_dump'):
+                calls["rmm_transition"] = config.model_dump()
+                self.config = config
+            else:
+                calls["rmm_transition"] = config
+                self.config = config
 
         def classify_daily(self, df: pd.DataFrame) -> pd.DataFrame:
             return pd.DataFrame(
@@ -261,8 +272,15 @@ def test_cmd_run_backtest_fast_mode_last_days_and_overrides(
     cfg = {
         "run_id": "rid",
         "data_request": {"symbol": "EURUSD"},
-        "fast_mode": {"last_days": 1},
-        "rmm_config": {"regimes": ["a"], "policy": {}},
+        "rmm_config": {
+            "regimes": [
+                {
+                    "label": "a",
+                    "confidence": 0.9,
+                    "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                }
+            ]
+        },
         "strategy": {
             "strategy_name": "S",
             "long_entry_rules": [{"any_of": []}],
@@ -292,13 +310,14 @@ def test_cmd_run_backtest_fast_mode_last_days_and_overrides(
     assert {item["mode"] for item in spans} >= {"both", "long_only", "short_only"}
     market_data = calls["run_backtest"]["market_data"]
     assert isinstance(market_data.index, pd.DatetimeIndex)
-    assert market_data.index.max() - market_data.index.min() <= pd.Timedelta("1 day")
+    # fast_mode removed - no longer filtering by last_days
     assert "rmm_transition" in calls
 
 
 def test_cmd_run_backtest_fast_mode_limit_and_exception(
     cli_stubs, tmp_path, monkeypatch
 ):
+    """Test basic backtest run - fast_mode removed."""
     cli, _, calls = cli_stubs
 
     class MockDataHandler:
@@ -333,25 +352,18 @@ def test_cmd_run_backtest_fast_mode_limit_and_exception(
 
     monkeypatch.setattr(cli, "compile_strategy", lambda cfg: MatchingStrategy())
 
-    for idx, fast_mode in enumerate(
-        [
-            {"last_days": "oops"},
-            {"limit_bars": 2},
-        ]
-    ):
-        cfg = {
-            "run_id": f"rid_{idx}",
-            "data_request": {"symbol": "EURUSD"},
-            "fast_mode": fast_mode,
-            "strategy": strategy_cfg,
-        }
-        cfg_path = tmp_path / f"cfg_limit_{idx}.json"
-        cfg_path.write_text(json.dumps(cfg))
-        ns = Namespace(demo=False, user="user", config=str(cfg_path))
-        assert cli.cmd_run_backtest(ns) == 0
+    cfg = {
+        "run_id": "rid_simple",
+        "data_request": {"symbol": "EURUSD"},
+        "strategy": strategy_cfg,
+    }
+    cfg_path = tmp_path / "cfg_simple.json"
+    cfg_path.write_text(json.dumps(cfg))
+    ns = Namespace(demo=False, user="user", config=str(cfg_path))
+    assert cli.cmd_run_backtest(ns) == 0
 
     market_data = calls["run_backtest"]["market_data"]
-    assert len(market_data) == 2
+    assert len(market_data) == 6  # No filtering without fast_mode
 
 
 def test_cmd_run_backtest_tuple_variants(cli_stubs, tmp_path, monkeypatch):
@@ -396,6 +408,7 @@ def test_cmd_run_backtest_tuple_variants(cli_stubs, tmp_path, monkeypatch):
 
 
 def test_cmd_run_backtest_fast_mode_not_dict(cli_stubs, tmp_path, monkeypatch):
+    """Test basic backtest - fast_mode removed."""
     cli, _, _ = cli_stubs
     monkeypatch.setattr(
         pd.DataFrame,
@@ -407,14 +420,13 @@ def test_cmd_run_backtest_fast_mode_not_dict(cli_stubs, tmp_path, monkeypatch):
     cfg = {
         "run_id": "rid",
         "data_request": {"symbol": "EURUSD"},
-        "fast_mode": "skip",
         "strategy": {
             "strategy_name": "S",
             "long_entry_rules": [{"any_of": []}],
             "long_exit_rules": [{"any_of": []}],
         },
     }
-    cfg_path = tmp_path / "cfg_fast_mode.json"
+    cfg_path = tmp_path / "cfg_simple_2.json"
     cfg_path.write_text(json.dumps(cfg))
     ns = Namespace(demo=False, user="user", config=str(cfg_path))
 
@@ -501,12 +513,19 @@ def test_cmd_run_backtest_with_paths_and_failures(tmp_path, monkeypatch):
     rem_file = tmp_path / "rem.json"
     rem_file.write_text(json.dumps({"name": "rem_file"}))
     rmm_file = tmp_path / "rmm.json"
-    rmm_file.write_text(json.dumps({"regimes": ["a"], "policy": {}}))
+    rmm_file.write_text(json.dumps({
+        "regimes": [
+            {
+                "label": "a",
+                "confidence": 0.9,
+                "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+            }
+        ]
+    }))
 
     config = {
         "run_id": "rid",
         "data_request": {"symbol": "EURUSD"},
-        "fast_mode": {"limit_bars": 2},
         "strategy": {
             "strategy_name": "S",
             "long_entry_rules": [{"any_of": []}],
@@ -524,7 +543,15 @@ def test_cmd_run_backtest_with_paths_and_failures(tmp_path, monkeypatch):
         if path == rem_file:
             return {"name": "rem_file"}
         if path == rmm_file:
-            return {"regimes": ["a"], "policy": {}}
+            return {
+                "regimes": [
+                    {
+                        "label": "a",
+                        "confidence": 0.9,
+                        "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                    }
+                ]
+            }
         return config
 
     monkeypatch.setattr(cli, "_load_config", fake_load)
@@ -582,11 +609,8 @@ def test_cmd_run_backtest_with_paths_and_failures(tmp_path, monkeypatch):
     )
 
     class SpanRMM:
-        @staticmethod
-        def validate_config(cfg: dict[str, Any]) -> None:
-            pass
-
-        def __init__(self, config: dict[str, Any]) -> None:
+        def __init__(self, config: Any) -> None:
+            # Accept either dict or Pydantic model for testing flexibility
             self.config = config
 
         def classify_daily(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -642,7 +666,7 @@ def test_cmd_run_backtest_with_paths_and_failures(tmp_path, monkeypatch):
 
     ns = Namespace(demo=False, user="user", config=str(cfg_path))
     assert cli.cmd_run_backtest(ns) == 0
-    assert state["market_len"] == 2
+    assert state["market_len"] == 6  # No filtering without fast_mode
     assert state["params"] == {"length": 1}
     assert compiled_cfg["features"][0]["params"]["length"] == 2
 
@@ -651,11 +675,8 @@ def test_cmd_run_backtest_rmm_constant_modes(cli_stubs, tmp_path, monkeypatch):
     cli, _, _ = cli_stubs
 
     class FlatRMM:
-        @staticmethod
-        def validate_config(cfg: dict[str, Any]) -> None:
-            pass
-
-        def __init__(self, config: dict[str, Any]) -> None:
+        def __init__(self, config: Any) -> None:
+            # Accept either dict or Pydantic model for testing flexibility
             self.config = config
 
         def classify_daily(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -689,7 +710,15 @@ def test_cmd_run_backtest_rmm_constant_modes(cli_stubs, tmp_path, monkeypatch):
     cfg = {
         "run_id": "rid",
         "data_request": {"symbol": "EURUSD"},
-        "rmm_config": {"regimes": ["flat"], "policy": {}},
+        "rmm_config": {
+            "regimes": [
+                {
+                    "label": "flat",
+                    "confidence": 0.5,
+                    "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                }
+            ]
+        },
         "strategy": {
             "strategy_name": "S",
             "long_entry_rules": [{"any_of": []}],
@@ -707,11 +736,8 @@ def test_cmd_run_backtest_rmm_empty_projection(cli_stubs, tmp_path, monkeypatch)
     cli, _, _ = cli_stubs
 
     class EmptyRMM:
-        @staticmethod
-        def validate_config(cfg: dict[str, Any]) -> None:
-            pass
-
-        def __init__(self, config: dict[str, Any]) -> None:
+        def __init__(self, config: Any) -> None:
+            # Accept either dict or Pydantic model for testing flexibility
             self.config = config
 
         def classify_daily(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -730,7 +756,15 @@ def test_cmd_run_backtest_rmm_empty_projection(cli_stubs, tmp_path, monkeypatch)
     cfg = {
         "run_id": "rid",
         "data_request": {"symbol": "EURUSD"},
-        "rmm_config": {"regimes": ["empty"], "policy": {}},
+        "rmm_config": {
+            "regimes": [
+                {
+                    "label": "empty",
+                    "confidence": 0.5,
+                    "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                }
+            ]
+        },
         "strategy": {
             "strategy_name": "S",
             "long_entry_rules": [{"any_of": []}],

@@ -19,15 +19,15 @@ This document provides a detailed, step-by-step plan for implementing the adapti
 
 1.  **[X] TEST:** In `tests/strategy/test_yaml_strategy.py`, add `test_load_strategy_with_new_indicators` to load a YAML with `ema_slope`, `rsi`, and `roc` features and assert it parses correctly.
 2.  **[X] IMPLEMENT:** In `src/trading_platform/strategy/indicators_registry.py`, add `ema_slope`, `rsi`, and `roc` to the `INDICATORS` dictionary **and** implement the corresponding computation helpers in `src/trading_platform/strategy/features.py`.
-3.  **[X] TEST:** In `tests/strategy/test_yaml_strategy.py`, add `test_new_indicator_schema_validation` to validate a strategy YAML with the new indicators against `docs/schemas/strategy.schema.json`. Include targeted tests in `tests/strategy/test_features.py` (or equivalent) for the `ema_slope`, `rsi`, and `roc` computations.
-4.  **[X] IMPLEMENT:** In `docs/schemas/strategy.schema.json`, update the indicator definitions to include `ema_slope`, `rsi`, and `roc` and their parameters.
+3.  **[X] TEST:** In `tests/strategy/test_yaml_strategy.py`, add `test_new_indicator_schema_validation` to validate a strategy YAML with the new indicators via the `StrategyConfig` Pydantic model. Include targeted tests in `tests/strategy/test_features.py` (or equivalent) for the `ema_slope`, `rsi`, and `roc` computations.
+4.  **[X] IMPLEMENT:** Add the new indicators to `INDICATORS` in `src/trading_platform/strategy/indicators_registry.py` (validation now reads directly from the registry).
 
 ### Feature 1.2: Add New Strategy Predicates
 
 5.  **[X] TEST:** In `tests/strategy/test_yaml_strategy.py`, add `test_predicate_slope_is_above` using a `YamlStrategy` with the rule `{ feature: "ema_slope_14", predicate: "slope_is_above", value: 0.5 }` and assert it generates the correct command.
 6.  **[X] IMPLEMENT:** In `src/trading_platform/strategy/yaml_strategy.py`, add logic for the `slope_is_above` predicate.
-7.  **[X] TEST:** In `tests/strategy/test_yaml_strategy.py`, add a test to validate that `slope_is_above` and `roc_is_above` are valid predicate enums in `docs/schemas/strategy.schema.json`.
-8.  **[X] IMPLEMENT:** In `docs/schemas/strategy.schema.json`, add `slope_is_above` and `roc_is_above` to the `definitions/predicate` enum.
+7.  **[X] TEST:** In `tests/strategy/test_yaml_strategy.py`, add a test to validate that `slope_is_above` and `roc_is_above` are accepted by `StrategyConfig`.
+8.  **[X] IMPLEMENT:** Extend predicate handling in `src/trading_platform/strategy/models.py` / `yaml_strategy.py` to recognise `slope_is_above` and `roc_is_above`.
 9.  **[X] IMPLEMENT:** In `src/trading_platform/strategy/yaml_strategy.py`, add logic for the `roc_is_above` predicate.
 
 ### Feature 1.3: Add Higher-Timeframe Feature Support

@@ -247,7 +247,7 @@ The following features use advanced REM configurations and are NOT part of the b
 - `trailing_stop` - Use DynamicREM instead
 - `reference_price` - Contextual exit rules (legacy, not in new schema)
 
-These will continue using the old format until DynamicREM validation is implemented.
+These are now modeled separately via `DynamicREMConfig` and related Pydantic models.
 
 ## Backward Compatibility
 
@@ -273,6 +273,6 @@ poetry run python -m trading_platform.cli backtest \
 
 ## Questions?
 
-- See [rem.schema.json](../schemas/rem.schema.json) for the complete schema definition
+- Generate the JSON schema on demand with `REMConfig.model_json_schema()` if needed.
 - See [models.py](../../src/trading_platform/risk_manager/models.py) for Pydantic model implementation
 - See [golden strategy configs](../../configs/golden_strategies/ema_crossover/) for examples

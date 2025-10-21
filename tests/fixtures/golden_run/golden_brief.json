@@ -233,10 +233,12 @@
   "rmm_policy": {},
   "rem_policy": {
     "stop_loss": {
-      "price_offset": 1000000.0
+      "price_offset": 1000000.0,
+      "type": "offset"
     },
     "take_profit": {
-      "price_offset": 1000000.0
+      "price_offset": 1000000.0,
+      "type": "offset"
     },
     "trailing_stop": {},
     "time_exit": {},
@@ -258,7 +260,7 @@
     "data_start": "2023-01-02T09:00:00+00:00",
     "data_end": "2023-01-02T15:00:00+00:00",
     "symbols": [
-      "GOLDENTICKER"
+      "EURUSD"
     ],
     "app_version": "0.0.1",
     "git_commit": "b7f9d46",
@@ -378,7 +380,9 @@
     "blackout_policy.blackout_utc": "List of UTC blackout intervals or timestamps.",
     "blackout_policy.blackout_events": "List of event identifiers that trigger blackout windows.",
     "rem_policy.stop_loss.price_offset": "Stop loss configuration including price offsets and conditions.",
+    "rem_policy.stop_loss.type": "Stop loss configuration including price offsets and conditions.",
     "rem_policy.take_profit.price_offset": "Take profit configuration including price offsets and conditions.",
+    "rem_policy.take_profit.type": "Take profit configuration including price offsets and conditions.",
     "rem_policy.stop_loss_pips": "Human-readable stop loss distance in pips.",
     "rem_policy.take_profit_pips": "Human-readable take profit distance in pips.",
     "environment.python_version": "Version of Python used (e.g., '3.10.12').",
@@ -428,7 +432,7 @@
   },
   "trades": [
     {
-      "symbol": "GOLDENTICKER",
+      "symbol": "EURUSD",
       "side": "short",
       "size": 1.0,
       "entry_time": "2023-01-02T09:00:00+00:00",

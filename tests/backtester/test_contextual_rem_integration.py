@@ -30,7 +30,13 @@ def test_contextual_rem_with_order_block_strategy():
         ],
         "long_entry_rules": [
             {
-                "all_of": [{"condition": "is_above", "left": "close", "right": 1.0}],
+                "all_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 1.0},
+                    }
+                ],
                 "context": {"order_block_low": {"ref": "ob_low"}},
             }
         ],
@@ -38,7 +44,11 @@ def test_contextual_rem_with_order_block_strategy():
             {
                 "any_of": [
                     # Exit will be handled by REM, so use impossible condition
-                    {"condition": "is_below", "left": "close", "right": 0.0}
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 0.0},
+                    }
                 ]
             }
         ],
@@ -49,23 +59,21 @@ def test_contextual_rem_with_order_block_strategy():
     # Define REM with reference_price rule
     rem_config = {
         "name": "Contextual Risk Test",
-        "stop_loss": [
-            {
-                "type": "reference_price",
-                "reference_point": "context.order_block_low",
-                "offset": {"pips": -10},  # 10 pips below order block
-            }
-        ],
+        "stop_loss": {
+            "type": "reference",
+            "reference_point": "context.order_block_low",
+            "offset": {"type": "fixed_pips", "pips": 10.0},
+        },
     }
 
     # EUR/USD instrument
-    instrument = {
+    # When passing to REM directly, include pip_location for pip calculations
+    instrument_for_rem = {
         "symbol": "EUR_USD",
-        "pip_location": 0.0001,
-        "point_value": 1.0,
+        "pip_location": 0.0001,  # EUR/USD has 4 decimal places
     }
 
-    rem = RiskExitManager(config=rem_config, instrument=instrument)
+    rem = RiskExitManager(config=rem_config, instrument=instrument_for_rem)
 
     # Create test data:
     # Bar 0: close=0.9, low=0.85 -> No entry
@@ -83,13 +91,14 @@ def test_contextual_rem_with_order_block_strategy():
         index=pd.date_range("2024-01-01", periods=4, freq="h"),
     )
 
+    # For RunConfig, only pass symbol (pip_location auto-populated from registry)
     run_config = RunConfig(
         user_id="test",
         run_id="ob_test",
         run_seed=42,
         log_level="INFO",
         allow_flip_on_bar=False,
-        instrument=instrument,
+        instrument={"symbol": "EUR_USD"},  # Only symbol, no pip_location
         initial_cash=10000,
         position_size=1000,
         execution_model="next_bar_open",

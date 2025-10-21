@@ -1,6 +1,5 @@
 name: "No Stop/TP"
-description: "No stop-loss or take-profit for pure signal validation"
 version: "1.0"
-
-# No exit rules - strategy signals only
-exit_rules: []
+stop_loss:
+  type: fixed_pips
+  pips: 1000000.0

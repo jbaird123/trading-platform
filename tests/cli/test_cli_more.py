@@ -44,13 +44,17 @@ def test_cmd_run_backtest_yaml_requires_pyyaml(tmp_path: Path) -> None:
                 "  long_entry_rules:",
                 "    - any_of:",
                 "        - condition: is_above",
-                "          left: 1",
-                "          right: 0",
+                "          left:",
+                "            value: 1",
+                "          right:",
+                "            value: 0",
                 "  long_exit_rules:",
                 "    - any_of:",
                 "        - condition: is_below",
-                "          left: 1",
-                "          right: 2",
+                "          left:",
+                "            value: 1",
+                "          right:",
+                "            value: 2",
             ]
         )
     )

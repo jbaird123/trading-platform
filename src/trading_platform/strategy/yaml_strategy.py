@@ -7,44 +7,33 @@ from pathlib import Path
 from typing import Any, cast
 
 import pandas as pd
-
-try:
-    import jsonschema
-except ImportError:
-    jsonschema = None  # type: ignore[assignment]
+from pydantic import ValidationError
 
 from trading_platform.ai.inference_client import AIInferenceClient
 from trading_platform.core.signal import Signal
 
 from .features import compute_features
+from .models import StrategyConfig
 
 logger = logging.getLogger(__name__)
 
 
 def validate_strategy_config(cfg: dict[str, Any]) -> None:
-    """Validate strategy config against key schema expectations.
+    """Validate strategy config using Pydantic.
 
-    We prefer jsonschema when available, but also enforce minimal rules:
-    - required: strategy_name (str)
-        - at least one pair present: (long_entry_rules & long_exit_rules) or
-            (short_entry_rules & short_exit_rules)
-    - rule blocks: each has all_of or any_of with a non-empty predicate list
-    - predicate: {condition, left, right} with supported conditions
+    Pydantic is the single source of truth for validation.
+    JSON schemas are auto-generated from Pydantic models for documentation only.
+
+    Raises:
+        ValueError: If validation fails
     """
     if not isinstance(cfg, dict):
         raise ValueError("strategy must be an object")
-    if jsonschema is not None:
-        schema_path = (
-            Path(__file__).resolve().parents[3]
-            / "docs"
-            / "schemas"
-            / "strategy.schema.json"
-        )
-        schema = json.loads(schema_path.read_text())
-        try:
-            jsonschema.validate(cfg, schema)
-        except jsonschema.ValidationError as e:
-            raise ValueError(f"Strategy schema validation error: {e.message}") from e
+
+    try:
+        StrategyConfig(**cfg)
+    except ValidationError as e:
+        raise ValueError(f"Strategy validation error: {e}") from e
 
 
 def load_strategy_config(doc: dict[str, Any] | str | Path) -> dict[str, Any]:
@@ -59,21 +48,86 @@ def load_strategy_config(doc: dict[str, Any] | str | Path) -> dict[str, Any]:
 
 
 def _series_for_operand(df: pd.DataFrame, operand: Any) -> pd.Series:
+    """Convert an operand to a pandas Series.
+
+    STRICT VALIDATION: Invalid operands raise KeyError/ValueError (fail loudly).
+    Previously, invalid operands silently became zeros, causing subtle bugs.
+
+    Args:
+        df: DataFrame with OHLCV data and computed features
+        operand: Number, OHLC field string, or {ref: feature_name} dict
+
+    Returns:
+        Series with operand values
+
+    Raises:
+        KeyError: If feature/field reference doesn't exist in DataFrame
+        ValueError: If operand format is invalid
+    """
+    # Numeric literal
     if isinstance(operand, (int, float)):
         return pd.Series([float(operand)] * len(df), index=df.index)
+
+    # OHLC field reference (e.g., "close", "high")
     if isinstance(operand, str):
         if operand in df.columns:
             return pd.Series(df[operand], dtype="float64")
-    if isinstance(operand, dict) and "ref" in operand:
-        ref = str(operand["ref"])  # feature name
-        return pd.Series(df[ref], dtype="float64")
-    return pd.Series([0.0] * len(df), index=df.index)
+        # FAIL LOUDLY: Field doesn't exist
+        raise KeyError(
+            f"Operand field '{operand}' not found in DataFrame. "
+            f"Available fields: {list(df.columns)}. "
+            f"Valid OHLC fields are: open, high, low, close."
+        )
+
+    # Feature reference (e.g., {ref: "ema_fast"})
+    if isinstance(operand, dict):
+        if "ref" in operand:
+            ref = str(operand["ref"])
+            if ref not in df.columns:
+                # FAIL LOUDLY: Feature not computed
+                raise KeyError(
+                    f"Operand feature '{ref}' not found in DataFrame. "
+                    f"Available features: {list(df.columns)}. "
+                    f"Ensure this feature is defined in the strategy's features list."
+                )
+            return pd.Series(df[ref], dtype="float64")
+
+        if "field" in operand:
+            field = str(operand["field"])
+            if field not in df.columns:
+                raise KeyError(
+                    f"Operand field '{field}' not found in DataFrame. "
+                    f"Available fields: {list(df.columns)}."
+                )
+            return pd.Series(df[field], dtype="float64")
+
+        if "value" in operand:
+            return pd.Series([float(operand["value"])] * len(df), index=df.index)
+
+        # FAIL LOUDLY: Dict has wrong structure
+        raise ValueError(
+            f"Invalid operand dict: {operand}. "
+            f"Must have one of: 'ref' (feature), 'field' (OHLC), or 'value' (number)."
+        )
+
+    # FAIL LOUDLY: Completely unknown operand type
+    raise ValueError(
+        f"Invalid operand type: {type(operand)}. "
+        f"Operand must be: number, string (OHLC field), or dict (feature ref). "
+        f"Got: {operand}"
+    )
 
 
 def _eval_predicate(df: pd.DataFrame, pred: dict[str, Any]) -> pd.Series:
+    """Evaluate a predicate against a DataFrame.
+
+    STRICT VALIDATION: Unknown conditions raise ValueError (fail loudly).
+    Previously, unknown conditions silently returned False, making typos hard to debug.
+    """
     cond = str(pred.get("condition"))
     left = _series_for_operand(df, pred.get("left"))
     right = _series_for_operand(df, pred.get("right"))
+
     if cond == "is_above":
         # Handle NaN: comparisons with NaN return False
         return (left > right).fillna(False)
@@ -96,7 +150,14 @@ def _eval_predicate(df: pd.DataFrame, pred: dict[str, Any]) -> pd.Series:
         prev = (left.shift(1) >= right.shift(1)).fillna(False)
         now = (left < right).fillna(False)
         return prev & now
-    return pd.Series([False] * len(df), index=df.index)
+
+    # FAIL LOUDLY: Unknown condition is a configuration error, not a runtime edge case
+    valid_conditions = ["cross_above", "cross_below", "is_above", "is_below", "slope_is_above", "roc_is_above"]
+    raise ValueError(
+        f"Unknown predicate condition: '{cond}'. "
+        f"Valid conditions are: {valid_conditions}. "
+        f"This is likely a typo in your strategy configuration."
+    )
 
 
 def _eval_rule_block(df: pd.DataFrame, block: dict[str, Any]) -> pd.Series:
@@ -318,6 +379,10 @@ class CompiledStrategy:
 
 def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
     cfg.setdefault("parameters", {})
+
+    # Extract non-schema fields before validation
+    ai_filter_config = cfg.pop("ai_filter", {})
+
     validate_strategy_config(cfg)
     name = str(cfg.get("strategy_name", "Strategy"))
     overlays = [str(x) for x in (cfg.get("overlays") or [])]
@@ -327,10 +392,8 @@ def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
         param_map = {}
     slope_filter = bool(param_map.get("slope_filter", False))
     slope_feature = str(param_map.get("slope_feature", "ema_slow"))
-    ai_filter_config = cfg.get("ai_filter", {})
-    ai_filter_enabled = bool(ai_filter_config.get("enabled", False)) and (
-        jsonschema is not None
-    )
+    # AI filter can be enabled independently of JSON schema validation
+    ai_filter_enabled = bool(ai_filter_config.get("enabled", False))
     ai_confidence_threshold = float(ai_filter_config.get("confidence_threshold", 0.0))
     ai_input_features = [str(x) for x in (ai_filter_config.get("input_features") or [])]
     ai_inference_client = AIInferenceClient() if ai_filter_enabled else None

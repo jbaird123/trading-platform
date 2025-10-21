@@ -24,11 +24,11 @@ def _dummy_strategy_with_tp(tp_price: float) -> CompiledStrategy:
         overlays=[],
         features=[],
         long_entry_blocks=[
-            {"any_of": [{"condition": "is_above", "left": 1, "right": 0}]}
+            {"any_of": [{"condition": "is_above", "left": {"value": 1}, "right": {"value": 0}}]}
         ],
         long_exit_blocks=[{"take_profit": {"value": tp_price, "type": "price"}}],
         short_entry_blocks=[
-            {"any_of": [{"condition": "is_above", "left": 1, "right": 0}]}
+            {"any_of": [{"condition": "is_above", "left": {"value": 1}, "right": {"value": 0}}]}
         ],
         short_exit_blocks=[{"take_profit": {"value": tp_price, "type": "price"}}],
         parameters={},
@@ -42,11 +42,11 @@ def _dummy_strategy_with_sl(sl_price: float) -> CompiledStrategy:
         overlays=[],
         features=[],
         long_entry_blocks=[
-            {"any_of": [{"condition": "is_above", "left": 1, "right": 0}]}
+            {"any_of": [{"condition": "is_above", "left": {"value": 1}, "right": {"value": 0}}]}
         ],
         long_exit_blocks=[{"stop_loss": {"value": sl_price, "type": "price"}}],
         short_entry_blocks=[
-            {"any_of": [{"condition": "is_above", "left": 1, "right": 0}]}
+            {"any_of": [{"condition": "is_above", "left": {"value": 1}, "right": {"value": 0}}]}
         ],
         short_exit_blocks=[{"stop_loss": {"value": sl_price, "type": "price"}}],
         parameters={},
@@ -60,14 +60,14 @@ def _dummy_strategy_with_sl_tp(sl: float, tp: float) -> CompiledStrategy:
         overlays=[],
         features=[],
         long_entry_blocks=[
-            {"any_of": [{"condition": "is_above", "left": 1, "right": 0}]}
+            {"any_of": [{"condition": "is_above", "left": {"value": 1}, "right": {"value": 0}}]}
         ],
         long_exit_blocks=[
             {"stop_loss": {"value": sl, "type": "price"}},
             {"take_profit": {"value": tp, "type": "price"}},
         ],
         short_entry_blocks=[
-            {"any_of": [{"condition": "is_above", "left": 1, "right": 0}]}
+            {"any_of": [{"condition": "is_above", "left": {"value": 1}, "right": {"value": 0}}]}
         ],
         short_exit_blocks=[
             {"stop_loss": {"value": sl, "type": "price"}},

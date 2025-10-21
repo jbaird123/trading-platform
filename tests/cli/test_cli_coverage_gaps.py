@@ -25,10 +25,10 @@ def test_cli_data_request_with_all_filters(tmp_path):
         "strategy": {
             "strategy_name": "test_strategy",
             "long_entry_rules": [
-                {"all_of": [{"condition": "is_above", "left": "close", "right": 1}]}
+                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1}}]}
             ],
             "long_exit_rules": [
-                {"all_of": [{"condition": "is_below", "left": "close", "right": 1}]}
+                {"all_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1}}]}
             ],
         },
     }
@@ -79,10 +79,10 @@ def test_cli_no_data_request_uses_toy_data(tmp_path):
         "strategy": {
             "strategy_name": "test_strategy",
             "long_entry_rules": [
-                {"all_of": [{"condition": "is_above", "left": "close", "right": 1}]}
+                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1}}]}
             ],
             "long_exit_rules": [
-                {"all_of": [{"condition": "is_below", "left": "close", "right": 1}]}
+                {"all_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1}}]}
             ],
         },
     }

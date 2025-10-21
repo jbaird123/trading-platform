@@ -455,10 +455,26 @@ def test_live_controller_flat_with_no_position():
         "strategy_name": "FlatTest",
         "parameters": {},
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": "close", "right": 10.0}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 10.0},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": "close", "right": 10.0}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 10.0},
+                    }
+                ]
+            }
         ],
     }
 
@@ -498,10 +514,26 @@ def test_live_controller_max_orders_kill_switch():
         "strategy_name": "AlternatingTest",
         "parameters": {},
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": "close", "right": 0.5}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 0.5},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": "close", "right": 0.1}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 0.1},
+                    }
+                ]
+            }
         ],
     }
 
@@ -540,16 +572,37 @@ def test_live_controller_max_orders_kill_switch():
 
 
 def test_live_controller_empty_market_data():
-    """Test run_live_controller with empty market data for mark price calculation."""
+    """Test run_live_controller with empty market data.
+
+    After strict validation was added, empty market data now fails loudly
+    with KeyError instead of silently proceeding. This is correct behavior
+    (fail-fast principle). Updated test to expect the error.
+    """
     market_data = pd.DataFrame()
     strategy_cfg = {
         "strategy_name": "EmptyTest",
         "parameters": {},
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": "close", "right": 10.0}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 10.0},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": "close", "right": 10.0}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 10.0},
+                    }
+                ]
+            }
         ],
     }
     pm = PortfolioManager(
@@ -566,11 +619,11 @@ def test_live_controller_empty_market_data():
         "realized_pnl_today": 0.0,
     }
 
-    result = run_live_controller(
-        market_data=market_data, strategy_cfg=strategy_cfg, pm=pm, adapter=adapter
-    )
-
-    assert any(log.get("event") == "reconcile" for log in result.logs)
+    # Empty market data should raise KeyError due to strict validation
+    with pytest.raises(KeyError, match="Operand field 'close' not found"):
+        run_live_controller(
+            market_data=market_data, strategy_cfg=strategy_cfg, pm=pm, adapter=adapter
+        )
 
 
 def test_reconcile_error_on_position_mismatch():
@@ -609,10 +662,26 @@ def test_controller_flat_desired_continues_loop():
         "strategy_name": "FlatAlways",
         "parameters": {},
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": "close", "right": 2.0}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 2.0},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": "close", "right": 0.5}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 0.5},
+                    }
+                ]
+            }
         ],
     }
     pm = PortfolioManager(
@@ -664,10 +733,26 @@ def test_controller_mark_price_equity_path():
         "strategy_name": "S",
         "parameters": {},
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": "close", "right": 1.5}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 1.5},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": "close", "right": 0.5}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 0.5},
+                    }
+                ]
+            }
         ],
     }
     res = run_live_controller(market_data=df, strategy_cfg=cfg, adapter=adapter, pm=pm)

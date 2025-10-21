@@ -165,10 +165,13 @@ def run_parameter_sweep(
         for _ in range(int(n_samples)):
             cands.append({k: random.choice(random_space[k]) for k in keys})
 
+    # Extract CLI-only fields before validation
+    rem_path = base_cfg.pop("rem_path", None)
+    strategy_path_for_sweep = base_cfg.pop("strategy_path", None)
+
     cfg = RunConfig.model_validate(base_cfg)
     rmm_ctx = _rmm_context(df, base_cfg, data_handler)
     rem_cfg = base_cfg.get("rem_config") or {}
-    rem_path = base_cfg.get("rem_path")
     if rem_path:
         import json
 

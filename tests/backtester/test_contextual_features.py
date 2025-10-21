@@ -51,10 +51,7 @@ def test_backtester_adds_contextual_features_to_trade_context() -> None:
         {
             "run_id": "test_contextual",
             "instrument": {
-                "symbol": "TEST",
-                "asset_class": "Stock",
-                "point_value": 1.0,
-                "tick_size": 0.01,
+                "symbol": "EURUSD",
             },
             "contextual_features": [
                 {"name": "ctx_atr", "type": "ATR", "params": {"length": 14}}
@@ -63,7 +60,9 @@ def test_backtester_adds_contextual_features_to_trade_context() -> None:
     )
 
     # Create a basic REM (risk exit manager)
-    rem = RiskExitManager(config={"stop_loss_points": 10.0})
+    rem = RiskExitManager(
+        config={"stop_loss": {"type": "offset", "price_offset": 0.0010}}
+    )
 
     # Run backtest
     trades = run_backtest(
@@ -141,17 +140,16 @@ def test_trade_context_always_includes_volume() -> None:
         {
             "run_id": "test_volume",
             "instrument": {
-                "symbol": "TEST",
-                "asset_class": "Stock",
-                "point_value": 1.0,
-                "tick_size": 0.01,
+                "symbol": "EUR_USD",  # Use registered instrument
             },
             "contextual_features": [],  # Empty - no contextual features
         }
     )
 
     # Create a basic REM
-    rem = RiskExitManager(config={"stop_loss_points": 10.0})
+    rem = RiskExitManager(
+        config={"stop_loss": {"type": "offset", "price_offset": 0.0010}}
+    )
 
     # Run backtest
     trades = run_backtest(

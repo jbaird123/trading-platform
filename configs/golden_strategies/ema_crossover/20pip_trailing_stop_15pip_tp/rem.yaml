@@ -5,11 +5,17 @@ description: "20-pip trailing stop loss + 15-pip take profit for golden validati
 # Trailing stop loss: 20 pips
 # For EURUSD: 20 pips = 0.0020 in canonical price terms
 # Trails behind the peak (for longs) or trough (for shorts)
+stop_loss:
+  type: fixed_pips
+  pips: 20.0
 trailing_stop:
-  price_offset: 0.0020
+  distance:
+    type: fixed_pips
+    pips: 20.0
 
 # Take profit: 15 pips
 # For EURUSD: 15 pips = 0.0015 in canonical price terms
 # Fixed distance from entry price
 take_profit:
+  type: offset
   price_offset: 0.0015

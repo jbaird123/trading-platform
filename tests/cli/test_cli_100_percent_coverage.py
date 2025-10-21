@@ -45,14 +45,14 @@ class TestRMMPathLoading:
                 "long_entry_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_above", "left": "close", "right": 1.0}
+                            {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}
                         ]
                     }
                 ],
                 "long_exit_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_below", "left": "close", "right": 1.0}
+                            {"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.0}}
                         ]
                     }
                 ],
@@ -125,28 +125,28 @@ class TestRMMModeBranches:
                 "long_entry_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_above", "left": "close", "right": 1.0}
+                            {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}
                         ]
                     }
                 ],
                 "long_exit_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_below", "left": "close", "right": 1.0}
+                            {"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.0}}
                         ]
                     }
                 ],
                 "short_entry_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_below", "left": "close", "right": 2.0}
+                            {"condition": "is_below", "left": {"field": "close"}, "right": {"value": 2.0}}
                         ]
                     }
                 ],
                 "short_exit_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_above", "left": "close", "right": 2.0}
+                            {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 2.0}}
                         ]
                     }
                 ],
@@ -215,14 +215,14 @@ class TestRMMModeBranches:
                 "long_entry_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_above", "left": "close", "right": 1.0}
+                            {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}
                         ]
                     }
                 ],
                 "long_exit_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_below", "left": "close", "right": 1.0}
+                            {"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.0}}
                         ]
                     }
                 ],
@@ -291,28 +291,28 @@ class TestRMMModeBranches:
                 "long_entry_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_above", "left": "close", "right": 1.0}
+                            {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}
                         ]
                     }
                 ],
                 "long_exit_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_below", "left": "close", "right": 1.0}
+                            {"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.0}}
                         ]
                     }
                 ],
                 "short_entry_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_below", "left": "close", "right": 2.0}
+                            {"condition": "is_below", "left": {"field": "close"}, "right": {"value": 2.0}}
                         ]
                     }
                 ],
                 "short_exit_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_above", "left": "close", "right": 2.0}
+                            {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 2.0}}
                         ]
                     }
                 ],
@@ -386,14 +386,14 @@ class TestRMMModeBranches:
                 "long_entry_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_above", "left": "close", "right": 1.0}
+                            {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}
                         ]
                     }
                 ],
                 "long_exit_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_below", "left": "close", "right": 1.0}
+                            {"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.0}}
                         ]
                     }
                 ],
@@ -479,28 +479,28 @@ class TestRMMModeBranches:
                 "long_entry_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_above", "left": "close", "right": 1.0}
+                            {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}
                         ]
                     }
                 ],
                 "long_exit_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_below", "left": "close", "right": 1.0}
+                            {"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.0}}
                         ]
                     }
                 ],
                 "short_entry_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_below", "left": "close", "right": 2.0}
+                            {"condition": "is_below", "left": {"field": "close"}, "right": {"value": 2.0}}
                         ]
                     }
                 ],
                 "short_exit_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_above", "left": "close", "right": 2.0}
+                            {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 2.0}}
                         ]
                     }
                 ],
@@ -573,14 +573,14 @@ class TestParamsSnapshotElif:
                 "long_entry_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_above", "left": "close", "right": 1.0}
+                            {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}
                         ]
                     }
                 ],
                 "long_exit_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_below", "left": "close", "right": 1.0}
+                            {"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.0}}
                         ]
                     }
                 ],
@@ -642,14 +642,14 @@ class TestDataQualityFlags:
                 "long_entry_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_above", "left": "close", "right": 1.0}
+                            {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}
                         ]
                     }
                 ],
                 "long_exit_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_below", "left": "close", "right": 1.0}
+                            {"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.0}}
                         ]
                     }
                 ],

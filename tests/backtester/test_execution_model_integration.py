@@ -17,12 +17,7 @@ from trading_platform.risk_manager.core import RiskExitManager
 
 # Test instrument
 TEST_INSTRUMENT = {
-    "symbol": "EURUSD",
-    "tick_size": 0.00001,
-    "point_value": 1.0,
-    "base_currency": "USD",
-    "quote_currency": "USD",
-    "margin_requirement": 0.02,
+    "symbol": "EUR_USD",  # Use registered instrument name
 }
 
 
@@ -148,7 +143,7 @@ def test_next_bar_open_execution_model_complete_flow():
     )
 
     # Create minimal REM
-    rem = RiskExitManager(config={}, instrument=TEST_INSTRUMENT)
+    rem = RiskExitManager(config=None, instrument=TEST_INSTRUMENT)
 
     # Run backtest
     result = run_backtest(
@@ -235,7 +230,7 @@ def test_next_bar_open_vs_current_bar_close_comparison():
     # Signals: bar 0 enter_long, bar 2 exit_long
     signals = pd.Series(["enter_long", None, "exit_long", None, None], index=df.index)
 
-    rem = RiskExitManager(config={}, instrument=TEST_INSTRUMENT)
+    rem = RiskExitManager(config=None, instrument=TEST_INSTRUMENT)
 
     # Test current_bar_close (legacy)
     config_legacy = RunConfig(

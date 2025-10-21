@@ -27,7 +27,7 @@ class TestCmdRunBacktestPaths:
                 "long_entry_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_above", "left": "close", "right": 1.0}
+                            {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}
                         ]
                     }
                 ],
@@ -87,7 +87,7 @@ class TestCmdRunBacktestPaths:
                 "long_entry_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_above", "left": "close", "right": 1.0}
+                            {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}
                         ]
                     }
                 ],
@@ -148,7 +148,7 @@ class TestCmdRunBacktestPaths:
                 "long_entry_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_above", "left": "close", "right": 1.0}
+                            {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}
                         ]
                     }
                 ],
@@ -209,7 +209,7 @@ class TestCmdRunBacktestPaths:
                 "long_entry_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_above", "left": "close", "right": 1.0}
+                            {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}
                         ]
                     }
                 ],
@@ -270,7 +270,7 @@ class TestCmdRunBacktestPaths:
                 "long_entry_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_above", "left": "close", "right": 1.0}
+                            {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}
                         ]
                     }
                 ],
@@ -330,7 +330,7 @@ class TestCmdRunBacktestPaths:
                 "long_entry_rules": [
                     {
                         "any_of": [
-                            {"condition": "is_above", "left": "close", "right": 1.0}
+                            {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}
                         ]
                     }
                 ],
@@ -395,14 +395,14 @@ class TestAdditionalCoverage:
                 "long_entry_rules": [
                     {
                         "all_of": [
-                            {"condition": "is_above", "left": "close", "right": 1}
+                            {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1}}
                         ]
                     }
                 ],
                 "long_exit_rules": [
                     {
                         "all_of": [
-                            {"condition": "is_below", "left": "close", "right": 1}
+                            {"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1}}
                         ]
                     }
                 ],
@@ -443,14 +443,14 @@ class TestAdditionalCoverage:
                 "long_entry_rules": [
                     {
                         "all_of": [
-                            {"condition": "is_above", "left": "close", "right": 1}
+                            {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1}}
                         ]
                     }
                 ],
                 "long_exit_rules": [
                     {
                         "all_of": [
-                            {"condition": "is_below", "left": "close", "right": 1}
+                            {"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1}}
                         ]
                     }
                 ],
@@ -495,14 +495,14 @@ class TestAdditionalCoverage:
                 "long_entry_rules": [
                     {
                         "all_of": [
-                            {"condition": "is_above", "left": "close", "right": 1}
+                            {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1}}
                         ]
                     }
                 ],
                 "long_exit_rules": [
                     {
                         "all_of": [
-                            {"condition": "is_below", "left": "close", "right": 1}
+                            {"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1}}
                         ]
                     }
                 ],
@@ -546,14 +546,14 @@ class TestAdditionalCoverage:
                 "long_entry_rules": [
                     {
                         "all_of": [
-                            {"condition": "is_above", "left": "close", "right": 1}
+                            {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1}}
                         ]
                     }
                 ],
                 "long_exit_rules": [
                     {
                         "all_of": [
-                            {"condition": "is_below", "left": "close", "right": 1}
+                            {"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1}}
                         ]
                     }
                 ],

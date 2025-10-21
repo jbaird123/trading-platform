@@ -58,15 +58,13 @@ def test_e2e_run_with_contextual_features(tmp_path):
     )
 
     # Create config (will have default contextual features)
+    # Only symbol is needed; other fields auto-populated from registry
     config = RunConfig.model_validate(
         {
             "user_id": "e2e_test",
             "run_id": "ctx_features_test",
             "instrument": {
-                "symbol": "TEST",
-                "asset_class": "Stock",
-                "point_value": 1.0,
-                "tick_size": 0.01,
+                "symbol": "EURUSD",  # Use registered symbol
             },
         }
     )
@@ -75,7 +73,9 @@ def test_e2e_run_with_contextual_features(tmp_path):
     run_dir = initialize_run(config)
 
     # Run backtest
-    rem = RiskExitManager(config={"stop_loss_points": 10.0})
+    rem = RiskExitManager(
+        config={"stop_loss": {"type": "offset", "price_offset": 0.0010}}
+    )
     result = run_backtest(
         market_data=market_data,
         signals=signals,

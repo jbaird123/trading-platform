@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import logging
+from enum import Enum
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from . import paths
 from .utils import gen_run_id, normalize_symbol
@@ -12,21 +13,64 @@ from .utils import gen_run_id, normalize_symbol
 logger = logging.getLogger(__name__)
 
 
+class PriceSource(str, Enum):
+    """Valid price source fields for technical indicators.
+
+    STRICT VALIDATION: Only these source fields are supported.
+    """
+    OPEN = "open"
+    HIGH = "high"
+    LOW = "low"
+    CLOSE = "close"
+    HL2 = "hl2"
+    OHLC4 = "ohlc4"
+
+
 class FeatureConfig(BaseModel):
-    """Configuration for a single technical indicator/feature."""
+    """Configuration for a single technical indicator/feature.
+
+    STRICT VALIDATION:
+    - type must exist in the unified indicator registry
+    - source must be from PriceSource enum if provided
+    """
+
+    model_config = {"extra": "forbid"}
 
     name: str = Field(description="Local identifier for the feature.")
-    type: str = Field(description="Indicator type (e.g., SMA, EMA, ATR).")
+    type: str = Field(
+        description=(
+            "Indicator type registered in the unified indicator registry (e.g., 'EMA')."
+        )
+    )
     params: dict[str, Any] | None = Field(
         default=None, description="Indicator-specific parameters."
     )
-    source: str | None = Field(
+    source: PriceSource | None = Field(
         default=None,
-        description="Input price series (e.g., open, high, low, close, hl2).",
+        description="Input price series from PriceSource enum.",
     )
     source_ref: dict[str, Any] | None = Field(
         default=None, description="Reference another feature as input series."
     )
+    timeframe: str | None = Field(
+        default=None,
+        description=(
+            "Optional pandas offset alias for higher-timeframe resampling. "
+            "When provided, the feature will be computed on resampled data."
+        ),
+    )
+
+    @field_validator("type")
+    @classmethod
+    def validate_indicator_type(cls, value: str) -> str:
+        from trading_platform.strategy.indicators_registry import INDICATORS
+
+        if value not in INDICATORS:
+            allowed = ", ".join(sorted(INDICATORS))
+            raise ValueError(
+                f"Unknown indicator type '{value}'. Must be one of: {allowed}."
+            )
+        return value
 
 
 # Default contextual features computed on every run
@@ -42,6 +86,8 @@ class RunConfig(BaseModel):
     Defines the configuration for a single run of the trading platform.
     This object will be snapshotted into the run directory for reproducibility.
     """
+
+    model_config = {"extra": "forbid"}
 
     user_id: str = Field(
         "default_user", description="Identifier for the user or owner of the run."
@@ -256,6 +302,7 @@ class RunConfig(BaseModel):
         """Ensure instrument contains a valid, normalized symbol.
 
         If instrument is not provided, auto-populate it from data_request.
+        Rejects redundant fields - instrument definition is single source of truth.
         """
         # Auto-populate instrument from data_request if not provided
         if not self.instrument and self.data_request:
@@ -275,34 +322,38 @@ class RunConfig(BaseModel):
         if not symbol or not symbol.strip():
             raise ValueError("instrument symbol is required")
 
-        # Check if instrument already has all required fields (for testing)
-        has_all_required = all(
-            key in self.instrument
-            for key in ["asset_class", "point_value", "tick_size"]
-        )
+        # Store original timeframe before validation
+        original_timeframe = self.instrument.get("timeframe")
 
-        # Only enrich from instrument definitions if incomplete
-        if not has_all_required:
-            # Normalize the symbol and enrich with full instrument definition
-            from trading_platform.data.instrument import get_instrument_definition
-
-            normalized_symbol = normalize_symbol(symbol)
-            instrument_def = get_instrument_definition(normalized_symbol)
-
-            # Replace the minimal dict with complete instrument metadata
-            # Use mode='json' to serialize datetime objects properly
-            self.instrument = instrument_def.model_dump(mode="json")
-
-        # Preserve timeframe if it was in the original dict
-        if "timeframe" in self.instrument or (
-            hasattr(self, "data_request")
-            and self.data_request
-            and "timeframe" in self.data_request
-        ):
-            timeframe = self.instrument.get("timeframe") or (
-                self.data_request.get("timeframe") if self.data_request else None
+        # STRICT VALIDATION: Only allow 'symbol' and 'timeframe' in YAML
+        # All other fields (pip_location, tick_size, etc.) come from instrument
+        # definition
+        allowed_fields = {"symbol", "timeframe"}
+        extra_fields = set(self.instrument.keys()) - allowed_fields
+        if extra_fields:
+            raise ValueError(
+                f"Instrument config should only contain 'symbol' "
+                f"(and optionally 'timeframe'). "
+                f"Found extra fields: {sorted(extra_fields)}. "
+                f"These fields are auto-populated from the instrument definition "
+                f"registry and should not be specified in YAML. "
+                f"Remove: {', '.join(sorted(extra_fields))}"
             )
-            if timeframe:
-                self.instrument["timeframe"] = timeframe
+
+        # ALWAYS enrich from instrument definition (single source of truth)
+        from trading_platform.data.instrument import get_instrument_definition
+
+        normalized_symbol = normalize_symbol(symbol)
+        instrument_def = get_instrument_definition(normalized_symbol)
+
+        # Replace with complete instrument metadata from definition
+        # Use mode='json' to serialize datetime objects properly
+        self.instrument = instrument_def.model_dump(mode="json")
+
+        # Preserve timeframe if it was in the original dict or data_request
+        if original_timeframe:
+            self.instrument["timeframe"] = original_timeframe
+        elif self.data_request and "timeframe" in self.data_request:
+            self.instrument["timeframe"] = self.data_request["timeframe"]
 
         return self

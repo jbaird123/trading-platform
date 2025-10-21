@@ -268,7 +268,7 @@ class TestWalkForwardOptimizeCoverage:
             # Call with seed to hit line 200
             result = walk_forward_optimize_and_test(
                 df=df,
-                base_cfg={"config": "test", "instrument": {"symbol": "EURUSD"}},
+                base_cfg={"instrument": {"symbol": "EURUSD"}},
                 strategy_cfg={"name": "test"},
                 grid={"test_param": [1]},
                 window=2,
@@ -1263,7 +1263,7 @@ class TestEdgeCasesAndHelperFunctions:
 
             result = monte_carlo_resimulation(
                 df=df,
-                base_cfg={"config": "test", "instrument": {"symbol": "EURUSD"}},
+                base_cfg={"instrument": {"symbol": "EURUSD"}},
                 strategy_cfg={"name": "test"},
                 trials=1,
                 perturbation={"mode": "gaussian", "std_pct": 0.1},
@@ -1984,7 +1984,7 @@ def test_run_parameter_sweep_returns_top_and_results():
         "position_size": 10000.0,
         "warmup_bars": 0,
         "tie_break_policy": {"rule": "stop_then_tp"},
-        "rem_config": {"stop_loss": {"price_offset": 0.002}},
+        "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
         "instrument": {"symbol": "EURUSD"},
     }
     strat_cfg = _strategy_cfg()
@@ -2008,7 +2008,7 @@ def test_parameter_sweep_pnl_minus_dd_objective():
         "position_size": 10000.0,
         "warmup_bars": 0,
         "tie_break_policy": {"rule": "stop_then_tp"},
-        "rem_config": {"stop_loss": {"price_offset": 0.002}},
+        "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
         "instrument": {"symbol": "EURUSD"},
     }
     strat_cfg = _strategy_cfg()
@@ -2030,7 +2030,7 @@ def test_parameter_sweep_pnl_dd_vol_objective():
         "position_size": 10000.0,
         "warmup_bars": 0,
         "tie_break_policy": {"rule": "stop_then_tp"},
-        "rem_config": {"stop_loss": {"price_offset": 0.002}},
+        "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
         "instrument": {"symbol": "EURUSD"},
     }
     strat_cfg = _strategy_cfg()

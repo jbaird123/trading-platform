@@ -198,7 +198,9 @@ def run_backtest(
                 "name": f.name,
                 "type": f.type,
                 "params": f.params or {},
-                "source": f.source,
+                "source": f.source.value
+                if (f.source and hasattr(f.source, "value"))
+                else f.source,
                 "source_ref": f.source_ref,
             }
             for f in config.contextual_features

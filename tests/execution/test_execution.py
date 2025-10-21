@@ -100,10 +100,10 @@ def test_live_controller_flat_continue():
     strategy_cfg = {
         "strategy_name": "FlatAlways",
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": "close", "right": 2.0}]}
+            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 2.0}}]}
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": "close", "right": 0.5}]}
+            {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 0.5}}]}
         ],
     }
     pm = PortfolioManager(
@@ -132,10 +132,10 @@ def test_live_controller_kill_switch():
     strategy_cfg = {
         "strategy_name": "LongSignal",
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": "close", "right": 2.0}]}
+            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 2.0}}]}
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": "close", "right": 0.5}]}
+            {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 0.5}}]}
         ],
     }
     pm = PortfolioManager(
@@ -204,10 +204,10 @@ def test_controller_precise_continue_with_rejected_order():
     strategy_cfg = {
         "strategy_name": "LongThenFlat",
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": "close", "right": 2.0}]}
+            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 2.0}}]}
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": "close", "right": 2.0}]}
+            {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 2.0}}]}
         ],
     }
     pm = PortfolioManager(

@@ -188,7 +188,7 @@ _Last updated: 2025-09-16_
   - **[SE-3.5.4]** For a complete guide on the philosophy, structure, and interaction of these YAML files, see the **[Declarative Strategy Guide](./declarative_strategy_guide.md)**.
 - **[SE-3.6]** Use indicators from established libraries (e.g., `pandas-ta`) where possible.
 - **[SE-3.7]** Strategy metadata must declare required overlays for automatic plotting in the RV module.
-- **[SE-3.9]** **YAML Schema Validation**: Strategy YAML files must be validated against `docs/schemas/strategy.schema.json` at load time with actionable error messages.
+- **[SE-3.9]** **YAML Schema Validation**: Strategy YAML files must be validated with the `StrategyConfig` Pydantic model (see `src/trading_platform/strategy/models.py`) at load time with actionable error messages.
 
 ### Future Enhancements
 - **[SE-F.1]** The engine must support parameter sweeps orchestrated by the AI Lab ([SE-3.8]).

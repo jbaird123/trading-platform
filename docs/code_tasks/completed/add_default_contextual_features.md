@@ -20,7 +20,7 @@
         1.  At the top of the file, define a module-level constant `DEFAULT_CONTEXTUAL_FEATURES` as a list of `FeatureConfig` objects. This list should include `ATR(14)` named `ctx_atr`, `RSI(14)` named `ctx_rsi`, and `EMA(200)` named `ctx_ema_slow`.
         2.  Modify the `contextual_features` field in the `RunConfig` class. Instead of `default=None`, use `default_factory=list`.
         3.  Add a `@model_validator(mode='before')` to the `RunConfig` class. In this validator, check if `contextual_features` is missing from the input data (`None`). If it is, inject the `DEFAULT_CONTEXTUAL_FEATURES` into the data dictionary. This method correctly handles cases where a user explicitly provides an empty list `[]` to override the default.
-    *   **File to Modify**: `docs/schemas/run_config.schema.json`
+    *   **File to Modify**: (legacy) `docs/schemas/run_config.schema.json` – now superseded by the `RunConfig` Pydantic model.
     *   **Action**: Add a `default` key to the `contextual_features` property in the schema to document this behavior for users. The value should be an array of objects matching the default indicators you defined.
 
 ---

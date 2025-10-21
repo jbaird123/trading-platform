@@ -1,7 +1,9 @@
 # REM Schema Audit
 
 **Date:** 2025-10-19
-**Schema File:** `docs/schemas/rem.schema.json`
+**Status:** Legacy JSON schema (replaced by `REMConfig` Pydantic model).
+
+> Note: This audit is retained for historical context. The authoritative source is now `REMConfig` in `src/trading_platform/risk_manager/models.py`.
 **Implementation File:** `src/trading_platform/risk_manager/core.py`
 
 ---

@@ -5,12 +5,6 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
-try:
-    import jsonschema
-    from jsonschema import ValidationError
-except Exception:  # pragma: no cover
-    jsonschema = None  # type: ignore[assignment]
-
 
 class RegimeManagerConfig(BaseModel):
     """
@@ -38,28 +32,23 @@ class RegimeManagerConfig(BaseModel):
 
 
 def validate_rmm_config(cfg: dict) -> None:
-    """Lightweight validation aligned to docs/schemas/rmm.schema.json.
+    """Lightweight validation for RMM configuration.
 
     Required top-level: regimes (non-empty array). Each regime:
     - label: str
     - confidence: number in [0,1]
     - conditions: object with all_of or any_of -> list of predicates
+
+    Note: JSON schema validation is optional (if schema exists).
+    TODO: Replace with Pydantic validation when RMM model is implemented.
     """
     if not isinstance(cfg, dict):
         raise ValueError("rmm config must be an object")
-    # Mandatory JSON Schema validation
-    if jsonschema is None:
-        raise ValueError(
-            "jsonschema is required for RMM validation but is not installed."
-        )
-    schema_path = (
-        Path(__file__).resolve().parents[3] / "docs" / "schemas" / "rmm.schema.json"
-    )
-    try:
-        schema = json.loads(schema_path.read_text())
-        jsonschema.validate(cfg, schema)
-    except ValidationError as e:  # pragma: no cover
-        raise ValueError(f"rmm schema validation error: {e.message}") from e
+
+    # Note: JSON schema validation removed. Pydantic will be the validation
+    # source when RMM Pydantic model is implemented. JSON schemas are for
+    # documentation only.
+
     regimes = cfg.get("regimes")
     if not isinstance(regimes, list) or not regimes:
         raise ValueError("regimes must be a non-empty array")

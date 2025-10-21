@@ -31,6 +31,7 @@ from trading_platform.execution.oanda_stub import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
 from trading_platform.regime_market_manager.engine import RMMEngine
+from trading_platform.regime_market_manager.models import RMMConfig
 from trading_platform.reporting.brief import compute_data_quality
 from trading_platform.reporting.chart_export import (
     save_chart_from_brief,
@@ -100,11 +101,25 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     if rem_path:
         loaded_rem_cfg = _load_config(Path(str(rem_path)))
         cfg_raw["rem_config"] = loaded_rem_cfg
+        # Remove the path key after loading since it's not part of the schema
+        cfg_raw.pop("rem_path", None)
 
     rmm_path = cfg_raw.get("rmm_path")
     if rmm_path:
         loaded_rmm_cfg = _load_config(Path(str(rmm_path)))
         cfg_raw["rmm_config"] = loaded_rmm_cfg
+        # Remove the path key after loading since it's not part of the schema
+        cfg_raw.pop("rmm_path", None)
+
+    # Remove CLI-only fields that aren't part of RunConfig schema
+    cfg_raw.pop("fast_mode", None)  # Removed - not needed
+    cfg_raw.pop("rmm", None)  # Legacy field - not part of schema
+    cfg_raw.pop("data", None)  # Legacy - use data_request instead
+    strategy_overrides = cfg_raw.pop(
+        "strategy_overrides", None
+    )  # Extract for later use
+    strategy_path = cfg_raw.pop("strategy_path", None)  # Extract for later use
+    strategy_params = cfg_raw.pop("strategy_params", None)  # Extract for later use
 
     cfg = RunConfig.model_validate(cfg_raw)
     run_path = initialize_run(cfg)
@@ -160,8 +175,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     # Strategy can be embedded or referenced via a separate YAML/JSON file
     strat_cfg = cfg_raw.get("strategy")
     if not strat_cfg:
-        # Try loading from strategy_path if provided
-        strategy_path = cfg_raw.get("strategy_path")
+        # Try loading from strategy_path if provided (extracted earlier before validation)
         if strategy_path:
             strat_cfg = _load_config(Path(strategy_path))
         else:
@@ -169,24 +183,6 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                 "No strategy provided. Specify 'strategy_path' in config "
                 "or embed 'strategy' definition."
             )
-    # Optional fast-mode: limit dataset for quicker iterations
-    fast_mode = cfg_raw.get("fast_mode") or {}
-    if isinstance(fast_mode, dict):
-        try:
-            from datetime import timedelta
-
-            last_days = int(fast_mode.get("last_days", 0) or 0)
-            limit_bars = int(fast_mode.get("limit_bars", 0) or 0)
-        except Exception as e:  # pragma: no cover
-            # Safe to continue: fast_mode parsing, defaults to 0
-            logger.debug(f"Failed to parse fast_mode values: {e}")  # pragma: no cover
-            last_days = 0  # pragma: no cover
-            limit_bars = 0  # pragma: no cover
-        if last_days > 0 and isinstance(df.index, pd.DatetimeIndex):
-            cutoff = df.index.max() - timedelta(days=last_days)
-            df = df.loc[cutoff:]
-        elif limit_bars > 0:
-            df = df.tail(limit_bars)
 
     if isinstance(strat_cfg, dict) and "file_path" in strat_cfg:
         # Resolve file_path relative to the main config file
@@ -195,25 +191,23 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
 
     # Apply strategy_params from config (used for parameter sweeps)
     # This allows the config to override strategy defaults
-    strategy_params_from_cfg = cfg_raw.get("strategy_params")
-    if isinstance(strategy_params_from_cfg, dict):
+    if isinstance(strategy_params, dict):
         base_params = strat_cfg.get("parameters") or {}
         if isinstance(base_params, dict):
-            base_params.update({k: v for k, v in strategy_params_from_cfg.items()})
+            base_params.update({k: v for k, v in strategy_params.items()})
             strat_cfg["parameters"] = base_params
 
     # Apply optional per-run overrides for strategy tunables
-    overrides = cfg_raw.get("strategy_overrides") or {}
-    if isinstance(overrides, dict):
+    if isinstance(strategy_overrides, dict):
         # 1) Parameter-level overrides (e.g., slope_filter)
-        param_over = overrides.get("parameters") or {}
+        param_over = strategy_overrides.get("parameters") or {}
         if isinstance(param_over, dict):
             base_params = strat_cfg.get("parameters") or {}
             if isinstance(base_params, dict):
                 base_params.update({k: v for k, v in param_over.items()})
                 strat_cfg["parameters"] = base_params
         # 2) Feature-level overrides (existing behavior)
-        feat_over = (overrides.get("features") or {}) if overrides else {}
+        feat_over = strategy_overrides.get("features") or {}
         if isinstance(feat_over, dict) and isinstance(strat_cfg.get("features"), list):
             for f in strat_cfg["features"]:
                 name = str(f.get("name", ""))
@@ -289,30 +283,31 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     rmm_cfg: dict[str, Any] | None = cfg_raw.get("rmm_config")
     rmm_spans_path: Path | None = None
     if isinstance(rmm_cfg, dict) and rmm_cfg:
-        try:
-            RMMEngine.validate_config(rmm_cfg)
-        except Exception as exc:  # pragma: no cover
-            raise SystemExit(f"RMM config validation failed: {exc}") from exc
-        rmm_engine = RMMEngine(config=rmm_cfg)
-        regime_timeframe = rmm_cfg.get("timeframe", "1D")
+        # Validate and create the RMM engine using the Pydantic model
+        rmm_config = RMMConfig(**rmm_cfg)
+        rmm_engine = RMMEngine(config=rmm_config)
+
+        regime_timeframe = rmm_config.timeframe or "1D"
         classify_regime = getattr(rmm_engine, "classify_regime", None)
         if callable(classify_regime):
             regimes = classify_regime(df, timeframe=regime_timeframe)
         else:
+            # This path is for legacy compatibility, can be removed later
             classify_daily = getattr(rmm_engine, "classify_daily", None)
             if not callable(classify_daily):
                 raise SystemExit(
                     "RMM engine must implement classify_regime or classify_daily"
                 )
             regimes = classify_daily(df)
-        rmm_policy = rmm_cfg.get("policy") or {}
+
+        rmm_policy = rmm_config.policy.model_dump() if rmm_config.policy else {}
         per_bar = rmm_engine.project_to_index(
             regimes, cast(pd.DatetimeIndex, df.index), policy=rmm_policy
         )
         # Extract regime feature names from config
-        feature_names = [
-            f.get("name") for f in rmm_cfg.get("features", []) if f.get("name")
-        ]
+        feature_names = (
+            [f.name for f in rmm_config.features if f.name] if rmm_config.features else []
+        )
 
         # Build RMM context with full precision - rounding happens in brief.py
         rmm_context = {

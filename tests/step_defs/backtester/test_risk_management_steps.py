@@ -37,8 +37,8 @@ def when_backtest_is_run(shared_context: dict) -> None:
         position_size=1.0,
         allow_flip_on_bar=True,
         rem_config={
-            "stop_loss": {"price_offset": sl},
-            "take_profit": {"price_offset": tp},
+            "stop_loss": {"type": "offset", "price_offset": sl},
+            "take_profit": {"type": "offset", "price_offset": tp},
         },
         instrument={"symbol": "EURUSD"},
         execution_model="next_bar_open",

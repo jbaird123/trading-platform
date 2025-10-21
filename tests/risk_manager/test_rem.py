@@ -20,8 +20,8 @@ def rem_config() -> dict:
     """Creates a REM config dict for testing."""
     return {
         "name": "Test REM Config",
-        "stop_loss": {"pips": 50},
-        "take_profit": {"price_offset": 0.0060},
+        "stop_loss": {"type": "fixed_pips", "pips": 50.0},
+        "take_profit": {"type": "offset", "price_offset": 0.0060},
     }
 
 
@@ -34,8 +34,9 @@ def instrument_config() -> dict:
 def test_rem_config_loading(rem_config: dict, instrument_config: dict):
     """Tests that the REM can be instantiated and loads a config."""
     rem = RiskExitManager(config=rem_config, instrument=instrument_config)
-    assert rem.config["name"] == "Test REM Config"
-    assert "pips" in rem.config["stop_loss"]
+    assert rem.config is not None
+    assert rem.config.name == "Test REM Config"
+    assert rem.config.stop_loss.type == "fixed_pips"
 
 
 @pytest.mark.parametrize(
@@ -115,9 +116,11 @@ def test_rem_pluggable_nature():
 
         def run(self):
             assert self.rem is not None
-            assert self.rem.config["stop_loss"]["pips"] == 100
+            assert self.rem.config is not None
+            assert self.rem.config.stop_loss.type == "fixed_pips"
+            assert self.rem.config.stop_loss.pips == 100.0
 
-    config_dict = {"stop_loss": {"pips": 100}}
+    config_dict = {"stop_loss": {"type": "fixed_pips", "pips": 100.0}}
     instrument_dict = {"pip_location": 0.0001}
     rem = RiskExitManager(config=config_dict, instrument=instrument_dict)
     backtester = MockBacktester(rem=rem)
@@ -134,7 +137,10 @@ def test_check_exits_with_stop_triggered_returns_descriptor():
     When bar low (for long) crosses below stop-loss price, should return
     should_close descriptor with exit_price equal to stop-loss level.
     """
-    config_dict = {"stop_loss": {"price_offset": 0.0050}}
+    config_dict = {
+        "stop_loss": {"type": "offset", "price_offset": 0.0050},
+        "take_profit": {"type": "offset", "price_offset": 0.0100},
+    }
     instrument_dict = {"pip_location": 0.0001}
     rem = RiskExitManager(config=config_dict, instrument=instrument_dict)
 
@@ -180,7 +186,10 @@ def test_check_exits_with_take_profit_triggered_returns_descriptor():
     When bar high (for long) crosses above TP price, should return
     should_close descriptor with exit_price equal to TP level.
     """
-    config_dict = {"take_profit": {"price_offset": 0.0100}}
+    config_dict = {
+        "stop_loss": {"type": "fixed_pips", "pips": 500.0},
+        "take_profit": {"type": "offset", "price_offset": 0.0100},
+    }
     instrument_dict = {"pip_location": 0.0001}
     rem = RiskExitManager(config=config_dict, instrument=instrument_dict)
 
@@ -226,8 +235,8 @@ def test_check_exits_with_no_trigger_returns_none():
     When bar doesn't cross stop or TP levels, should return None.
     """
     config_dict = {
-        "stop_loss": {"price_offset": 0.0050},
-        "take_profit": {"price_offset": 0.0100},
+        "stop_loss": {"type": "offset", "price_offset": 0.0050},
+        "take_profit": {"type": "offset", "price_offset": 0.0100},
     }
     instrument_dict = {"pip_location": 0.0001}
     rem = RiskExitManager(config=config_dict, instrument=instrument_dict)

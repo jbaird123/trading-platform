@@ -8,13 +8,8 @@ from typing import Any
 import pandas as pd
 
 from trading_platform.data.schema import resample_ohlc
+from trading_platform.regime_market_manager.models import RMMConfig
 from trading_platform.strategy.features import compute_features
-
-try:
-    import jsonschema
-    from jsonschema import ValidationError
-except Exception:  # pragma: no cover
-    jsonschema = None  # type: ignore[assignment]
 
 
 def _op_series(df: pd.DataFrame, operand: Any) -> pd.Series:
@@ -107,24 +102,7 @@ def _eval_block(df: pd.DataFrame, block: dict[str, Any]) -> pd.Series:
 
 @dataclass(frozen=True)
 class RMMEngine:
-    config: dict[str, Any]
-
-    @staticmethod
-    def validate_config(cfg: dict[str, Any]) -> None:
-        if jsonschema is None:
-            raise ValueError(
-                "jsonschema is required for RMM validation but is not installed."
-            )
-        schema_path = (
-            Path(__file__).resolve().parents[3] / "docs" / "schemas" / "rmm.schema.json"
-        )
-        schema = json.loads(schema_path.read_text())
-        try:
-            jsonschema.validate(cfg, schema)
-        except ValidationError as e:  # pragma: no cover
-            path = ".".join(str(p) for p in getattr(e, "path", []))
-            where = f" at '{path}'" if path else ""
-            raise ValueError(f"rmm schema validation error{where}: {e.message}") from e
+    config: RMMConfig
 
     def classify_regime(
         self,
@@ -146,7 +124,7 @@ class RMMEngine:
         Returns:
             DataFrame with: label, confidence, and all computed regime features.
         """
-        cfg = self.config
+        cfg = self.config.model_dump(exclude_none=True)
         feats = list(cfg.get("features") or [])
         regimes = list(cfg.get("regimes") or [])
 
