@@ -40,11 +40,15 @@ from typing import Any, Dict, List, Optional, Tuple, cast
 
 import pandas as pd
 
+from tests.validation.ambiguity_analyzer import (
+    AmbiguityAnalyzer,
+    DiscrepancyResult,
+)
 from tests.validation.analyzers import register_analyzer
 
 
 @register_analyzer("trailing_stop")
-class TrailingStopDiscrepancyAnalyzer:
+class TrailingStopDiscrepancyAnalyzer(AmbiguityAnalyzer):
     """Analyzes and categorizes trailing stop exit discrepancies."""
 
     def __init__(
@@ -69,8 +73,8 @@ class TrailingStopDiscrepancyAnalyzer:
         self.take_profit_pips = take_profit_pips
         self.tolerance = tolerance
 
-        # Category definitions
-        self.KNOWN_ACCEPTABLE_CATEGORIES = [
+        # Category definitions (used by base class property)
+        self.acceptable_categories = [
             "SAME_BAR_EXIT",
             "TV_IGNORED_ENTRY_BAR_PEAK_MFE_STRICT",
             "TV_IGNORED_ENTRY_BAR_PEAK_MFE_VERIFIED",
@@ -713,61 +717,51 @@ class TrailingStopDiscrepancyAnalyzer:
 
         return None
 
-    def generate_summary_report(self, categories: Dict[str, List]) -> str:
-        """Generate a human-readable summary report."""
-        total_discrepancies = sum(len(v) for v in categories.values())
-        total_explained = sum(
-            len(categories[cat]) for cat in self.KNOWN_ACCEPTABLE_CATEGORIES
+    # Abstract method implementations for AmbiguityAnalyzer base class
+
+    def get_acceptable_categories(self) -> List[str]:
+        """Get list of acceptable discrepancy categories.
+
+        Returns:
+            List of category names that are considered acceptable
+        """
+        return self.acceptable_categories
+
+    def get_analyzer_type(self) -> str:
+        """Get analyzer type name for logging/reporting.
+
+        Returns:
+            Human-readable analyzer type string
+        """
+        return "TrailingStop"
+
+    def analyze_discrepancy(
+        self,
+        platform_trade: pd.Series,
+        tv_trade: pd.Series,
+        ohlcv_data: pd.DataFrame,
+        ohlcv_1min: Optional[pd.DataFrame] = None,
+        **kwargs,
+    ) -> DiscrepancyResult:
+        """Analyze a single trade discrepancy.
+
+        Note: This method is not used by TrailingStopAnalyzer because it
+        overrides analyze_discrepancies() with custom batch logic.
+        Provided for interface compatibility.
+
+        Args:
+            platform_trade: Platform trade Series
+            tv_trade: TradingView trade Series
+            ohlcv_data: OHLCV DataFrame
+            ohlcv_1min: Optional 1-minute OHLCV data
+
+        Returns:
+            DiscrepancyResult with category and explanation
+        """
+        raise NotImplementedError(
+            "TrailingStopAnalyzer uses custom analyze_discrepancies batch "
+            "logic. Use analyze_discrepancies() instead."
         )
-        total_unexplained = len(categories["UNEXPLAINED"])
-
-        report = []
-        report.append("=" * 100)
-        report.append("TRAILING STOP VALIDATION - DISCREPANCY ANALYSIS")
-        report.append("=" * 100)
-        report.append(f"\nTotal discrepancies: {total_discrepancies}")
-        report.append(f"Explained (acceptable): {total_explained}")
-        report.append(f"Unexplained (requires investigation): {total_unexplained}")
-
-        if total_unexplained == 0:
-            report.append(
-                f"\n✓ PASS: All {total_discrepancies} discrepancies are "
-                f"explained and acceptable"
-            )
-            report.append("\nBreakdown:")
-            for cat in self.KNOWN_ACCEPTABLE_CATEGORIES:
-                if len(categories[cat]) > 0:
-                    report.append(f"  - {cat}: {len(categories[cat])}")
-        else:
-            report.append(f"\n✗ FAIL: {total_unexplained} unexplained discrepancies")
-            report.append("\nUnexplained trades:")
-            for trade in categories["UNEXPLAINED"]:
-                report.append(
-                    f"  - Trade #{trade['trade_num']}: {trade['direction']} "
-                    f"({trade['price_diff_pips']:.1f} pips difference)"
-                )
-
-        report.append("=" * 100)
-        return "\n".join(report)
-
-    def assert_all_explained(self, categories: Dict[str, List]):
-        """
-        Assert that all discrepancies are explained.
-
-        Raises:
-            AssertionError: If there are unexplained discrepancies
-        """
-        unexplained = categories["UNEXPLAINED"]
-        if len(unexplained) > 0:
-            unexplained_trades = [t["trade_num"] for t in unexplained]
-            raise AssertionError(
-                f"Found {len(unexplained)} unexplained trailing stop "
-                f"discrepancies. "
-                f"All discrepancies must be categorized as acceptable. "
-                f"Unexplained trades: {unexplained_trades}. "
-                f"This may indicate a bug in the platform or a new "
-                f"TradingView behavior."
-            )
 
 
 def create_analyzer_for_strategy(
