@@ -80,8 +80,11 @@ When I do a Requirements Check, I want you to:
 ## Context Warm‑Up (Every New Conversation)
 - Index the repo; re‑read:
   - `docs/project_requirements.md`.
-  - `src/trading_platform/strategy/models.py` (`StrategyConfig` Pydantic schema) and `docs/schemas/rmm.schema.json`.
-  - `src/trading_platform/strategy/indicators_registry.py` (single source of truth).
+  - `src/trading_platform/strategy/models.py` (`StrategyConfig` Pydantic schema).
+  - `src/trading_platform/regime_market_manager/models.py` (`RMMConfig` Pydantic
+    schema).
+  - `src/trading_platform/strategy/indicators_registry.py` (single source of
+    truth).
 - Confirm environment assumptions:
   - Use Poetry; dependencies installed; `ta` is required.
 - Summarize last completed tasks and the next 3 pending tasks to set direction.
@@ -90,8 +93,10 @@ When I do a Requirements Check, I want you to:
 - Indicators: the registry in
   `src/trading_platform/strategy/indicators_registry.py` governs available
   indicators, params, and UI labels. Schemas and loaders must align with it.
-- Schemas: Strategy/RMM YAML must validate against the JSON Schemas in
-  `docs/schemas/`. Fail fast with clear errors (field, expected type, path).
+- Schemas: Strategy YAML must validate against the JSON schemas in
+  `docs/schemas/`. RMM YAML must validate via the Pydantic models in
+  `src/trading_platform/regime_market_manager/models.py`. Fail fast with clear
+  errors (field, expected type, path).
 
 ## Invariant Guardrails
 - 88‑column limit for code and tests.

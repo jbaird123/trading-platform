@@ -1,7 +1,11 @@
 # RMM Schema Audit
 
+> NOTE: The audited JSON schema has been retired. RMM configs now validate via
+> `src/trading_platform/regime_market_manager/models.py`. This audit is kept for
+> historical reference.
+
 **Date:** 2025-10-19
-**Schema File:** `docs/schemas/rmm.schema.json`
+**Schema File:** `docs/schemas/rmm.schema.json` (retired)
 **Implementation Files:**
 - `src/trading_platform/regime_market_manager/engine.py`
 - `src/trading_platform/strategy/indicators_registry.py` (shared)

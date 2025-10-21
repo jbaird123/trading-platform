@@ -1,12 +1,20 @@
 # RMM Config Pydantic Migration Plan
 
-## Status: Future Work (Not Yet Implemented)
+> NOTE: Pydantic RMM models now enforce validation, and
+> `docs/schemas/rmm.schema.json` has been removed. This plan is kept for
+> historical context.
 
-This document outlines the plan for migrating RMM (Regime Market Manager) configurations to use Pydantic models with strict validation, similar to the REM config migration completed in Tasks 1-17.
+## Status: Completed (Migrated to Pydantic models)
+
+This document outlines the historic plan for migrating RMM (Regime Market
+Manager) configurations to Pydantic models with strict validation, similar to
+the REM config migration completed in Tasks 1-17.
 
 ## Background
 
-RMM configurations are currently validated against `docs/schemas/rmm.schema.json` but don't enforce validation at runtime. According to the Phase 1 audit ([rmm_schema_audit.md](rmm_schema_audit.md)), the RMM schema has:
+Before the migration, RMM configurations were validated against
+`docs/schemas/rmm.schema.json` but lacked runtime enforcement. According to the
+Phase 1 audit ([rmm_schema_audit.md](rmm_schema_audit.md)), the RMM schema had:
 - **Grade: A-** (minor gaps)
 - All 36 indicators implemented
 - All 8 schema conditions implemented
@@ -24,6 +32,8 @@ RMM configurations are currently validated against `docs/schemas/rmm.schema.json
 5. Achieve 100% test coverage for validation logic
 
 ## Proposed Approach
+
+The sections below preserve the pre-migration plan for reference.
 
 ### Step 1: Update RMM Schema First
 

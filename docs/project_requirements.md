@@ -206,7 +206,9 @@ _Last updated: 2025-09-16_
 - **[RMM-4.6]** The module must expose a policy function to determine if trading is allowed, for example: `is_trade_allowed(strategy, regime_label, confidence) -> bool`.
 - **[RMM-4.7]** Policies should be configurable per-strategy and include hysteresis to reduce rapid state changes.
 - **[RMM-4.8]** All classification logic must be tested using synthetic data sequences.
-- **[RMM-4.9]** **YAML Schema Validation**: RMM YAML configurations must be validated against `docs/schemas/rmm.schema.json` at load time.
+- **[RMM-4.9]** **YAML Validation**: RMM YAML configurations must be validated via the
+  `RMMConfig` Pydantic model in
+  `src/trading_platform/regime_market_manager/models.py` at load time.
 
 ### Future Enhancements
 - **[RMM-F.1]** The RMM must be extensible to allow for future ML-based classifiers ([RMM-4.4]).

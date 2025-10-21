@@ -121,6 +121,8 @@ def strategy_name(request) -> str:
             return "ema_crossover/20pip_trailing_stop"
         elif "20pip_stop" in test_name:
             return "ema_crossover/20pip_stop"
+        elif "2atr_stop" in test_name:
+            return "ema_crossover/2atr_stop"
         elif "baseline" in test_name or "_ema_crossover_" in test_name:
             # Default to baseline for backward compatibility
             return "ema_crossover/baseline"
