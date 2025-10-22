@@ -221,6 +221,20 @@ class AmbiguityAnalyzer(ABC):
             # Add to appropriate category
             trade_dict = {
                 "trade_num": trade_num,
+                "trade_index": i,
+                "direction": str(platform_trade.get("side", "")),
+                "entry_time": str(platform_trade.get("entry_time")),
+                "entry_price": float(platform_trade.get("entry_price", 0.0)),
+                "exit_time": str(platform_trade.get("exit_time")),
+                "platform_exit": float(platform_trade.get("exit_price", 0.0)),
+                "platform_exit_reason": platform_trade.get("exit_reason", ""),
+                "tv_exit": float(tv_trade.get("exit_price", 0.0)),
+                "tv_exit_reason": tv_trade.get("exit_reason", ""),
+                "price_diff_pips": abs(
+                    float(platform_trade.get("exit_price", 0.0))
+                    - float(tv_trade.get("exit_price", 0.0))
+                )
+                * 10000,
                 "explanation": result.explanation,
                 **result.metadata,
             }
