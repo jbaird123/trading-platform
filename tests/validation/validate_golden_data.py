@@ -255,7 +255,8 @@ def validate_strategy(strategy_name: str, project_root: Path) -> List[Validation
             )
 
     if "indicator_stop" in exit_mechanisms:
-        if "indicator_stop_type" not in metadata:
+        indicator_type = metadata.get("indicator_stop_type")
+        if indicator_type is None:
             errors.append(
                 ValidationError(
                     category="MISSING_METADATA",
@@ -271,7 +272,8 @@ def validate_strategy(strategy_name: str, project_root: Path) -> List[Validation
                     fix="Add 'indicator_stop_params': {'length': 14} to metadata.json",
                 )
             )
-        if "stop_distance_multiplier" not in metadata:
+        requires_multiplier = indicator_type == "atr"
+        if requires_multiplier and "stop_distance_multiplier" not in metadata:
             errors.append(
                 ValidationError(
                     category="MISSING_METADATA",

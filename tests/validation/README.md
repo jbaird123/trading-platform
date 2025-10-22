@@ -219,7 +219,8 @@ The scaffold script creates this file with placeholder values. **You must update
 
 **Indicator Stop Types** (when using `indicator_stop`):
 - `"atr"`: Average True Range
-- `"bollinger"`: Bollinger Bands
+- `"bollinger"`: Bollinger Bands (params: `band` = auto/lower/upper/middle,
+  optional `length`, `std`, `offset`, `column_prefix`)
 - `"keltner"`: Keltner Channels
 - `"donchian"`: Donchian Channels
 - (More can be added as needed)

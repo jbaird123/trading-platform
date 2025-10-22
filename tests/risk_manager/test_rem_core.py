@@ -64,7 +64,7 @@ def test_risk_exit_manager_rejects_unknown_indicator():
     config = {
         "stop_loss": {
             "type": "indicator",
-            "indicator": "bollinger",
+            "indicator": "donchian",
             "params": {"multiplier": 2.0},
         }
     }
@@ -177,3 +177,37 @@ def test_indicator_stop_without_prior_bar_raises() -> None:
 
     with pytest.raises(ValueError, match="requires prior bar data"):
         rem.check_exits(position, current_bar)
+
+
+def test_bollinger_indicator_stop_uses_band_value() -> None:
+    """Bollinger-based indicator stops should pull the correct band."""
+    config = {
+        "stop_loss": {
+            "type": "indicator",
+            "indicator": "bollinger",
+            "params": {"band": "lower"},
+        }
+    }
+    rem = RiskExitManager(config=config)
+
+    position = Position(
+        symbol="EURUSD",
+        entry_time=pd.Timestamp("2024-03-01 12:00:00+00:00"),
+        entry_price=1.2050,
+        entry_mid_price=1.2050,
+        side="long",
+        size=10000,
+    )
+
+    prior_bar = _bar(
+        {"close": 1.2050, "bb_lower": 1.1980, "bb_upper": 1.2120},
+        "2024-03-01 13:00:00+00:00",
+    )
+    current_bar = _bar(
+        {"open": 1.2055, "high": 1.2060, "low": 1.2005, "close": 1.2030},
+        "2024-03-01 14:00:00+00:00",
+    )
+
+    exit_details = rem.check_exits(position, current_bar, prior_bar=prior_bar)
+    assert exit_details is not None
+    assert exit_details["exit_price"] == pytest.approx(1.1980, abs=1e-9)

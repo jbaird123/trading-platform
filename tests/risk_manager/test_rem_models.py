@@ -55,6 +55,20 @@ class TestREMConfigValidRules:
         assert config.stop_loss.params["multiplier"] == 2.0
         assert config.stop_loss.params["length"] == 21
 
+    def test_rem_config_accepts_bollinger_indicator(self):
+        config = REMConfig(
+            stop_loss={
+                "type": "indicator",
+                "indicator": "bollinger",
+                "params": {"band": "lower", "offset": 0.0005},
+            }
+        )
+
+        assert config.stop_loss.type == "indicator"
+        assert config.stop_loss.indicator == "bollinger"
+        assert config.stop_loss.params["band"] == "lower"
+        assert config.stop_loss.params["offset"] == 0.0005
+
     def test_rem_config_accepts_reference_rule(self):
         config = REMConfig(
             stop_loss={

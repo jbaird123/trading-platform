@@ -9,6 +9,7 @@ import pytest
 from trading_platform.risk_manager.rem_indicators import (
     REM_INDICATORS_REGISTRY,
     _calculate_atr_stop,
+    _calculate_bollinger_stop,
 )
 
 
@@ -106,6 +107,77 @@ class TestATRStopCalculator:
             _calculate_atr_stop(entry_price, side, current_bar, params)
 
 
+class TestBollingerStopCalculator:
+    """Tests for Bollinger-based stop calculator."""
+
+    def test_bollinger_stop_long_uses_auto_band(self) -> None:
+        entry_price = 1.2050
+        side = "long"
+        current_bar = pd.Series({"bb_lower": 1.1980, "bb_upper": 1.2100})
+        params: dict[str, object] = {}
+
+        result = _calculate_bollinger_stop(entry_price, side, current_bar, params)
+
+        assert result == pytest.approx(1.1980, abs=1e-6)
+
+    def test_bollinger_stop_short_uses_upper_band(self) -> None:
+        entry_price = 1.2050
+        side = "short"
+        current_bar = pd.Series({"bb_lower": 1.1980, "bb_upper": 1.2100})
+        params = {"band": "auto"}
+
+        result = _calculate_bollinger_stop(entry_price, side, current_bar, params)
+
+        assert result == pytest.approx(1.2100, abs=1e-6)
+
+    def test_bollinger_stop_applies_offset(self) -> None:
+        entry_price = 1.2050
+        side = "long"
+        current_bar = pd.Series({"bb_lower": 1.1980})
+        params = {"band": "lower", "offset": 0.0005}
+
+        result = _calculate_bollinger_stop(entry_price, side, current_bar, params)
+
+        assert result == pytest.approx(1.1975, abs=1e-6)
+
+    def test_bollinger_stop_supports_alternate_prefix(self) -> None:
+        entry_price = 1.2050
+        side = "long"
+        current_bar = pd.Series({"bollinger_lower": 1.1970})
+        params = {"band": "lower", "column_prefix": "bollinger"}
+
+        result = _calculate_bollinger_stop(entry_price, side, current_bar, params)
+
+        assert result == pytest.approx(1.1970, abs=1e-6)
+
+    def test_bollinger_stop_missing_column_raises(self) -> None:
+        entry_price = 1.2050
+        side = "long"
+        current_bar = pd.Series({"close": 1.2050})
+        params = {"band": "lower"}
+
+        with pytest.raises(KeyError, match="Bollinger indicator not found"):
+            _calculate_bollinger_stop(entry_price, side, current_bar, params)
+
+    def test_bollinger_stop_invalid_band_raises(self) -> None:
+        entry_price = 1.2050
+        side = "long"
+        current_bar = pd.Series({"bb_lower": 1.1980})
+        params = {"band": "invalid"}
+
+        with pytest.raises(ValueError, match="Invalid Bollinger band"):
+            _calculate_bollinger_stop(entry_price, side, current_bar, params)
+
+    def test_bollinger_stop_invalid_side_raises(self) -> None:
+        entry_price = 1.2050
+        side = "flat"
+        current_bar = pd.Series({"bb_lower": 1.1980})
+        params = {"band": "lower"}
+
+        with pytest.raises(ValueError, match="Invalid side"):
+            _calculate_bollinger_stop(entry_price, side, current_bar, params)
+
+
 class TestREMIndicatorsRegistry:
     """Tests for REM indicators registry."""
 
@@ -134,6 +206,22 @@ class TestREMIndicatorsRegistry:
         assert callable(atr_spec.stop_calculator)
         assert atr_spec.stop_calculator == _calculate_atr_stop
 
+    def test_registry_contains_bollinger(self):
+        """Verify Bollinger indicator is registered."""
+        assert "bollinger" in REM_INDICATORS_REGISTRY
+        assert REM_INDICATORS_REGISTRY["bollinger"].name == "bollinger"
+
+    def test_bollinger_spec_parameters(self):
+        """Verify Bollinger spec defines parameter expectations."""
+        boll_spec = REM_INDICATORS_REGISTRY["bollinger"]
+        assert boll_spec.required_params == {}
+        optional = boll_spec.optional_params
+        assert optional["band"] == (str, "auto")
+        assert optional["length"] == (int, 20)
+        assert optional["std"] == (float, 2.0)
+        assert optional["offset"] == (float, 0.0)
+        assert optional["column_prefix"] == (str, "bb")
+
     def test_unknown_indicator_not_in_registry(self):
         """Verify unimplemented indicators are not in registry."""
         # RSI should NOT be in the REM registry (not suitable for stops)
@@ -143,6 +231,4 @@ class TestREMIndicatorsRegistry:
 
     def test_registry_only_contains_whitelisted_indicators(self):
         """Verify registry only contains explicitly whitelisted indicators."""
-        # As of now, only ATR is implemented
-        # Bollinger and Keltner are in schema but not yet implemented
-        assert set(REM_INDICATORS_REGISTRY.keys()) == {"atr"}
+        assert set(REM_INDICATORS_REGISTRY.keys()) == {"atr", "bollinger"}
