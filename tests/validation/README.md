@@ -554,6 +554,10 @@ The framework uses a pluggable analyzer system for different exit mechanisms:
 ### Indicator Stop Analyzer
 
 **Analyzer**: `IndicatorStopAnalyzer`
+
+- The analyzer registry now returns a `CompositeAmbiguityAnalyzer` when
+  `exit_mechanisms` lists multiple entries, so mixed exit strategies are
+  validated in a single pass.
 **Registered as**: `"indicator_stop"`
 **Metadata fields**:
 - `indicator_stop_type` (required): "atr", "bollinger", "keltner", etc.

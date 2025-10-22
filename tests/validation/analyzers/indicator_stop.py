@@ -167,8 +167,12 @@ class IndicatorStopAnalyzer(AmbiguityAnalyzer):
 
         # Category 2: Indicator recalculation
         # Check if indicator value changed significantly between entry and exit
-        entry_indicator = float(ohlcv_data.loc[entry_time, indicator_col])  # type: ignore[arg-type]
-        exit_indicator = float(ohlcv_data.loc[exit_time, indicator_col])  # type: ignore[arg-type]
+        entry_indicator = float(
+            ohlcv_data.loc[entry_time, indicator_col]  # type: ignore[arg-type]
+        )
+        exit_indicator = float(
+            ohlcv_data.loc[exit_time, indicator_col]  # type: ignore[arg-type]
+        )
 
         indicator_change_pct = abs(exit_indicator - entry_indicator) / entry_indicator
 
@@ -217,7 +221,9 @@ class IndicatorStopAnalyzer(AmbiguityAnalyzer):
         # Category 3: Entry bar indicator difference
         # Check if indicator differs on entry bar between platforms
         # (This is analogous to entry bar MFE for trailing stops)
-        entry_bar_indicator = float(ohlcv_data.loc[entry_time, indicator_col])  # type: ignore[arg-type]
+        entry_bar_indicator = float(
+            ohlcv_data.loc[entry_time, indicator_col]  # type: ignore[arg-type]
+        )
 
         # Get next bar indicator (when stop would first be calculated)
         next_bars = ohlcv_data.loc[entry_time:exit_time].iloc[1:]
@@ -270,7 +276,15 @@ class IndicatorStopAnalyzer(AmbiguityAnalyzer):
         # Category 4: Platform zoom detected intrabar stop
         if ohlcv_1min is not None:
             zoom_result = self._check_indicator_stop_zoom(
-                platform_trade, tv_trade, ohlcv_data, ohlcv_1min, indicator_col
+                platform_trade=platform_trade,
+                tv_trade=tv_trade,
+                ohlcv_data=ohlcv_data,
+                ohlcv_1min=ohlcv_1min,
+                indicator_col=indicator_col,
+                expected_stop_prev=expected_stop_prev,
+                direction=direction,
+                entry_time=entry_time,
+                exit_time=exit_time,
             )
             if zoom_result:
                 return zoom_result
@@ -357,6 +371,10 @@ class IndicatorStopAnalyzer(AmbiguityAnalyzer):
         ohlcv_data: pd.DataFrame,
         ohlcv_1min: pd.DataFrame,
         indicator_col: str,
+        expected_stop_prev: float | None,
+        direction: str,
+        entry_time: pd.Timestamp,
+        exit_time: pd.Timestamp,
     ) -> Optional[DiscrepancyResult]:
         """Check if discrepancy is due to platform's 1-minute zoom feature.
 
@@ -373,14 +391,129 @@ class IndicatorStopAnalyzer(AmbiguityAnalyzer):
         Returns:
             DiscrepancyResult if zoom discrepancy detected, None otherwise
         """
-        # TODO: Implement 1-minute zoom verification for indicator stops
-        # This would require:
-        # 1. Simulate indicator stop using 1-minute data
-        # 2. Verify platform exit matches simulated stop hit
-        # 3. Explain timing difference vs TradingView
+        if expected_stop_prev is None:
+            return None
 
-        # For now, return None (not implemented)
-        # This can be added later if needed for specific indicator types
+        platform_exit_time = pd.Timestamp(platform_trade["exit_time"])
+        tv_exit_time = pd.Timestamp(tv_trade["exit_time"])
+        platform_exit_price = float(platform_trade["exit_price"])
+        tv_exit_price = float(tv_trade["exit_price"])
+
+        # Determine the hourly window to examine (exit bar)
+        exit_hour = exit_time.floor("h")
+        exit_hour_end = exit_hour + pd.Timedelta(hours=1)
+
+        try:
+            minute_bars = ohlcv_1min.loc[exit_hour:exit_hour_end]
+        except KeyError:
+            return None
+
+        if len(minute_bars) == 0:
+            return None
+
+        stop_level = expected_stop_prev
+
+        def _stop_hit(bar: pd.Series) -> bool:
+            if direction == "long":
+                return float(bar["low"]) <= stop_level
+            return float(bar["high"]) >= stop_level
+
+        stop_timestamp: Optional[pd.Timestamp] = None
+        for ts, bar in minute_bars.iterrows():
+            if _stop_hit(bar):
+                stop_timestamp = pd.Timestamp(ts)
+                break
+
+        if stop_timestamp is None:
+            return None  # No intrabar stop hit detected
+
+        # Verify platform exit aligns with the computed stop level
+        if abs(platform_exit_price - stop_level) > self.tolerance * 5:
+            return None
+
+        metadata = {
+            "expected_stop": stop_level,
+            "zoom_bar_time": str(stop_timestamp),
+        }
+
+        explanation_prefix = (
+            "Platform exit verified via 1-minute zoom. "
+            f"{'Long' if direction == 'long' else 'Short'} entry at "
+            f"{float(platform_trade['entry_price']):.5f}. "
+        )
+
+        if platform_exit_time < tv_exit_time:
+            explanation = (
+                explanation_prefix
+                + "Platform exited earlier due to intrabar stop hit. "
+                f"Platform exit: {platform_exit_time} @ "
+                f"{platform_exit_price:.5f}. "
+                f"1-minute data touches stop at {stop_timestamp} @ "
+                f"{stop_level:.5f}. "
+                f"TradingView exited later at {tv_exit_time} @ "
+                f"{tv_exit_price:.5f}."
+            )
+            return DiscrepancyResult(
+                category="PLATFORM_ZOOM_INTRABAR_STOP",
+                explanation=explanation,
+                metadata=metadata,
+                is_acceptable=True,
+                confidence=0.9,
+            )
+
+        if platform_exit_time == tv_exit_time and abs(
+            platform_exit_price - tv_exit_price
+        ) > self.tolerance:
+            explanation = (
+                explanation_prefix
+                + "Both engines exit on same hourly bar, but platform uses "
+                "1-minute zoom for price precision. "
+                f"Zoom confirms stop hit at {stop_timestamp} @ "
+                f"{stop_level:.5f}. "
+                f"TradingView used hourly bar "
+                f"{'low' if direction == 'long' else 'high'} {tv_exit_price:.5f}, "
+                f"causing a {abs(platform_exit_price - tv_exit_price) * 10000:.1f} "
+                "pip difference."
+            )
+            return DiscrepancyResult(
+                category="PLATFORM_ZOOM_INTRABAR_STOP",
+                explanation=explanation,
+                metadata=metadata,
+                is_acceptable=True,
+                confidence=0.8,
+            )
+
+        if platform_exit_time > tv_exit_time:
+            # Verify TradingView exit hour did NOT actually hit the stop
+            tv_hour = tv_exit_time.floor("h")
+            tv_hour_end = tv_hour + pd.Timedelta(hours=1)
+            try:
+                tv_minute_bars = ohlcv_1min.loc[tv_hour:tv_hour_end]
+            except KeyError:
+                tv_minute_bars = pd.DataFrame()
+
+            tv_stop_hit = any(_stop_hit(bar) for _, bar in tv_minute_bars.iterrows())
+
+            if tv_stop_hit:
+                return None  # Stop really did hit during TV bar
+
+            explanation = (
+                explanation_prefix
+                + "TradingView exited earlier based on hourly-only data, "
+                "but 1-minute zoom shows the stop was not hit during that bar. "
+                f"TradingView exit: {tv_exit_time} @ {tv_exit_price:.5f}. "
+                f"Platform continued until the verified stop hit at "
+                f"{platform_exit_time} (minute {stop_timestamp.strftime('%H:%M')}) "
+                f"@ {stop_level:.5f}."
+            )
+            return DiscrepancyResult(
+                category="PLATFORM_ZOOM_INTRABAR_STOP",
+                explanation=explanation,
+                metadata=metadata,
+                is_acceptable=True,
+                confidence=0.9,
+            )
+
         return None
 
     def get_acceptable_categories(self) -> List[str]:
