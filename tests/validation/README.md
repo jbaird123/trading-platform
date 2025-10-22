@@ -560,10 +560,9 @@ The framework uses a pluggable analyzer system for different exit mechanisms:
 - `stop_distance_multiplier` (required): multiplier for stop distance
 
 **Acceptable discrepancy categories**:
-1. `SAME_BAR_EXIT`: Entry and exit on same bar
-2. `INDICATOR_RECALCULATION`: Indicator value changed significantly
-3. `ENTRY_BAR_INDICATOR_DIFFERENCE`: Indicator differs on entry bar
-4. `PLATFORM_ZOOM_INTRABAR_STOP`: Platform detected intrabar stop
+1. `SAME_BAR_EXIT`: Entry and exit on the same bar (TradingView limitation)
+2. `PLATFORM_ZOOM_INTRABAR_STOP`: Platform detected intrabar stop via 1-minute zoom
+3. `PLATFORM_ZOOM_INTRABAR_TP`: Platform detected intrabar take-profit via zoom
 
 **Example metadata** (ATR stop):
 ```json

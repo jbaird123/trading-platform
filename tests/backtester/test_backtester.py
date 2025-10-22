@@ -311,6 +311,7 @@ def test_counterfactual_exact_rem_exit_breaks_loop() -> None:
             current_bar: pd.Series,
             signal: Any = None,
             data_handler: Any = None,
+            prior_bar: pd.Series | None = None,
         ) -> dict | None:
             return {
                 "exit_price": float(current_bar["close"]),
@@ -534,7 +535,13 @@ class TestBacktesterCoreCoverage:
     ):
         """Test _simulate_counterfactual_exact with a REM-triggered exit."""
 
-        def mock_check_exits(position, current_bar, signal=None, data_handler=None):
+        def mock_check_exits(
+            position,
+            current_bar,
+            signal=None,
+            data_handler=None,
+            prior_bar=None,
+        ):
             if current_bar.name == sample_data.index[2]:
                 return {"exit_price": 1.25, "reason": "stop_loss"}
             return None

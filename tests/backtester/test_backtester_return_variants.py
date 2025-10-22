@@ -74,6 +74,7 @@ class _NeverExitREM:
         current_bar: pd.Series,
         signal: Any = None,
         data_handler: Any = None,
+        prior_bar: pd.Series | None = None,
     ) -> None:
         return None
 

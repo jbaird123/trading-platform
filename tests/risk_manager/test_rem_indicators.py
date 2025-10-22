@@ -19,37 +19,40 @@ class TestATRStopCalculator:
         """Test ATR stop calculation for long positions."""
         entry_price = 1.1000
         side = "long"
-        current_bar = pd.Series({"atr_14": 0.0020, "atr": 0.0020})
+        current_bar = pd.Series({"close": 1.1000, "atr_14": 0.0020, "atr": 0.0020})
         params = {"multiplier": 2.0, "length": 14}
 
         result = _calculate_atr_stop(entry_price, side, current_bar, params)
 
-        # Stop should be: 1.1000 - (0.0020 * 2.0) = 1.0960
+        # Stop should be: close - (ATR * multiplier)
+        # 1.1000 - (0.0020 * 2.0) = 1.0960
         assert result == pytest.approx(1.0960, abs=1e-6)
 
     def test_atr_stop_calculator_short(self):
         """Test ATR stop calculation for short positions."""
         entry_price = 1.1000
         side = "short"
-        current_bar = pd.Series({"atr_14": 0.0020})
+        current_bar = pd.Series({"close": 1.1000, "atr_14": 0.0020})
         params = {"multiplier": 2.0, "length": 14}
 
         result = _calculate_atr_stop(entry_price, side, current_bar, params)
 
-        # Stop should be: 1.1000 + (0.0020 * 2.0) = 1.1040
+        # Stop should be: close + (ATR * multiplier)
+        # 1.1000 + (0.0020 * 2.0) = 1.1040
         assert result == pytest.approx(1.1040, abs=1e-6)
 
     def test_atr_stop_uses_default_length(self):
         """Test ATR calculator uses default length when not specified."""
         entry_price = 1.2000
         side = "long"
-        current_bar = pd.Series({"atr": 0.0015})  # Generic ATR column
+        current_bar = pd.Series({"close": 1.2000, "atr": 0.0015})  # Generic ATR column
         params = {"multiplier": 1.5}  # No length specified
 
         result = _calculate_atr_stop(entry_price, side, current_bar, params)
 
-        # Should use generic "atr" column
-        # Stop: 1.2000 - (0.0015 * 1.5) = 1.19775
+        # Should use generic "atr" column.
+        # Stop: close - (ATR * multiplier)
+        # 1.2000 - (0.0015 * 1.5) = 1.19775
         assert result == pytest.approx(1.19775, abs=1e-6)
 
     def test_atr_stop_prefers_specific_length_column(self):
@@ -58,6 +61,7 @@ class TestATRStopCalculator:
         side = "long"
         current_bar = pd.Series(
             {
+                "close": 1.3000,
                 "atr_14": 0.0020,
                 "atr": 0.0010,  # Should be ignored in favor of atr_14
             }
@@ -66,8 +70,9 @@ class TestATRStopCalculator:
 
         result = _calculate_atr_stop(entry_price, side, current_bar, params)
 
-        # Should use atr_14, not generic atr
-        # Stop: 1.3000 - (0.0020 * 2.0) = 1.2960
+        # Should use atr_14, not generic atr.
+        # Stop: close - (ATR * multiplier)
+        # 1.3000 - (0.0020 * 2.0) = 1.2960
         assert result == pytest.approx(1.2960, abs=1e-6)
 
     def test_atr_stop_missing_indicator_raises_error(self):
@@ -84,7 +89,7 @@ class TestATRStopCalculator:
         """Test that missing multiplier parameter raises KeyError."""
         entry_price = 1.1000
         side = "long"
-        current_bar = pd.Series({"atr_14": 0.0020})
+        current_bar = pd.Series({"close": 1.1000, "atr_14": 0.0020})
         params = {"length": 14}  # Missing multiplier!
 
         with pytest.raises(KeyError, match="multiplier"):
@@ -94,7 +99,7 @@ class TestATRStopCalculator:
         """Test that invalid side parameter raises ValueError."""
         entry_price = 1.1000
         side = "invalid"
-        current_bar = pd.Series({"atr_14": 0.0020})
+        current_bar = pd.Series({"close": 1.1000, "atr_14": 0.0020})
         params = {"multiplier": 2.0, "length": 14}
 
         with pytest.raises(ValueError, match="Invalid side"):

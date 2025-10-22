@@ -30,8 +30,9 @@ class REMIndicatorSpec:
     name: str
     description: str
     required_params: dict[str, type]
-    optional_params: dict[str, tuple[type, Any]]  # (type, default)
+    optional_params: dict[str, tuple[type, Any]]
     stop_calculator: Callable[[float, str, pd.Series, dict], float]
+    requires_prior_bar: bool = False
 
 
 def _calculate_atr_stop(
@@ -42,13 +43,22 @@ def _calculate_atr_stop(
 ) -> float:
     """Calculate stop price based on ATR indicator.
 
-    For long positions: stop = entry_price - (ATR * multiplier)
-    For short positions: stop = entry_price + (ATR * multiplier)
+    This implements a DYNAMIC ATR stop that recalculates each bar based on the
+    bar's close price and ATR value. This matches live trading behavior where:
+    - When bar N closes, calculate: stop = close(N) +/- ATR(N) * multiplier
+    - That stop level is active for bar N+1
+    - When bar N+1 closes, recalculate using bar N+1's data
+
+    For long positions: stop = close - (ATR * multiplier)
+    For short positions: stop = close + (ATR * multiplier)
 
     Args:
-        entry_price: The entry price of the position
+        entry_price: The entry price of the position (not used for dynamic stops)
         side: Position side, either "long" or "short"
-        current_bar: Pandas Series containing current bar data with ATR values
+        current_bar: Pandas Series containing the bar data used for calculation.
+                    In practice, this should be the PRIOR bar (the bar that just
+                    closed), as stops are set when a bar closes based on that
+                    bar's close price and ATR.
         params: Dictionary containing:
             - multiplier (float, required): Multiplier applied to ATR
             - length (int, optional): ATR period, defaults to 14
@@ -75,12 +85,15 @@ def _calculate_atr_stop(
             f"ATR indicator not found in bar data. Expected column '{atr_col}' or 'atr'"
         )
 
+    # Use the bar's close price as the base for the stop calculation
+    # This creates a dynamic stop that moves with price
+    close_price = float(current_bar["close"])
     distance = float(atr_value) * float(multiplier)
 
     if side == "long":
-        return entry_price - distance
+        return close_price - distance
     elif side == "short":
-        return entry_price + distance
+        return close_price + distance
     else:
         raise ValueError(f"Invalid side '{side}', must be 'long' or 'short'")
 
@@ -93,6 +106,7 @@ REM_INDICATORS_REGISTRY: dict[str, REMIndicatorSpec] = {
         required_params={"multiplier": float},
         optional_params={"length": (int, 14)},
         stop_calculator=_calculate_atr_stop,
+        requires_prior_bar=True,
     ),
 }
 

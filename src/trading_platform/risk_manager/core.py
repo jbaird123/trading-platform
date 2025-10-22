@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any, cast
 
 import pandas as pd
@@ -23,6 +24,8 @@ from trading_platform.risk_manager.trailing_stop_utils import (
     process_1min_bars_for_fixed_stops,
     process_1min_bars_for_trailing_stop,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class RiskExitManager:
@@ -105,15 +108,53 @@ class RiskExitManager:
         rule: IndicatorRule,
         position: Position,
         current_bar: pd.Series,
+        prior_bar: pd.Series | None = None,
     ) -> float:
-        """Compute price level using an indicator-driven stop calculator."""
+        """Compute price level using an indicator-driven stop calculator.
+
+        Args:
+            rule: Indicator rule configuration
+            position: Current position
+            current_bar: Bar being checked for exits
+            prior_bar: Bar whose close set the stop level (for indicator calculation)
+
+        Returns:
+            Stop price level
+        """
         spec = rem_indicators.REM_INDICATORS_REGISTRY.get(rule.indicator)
         if spec is None:
             raise ValueError(f"Indicator '{rule.indicator}' not registered")
-        price = spec.stop_calculator(
-            position.entry_price, position.side, current_bar, rule.params
+
+        if spec.requires_prior_bar and prior_bar is None:
+            raise ValueError(
+                f"Indicator '{rule.indicator}' requires prior bar data but "
+                "no prior_bar was provided."
+            )
+
+        calculation_bar = prior_bar if prior_bar is not None else current_bar
+        params = dict(rule.params)
+        price = float(
+            spec.stop_calculator(
+                float(position.entry_price),
+                position.side,
+                calculation_bar,
+                params,
+            )
         )
-        return float(price)
+
+        logger.debug(
+            "indicator_stop_calculated",
+            extra={
+                "symbol": position.symbol,
+                "indicator": rule.indicator,
+                "side": position.side,
+                "calc_bar_time": str(getattr(calculation_bar, "name", "")),
+                "price": price,
+                "params": params,
+            },
+        )
+
+        return price
 
     def _resolve_stop_rule(
         self,
@@ -129,6 +170,7 @@ class RiskExitManager:
         signal_context: dict[str, Any],
         *,
         is_stop: bool,
+        prior_bar: pd.Series | None = None,
     ) -> float | None:
         """Convert a stop rule into a concrete price level."""
         entry = float(position.entry_price)
@@ -142,7 +184,7 @@ class RiskExitManager:
         elif isinstance(rule, FixedPipsRule):
             distance = self._distance_value(rule)
         elif isinstance(rule, IndicatorRule):
-            return self._indicator_price(rule, position, current_bar)
+            return self._indicator_price(rule, position, current_bar, prior_bar)
         elif isinstance(rule, ReferenceRule):
             base_price = self._context_value(rule.reference_point, signal_context)
             if base_price is None:
@@ -174,15 +216,21 @@ class RiskExitManager:
         current_bar: pd.Series,
         signal: Any = None,
         data_handler: Any = None,
+        prior_bar: pd.Series | None = None,
     ) -> dict[str, Any] | None:
         """
         Checks if any exit conditions are met for the given position.
 
         Args:
             position: The current position to check exits for
-            current_bar: The current market bar data
+            current_bar: The current market bar data (bar being checked for exits)
             signal: Optional Signal object with context data
             data_handler: Optional DataHandler for 1-minute resolution zoom
+            prior_bar: The completed bar immediately before current_bar.
+                      Used for indicator-based stops which are calculated using
+                      the prior bar's closing data (close, ATR, etc.). This matches
+                      live trading where stops are set when a bar closes based on
+                      that bar's data, then active for the next bar.
 
         Returns:
             A dictionary with the exit details if an exit is triggered,
@@ -209,6 +257,7 @@ class RiskExitManager:
             current_bar,
             signal_context,
             is_stop=True,
+            prior_bar=prior_bar,
         )
         tp_price = (
             self._resolve_stop_rule(
@@ -217,6 +266,7 @@ class RiskExitManager:
                 current_bar,
                 signal_context,
                 is_stop=False,
+                prior_bar=prior_bar,
             )
             if take_profit_rule is not None
             else None
@@ -404,7 +454,11 @@ class RiskExitManager:
         return None
 
     def check_exits_intrabar(
-        self, position: Position, current_bar: pd.Series, data_handler: Any = None
+        self,
+        position: Position,
+        current_bar: pd.Series,
+        data_handler: Any = None,
+        prior_bar: pd.Series | None = None,
     ) -> dict[str, Any] | None:
         """
         Check if position should exit based on intrabar price action.
@@ -423,7 +477,10 @@ class RiskExitManager:
         """
         # Call existing check_exits method
         exit_details = self.check_exits(
-            position, current_bar, data_handler=data_handler
+            position,
+            current_bar,
+            data_handler=data_handler,
+            prior_bar=prior_bar,
         )
 
         if exit_details is None:

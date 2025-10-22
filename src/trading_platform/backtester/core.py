@@ -389,9 +389,13 @@ def run_backtest(
         # at the intra-bar price when hit, regardless of execution_model.
         # This is realistic behavior - protective orders execute intra-bar.
         # The execution_model setting only applies to signal-based entries/exits.
+        prior_bar = market_data.iloc[i - 1] if i > 0 else None
         if portfolio.current_position and rem is not None:
             rem_result = rem.check_exits_intrabar(
-                portfolio.current_position, current_bar, data_handler=data_handler
+                portfolio.current_position,
+                current_bar,
+                data_handler=data_handler,
+                prior_bar=prior_bar,
             )
 
             if rem_result is not None and rem_result["action"] == "should_close":
@@ -809,8 +813,11 @@ def _simulate_counterfactual_exact(
         bars_touched += 1
         # Apply REM exits first for fidelity
         if pm.current_position:
+            # Get prior bar for indicator-based stop calculations
+            # Stops are set when a bar closes, so use prior bar's data
+            prior_bar = market_data.iloc[i - 1] if i > 0 else None
             exit_details = rem.check_exits(
-                pm.current_position, cb, data_handler=data_handler
+                pm.current_position, cb, data_handler=data_handler, prior_bar=prior_bar
             )
             if exit_details:
                 pm.close_position(

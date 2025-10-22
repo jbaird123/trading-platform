@@ -92,11 +92,12 @@ class IndicatorStopAnalyzer(AmbiguityAnalyzer):
         self.tolerance = tolerance
 
         # Acceptable categories for indicator stops
+        # Reuse the vetted category set used by trailing-stop validation.
+        # Only these categories are treated as acceptable discrepancies.
         self.acceptable_categories = [
             "SAME_BAR_EXIT",
-            "INDICATOR_RECALCULATION",  # Indicator value changed bar-to-bar
-            "PLATFORM_ZOOM_INTRABAR_STOP",  # 1-min zoom detected stop
-            "ENTRY_BAR_INDICATOR_DIFFERENCE",  # Indicator differs on entry bar
+            "PLATFORM_ZOOM_INTRABAR_STOP",
+            "PLATFORM_ZOOM_INTRABAR_TP",
         ]
 
     def analyze_discrepancy(
@@ -125,6 +126,32 @@ class IndicatorStopAnalyzer(AmbiguityAnalyzer):
         entry_time = pd.Timestamp(platform_trade["entry_time"])
         exit_time = pd.Timestamp(platform_trade["exit_time"])
 
+        direction = platform_trade.get("side", "")
+        exit_price = float(platform_trade["exit_price"])
+        tv_price = float(tv_trade["exit_price"])
+        metadata_base = {
+            "direction": direction,
+            "entry_time": str(entry_time),
+            "entry_price": float(platform_trade["entry_price"]),
+            "exit_time": str(exit_time),
+            "platform_exit": exit_price,
+            "platform_exit_reason": platform_trade.get("exit_reason", ""),
+            "tv_exit": tv_price,
+            "tv_exit_reason": tv_trade.get("exit_reason", ""),
+            "price_diff_pips": abs(exit_price - tv_price) * 10000,
+        }
+
+        prev_rows = ohlcv_data.loc[:exit_time]
+        expected_stop_prev = None
+        if len(prev_rows) >= 2:
+            prev_bar_series = prev_rows.iloc[-2]
+            prev_close = float(prev_bar_series["close"])
+            prev_indicator_value = float(prev_bar_series[indicator_col])
+            if direction == "long":
+                expected_stop_prev = prev_close - prev_indicator_value * self.multiplier
+            else:
+                expected_stop_prev = prev_close + prev_indicator_value * self.multiplier
+
         # Category 1: Same bar entry/exit
         if entry_time == exit_time:
             return DiscrepancyResult(
@@ -133,7 +160,7 @@ class IndicatorStopAnalyzer(AmbiguityAnalyzer):
                     "Entry and exit on same bar. TradingView historical backtesting "
                     "cannot detect intra-bar stop hits on entry bar."
                 ),
-                metadata={},
+                metadata=dict(metadata_base),
                 is_acceptable=True,
                 confidence=1.0,
             )
@@ -146,23 +173,45 @@ class IndicatorStopAnalyzer(AmbiguityAnalyzer):
         indicator_change_pct = abs(exit_indicator - entry_indicator) / entry_indicator
 
         if indicator_change_pct > 0.1:  # 10% change threshold
-            return DiscrepancyResult(
-                category="INDICATOR_RECALCULATION",
-                explanation=(
-                    f"{self.indicator_type.upper()} changed significantly from "
-                    f"{entry_indicator:.5f} (entry) to {exit_indicator:.5f} (exit), "
-                    f"a {indicator_change_pct:.1%} change. "
-                    f"This causes stop level to move between TradingView bars, "
-                    f"creating timing differences. Platform uses bar-close indicator "
-                    f"values for stop calculations, matching TradingView's approach."
-                ),
-                metadata={
+            if (
+                expected_stop_prev is not None
+                and abs(exit_price - expected_stop_prev) <= self.tolerance * 5
+                and abs(tv_price - expected_stop_prev) > self.tolerance
+            ):
+                metadata = dict(metadata_base)
+                metadata["expected_stop"] = expected_stop_prev
+                return DiscrepancyResult(
+                    category="PLATFORM_ZOOM_INTRABAR_STOP",
+                    explanation=(
+                        "Platform exit matches the prior bar ATR stop while "
+                        "TradingView exited at a different price. This "
+                        "indicates TradingView missed the intra-bar stop hit."
+                    ),
+                    metadata=metadata,
+                    is_acceptable=True,
+                    confidence=0.8,
+                )
+
+            metadata = dict(metadata_base)
+            metadata.update(
+                {
                     "entry_indicator_value": entry_indicator,
                     "exit_indicator_value": exit_indicator,
                     "indicator_change_pct": indicator_change_pct,
-                },
-                is_acceptable=True,
-                confidence=0.9,  # High but not certain
+                }
+            )
+            return DiscrepancyResult(
+                category="UNEXPLAINED",
+                explanation=(
+                    f"{self.indicator_type.upper()} changed from "
+                    f"{entry_indicator:.5f} (entry) to {exit_indicator:.5f} (exit), "
+                    f"a {indicator_change_pct:.1%} change. "
+                    "This difference is currently not an approved exception and "
+                    "requires manual review."
+                ),
+                metadata=metadata,
+                is_acceptable=False,
+                confidence=0.5,
             )
 
         # Category 3: Entry bar indicator difference
@@ -177,23 +226,45 @@ class IndicatorStopAnalyzer(AmbiguityAnalyzer):
 
             indicator_diff = abs(next_bar_indicator - entry_bar_indicator)
             if indicator_diff > self.tolerance:
+                metadata = dict(metadata_base)
+                metadata.update(
+                    {
+                        "entry_bar_indicator": entry_bar_indicator,
+                        "next_bar_indicator": next_bar_indicator,
+                        "indicator_diff": indicator_diff,
+                    }
+                )
+                if (
+                    expected_stop_prev is not None
+                    and abs(exit_price - expected_stop_prev) <= self.tolerance * 5
+                    and abs(tv_price - expected_stop_prev) > self.tolerance
+                ):
+                    metadata = dict(metadata_base)
+                    metadata["expected_stop"] = expected_stop_prev
+                    return DiscrepancyResult(
+                        category="PLATFORM_ZOOM_INTRABAR_STOP",
+                        explanation=(
+                            "Platform exit aligned with the prior bar ATR stop "
+                            "while TradingView used a different price. "
+                            "TradingView likely missed the intra-bar stop hit."
+                        ),
+                        metadata=metadata,
+                        is_acceptable=True,
+                        confidence=0.8,
+                    )
+
                 return DiscrepancyResult(
-                    category="ENTRY_BAR_INDICATOR_DIFFERENCE",
+                    category="UNEXPLAINED",
                     explanation=(
                         f"{self.indicator_type.upper()} on entry bar "
                         f"({entry_bar_indicator:.5f}) differs from next bar "
                         f"({next_bar_indicator:.5f}). "
-                        f"This affects initial stop placement. Platform may use "
-                        f"entry bar indicator for initial stop calculation, while "
-                        f"TradingView waits for next bar close."
+                        "Entry-bar indicator differences are not an approved "
+                        "exception for indicator-based stops and need review."
                     ),
-                    metadata={
-                        "entry_bar_indicator": entry_bar_indicator,
-                        "next_bar_indicator": next_bar_indicator,
-                        "indicator_diff": indicator_diff,
-                    },
-                    is_acceptable=True,
-                    confidence=0.8,
+                    metadata=metadata,
+                    is_acceptable=False,
+                    confidence=0.5,
                 )
 
         # Category 4: Platform zoom detected intrabar stop
@@ -205,6 +276,31 @@ class IndicatorStopAnalyzer(AmbiguityAnalyzer):
                 return zoom_result
 
         # Unexplained
+        if (
+            expected_stop_prev is not None
+            and abs(exit_price - expected_stop_prev) <= self.tolerance * 5
+            and abs(tv_price - expected_stop_prev) > self.tolerance
+        ):
+            metadata_zoom = dict(metadata_base)
+            metadata_zoom["expected_stop"] = expected_stop_prev
+            return DiscrepancyResult(
+                category="PLATFORM_ZOOM_INTRABAR_STOP",
+                explanation=(
+                    "Platform exit matches the calculated prior bar ATR stop "
+                    "but TradingView exited elsewhere. This is a known "
+                    "TradingView limitation with intra-bar stop handling."
+                ),
+                metadata=metadata_zoom,
+                is_acceptable=True,
+                confidence=0.8,
+            )
+
+        metadata = dict(metadata_base)
+        metadata.update(
+            {
+                "indicator_type": self.indicator_type,
+            }
+        )
         return DiscrepancyResult(
             category="UNEXPLAINED",
             explanation=(
@@ -214,11 +310,7 @@ class IndicatorStopAnalyzer(AmbiguityAnalyzer):
                 f"TradingView exit: {tv_trade['exit_price']:.5f} @ "
                 f"{tv_trade['exit_time']}"
             ),
-            metadata={
-                "platform_exit_price": float(platform_trade["exit_price"]),
-                "tv_exit_price": float(tv_trade["exit_price"]),
-                "indicator_type": self.indicator_type,
-            },
+            metadata=metadata,
             is_acceptable=False,
             confidence=0.0,
         )
