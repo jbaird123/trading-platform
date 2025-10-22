@@ -26,6 +26,7 @@ from tests.validation.test_strategy_validation import (
         "ema_crossover/20pip_trailing_stop",
         "ema_crossover/20pip_trailing_stop_15pip_tp",
         "ema_crossover/2atr_stop",
+        "ema_crossover/bb_stop",
     ],
 )
 def test_export_exit_price_comparison(
@@ -71,6 +72,9 @@ def test_export_exit_price_comparison(
         ),
         "ema_crossover/2atr_stop": request.getfixturevalue(
             "platform_trades_2atr_stop"
+        ),
+        "ema_crossover/bb_stop": request.getfixturevalue(
+            "platform_trades_bb_stop"
         ),
     }
     platform_trades = fixture_map[strategy_name]

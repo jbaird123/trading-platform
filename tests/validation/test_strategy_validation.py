@@ -3139,3 +3139,111 @@ def test_ema_crossover_2atr_stop_exit_prices_match_tradingview(
 
     # Assert all discrepancies are explained
     analyzer.assert_all_explained(categories)
+
+
+# EMA Crossover with Bollinger Stop
+# =============================================================================
+
+
+def test_ema_crossover_bb_stop_metadata_schema_validation(
+    golden_metadata,
+    shared_data_handler,
+):
+    """Validates metadata.json conforms to schema for bb_stop."""
+
+    assert golden_metadata is not None
+    assert golden_metadata.get("dataset_type") == "strategy"
+    assert golden_metadata.get("strategy_name") == "ema_crossover_bb_stop"
+
+
+def test_ema_crossover_bb_stop_trade_count_matches_tradingview(
+    tradingview_trades,
+    golden_metadata,
+    platform_trades_bb_stop,
+):
+    """Validates Bollinger stop produces same trade count as TradingView."""
+
+    date_range = golden_metadata.get("date_range")
+    platform_trades = platform_trades_bb_stop
+
+    try:
+        verify_golden_trades_hash("ema_crossover/bb_stop", platform_trades)
+    except FileNotFoundError as exc:
+        pytest.skip(str(exc))
+
+    platform_df, tv_df = align_trades(
+        platform_trades, tradingview_trades, date_range
+    )
+
+    assert len(platform_df) == len(tv_df), (
+        f"Trade count mismatch: Platform generated {len(platform_df)} trades, "
+        f"TradingView generated {len(tv_df)} trades"
+    )
+
+
+def test_ema_crossover_bb_stop_exit_times_match_tradingview(
+    tradingview_trades,
+    tradingview_ohlcv,
+    tradingview_ohlcv_1min,
+    golden_metadata,
+    platform_trades_bb_stop,
+):
+    """Validates exit times match, with analyzer explaining mismatches."""
+
+    from tests.validation.analyzers import create_analyzer_for_strategy
+
+    date_range = golden_metadata.get("date_range")
+    platform_trades = platform_trades_bb_stop
+
+    try:
+        verify_golden_trades_hash("ema_crossover/bb_stop", platform_trades)
+    except FileNotFoundError as exc:
+        pytest.skip(str(exc))
+
+    platform_df, tv_df = align_trades(
+        platform_trades, tradingview_trades, date_range
+    )
+
+    analyzer = create_analyzer_for_strategy(golden_metadata)
+    categories = analyzer.analyze_discrepancies(
+        platform_df=platform_df,
+        tv_df=tv_df,
+        ohlcv_data=tradingview_ohlcv,
+        ohlcv_1min=tradingview_ohlcv_1min,
+    )
+
+    analyzer.assert_all_explained(categories)
+
+
+def test_ema_crossover_bb_stop_exit_prices_match_tradingview(
+    tradingview_trades,
+    tradingview_ohlcv,
+    tradingview_ohlcv_1min,
+    golden_metadata,
+    platform_trades_bb_stop,
+):
+    """Validates exit prices match TradingView for Bollinger stop."""
+
+    from tests.validation.analyzers import create_analyzer_for_strategy
+
+    date_range = golden_metadata.get("date_range")
+    platform_trades = platform_trades_bb_stop
+
+    try:
+        verify_golden_trades_hash("ema_crossover/bb_stop", platform_trades)
+    except FileNotFoundError as exc:
+        pytest.skip(str(exc))
+
+    platform_df, tv_df = align_trades(
+        platform_trades, tradingview_trades, date_range
+    )
+
+    analyzer = create_analyzer_for_strategy(golden_metadata)
+    categories = analyzer.analyze_discrepancies(
+        platform_df=platform_df,
+        tv_df=tv_df,
+        ohlcv_data=tradingview_ohlcv,
+        ohlcv_1min=tradingview_ohlcv_1min,
+    )
+
+    analyzer.assert_all_explained(categories)

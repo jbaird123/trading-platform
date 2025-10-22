@@ -14,7 +14,7 @@ from tests.validation.test_export_exit_time_comparison import EXIT_TIME_CATEGORI
 from tests.validation.test_strategy_validation import KNOWN_EDGE_CASES
 
 
-@pytest.mark.strategy_name("ema_crossover/20pip_trailing_stop")
+@pytest.mark.strategy("ema_crossover/20pip_trailing_stop")
 def test_export_all_trades_comparison(
     tradingview_ohlcv,
     tradingview_ohlcv_1min,

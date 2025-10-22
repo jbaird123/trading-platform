@@ -1,0 +1,76 @@
+// @version=5
+strategy("EMA Crossover BB Stop Golden",
+         overlay=true,
+         initial_capital=100000,
+         default_qty_value=10000,
+         default_qty_type=strategy.cash,
+         commission_type=strategy.commission.percent,
+         commission_value=0.0,
+         pyramiding=1,
+         process_orders_on_close=false,  // Execute next bar open
+         calc_on_order_fills=false,       // Only calculate on bar close
+         calc_on_every_tick=false)        // Not real-time
+
+// MANDATORY: Include volume (even if unused)
+plot(volume, title="Volume", display=display.none)
+
+// ============================================================================
+// INDICATORS
+// ============================================================================
+
+// Entry indicators
+fast_length = input.int(20, "Fast EMA Length")
+slow_length = input.int(50, "Slow EMA Length")
+ema_fast = ta.ema(close, fast_length)
+ema_slow = ta.ema(close, slow_length)
+
+// Exit: Bollinger Band Stop
+bb_length = input.int(20, "BB Length")
+bb_std = input.float(2.0, "BB Std Dev")
+bb_offset = input.float(0.0005, "BB Offset")
+[bb_upper, bb_middle, bb_lower] = ta.bb(close, bb_length, bb_std)
+
+// ========================================================================
+// ENTRY LOGIC
+// ========================================================================
+
+long_signal = ta.crossover(ema_fast, ema_slow)
+short_signal = ta.crossunder(ema_fast, ema_slow)
+
+if (long_signal)
+    strategy.entry("Long", strategy.long)
+
+if (short_signal)
+    strategy.entry("Short", strategy.short)
+
+// ====================================================================
+// EXIT LOGIC - Bollinger Stop
+// ====================================================================
+
+var float bb_stop = na
+
+if (long_signal)
+    bb_stop := bb_lower - bb_offset
+
+if (short_signal)
+    bb_stop := bb_upper + bb_offset
+
+if (strategy.position_size > 0)  // Long position
+    bb_stop := bb_lower - bb_offset
+    strategy.exit("Exit Long", "Long", stop=bb_stop)
+
+if (strategy.position_size < 0)  // Short position
+    bb_stop := bb_upper + bb_offset
+    strategy.exit("Exit Short", "Short", stop=bb_stop)
+
+// ========================================================================
+// PLOTTING
+// ========================================================================
+
+plot(ema_fast, "Fast EMA", color=color.blue)
+plot(ema_slow, "Slow EMA", color=color.red)
+
+plot(bb_upper, "BB Upper", color=color.orange)
+plot(bb_middle, "BB Middle", color=color.gray)
+plot(bb_lower, "BB Lower", color=color.orange)
+plot(bb_stop, "Stop Level", color=color.yellow, style=plot.style_linebr)

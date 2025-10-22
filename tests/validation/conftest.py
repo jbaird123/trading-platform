@@ -123,6 +123,8 @@ def strategy_name(request) -> str:
             return "ema_crossover/20pip_stop"
         elif "2atr_stop" in test_name:
             return "ema_crossover/2atr_stop"
+        elif "bb_stop" in test_name:
+            return "ema_crossover/bb_stop"
         elif "baseline" in test_name or "_ema_crossover_" in test_name:
             # Default to baseline for backward compatibility
             return "ema_crossover/baseline"
@@ -875,6 +877,51 @@ def platform_trades_2atr_stop(
 
     # Load OHLCV (not actually used since we use data_handler, but needed for signature)
     ohlcv_path = strategy_data_dir / "ohlcv.csv"
+    ohlcv = pd.read_csv(ohlcv_path, index_col=0, parse_dates=True)
+
+    return load_platform_trades(
+        strategy_name=strategy_name,
+        run_config=run_config,
+        ohlcv_data=ohlcv,
+        data_handler=shared_data_handler,
+        date_range=metadata.get("date_range"),
+    )
+
+
+@pytest.fixture(scope="session")
+def platform_trades_bb_stop(
+    shared_data_handler: Any,
+    ensure_dvc_data_pulled: bool,
+) -> list[dict]:
+    """Session-scoped platform trades for ema_crossover/bb_stop strategy."""
+
+    from tests.validation.test_strategy_validation import load_platform_trades
+
+    strategy_name = "ema_crossover/bb_stop"
+    strategy_data_dir = GOLDEN_STRATEGIES_ROOT / strategy_name
+    strategy_config_dir = GOLDEN_CONFIG_ROOT / strategy_name
+
+    metadata_path = strategy_data_dir / "metadata.json"
+    if not metadata_path.exists():
+        pytest.skip(
+            "Bollinger stop golden metadata not found. Export TradingView data "
+            "and commit before running these tests."
+        )
+
+    with open(metadata_path) as f:
+        metadata = json.load(f)
+
+    run_config_path = strategy_config_dir / "run_config.yaml"
+    with open(run_config_path) as f:
+        run_config = yaml.safe_load(f)
+
+    ohlcv_path = strategy_data_dir / "ohlcv.csv"
+    if not ohlcv_path.exists():
+        pytest.skip(
+            "Bollinger stop OHLCV export missing. Run validate_golden_data.py "
+            "after exporting from TradingView."
+        )
+
     ohlcv = pd.read_csv(ohlcv_path, index_col=0, parse_dates=True)
 
     return load_platform_trades(

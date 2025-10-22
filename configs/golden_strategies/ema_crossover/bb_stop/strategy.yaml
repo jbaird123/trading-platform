@@ -1,0 +1,64 @@
+strategy_name: "EMA_Crossover_BB_Stop"
+description: "EMA crossover with Bollinger band stop for golden validation"
+version: "1.0"
+
+parameters:
+  ema_fast_length: 20
+  ema_slow_length: 50
+  bb_length: 20
+  bb_std: 2.0
+  bb_offset: 0.0005
+
+features:
+  - name: ema_fast
+    type: EMA
+    params:
+      length: ${ema_fast_length}
+    source: close
+
+  - name: ema_slow
+    type: EMA
+    params:
+      length: ${ema_slow_length}
+    source: close
+
+  - name: bb
+    type: BB
+    params:
+      length: ${bb_length}
+      ndev: ${bb_std}
+    source: close
+
+overlays: [ema_fast, ema_slow, bb_upper, bb_lower]
+
+long_entry_rules:
+  - all_of:
+      - condition: cross_above
+        left:
+          ref: ema_fast
+        right:
+          ref: ema_slow
+
+long_exit_rules:
+  - any_of:
+      - condition: cross_below
+        left:
+          ref: ema_fast
+        right:
+          ref: ema_slow
+
+short_entry_rules:
+  - all_of:
+      - condition: cross_below
+        left:
+          ref: ema_fast
+        right:
+          ref: ema_slow
+
+short_exit_rules:
+  - any_of:
+      - condition: cross_above
+        left:
+          ref: ema_fast
+        right:
+          ref: ema_slow

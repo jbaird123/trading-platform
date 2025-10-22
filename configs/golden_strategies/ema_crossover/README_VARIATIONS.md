@@ -56,7 +56,27 @@ The variations differ only in their risk management (stop loss/TP).
 - Exit precedence (stop vs signal)
 - Risk-managed PnL calculation
 
-**Status:** 📋 Ready for export
+**Status:** ✅ Validated and passing
+
+---
+
+### 3. Bollinger Band Stop
+**Location:** `bb_stop/`
+
+**Purpose:** Validate indicator-based exits that require prior-bar data and
+1-minute zoom verification.
+
+**Characteristics:**
+- Dynamic stop tracks Bollinger band selected by position direction
+- 0.0005 canonical offset widens the stop slightly for costs
+- Exits still honour opposite signal when stop not hit first
+
+**What This Tests:**
+- REM indicator registry integration (`bollinger` spec)
+- IndicatorStopAnalyzer zoom classification with 1-minute data
+- Consistency between TradingView and platform when indicators recalc intra-bar
+
+**Status:** 🏗 Pending TradingView export
 
 ---
 
@@ -77,6 +97,20 @@ ema_crossover/
 │   ├── rem.yaml                 # Fixed 20-pip stop
 │   ├── run_config.yaml          # Same as baseline
 │   └── README.md                # Variation-specific docs
+├── 20pip_stop_40pip_tp/
+│   └── ...                      # Fixed stop + take profit variation
+├── 20pip_trailing_stop/
+│   └── ...                      # Trailing stop variation
+├── 20pip_trailing_stop_15pip_tp/
+│   └── ...                      # Trailing stop + TP variation
+├── 2atr_stop/
+│   └── ...                      # Dynamic ATR stop variation
+├── bb_stop/
+│   ├── strategy.yaml            # EMA crossover + Bollinger feature
+│   ├── strategy.pine            # Pine script with Bollinger stop
+│   ├── rem.yaml                 # REM indicator stop config
+│   ├── run_config.yaml          # Backtest configuration
+│   └── README.md                # Variation-specific notes
 └── [Analysis docs...]           # Shared analysis documents
 ```
 
@@ -85,13 +119,12 @@ ema_crossover/
 ```
 data/dvc/golden/strategies/ema_crossover/
 ├── baseline/
-│   ├── ohlcv.csv
-│   ├── trades.csv
-│   └── metadata.json
-└── 20pip_stop/
-    ├── ohlcv.csv
-    ├── trades.csv
-    └── metadata.json
+├── 20pip_stop/
+├── 20pip_stop_40pip_tp/
+├── 20pip_trailing_stop/
+├── 20pip_trailing_stop_15pip_tp/
+├── 2atr_stop/
+└── bb_stop/
 ```
 
 ---
