@@ -19,7 +19,10 @@ class RMMFeatureConfig(BaseModel):
         description="Local identifier used by conditions (e.g., ema_slope)."
     )
     type: str = Field(
-        description="Indicator type to compute for regime logic (validated against registry)."
+        description=(
+            "Indicator type to compute for regime logic "
+            "(validated against registry)."
+        )
     )
     params: dict[str, Any] | None = Field(
         default=None, description="Indicator-specific parameters (e.g., length)."
@@ -101,11 +104,13 @@ class RMMRuleBlock(BaseModel):
 
             if all_of_present and any_of_present:
                 raise ValueError(
-                    "RMMRuleBlock must have exactly one of all_of or any_of, but both were found."
+                    "RMMRuleBlock must have exactly one of all_of or "
+                    "any_of, but both were found."
                 )
             if not all_of_present and not any_of_present:
                 raise ValueError(
-                    "RMMRuleBlock must have exactly one of all_of or any_of, but neither was found."
+                    "RMMRuleBlock must have exactly one of all_of or "
+                    "any_of, but neither was found."
                 )
         return data
 
@@ -170,7 +175,10 @@ class RMMConfig(BaseModel):
     )
     timeframe: str | None = Field(
         default=None,
-        description="Timeframe for regime classification (e.g., '1D', '4H', '1H', '15min', '5T'). Must be a valid pandas resample frequency.",
+        description=(
+            "Timeframe for regime classification (e.g., '1D', '4H', '1H', "
+            "'15min', '5T'). Must be a valid pandas resample frequency."
+        ),
         pattern=r"^\d*(?:[DHMS]|[mM][iI][nN]|[tT])$",
     )
     features: list[RMMFeatureConfig] | None = Field(

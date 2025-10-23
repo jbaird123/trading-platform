@@ -2,7 +2,6 @@
 import pytest
 import yaml
 from pydantic import ValidationError
-
 from trading_platform.strategy.models import StrategyConfig
 
 # A strategy that violates SE-3.3 by including a risk management block.
@@ -33,6 +32,8 @@ risk:
     type: fixed
     value: 100
 """
+
+
 def test_strategy_with_risk_block_fails_validation():
     """
     Tests that a strategy definition with a 'risk' block fails validation

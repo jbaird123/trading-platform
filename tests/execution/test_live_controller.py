@@ -38,10 +38,26 @@ def _strat():
         "strategy_name": "LiveTest",
         "parameters": {},
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.5}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 1.5},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.5}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 1.5},
+                    }
+                ]
+            }
         ],
     }
 

@@ -107,7 +107,7 @@ def cli_stubs(monkeypatch, tmp_path):
     class DummyRMMEngine:
         def __init__(self, config: Any) -> None:
             # Accept either dict or Pydantic model for testing flexibility
-            if hasattr(config, 'model_dump'):
+            if hasattr(config, "model_dump"):
                 calls["rmm_validated"] = config.model_dump()
                 self.config = config
             else:
@@ -181,7 +181,11 @@ def test_cmd_run_backtest_full_branch(cli_stubs, tmp_path):
                 {
                     "label": "test",
                     "confidence": 0.9,
-                    "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                    "conditions": {
+                        "all_of": [
+                            {"condition": "is_above", "left": "close", "right": 1.0}
+                        ]
+                    },
                 }
             ]
         },
@@ -243,7 +247,7 @@ def test_cmd_run_backtest_fast_mode_last_days_and_overrides(
     class TransitionRMM:
         def __init__(self, config: Any) -> None:
             # Accept either dict or Pydantic model for testing flexibility
-            if hasattr(config, 'model_dump'):
+            if hasattr(config, "model_dump"):
                 calls["rmm_transition"] = config.model_dump()
                 self.config = config
             else:
@@ -277,7 +281,11 @@ def test_cmd_run_backtest_fast_mode_last_days_and_overrides(
                 {
                     "label": "a",
                     "confidence": 0.9,
-                    "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                    "conditions": {
+                        "all_of": [
+                            {"condition": "is_above", "left": "close", "right": 1.0}
+                        ]
+                    },
                 }
             ]
         },
@@ -513,15 +521,23 @@ def test_cmd_run_backtest_with_paths_and_failures(tmp_path, monkeypatch):
     rem_file = tmp_path / "rem.json"
     rem_file.write_text(json.dumps({"name": "rem_file"}))
     rmm_file = tmp_path / "rmm.json"
-    rmm_file.write_text(json.dumps({
-        "regimes": [
+    rmm_file.write_text(
+        json.dumps(
             {
-                "label": "a",
-                "confidence": 0.9,
-                "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                "regimes": [
+                    {
+                        "label": "a",
+                        "confidence": 0.9,
+                        "conditions": {
+                            "all_of": [
+                                {"condition": "is_above", "left": "close", "right": 1.0}
+                            ]
+                        },
+                    }
+                ]
             }
-        ]
-    }))
+        )
+    )
 
     config = {
         "run_id": "rid",
@@ -548,7 +564,11 @@ def test_cmd_run_backtest_with_paths_and_failures(tmp_path, monkeypatch):
                     {
                         "label": "a",
                         "confidence": 0.9,
-                        "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                        "conditions": {
+                            "all_of": [
+                                {"condition": "is_above", "left": "close", "right": 1.0}
+                            ]
+                        },
                     }
                 ]
             }
@@ -715,7 +735,11 @@ def test_cmd_run_backtest_rmm_constant_modes(cli_stubs, tmp_path, monkeypatch):
                 {
                     "label": "flat",
                     "confidence": 0.5,
-                    "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                    "conditions": {
+                        "all_of": [
+                            {"condition": "is_above", "left": "close", "right": 1.0}
+                        ]
+                    },
                 }
             ]
         },
@@ -761,7 +785,11 @@ def test_cmd_run_backtest_rmm_empty_projection(cli_stubs, tmp_path, monkeypatch)
                 {
                     "label": "empty",
                     "confidence": 0.5,
-                    "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                    "conditions": {
+                        "all_of": [
+                            {"condition": "is_above", "left": "close", "right": 1.0}
+                        ]
+                    },
                 }
             ]
         },

@@ -41,10 +41,26 @@ def test_cmd_run_backtest_else_branch(tmp_path: Path, monkeypatch) -> None:
         "strategy": {
             "strategy_name": "S",
             "long_entry_rules": [
-                {"any_of": [{"condition": "is_above", "left": {"value": 2}, "right": {"value": 3}}]}
+                {
+                    "any_of": [
+                        {
+                            "condition": "is_above",
+                            "left": {"value": 2},
+                            "right": {"value": 3},
+                        }
+                    ]
+                }
             ],
             "long_exit_rules": [
-                {"any_of": [{"condition": "is_below", "left": {"value": 2}, "right": {"value": 1}}]}
+                {
+                    "any_of": [
+                        {
+                            "condition": "is_below",
+                            "left": {"value": 2},
+                            "right": {"value": 1},
+                        }
+                    ]
+                }
             ],
         },
     }

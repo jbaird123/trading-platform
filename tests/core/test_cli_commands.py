@@ -95,10 +95,26 @@ def test_cmd_run_backtest_saves_signals_artifact(
         "strategy": {
             "strategy_name": "TestStrat",
             "long_entry_rules": [
-                {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 0}}]}
+                {
+                    "any_of": [
+                        {
+                            "condition": "is_above",
+                            "left": {"field": "close"},
+                            "right": {"value": 0},
+                        }
+                    ]
+                }
             ],
             "long_exit_rules": [
-                {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 0}}]}
+                {
+                    "any_of": [
+                        {
+                            "condition": "is_below",
+                            "left": {"field": "close"},
+                            "right": {"value": 0},
+                        }
+                    ]
+                }
             ],
         },
     }
@@ -138,10 +154,26 @@ def test_cmd_run_backtest_saves_rmm_spans_artifact(
         "strategy": {
             "strategy_name": "TestStrat",
             "long_entry_rules": [
-                {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 0}}]}
+                {
+                    "any_of": [
+                        {
+                            "condition": "is_above",
+                            "left": {"field": "close"},
+                            "right": {"value": 0},
+                        }
+                    ]
+                }
             ],
             "long_exit_rules": [
-                {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 0}}]}
+                {
+                    "any_of": [
+                        {
+                            "condition": "is_below",
+                            "left": {"field": "close"},
+                            "right": {"value": 0},
+                        }
+                    ]
+                }
             ],
         },
         "rmm_config": {

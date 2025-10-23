@@ -13,9 +13,23 @@ def test_yaml_engine_missing_required_fields():
 def test_yaml_engine_unsupported_condition_raises():
     cfg = {
         "strategy_name": "X",
-        "long_entry_rules": [{"any_of": [{"condition": "bad", "left": {"value": 1}, "right": {"value": 2}}]}],
+        "long_entry_rules": [
+            {
+                "any_of": [
+                    {"condition": "bad", "left": {"value": 1}, "right": {"value": 2}}
+                ]
+            }
+        ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": {"value": 1}, "right": {"value": 2}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"value": 1},
+                        "right": {"value": 2},
+                    }
+                ]
+            }
         ],
     }
     with pytest.raises(ValueError):
