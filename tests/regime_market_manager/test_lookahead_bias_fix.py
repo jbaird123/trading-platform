@@ -24,7 +24,7 @@ def test_project_to_index_prevents_lookahead_bias() -> None:
     - At 10:05, we should use regime from the 09:45 bar (closed at 10:00)
     - We should NOT use regime from the 10:00 bar (not closed until 10:15)
     """
-    engine = RMMEngine(config={})
+    engine = RMMEngine(config={})  # type: ignore[arg-type]
 
     # Create 15min regime bars
     regime_index = pd.date_range("2024-01-01 09:45", periods=3, freq="15min")
@@ -187,7 +187,7 @@ def test_end_to_end_rmm_no_lookahead_with_actual_backtest_timing() -> None:
         ],
     }
 
-    engine = RMMEngine(config=config)
+    engine = RMMEngine(config=config)  # type: ignore[arg-type]
 
     # Create 15min OHLC data with ADX values
     # 09:45 bar: ADX = 30 (trending)

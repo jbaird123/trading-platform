@@ -11,8 +11,7 @@ Generated schemas are written to docs/schemas/ and should be committed to git.
 
 import json
 from pathlib import Path
-
-from trading_platform.core.config import FeatureConfig, RunConfig
+from typing import Any
 
 
 def generate_schema(model_class, output_path: Path) -> None:
@@ -44,7 +43,7 @@ def main() -> None:
 
     # Generate schemas for each model
     # Order matters - dependencies should come first
-    schemas_to_generate = []
+    schemas_to_generate: list[tuple[type[Any], str]] = []
 
     for model_class, filename in schemas_to_generate:
         output_path = schemas_dir / filename

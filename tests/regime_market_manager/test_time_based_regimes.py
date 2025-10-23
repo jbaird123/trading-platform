@@ -40,7 +40,7 @@ def test_hour_is_in_predicate() -> None:
         ]
     }
 
-    engine = RMMEngine(config=RMMConfig(**config))
+    engine = RMMEngine(config=RMMConfig(**config))  # type: ignore[arg-type]
     result = engine.classify_regime(df, already_resampled=True)
 
     # Assert that only hours 9, 10, 11 have the trading_hours label
@@ -85,7 +85,7 @@ def test_day_of_week_is_in_predicate() -> None:
         ]
     }
 
-    engine = RMMEngine(config=RMMConfig(**config))
+    engine = RMMEngine(config=RMMConfig(**config))  # type: ignore[arg-type]
     result = engine.classify_regime(df, already_resampled=True)
 
     # Assert Mon (Jan 1) and Wed (Jan 3) have weekday_trading label
@@ -129,14 +129,18 @@ def test_combined_time_and_indicator_regime() -> None:
                 "conditions": {
                     "all_of": [
                         {"condition": "hour_is_in", "values": [14, 15, 16]},
-                        {"condition": "is_above", "left": {"ref": "strength"}, "right": 50},
+                        {
+                            "condition": "is_above",
+                            "left": {"ref": "strength"},
+                            "right": 50,
+                        },
                     ]
                 },
             }
         ],
     }
 
-    engine = RMMEngine(config=RMMConfig(**config))
+    engine = RMMEngine(config=RMMConfig(**config))  # type: ignore[arg-type]
     result = engine.classify_regime(df, already_resampled=True)
 
     # Hours 14, 15, 16 with strength > 50 should be labeled

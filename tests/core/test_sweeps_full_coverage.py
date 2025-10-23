@@ -50,10 +50,10 @@ def test_rmm_context_with_data_handler_cache_hit():
     mock_handler.get_data.return_value = df.copy()
 
     cfg_raw = {"rmm_config": rmm_cfg}
-    expected_cfg = RMMConfig(**rmm_cfg).model_dump(exclude_none=True)
-    expected_cfg = RMMConfig(**rmm_cfg).model_dump(exclude_none=True)
-    expected_cfg = RMMConfig(**rmm_cfg).model_dump(exclude_none=True)
-    expected_cfg = RMMConfig(**rmm_cfg).model_dump(exclude_none=True)
+    expected_cfg = RMMConfig(**rmm_cfg).model_dump(exclude_none=True)  # type: ignore[arg-type]
+    expected_cfg = RMMConfig(**rmm_cfg).model_dump(exclude_none=True)  # type: ignore[arg-type]
+    expected_cfg = RMMConfig(**rmm_cfg).model_dump(exclude_none=True)  # type: ignore[arg-type]
+    expected_cfg = RMMConfig(**rmm_cfg).model_dump(exclude_none=True)  # type: ignore[arg-type]
 
     with patch("trading_platform.core.sweeps.RMMEngine") as mock_engine_class:
         result = _rmm_context(df, cfg_raw, data_handler=mock_handler)
@@ -110,7 +110,7 @@ def test_rmm_context_with_data_handler_cache_miss():
     mock_handler.get_data.return_value = df.copy()
 
     cfg_raw = {"rmm_config": rmm_cfg}
-    expected_cfg = RMMConfig(**rmm_cfg).model_dump(exclude_none=True)
+    expected_cfg = RMMConfig(**rmm_cfg).model_dump(exclude_none=True)  # type: ignore[arg-type]
 
     with patch("trading_platform.core.sweeps.RMMEngine") as mock_engine_class:
         mock_engine = Mock()

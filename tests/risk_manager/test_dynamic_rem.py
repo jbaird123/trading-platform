@@ -12,7 +12,6 @@ from datetime import datetime
 
 import pytest
 from pydantic import ValidationError
-
 from trading_platform.portfolio.position import Position
 from trading_platform.risk_manager import create_rem
 from trading_platform.risk_manager.dynamic_rem import DynamicREM
@@ -286,9 +285,7 @@ def test_stop_tightens_when_adx_is_zero():
     config = {
         "stop_loss": {"type": "offset", "price_offset": 0.015},
         "take_profit": {"type": "offset", "price_offset": 0.030},
-        "trailing_stop": {
-            "distance": {"type": "atr", "multiplier": 1.5}
-        },
+        "trailing_stop": {"distance": {"type": "atr", "multiplier": 1.5}},
         "volatility_threshold": 20.0,
         "low_volatility_multiplier": 0.75,
     }
@@ -377,7 +374,7 @@ class TestDynamicREMConfigModel:
             "low_volatility_multiplier": 0.8,
         }
 
-        cfg = DynamicREMConfig(**data)
+        cfg = DynamicREMConfig(**data)  # type: ignore[arg-type]
 
         assert cfg.trailing_stop is not None
         assert cfg.trailing_stop.distance.type == "atr"
@@ -390,7 +387,7 @@ class TestDynamicREMConfigModel:
         }
 
         with pytest.raises(ValidationError, match="less than or equal to 1"):
-            DynamicREMConfig(**data)
+            DynamicREMConfig(**data)  # type: ignore[arg-type]
 
     def test_dynamic_rem_config_json_schema_includes_trailing_fields(self):
         schema = DynamicREMConfig.model_json_schema()

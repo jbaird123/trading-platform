@@ -70,7 +70,11 @@ def profile_strategy_features(ohlc: pd.DataFrame) -> tuple[pd.DataFrame, pstats.
         "long_entry_rules": [
             {
                 "all_of": [
-                    {"condition": "is_above", "left": {"ref": "ema_fast"}, "right": {"value": 100}}
+                    {
+                        "condition": "is_above",
+                        "left": {"ref": "ema_fast"},
+                        "right": {"value": 100},
+                    }
                 ]
             }
         ],
@@ -122,7 +126,7 @@ def profile_rmm_features(ohlc: pd.DataFrame) -> tuple[pd.DataFrame, pstats.Stats
     profiler = cProfile.Profile()
     profiler.enable()
 
-    rmm_engine = RMMEngine(config=RMMConfig(**rmm_config))
+    rmm_engine = RMMEngine(config=RMMConfig(**rmm_config))  # type: ignore[arg-type]
     rmm_result = rmm_engine.classify_regime(
         ohlc, timeframe="1D", already_resampled=False
     )

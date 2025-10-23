@@ -121,6 +121,7 @@ class TrailingStopDiscrepancyAnalyzer(AmbiguityAnalyzer):
         tv_df: pd.DataFrame,
         ohlcv_data: pd.DataFrame,
         ohlcv_1min: Optional[pd.DataFrame] = None,
+        **kwargs: Any,
     ) -> Dict[str, List[Dict[str, Any]]]:
         """
         Analyze all exit price discrepancies and categorize them.

@@ -181,11 +181,11 @@ def test_eval_block_empty_conditions() -> None:
 def _engine_config() -> RMMConfig:
     return RMMConfig(
         features=[
-            {"name": "EMA(20)", "type": "EMA", "params": {"length": 20}},
-            {"name": "ADX(14)", "type": "ADX", "params": {"length": 14}},
+            {"name": "EMA(20)", "type": "EMA", "params": {"length": 20}},  # type: ignore[list-item]
+            {"name": "ADX(14)", "type": "ADX", "params": {"length": 14}},  # type: ignore[list-item]
         ],
         regimes=[
-            {
+            {  # type: ignore[list-item]
                 "label": "trend_up",
                 "confidence": 0.8,
                 "conditions": {
@@ -198,7 +198,7 @@ def _engine_config() -> RMMConfig:
                     ]
                 },
             },
-            {
+            {  # type: ignore[list-item]
                 "label": "range",
                 "confidence": 0.6,
                 "conditions": {
@@ -222,9 +222,9 @@ def test_rmm_engine_validate_config_without_jsonschema() -> None:
     Invalid configs will raise pydantic ValidationError.
     """
     # Valid config should create successfully
-    valid_config = RMMConfig(
+    valid_config: RMMConfig = RMMConfig(
         regimes=[
-            {
+            {  # type: ignore[list-item]
                 "label": "test",
                 "confidence": 0.5,
                 "conditions": {
@@ -328,20 +328,13 @@ def test_rmm_engine_classify_daily_unknown_regime() -> None:
 
 
 def test_rmm_engine_allowed_sides_for() -> None:
+    assert RMMEngine.allowed_sides_for("trend_up", 0.3, {"min_confidence": 0.5}) == []
     assert (
-        RMMEngine.allowed_sides_for("trend_up", 0.3, {"min_confidence": 0.5})
+        RMMEngine.allowed_sides_for("trend_up", 0.8, {"allow_labels": ["trend_down"]})
         == []
     )
     assert (
-        RMMEngine.allowed_sides_for(
-            "trend_up", 0.8, {"allow_labels": ["trend_down"]}
-        )
-        == []
-    )
-    assert (
-        RMMEngine.allowed_sides_for(
-            "trend_up", 0.8, {"block_labels": ["trend_up"]}
-        )
+        RMMEngine.allowed_sides_for("trend_up", 0.8, {"block_labels": ["trend_up"]})
         == []
     )
     assert RMMEngine.allowed_sides_for("trend_up", 0.8, {}) == ["long"]
