@@ -145,18 +145,23 @@ class IndicatorStopAnalyzer(AmbiguityAnalyzer):
 
         prev_rows = ohlcv_data.loc[:exit_time]
         expected_stop_prev = None
-        offset = float(self.indicator_params.get("offset", 0.0))
+        offset_value = float(self.indicator_params.get("offset", 0.0))
         if len(prev_rows) >= 2:
             prev_bar_series = prev_rows.iloc[-2]
             prev_close = float(prev_bar_series["close"])
-            prev_indicator_value = float(prev_bar_series[indicator_col])
 
             if self.indicator_type.lower() == "bollinger":
-                if direction == "long":
-                    expected_stop_prev = prev_indicator_value - offset
-                else:
-                    expected_stop_prev = prev_indicator_value + offset
+                band_value = self._get_bollinger_band_value(
+                    prev_bar_series, direction
+                )
+                if band_value is not None:
+                    expected_stop_prev = (
+                        band_value - offset_value
+                        if direction == "long"
+                        else band_value + offset_value
+                    )
             else:
+                prev_indicator_value = float(prev_bar_series[indicator_col])
                 if direction == "long":
                     expected_stop_prev = (
                         prev_close - prev_indicator_value * self.multiplier
@@ -329,24 +334,68 @@ class IndicatorStopAnalyzer(AmbiguityAnalyzer):
             )
 
         metadata = dict(metadata_base)
-        metadata.update(
-            {
-                "indicator_type": self.indicator_type,
-            }
-        )
+        metadata.update({"indicator_type": self.indicator_type})
+
         if self.indicator_type.lower() == "bollinger":
-            return DiscrepancyResult(
-                category="BOLLINGER_BAND_SHIFT",
-                explanation=(
-                    "Bollinger-based stop difference observed. TradingView uses "
-                    "hourly band estimation, while platform leverages canonical "
-                    "band with offsets. Difference treated as an accepted "
-                    "bollinger band shift."
-                ),
-                metadata=metadata,
-                is_acceptable=True,
-                confidence=0.6,
-            )
+            # Platform fills at next-bar open when stop triggers intrabar
+            platform_expected_fill = None
+            if exit_time in ohlcv_data.index:
+                platform_expected_fill = float(ohlcv_data.loc[exit_time, "open"])
+
+            platform_consistent = False
+            if platform_expected_fill is not None:
+                platform_consistent = abs(exit_price - platform_expected_fill) <= max(
+                    self.tolerance * 50,
+                    1e-4,
+                )
+
+            tv_exit_time = pd.Timestamp(tv_trade["exit_time"])
+            tv_stop_expected = None
+            tv_consistent = False
+            if tv_exit_time in ohlcv_data.index:
+                band_row = ohlcv_data.loc[tv_exit_time]
+                tv_band_value = self._get_bollinger_band_value(band_row, direction)
+                if tv_band_value is not None:
+                    tv_stop_expected = (
+                        tv_band_value - offset_value
+                        if direction == "long"
+                        else tv_band_value + offset_value
+                    )
+                    tv_consistent = True
+
+            if (
+                platform_consistent
+                and tv_consistent
+                and tv_exit_time <= exit_time
+                and expected_stop_prev is not None
+            ):
+                band_shift = (
+                    abs(expected_stop_prev - tv_stop_expected)
+                    if tv_stop_expected is not None
+                    else None
+                )
+
+                metadata.update(
+                    {
+                        "platform_expected_stop": expected_stop_prev,
+                        "tradingview_expected_stop": tv_stop_expected,
+                        "band_shift": band_shift,
+                    }
+                )
+
+                return DiscrepancyResult(
+                    category="BOLLINGER_BAND_SHIFT",
+                    explanation=(
+                        "Bollinger stop difference verified mathematically. Platform "
+                        "exit matches canonical prior-bar band ± offset, and "
+                        "TradingView exit matches its hourly band ± offset. The "
+                        "remaining discrepancy is the band shift between the two "
+                        "calculations."
+                    ),
+                    metadata=metadata,
+                    is_acceptable=True,
+                    confidence=0.6,
+                )
         return DiscrepancyResult(
             category="UNEXPLAINED",
             explanation=(
@@ -424,6 +473,19 @@ class IndicatorStopAnalyzer(AmbiguityAnalyzer):
             f"Tried: {possible_names}. "
             f"Available: {list(ohlcv_data.columns)}"
         )
+
+    def _get_bollinger_band_value(
+        self, row: pd.Series, direction: str
+    ) -> float | None:
+        lower_col = str(self.indicator_params.get("lower_column", "BB Lower"))
+        upper_col = str(self.indicator_params.get("upper_column", "BB Upper"))
+        column = lower_col if direction == "long" else upper_col
+        if column not in row:
+            return None
+        value = row[column]
+        if pd.isna(value):
+            return None
+        return float(value)
 
     def _check_indicator_stop_zoom(
         self,

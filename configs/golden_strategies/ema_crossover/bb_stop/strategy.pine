@@ -28,7 +28,7 @@ ema_slow = ta.ema(close, slow_length)
 bb_length = input.int(20, "BB Length")
 bb_std = input.float(2.0, "BB Std Dev")
 bb_offset = input.float(0.0005, "BB Offset")
-[bb_upper, bb_middle, bb_lower] = ta.bb(close, bb_length, bb_std)
+[bb_middle, bb_upper, bb_lower] = ta.bb(close, bb_length, bb_std)
 
 // ========================================================================
 // ENTRY LOGIC
