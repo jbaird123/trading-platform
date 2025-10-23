@@ -1,0 +1,25 @@
+# Chandelier Stop - Wider Version for Swing Trading/Daily Charts
+#
+# Uses longer lookback period and higher multiplier for swing trading
+# on daily charts. Gives trades more room and reduces whipsaws.
+
+name: "Chandelier Stop Wide (4.0x ATR, 30 period)"
+description: >
+  Wider Chandelier Stop for swing trading on daily charts.
+  Provides more room for price fluctuations while still adapting
+  to volatility. Better for trending markets with noise.
+
+stop_loss:
+  type: indicator
+  indicator: chandelier
+  params:
+    multiplier: 4.0      # Wider multiplier (more room)
+    length: 30           # Longer HHV/LLV period
+    atr_length: 14       # Standard ATR period
+
+take_profit: null
+
+# Note: Strategy must include:
+#   - atr_14 (or generic atr)
+#   - hhv_30 with source: high
+#   - llv_30 with source: low

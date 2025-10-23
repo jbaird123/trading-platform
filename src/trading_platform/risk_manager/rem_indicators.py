@@ -98,6 +98,128 @@ def _calculate_atr_stop(
         raise ValueError(f"Invalid side '{side}', must be 'long' or 'short'")
 
 
+def _calculate_chandelier_stop(
+    entry_price: float,
+    side: str,
+    current_bar: pd.Series,
+    params: dict,
+) -> float:
+    """Calculate Chandelier Stop price.
+
+    The Chandelier Stop is a volatility-based trailing stop created by
+    Chuck LeBeau. It hangs from the highest high (long) or lowest low
+    (short) by a multiple of ATR, like a chandelier hangs from a ceiling.
+
+    For long positions: stop = HHV(high, period) - (ATR * multiplier)
+    For short positions: stop = LLV(low, period) + (ATR * multiplier)
+
+    This creates a trailing stop that:
+    - Moves only in favorable direction (up for longs, down for shorts)
+    - Adapts to volatility via ATR
+    - Provides wider stops in volatile markets, tighter in calm markets
+
+    Args:
+        entry_price: Entry price (not used - chandelier uses HHV/LLV)
+        side: Position side, either "long" or "short"
+        current_bar: Bar containing HHV, LLV, and ATR columns
+        params: Dictionary containing:
+            - multiplier (float, optional): ATR multiplier, default 3.0
+            - length (int, optional): HHV/LLV lookback period, default 22
+            - atr_length (int, optional): ATR period, default 14
+
+    Returns:
+        Stop price level
+
+    Raises:
+        KeyError: If required indicator columns not found in current_bar
+        ValueError: If side is invalid
+
+    Example:
+        Long trade with 22-period chandelier, 3.0 ATR multiplier:
+        - HHV(22) = 1.3450
+        - ATR(14) = 0.0015
+        - Stop = 1.3450 - (3.0 * 0.0015) = 1.3405
+
+        As price rises and makes new highs, the stop trails upward.
+        If volatility increases, the stop gives more room.
+    """
+    multiplier = params.get("multiplier", 3.0)
+    length = params.get("length", 22)
+    atr_length = params.get("atr_length", 14)
+
+    if side not in {"long", "short"}:
+        raise ValueError(f"Invalid side '{side}', must be 'long' or 'short'")
+
+    # Get ATR value - try specific length column first, then generic
+    atr_col = f"atr_{atr_length}"
+    if atr_col in current_bar:
+        atr_value = current_bar[atr_col]
+    elif "atr" in current_bar:
+        atr_value = current_bar["atr"]
+    else:
+        raise KeyError(
+            f"ATR indicator not found. Expected column '{atr_col}' or "
+            "'atr'. Add ATR feature to strategy with matching length."
+        )
+
+    if side == "long":
+        # For longs: hang from highest high
+        # Try multiple column naming conventions
+        hhv_candidates = [
+            f"hhv_{length}",
+            f"HHV_{length}",
+            "hhv",
+            "HHV",
+            f"highest_high_{length}",
+        ]
+        hhv_col = None
+        for candidate in hhv_candidates:
+            if candidate in current_bar:
+                hhv_col = candidate
+                break
+
+        if hhv_col is None:
+            tried = ", ".join(hhv_candidates)
+            raise KeyError(
+                f"HHV indicator not found. Tried columns: {tried}. "
+                f"Add HHV feature to strategy: "
+                f"{{name: hhv_{length}, type: HHV, "
+                f"params: {{length: {length}}}, source: high}}"
+            )
+
+        highest_high = float(current_bar[hhv_col])
+        distance = float(atr_value) * float(multiplier)
+        return highest_high - distance
+
+    else:  # short
+        # For shorts: hang from lowest low
+        llv_candidates = [
+            f"llv_{length}",
+            f"LLV_{length}",
+            "llv",
+            "LLV",
+            f"lowest_low_{length}",
+        ]
+        llv_col = None
+        for candidate in llv_candidates:
+            if candidate in current_bar:
+                llv_col = candidate
+                break
+
+        if llv_col is None:
+            tried = ", ".join(llv_candidates)
+            raise KeyError(
+                f"LLV indicator not found. Tried columns: {tried}. "
+                f"Add LLV feature to strategy: "
+                f"{{name: llv_{length}, type: LLV, "
+                f"params: {{length: {length}}}, source: low}}"
+            )
+
+        lowest_low = float(current_bar[llv_col])
+        distance = float(atr_value) * float(multiplier)
+        return lowest_low + distance
+
+
 def _calculate_bollinger_stop(
     entry_price: float,
     side: str,
@@ -178,8 +300,7 @@ def _calculate_bollinger_stop(
     else:
         searched = ", ".join(candidates)
         raise KeyError(
-            "Bollinger indicator not found in bar data. "
-            f"Tried columns: {searched}"
+            "Bollinger indicator not found in bar data. " f"Tried columns: {searched}"
         )
 
     offset = float(params.get("offset", 0.0))
@@ -210,6 +331,18 @@ REM_INDICATORS_REGISTRY: dict[str, REMIndicatorSpec] = {
             "column_prefix": (str, "bb"),
         },
         stop_calculator=_calculate_bollinger_stop,
+        requires_prior_bar=True,
+    ),
+    "chandelier": REMIndicatorSpec(
+        name="chandelier",
+        description=("Chandelier Stop - volatility trailing stop from HHV/LLV"),
+        required_params={},
+        optional_params={
+            "multiplier": (float, 3.0),
+            "length": (int, 22),
+            "atr_length": (int, 14),
+        },
+        stop_calculator=_calculate_chandelier_stop,
         requires_prior_bar=True,
     ),
 }
