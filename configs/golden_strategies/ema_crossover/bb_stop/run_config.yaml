@@ -1,0 +1,22 @@
+user_id: "golden_validation_ema_crossover"
+initial_cash: 100000
+position_size: 10000
+warmup_bars: 100
+execution_model: "next_bar_open"
+
+instrument:
+  symbol: "EUR_USD"
+
+cost_model:
+  spread_per_unit: 0.0
+  slippage_per_unit: 0.0
+  commission: 0.0
+
+data_request:
+  symbol: "EUR_USD"
+  timeframe: "1H"
+  start: "2023-01-01"
+  end: "2024-12-31"
+
+tie_break_policy:
+  rule: "stop_then_tp"

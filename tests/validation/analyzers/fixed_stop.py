@@ -16,11 +16,15 @@ from __future__ import annotations
 
 import pandas as pd
 
+from tests.validation.ambiguity_analyzer import (
+    AmbiguityAnalyzer,
+    DiscrepancyResult,
+)
 from tests.validation.analyzers import register_analyzer
 
 
 @register_analyzer("fixed_stop")
-class FixedStopTPAnalyzer:
+class FixedStopTPAnalyzer(AmbiguityAnalyzer):
     """Analyzer for fixed stop-loss and take-profit strategies."""
 
     def __init__(
@@ -43,6 +47,14 @@ class FixedStopTPAnalyzer:
         self.stop_loss_pips = stop_loss_pips
         self.take_profit_pips = take_profit_pips
         self.pip_size = pip_size
+
+        # Category definitions (used by base class property)
+        self.acceptable_categories = [
+            "SAME_BAR_EXIT",
+            "PLATFORM_ZOOM_INTRABAR_STOP",
+            "PLATFORM_ZOOM_INTRABAR_TP",
+            "ZOOM_1MIN_TIE_BREAK",
+        ]
 
     @classmethod
     def from_metadata(cls, metadata: dict) -> FixedStopTPAnalyzer:
@@ -202,3 +214,49 @@ class FixedStopTPAnalyzer:
                 categorized["ZOOM_1MIN_TIE_BREAK"].append(trade_details)
 
         return categorized
+
+    # Abstract method implementations for AmbiguityAnalyzer base class
+
+    def get_acceptable_categories(self) -> list[str]:
+        """Get list of acceptable discrepancy categories.
+
+        Returns:
+            List of category names that are considered acceptable
+        """
+        return self.acceptable_categories
+
+    def get_analyzer_type(self) -> str:
+        """Get analyzer type name for logging/reporting.
+
+        Returns:
+            Human-readable analyzer type string
+        """
+        return "FixedStopTP"
+
+    def analyze_discrepancy(
+        self,
+        platform_trade: pd.Series,
+        tv_trade: pd.Series,
+        ohlcv_data: pd.DataFrame,
+        ohlcv_1min: pd.DataFrame | None = None,
+        **kwargs,
+    ) -> DiscrepancyResult:
+        """Analyze a single trade discrepancy.
+
+        Note: This method is not used by FixedStopTPAnalyzer because it
+        overrides analyze_discrepancies() with custom batch logic.
+        Provided for interface compatibility.
+
+        Args:
+            platform_trade: Platform trade Series
+            tv_trade: TradingView trade Series
+            ohlcv_data: OHLCV DataFrame
+            ohlcv_1min: Optional 1-minute OHLCV data
+
+        Returns:
+            DiscrepancyResult with category and explanation
+        """
+        raise NotImplementedError(
+            "FixedStopTPAnalyzer uses custom analyze_discrepancies batch "
+            "logic. Use analyze_discrepancies() instead."
+        )

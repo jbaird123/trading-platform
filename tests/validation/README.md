@@ -219,7 +219,8 @@ The scaffold script creates this file with placeholder values. **You must update
 
 **Indicator Stop Types** (when using `indicator_stop`):
 - `"atr"`: Average True Range
-- `"bollinger"`: Bollinger Bands
+- `"bollinger"`: Bollinger Bands (params: `band` = auto/lower/upper/middle,
+  optional `length`, `std`, `offset`, `column_prefix`)
 - `"keltner"`: Keltner Channels
 - `"donchian"`: Donchian Channels
 - (More can be added as needed)
@@ -553,6 +554,10 @@ The framework uses a pluggable analyzer system for different exit mechanisms:
 ### Indicator Stop Analyzer
 
 **Analyzer**: `IndicatorStopAnalyzer`
+
+- The analyzer registry now returns a `CompositeAmbiguityAnalyzer` when
+  `exit_mechanisms` lists multiple entries, so mixed exit strategies are
+  validated in a single pass.
 **Registered as**: `"indicator_stop"`
 **Metadata fields**:
 - `indicator_stop_type` (required): "atr", "bollinger", "keltner", etc.
@@ -560,10 +565,9 @@ The framework uses a pluggable analyzer system for different exit mechanisms:
 - `stop_distance_multiplier` (required): multiplier for stop distance
 
 **Acceptable discrepancy categories**:
-1. `SAME_BAR_EXIT`: Entry and exit on same bar
-2. `INDICATOR_RECALCULATION`: Indicator value changed significantly
-3. `ENTRY_BAR_INDICATOR_DIFFERENCE`: Indicator differs on entry bar
-4. `PLATFORM_ZOOM_INTRABAR_STOP`: Platform detected intrabar stop
+1. `SAME_BAR_EXIT`: Entry and exit on the same bar (TradingView limitation)
+2. `PLATFORM_ZOOM_INTRABAR_STOP`: Platform detected intrabar stop via 1-minute zoom
+3. `PLATFORM_ZOOM_INTRABAR_TP`: Platform detected intrabar take-profit via zoom
 
 **Example metadata** (ATR stop):
 ```json

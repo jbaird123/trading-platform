@@ -155,8 +155,9 @@ markers = [
     "req_BT_7_9: Marks a test as covering a specific requirement.",
     "req_BT_7_10: Marks a test as covering a specific requirement.",
     "req_BT_7_11: Marks a test as covering a specific requirement.",
-    "req_BT_7_16: Marks a test as covering a specific requirement.",
-    "strategy_name: Marks the strategy name for test fixture selection.",
+"req_BT_7_16: Marks a test as covering a specific requirement.",
+"strategy_name: Marks the strategy name for test fixture selection.",
+"strategy: Marks the strategy name for test fixture selection.",
 ]
 
 [tool.poetry.scripts]

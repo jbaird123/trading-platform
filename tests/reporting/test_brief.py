@@ -27,7 +27,10 @@ from trading_platform.reporting.brief import (
     save_run_brief,
 )
 
-SCHEMA_PATH = Path(__file__).parent.parent.parent / "docs/schemas/brief.schema.json"
+SCHEMA_PATH = (
+    Path(__file__).parent.parent.parent
+    / "src/trading_platform/reporting/schemas/brief.schema.json"
+)
 
 
 def _trade(
@@ -428,7 +431,10 @@ def test_all_brief_schema_fields_have_descriptions():
     Validates that every field in the brief.schema.json has a description.
     This is a meta-test to enforce schema quality.
     """
-    schema_path = Path("docs/schemas/brief.schema.json")
+    schema_path = (
+        Path(__file__).parent.parent.parent
+        / "src/trading_platform/reporting/schemas/brief.schema.json"
+    )
     assert schema_path.exists(), "brief.schema.json not found"
 
     schema = json.loads(schema_path.read_text())
@@ -576,7 +582,10 @@ def test_streaks_regimes_and_exposure_cover_branches() -> None:
 
 
 def test_brief_schema_accepts_mc_wf_ps_enumerated_fields():
-    schema_path = Path("docs/schemas/brief.schema.json")
+    schema_path = (
+        Path(__file__).parent.parent.parent
+        / "src/trading_platform/reporting/schemas/brief.schema.json"
+    )
     schema = json.loads(schema_path.read_text())
     brief_data = {
         "meta": {"run_id": "r", "strategy_name": "S"},

@@ -4,6 +4,7 @@ import hashlib
 import importlib.metadata as ilmd
 import json
 import logging
+import math
 import platform
 import sys
 from dataclasses import asdict, is_dataclass
@@ -36,9 +37,7 @@ from trading_platform.reporting.analytics import (
 logger = logging.getLogger(__name__)
 
 # Path to the JSON Schema for brief field documentation
-SCHEMA_PATH = (
-    Path(__file__).resolve().parents[3] / "docs" / "schemas" / "brief.schema.json"
-)
+SCHEMA_PATH = Path(__file__).parent / "schemas" / "brief.schema.json"
 
 
 def _extract_rmm_policy(config_snapshot: dict[str, Any] | None) -> dict[str, Any]:
@@ -275,6 +274,88 @@ def _round_dict_features(d: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _normalize_int(value: Any, default: int = 0) -> int:
+    if isinstance(value, (int, float)):
+        if isinstance(value, float) and math.isnan(value):
+            return default
+        return int(value)
+    return default
+
+
+def _normalize_regime_context(regime: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(regime, dict):
+        return {}
+
+    normalized = dict(regime)
+
+    label = normalized.get("label", "unknown")
+    if not isinstance(label, str):
+        label = str(label)
+    normalized["label"] = label
+
+    raw_label = normalized.get("raw_label")
+    if not isinstance(raw_label, str) or not raw_label:
+        normalized["raw_label"] = label
+
+    confidence = normalized.get("confidence")
+    normalized["confidence"] = _round_percentage(confidence)
+
+    raw_conf = normalized.get("raw_confidence", normalized["confidence"])
+    normalized["raw_confidence"] = _round_percentage(raw_conf)
+
+    allowed = normalized.get("allowed_sides")
+    if isinstance(allowed, (list, tuple, set)):
+        normalized["allowed_sides"] = [str(side) for side in allowed]
+    elif allowed is None:
+        normalized["allowed_sides"] = []
+    else:
+        normalized["allowed_sides"] = [str(allowed)]
+
+    features = normalized.get("features")
+    if isinstance(features, dict):
+        normalized["features"] = _round_dict_features(features)
+
+    bars_in_state = _normalize_int(normalized.get("bars_in_state"))
+    cooldown_remaining = _normalize_int(normalized.get("cooldown_remaining"))
+    normalized["bars_in_state"] = bars_in_state
+    normalized["cooldown_remaining"] = cooldown_remaining
+
+    hyst = normalized.get("hysteresis")
+    if isinstance(hyst, dict):
+        normalized["hysteresis"] = {
+            "bars_in_state": _normalize_int(
+                hyst.get("bars_in_state"), bars_in_state
+            ),
+            "cooldown_remaining": _normalize_int(
+                hyst.get("cooldown_remaining"), cooldown_remaining
+            ),
+        }
+    else:
+        normalized["hysteresis"] = {
+            "bars_in_state": bars_in_state,
+            "cooldown_remaining": cooldown_remaining,
+        }
+
+    return normalized
+
+
+def _normalize_trade_context(
+    context: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    if not isinstance(context, dict):
+        return context
+
+    normalized: dict[str, Any] = {}
+    for key, value in context.items():
+        if key == "strategy_features" and isinstance(value, dict):
+            normalized[key] = _round_dict_features(value)
+        elif key == "regime" and isinstance(value, dict):
+            normalized[key] = _normalize_regime_context(value)
+        else:
+            normalized[key] = value
+    return normalized
+
+
 def _to_jsonable(obj: Any) -> Any:
     """
     Convert objects to JSON-serializable forms.
@@ -345,24 +426,13 @@ def _empty_sections() -> dict[str, Any]:
 
 def _serialize_trade(t: Trade) -> dict[str, Any]:
     """Serialize trade with proper rounding for brief output."""
-    # Round context features if present
-    context_at_entry = getattr(t, "context_at_entry", None)
-    if context_at_entry and isinstance(context_at_entry, dict):
-        context_at_entry = {
-            k: _round_dict_features(v)
-            if isinstance(v, dict) and k == "strategy_features"
-            else v
-            for k, v in context_at_entry.items()
-        }
+    context_at_entry = _normalize_trade_context(
+        getattr(t, "context_at_entry", None)
+    )
 
-    context_at_exit = getattr(t, "context_at_exit", None)
-    if context_at_exit and isinstance(context_at_exit, dict):
-        context_at_exit = {
-            k: _round_dict_features(v)
-            if isinstance(v, dict) and k == "strategy_features"
-            else v
-            for k, v in context_at_exit.items()
-        }
+    context_at_exit = _normalize_trade_context(
+        getattr(t, "context_at_exit", None)
+    )
 
     # Handle post-exit analysis (supports both old dict and new Pydantic model)
     post_exit = getattr(t, "post_exit_analysis", None)

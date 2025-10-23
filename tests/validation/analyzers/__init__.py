@@ -16,6 +16,8 @@ Usage:
 
 from typing import Any, Dict, Type
 
+from tests.validation.ambiguity_analyzer import CompositeAmbiguityAnalyzer
+
 # Registry mapping exit mechanism types to analyzer classes
 ANALYZER_REGISTRY: Dict[str, Type[Any]] = {}
 
@@ -92,11 +94,8 @@ def create_analyzer_for_strategy(metadata: dict) -> Any:
 
     if len(analyzers) == 1:
         return analyzers[0]
-    else:
-        # TODO: Implement CompositeAnalyzer for multiple exit mechanisms
-        raise NotImplementedError(
-            f"Multiple exit mechanisms not yet supported: {exit_mechanisms}"
-        )
+
+    return CompositeAmbiguityAnalyzer(analyzers)
 
 
 # Import analyzer modules to register them

@@ -84,13 +84,15 @@ def validate_strategy(strategy_name: str, project_root: Path) -> List[Validation
 
     # Check 2: Metadata has required fields
     required_metadata_fields = {
-        "description": str,
-        "symbol": str,
-        "timeframe": str,
-        "date_range": dict,
-        "exit_mechanisms": list,
-        "tradingview_timezone": str,
+        "dataset_type": str,
+        "strategy_name": str,
         "tradingview_version": str,
+        "export_date": str,
+        "date_range": dict,
+        "instrument": str,
+        "timeframe": str,
+        "exit_mechanisms": list,
+        "timezone": str,
     }
 
     for field, expected_type in required_metadata_fields.items():
@@ -115,7 +117,7 @@ def validate_strategy(strategy_name: str, project_root: Path) -> List[Validation
             )
 
     # Check 3: Timezone is correct
-    timezone = metadata.get("tradingview_timezone", "")
+    timezone = metadata.get("timezone", "")
     if timezone != "UTC (Reykjavik)":
         errors.append(
             ValidationError(
@@ -255,7 +257,8 @@ def validate_strategy(strategy_name: str, project_root: Path) -> List[Validation
             )
 
     if "indicator_stop" in exit_mechanisms:
-        if "indicator_stop_type" not in metadata:
+        indicator_type = metadata.get("indicator_stop_type")
+        if indicator_type is None:
             errors.append(
                 ValidationError(
                     category="MISSING_METADATA",
@@ -271,7 +274,8 @@ def validate_strategy(strategy_name: str, project_root: Path) -> List[Validation
                     fix="Add 'indicator_stop_params': {'length': 14} to metadata.json",
                 )
             )
-        if "stop_distance_multiplier" not in metadata:
+        requires_multiplier = indicator_type == "atr"
+        if requires_multiplier and "stop_distance_multiplier" not in metadata:
             errors.append(
                 ValidationError(
                     category="MISSING_METADATA",

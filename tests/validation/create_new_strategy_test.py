@@ -20,6 +20,13 @@ USAGE:
         --indicator-params '{"length": 14}' \\
         --stop-multiplier 2.0
 
+    # Bollinger stop strategy
+    poetry run python tests/validation/create_new_strategy_test.py \\
+        --name "ema_crossover/bb_stop" \\
+        --exit-mechanism "indicator_stop" \\
+        --indicator-type "bollinger" \\
+        --indicator-params '{"band": "auto", "length": 20, "std": 2.0}'
+
     # Trailing stop + take profit
     poetry run python tests/validation/create_new_strategy_test.py \\
         --name "ema_crossover/20pip_trailing_30pip_tp" \\
@@ -126,12 +133,13 @@ def create_metadata_json(
             raise ValueError("--indicator-type required for indicator_stop")
         if not indicator_params:
             raise ValueError("--indicator-params required for indicator_stop")
-        if stop_multiplier is None:
+        if indicator_type == "atr" and stop_multiplier is None:
             raise ValueError("--stop-multiplier required for indicator_stop")
 
         metadata["indicator_stop_type"] = indicator_type
         metadata["indicator_stop_params"] = indicator_params
-        metadata["stop_distance_multiplier"] = stop_multiplier
+        if stop_multiplier is not None:
+            metadata["stop_distance_multiplier"] = stop_multiplier
 
     # Add placeholder fields (to be updated after export)
     metadata.update(
@@ -162,6 +170,7 @@ def create_pinescript_template(
     strategy_name: str,
     exit_mechanism: str,
     indicator_type: Optional[str],
+    indicator_params: Optional[Dict[str, Any]],
     stop_multiplier: Optional[float],
 ) -> None:
     """Create PineScript template file.
@@ -171,6 +180,7 @@ def create_pinescript_template(
         strategy_name: Strategy name
         exit_mechanism: Exit mechanism type
         indicator_type: Indicator type (if applicable)
+        indicator_params: Indicator parameters (if applicable)
         stop_multiplier: Stop multiplier (if applicable)
     """
     strategy_title = strategy_name.replace("/", " ").title() + " Golden"
@@ -204,6 +214,8 @@ ema_slow = ta.ema(close, slow_length)
 
 """
 
+    indicator_args = indicator_params or {}
+
     # Add exit mechanism-specific code
     if exit_mechanism == "trailing_stop":
         pinescript += """// Exit: Trailing Stop
@@ -216,13 +228,34 @@ trailing_stop_price = trailing_stop_pips * 0.0001  // Convert pips to price
 
 """
 
-    elif exit_mechanism == "indicator_stop" and indicator_type == "atr":
-        pinescript += f"""// Exit: ATR-based Stop
-atr_length = input.int(14, "ATR Length")
-atr_multiplier = input.float({stop_multiplier or 2.0}, "ATR Multiplier")
-atr = ta.atr(atr_length)
-
-"""
+    elif exit_mechanism == "indicator_stop":
+        if indicator_type == "atr":
+            length = int(indicator_args.get("length", 14))
+            multiplier = stop_multiplier or 2.0
+            pinescript += (
+                "// Exit: ATR-based Stop\n"
+                f"atr_length = input.int({length}, \"ATR Length\")\n"
+                f"atr_multiplier = input.float({multiplier}, "
+                "\"ATR Multiplier\")\n"
+                "atr = ta.atr(atr_length)\n\n"
+            )
+        elif indicator_type == "bollinger":
+            length = int(indicator_args.get("length", 20))
+            std_dev = float(indicator_args.get("std", 2.0))
+            offset = float(indicator_args.get("offset", 0.0))
+            pinescript += (
+                "// Exit: Bollinger Band Stop\n"
+                f"bb_length = input.int({length}, \"BB Length\")\n"
+                f"bb_std = input.float({std_dev}, \"BB Std Dev\")\n"
+                f"bb_offset = input.float({offset}, \"BB Offset\")\n"
+                "[bb_upper, bb_middle, bb_lower] = "
+                "ta.bb(close, bb_length, bb_std)\n\n"
+            )
+        else:
+            raise ValueError(
+                f"Unsupported indicator_stop type '{indicator_type}'. "
+                "Update create_new_strategy_test.py to scaffold this type."
+            )
 
     # Entry logic
     pinescript += (
@@ -261,28 +294,50 @@ atr = ta.atr(atr_length)
             "profit= parameter\n\n"
         )
 
-    elif exit_mechanism == "indicator_stop" and indicator_type == "atr":
-        pinescript += (
-            "// "
-            "===================================================================="
-            "\n"
-            "// EXIT LOGIC - ATR-based Stop\n"
-            "// "
-            "===================================================================="
-            "\n\n"
-            "var float stop_price = na\n\n"
-            "if (long_signal)\n"
-            "    stop_price := close - atr * atr_multiplier\n\n"
-            "if (short_signal)\n"
-            "    stop_price := close + atr * atr_multiplier\n\n"
-            "// Update stop based on current ATR\n"
-            "if (strategy.position_size > 0)  // Long position\n"
-            "    stop_price := close - atr * atr_multiplier\n"
-            '    strategy.exit("Exit Long", "Long", stop=stop_price)\n\n'
-            "if (strategy.position_size < 0)  // Short position\n"
-            "    stop_price := close + atr * atr_multiplier\n"
-            '    strategy.exit("Exit Short", "Short", stop=stop_price)\n\n'
-        )
+    elif exit_mechanism == "indicator_stop":
+        if indicator_type == "atr":
+            pinescript += (
+                "// "
+                "===================================================================="
+                "\n"
+                "// EXIT LOGIC - ATR-based Stop\n"
+                "// "
+                "===================================================================="
+                "\n\n"
+                "var float stop_price = na\n\n"
+                "if (long_signal)\n"
+                "    stop_price := close - atr * atr_multiplier\n\n"
+                "if (short_signal)\n"
+                "    stop_price := close + atr * atr_multiplier\n\n"
+                "// Update stop based on current ATR\n"
+                "if (strategy.position_size > 0)  // Long position\n"
+                "    stop_price := close - atr * atr_multiplier\n"
+                '    strategy.exit("Exit Long", "Long", stop=stop_price)\n\n'
+                "if (strategy.position_size < 0)  // Short position\n"
+                "    stop_price := close + atr * atr_multiplier\n"
+                '    strategy.exit("Exit Short", "Short", stop=stop_price)\n\n'
+            )
+        elif indicator_type == "bollinger":
+            pinescript += (
+                "// "
+                "===================================================================="
+                "\n"
+                "// EXIT LOGIC - Bollinger Stop\n"
+                "// "
+                "===================================================================="
+                "\n\n"
+                "var float bb_stop = na\n\n"
+                "if (long_signal)\n"
+                "    bb_stop := bb_lower - bb_offset\n\n"
+                "if (short_signal)\n"
+                "    bb_stop := bb_upper + bb_offset\n\n"
+                "if (strategy.position_size > 0)  // Long position\n"
+                "    bb_stop := bb_lower - bb_offset\n"
+                '    strategy.exit("Exit Long", "Long", stop=bb_stop)\n\n'
+                "if (strategy.position_size < 0)  // Short position\n"
+                "    bb_stop := bb_upper + bb_offset\n"
+                '    strategy.exit("Exit Short", "Short", stop=bb_stop)\n\n'
+            )
 
     # Plotting
     pinescript += (
@@ -297,8 +352,20 @@ atr = ta.atr(atr_length)
         'plot(ema_slow, "Slow EMA", color=color.red)\n\n'
     )
 
-    if exit_mechanism == "indicator_stop" and indicator_type == "atr":
-        pinescript += 'plot(stop_price, "Stop Level", color=color.orange, style=plot.style_linebr)\n'  # noqa: E501
+    if exit_mechanism == "indicator_stop":
+        if indicator_type == "atr":
+            pinescript += (
+                'plot(stop_price, "Stop Level", color=color.orange, '
+                "style=plot.style_linebr)\n"
+            )
+        elif indicator_type == "bollinger":
+            pinescript += (
+                'plot(bb_upper, "BB Upper", color=color.orange)\n'
+                'plot(bb_middle, "BB Middle", color=color.gray)\n'
+                'plot(bb_lower, "BB Lower", color=color.orange)\n'
+                'plot(bb_stop, "Stop Level", color=color.yellow, '
+                "style=plot.style_linebr)\n"
+            )
 
     pinescript_path = config_dir / "strategy.pine"
     with open(pinescript_path, "w") as f:
@@ -325,20 +392,32 @@ def create_config_files(
         indicator_params: Indicator parameters (if applicable)
         stop_multiplier: Stop multiplier (if applicable)
     """
-    # strategy.yaml
-    strategy_yaml = """strategy:
-  name: "ema_crossover"
+    def _format_value(value: Any) -> str:
+        if isinstance(value, str):
+            return f'"{value}"'
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        return f"{value}"
 
-  params:
-    fast_length: 10
-    slow_length: 20
-"""
+    # strategy.yaml
+    strategy_yaml = (
+        "strategy:\n"
+        "  name: \"ema_crossover\"\n\n"
+        "  params:\n"
+        "    fast_length: 10\n"
+        "    slow_length: 20\n"
+    )
 
     if exit_mechanism == "indicator_stop" and indicator_type:
         params = indicator_params or {}
-        strategy_yaml += f"    {indicator_type}_length: {params.get('length', 14)}\n"
-        if stop_multiplier:
-            strategy_yaml += f"    {indicator_type}_multiplier: {stop_multiplier}\n"
+        for key in sorted(params):
+            value = _format_value(params[key])
+            strategy_yaml += f"    {indicator_type}_{key}: {value}\n"
+        if stop_multiplier is not None:
+            value = _format_value(stop_multiplier)
+            strategy_yaml += (
+                f"    {indicator_type}_multiplier: {value}\n"
+            )
 
     strategy_path = config_dir / "strategy.yaml"
     with open(strategy_path, "w") as f:
@@ -346,22 +425,40 @@ def create_config_files(
     print(f"✅ Created strategy.yaml: {strategy_path}")
 
     # rem.yaml
-    rem_yaml = "rem:\n"
+    rem_lines: list[str] = ["rem:"]
 
-    if exit_mechanism == "trailing_stop":
-        rem_yaml += f"""  trailing_stop:
-    pips: {trailing_stop_pips}
-"""
-    elif exit_mechanism == "indicator_stop":
-        params = indicator_params or {}
-        rem_yaml += f"""  stop_loss:
-    type: "indicator"
-    indicator: "{indicator_type}"
-    params:
-      length: {params.get('length', 14)}
-    multiplier: {stop_multiplier}
-    apply_on_entry: false  # Stop adjusts each bar
-"""
+    if exit_mechanism == "trailing_stop" and trailing_stop_pips is not None:
+        rem_lines.extend(
+            [
+                "  trailing_stop:",
+                f"    pips: {trailing_stop_pips}",
+            ]
+        )
+    elif exit_mechanism == "indicator_stop" and indicator_type:
+        params = dict(indicator_params or {})
+        if stop_multiplier is not None:
+            params.setdefault("multiplier", stop_multiplier)
+
+        rem_lines.extend(
+            [
+                "  stop_loss:",
+                '    type: "indicator"',
+                f'    indicator: "{indicator_type}"',
+                "    params:",
+            ]
+        )
+
+        if params:
+            for key in sorted(params):
+                rem_lines.append(
+                    f"      {key}: {_format_value(params[key])}"
+                )
+        else:
+            rem_lines.append("      {}")
+
+        rem_lines.append("    apply_on_entry: false")
+
+    rem_yaml = "\n".join(rem_lines) + "\n"
 
     rem_path = config_dir / "rem.yaml"
     with open(rem_path, "w") as f:
@@ -631,6 +728,7 @@ def main():
             args.name,
             args.exit_mechanism,
             args.indicator_type,
+            args.indicator_params,
             args.stop_multiplier,
         )
 

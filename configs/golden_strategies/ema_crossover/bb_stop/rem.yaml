@@ -1,0 +1,12 @@
+name: "Bollinger_Stop_Validation"
+version: "1.0"
+description: "Stop-loss uses Bollinger lower/upper bands with small offset."
+
+stop_loss:
+  type: indicator
+  indicator: bollinger
+  params:
+    band: auto
+    length: 20
+    std: 2.0
+    offset: 0.0005

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from datetime import datetime
 from typing import Any, cast
 
@@ -229,6 +230,61 @@ def run_backtest(
     limits = config.pm_limits or {"max_open_long": 1, "max_open_short": 1}
     # Use the provided RiskExitManager instance; do not override it here.
 
+    def _safe_float(val: Any, default: float = 0.0) -> float:
+        if isinstance(val, (int, float)):
+            if isinstance(val, float) and math.isnan(val):
+                return default
+            return float(val)
+        return default
+
+    def _safe_int(val: Any, default: int = 0) -> int:
+        if isinstance(val, (int, float)):
+            if isinstance(val, float) and math.isnan(val):
+                return default
+            return int(val)
+        return default
+
+    def _build_regime_data(ctx: dict[str, Any] | None) -> dict[str, Any] | None:
+        if not isinstance(ctx, dict):
+            return None
+
+        label = ctx.get("label")
+        raw_label = ctx.get("raw_label", label)
+        if not isinstance(label, str):
+            label = "unknown"
+        if not isinstance(raw_label, str):
+            raw_label = label
+
+        hyst_src = ctx.get("hysteresis")
+        bars = _safe_int(
+            hyst_src.get("bars_in_state")
+            if isinstance(hyst_src, dict)
+            else ctx.get("bars_in_state")
+        )
+        cooldown = _safe_int(
+            hyst_src.get("cooldown_remaining")
+            if isinstance(hyst_src, dict)
+            else ctx.get("cooldown_remaining")
+        )
+
+        regime_data = {
+            "label": label,
+            "raw_label": raw_label,
+            "confidence": _safe_float(ctx.get("confidence")),
+            "raw_confidence": _safe_float(
+                ctx.get("raw_confidence"), _safe_float(ctx.get("confidence"))
+            ),
+            "allowed_sides": list(ctx.get("allowed_sides") or []),
+            "policy": ctx.get("policy", {}),
+            "features": ctx.get("features", {}),
+            "timeframe": ctx.get("timeframe", "daily"),
+            "hysteresis": {
+                "bars_in_state": bars,
+                "cooldown_remaining": cooldown,
+            },
+        }
+        return regime_data
+
     def _fmt_ts(val: Any) -> str:
         return val.isoformat() if isinstance(val, datetime) else str(val)
 
@@ -305,8 +361,6 @@ def run_backtest(
                 if feature_name in data_with_context.columns:
                     val = data_with_context[feature_name].iloc[i]
                     # Convert NaN to None for JSON serialization
-                    import math
-
                     if isinstance(val, float) and math.isnan(val):
                         strategy_features[feature_name] = None
                     else:
@@ -317,27 +371,17 @@ def run_backtest(
 
         # Build consistent nested context structure
         # Always use strategy_features, add regime if RMM is present
+        regime_data = None
         if rmm_context is not None:
             rmm_ctx = rmm_context.get(cast(datetime, current_bar.name))
-            if rmm_ctx is not None:
-                # Build nested regime object with all available data
-                regime_data = {
-                    "label": rmm_ctx.get("label"),
-                    "confidence": rmm_ctx.get("confidence"),
-                    "allowed_sides": rmm_ctx.get("allowed_sides"),
-                    "policy": rmm_ctx.get("policy", {}),
-                    "features": rmm_ctx.get("features", {}),
-                    "timeframe": rmm_ctx.get("timeframe", "daily"),
-                }
-                context = {
-                    "strategy_features": strategy_features,
-                    "regime": regime_data,
-                }
-            else:
-                # RMM context exists but no regime for this bar
-                context = {"strategy_features": strategy_features}
+            regime_data = _build_regime_data(rmm_ctx)
+
+        if regime_data is not None:
+            context = {
+                "strategy_features": strategy_features,
+                "regime": regime_data,
+            }
         else:
-            # No RMM - still use nested structure for consistency
             context = {"strategy_features": strategy_features}
 
         # === REM EXIT PHASE: Check risk-based exits ===
@@ -345,9 +389,13 @@ def run_backtest(
         # at the intra-bar price when hit, regardless of execution_model.
         # This is realistic behavior - protective orders execute intra-bar.
         # The execution_model setting only applies to signal-based entries/exits.
+        prior_bar = market_data.iloc[i - 1] if i > 0 else None
         if portfolio.current_position and rem is not None:
             rem_result = rem.check_exits_intrabar(
-                portfolio.current_position, current_bar, data_handler=data_handler
+                portfolio.current_position,
+                current_bar,
+                data_handler=data_handler,
+                prior_bar=prior_bar,
             )
 
             if rem_result is not None and rem_result["action"] == "should_close":
@@ -437,6 +485,7 @@ def run_backtest(
                     ctx = rmm_context.get(cast(datetime, current_bar.name))
                     if ctx is not None:
                         allowed_sides = list(ctx.get("allowed_sides") or [])
+                        regime_snapshot = _build_regime_data(ctx)
                         if side not in allowed_sides:
                             skipped.append(
                                 {
@@ -448,10 +497,7 @@ def run_backtest(
                                     "counterfactual_pnl": 0.0,
                                     "counterfactual_mfe_currency": 0.0,
                                     "counterfactual_mae_currency": 0.0,
-                                    "regime": {
-                                        "label": ctx.get("label"),
-                                        "confidence": ctx.get("confidence"),
-                                    },
+                                    "regime": regime_snapshot,
                                     "policy_snapshot": {
                                         "allowed_sides": allowed_sides,
                                         "min_confidence": (
@@ -767,8 +813,11 @@ def _simulate_counterfactual_exact(
         bars_touched += 1
         # Apply REM exits first for fidelity
         if pm.current_position:
+            # Get prior bar for indicator-based stop calculations
+            # Stops are set when a bar closes, so use prior bar's data
+            prior_bar = market_data.iloc[i - 1] if i > 0 else None
             exit_details = rem.check_exits(
-                pm.current_position, cb, data_handler=data_handler
+                pm.current_position, cb, data_handler=data_handler, prior_bar=prior_bar
             )
             if exit_details:
                 pm.close_position(

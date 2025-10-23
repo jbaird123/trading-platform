@@ -64,7 +64,7 @@ def test_risk_exit_manager_rejects_unknown_indicator():
     config = {
         "stop_loss": {
             "type": "indicator",
-            "indicator": "bollinger",
+            "indicator": "donchian",
             "params": {"multiplier": 2.0},
         }
     }
@@ -92,3 +92,122 @@ def test_risk_exit_manager_raises_on_missing_type_field():
 
     with pytest.raises(ValidationError, match="type"):
         RiskExitManager(config=config)
+
+
+def _bar(data: dict[str, float], timestamp: str) -> pd.Series:
+    """Helper to build a pandas Series with a timestamp index name."""
+    series = pd.Series(data)
+    series.name = pd.Timestamp(timestamp)
+    return series
+
+
+def test_indicator_stop_uses_prior_bar() -> None:
+    """Indicator-based stops must be derived from the prior completed bar."""
+    config = {
+        "stop_loss": {
+            "type": "indicator",
+            "indicator": "atr",
+            "params": {"length": 14, "multiplier": 2.0},
+        }
+    }
+    rem = RiskExitManager(config=config)
+
+    position = Position(
+        symbol="EURUSD",
+        entry_time=pd.Timestamp("2024-02-01 12:00:00+00:00"),
+        entry_price=1.1050,
+        entry_mid_price=1.1050,
+        side="long",
+        size=10000,
+    )
+
+    prior_bar = _bar(
+        {"close": 1.1050, "atr_14": 0.0012},
+        "2024-02-01 13:00:00+00:00",
+    )
+    current_bar = _bar(
+        {"open": 1.1055, "high": 1.1060, "low": 1.1023, "close": 1.1040},
+        "2024-02-01 14:00:00+00:00",
+    )
+
+    exit_details = rem.check_exits(
+        position,
+        current_bar,
+        prior_bar=prior_bar,
+    )
+    assert exit_details is not None
+    expected_stop = prior_bar["close"] - prior_bar["atr_14"] * 2.0
+    assert exit_details["exit_price"] == pytest.approx(expected_stop, rel=0, abs=1e-9)
+
+    intrabar_details = rem.check_exits_intrabar(
+        position,
+        current_bar,
+        prior_bar=prior_bar,
+    )
+    assert intrabar_details is not None
+    assert intrabar_details["exit_price"] == pytest.approx(
+        expected_stop, rel=0, abs=1e-9
+    )
+
+
+def test_indicator_stop_without_prior_bar_raises() -> None:
+    """Fail fast when indicator stop lacks the prior bar input."""
+    config = {
+        "stop_loss": {
+            "type": "indicator",
+            "indicator": "atr",
+            "params": {"length": 14, "multiplier": 2.0},
+        }
+    }
+    rem = RiskExitManager(config=config)
+
+    position = Position(
+        symbol="EURUSD",
+        entry_time=pd.Timestamp("2024-02-01 12:00:00+00:00"),
+        entry_price=1.1050,
+        entry_mid_price=1.1050,
+        side="long",
+        size=10000,
+    )
+
+    current_bar = _bar(
+        {"open": 1.1055, "high": 1.1060, "low": 1.1023, "close": 1.1040},
+        "2024-02-01 14:00:00+00:00",
+    )
+
+    with pytest.raises(ValueError, match="requires prior bar data"):
+        rem.check_exits(position, current_bar)
+
+
+def test_bollinger_indicator_stop_uses_band_value() -> None:
+    """Bollinger-based indicator stops should pull the correct band."""
+    config = {
+        "stop_loss": {
+            "type": "indicator",
+            "indicator": "bollinger",
+            "params": {"band": "lower"},
+        }
+    }
+    rem = RiskExitManager(config=config)
+
+    position = Position(
+        symbol="EURUSD",
+        entry_time=pd.Timestamp("2024-03-01 12:00:00+00:00"),
+        entry_price=1.2050,
+        entry_mid_price=1.2050,
+        side="long",
+        size=10000,
+    )
+
+    prior_bar = _bar(
+        {"close": 1.2050, "bb_lower": 1.1980, "bb_upper": 1.2120},
+        "2024-03-01 13:00:00+00:00",
+    )
+    current_bar = _bar(
+        {"open": 1.2055, "high": 1.2060, "low": 1.2005, "close": 1.2030},
+        "2024-03-01 14:00:00+00:00",
+    )
+
+    exit_details = rem.check_exits(position, current_bar, prior_bar=prior_bar)
+    assert exit_details is not None
+    assert exit_details["exit_price"] == pytest.approx(1.1980, abs=1e-9)

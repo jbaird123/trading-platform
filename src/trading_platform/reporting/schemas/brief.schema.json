@@ -297,8 +297,92 @@
           "mfe_currency": { "type": ["number", "null"], "description": "Maximum Favorable Excursion in currency units." },
           "mae_currency": { "type": ["number", "null"], "description": "Maximum Adverse Excursion in currency units." },
           "bars_held": { "type": ["integer", "null"], "description": "Number of bars the trade was held open." },
-          "context_at_entry": { "type": ["object", "null"], "description": "Snapshot of relevant market context (e.g., indicators, regime) at trade entry." },
-          "context_at_exit": { "type": ["object", "null"], "description": "Snapshot of relevant market context (e.g., indicators, regime) at trade exit." },
+          "context_at_entry": {
+            "type": ["object", "null"],
+            "description": "Snapshot of strategy/regime context at trade entry.",
+            "properties": {
+              "strategy_features": {
+                "type": "object",
+                "description": "Indicator values at entry keyed by feature name.",
+                "additionalProperties": { "type": ["number", "null"] }
+              },
+              "regime": {
+                "type": "object",
+                "description": "Regime classification details at entry.",
+                "properties": {
+                  "label": { "type": "string", "description": "Active regime label after hysteresis adjustments." },
+                  "confidence": { "type": ["number", "null"], "description": "Confidence assigned to the active regime label." },
+                  "raw_label": { "type": "string", "description": "Immediate label from rule evaluation before hysteresis adjustments." },
+                  "raw_confidence": { "type": ["number", "null"], "description": "Confidence associated with raw_label." },
+                  "allowed_sides": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Sides permitted by policy given the active regime."
+                  },
+                  "timeframe": { "type": "string", "description": "Regime classification timeframe (e.g., '1D')." },
+                  "features": {
+                    "type": "object",
+                    "description": "Additional regime features (ATR percentile, realized volatility, etc.).",
+                    "additionalProperties": { "type": ["number", "null"] }
+                  },
+                  "bars_in_state": { "type": "integer", "description": "Number of completed bars the current label has been active." },
+                  "cooldown_remaining": { "type": "integer", "description": "Bars remaining in the hysteresis cooldown before a new switch is allowed." },
+                  "hysteresis": {
+                    "type": "object",
+                    "description": "Snapshot of hysteresis counters for convenience.",
+                    "properties": {
+                      "bars_in_state": { "type": "integer", "description": "Same as bars_in_state, exposed for downstream convenience." },
+                      "cooldown_remaining": { "type": "integer", "description": "Same as cooldown_remaining, exposed for downstream convenience." }
+                    }
+                  }
+                },
+                "required": ["label", "raw_label", "allowed_sides", "bars_in_state", "cooldown_remaining", "hysteresis"]
+              }
+            }
+          },
+          "context_at_exit": {
+            "type": ["object", "null"],
+            "description": "Snapshot of strategy/regime context at trade exit.",
+            "properties": {
+              "strategy_features": {
+                "type": "object",
+                "description": "Indicator values at exit keyed by feature name.",
+                "additionalProperties": { "type": ["number", "null"] }
+              },
+              "regime": {
+                "type": "object",
+                "description": "Regime classification details at exit.",
+                "properties": {
+                  "label": { "type": "string", "description": "Active regime label after hysteresis adjustments." },
+                  "confidence": { "type": ["number", "null"], "description": "Confidence assigned to the active regime label." },
+                  "raw_label": { "type": "string", "description": "Immediate label from rule evaluation before hysteresis adjustments." },
+                  "raw_confidence": { "type": ["number", "null"], "description": "Confidence associated with raw_label." },
+                  "allowed_sides": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Sides permitted by policy given the active regime."
+                  },
+                  "timeframe": { "type": "string", "description": "Regime classification timeframe (e.g., '1D')." },
+                  "features": {
+                    "type": "object",
+                    "description": "Additional regime features at exit.",
+                    "additionalProperties": { "type": ["number", "null"] }
+                  },
+                  "bars_in_state": { "type": "integer", "description": "Number of completed bars the current label has been active." },
+                  "cooldown_remaining": { "type": "integer", "description": "Bars remaining in the hysteresis cooldown before a new switch is allowed." },
+                  "hysteresis": {
+                    "type": "object",
+                    "description": "Snapshot of hysteresis counters for convenience.",
+                    "properties": {
+                      "bars_in_state": { "type": "integer", "description": "Same as bars_in_state, exposed for downstream convenience." },
+                      "cooldown_remaining": { "type": "integer", "description": "Same as cooldown_remaining, exposed for downstream convenience." }
+                    }
+                  }
+                },
+                "required": ["label", "raw_label", "allowed_sides", "bars_in_state", "cooldown_remaining", "hysteresis"]
+              }
+            }
+          },
           "cost_breakdown": {
             "type": "object",
             "description": "Detailed breakdown of costs for this specific trade.",

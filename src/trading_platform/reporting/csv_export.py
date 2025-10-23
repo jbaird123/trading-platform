@@ -7,6 +7,7 @@ from typing import Any
 import pandas as pd
 
 from trading_platform.portfolio.trade import Trade
+from trading_platform.reporting.brief import _normalize_trade_context
 
 
 def save_trades_csv(path: Path, trades: list[Trade]) -> Path:
@@ -50,7 +51,9 @@ def save_trades_csv(path: Path, trades: list[Trade]) -> Path:
     for t in trades:
         ctx = getattr(t, "context_at_entry", None)
         if ctx:
-            context_cols.update(_flatten_context_keys(ctx))
+            normalized_ctx = _normalize_trade_context(ctx)
+            if normalized_ctx:
+                context_cols.update(_flatten_context_keys(normalized_ctx))
 
     # All columns = base + sorted context columns
     all_cols = base_cols + sorted(context_cols)
@@ -83,7 +86,9 @@ def save_trades_csv(path: Path, trades: list[Trade]) -> Path:
             # Add context fields
             ctx = getattr(t, "context_at_entry", None)
             if ctx:
-                row.update(_flatten_context(ctx))
+                normalized_ctx = _normalize_trade_context(ctx)
+                if normalized_ctx:
+                    row.update(_flatten_context(normalized_ctx))
 
             w.writerow(row)
     return path

@@ -29,11 +29,21 @@ def _make_config(config_dict: dict) -> RMMConfig:
     """
     if "regimes" not in config_dict or not config_dict["regimes"]:
         config_dict = config_dict.copy()
-        config_dict["regimes"] = [{
-            "label": "dummy",
-            "confidence": 0.5,
-            "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 0.0}]}
-        }]
+        config_dict["regimes"] = [
+            {
+                "label": "dummy",
+                "confidence": 0.5,
+                "conditions": {
+                    "all_of": [
+                        {
+                            "condition": "is_above",
+                            "left": "close",
+                            "right": 0.0,
+                        }
+                    ]
+                },
+            }
+        ]
     return RMMConfig(**config_dict)
 
 
@@ -217,7 +227,15 @@ def test_rmm_engine_validate_config_without_jsonschema() -> None:
             {
                 "label": "test",
                 "confidence": 0.5,
-                "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
+                "conditions": {
+                    "all_of": [
+                        {
+                            "condition": "is_above",
+                            "left": "close",
+                            "right": 1.0,
+                        }
+                    ]
+                },
             }
         ]
     )
@@ -310,13 +328,20 @@ def test_rmm_engine_classify_daily_unknown_regime() -> None:
 
 
 def test_rmm_engine_allowed_sides_for() -> None:
-    assert RMMEngine.allowed_sides_for("trend_up", 0.3, {"min_confidence": 0.5}) == []
     assert (
-        RMMEngine.allowed_sides_for("trend_up", 0.8, {"allow_labels": ["trend_down"]})
+        RMMEngine.allowed_sides_for("trend_up", 0.3, {"min_confidence": 0.5})
         == []
     )
     assert (
-        RMMEngine.allowed_sides_for("trend_up", 0.8, {"block_labels": ["trend_up"]})
+        RMMEngine.allowed_sides_for(
+            "trend_up", 0.8, {"allow_labels": ["trend_down"]}
+        )
+        == []
+    )
+    assert (
+        RMMEngine.allowed_sides_for(
+            "trend_up", 0.8, {"block_labels": ["trend_up"]}
+        )
         == []
     )
     assert RMMEngine.allowed_sides_for("trend_up", 0.8, {}) == ["long"]
@@ -327,13 +352,25 @@ def test_rmm_engine_allowed_sides_for() -> None:
 
 def test_rmm_engine_project_to_index_empty_daily() -> None:
     # Need a minimal valid config with at least one regime
-    minimal_config = _make_config({
-        "regimes": [{
-            "label": "test",
-            "confidence": 0.5,
-            "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
-        }]
-    })
+    minimal_config = _make_config(
+        {
+            "regimes": [
+                {
+                    "label": "test",
+                    "confidence": 0.5,
+                    "conditions": {
+                        "all_of": [
+                            {
+                                "condition": "is_above",
+                                "left": "close",
+                                "right": 1.0,
+                            }
+                        ]
+                    },
+                }
+            ]
+        }
+    )
     engine = RMMEngine(config=minimal_config)
     target_index = pd.date_range("2024-01-01", periods=3, freq="h")
     empty_daily = pd.DataFrame(columns=["label", "confidence"])
@@ -343,23 +380,40 @@ def test_rmm_engine_project_to_index_empty_daily() -> None:
         {
             "label": ["unknown"] * 3,
             "confidence": [0.0] * 3,
+            "raw_label": ["unknown"] * 3,
+            "raw_confidence": [0.0] * 3,
+            "bars_in_state": [0] * 3,
+            "cooldown_remaining": [0] * 3,
             "allowed_sides": [[] for _ in range(3)],
         },
         index=target_index,
     )
     expected["allowed_sides"] = expected["allowed_sides"].astype("object")
+    expected = expected[result.columns]
     pd.testing.assert_frame_equal(result, expected)
 
 
 def test_rmm_engine_project_to_index_with_daily_data() -> None:
     # Need a minimal valid config with at least one regime
-    minimal_config = _make_config({
-        "regimes": [{
-            "label": "test",
-            "confidence": 0.5,
-            "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 1.0}]}
-        }]
-    })
+    minimal_config = _make_config(
+        {
+            "regimes": [
+                {
+                    "label": "test",
+                    "confidence": 0.5,
+                    "conditions": {
+                        "all_of": [
+                            {
+                                "condition": "is_above",
+                                "left": "close",
+                                "right": 1.0,
+                            }
+                        ]
+                    },
+                }
+            ]
+        }
+    )
     engine = RMMEngine(config=minimal_config)
     # Target index on 2024-01-02 (second day)
     target_index = pd.date_range("2024-01-02 00:00", periods=6, freq="h")
@@ -376,6 +430,10 @@ def test_rmm_engine_project_to_index_with_daily_data() -> None:
     # After shift(1), day 2024-01-02 uses label from 2024-01-01
     assert all(result["label"] == "trend_up")
     assert all(result["confidence"] == 0.8)
+    assert all(result["raw_label"] == "unknown")
+    assert all(result["raw_confidence"] == 0.0)
+    assert all(result["bars_in_state"] == 0)
+    assert all(result["cooldown_remaining"] == 0)
     assert all(sides == ["long"] for sides in result["allowed_sides"])
 
 
@@ -462,7 +520,15 @@ def test_classify_regime_with_already_resampled_data() -> None:
             {
                 "label": "default",
                 "confidence": 0.5,
-                "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 0.0}]}
+                "conditions": {
+                    "all_of": [
+                        {
+                            "condition": "is_above",
+                            "left": "close",
+                            "right": 0.0,
+                        }
+                    ]
+                },
             }
         ],
         "timeframe": "1D",
@@ -501,7 +567,15 @@ def test_classify_regime_without_explicit_timeframe() -> None:
             {
                 "label": "default",
                 "confidence": 0.5,
-                "conditions": {"all_of": [{"condition": "is_above", "left": "close", "right": 0.0}]}
+                "conditions": {
+                    "all_of": [
+                        {
+                            "condition": "is_above",
+                            "left": "close",
+                            "right": 0.0,
+                        }
+                    ]
+                },
             }
         ],
         "timeframe": "1H",

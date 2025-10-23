@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
-
 from unittest.mock import Mock
 
 import pandas as pd
@@ -42,8 +41,8 @@ def _atr_stop_calculator(
     atr_value = float(current_bar.get("atr", 0.0))
     distance = atr_value * multiplier
     if side == "long":
-        return entry_price - distance
-    return entry_price + distance
+        return float(entry_price - distance)
+    return float(entry_price + distance)
 
 
 def _long_position(
@@ -105,9 +104,10 @@ def test_indicator_rule_uses_registry_values():
     )
 
     position = _long_position()
-    bar = pd.Series({"high": 1.2050, "low": 1.1950, "atr": 0.0015})
+    prior_bar = pd.Series({"close": 1.2000, "atr": 0.0015})
+    bar = pd.Series({"high": 1.2050, "low": 1.1950, "close": 1.2020})
 
-    exit_info = rem.check_exits(position, bar)
+    exit_info = rem.check_exits(position, bar, prior_bar=prior_bar)
     assert exit_info is not None
     assert exit_info["reason"] == "stop-loss"
     assert abs(exit_info["exit_price"] - 1.1970) < 1e-9

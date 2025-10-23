@@ -19,6 +19,11 @@ features:
       length: ${ema_slow_length}
     source: close
 
+  - name: atr_14
+    type: ATR
+    params:
+      length: 14
+
 overlays: [ema_fast, ema_slow]
 
 long_entry_rules:
