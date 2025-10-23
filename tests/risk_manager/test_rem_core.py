@@ -204,7 +204,7 @@ def test_bollinger_indicator_stop_uses_band_value() -> None:
         "2024-03-01 13:00:00+00:00",
     )
     current_bar = _bar(
-        {"open": 1.2055, "high": 1.2060, "low": 1.2005, "close": 1.2030},
+        {"open": 1.2055, "high": 1.2060, "low": 1.1975, "close": 1.2030},
         "2024-03-01 14:00:00+00:00",
     )
 
