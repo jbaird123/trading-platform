@@ -10,7 +10,7 @@ def _minute_bars(start: pd.Timestamp, low_hits_stop: bool) -> pd.DataFrame:
     highs = [1.1005, 1.1002, 1.1001]
     opens = [1.1000, 1.0998, 1.0999]
     closes = [1.0994, 1.0997, 1.1000]
-    index = pd.date_range(start, periods=3, freq="T")
+    index = pd.date_range(start, periods=3, freq="min")
     return pd.DataFrame(
         {"open": opens, "high": highs, "low": lows, "close": closes},
         index=index,
