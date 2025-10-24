@@ -1,57 +1,84 @@
 # Guide: ML Data Curation Pipeline
 
-This document serves as the single source of truth for the process of generating and curating the master trade dataset used for training the AI Lab's machine learning models.
+This document is the single source of truth for generating and curating the
+master trade dataset used for training the AI Lab's machine learning models.
 
 ## 1. Overview and Rationale
 
-The goal of this pipeline is to produce a high-quality, reproducible dataset of "rich trade" records. A disciplined approach is necessary to ensure that the data used for model training is clean, consistent, and free from contamination from experimental or failed backtest runs.
+The goal of this pipeline is to produce a high-quality, reproducible dataset of
+"rich trade" records. A disciplined approach ensures the training data remains
+clean, consistent, and free from contamination by experimental or failed runs.
 
-This process separates ad-hoc research from formal ML training, which is critical for building robust and reliable predictive models.
+This process separates ad-hoc research from formal ML training, which is
+critical for building robust and reliable predictive models.
 
 ## 2. ML Modeling Strategy: A Two-Pronged Approach
 
-Instead of a single monolithic "uber-model", our strategy is to build **multiple, specialized models** and tools that fit into two distinct categories: a **Diagnostic Engine** and a **Predictive Engine**.
+Instead of a single monolithic "uber-model", our strategy builds **multiple,
+specialized models** and tools that fit into two categories: a
+**Diagnostic Engine** and a **Predictive Engine**.
 
 ### 2.1 The Diagnostic Engine (Descriptive Analysis)
 
-- **Purpose:** To analyze a completed backtest and answer the question: *"Under what conditions did this strategy perform best or worst in the past?"*
-- **Implementation:** This builds upon the existing rule-based `ai-diagnose` command. We will enhance it by adding more advanced analytical techniques (e.g., training a Decision Tree on the curated dataset) to automatically discover human-readable "optimal condition" rules.
+- **Purpose:** Analyze completed backtests to answer:
+  *"Under what conditions did this strategy perform best or worst in the past?"*
+- **Implementation:** Extend the rule-based `ai-diagnose` command with advanced
+  analytical techniques (e.g., decision trees trained on curated data) to
+  discover human-readable "optimal condition" rules automatically.
 - **Output:** A JSON/Markdown report with insights and recommendations.
 
 ### 2.2 The Predictive Engine (Predictive Modeling)
 
-- **Purpose:** To look at market conditions in real-time and answer the question: *"What is the likely outcome if I take this trade?"*
-- **Implementation:** This is a new capability. We will train more complex models (e.g., XGBoost, LightGBM) to predict a trade's outcome (like its R-multiple). The models will be specialized by **Execution Timeframe** and **Strategy Archetype**.
-- **Output:** Trained model files (e.g., `15m_trend_following.pkl`) that can be used for live trade filtering or for adding predictive scores to backtest analysis.
+- **Purpose:** Evaluate live market conditions to answer:
+  *"What is the likely outcome if I take this trade?"*
+- **Implementation:** Train complex models (e.g., XGBoost, LightGBM) to predict
+  trade outcomes such as R-multiple. Models are specialized by **execution
+  timeframe** and **strategy archetype**.
+- **Output:** Trained artifacts (e.g., `models/15m_trend_following.pkl`) used
+  for live trade filtering and for enriching backtest briefs with predictive
+  scores.
 
 ### 2.3 Strategic Roadmap
 
-1.  **Phase 1: Build the Data Pipeline (Current Task).** Create the `master_trade_log.parquet` dataset.
+1.  **Phase 1: Build the Data Pipeline (Current Task).** Create the
+    `master_trade_log.parquet` dataset.
 2.  **Phase 2: Enhance the Diagnostic Engine.** Implement advanced rule-discovery.
 3.  **Phase 3: Implement the Predictive Engine.** Train and deploy predictive models.
 
 ## 3. Model Selection and Inference
 
-Given a library of specialized models, the `ai-diagnose` tool must be able to select the correct one for analyzing a given `brief.json`. This is achieved through a metadata-driven mechanism.
+Given a library of specialized models, the `ai-diagnose` tool must select the
+correct artifact for any `brief.json`. A metadata-driven mechanism enables this.
 
-1.  **Embed Metadata in the Brief:** The "Campaign Runner" injects the `strategy_archetype` and `execution_timeframe` into the `meta` section of the `brief.json` during backtest execution.
-2.  **Standardize Model Naming:** Trained models are saved using a strict naming convention that matches the metadata (e.g., `models/15m_trend_following.pkl`).
-3.  **Dynamic Model Loading:** The `ai-diagnose` command reads the metadata from the brief, constructs the path to the correct model file, and dynamically loads it for analysis.
+1.  **Embed Metadata in the Brief:** During each run the Campaign Runner injects
+    `strategy_archetype` and `execution_timeframe` into `brief.meta`.
+2.  **Standardize Model Naming:** Trained models follow a strict convention
+    (e.g., `models/15m_trend_following.pkl`) that mirrors the metadata.
+3.  **Dynamic Model Loading:** `ai-diagnose` reads metadata, constructs the
+    model path, and loads the correct artifact dynamically.
 
 ## 4. The "Rich Trade" Data Model
 
-A "rich trade" is a self-contained record that captures not just the outcome of a trade, but also the complete context in which it occurred.
+A "rich trade" is a self-contained record capturing both the outcome and full
+context surrounding a trade.
 
 ### Core Data Structure
 
 The schema for this model includes:
 
-- **Trade ID & Provenance:** Identifiers linking the trade to its source backtest run, strategy, and instrument. This includes a **`strategy_archetype`** tag (e.g., 'trend_following', 'mean_reversion').
-- **Entry Context:** Market conditions at the moment of entry. This includes the structured **`trigger_condition`** (the specific rule that fired) and the full feature set. See the specification below.
-- **Exit Context:** A mirror of the Entry Context, capturing the full feature set at the moment of exit. It also includes the crucial **reason for exit** (`stop_loss`, `take_profit`, `strategy_signal`).
-- **Sequential Context:** Information about the trade's relationship to the previous trade (e.g., `bars_since_last_exit`, `pnl_of_last_trade`).
-- **Risk Management Context:** The *intended* risk of the trade, including the initial stop-loss and take-profit levels.
-- **Trade Outcomes:** The target variables for the ML model, such as PnL (in currency and R-multiple), MFE/MAE, and duration.
+- **Trade ID & Provenance:** Identifiers linking the trade to its backtest run,
+  strategy, and instrument. Includes `strategy_archetype` (e.g., trend,
+  mean-reversion).
+- **Entry Context:** Market conditions at entry time, including structured
+  `trigger_condition` and the full feature set.
+- **Exit Context:** Mirrors the entry context; also records the exit reason
+  (`stop_loss`, `take_profit`, `strategy_signal`).
+- **Sequential Context:** Relationship to the previous trade
+  (`bars_since_last_exit`, `pnl_of_last_trade`).
+- **Risk Management Context:** Intended risk data, such as initial stop-loss and
+  take-profit levels.
+- **Trade Outcomes:** Targets like PnL (currency and R-multiple), MFE/MAE, and
+  duration.
 
 ### Feature Set Specification
 
@@ -59,12 +86,147 @@ The schema for this model includes:
 
 ## 5. The Curation Workflow: Manual vs. Automated
 
-(Workflow details remain the same as previous version)
+### 5.1 Governance Roles
+
+- **Researcher:** Runs exploratory backtests. Their output **never** flows into the
+  curated dataset until approved.
+- **Curation Lead:** Reviews candidate runs, validates metadata, and signs off on
+  inclusion in the master trade log.
+- **Automation Engineer:** Maintains the orchestration scripts (Campaign Runner,
+  validation jobs, DVC pipelines) and monitors scheduled executions.
+
+### 5.2 Workflow Stages
+
+1. **Candidate Run Submission**
+   - Researcher uploads a `brief.json`, `run_config.json`, and supporting CSV
+     exports to the `data/candidates/<campaign_id>/` folder.
+   - Each submission must include:
+     - `meta.strategy_archetype`
+     - `meta.execution_timeframe`
+     - A unique `campaign_id` (used for traceability and DVC tags).
+2. **Automated Screening**
+   - The `campaign_validate.py` script performs:
+     - JSON schema validation for `brief.json` and `run_config.json`.
+     - Indicator registry checks (ensures contextual features originate from the
+       single source of truth in `indicators_registry.py`).
+     - Basic performance sanity checks (non-empty trades, bounded drawdown).
+   - Output written to `data/candidates/<campaign_id>/validation_report.json`.
+3. **Manual Review**
+   - Curation Lead audits the validation report, spot-checks trades using the
+     “Top/Bottom 5” samples, and verifies narrative notes.
+   - Decision recorded in `data/candidates/<campaign_id>/decision.yaml` with one
+     of: `approved`, `needs-rework`, `rejected`.
+4. **Enrichment and Feature Audit**
+   - Approved runs feed into the enrichment job (Section 6) to derive
+     multi-timeframe contextual features, regime labels, and diagnostic stats.
+   - Derived dataset stored temporarily in
+     `data/enriched/<campaign_id>/rich_trades.parquet`.
+5. **Publishing to Master Trade Log**
+   - Automation Engineer runs `poetry run python -m trading_platform.ai.data_curation`
+     with `--campaign-id <campaign_id>`.
+   - The job appends enriched rows to `data/master/master_trade_log.parquet` and
+     updates the DVC tracking file
+     `data/dvc/processed/training_sets/master_trade_log.parquet.dvc`.
+   - Summary metrics and SHA256 checksum recorded in
+     `docs/ai/data_curation_history.md`.
+
+### 5.3 Quality Gates
+
+- **Schema Validation:** Uses `pydantic` models mirroring Section 4 to reject
+  invalid trades.
+- **Duplicate Prevention:** `(campaign_id, trade_id)` must be unique. The loader
+  enforces `drop_duplicates` and raises on conflicts.
+- **Drift Monitoring:** Monthly job computes distribution deltas for key fields
+  (`r_multiple`, `entry_context.rsi_14`, etc.) versus the previous snapshot. Any
+  KS-statistic > 0.15 triggers a manual review ticket.
+- **Audit Trail:** Each publish action appends an entry to
+  `docs/ai/logs/campaign_audit.md` (timestamp, actor, commit hash, dataset size).
+
+### 5.4 Manual Overrides
+
+- Only the Curation Lead may mark trades with `override_reason`.
+- Overrides must include: `reason_code` (enum), `notes`, and a link to a JIRA
+  ticket.
+- Overrides are stored in `data/overrides/<campaign_id>.yaml` and re-applied on
+  every re-build to keep runs reproducible.
 
 ## 6. Automating Data Generation: The Campaign Runner
 
-(Campaign Runner details remain the same as previous version)
+### 6.1 Responsibilities
+
+The Campaign Runner orchestrates reproducible backtest batches and associated
+data exports. Its responsibilities:
+
+1. Expand high-level campaign definitions (YAML) into concrete RunConfig files.
+2. Execute runs via `poetry run python -m trading_platform.core.run --config`.
+3. Collect artifacts (`brief.json`, trade exports, contextual features).
+4. Record provenance metadata (git commit, dependency hashes, data version).
+5. Trigger enrichment jobs and push candidate bundles for review.
+
+### 6.2 Configuration Anatomy
+
+Campaign YAML files live in `config/campaigns/`. Required keys:
+
+- `campaign_id`: unique identifier (matches folder naming).
+- `strategy_path`: relative path to strategy YAML.
+- `rem_path`: optional REM configuration.
+- `run_matrix`: list of parameter overrides (e.g., start/end dates, instruments).
+- `contextual_features`: multi-timeframe features to compute (uses the
+  `timeframe` field introduced in the multi-timeframe implementation plan).
+
+### 6.3 Execution Lifecycle
+
+1. **Plan Generation**
+   - `poetry run python -m trading_platform.ai.campaigns.generate_plan --campaign-id`
+     emits a manifest JSON enumerating runs and metadata expectations.
+2. **Run Execution**
+   - The runner iterates over the manifest, executing each run and collecting
+     outputs under `runs/<campaign_id>/<run_id>/`.
+3. **Artifact Packaging**
+   - After each run, `poetry run python -m trading_platform.ai.exporters.rich_trade`
+     emits enriched trade rows into the candidate folder (Section 5).
+4. **Completion Hook**
+   - Once all runs succeed, the runner writes `campaign_complete.yaml` summarizing
+     success/failure counts and generated dataset size.
+
+### 6.4 Failure Handling
+
+- Any run failure:
+  - Stops the campaign by default (`--fail-fast`), unless `--continue-on-error`
+    is specified (used only for exploratory campaigns).
+  - Produces `runs/<campaign_id>/<run_id>/failure_report.json` capturing stack
+    traces, config snapshot, and environment info.
+  - Requires a manual retry or update to the campaign manifest.
 
 ## 7. Key Concepts
 
-(Key Concepts details remain the same as previous version)
+- **Rich Trade:** Trade record with full entry, exit, sequential, and risk
+  context (Section 4). Stored in Parquet with schema enforced via Pydantic.
+- **Campaign:** Reproducible backtest set designed to generate training data,
+  identified by `campaign_id` and orchestrated by the Campaign Runner.
+- **Master Trade Log:** Append-only Parquet dataset feeding ML training.
+  Versioned with DVC; checksum recorded after every publish.
+- **Diagnostic Engine:** Descriptive analytics pipeline (`ai-diagnose`) that
+  consumes curated data to produce human-readable insights.
+- **Predictive Engine:** Predictive models that score future trades. Artifacts
+  are selected via `strategy_archetype` and timeframe metadata.
+- **Quality Gate:** Automated validation enforcing schema, dedupe, and drift
+  checks prior to master trade log updates.
+- **Override:** Manual inclusion or exclusion of trades with justification. Every
+  override is logged in the overrides YAML and replayed during rebuilds.
+
+### 7.1 Checklists
+
+- **Pre-Publish Checklist:**
+  1. Validation report status `passed`.
+  2. Manual review notes linked in decision file.
+  3. Overrides (if any) documented with ticket reference.
+  4. Checksums for new data recorded in `data_curation_history.md`.
+- **Post-Publish Checklist:**
+  1. Run DVC push for updated artifacts.
+  2. Notify ML team on Slack with campaign summary template.
+  3. Archive candidate folder to `data/archive/<campaign_id>/` for reproducibility.
+
+This expanded guide is the authoritative reference for data curation. Updates
+must be reviewed by the Curation Lead and Automation Engineer to keep the
+pipeline aligned with ML governance requirements.
