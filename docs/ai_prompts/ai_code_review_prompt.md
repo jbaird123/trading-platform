@@ -94,5 +94,42 @@ You must perform the review in the following distinct, ordered passes. For each 
         >
         > - [List of all deficiencies from all failed passes]
 
-        ### Report
-        Place all findings in docs/code_reviews/code_reivew_<<timestamp>>.md
+---
+
+## **Documentation Requirements**
+
+After completing the code review, you must document your findings using the new folder structure:
+
+### For Completed Tasks
+
+1. **Create a dated folder** in `docs/code_tasks/completed/` with format: `YYYY-MM-DD_feature_name/`
+   - Use the git commit date of completion (today's date if just completed)
+   - Use a short, descriptive feature name (e.g., `multi_timeframe_context`, `adaptive_trend_implementation`)
+
+2. **Save the code review** as `code_review.md` inside that folder
+   - Full path: `docs/code_tasks/completed/YYYY-MM-DD_feature_name/code_review.md`
+
+3. **Move the task list** to the same folder as `task_list.md`
+   - If it's currently in `docs/code_tasks/active/`, use `git mv` to move it
+   - Rename it to `task_list.md` in the completed folder
+
+4. **Add any additional documentation** to the same folder:
+   - `implementation_findings.md` - Any discoveries or notes from implementation
+   - `review_response.md` - Responses to review feedback (if applicable)
+
+### Example Structure
+
+```
+docs/code_tasks/completed/2025-10-23_multi_timeframe_context/
+├── task_list.md                    # Original task plan
+├── code_review.md                  # This review document
+├── implementation_findings.md      # Optional: implementation notes
+└── review_response.md              # Optional: review feedback responses
+```
+
+### For Active/In-Progress Tasks
+
+- Keep task files in `docs/code_tasks/active/` with format: `YYYY-MM-DD_feature_name.md`
+- Only move to `completed/` when the code review is approved and work is done
+
+See `docs/code_tasks/README.md` for complete documentation structure guidelines.

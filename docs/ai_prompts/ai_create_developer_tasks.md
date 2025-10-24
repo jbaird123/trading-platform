@@ -28,3 +28,52 @@ You will be given two pieces of context:
 Produce a single Markdown document titled `[Feature Name] Implementation Plan`. This document must contain a numbered list of tasks that:
 -   First, addresses and corrects every single issue identified in the **Code Review Summary**.
 -   Second, continues the numbered list by breaking down the items from the **High-Level Task List** into the explicit, prescriptive, and atomic instructions defined above.
+
+---
+
+## **Documentation Requirements**
+
+After creating the task list, you must save it using the new folder structure:
+
+### For New Tasks
+
+1. **Save the task file** in `docs/code_tasks/active/` with format: `YYYY-MM-DD_feature_name.md`
+   - Use today's date (task creation date)
+   - Use a short, descriptive feature name (e.g., `multi_timeframe_context`, `adaptive_trend_implementation`)
+   - Full path: `docs/code_tasks/active/YYYY-MM-DD_feature_name.md`
+
+2. **When the task is completed:**
+   - Create a folder in `docs/code_tasks/completed/` with the same date format
+   - Move the task file using `git mv` to the completed folder and rename to `task_list.md`
+   - Add the code review as `code_review.md` in the same folder
+   - Add any implementation findings or notes to the same folder
+
+### Example Workflow
+
+**Creating a new task (Oct 23, 2025):**
+```bash
+# Save to active folder
+docs/code_tasks/active/2025-10-23_multi_timeframe_context.md
+```
+
+**When completed:**
+```bash
+# Create completed folder and move files
+mkdir docs/code_tasks/completed/2025-10-23_multi_timeframe_context/
+git mv docs/code_tasks/active/2025-10-23_multi_timeframe_context.md \
+       docs/code_tasks/completed/2025-10-23_multi_timeframe_context/task_list.md
+
+# Add code review to same folder
+docs/code_tasks/completed/2025-10-23_multi_timeframe_context/code_review.md
+```
+
+**Final structure:**
+```
+docs/code_tasks/completed/2025-10-23_multi_timeframe_context/
+├── task_list.md                    # Original task plan (moved from active/)
+├── code_review.md                  # Code review document
+├── implementation_findings.md      # Optional: implementation notes
+└── review_response.md              # Optional: review feedback responses
+```
+
+See `docs/code_tasks/README.md` for complete documentation structure guidelines.
