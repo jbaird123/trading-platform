@@ -41,9 +41,14 @@ def main() -> None:
     print("Generating JSON schemas from Pydantic models...")
     print("=" * 80)
 
+    # Import Pydantic models
+    from trading_platform.core.config import FeatureConfig
+
     # Generate schemas for each model
     # Order matters - dependencies should come first
-    schemas_to_generate: list[tuple[type[Any], str]] = []
+    schemas_to_generate: list[tuple[type[Any], str]] = [
+        (FeatureConfig, "feature_config.schema.json"),
+    ]
 
     for model_class, filename in schemas_to_generate:
         output_path = schemas_dir / filename

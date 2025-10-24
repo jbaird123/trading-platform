@@ -7,6 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Multi-Timeframe Contextual Features
+
+**Summary:** Enhanced ML data curation pipeline with multi-timeframe contextual features, enabling indicators to be computed on higher timeframes (e.g., 1H, 4H, 1D) while executing strategies on base timeframes (e.g., 15m).
+
+#### New Capabilities
+
+- **Multi-Timeframe Feature Engine:** Features can now specify an optional `timeframe` field to compute indicators on resampled data
+- **Automatic Resampling:** Feature engine automatically resamples OHLC data to higher timeframes using proper aggregation (first/max/min/last/sum)
+- **Forward-Fill Alignment:** Higher-timeframe indicator values are forward-filled to base timeframe index for seamless integration
+- **Efficient Caching:** Resampled DataFrames are cached per-call to avoid redundant computation when multiple features share the same timeframe
+- **Full Integration:** Multi-timeframe features work transparently across backtester, trade context capture, and rich trade exports
+
+#### Technical Implementation
+
+**New Modules:**
+- `src/trading_platform/data/resample.py`: Core resampling utility with OHLC aggregation and validation (100% test coverage)
+- `tests/data/test_resample.py`: Comprehensive test suite (6 tests covering aggregation, timezone handling, error cases, warnings)
+- `tests/strategy/test_multi_timeframe_features.py`: Feature engine integration tests (3 tests for alignment, caching, backwards compatibility)
+- `tests/validation/test_schemas.py`: Schema validation tests (4 tests for Pydantic and JSON schema validation)
+
+**Modified Modules:**
+- `src/trading_platform/strategy/features.py`: Added timeframe grouping, caching, and resampling logic to `compute_features()`
+- `src/trading_platform/core/config.py`: FeatureConfig already included optional `timeframe` field
+- `scripts/generate_schemas_from_pydantic.py`: Added FeatureConfig to auto-generated schemas
+- `docs/schemas/feature_config.schema.json`: Generated JSON schema with timeframe field
+- `tests/backtester/test_contextual_features.py`: Added integration test verifying multi-timeframe features in trade context
+
+**Test Results:**
+- 16 new/modified tests, all passing
+- 100% coverage for new `resample.py` module
+- Backwards compatible: Features without `timeframe` field work unchanged
+- No modifications needed to backtester or export logic (works transparently)
+
+#### Usage Example
+
+```yaml
+contextual_features:
+  # Base timeframe feature (15m)
+  - name: rsi_14
+    type: RSI
+    params:
+      length: 14
+
+  # Higher timeframe features
+  - name: h1_rsi
+    type: RSI
+    params:
+      length: 14
+    timeframe: 1h
+
+  - name: d1_atr
+    type: ATR
+    params:
+      length: 14
+    timeframe: 1D
+```
+
+#### Documentation
+
+- `docs/ai/05_ml_data_curation_guide.md`: Added Section 6.5 (Multi-Timeframe Contextual Features) with examples, performance considerations, and validation details
+- `docs/ai/05_ml_data_curation_guide.md`: Added Section 6.6 (Migration Guide) with step-by-step instructions for existing and new campaigns
+- `docs/schemas/feature_config.schema.json`: Auto-generated schema documenting timeframe field
+
+**Migration Guide:**
+For existing campaigns, simply add the `timeframe` field to relevant features in your campaign YAML. Features without `timeframe` continue to work on the base timeframe (fully backwards compatible).
+
 ### Changed - Exception Handling Improvements
 
 **Summary:** Systematic remediation of defensive programming anti-patterns implementing "fail-fast by default" principle.

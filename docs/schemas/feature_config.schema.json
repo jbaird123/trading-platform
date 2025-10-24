@@ -1,0 +1,90 @@
+{
+  "$defs": {
+    "PriceSource": {
+      "description": "Valid price source fields for technical indicators.\n\nSTRICT VALIDATION: Only these source fields are supported.",
+      "enum": [
+        "open",
+        "high",
+        "low",
+        "close",
+        "hl2",
+        "ohlc4"
+      ],
+      "title": "PriceSource",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Configuration for a single technical indicator/feature.\n\nSTRICT VALIDATION:\n- type must exist in the unified indicator registry\n- source must be from PriceSource enum if provided",
+  "properties": {
+    "name": {
+      "description": "Local identifier for the feature.",
+      "title": "Name",
+      "type": "string"
+    },
+    "type": {
+      "description": "Indicator type registered in the unified indicator registry (e.g., 'EMA').",
+      "title": "Type",
+      "type": "string"
+    },
+    "params": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Indicator-specific parameters.",
+      "title": "Params"
+    },
+    "source": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PriceSource"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Input price series from PriceSource enum."
+    },
+    "source_ref": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Reference another feature as input series.",
+      "title": "Source Ref"
+    },
+    "timeframe": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional pandas offset alias for higher-timeframe resampling. When provided, the feature will be computed on resampled data.",
+      "title": "Timeframe"
+    }
+  },
+  "required": [
+    "name",
+    "type"
+  ],
+  "title": "FeatureConfig",
+  "type": "object"
+}

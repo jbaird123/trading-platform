@@ -198,6 +198,112 @@ Campaign YAML files live in `config/campaigns/`. Required keys:
     traces, config snapshot, and environment info.
   - Requires a manual retry or update to the campaign manifest.
 
+### 6.5 Multi-Timeframe Contextual Features
+
+The `contextual_features` field supports an optional `timeframe` parameter that
+enables computing indicators on higher timeframes than the base execution
+timeframe. This is critical for ML models that need broader market context.
+
+**Example Campaign Configuration:**
+
+```yaml
+campaign_id: trend_following_15m_v1
+strategy_path: config/strategies/ema_crossover.yaml
+execution_timeframe: 15m
+run_matrix:
+  - instrument: EURUSD
+    start_date: 2023-01-01
+    end_date: 2023-12-31
+
+contextual_features:
+  # Base timeframe features (15m)
+  - name: rsi_14
+    type: RSI
+    params:
+      length: 14
+
+  # Higher timeframe features (1H)
+  - name: h1_rsi
+    type: RSI
+    params:
+      length: 14
+    timeframe: 1h
+
+  - name: h1_ema_trend
+    type: EMA
+    params:
+      length: 50
+    timeframe: 1h
+
+  # Daily context
+  - name: d1_atr
+    type: ATR
+    params:
+      length: 14
+    timeframe: 1D
+```
+
+**How It Works:**
+
+1. The feature engine resamples base timeframe data (e.g., 15m) to the specified
+   higher timeframe (e.g., 1h) using OHLC aggregation.
+2. Indicators are computed on the resampled data.
+3. Results are forward-filled back to the base timeframe index, so every 15m bar
+   has access to the current 1H indicator value.
+4. At trade entry and exit, both base and higher-timeframe features are captured
+   in `context_at_entry` and `context_at_exit`.
+
+**Performance Considerations:**
+
+- The feature engine caches resampled DataFrames per timeframe within each
+  `compute_features()` call, so multiple features sharing the same timeframe
+  incur only one resampling operation.
+- Memory usage scales linearly with the number of unique timeframes.
+- Computation time increases with the number of features and timeframes, but
+  remains efficient for typical use cases (5-10 features across 2-3 timeframes).
+
+**Validation:**
+
+- The `timeframe` field accepts any valid pandas offset alias (e.g., `1h`, `4h`,
+  `1D`, `1W`).
+- Invalid timeframe strings raise a `ValueError` during feature computation.
+- The JSON schema for `FeatureConfig` validates this field (see
+  `docs/schemas/feature_config.schema.json`).
+
+### 6.6 Migration Guide: Adding Multi-Timeframe Features
+
+**For Existing Campaigns:**
+
+1. **Identify Higher-Timeframe Context Needs:** Review your ML model features and
+   determine which indicators would benefit from broader market context. Common
+   examples: trend filters (EMA 50/200 on 1H/4H), volatility (ATR on 1D), momentum
+   (RSI on 4H).
+
+2. **Update Campaign YAML:** Add the `timeframe` field to relevant features in
+   `contextual_features`. Features without `timeframe` continue to use the base
+   timeframe (backwards compatible).
+
+3. **Regenerate Golden Files (if applicable):** If your campaign uses golden file
+   testing for validation, regenerate them after adding multi-timeframe features:
+   ```bash
+   poetry run python scripts/generate_golden_trades.py --campaign-id <campaign_id>
+   ```
+
+4. **Verify Rich Trade Exports:** Run a test backtest and inspect
+   `runs/<campaign_id>/<run_id>/rich_trades.csv` to confirm the new
+   higher-timeframe features appear in both `entry_features` and `exit_features`
+   columns.
+
+5. **Update Feature Documentation:** Add descriptions for new features to your
+   campaign's feature specification document.
+
+**For New Campaigns:**
+
+- Include multi-timeframe features from the start in your campaign YAML.
+- Follow the naming convention: `<timeframe>_<indicator>` (e.g., `h1_rsi`,
+  `d1_atr`) to make the timeframe explicit in feature names.
+- Document the rationale for each higher-timeframe feature in campaign notes.
+
 ## 7. Key Concepts
 
 - **Rich Trade:** Trade record with full entry, exit, sequential, and risk

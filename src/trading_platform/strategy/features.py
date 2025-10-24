@@ -11,6 +11,8 @@ from typing import Any
 
 import pandas as pd
 
+from trading_platform.data.resample import resample_data
+
 # ema_slope is now compute_ema_slope, create wrapper
 from trading_platform.strategy import indicator_implementations as _impl
 
@@ -129,26 +131,52 @@ def compute_features(
 
     out = df.copy()
 
+    # Cache for resampled DataFrames - scoped to this single call
+    resampled_frames: dict[str, pd.DataFrame] = {}
+
+    # Group specs by timeframe for efficient resampling
+    base_specs = []
+    timeframe_groups: dict[str, list[dict]] = {}
+
     for spec in specs or []:
-        name = str(spec.get("name"))
-        typ = str(spec.get("type"))
-        params = spec.get("params") or {}
-        source = str(spec.get("source", "close"))
         timeframe = spec.get("timeframe")
-        source_ref = None
-
-        # Extract source_ref if present
-        _src_ref_val = spec.get("source_ref")
-        if isinstance(_src_ref_val, dict) and ("ref" in _src_ref_val):
-            ref_val = _src_ref_val.get("ref")
-            source_ref = str(ref_val) if ref_val is not None else None
-
-        if not name:
-            continue
-
-        # Handle higher-timeframe features
         if timeframe:
-            df_resampled = _resample_to_higher_timeframe(df, timeframe)
+            if timeframe not in timeframe_groups:
+                timeframe_groups[timeframe] = []
+            timeframe_groups[timeframe].append(spec)
+        else:
+            base_specs.append(spec)
+
+    # Process base timeframe features first
+    for spec in base_specs:
+        _process_single_feature(spec, df, out, strategy_parameters)
+
+    # Process higher timeframe features grouped by timeframe
+    for timeframe, group_specs in timeframe_groups.items():
+        # Resample once per timeframe (cached)
+        if timeframe not in resampled_frames:
+            resampled_frames[timeframe] = resample_data(df, rule=timeframe)
+
+        df_resampled = resampled_frames[timeframe]
+
+        # Compute all features for this timeframe on the resampled data
+        for spec in group_specs:
+            # Build temp spec without timeframe to avoid recursion
+            name = str(spec.get("name"))
+            typ = str(spec.get("type"))
+            params = spec.get("params") or {}
+            source = str(spec.get("source", "close"))
+            source_ref = None
+
+            # Extract source_ref if present
+            _src_ref_val = spec.get("source_ref")
+            if isinstance(_src_ref_val, dict) and ("ref" in _src_ref_val):
+                ref_val = _src_ref_val.get("ref")
+                source_ref = str(ref_val) if ref_val is not None else None
+
+            if not name:
+                continue
+
             temp_spec = {
                 "name": name,
                 "type": typ,
@@ -157,6 +185,8 @@ def compute_features(
             }
             if source_ref:
                 temp_spec["source_ref"] = {"ref": source_ref}
+
+            # Compute feature on resampled data
             df_htf = compute_features(df_resampled, [temp_spec], strategy_parameters)
 
             # Handle multi-output indicators (e.g., ADX returns name_ADX,
@@ -176,39 +206,68 @@ def compute_features(
                 if col in df_htf.columns:
                     htf_series = df_htf[col].reindex(df.index, method="ffill")
                     out[col] = htf_series
-            continue
-
-        # Resolve parameter substitutions (${param_name})
-        resolved_params = {
-            k: _resolve_parameter(v, strategy_parameters) for k, v in params.items()
-        }
-
-        # Get indicator from registry
-        indicator = INDICATORS.get(typ)
-        if not indicator:
-            # For backwards compatibility, unknown indicators return NaN
-            # instead of raising an error
-            import numpy as np
-
-            out[name] = np.nan
-            continue
-
-        # Call implementation with standard interface
-        impl_fn = indicator["implementation"]
-        result = impl_fn(df, resolved_params, source, source_ref)
-
-        # Handle output based on return type
-        if isinstance(result, dict):
-            # Multi-column output (BB, MACD, ADX, etc.)
-            for col_name, col_data in result.items():
-                if col_name == "":
-                    # Empty string means no suffix (e.g., PSAR, STOCH main value)
-                    out[name] = col_data
-                else:
-                    out[f"{name}_{col_name}"] = col_data
-        else:
-            # Single-column output (EMA, RSI, ATR, etc.)
-            out[name] = result
 
     # Return with natural NaN values - consuming code handles them
     return out
+
+
+def _process_single_feature(
+    spec: dict,
+    df: pd.DataFrame,
+    out: pd.DataFrame,
+    strategy_parameters: dict,
+) -> None:
+    """Process a single feature specification and add to output DataFrame.
+
+    Args:
+        spec: Feature specification dict
+        df: Input OHLCV DataFrame
+        out: Output DataFrame to add feature to (modified in place)
+        strategy_parameters: Parameters for substitution
+    """
+    name = str(spec.get("name"))
+    typ = str(spec.get("type"))
+    params = spec.get("params") or {}
+    source = str(spec.get("source", "close"))
+    source_ref = None
+
+    # Extract source_ref if present
+    _src_ref_val = spec.get("source_ref")
+    if isinstance(_src_ref_val, dict) and ("ref" in _src_ref_val):
+        ref_val = _src_ref_val.get("ref")
+        source_ref = str(ref_val) if ref_val is not None else None
+
+    if not name:
+        return
+
+    # Resolve parameter substitutions (${param_name})
+    resolved_params = {
+        k: _resolve_parameter(v, strategy_parameters) for k, v in params.items()
+    }
+
+    # Get indicator from registry
+    indicator = INDICATORS.get(typ)
+    if not indicator:
+        # For backwards compatibility, unknown indicators return NaN
+        # instead of raising an error
+        import numpy as np
+
+        out[name] = np.nan
+        return
+
+    # Call implementation with standard interface
+    impl_fn = indicator["implementation"]
+    result = impl_fn(df, resolved_params, source, source_ref)
+
+    # Handle output based on return type
+    if isinstance(result, dict):
+        # Multi-column output (BB, MACD, ADX, etc.)
+        for col_name, col_data in result.items():
+            if col_name == "":
+                # Empty string means no suffix (e.g., PSAR, STOCH main value)
+                out[name] = col_data
+            else:
+                out[f"{name}_{col_name}"] = col_data
+    else:
+        # Single-column output (EMA, RSI, ATR, etc.)
+        out[name] = result
