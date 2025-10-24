@@ -21,7 +21,8 @@ def test_feature_config_schema_includes_timeframe():
     # Load the generated schema
     schema_path = (
         Path(__file__).parent.parent.parent
-        / "docs"
+        / "src"
+        / "trading_platform"
         / "schemas"
         / "feature_config.schema.json"
     )
