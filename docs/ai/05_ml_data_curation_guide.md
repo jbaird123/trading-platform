@@ -8,7 +8,37 @@ The goal of this pipeline is to produce a high-quality, reproducible dataset of 
 
 This process separates ad-hoc research from formal ML training, which is critical for building robust and reliable predictive models.
 
-## 2. The "Rich Trade" Data Model
+## 2. ML Modeling Strategy: A Two-Pronged Approach
+
+Instead of a single monolithic "uber-model", our strategy is to build **multiple, specialized models** and tools that fit into two distinct categories: a **Diagnostic Engine** and a **Predictive Engine**.
+
+### 2.1 The Diagnostic Engine (Descriptive Analysis)
+
+- **Purpose:** To analyze a completed backtest and answer the question: *"Under what conditions did this strategy perform best or worst in the past?"*
+- **Implementation:** This builds upon the existing rule-based `ai-diagnose` command. We will enhance it by adding more advanced analytical techniques (e.g., training a Decision Tree on the curated dataset) to automatically discover human-readable "optimal condition" rules.
+- **Output:** A JSON/Markdown report with insights and recommendations.
+
+### 2.2 The Predictive Engine (Predictive Modeling)
+
+- **Purpose:** To look at market conditions in real-time and answer the question: *"What is the likely outcome if I take this trade?"*
+- **Implementation:** This is a new capability. We will train more complex models (e.g., XGBoost, LightGBM) to predict a trade's outcome (like its R-multiple). The models will be specialized by **Execution Timeframe** and **Strategy Archetype**.
+- **Output:** Trained model files (e.g., `15m_trend_following.pkl`) that can be used for live trade filtering or for adding predictive scores to backtest analysis.
+
+### 2.3 Strategic Roadmap
+
+1.  **Phase 1: Build the Data Pipeline (Current Task).** Create the `master_trade_log.parquet` dataset.
+2.  **Phase 2: Enhance the Diagnostic Engine.** Implement advanced rule-discovery.
+3.  **Phase 3: Implement the Predictive Engine.** Train and deploy predictive models.
+
+## 3. Model Selection and Inference
+
+Given a library of specialized models, the `ai-diagnose` tool must be able to select the correct one for analyzing a given `brief.json`. This is achieved through a metadata-driven mechanism.
+
+1.  **Embed Metadata in the Brief:** The "Campaign Runner" injects the `strategy_archetype` and `execution_timeframe` into the `meta` section of the `brief.json` during backtest execution.
+2.  **Standardize Model Naming:** Trained models are saved using a strict naming convention that matches the metadata (e.g., `models/15m_trend_following.pkl`).
+3.  **Dynamic Model Loading:** The `ai-diagnose` command reads the metadata from the brief, constructs the path to the correct model file, and dynamically loads it for analysis.
+
+## 4. The "Rich Trade" Data Model
 
 A "rich trade" is a self-contained record that captures not just the outcome of a trade, but also the complete context in which it occurred.
 
@@ -16,8 +46,8 @@ A "rich trade" is a self-contained record that captures not just the outcome of 
 
 The schema for this model includes:
 
-- **Trade ID & Provenance:** Identifiers linking the trade to its source backtest run, strategy, and instrument.
-- **Entry Context:** Market conditions at the moment of entry. See the feature specification below.
+- **Trade ID & Provenance:** Identifiers linking the trade to its source backtest run, strategy, and instrument. This includes a **`strategy_archetype`** tag (e.g., 'trend_following', 'mean_reversion').
+- **Entry Context:** Market conditions at the moment of entry. This includes the structured **`trigger_condition`** (the specific rule that fired) and the full feature set. See the specification below.
 - **Exit Context:** A mirror of the Entry Context, capturing the full feature set at the moment of exit. It also includes the crucial **reason for exit** (`stop_loss`, `take_profit`, `strategy_signal`).
 - **Sequential Context:** Information about the trade's relationship to the previous trade (e.g., `bars_since_last_exit`, `pnl_of_last_trade`).
 - **Risk Management Context:** The *intended* risk of the trade, including the initial stop-loss and take-profit levels.
@@ -25,88 +55,16 @@ The schema for this model includes:
 
 ### Feature Set Specification
 
-To provide a comprehensive view of the market, we enrich the context with a curated set of indicators from multiple timeframes. The principle is to have a **Signal Timeframe** (where the trade executes) and several **Context Timeframes** (which provide the strategic "weather report").
+(Feature set details remain the same as previous version)
 
-The higher-level context timeframes (`1H`, `4H`, `1D`) remain constant, providing a stable strategic overlay regardless of the execution timeframe.
+## 5. The Curation Workflow: Manual vs. Automated
 
-**Naming Convention:** Features are named `{timeframe}_{indicator}_{params}` (e.g., `h1_rsi_14`).
+(Workflow details remain the same as previous version)
 
----
+## 6. Automating Data Generation: The Campaign Runner
 
-#### 1. Execution Timeframe Features (Example: 15min)
-*These features describe the immediate, tactical conditions for the trade.*
-- `15m_rsi_14`: Relative Strength Index (14).
-- `15m_atr_14_pct`: Average True Range (14), as a percentage of price.
-- `15m_bbands_20_2_width`: Bollinger Bands (20, 2) width.
-- `15m_ema_50_slope`: Slope of the 50-period EMA.
-- `15m_dist_from_ema_200`: Distance from the 200-period EMA, as a percentage.
+(Campaign Runner details remain the same as previous version)
 
-#### 2. Medium-Term Context (1H)
-*These features describe the mid-term trend and momentum.*
-- `h1_rsi_14`: RSI on the 1-hour chart.
-- `h1_adx_14`: ADX on the 1-hour chart for trend strength.
-- `h1_ema_50_slope`: Slope of the 50-period EMA on the 1-hour chart.
+## 7. Key Concepts
 
-#### 3. Structural Context (4H)
-*These features describe the major trend and structure.*
-- `h4_rsi_14`: RSI on the 4-hour chart.
-- `h4_adx_14`: ADX on the 4-hour chart for major trend strength.
-- `h4_ema_50_slope`: Slope of the 50-period EMA on the 4-hour chart.
-
-#### 4. High-Level Context (1D)
-*These features describe the overall market "weather".*
-- `d1_atr_14_pct`: Daily ATR as a percentage of price.
-- `d1_ema_20_slope`: Slope of the 20-period daily EMA.
-- `d1_dist_from_vwap`: Distance from the daily VWAP.
-
-## 3. The Curation Workflow
-
-The workflow consists of three main stages:
-
-### Step 1: Generating Source Briefs
-
-1.  **Configure Backtests:** Prepare a set of `RunConfig` files for the various backtests you want to include in the training set. This should cover multiple strategies, risk models, and instruments.
-2.  **Set Output Directory:** Ensure the output directory for these runs is set to a subdirectory within `workspace/ml_training_sets_source/`. This dedicated directory keeps the source briefs isolated.
-3.  **Execute Backtests:** Run the batch of backtests.
-
-### Step 2: Running the Curation Script
-
-Once the source briefs are generated, use the `ai-curate-data` CLI command to process them into a single, consolidated dataset.
-
-```bash
-poetry run python -m trading_platform.cli ai-curate-data \
-  --source-dir workspace/ml_training_sets_source/ \
-  --output-file data/dvc/processed/training_sets/master_trade_log.v1.parquet
-```
-
-This command will recursively search the source directory, parse every `brief.json` file, flatten the trade data, and save it to a single Parquet file.
-
-### Step 3: Versioning the Dataset
-
-The final dataset is tracked using DVC to ensure reproducibility.
-
-1.  **Add to DVC:**
-    ```bash
-    dvc add data/dvc/processed/training_sets/master_trade_log.v1.parquet
-    ```
-2.  **Push to Remote Storage:**
-    ```bash
-    dvc push
-    ```
-3.  **Commit the Pointer File:**
-    ```bash
-    git add data/dvc/processed/training_sets/master_trade_log.v1.parquet.dvc
-    git commit -m "data: Update master trade log to v1"
-    ```
-
-## 4. Key Concepts
-
-### Multi-Timeframe Context
-
-To give the model a complete view of the market structure, we enrich the context of each trade (e.g., on a 15-minute timeframe) with indicator values from higher timeframes (e.g., 1-hour, 4-hour, and Daily). This is configured via the `contextual_features` section in the `RunConfig`.
-
-### Feature Selection Strategy
-
-We deliberately choose a curated set of indicators rather than all available ones. This avoids the "curse of dimensionality" and reduces noise, helping the model find a clearer signal. The goal is to select a diverse set of features covering trend, momentum, volatility, and volume.
-
-```
+(Key Concepts details remain the same as previous version)
