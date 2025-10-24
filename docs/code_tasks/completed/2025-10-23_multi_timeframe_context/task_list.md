@@ -101,7 +101,7 @@
 - Efficient caching: resampling happens once per unique timeframe
 
 **Phase 3 - Schema and Validation**
-- Generated `docs/schemas/feature_config.schema.json` from Pydantic models
+- Generated `src/trading_platform/schemas/feature_config.schema.json` from Pydantic models
 - Created `tests/validation/test_schemas.py` with 4 validation tests
 - Schema correctly includes optional `timeframe` field
 
@@ -134,7 +134,7 @@
 **Modified Files (6)**:
 - `src/trading_platform/strategy/features.py`
 - `scripts/generate_schemas_from_pydantic.py`
-- `docs/schemas/feature_config.schema.json`
+- `src/trading_platform/schemas/feature_config.schema.json`
 - `tests/backtester/test_contextual_features.py`
 - `docs/ai/05_ml_data_curation_guide.md`
 - `CHANGELOG.md`

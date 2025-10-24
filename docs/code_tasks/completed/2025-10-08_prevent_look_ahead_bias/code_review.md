@@ -64,7 +64,7 @@ The implementation was done in three phases:
 3.  **Developer Tooling & Documentation:**
     - Provides a set of "safe" helper functions (`src/trading_platform/strategy/safe_indicators.py`) for common rolling-window operations.
     - Adds a comprehensive developer guide (`docs/developer_guide/indicator_development.md`) explaining the risks and prevention methods.
-    - Includes a template (`docs/templates/indicator_template.py`) for creating new, bias-free indicators.
+    - Includes a template (`src/trading_platform/strategy/templates/indicator_template.py`) for creating new, bias-free indicators.
 
 The "strict mode" (full bar-by-bar backtesting) was deferred, as the combination of automated testing and CI/CD integration provides sufficient protection with no performance impact on backtests.
 ```

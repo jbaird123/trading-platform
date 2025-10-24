@@ -275,7 +275,7 @@ def safe_swing_detection(
 3. ✅ Add CI/CD integration for automated bias detection
 
 **Deliverables:**
-- ✅ `docs/templates/indicator_template.py` - Comprehensive template
+- ✅ `src/trading_platform/strategy/templates/indicator_template.py` - Comprehensive template
   with examples, patterns, and registration checklist
 - ✅ Updated `.github/workflows/ci.yml` - Automated bias detection
 

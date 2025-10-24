@@ -132,12 +132,7 @@ The most critical design principle is the strict separation of the **Strategy En
     ```
     This will run a pre-configured backtest and output the results to the `runs/` directory.
 
-2.  **Run a backtest from a config file:**
-    ```bash
-    poetry run tp run-backtest --config docs/examples/backtest_config.json
-    ```
-
-3.  **Compare two backtest results:**
+2.  **Compare two backtest results:**
     ```bash
     poetry run tp compare path/to/run_A/brief.json path/to/run_B/brief.json
     ```

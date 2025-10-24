@@ -53,7 +53,7 @@ git checkout -b feature/accuracy-validation-strategy
         ```
 
 ### 2. [x] Manually Calculate Expected Results
-1.  **Action:** Create a csv (`docs/manual_calcs/verification.csv`) and manually perform the backtest bar-by-bar using the new, more robust files from Task 1. Assume an initial equity of $100,000 and zero costs.
+1.  **Action:** Create a csv (`tests/fixtures/manual_calcs/verification.csv`) and manually perform the backtest bar-by-bar using the new, more robust files from Task 1. Assume an initial equity of $100,000 and zero costs.
 2.  **Derive and record the exact values for all metrics, ensuring your scenario generates:**
     -   At least one winning and one losing trade.
     -   Both long and short trades.

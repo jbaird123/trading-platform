@@ -168,7 +168,7 @@ The staged changes include exactly what's needed:
 **Modified Files (6)**:
 - ✅ `src/trading_platform/strategy/features.py` - Feature engine with multi-timeframe support
 - ✅ `scripts/generate_schemas_from_pydantic.py` - Added FeatureConfig to schemas
-- ✅ `docs/schemas/feature_config.schema.json` - Generated schema with timeframe field
+- ✅ `src/trading_platform/schemas/feature_config.schema.json` - Generated schema with timeframe field
 - ✅ `tests/backtester/test_contextual_features.py` - Integration test (Task #21)
 - ✅ `docs/ai/05_ml_data_curation_guide.md` - Documentation and migration guide
 - ✅ `CHANGELOG.md` - Comprehensive changelog entry

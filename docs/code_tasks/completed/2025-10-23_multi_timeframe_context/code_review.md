@@ -89,7 +89,7 @@
 ### Phase 3 – Schema and Validation (Tasks 18-20)
 
 ✅ **Task 18**: Update JSON schema file
-- **Status**: COMPLETE - Generated docs/schemas/feature_config.schema.json
+- **Status**: COMPLETE - Generated src/trading_platform/schemas/feature_config.schema.json
 - **Evidence**: Lines 70-82 include timeframe field definition
 
 ✅ **Task 19**: Add `test_campaign_validate_accepts_timeframe_field`

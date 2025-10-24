@@ -268,7 +268,7 @@ contextual_features:
   `1D`, `1W`).
 - Invalid timeframe strings raise a `ValueError` during feature computation.
 - The JSON schema for `FeatureConfig` validates this field (see
-  `docs/schemas/feature_config.schema.json`).
+  `src/trading_platform/schemas/feature_config.schema.json`).
 
 ### 6.6 Migration Guide: Adding Multi-Timeframe Features
 

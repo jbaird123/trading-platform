@@ -35,7 +35,7 @@
 - **Solution:** Updated test expectations from -5.0 to -4.0 (correct value)
 - **Files Modified:**
   - `tests/core/test_manual_verification.py`
-  - `docs/manual_calcs/verification.csv` (corrected with detailed explanation)
+  - `tests/fixtures/manual_calcs/verification.csv` (corrected with detailed explanation)
 
 #### Part 3: Full Test Suite ✅
 - All 1086 tests passing

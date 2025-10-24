@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `src/trading_platform/strategy/features.py`: Added timeframe grouping, caching, and resampling logic to `compute_features()`
 - `src/trading_platform/core/config.py`: FeatureConfig already included optional `timeframe` field
 - `scripts/generate_schemas_from_pydantic.py`: Added FeatureConfig to auto-generated schemas
-- `docs/schemas/feature_config.schema.json`: Generated JSON schema with timeframe field
+- `src/trading_platform/schemas/feature_config.schema.json`: Generated JSON schema with timeframe field
 - `tests/backtester/test_contextual_features.py`: Added integration test verifying multi-timeframe features in trade context
 
 **Test Results:**
@@ -68,7 +68,7 @@ contextual_features:
 
 - `docs/ai/05_ml_data_curation_guide.md`: Added Section 6.5 (Multi-Timeframe Contextual Features) with examples, performance considerations, and validation details
 - `docs/ai/05_ml_data_curation_guide.md`: Added Section 6.6 (Migration Guide) with step-by-step instructions for existing and new campaigns
-- `docs/schemas/feature_config.schema.json`: Auto-generated schema documenting timeframe field
+- `src/trading_platform/schemas/feature_config.schema.json`: Auto-generated schema documenting timeframe field
 
 **Migration Guide:**
 For existing campaigns, simply add the `timeframe` field to relevant features in your campaign YAML. Features without `timeframe` continue to work on the base timeframe (fully backwards compatible).
