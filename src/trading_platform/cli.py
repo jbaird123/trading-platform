@@ -721,6 +721,96 @@ def cmd_ai_curate_data(args: argparse.Namespace) -> int:
     return 0
 
 
+# NOTE: campaign-plan and campaign-run commands will be implemented in earlier phases
+# def cmd_campaign_plan(args: argparse.Namespace) -> int:
+#     """Generate campaign execution plan."""
+#     ...
+#
+# def cmd_campaign_run(args: argparse.Namespace) -> int:
+#     """Execute campaign runs."""
+#     ...
+
+
+def cmd_campaign_validate(args: argparse.Namespace) -> int:
+    """Validate campaign candidates."""
+    from trading_platform.ai.campaigns import validate_campaign_candidates
+
+    report = validate_campaign_candidates(args.campaign_id)
+
+    print(f"Validation complete: {report.passed}/{report.total_candidates} passed")
+
+    return 0
+
+
+def cmd_campaign_review(args: argparse.Namespace) -> int:
+    """Generate campaign review report."""
+    from trading_platform.ai.campaigns import generate_review_report
+
+    report_path = generate_review_report(args.campaign_id)
+
+    print(f"Review report generated: {report_path}")
+
+    return 0
+
+
+def cmd_campaign_approve(args: argparse.Namespace) -> int:
+    """Approve a campaign candidate."""
+    from trading_platform.ai.campaigns import approve_candidate
+
+    approve_candidate(args.campaign_id, args.run_id, args.notes)
+
+    print(f"Approved {args.run_id} in campaign {args.campaign_id}")
+
+    return 0
+
+
+def cmd_campaign_reject(args: argparse.Namespace) -> int:
+    """Reject a campaign candidate."""
+    from trading_platform.ai.campaigns import reject_candidate
+
+    reject_candidate(args.campaign_id, args.run_id, args.reason)
+
+    print(f"Rejected {args.run_id} in campaign {args.campaign_id}")
+
+    return 0
+
+
+def cmd_campaign_needs_rework(args: argparse.Namespace) -> int:
+    """Mark candidate as needs-rework."""
+    from trading_platform.ai.campaigns import mark_needs_rework
+
+    mark_needs_rework(args.campaign_id, args.run_id, args.reason, args.suggestions)
+
+    print(f"Marked {args.run_id} as needs-rework in campaign {args.campaign_id}")
+
+    return 0
+
+
+def cmd_campaign_enrich(args: argparse.Namespace) -> int:
+    """Enrich campaign dataset."""
+    from trading_platform.ai.campaigns import enrich_campaign_dataset
+
+    result = enrich_campaign_dataset(args.campaign_id)
+
+    print(f"Enrichment complete: {result.total_trades_enriched} trades enriched")
+    print(f"Output: {result.output_path}")
+
+    return 0
+
+
+def cmd_campaign_publish(args: argparse.Namespace) -> int:
+    """Publish campaign dataset to master trade log."""
+    from trading_platform.ai.campaigns import publish_campaign_dataset
+
+    result = publish_campaign_dataset(args.campaign_id)
+
+    print(f"Published {result.total_trades_published} trades to master log")
+    print(f"Checksum: {result.sha256_checksum}")
+    print(f"DVC tracking updated: {result.dvc_tracking_updated}")
+
+    return 0
+
+
 def cmd_run_live(args: argparse.Namespace) -> int:
     if args.dry_run:
         print("Live controller (dry-run): OK")
@@ -909,6 +999,60 @@ def main() -> int:
     )
     pcd.add_argument("--output-file", required=True, help="Output parquet file path")
     pcd.set_defaults(func=cmd_ai_curate_data)
+
+    # Campaign commands
+    # NOTE: campaign-plan and campaign-run parsers commented out until
+    # earlier phases implemented
+    # pcp = sub.add_parser("campaign-plan", help="Generate campaign execution plan")
+    # pcp.add_argument("--config", required=True, help="Campaign YAML config file")
+    # pcp.set_defaults(func=cmd_campaign_plan)
+    #
+    # pcr = sub.add_parser("campaign-run", help="Execute campaign runs")
+    # pcr.add_argument("--campaign-id", required=True, help="Campaign identifier")
+    # pcr.add_argument("--fail-fast", action="store_true", help="Stop on first failure")
+    # pcr.add_argument(
+    #     "--continue-on-error", action="store_true", help="Continue on errors"
+    # )
+    # pcr.set_defaults(func=cmd_campaign_run)
+
+    pcv = sub.add_parser("campaign-validate", help="Validate campaign candidates")
+    pcv.add_argument("--campaign-id", required=True, help="Campaign identifier")
+    pcv.set_defaults(func=cmd_campaign_validate)
+
+    pcrv = sub.add_parser("campaign-review", help="Generate campaign review report")
+    pcrv.add_argument("--campaign-id", required=True, help="Campaign identifier")
+    pcrv.set_defaults(func=cmd_campaign_review)
+
+    pca = sub.add_parser("campaign-approve", help="Approve a campaign candidate")
+    pca.add_argument("--campaign-id", required=True, help="Campaign identifier")
+    pca.add_argument("--run-id", required=True, help="Run identifier")
+    pca.add_argument("--notes", required=True, help="Approval notes")
+    pca.set_defaults(func=cmd_campaign_approve)
+
+    pcrj = sub.add_parser("campaign-reject", help="Reject a campaign candidate")
+    pcrj.add_argument("--campaign-id", required=True, help="Campaign identifier")
+    pcrj.add_argument("--run-id", required=True, help="Run identifier")
+    pcrj.add_argument("--reason", required=True, help="Rejection reason")
+    pcrj.set_defaults(func=cmd_campaign_reject)
+
+    pcnr = sub.add_parser(
+        "campaign-needs-rework", help="Mark candidate as needs-rework"
+    )
+    pcnr.add_argument("--campaign-id", required=True, help="Campaign identifier")
+    pcnr.add_argument("--run-id", required=True, help="Run identifier")
+    pcnr.add_argument("--reason", required=True, help="Reason for rework")
+    pcnr.add_argument("--suggestions", required=True, help="Suggestions for rework")
+    pcnr.set_defaults(func=cmd_campaign_needs_rework)
+
+    pce = sub.add_parser("campaign-enrich", help="Enrich campaign dataset")
+    pce.add_argument("--campaign-id", required=True, help="Campaign identifier")
+    pce.set_defaults(func=cmd_campaign_enrich)
+
+    pcpb = sub.add_parser(
+        "campaign-publish", help="Publish campaign dataset to master trade log"
+    )
+    pcpb.add_argument("--campaign-id", required=True, help="Campaign identifier")
+    pcpb.set_defaults(func=cmd_campaign_publish)
 
     args = p.parse_args()
     return int(args.func(args))

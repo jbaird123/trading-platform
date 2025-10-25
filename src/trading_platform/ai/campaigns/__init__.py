@@ -18,6 +18,13 @@ from .models import (
     ValidationReport,
 )
 from .publisher import publish_campaign_dataset
+from .review import (
+    approve_candidate,
+    generate_review_report,
+    mark_needs_rework,
+    reject_candidate,
+)
+from .validator import validate_campaign_candidates
 
 __all__ = [
     "CampaignConfig",
@@ -34,6 +41,11 @@ __all__ = [
     "ValidationReport",
     "EnrichmentResult",
     "PublishResult",
+    "validate_campaign_candidates",
+    "generate_review_report",
+    "approve_candidate",
+    "reject_candidate",
+    "mark_needs_rework",
     "enrich_campaign_dataset",
     "publish_campaign_dataset",
 ]
