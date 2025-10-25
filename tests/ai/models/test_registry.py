@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+from trading_platform.ai.models.performance_diagnostic import PerformanceDiagnosticModel
 from trading_platform.ai.models.profitability import ProfitabilityModel
 from trading_platform.ai.models.registry import ModelRegistry
 
@@ -275,3 +276,47 @@ class TestModelRegistry:
         # Verify they're different instances
         assert registry.get_model("profitability", "5min_trend_following") is prof_model
         assert registry.get_model("diagnostic", "5min_trend_following") is diag_model
+
+    def test_train_all_diagnostic_from_enriched(
+        self, temp_dir, sample_trades_df, mocker
+    ):
+        """Verify that enriched data is unpacked before training diagnostic models."""
+        registry = ModelRegistry(model_dir=temp_dir)
+
+        # Add the nested post_exit_analysis_simulated_holds column to sample data
+        sample_trades_df["post_exit_analysis_simulated_holds"] = [
+            [
+                {"hold_bars": 10, "pnl": 50.0, "exit_reason": "horizon_reached"},
+                {"hold_bars": 20, "pnl": -25.0, "exit_reason": "stop_loss_hit"},
+            ]
+        ] * len(sample_trades_df)
+
+        # Add r_multiple column (needed by PerformanceDiagnosticModel)
+        # Need diverse values for quintile classification
+        import numpy as np
+
+        np.random.seed(42)
+        sample_trades_df["r_multiple"] = np.random.uniform(-2.0, 3.0, 200)
+
+        # Spy on PerformanceDiagnosticModel.fit to verify the unpacked data
+        fit_spy = mocker.spy(PerformanceDiagnosticModel, "fit")
+
+        # Train diagnostic models
+        trained_models = registry.train_all_diagnostic_from_enriched(sample_trades_df)
+
+        # Verify that fit was called
+        assert fit_spy.call_count > 0
+
+        # Get the DataFrame that was passed to the first fit call
+        first_call_args = fit_spy.call_args_list[0]
+        df_passed_to_fit = first_call_args[0][1]  # self, df
+
+        # Verify the DataFrame has the unpacked columns and not the original
+        assert "sim_hold_10_pnl" in df_passed_to_fit.columns
+        assert "sim_hold_10_exit_reason" in df_passed_to_fit.columns
+        assert "sim_hold_20_pnl" in df_passed_to_fit.columns
+        assert "sim_hold_20_exit_reason" in df_passed_to_fit.columns
+        assert "post_exit_analysis_simulated_holds" not in df_passed_to_fit.columns
+
+        # Verify all contexts were trained
+        assert len(trained_models) == 4
