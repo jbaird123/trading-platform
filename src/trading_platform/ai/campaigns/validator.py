@@ -296,6 +296,35 @@ def validate_campaign_candidates(
     with open(report_path, "w") as f:
         json.dump(report.model_dump(), f, indent=2)
 
+    # Create index.json with performance metrics for review report
+    index_data = []
+    for candidate_dir in candidate_dirs:
+        brief_path = candidate_dir / "brief.json"
+        if not brief_path.exists():
+            continue
+
+        with open(brief_path) as f:
+            brief = json.load(f)
+
+        # Extract key metrics for review
+        overall_perf = brief.get("overall_performance", {})
+        equity_stats = brief.get("equity_stats", {})
+
+        index_entry = {
+            "run_id": candidate_dir.name,
+            "total_pnl": overall_perf.get("total_pnl", 0.0),
+            "win_rate": overall_perf.get("win_rate", 0.0),
+            "n_trades": overall_perf.get("n_trades", 0),
+            "sharpe_ratio": equity_stats.get("sharpe_ratio", 0.0),
+            "max_drawdown": equity_stats.get("max_drawdown_pct", 0.0),
+            "final_equity": overall_perf.get("final_equity", 0.0),
+        }
+        index_data.append(index_entry)
+
+    index_path = candidates_dir / "index.json"
+    with open(index_path, "w") as f:
+        json.dump(index_data, f, indent=2)
+
     # Update audit log
     audit_log_path = data_root / "docs" / "ai" / "logs" / "campaign_audit.md"
     audit_log_path.parent.mkdir(parents=True, exist_ok=True)
