@@ -60,7 +60,9 @@ See Also
 - Documentation: docs/ai/ml_models_architecture.md
 """
 
-from trading_platform.ai.models.diagnostic import PerformanceDiagnosticModel
+from trading_platform.ai.models.performance_diagnostic import (
+    PerformanceDiagnosticModel,
+)
 from trading_platform.ai.models.profitability import ProfitabilityModel
 from trading_platform.ai.models.registry import ModelRegistry
 

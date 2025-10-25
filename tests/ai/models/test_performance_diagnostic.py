@@ -6,7 +6,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-from trading_platform.ai.models.diagnostic import PerformanceDiagnosticModel
+from trading_platform.ai.models.performance_diagnostic import (
+    PerformanceDiagnosticModel,
+)
 
 
 @pytest.fixture

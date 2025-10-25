@@ -207,7 +207,7 @@ poetry run pytest tests/ai/models/ -v
 
 # Test specific model
 poetry run pytest tests/ai/models/test_profitability.py -v
-poetry run pytest tests/ai/models/test_diagnostic.py -v
+poetry run pytest tests/ai/models/test_performance_diagnostic.py -v
 poetry run pytest tests/ai/models/test_registry.py -v
 ```
 
