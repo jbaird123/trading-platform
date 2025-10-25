@@ -1,6 +1,6 @@
 campaign_id: trend_following_15m_v1
 strategy_path: config/strategy/ema_crossover.yaml
-execution_timeframe: 15m
+execution_timeframe: 15min
 strategy_archetype: trend_following
 description: "EMA crossover trend following on 15m timeframe with multi-timeframe context"
 
@@ -31,13 +31,13 @@ contextual_features:
     type: RSI
     params:
       length: 14
-    timeframe: 1h
+    timeframe: 1H
 
   - name: h4_ema_50
     type: EMA
     params:
       length: 50
-    timeframe: 4h
+    timeframe: 4H
 
   - name: d1_atr
     type: ATR
