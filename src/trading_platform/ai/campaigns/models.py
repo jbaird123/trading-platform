@@ -98,3 +98,35 @@ class CampaignPlan(BaseModel):
     provenance: Provenance = Field(..., description="Provenance metadata")
     rem_path: Optional[Path] = Field(default=None, description="Path to REM config")
     rmm_path: Optional[Path] = Field(default=None, description="Path to RMM config")
+
+
+class RunResult(BaseModel):
+    """Result of a single backtest run execution."""
+
+    model_config = {"extra": "forbid"}
+
+    run_id: str = Field(..., description="Unique run identifier")
+    status: str = Field(..., description="Execution status (success/failed)")
+    exit_code: int = Field(..., description="Process exit code")
+    stdout: str = Field(default="", description="Standard output")
+    stderr: str = Field(default="", description="Standard error")
+    execution_time_seconds: float = Field(
+        ..., description="Execution duration in seconds"
+    )
+
+
+class ExecutionResults(BaseModel):
+    """Results of campaign batch execution."""
+
+    model_config = {"extra": "forbid"}
+
+    campaign_id: str = Field(..., description="Campaign identifier")
+    total_runs: int = Field(..., description="Total number of runs")
+    successful: int = Field(..., description="Number of successful runs")
+    failed: int = Field(..., description="Number of failed runs")
+    execution_log_path: Path = Field(..., description="Path to execution log")
+    started_at: str = Field(..., description="ISO timestamp of start")
+    completed_at: str = Field(..., description="ISO timestamp of completion")
+    run_results: List["RunResult"] = Field(
+        default_factory=list, description="Individual run results"
+    )

@@ -1,6 +1,14 @@
 """Campaign runner for automated backtest orchestration."""
 
-from .models import CampaignConfig, CampaignPlan, Provenance, RunMatrixEntry, SingleRun
+from .models import (
+    CampaignConfig,
+    CampaignPlan,
+    ExecutionResults,
+    Provenance,
+    RunMatrixEntry,
+    RunResult,
+    SingleRun,
+)
 
 __all__ = [
     "CampaignConfig",
@@ -8,4 +16,6 @@ __all__ = [
     "Provenance",
     "SingleRun",
     "CampaignPlan",
+    "RunResult",
+    "ExecutionResults",
 ]
