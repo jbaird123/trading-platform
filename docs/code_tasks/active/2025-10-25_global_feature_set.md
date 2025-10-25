@@ -1,6 +1,6 @@
 # Global Feature Set Implementation Plan
 
-This document outlines the tasks required to implement a global, mandatory feature set that will be automatically included in every backtest. This ensures feature consistency for ML models across training, analysis, and live trading environments.
+This document outlines the tasks required to implement a global, mandatory feature set that will be automatically included in every backtest. This ensures feature consistency for ML models across training, analysis, and live trading environments. The implementation will be validation-first, use a shared utility to ensure backtest/live parity, and intelligently filter features based on the execution timeframe.
 
 ---
 
@@ -12,31 +12,21 @@ This document outlines the tasks required to implement a global, mandatory featu
 
 1.  [ ] Create a new directory `config/features/`.
 2.  [ ] Inside `config/features/`, create a new file named `global.yaml`.
-3.  [ ] Populate `config/features/global.yaml` with the following content. This file will serve as the single source of truth for the core feature set.
+3.  [ ] Populate `config/features/global.yaml` with the following content:
 
     ```yaml
     # Global features that are ALWAYS included in every backtest context.
-    # This ensures ML models have a consistent baseline of information.
-
     features:
-      # --- 15-minute Timeframe Features ---
       - name: "rsi_14_15m"
         type: "RSI"
         params: { "length": 14 }
         timeframe: "15min"
 
-      - name: "atr_14_15m"
+      - name: "atr_14_1h"
         type: "ATR"
         params: { "length": 14 }
-        timeframe: "15min"
-
-      # --- 1-hour Timeframe Features ---
-      - name: "ema_50_1h"
-        type: "EMA"
-        params: { "length": 50 }
         timeframe: "1H"
 
-      # --- Daily Timeframe Features ---
       - name: "volume_sma_20_1d"
         type: "SMA"
         params: { "length": 20 }
@@ -44,64 +34,44 @@ This document outlines the tasks required to implement a global, mandatory featu
         timeframe: "1D"
     ```
 
-### 3. Fix and Enhance Feature Source Logic
+### 3. Strengthen Feature Configuration and Validation
 
-1.  [ ] **Add Test for Volume Source:** Open `tests/strategy/test_features.py`. Add a new test function that specifically tests the internal `_price_series` function from `src/trading_platform/strategy/indicator_implementations.py`. The test must:
-    *   Create a sample DataFrame with `open`, `high`, `low`, `close`, and `volume` columns.
-    *   Call `_price_series(df, source="volume")`.
-    *   Assert that the returned pandas Series is identical to the `volume` column of the original DataFrame.
+1.  [ ] **Add Pydantic Validation Test:** Locate the file containing the `FeatureConfig` Pydantic model (likely `src/trading_platform/core/config.py`). In the corresponding test file, add a new test that attempts to create a `FeatureConfig` instance with an invalid `source` (e.g., `source="invalid_source"`) and asserts that a `pydantic.ValidationError` is raised.
 
-2.  [ ] **Implement Volume Source Fix:** Open `src/trading_platform/strategy/indicator_implementations.py`. Modify the `_price_series` function to correctly handle `"volume"` as a source. The updated function should look like this:
+2.  [ ] **Implement Pydantic Validation:** In the `FeatureConfig` Pydantic model, modify the `source` field from `str` to a `typing.Literal` to enforce a strict set of allowed values, including `"volume"`.
 
     ```python
-    def _price_series(df: pd.DataFrame, source: str) -> pd.Series:
-        """Convert source string to price series."""
-        if source in ("open", "high", "low", "close", "volume"):
-            return pd.Series(df[source], dtype="float64")
-        if source == "hl2":
-            return (pd.Series(df["high"]) + pd.Series(df["low"])) / 2.0
-        if source == "ohlc4":
-            return (
-                pd.Series(df["open"])
-                + pd.Series(df["high"])
-                + pd.Series(df["low"])
-                + pd.Series(df["close"])
-            ) / 4.0
-        return pd.Series(df["close"], dtype="float64")
+    source: Literal["open", "high", "low", "close", "volume", "hl2", "ohlc4"] = "close"
     ```
 
-### 4. Add Test Coverage for Global Feature Loading
+3.  [ ] **Add Strictness Test for `_price_series`:** In `tests/strategy/test_features.py`, add a test for the internal `_price_series` function that calls it with an invalid source string and asserts that it raises a `ValueError`.
 
-1.  [ ] Open the test file `tests/backtester/test_core.py`.
-2.  [ ] Add a new test function `test_run_backtest_with_global_and_run_specific_features`. In this test:
-    *   Create a mock `RunConfig` that includes a `contextual_features` list with one or two strategy-specific features.
-    *   Mock the loading of the `config/features/global.yaml` file to return the feature set defined above.
-    *   Call `run_backtest`.
-    *   Assert that the call to the `compute_features` function (you will need to mock this function using `unittest.mock.patch`) receives a merged list containing **both** the global features and the run-specific features.
-3.  [ ] Add a new test function `test_run_backtest_handles_duplicate_features`. In this test:
-    *   Define a global feature set and a run-specific `contextual_features` set that contains one duplicate feature (e.g., both define `rsi_14_15m`).
-    *   Assert that the run-specific feature definition overrides the global one in the final merged list passed to `compute_features`.
-    *   Assert that a warning is logged, e.g., `logging.warning("Duplicate feature '...' found in RunConfig, overriding global definition.")`.
-4.  [ ] Add a new test function `test_run_backtest_with_global_features_only`. In this test:
-    *   Create a `RunConfig` with `contextual_features` being `None` or empty.
-    *   Assert that `compute_features` is called with only the features from `global.yaml`.
-5.  [ ] Add a new test function `test_run_backtest_gracefully_handles_missing_global_config`. In this test:
-    *   Mock the loading of `config/features/global.yaml` to raise a `FileNotFoundError`.
-    *   Assert that `run_backtest` executes without error and that `compute_features` is called with only the run-specific features (if any).
+4.  [ ] **Implement Strict `_price_series` Logic:** In `src/trading_platform/strategy/indicator_implementations.py`, modify the `_price_series` function to be strict. It must no longer default to `"close"` and must raise a `ValueError` if the `source` is not recognized.
 
-### 5. Implement the Feature Loading and Merging Logic
+### 4. Create Shared Feature Resolver Utility
 
-1.  [ ] Open `src/trading_platform/backtester/core.py`.
-2.  [ ] At the top of the `run_backtest` function, add logic to load and parse the `config/features/global.yaml` file. This should be wrapped in a `try...except FileNotFoundError` block to handle the file not existing.
-3.  [ ] Before the existing call to `compute_features`, implement the merging logic:
-    *   Start with the global features as the base list.
-    *   Iterate through the `config.contextual_features` (if any).
-    *   If a feature from the run config already exists in the global list (checked by `name`), replace the one in the global list and log a warning about the override.
-    *   If it doesn't exist, append it to the list.
-    *   The final merged list of features should be used in the call to `compute_features`.
+1.  [ ] **Add Tests for Feature Resolver:** Create a new test file `tests/core/test_feature_resolver.py`. Add test functions for the new `resolve_feature_set` utility that cover the following cases:
+    *   It correctly merges features from `global.yaml` and the `RunConfig`.
+    *   It correctly filters out features with a timeframe smaller than the `execution_timeframe`.
+    *   It logs a warning when a feature is filtered out due to its timeframe.
+    *   It correctly handles overrides (run-specific features replace global ones) and logs a warning.
+    *   It functions correctly when `global.yaml` is missing or when `contextual_features` is empty.
+
+2.  [ ] **Implement Feature Resolver Utility:** Create a new file `src/trading_platform/core/feature_resolver.py`. In this file, create a function `resolve_feature_set(config: RunConfig) -> list[dict]`. This function will contain all the logic for:
+    *   Loading the `global.yaml` file.
+    *   Loading the `contextual_features` from the `config` object.
+    *   Merging the two lists.
+    *   Filtering the merged list based on the `config.execution_timeframe`.
+    *   Returning the final, clean list of feature specifications.
+
+### 5. Integrate Feature Resolver into Backtester
+
+1.  [ ] **Update Backtester Tests:** Open `tests/backtester/test_core.py`. Modify the tests related to feature computation. Instead of mocking file loading or checking the list manually, you should now mock the new `resolve_feature_set` utility. Assert that `run_backtest` calls it once with the correct `config`, and that the return value from the mock is what gets passed to `compute_features`.
+
+2.  [ ] **Refactor Backtester:** Open `src/trading_platform/backtester/core.py`. In the `run_backtest` function, remove all the feature loading, merging, and filtering logic you would have added. Replace it with a single call to the new `resolve_feature_set(config)` utility. The result of this call is the feature list that will be passed to `compute_features`.
 
 ### 6. Final Verification
 
 1.  [ ] Run the entire test suite using `pytest`.
 2.  [ ] Confirm that all new and existing tests pass.
-3.  [ ] Run `pytest --cov` and ensure that the code you added or modified has 100% test coverage.
+3.  [ ] Run `pytest --cov` and ensure that all code you added or modified has 100% test coverage.
