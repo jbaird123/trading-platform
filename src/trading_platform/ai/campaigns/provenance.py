@@ -55,9 +55,9 @@ class ProvenanceCollector:
         )
         git_commit = git_commit_result.stdout.strip()
 
-        # Get DVC version
+        # Get DVC version (use poetry run to match project workflow)
         dvc_version_result = subprocess.run(
-            ["dvc", "version", "--machine-readable"],
+            ["poetry", "run", "dvc", "version", "--machine-readable"],
             cwd=self.project_root,
             capture_output=True,
             text=True,
@@ -66,15 +66,19 @@ class ProvenanceCollector:
         # Parse DVC version from output (first line is version)
         dvc_version = dvc_version_result.stdout.strip().split()[0]
 
-        # Get DVC data snapshot ID
+        # Get DVC data snapshot ID (gracefully handle missing data.dvc)
         data_snapshot_result = subprocess.run(
             ["git", "rev-parse", "HEAD:data.dvc"],
             cwd=self.project_root,
             capture_output=True,
             text=True,
-            check=True,
+            check=False,
         )
-        data_snapshot_id = data_snapshot_result.stdout.strip()
+        if data_snapshot_result.returncode == 0:
+            data_snapshot_id = data_snapshot_result.stdout.strip()
+        else:
+            # No data.dvc file - use git HEAD as fallback
+            data_snapshot_id = git_commit[:8]
 
         # Compute poetry.lock SHA256
         poetry_lock_path = self.project_root / "poetry.lock"
