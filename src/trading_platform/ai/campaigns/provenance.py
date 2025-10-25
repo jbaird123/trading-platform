@@ -57,14 +57,15 @@ class ProvenanceCollector:
 
         # Get DVC version (use poetry run to match project workflow)
         dvc_version_result = subprocess.run(
-            ["poetry", "run", "dvc", "version", "--machine-readable"],
+            ["poetry", "run", "dvc", "version"],
             cwd=self.project_root,
             capture_output=True,
             text=True,
             check=True,
         )
-        # Parse DVC version from output (first line is version)
-        dvc_version = dvc_version_result.stdout.strip().split()[0]
+        # Parse DVC version from output (format: "DVC version: X.Y.Z")
+        first_line = dvc_version_result.stdout.strip().split("\n")[0]
+        dvc_version = first_line.split(":")[1].strip().split()[0]
 
         # Get DVC data snapshot ID (gracefully handle missing data.dvc)
         data_snapshot_result = subprocess.run(
