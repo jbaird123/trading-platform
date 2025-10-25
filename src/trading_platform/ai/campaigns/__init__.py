@@ -11,11 +11,13 @@ from .models import (
     EnrichmentResult,
     ExecutionResults,
     Provenance,
+    PublishResult,
     RunMatrixEntry,
     RunResult,
     SingleRun,
     ValidationReport,
 )
+from .publisher import publish_campaign_dataset
 
 __all__ = [
     "CampaignConfig",
@@ -31,5 +33,7 @@ __all__ = [
     "CandidateValidation",
     "ValidationReport",
     "EnrichmentResult",
+    "PublishResult",
     "enrich_campaign_dataset",
+    "publish_campaign_dataset",
 ]

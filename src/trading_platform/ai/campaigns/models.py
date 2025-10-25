@@ -218,3 +218,21 @@ class EnrichmentResult(BaseModel):
     )
     output_path: Path = Field(..., description="Path to enriched parquet file")
     enriched_at: str = Field(..., description="ISO timestamp of enrichment")
+
+
+class PublishResult(BaseModel):
+    """Result of campaign dataset publishing."""
+
+    model_config = {"extra": "forbid"}
+
+    campaign_id: str = Field(..., description="Campaign identifier")
+    total_trades_published: int = Field(
+        ..., description="Total trades published to master log"
+    )
+    output_path: Path = Field(..., description="Path to master trade log")
+    sha256_checksum: str = Field(..., description="SHA256 checksum of master log")
+    published_at: str = Field(..., description="ISO timestamp of publishing")
+    master_log_updated: bool = Field(..., description="Whether master log was updated")
+    dvc_tracking_updated: bool = Field(
+        ..., description="Whether DVC tracking was updated"
+    )
