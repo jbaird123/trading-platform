@@ -21,8 +21,8 @@ from trading_platform.ai.evaluation.procedure import AIEvaluationProcedure
 from trading_platform.ai.feature_engineering.pipeline import (
     FeatureEngineeringPipeline,
 )
-from trading_platform.ai.synthesis.engine import DiagnosticSynthesisEngine
 from trading_platform.core import paths
+from trading_platform.reporting.diagnostics import RuleBasedAnalyzer
 
 # Conditional import for type checking
 # In a real implementation, you would have a more robust way to handle this
@@ -196,9 +196,9 @@ class AITrainingPipeline:
         # Clean up temporary directory and all contents
         shutil.rmtree(temp_dir)
 
-        # 4. Run Diagnostic Synthesis Engine
-        print("Running Diagnostic Synthesis Engine...")
-        synthesis_engine = DiagnosticSynthesisEngine(
+        # 4. Run Rule-Based Analyzer
+        print("Running Rule-Based Analyzer...")
+        analyzer = RuleBasedAnalyzer(
             analysis_data={
                 "metrics": metrics,
                 "synthesis_config": self.config.get("synthesis", {}),
@@ -207,10 +207,8 @@ class AITrainingPipeline:
                 "y": y,
             }
         )
-        synthesis_engine.run()  # Call run without arguments
-        synthesis_results = json.loads(
-            synthesis_engine.generate_report_json()
-        )  # Get results
+        analyzer.run()  # Call run without arguments
+        synthesis_results = json.loads(analyzer.generate_report_json())  # Get results
         print(f"Diagnostic Synthesis Engine results: {synthesis_results}")
         mlflow.log_dict(synthesis_results, "diagnostic_synthesis_results.json")
 

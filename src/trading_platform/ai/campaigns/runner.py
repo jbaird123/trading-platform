@@ -7,6 +7,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from time import time
+from typing import Any
 
 import yaml
 
@@ -66,24 +67,74 @@ def execute_campaign_runs(
             )
             log_file.flush()
 
+            # Create RunConfig for this run
+            run_config_dir = runs_dir / run.run_id
+            run_config_dir.mkdir(parents=True, exist_ok=True)
+            run_config_path = run_config_dir / "run_config.yaml"
+
+            # Load base strategy and apply parameter overrides
+            from pathlib import Path as PathType
+
+            strategy_path_resolved = (
+                PathType(plan.strategy_path)
+                if not PathType(plan.strategy_path).is_absolute()
+                else plan.strategy_path
+            )
+            with open(strategy_path_resolved) as f:
+                strategy_data = yaml.safe_load(f)
+
+            # Apply parameter overrides to strategy
+            if run.param_overrides:
+                if "parameters" not in strategy_data:
+                    strategy_data["parameters"] = {}
+                strategy_data["parameters"].update(run.param_overrides)
+
+            # Build RunConfig data structure
+            run_config_data: dict[str, Any] = {
+                "run_id": run.run_id,
+                "user_id": "campaign_runner",
+                "runs_dir": str(runs_dir.parent),
+                "data_request": {
+                    "symbol": run.instrument,
+                    "timeframe": plan.execution_timeframe,
+                    "start": run.start_date,
+                    "end": run.end_date,
+                },
+                "strategy": strategy_data,
+                "execution_model": "next_bar_open",
+                "post_exit_analysis": {
+                    "enabled": True,
+                    "horizons": [10, 20, 50],
+                },
+            }
+
+            # Add contextual features if specified
+            if plan.contextual_features:
+                features_list: list[dict[str, Any]] = [
+                    f.model_dump() for f in plan.contextual_features
+                ]
+                run_config_data["contextual_features"] = features_list
+
+            # Add REM config if specified
+            if plan.rem_path:
+                run_config_data["rem_path"] = str(plan.rem_path)
+
+            # Add RMM config if specified
+            if plan.rmm_path:
+                run_config_data["rmm_path"] = str(plan.rmm_path)
+
+            # Save RunConfig to YAML
+            with open(run_config_path, "w") as f:
+                yaml.dump(run_config_data, f, default_flow_style=False)
+
             # Build command to execute backtest
-            # For now, we'll use a simple approach - in production this would
-            # invoke the actual backtest execution
             cmd = [
                 "poetry",
                 "run",
                 "tp",
                 "run-backtest",
-                "--run-id",
-                run.run_id,
-                "--instrument",
-                run.instrument,
-                "--start-date",
-                run.start_date,
-                "--end-date",
-                run.end_date,
-                "--campaign-id",
-                plan.campaign_id,
+                "--config",
+                str(run_config_path),
             ]
 
             # Execute the run
@@ -100,6 +151,29 @@ def execute_campaign_runs(
                     f"[{datetime.now(timezone.utc).isoformat()}] "
                     f"Completed: {run.run_id} (success)\n"
                 )
+
+                # Copy brief.json to candidates directory for validation
+                import shutil
+
+                from trading_platform.core import paths
+
+                brief_src = (
+                    paths.RUNS_DIR / "campaign_runner" / run.run_id / "brief.json"
+                )
+                if brief_src.exists():
+                    candidates_dir = (
+                        paths.PROJECT_ROOT
+                        / "data"
+                        / "candidates"
+                        / plan.campaign_id
+                        / run.run_id
+                    )
+                    candidates_dir.mkdir(parents=True, exist_ok=True)
+                    shutil.copy(brief_src, candidates_dir / "brief.json")
+                    log_file.write(
+                        f"[{datetime.now(timezone.utc).isoformat()}] "
+                        f"Copied brief to candidates: {candidates_dir}\n"
+                    )
             else:
                 status = "failed"
                 failed += 1

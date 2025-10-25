@@ -821,16 +821,16 @@ class TestTrainModelFlag:
         )
 
         with patch(
-            "trading_platform.cli.DiagnosticSynthesisEngine"
-        ) as mock_engine_cls, patch(
+            "trading_platform.cli.RuleBasedAnalyzer"
+        ) as mock_analyzer_cls, patch(
             "trading_platform.ai.lab.trainer.train_profitability_model"
         ) as mock_train, patch(
             "trading_platform.ai.lab.trainer.save_model"
         ) as mock_save:
-            mock_engine = MagicMock()
-            mock_engine_cls.return_value = mock_engine
-            mock_engine.generate_report_markdown.return_value = "# Report"
-            mock_engine.generate_report_json.return_value = json.dumps(
+            mock_analyzer = MagicMock()
+            mock_analyzer_cls.return_value = mock_analyzer
+            mock_analyzer.generate_report_markdown.return_value = "# Report"
+            mock_analyzer.generate_report_json.return_value = json.dumps(
                 {"recommendations": []}
             )
 

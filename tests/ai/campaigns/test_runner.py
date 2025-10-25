@@ -31,9 +31,21 @@ def sample_provenance():
 @pytest.fixture
 def single_run_plan(sample_provenance, tmp_path):
     """Campaign plan with a single run."""
+    # Create the strategy file that the runner will load
+    strategy_path = tmp_path / "strategy.yaml"
+    strategy_data = {
+        "strategy_name": "TestStrategy",
+        "parameters": {"param1": 10},
+        "features": [],
+        "long_entry_rules": [],
+        "long_exit_rules": [],
+    }
+    with open(strategy_path, "w") as f:
+        yaml.dump(strategy_data, f)
+
     return CampaignPlan(
         campaign_id="test_campaign_001",
-        strategy_path=tmp_path / "strategy.yaml",
+        strategy_path=strategy_path,
         execution_timeframe="1h",
         strategy_archetype="trend_following",
         runs=[
@@ -54,9 +66,21 @@ def single_run_plan(sample_provenance, tmp_path):
 @pytest.fixture
 def multi_run_plan(sample_provenance, tmp_path):
     """Campaign plan with three runs."""
+    # Create the strategy file that the runner will load
+    strategy_path = tmp_path / "strategy.yaml"
+    strategy_data = {
+        "strategy_name": "TestStrategy",
+        "parameters": {"param1": 10},
+        "features": [],
+        "long_entry_rules": [],
+        "long_exit_rules": [],
+    }
+    with open(strategy_path, "w") as f:
+        yaml.dump(strategy_data, f)
+
     return CampaignPlan(
         campaign_id="test_campaign_002",
-        strategy_path=tmp_path / "strategy.yaml",
+        strategy_path=strategy_path,
         execution_timeframe="1h",
         strategy_archetype="trend_following",
         runs=[

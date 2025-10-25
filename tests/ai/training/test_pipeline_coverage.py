@@ -544,9 +544,9 @@ class TestAITrainingPipeline:
             mock_log_params.assert_called_once_with({"n_estimators": 20})
 
     @patch("trading_platform.ai.training.pipeline.AIEvaluationProcedure")
-    @patch("trading_platform.ai.training.pipeline.DiagnosticSynthesisEngine")
+    @patch("trading_platform.ai.training.pipeline.RuleBasedAnalyzer")
     def test_evaluate_and_log_artifacts(
-        self, mock_synthesis_cls, mock_eval_cls, mock_config
+        self, mock_analyzer_cls, mock_eval_cls, mock_config
     ):
         """Test evaluation and artifact logging - covers lines 262."""
         from trading_platform.ai.training.pipeline import AITrainingPipeline
@@ -560,11 +560,11 @@ class TestAITrainingPipeline:
         mock_evaluator.run.return_value = {"accuracy": 0.85, "nested": {"f1": 0.80}}
         mock_eval_cls.return_value = mock_evaluator
 
-        # Setup synthesis mocks
-        mock_synthesis = MagicMock()
-        mock_synthesis.run.return_value = None
-        mock_synthesis.generate_report_json.return_value = '{"insights": ["test"]}'
-        mock_synthesis_cls.return_value = mock_synthesis
+        # Setup analyzer mocks
+        mock_analyzer = MagicMock()
+        mock_analyzer.run.return_value = None
+        mock_analyzer.generate_report_json.return_value = '{"insights": ["test"]}'
+        mock_analyzer_cls.return_value = mock_analyzer
 
         # Setup ONNX and MLflow mocks
         mock_onnx_model = MagicMock()
@@ -606,9 +606,9 @@ class TestAITrainingPipeline:
             assert onnx_path_arg.endswith(".onnx")
             assert mock_log_artifact.call_args[0][1] == "onnx_model"
 
-            # Verify synthesis engine
-            mock_synthesis.run.assert_called_once()
-            mock_synthesis.generate_report_json.assert_called_once()
+            # Verify rule-based analyzer
+            mock_analyzer.run.assert_called_once()
+            mock_analyzer.generate_report_json.assert_called_once()
             mock_log_dict.assert_called_once_with(
                 {"insights": ["test"]}, "diagnostic_synthesis_results.json"
             )
@@ -663,14 +663,14 @@ class TestAITrainingPipeline:
         ) as mock_convert, patch("mlflow.log_artifact") as mock_log_artifact, patch(
             "mlflow.log_dict"
         ) as mock_log_dict, patch(
-            "trading_platform.ai.training.pipeline.DiagnosticSynthesisEngine"
-        ) as mock_synth, patch("mlflow.log_metrics") as mock_log_metrics, patch(
+            "trading_platform.ai.training.pipeline.RuleBasedAnalyzer"
+        ) as mock_analyzer, patch("mlflow.log_metrics") as mock_log_metrics, patch(
             "builtins.open", mock.mock_open()
         ), patch("shutil.rmtree"):
             mock_convert.return_value = SimpleNamespace(SerializeToString=lambda: b"")
-            synth_instance = MagicMock()
-            synth_instance.generate_report_json.return_value = "{}"
-            mock_synth.return_value = synth_instance
+            analyzer_instance = MagicMock()
+            analyzer_instance.generate_report_json.return_value = "{}"
+            mock_analyzer.return_value = analyzer_instance
 
             pipeline._evaluate_and_log_artifacts(dummy_model, X, y)
 
@@ -687,10 +687,10 @@ class TestAITrainingPipeline:
     @patch("trading_platform.ai.training.pipeline.FeatureEngineeringPipeline")
     @patch("trading_platform.ai.training.pipeline.DataLabeler")
     @patch("trading_platform.ai.training.pipeline.AIEvaluationProcedure")
-    @patch("trading_platform.ai.training.pipeline.DiagnosticSynthesisEngine")
+    @patch("trading_platform.ai.training.pipeline.RuleBasedAnalyzer")
     def test_full_pipeline_run(
         self,
-        mock_synthesis_cls,
+        mock_analyzer_cls,
         mock_eval_cls,
         mock_labeler_cls,
         mock_fe_cls,
@@ -732,10 +732,10 @@ class TestAITrainingPipeline:
         mock_evaluator.run.return_value = {"accuracy": 0.85}
         mock_eval_cls.return_value = mock_evaluator
 
-        mock_synthesis = MagicMock()
-        mock_synthesis.run.return_value = None
-        mock_synthesis.generate_report_json.return_value = '{"test": true}'
-        mock_synthesis_cls.return_value = mock_synthesis
+        mock_analyzer = MagicMock()
+        mock_analyzer.run.return_value = None
+        mock_analyzer.generate_report_json.return_value = '{"test": true}'
+        mock_analyzer_cls.return_value = mock_analyzer
 
         mock_model = MagicMock()
         mock_onnx_model = MagicMock()

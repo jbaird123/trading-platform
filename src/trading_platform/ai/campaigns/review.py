@@ -65,7 +65,7 @@ def generate_review_report(campaign_id: str, data_root: Path | None = None) -> P
                 f"{c.get('total_pnl', 0):.2f} | "
                 f"{c.get('sharpe_ratio', 0):.2f} | "
                 f"{c.get('win_rate', 0):.2%} | "
-                f"{c.get('total_trades', 0)} |"
+                f"{c.get('n_trades', 0)} |"
             )
     else:
         report_lines.append("| No candidates found | - | - | - | - |")
@@ -87,7 +87,7 @@ def generate_review_report(campaign_id: str, data_root: Path | None = None) -> P
                 f"{c.get('total_pnl', 0):.2f} | "
                 f"{c.get('sharpe_ratio', 0):.2f} | "
                 f"{c.get('win_rate', 0):.2%} | "
-                f"{c.get('total_trades', 0)} |"
+                f"{c.get('n_trades', 0)} |"
             )
 
     report_lines.extend(

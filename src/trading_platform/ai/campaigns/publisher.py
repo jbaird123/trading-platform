@@ -56,9 +56,9 @@ def publish_campaign_dataset(campaign_id: str) -> PublishResult:
     with open(master_log_path, "rb") as f:
         checksum = hashlib.sha256(f.read()).hexdigest()
 
-    # Execute DVC tracking
-    subprocess.run(["dvc", "add", str(master_log_path)], check=True)
-    subprocess.run(["dvc", "push"], check=True)
+    # Execute DVC tracking (use poetry run to match project workflow)
+    subprocess.run(["poetry", "run", "dvc", "add", str(master_log_path)], check=True)
+    subprocess.run(["poetry", "run", "dvc", "push"], check=True)
     dvc_tracking_updated = True
 
     # Update curation history

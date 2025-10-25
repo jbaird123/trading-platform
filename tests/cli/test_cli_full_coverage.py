@@ -812,7 +812,7 @@ def test_cmd_ai_diagnose_train_and_qualitative(tmp_path, monkeypatch):
     brief = tmp_path / "brief.json"
     brief.write_text(json.dumps({"meta": {"id": "x"}}))
 
-    class DummyEngine:
+    class DummyAnalyzer:
         def __init__(self, analysis_data: dict[str, Any]) -> None:
             self.analysis_data = analysis_data
 
@@ -825,7 +825,7 @@ def test_cmd_ai_diagnose_train_and_qualitative(tmp_path, monkeypatch):
         def generate_report_json(self) -> str:
             return "{}"
 
-    monkeypatch.setattr(cli, "DiagnosticSynthesisEngine", DummyEngine)
+    monkeypatch.setattr(cli, "RuleBasedAnalyzer", DummyAnalyzer)
 
     monkeypatch.setattr(
         "trading_platform.ai.lab.trainer.train_profitability_model",
@@ -878,7 +878,7 @@ def test_cmd_ai_diagnose_qualitative_failure(tmp_path, monkeypatch):
     brief = tmp_path / "brief.json"
     brief.write_text(json.dumps({"meta": {}}))
 
-    class DummyEngine:
+    class DummyAnalyzer:
         def __init__(self, analysis_data: dict[str, Any]) -> None:
             self.analysis_data = analysis_data
 
@@ -891,7 +891,7 @@ def test_cmd_ai_diagnose_qualitative_failure(tmp_path, monkeypatch):
         def generate_report_json(self) -> str:
             return "{}"
 
-    monkeypatch.setattr(cli, "DiagnosticSynthesisEngine", DummyEngine)
+    monkeypatch.setattr(cli, "RuleBasedAnalyzer", DummyAnalyzer)
     monkeypatch.setattr(
         "trading_platform.ai.llm_analysis.client.LlmApiClient",
         lambda: object(),
