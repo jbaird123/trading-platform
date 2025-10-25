@@ -95,20 +95,20 @@ def test_cmd_ai_diagnose_with_brief(tmp_path: Path) -> None:
 
     args = argparse.Namespace(brief=str(brief_path), train_model=False)
 
-    with patch("trading_platform.cli.DiagnosticSynthesisEngine") as mock_engine:
+    with patch("trading_platform.cli.RuleBasedAnalyzer") as mock_analyzer:
         mock_instance = MagicMock()
         mock_instance.generate_report_markdown.return_value = "Diagnosis: Good strategy"
         mock_instance.generate_report_json.return_value = json.dumps(
             {"recommendations": ["Test recommendation"]}
         )
-        mock_engine.return_value = mock_instance
+        mock_analyzer.return_value = mock_instance
 
         from trading_platform.cli import cmd_ai_diagnose
 
         result = cmd_ai_diagnose(args)
 
         assert result == 0
-        mock_engine.assert_called_once()
+        mock_analyzer.assert_called_once()
 
 
 def test_cmd_ai_diagnose_missing_brief() -> None:

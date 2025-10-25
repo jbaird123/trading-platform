@@ -38,13 +38,13 @@ def mock_training_config_path(tmp_path):
 @patch("trading_platform.ai.training.pipeline.DataLabeler")
 @patch("trading_platform.ai.training.pipeline.RandomForestClassifier")
 @patch("trading_platform.ai.training.pipeline.AIEvaluationProcedure")
-@patch("trading_platform.ai.training.pipeline.DiagnosticSynthesisEngine")
+@patch("trading_platform.ai.training.pipeline.RuleBasedAnalyzer")
 @patch("trading_platform.ai.training.pipeline.convert_sklearn")
 @patch("shutil.rmtree")
 def test_training_pipeline_integration_flow(
     mock_shutil_rmtree,
     mock_convert_sklearn,
-    mock_synthesis_engine_cls,
+    mock_analyzer_cls,
     mock_eval_procedure_cls,
     mock_rf_classifier_cls,
     mock_data_labeler_cls,
@@ -84,9 +84,9 @@ def test_training_pipeline_integration_flow(
     mock_eval_procedure_instance = mock_eval_procedure_cls.return_value
     mock_eval_procedure_instance.run.return_value = {"accuracy": 0.95}
 
-    # Mock setup for synthesis engine
-    mock_synthesis_engine_instance = mock_synthesis_engine_cls.return_value
-    mock_synthesis_engine_instance.generate_report_json.return_value = (
+    # Mock setup for rule-based analyzer
+    mock_analyzer_instance = mock_analyzer_cls.return_value
+    mock_analyzer_instance.generate_report_json.return_value = (
         '{"report": "mock_report"}'
     )
 
@@ -129,10 +129,10 @@ def test_training_pipeline_integration_flow(
     # Verify shutil.rmtree was called with the temp directory
     assert mock_shutil_rmtree.call_count == 1
 
-    # Assertions for diagnostic synthesis engine
-    mock_synthesis_engine_cls.assert_called_once()
-    mock_synthesis_engine_instance.run.assert_called_once()
-    mock_synthesis_engine_instance.generate_report_json.assert_called_once()
+    # Assertions for rule-based analyzer
+    mock_analyzer_cls.assert_called_once()
+    mock_analyzer_instance.run.assert_called_once()
+    mock_analyzer_instance.generate_report_json.assert_called_once()
     mock_mlflow.log_dict.assert_called_once_with(
         {"report": "mock_report"}, "diagnostic_synthesis_results.json"
     )

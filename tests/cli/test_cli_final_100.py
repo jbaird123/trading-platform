@@ -328,11 +328,11 @@ class TestAIDiagnoseQualitativeReport:
             train=False,
         )
 
-        with patch("trading_platform.cli.DiagnosticSynthesisEngine") as mock_engine_cls:
-            mock_engine = MagicMock()
-            mock_engine_cls.return_value = mock_engine
-            mock_engine.generate_report_markdown.return_value = "# Report"
-            mock_engine.generate_report_json.return_value = json.dumps(
+        with patch("trading_platform.cli.RuleBasedAnalyzer") as mock_analyzer_cls:
+            mock_analyzer = MagicMock()
+            mock_analyzer_cls.return_value = mock_analyzer
+            mock_analyzer.generate_report_markdown.return_value = "# Report"
+            mock_analyzer.generate_report_json.return_value = json.dumps(
                 {"recommendations": []}
             )
 
@@ -363,11 +363,11 @@ class TestAIDiagnoseQualitativeReport:
             train=False,
         )
 
-        with patch("trading_platform.cli.DiagnosticSynthesisEngine") as mock_engine_cls:
-            mock_engine = MagicMock()
-            mock_engine_cls.return_value = mock_engine
-            mock_engine.generate_report_markdown.return_value = "# Report"
-            mock_engine.generate_report_json.return_value = json.dumps(
+        with patch("trading_platform.cli.RuleBasedAnalyzer") as mock_analyzer_cls:
+            mock_analyzer = MagicMock()
+            mock_analyzer_cls.return_value = mock_analyzer
+            mock_analyzer.generate_report_markdown.return_value = "# Report"
+            mock_analyzer.generate_report_json.return_value = json.dumps(
                 {"recommendations": []}
             )
 

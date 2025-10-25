@@ -497,8 +497,8 @@ def test_aitp_evaluate_and_log_artifacts(mock_config_path):
         patch("trading_platform.ai.training.pipeline.mlflow") as mock_mlflow,
         patch("trading_platform.ai.training.pipeline.convert_sklearn") as mock_convert,
         patch(
-            "trading_platform.ai.training.pipeline.DiagnosticSynthesisEngine"
-        ) as mock_synth_cls,
+            "trading_platform.ai.training.pipeline.RuleBasedAnalyzer"
+        ) as mock_analyzer_cls,
         patch("trading_platform.ai.training.pipeline.json.loads") as mock_json_loads,
     ):
         # Setup mock returns
@@ -514,9 +514,9 @@ def test_aitp_evaluate_and_log_artifacts(mock_config_path):
         mock_onnx.SerializeToString.return_value = b"onnx_bytes"
         mock_convert.return_value = mock_onnx
 
-        mock_synth_instance = MagicMock()
-        mock_synth_instance.generate_report_json.return_value = '{"report": "test"}'
-        mock_synth_cls.return_value = mock_synth_instance
+        mock_analyzer_instance = MagicMock()
+        mock_analyzer_instance.generate_report_json.return_value = '{"report": "test"}'
+        mock_analyzer_cls.return_value = mock_analyzer_instance
         mock_json_loads.return_value = {"report": "test"}
 
         # Create pipeline and test data
@@ -540,9 +540,9 @@ def test_aitp_evaluate_and_log_artifacts(mock_config_path):
         onnx_path_arg = mock_mlflow.log_artifact.call_args[0][0]
         assert onnx_path_arg.endswith(".onnx")
         assert mock_mlflow.log_artifact.call_args[0][1] == "onnx_model"
-        mock_synth_cls.assert_called_once()
-        mock_synth_instance.run.assert_called_once()
-        mock_synth_instance.generate_report_json.assert_called_once()
+        mock_analyzer_cls.assert_called_once()
+        mock_analyzer_instance.run.assert_called_once()
+        mock_analyzer_instance.generate_report_json.assert_called_once()
         mock_json_loads.assert_called_once_with('{"report": "test"}')
         mock_mlflow.log_dict.assert_called_once_with(
             {"report": "test"}, "diagnostic_synthesis_results.json"
