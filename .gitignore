@@ -248,3 +248,7 @@ model.onnx
 
 .numba_cache/
 src/trading_platform/py.typed
+
+data/enriched
+data/campaigns
+data/candidates
