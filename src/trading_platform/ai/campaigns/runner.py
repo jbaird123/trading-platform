@@ -102,6 +102,10 @@ def execute_campaign_runs(
                 },
                 "strategy": strategy_data,
                 "execution_model": "next_bar_open",
+                "post_exit_analysis": {
+                    "enabled": True,
+                    "horizons": [10, 20, 50],
+                },
             }
 
             # Add contextual features if specified
