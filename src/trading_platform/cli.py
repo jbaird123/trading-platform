@@ -15,7 +15,6 @@ from typing import Any, cast
 import pandas as pd
 
 from trading_platform.ai.data_curation import run_curation_pipeline
-from trading_platform.ai.synthesis.engine import DiagnosticSynthesisEngine
 from trading_platform.backtester.core import run_backtest
 from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
@@ -41,6 +40,7 @@ from trading_platform.reporting.chart_export import (
 )
 from trading_platform.reporting.compare_html import save_comparison_report
 from trading_platform.reporting.csv_export import save_prices_csv
+from trading_platform.reporting.diagnostics import RuleBasedAnalyzer
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
 from trading_platform.utils.cache import clear_numba_cache
@@ -651,7 +651,7 @@ def cmd_ai_diagnose(args: argparse.Namespace) -> int:
     except json.JSONDecodeError as e:
         raise ValueError(f"Error decoding brief.json: {e}")
 
-    # Map brief.json structure to what DiagnosticSynthesisEngine expects
+    # Map brief.json structure to what RuleBasedAnalyzer expects
     analysis_data = brief_data
 
     # Task 13.4: Train model if requested
@@ -666,14 +666,14 @@ def cmd_ai_diagnose(args: argparse.Namespace) -> int:
         save_model(model, str(model_path))
         print(f"Profitability model saved to {model_path}")
 
-    engine = DiagnosticSynthesisEngine(analysis_data=analysis_data)
-    engine.run()
+    analyzer = RuleBasedAnalyzer(analysis_data=analysis_data)
+    analyzer.run()
 
     output_dir = brief_path.parent
     (output_dir / "ai_diagnostic_report.md").write_text(
-        engine.generate_report_markdown()
+        analyzer.generate_report_markdown()
     )
-    diagnostic_json = engine.generate_report_json()
+    diagnostic_json = analyzer.generate_report_json()
     (output_dir / "ai_diagnostic_report.json").write_text(diagnostic_json)
 
     # Update brief.json with recommendations from diagnostic report

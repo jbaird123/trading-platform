@@ -1,71 +1,127 @@
 """Tests for RuleBasedAnalyzer - Heuristic diagnostic analysis.
 
-Note: These are placeholder tests for the stub implementation.
-Full tests will be added when the analyzer is fully implemented.
+Tests for the migrated RuleBasedAnalyzer implementation (from
+DiagnosticSynthesisEngine).
 """
 
-import pandas as pd
+import json
+
 import pytest
 from trading_platform.reporting.diagnostics import RuleBasedAnalyzer
 
 
 @pytest.fixture
-def sample_trades_df():
-    """Create sample trades DataFrame for testing."""
-    return pd.DataFrame(
-        {
-            "execution_timeframe": ["5min"] * 10,
-            "strategy_archetype": ["trend_following"] * 10,
-            "pnl": [10.0, -5.0, 15.0, -3.0, 8.0, -10.0, 12.0, -7.0, 20.0, -4.0],
-            "entry_time": pd.date_range("2024-01-01", periods=10, freq="1h"),
-            "exit_time": pd.date_range("2024-01-01 01:00", periods=10, freq="1h"),
-        }
-    )
+def sample_analysis_data():
+    """Create sample analysis data for testing."""
+    return {
+        "backtest_metrics": {
+            "n_trades": 100,
+            "win_rate": 0.55,
+            "sharpe_ratio": 1.2,
+            "total_pnl": 1500.0,
+        },
+        "trades": [
+            {
+                "id": 1,
+                "pnl": 10.0,
+                "entry_context": {"rsi": 30.0, "ema_fast": 1.05},
+                "mfe_currency": 15.0,
+                "mae_currency": 5.0,
+            },
+            {
+                "id": 2,
+                "pnl": -5.0,
+                "entry_context": {"rsi": 70.0, "ema_fast": 1.10},
+                "mfe_currency": 2.0,
+                "mae_currency": 8.0,
+            },
+        ],
+        "model_analysis": {
+            "avg_pnl_left_on_table_at_tp": 5.0,
+        },
+    }
 
 
 class TestRuleBasedAnalyzer:
-    """Test suite for RuleBasedAnalyzer stub."""
+    """Test suite for RuleBasedAnalyzer."""
 
-    def test_initialization(self):
-        """Verify analyzer can be instantiated."""
-        analyzer = RuleBasedAnalyzer()
+    def test_initialization(self, sample_analysis_data):
+        """Verify analyzer can be instantiated with analysis data."""
+        analyzer = RuleBasedAnalyzer(analysis_data=sample_analysis_data)
         assert analyzer is not None
+        assert analyzer.analysis_data == sample_analysis_data
+        assert analyzer.conclusions == []
+        assert analyzer.recommendations == []
 
-    def test_analyze_returns_dict(self, sample_trades_df):
-        """Verify analyze() returns expected structure."""
-        analyzer = RuleBasedAnalyzer()
-        result = analyzer.analyze(sample_trades_df)
+    def test_run_executes_rules(self, sample_analysis_data):
+        """Verify run() executes all rules."""
+        analyzer = RuleBasedAnalyzer(analysis_data=sample_analysis_data)
+        analyzer.run()
 
-        # Verify structure
-        assert isinstance(result, dict)
-        assert "findings" in result
-        assert "recommendations" in result
-        assert "metrics" in result
+        # Verify rules were executed (conclusions may or may not be generated)
+        assert isinstance(analyzer.conclusions, list)
+        assert isinstance(analyzer.recommendations, list)
 
-    def test_detect_win_rate_issues_returns_list(self, sample_trades_df):
-        """Verify detect_win_rate_issues() returns list."""
-        analyzer = RuleBasedAnalyzer()
-        findings = analyzer.detect_win_rate_issues(sample_trades_df)
+    def test_generate_report_markdown(self, sample_analysis_data):
+        """Verify generate_report_markdown() returns string."""
+        analyzer = RuleBasedAnalyzer(analysis_data=sample_analysis_data)
+        analyzer.run()
 
-        assert isinstance(findings, list)
+        report = analyzer.generate_report_markdown()
+        assert isinstance(report, str)
+        assert "# AI Diagnostic Report" in report
 
-    def test_detect_streak_patterns_returns_list(self, sample_trades_df):
-        """Verify detect_streak_patterns() returns list."""
-        analyzer = RuleBasedAnalyzer()
-        findings = analyzer.detect_streak_patterns(sample_trades_df)
+    def test_generate_report_json(self, sample_analysis_data):
+        """Verify generate_report_json() returns valid JSON."""
+        analyzer = RuleBasedAnalyzer(analysis_data=sample_analysis_data)
+        analyzer.run()
 
-        assert isinstance(findings, list)
+        report_json = analyzer.generate_report_json()
+        assert isinstance(report_json, str)
 
-    def test_detect_timing_issues_returns_list(self, sample_trades_df):
-        """Verify detect_timing_issues() returns list."""
-        analyzer = RuleBasedAnalyzer()
-        findings = analyzer.detect_timing_issues(sample_trades_df)
+        # Verify it's valid JSON
+        report_data = json.loads(report_json)
+        assert "conclusions" in report_data
+        assert "recommendations" in report_data
+        assert "model_insights" in report_data
+        assert "suggested_parameters" in report_data
 
-        assert isinstance(findings, list)
+    def test_with_empty_analysis_data(self):
+        """Verify analyzer handles empty analysis data."""
+        analyzer = RuleBasedAnalyzer(analysis_data={})
+        analyzer.run()
 
-    def test_detect_risk_reward_issues_returns_list(self, sample_trades_df):
-        """Verify detect_risk_reward_issues() returns list."""
-        analyzer = RuleBasedAnalyzer()
-        findings = analyzer.detect_risk_reward_issues(sample_trades_df)
+        # Should not crash, just produce empty/minimal report
+        report = analyzer.generate_report_markdown()
+        assert isinstance(report, str)
+        assert "# AI Diagnostic Report" in report
 
-        assert isinstance(findings, list)
+    def test_generate_recommendations_format(self, sample_analysis_data):
+        """Verify generate_recommendations() returns correct format."""
+        analyzer = RuleBasedAnalyzer(analysis_data=sample_analysis_data)
+        analyzer.run()
+
+        recommendations = analyzer.generate_recommendations()
+        assert isinstance(recommendations, list)
+
+        # If there are recommendations, verify structure
+        for rec in recommendations:
+            assert "id" in rec
+            assert "title" in rec
+            assert "description" in rec
+            assert "rule" in rec
+            assert "severity" in rec
+
+    def test_report_contains_sections(self, sample_analysis_data):
+        """Verify markdown report contains expected sections."""
+        analyzer = RuleBasedAnalyzer(analysis_data=sample_analysis_data)
+        analyzer.run()
+
+        report = analyzer.generate_report_markdown()
+
+        # Report should have diagnostic header
+        assert "# AI Diagnostic Report" in report
+
+        # If there are no conclusions, should say so
+        if len(analyzer.conclusions) == 0:
+            assert "No specific issues were detected" in report

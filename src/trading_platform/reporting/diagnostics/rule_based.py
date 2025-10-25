@@ -4,16 +4,20 @@ This module implements rule-based diagnostic analysis using heuristics and
 pattern detection. Unlike ML models, these rules provide immediate insights
 without requiring training data.
 
-Examples of rules:
-- Win rate vs expectancy inconsistencies
-- Consecutive loss streaks suggesting issues
-- Entry/exit timing patterns
-- Risk/reward ratio problems
+Migrated from ai.synthesis.engine to separate ML models from rule-based analysis.
 """
 
+import json
+import logging
 from typing import Any
 
-import pandas as pd
+from trading_platform.core import paths
+from trading_platform.reporting.diagnostics.recommendations import (
+    generate_recommendations,
+)
+from trading_platform.reporting.diagnostics.rules import get_all_rules
+
+logger = logging.getLogger(__name__)
 
 
 class RuleBasedAnalyzer:
@@ -23,76 +27,248 @@ class RuleBasedAnalyzer:
     machine learning. It uses pattern detection and heuristics to identify common
     issues and suggest improvements.
 
-    Note: This is currently a stub. Full implementation will be added in a future phase
-    when we migrate existing diagnostic logic from other modules.
+    Attributes:
+        analysis_data: Dictionary containing all data for analysis
+        rules: List of diagnostic rules to evaluate
+        conclusions: List of diagnostic conclusions found
+        recommendations: List of actionable recommendations
+        model_insights: List of ML model insights (if available)
+        suggested_parameters: Dictionary of suggested parameter values
     """
 
-    def __init__(self):
-        """Initialize RuleBasedAnalyzer."""
-        pass
+    conclusions: list[Any]
+    recommendations: list[Any]
+    model_insights: list[Any]
 
-    def analyze(self, trades_df: pd.DataFrame) -> dict[str, Any]:
-        """Analyze trades using heuristic rules.
-
-        Args:
-            trades_df: DataFrame with trade data
-
-        Returns:
-            Dictionary with diagnostic findings and recommendations
-
-        Note: This is a stub implementation. Will be fully implemented later.
-        """
-        # Placeholder: Return empty analysis
-        return {"findings": [], "recommendations": [], "metrics": {}}
-
-    def detect_win_rate_issues(self, trades_df: pd.DataFrame) -> list[str]:
-        """Detect win rate vs expectancy inconsistencies.
+    def __init__(self, analysis_data: dict[str, Any]):
+        """Initialize analyzer with analysis data.
 
         Args:
-            trades_df: DataFrame with trade data
+            analysis_data: Dictionary containing backtest metrics, trades,
+                model evaluation results, SHAP values, etc.
+        """
+        self.analysis_data = analysis_data
+        self.rules = get_all_rules()
+        self.conclusions = []
+        self.recommendations = []
+        self.model_insights = []
+        self.suggested_parameters = {}
+
+        # Integrate parameter suggestion if available
+        try:
+            from trading_platform.ai.lab.param_suggester import suggest_parameters
+
+            self.suggested_parameters = suggest_parameters(analysis_data)
+        except Exception as exc:
+            logger.warning(f"Failed to suggest parameters: {exc}")
+
+        # Check for profitability_model.joblib and add model insights
+        from pathlib import Path
+
+        run_dir = None
+        # Try to infer run directory from brief.json location if present
+        if "meta" in analysis_data and "run_id" in analysis_data["meta"]:
+            # This assumes brief.json is in the run directory
+            run_dir = Path(analysis_data.get("_brief_path", ""))
+            if not run_dir or not run_dir.exists():
+                run_dir = None
+        # Fallback: look for model in artifact directory
+        model_path = paths.ARTIFACTS_DIR / "profitability_model.joblib"
+        if run_dir:
+            candidate = run_dir / "profitability_model.joblib"
+            if candidate.exists():
+                model_path = candidate
+        if model_path.exists():
+            try:
+                import joblib
+
+                from trading_platform.ai.lab.predictor import get_trade_insights
+
+                model = joblib.load(str(model_path))
+                # Try to get features from model if possible
+                features_any = getattr(model, "feature_names_in_", None)
+                features: list[str] = []
+                if features_any is None and "trades" in analysis_data:
+                    trades = analysis_data["trades"]
+                    if trades:
+                        features = sorted(trades[0].get("entry_context", {}).keys())
+                elif isinstance(features_any, list):
+                    features = [str(f) for f in features_any]
+                # Generate insights for each trade
+                self.model_insights = []
+                for trade in analysis_data.get("trades", [])[:10]:  # Limit for brevity
+                    insight = get_trade_insights(model, trade, features)
+                    self.model_insights.append(
+                        {
+                            "trade_id": trade.get("id"),
+                            "insight": insight,
+                        }
+                    )
+            except Exception as exc:
+                logger.warning(f"Failed to generate model insights: {exc}")
+
+    def run(self) -> None:
+        """Execute all diagnostic rules and store conclusions."""
+        logger.info("--- Running Rule-Based Analyzer ---")
+        for rule in self.rules:
+            logger.info(f"Evaluating rule: {rule.__class__.__name__}...")
+            conclusion = rule.evaluate(self.analysis_data)
+            if conclusion:
+                self.conclusions.append(conclusion)
+                logger.info("  -> Conclusion found: %s", conclusion.title)
+        # Generate recommendations from conclusions
+        self.recommendations = generate_recommendations(self.conclusions)
+        logger.info("--- Analyzer run complete. ---")
+
+    def generate_recommendations(self) -> list[dict]:
+        """Generate recommendations in the format required by brief.json.
+
+        Each recommendation is derived from a diagnostic conclusion and
+        mapped to the schema fields.
 
         Returns:
-            List of findings
-
-        Note: Stub implementation.
+            List of recommendation dictionaries
         """
-        return []
+        recommendations = []
+        for conc in self.conclusions:
+            # Map DiagnosticConclusion to recommendation schema
+            recommendations.append(
+                {
+                    "id": conc.title.lower().replace(" ", "_"),
+                    "title": conc.title,
+                    "description": conc.summary,
+                    "rule": conc.title,  # Could be rule class name
+                    "severity": "info",  # Default; can be set by rules in future
+                    "suggested_action": None,
+                }
+            )
+        return recommendations
 
-    def detect_streak_patterns(self, trades_df: pd.DataFrame) -> list[str]:
-        """Detect consecutive loss/win streak patterns.
-
-        Args:
-            trades_df: DataFrame with trade data
+    def generate_report_markdown(self) -> str:
+        """Generate human-readable Markdown report of findings.
 
         Returns:
-            List of findings
-
-        Note: Stub implementation.
+            Markdown-formatted report string
         """
-        return []
+        report_parts = ["# AI Diagnostic Report\n"]
 
-    def detect_timing_issues(self, trades_df: pd.DataFrame) -> list[str]:
-        """Detect entry/exit timing patterns.
+        # Suggested Parameters section
+        if self.suggested_parameters:
+            report_parts.append("## Suggested Parameters\n")
+            for k, v in self.suggested_parameters.items():
+                report_parts.append(f"- {k}: {v}")
+            report_parts.append("")
 
-        Args:
-            trades_df: DataFrame with trade data
+        # Recommendations at the top (actionable first)
+        if self.recommendations:
+            report_parts.append("## Recommendations\n")
+            for rec in self.recommendations:
+                report_parts.append(f"### {rec.title}")
+                report_parts.append(f"{rec.summary}")
+                report_parts.append("")
+                report_parts.append(f"- Category: {rec.category}")
+                report_parts.append(f"- Confidence: {rec.confidence}")
+                report_parts.append("")
+
+        # Model Insights section
+        if self.model_insights:
+            report_parts.append("## Model Insights\n")
+            for insight in self.model_insights:
+                report_parts.append(f"### Trade ID: {insight['trade_id']}")
+                pred = insight["insight"].get("predicted_profitable")
+                prob = insight["insight"].get("predicted_probability")
+                report_parts.append(f"- Predicted Profitable: {pred}")
+                report_parts.append(f"- Predicted Probability: {prob}")
+                report_parts.append("- Feature Importances:")
+                fi = insight["insight"].get("feature_importances", {})
+                for k, v in fi.items():
+                    report_parts.append(f"    - {k}: {v}")
+                report_parts.append("")
+
+        # Remove extra newline between recommendations and conclusions
+        if (self.conclusions and self.recommendations) or self.model_insights:
+            report_parts.pop()
+            report_parts.append("")
+
+        # Conclusions with structured evidence
+        if not self.conclusions:
+            report_parts.append(
+                "No specific issues were detected by the diagnostic rules."
+            )
+        else:
+            for conc in self.conclusions:
+                report_parts.append(f"## {conc.title}")
+                report_parts.append(f"{conc.summary}\n")
+                report_parts.append("**Evidence:**")
+                # Render evidence as a bulleted list for readability.
+                if isinstance(conc.evidence, dict) and conc.evidence:
+                    for key, value in conc.evidence.items():
+                        # Simple scalar types inline, complex types as JSON block
+                        if isinstance(value, (str, int, float, bool)) or value is None:
+                            report_parts.append(f"- {key}: {value}")
+                        else:
+                            report_parts.append(f"- {key}:")
+                            report_parts.append("")
+                            report_parts.append(
+                                f"```json\n{json.dumps(value, indent=2)}\n```"
+                            )
+                else:
+                    # Fallback to JSON if evidence is not a dict
+                    evidence_json = json.dumps(conc.evidence, indent=2)
+                    report_parts.append(f"```json\n{evidence_json}\n```")
+        return "\n".join(report_parts)
+
+    def generate_report_json(self) -> str:
+        """Generate machine-readable JSON report of findings.
 
         Returns:
-            List of findings
-
-        Note: Stub implementation.
+            JSON-formatted report string including conclusions,
+            recommendations, model insights, and suggested parameters
         """
-        return []
+        return json.dumps(
+            {
+                "conclusions": [conc.to_dict() for conc in self.conclusions],
+                "recommendations": [rec.__dict__ for rec in self.recommendations],
+                "model_insights": self.model_insights,
+                "suggested_parameters": self.suggested_parameters,
+            },
+            indent=2,
+        )
 
-    def detect_risk_reward_issues(self, trades_df: pd.DataFrame) -> list[str]:
-        """Detect risk/reward ratio problems.
 
-        Args:
-            trades_df: DataFrame with trade data
+if __name__ == "__main__":
+    # Example Usage
+    # This demonstrates how the analyzer would be used after a backtest run.
 
-        Returns:
-            List of findings
+    # 1. Create dummy analysis data
+    dummy_data = {
+        "backtest_metrics": {
+            "n_trades": 650,
+            "win_rate": 0.51,
+            "sharpe_ratio": -0.2,
+        },
+        "model_analysis": {
+            "avg_pnl_left_on_table_at_tp": 15.50,
+        },
+    }
 
-        Note: Stub implementation.
-        """
-        return []
+    # 2. Initialize and run the analyzer
+    analyzer = RuleBasedAnalyzer(analysis_data=dummy_data)
+    analyzer.run()
+
+    # 3. Generate reports
+    markdown_report = analyzer.generate_report_markdown()
+    json_report = analyzer.generate_report_json()
+
+    print("\n--- MARKDOWN REPORT ---")
+    print(markdown_report)
+
+    print("\n--- JSON REPORT ---")
+    print(json_report)
+
+    # Save reports to files
+    paths.REPORTS_DIR.mkdir(exist_ok=True)
+    with open(paths.REPORTS_DIR / "diagnostic_report.md", "w") as f:
+        f.write(markdown_report)
+    with open(paths.REPORTS_DIR / "diagnostic_report.json", "w") as f:
+        f.write(json_report)
