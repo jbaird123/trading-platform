@@ -101,7 +101,7 @@ def validate_campaign_candidates(
         issues = []
 
         # Schema validation
-        required_fields = ["meta", "trades", "backtest_metrics"]
+        required_fields = ["meta", "trades", "overall_performance"]
         missing_fields = [f for f in required_fields if f not in brief]
         if missing_fields:
             checks["schema_validation"] = CheckResult(
@@ -167,8 +167,8 @@ def validate_campaign_candidates(
             )
 
         # Max drawdown check
-        backtest_metrics = brief.get("backtest_metrics", {})
-        max_drawdown = backtest_metrics.get("max_drawdown", 0.0)
+        equity_stats = brief.get("equity_stats", {})
+        max_drawdown = equity_stats.get("max_drawdown_pct", 0.0)
         if max_drawdown < -0.5:  # More than 50% drawdown
             checks["max_drawdown"] = CheckResult(
                 check_name="max_drawdown",
