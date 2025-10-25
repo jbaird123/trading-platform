@@ -7,6 +7,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from time import time
+from typing import Any
 
 import yaml
 
@@ -66,24 +67,57 @@ def execute_campaign_runs(
             )
             log_file.flush()
 
+            # Create RunConfig for this run
+            run_config_dir = runs_dir / run.run_id
+            run_config_dir.mkdir(parents=True, exist_ok=True)
+            run_config_path = run_config_dir / "run_config.yaml"
+
+            # Build RunConfig data structure
+            run_config_data: dict[str, Any] = {
+                "run_id": run.run_id,
+                "user_id": "campaign_runner",
+                "runs_dir": str(runs_dir.parent),
+                "data_request": {
+                    "symbol": run.instrument,
+                    "timeframe": plan.execution_timeframe,
+                    "start": run.start_date,
+                    "end": run.end_date,
+                },
+                "strategy_path": str(plan.strategy_path),
+                "execution_model": "next_bar_open",
+            }
+
+            # Add contextual features if specified
+            if plan.contextual_features:
+                features_list: list[dict[str, Any]] = [
+                    f.model_dump() for f in plan.contextual_features
+                ]
+                run_config_data["contextual_features"] = features_list
+
+            # Add REM config if specified
+            if plan.rem_path:
+                run_config_data["rem_path"] = str(plan.rem_path)
+
+            # Add RMM config if specified
+            if plan.rmm_path:
+                run_config_data["rmm_path"] = str(plan.rmm_path)
+
+            # Apply parameter overrides if specified
+            if run.param_overrides:
+                run_config_data["strategy_param_overrides"] = run.param_overrides
+
+            # Save RunConfig to YAML
+            with open(run_config_path, "w") as f:
+                yaml.dump(run_config_data, f, default_flow_style=False)
+
             # Build command to execute backtest
-            # For now, we'll use a simple approach - in production this would
-            # invoke the actual backtest execution
             cmd = [
                 "poetry",
                 "run",
                 "tp",
                 "run-backtest",
-                "--run-id",
-                run.run_id,
-                "--instrument",
-                run.instrument,
-                "--start-date",
-                run.start_date,
-                "--end-date",
-                run.end_date,
-                "--campaign-id",
-                plan.campaign_id,
+                "--config",
+                str(run_config_path),
             ]
 
             # Execute the run
