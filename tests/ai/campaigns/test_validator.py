@@ -14,11 +14,14 @@ def valid_brief():
             "strategy_archetype": "trend_following",
             "execution_timeframe": "15m",
         },
-        "backtest_metrics": {
+        "overall_performance": {
             "total_pnl": 1000.0,
-            "sharpe_ratio": 1.5,
             "win_rate": 0.6,
-            "max_drawdown": -0.2,  # 20% drawdown
+            "n_trades": 5,
+        },
+        "equity_stats": {
+            "sharpe_ratio": 1.5,
+            "max_drawdown_pct": 0.2,  # 20% drawdown
         },
         "trades": [
             {"trade_id": "t1", "pnl": 100, "r_multiple": 2.0},
@@ -180,9 +183,9 @@ def test_validate_candidates_checks_max_drawdown(tmp_path, valid_brief):
     candidate_dir = tmp_path / "data" / "candidates" / "test_campaign" / "run_001"
     candidate_dir.mkdir(parents=True)
 
-    # Excessive drawdown
+    # Excessive drawdown (negative value = drawdown)
     brief = valid_brief.copy()
-    brief["backtest_metrics"]["max_drawdown"] = -0.6  # 60% drawdown
+    brief["equity_stats"]["max_drawdown_pct"] = -0.6  # 60% drawdown
 
     with open(candidate_dir / "brief.json", "w") as f:
         json.dump(brief, f)

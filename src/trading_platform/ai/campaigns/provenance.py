@@ -64,8 +64,17 @@ class ProvenanceCollector:
             check=True,
         )
         # Parse DVC version from output (format: "DVC version: X.Y.Z")
-        first_line = dvc_version_result.stdout.strip().split("\n")[0]
-        dvc_version = first_line.split(":")[1].strip().split()[0]
+        stdout = dvc_version_result.stdout.strip()
+        if not stdout:
+            dvc_version = "unknown"
+        else:
+            first_line = stdout.split("\n")[0]
+            parts = first_line.split(":")
+            if len(parts) >= 2:
+                version_part = parts[1].strip().split()
+                dvc_version = version_part[0] if version_part else "unknown"
+            else:
+                dvc_version = "unknown"
 
         # Get DVC data snapshot ID (gracefully handle missing data.dvc)
         data_snapshot_result = subprocess.run(

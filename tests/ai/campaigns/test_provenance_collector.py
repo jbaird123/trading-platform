@@ -38,8 +38,8 @@ def test_capture_returns_provenance_with_all_fields(tmp_path):
                 git_status = MagicMock(stdout="", returncode=0)
                 # Mock git commit
                 git_commit = MagicMock(stdout="abc123\n", returncode=0)
-                # Mock DVC version
-                dvc_version = MagicMock(stdout="3.63.0\n", returncode=0)
+                # Mock DVC version (proper format: "DVC version: X.Y.Z")
+                dvc_version = MagicMock(stdout="DVC version: 3.63.0\n", returncode=0)
                 # Mock data snapshot
                 data_snapshot = MagicMock(stdout="d4t4v3rs10n\n", returncode=0)
 
