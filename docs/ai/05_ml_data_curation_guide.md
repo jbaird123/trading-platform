@@ -150,7 +150,20 @@ The schema for this model includes:
 - Overrides are stored in `data/overrides/<campaign_id>.yaml` and re-applied on
   every re-build to keep runs reproducible.
 
-## 6. Automating Data Generation: The Campaign Runner
+## 6. Automating Data Generation: The Campaign Runner ✅ IMPLEMENTED
+
+**Implementation:** See [06_campaign_runner_guide.md](06_campaign_runner_guide.md) for complete usage guide and CLI reference. All quality gates, enrichment stage, and automated DVC tracking are fully implemented.
+
+**Quick Example:**
+```bash
+# Create campaign, run, validate, approve, enrich, and publish
+tp campaign-plan --config config/campaigns/example_trend_following_15m.yaml
+tp campaign-run --campaign-id trend_following_15m_v1
+tp campaign-validate --campaign-id trend_following_15m_v1
+tp campaign-approve --campaign-id trend_following_15m_v1 --run-id run_001 --notes "Good"
+tp campaign-enrich --campaign-id trend_following_15m_v1
+tp campaign-publish --campaign-id trend_following_15m_v1
+```
 
 ### 6.1 Responsibilities
 

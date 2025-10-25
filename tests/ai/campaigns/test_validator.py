@@ -228,3 +228,141 @@ def test_validate_candidates_uses_cwd_as_default(tmp_path, valid_brief, monkeypa
     report = validate_campaign_candidates("test_campaign")
 
     assert report.total_candidates == 1
+
+
+def test_validate_candidates_checks_indicator_registry(tmp_path, valid_brief):
+    """Test indicator registry validation."""
+    candidate_dir = tmp_path / "data" / "candidates" / "test_campaign" / "run_001"
+    candidate_dir.mkdir(parents=True)
+
+    # Add contextual features with invalid indicator
+    brief = valid_brief.copy()
+    brief["meta"]["contextual_features"] = [
+        {"name": "rsi_14", "type": "RSI", "params": {"length": 14}},
+        {"name": "invalid_ind", "type": "INVALID_INDICATOR", "params": {}},
+    ]
+
+    with open(candidate_dir / "brief.json", "w") as f:
+        json.dump(brief, f)
+
+    report = validate_campaign_candidates("test_campaign", data_root=tmp_path)
+
+    assert "indicator_registry" in report.results[0].checks
+    assert report.results[0].checks["indicator_registry"].status == "failed"
+    msg = report.results[0].checks["indicator_registry"].message
+    assert msg is not None and "INVALID_INDICATOR" in msg
+
+
+def test_validate_candidates_passes_valid_indicators(tmp_path, valid_brief):
+    """Test that valid indicators pass registry check."""
+    candidate_dir = tmp_path / "data" / "candidates" / "test_campaign" / "run_001"
+    candidate_dir.mkdir(parents=True)
+
+    # Add contextual features with valid indicators only
+    brief = valid_brief.copy()
+    brief["meta"]["contextual_features"] = [
+        {"name": "rsi_14", "type": "RSI", "params": {"length": 14}},
+        {"name": "ema_20", "type": "EMA", "params": {"length": 20}},
+    ]
+
+    with open(candidate_dir / "brief.json", "w") as f:
+        json.dump(brief, f)
+
+    report = validate_campaign_candidates("test_campaign", data_root=tmp_path)
+
+    assert "indicator_registry" in report.results[0].checks
+    assert report.results[0].checks["indicator_registry"].status == "passed"
+
+
+def test_validate_candidates_computes_drift_stats(tmp_path, valid_brief):
+    """Test drift monitoring with KS-statistic."""
+    import pandas as pd
+
+    # Create baseline master trade log
+    master_log_dir = tmp_path / "data" / "dvc" / "processed" / "training_sets"
+    master_log_dir.mkdir(parents=True)
+    master_log_path = master_log_dir / "master_trade_log.parquet"
+
+    # Create baseline with r_multiple mean=1.0, std=1.0
+    baseline_df = pd.DataFrame(
+        {"r_multiple": [i / 10.0 for i in range(-10, 11)]}  # -1.0 to 1.0
+    )
+    baseline_df.to_parquet(master_log_path)
+
+    # Create candidate with significantly different distribution (mean=5.0)
+    candidate_dir = tmp_path / "data" / "candidates" / "test_campaign" / "run_001"
+    candidate_dir.mkdir(parents=True)
+
+    brief = valid_brief.copy()
+    brief["trades"] = [
+        {"trade_id": f"t{i}", "pnl": 100, "r_multiple": 5.0 + (i / 10.0)}
+        for i in range(10)
+    ]
+
+    with open(candidate_dir / "brief.json", "w") as f:
+        json.dump(brief, f)
+
+    report = validate_campaign_candidates("test_campaign", data_root=tmp_path)
+
+    assert "drift_monitoring" in report.results[0].checks
+    # Should detect drift with KS > 0.15
+    assert report.results[0].checks["drift_monitoring"].status == "warning"
+    msg = report.results[0].checks["drift_monitoring"].message
+    assert msg is not None and "DRIFT DETECTED" in msg
+    assert "KS=" in msg
+
+
+def test_validate_candidates_no_drift_detected(tmp_path, valid_brief):
+    """Test that similar distributions pass drift check."""
+    import pandas as pd
+
+    # Create baseline master trade log
+    master_log_dir = tmp_path / "data" / "dvc" / "processed" / "training_sets"
+    master_log_dir.mkdir(parents=True)
+    master_log_path = master_log_dir / "master_trade_log.parquet"
+
+    # Create baseline with r_multiple similar to valid_brief
+    baseline_df = pd.DataFrame(
+        {"r_multiple": [2.0, -1.0, 3.0, 4.0, -2.0] * 10}  # Same pattern repeated
+    )
+    baseline_df.to_parquet(master_log_path)
+
+    # Create candidate with similar distribution
+    candidate_dir = tmp_path / "data" / "candidates" / "test_campaign" / "run_001"
+    candidate_dir.mkdir(parents=True)
+
+    with open(candidate_dir / "brief.json", "w") as f:
+        json.dump(valid_brief, f)
+
+    report = validate_campaign_candidates("test_campaign", data_root=tmp_path)
+
+    assert "drift_monitoring" in report.results[0].checks
+    # Should pass with KS < 0.15
+    assert report.results[0].checks["drift_monitoring"].status == "passed"
+    msg = report.results[0].checks["drift_monitoring"].message
+    assert msg is not None and ("No drift" in msg or "KS=" in msg)
+
+
+def test_validate_candidates_updates_audit_log(tmp_path, valid_brief):
+    """Test that audit log is updated."""
+    candidate_dir = tmp_path / "data" / "candidates" / "test_campaign" / "run_001"
+    candidate_dir.mkdir(parents=True)
+
+    with open(candidate_dir / "brief.json", "w") as f:
+        json.dump(valid_brief, f)
+
+    validate_campaign_candidates("test_campaign", data_root=tmp_path)
+
+    audit_log_path = tmp_path / "docs" / "ai" / "logs" / "campaign_audit.md"
+    assert audit_log_path.exists()
+
+    # Read and verify audit log content
+    with open(audit_log_path) as f:
+        content = f.read()
+
+    assert "Campaign Audit Log" in content
+    assert "Action" in content
+    assert "Validation" in content
+    assert "test_campaign" in content
+    assert "Total Candidates" in content
+    assert "Passed" in content
