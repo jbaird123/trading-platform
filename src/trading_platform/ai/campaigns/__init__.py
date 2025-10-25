@@ -1,5 +1,6 @@
 """Campaign runner for automated backtest orchestration."""
 
+from .collector import collect_campaign_artifacts
 from .enrichment import enrich_campaign_dataset
 from .models import (
     ArtifactSummary,
@@ -17,6 +18,7 @@ from .models import (
     SingleRun,
     ValidationReport,
 )
+from .planner import generate_campaign_plan
 from .publisher import publish_campaign_dataset
 from .review import (
     approve_candidate,
@@ -24,6 +26,7 @@ from .review import (
     mark_needs_rework,
     reject_candidate,
 )
+from .runner import execute_campaign_runs
 from .validator import validate_campaign_candidates
 
 __all__ = [
@@ -41,6 +44,9 @@ __all__ = [
     "ValidationReport",
     "EnrichmentResult",
     "PublishResult",
+    "generate_campaign_plan",
+    "execute_campaign_runs",
+    "collect_campaign_artifacts",
     "validate_campaign_candidates",
     "generate_review_report",
     "approve_candidate",

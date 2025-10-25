@@ -64,3 +64,30 @@ class CampaignPlanner:
         )
 
         return plan
+
+
+def generate_campaign_plan(
+    config: CampaignConfig, output_dir: Path | None = None
+) -> CampaignPlan:
+    """Generate campaign plan and save to output directory.
+
+    Args:
+        config: Campaign configuration
+        output_dir: Directory to save plan.json. If None, plan is not saved.
+
+    Returns:
+        Generated campaign plan with provenance
+    """
+    planner = CampaignPlanner()
+    plan = planner.generate_plan(config)
+
+    if output_dir:
+        import json
+
+        output_dir.mkdir(parents=True, exist_ok=True)
+        plan_path = output_dir / "plan.json"
+
+        with open(plan_path, "w") as f:
+            json.dump(plan.model_dump(mode="json"), f, indent=2)
+
+    return plan

@@ -721,14 +721,66 @@ def cmd_ai_curate_data(args: argparse.Namespace) -> int:
     return 0
 
 
-# NOTE: campaign-plan and campaign-run commands will be implemented in earlier phases
-# def cmd_campaign_plan(args: argparse.Namespace) -> int:
-#     """Generate campaign execution plan."""
-#     ...
-#
-# def cmd_campaign_run(args: argparse.Namespace) -> int:
-#     """Execute campaign runs."""
-#     ...
+def cmd_campaign_plan(args: argparse.Namespace) -> int:
+    """Generate campaign execution plan."""
+    import yaml
+
+    from trading_platform.ai.campaigns import CampaignConfig, generate_campaign_plan
+    from trading_platform.core import paths
+
+    # Load campaign YAML
+    with open(args.config) as f:
+        campaign_dict = yaml.safe_load(f)
+
+    # Validate as CampaignConfig
+    campaign = CampaignConfig.model_validate(campaign_dict)
+
+    # Determine output directory
+    output_dir = paths.PROJECT_ROOT / "data" / "campaigns" / campaign.campaign_id
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Generate plan
+    plan = generate_campaign_plan(campaign, output_dir)
+
+    print(f"Campaign plan created: {output_dir / 'plan.json'}")
+    print(f"Total runs: {len(plan.runs)}")
+    print(f"Provenance captured at: {plan.provenance.captured_at}")
+
+    return 0
+
+
+def cmd_campaign_run(args: argparse.Namespace) -> int:
+    """Execute campaign runs."""
+    import json
+
+    from trading_platform.ai.campaigns import CampaignPlan, execute_campaign_runs
+    from trading_platform.core import paths
+
+    # Load plan
+    campaign_dir = paths.PROJECT_ROOT / "data" / "campaigns" / args.campaign_id
+    plan_path = campaign_dir / "plan.json"
+
+    with open(plan_path) as f:
+        plan_dict = json.load(f)
+
+    plan = CampaignPlan.model_validate(plan_dict)
+
+    # Define runs directory
+    runs_dir = campaign_dir / "runs"
+    runs_dir.mkdir(parents=True, exist_ok=True)
+
+    # Execute runs
+    results = execute_campaign_runs(
+        plan,
+        runs_dir,
+        campaign_dir,
+        fail_fast=args.fail_fast,
+        continue_on_error=args.continue_on_error,
+    )
+
+    print(f"Execution complete: {results.successful}/{results.total_runs} successful")
+
+    return 0 if results.successful == results.total_runs else 1
 
 
 def cmd_campaign_validate(args: argparse.Namespace) -> int:
@@ -1001,19 +1053,17 @@ def main() -> int:
     pcd.set_defaults(func=cmd_ai_curate_data)
 
     # Campaign commands
-    # NOTE: campaign-plan and campaign-run parsers commented out until
-    # earlier phases implemented
-    # pcp = sub.add_parser("campaign-plan", help="Generate campaign execution plan")
-    # pcp.add_argument("--config", required=True, help="Campaign YAML config file")
-    # pcp.set_defaults(func=cmd_campaign_plan)
-    #
-    # pcr = sub.add_parser("campaign-run", help="Execute campaign runs")
-    # pcr.add_argument("--campaign-id", required=True, help="Campaign identifier")
-    # pcr.add_argument("--fail-fast", action="store_true", help="Stop on first failure")
-    # pcr.add_argument(
-    #     "--continue-on-error", action="store_true", help="Continue on errors"
-    # )
-    # pcr.set_defaults(func=cmd_campaign_run)
+    pcp = sub.add_parser("campaign-plan", help="Generate campaign execution plan")
+    pcp.add_argument("--config", required=True, help="Campaign YAML config file")
+    pcp.set_defaults(func=cmd_campaign_plan)
+
+    pcr = sub.add_parser("campaign-run", help="Execute campaign runs")
+    pcr.add_argument("--campaign-id", required=True, help="Campaign identifier")
+    pcr.add_argument("--fail-fast", action="store_true", help="Stop on first failure")
+    pcr.add_argument(
+        "--continue-on-error", action="store_true", help="Continue on errors"
+    )
+    pcr.set_defaults(func=cmd_campaign_run)
 
     pcv = sub.add_parser("campaign-validate", help="Validate campaign candidates")
     pcv.add_argument("--campaign-id", required=True, help="Campaign identifier")
