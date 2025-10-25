@@ -39,6 +39,10 @@ PerformanceDiagnosticModel uses **all features including lookahead**:
 - `context_at_entry_*` - Entry time context
 - `context_at_exit_*` - Exit time context (lookahead)
 - `post_exit_analysis_*` - Post-trade analysis (lookahead)
+- `sim_hold_*` - Simulated hold analysis (lookahead)
+  - `sim_hold_{N}_pnl` - "What-if" PnL if trade held for N additional bars
+  - `sim_hold_{N}_exit_reason` - How the simulated hold would have exited
+  - Critical for diagnosing exit strategy effectiveness
 - `bars_held`, `mae_currency`, `mfe_currency`
 - `pnl`, `pnl_movement`, `r_multiple`
 - Trade metadata: `side`, `symbol`, `entry_time`, `exit_time`
@@ -48,6 +52,7 @@ PerformanceDiagnosticModel uses **all features including lookahead**:
 - Strategy improvement research
 - Regime identification
 - Understanding performance drivers
+- Exit strategy optimization
 
 ### Quintile Classification
 
@@ -248,6 +253,58 @@ model_new.fit(df_new_features)
 # If new features rank high → they're useful
 # If new features rank low → they're not informative
 ```
+
+### 5. Exit Strategy Optimization
+
+**Question**: "Am I exiting trades too early?"
+
+The `sim_hold_*` features provide critical insights into exit strategy effectiveness:
+
+```python
+# Load enriched trades with simulated hold analysis
+enriched_df = pd.read_parquet("data/enriched/campaign/rich_trades.parquet")
+
+# Train diagnostic model (includes sim_hold features)
+registry = ModelRegistry()
+models = registry.train_all_diagnostic_from_enriched(enriched_df)
+model = models["5min_trend_following"]
+
+# Analyze feature importance
+importances = pd.DataFrame({
+    "feature": model.feature_names_,
+    "importance": model.model.feature_importances_
+}).sort_values("importance", ascending=False)
+
+# Check if simulated hold features are important
+sim_hold_importance = importances[importances["feature"].str.startswith("sim_hold_")]
+print("Simulated Hold Feature Importance:")
+print(sim_hold_importance)
+
+# If sim_hold_10_pnl ranks high:
+# → Holding 10 bars longer would significantly improve results
+# → Current exit strategy is too aggressive
+
+# Compare actual PnL vs simulated hold PnL
+actual_pnl = enriched_df["pnl"].mean()
+sim_10_pnl = enriched_df["sim_hold_10_pnl"].mean()
+sim_20_pnl = enriched_df["sim_hold_20_pnl"].mean()
+
+print(f"Actual PnL: {actual_pnl:.2f}")
+print(f"If held 10 bars longer: {sim_10_pnl:.2f} ({sim_10_pnl - actual_pnl:+.2f})")
+print(f"If held 20 bars longer: {sim_20_pnl:.2f} ({sim_20_pnl - actual_pnl:+.2f})")
+
+# Analyze exit reasons for simulated holds
+from collections import Counter
+exit_reasons_sim_10 = Counter(enriched_df["sim_hold_10_exit_reason"])
+print(f"\nSimulated 10-bar hold exit reasons:")
+for reason, count in exit_reasons_sim_10.most_common():
+    print(f"  {reason}: {count} ({count/len(enriched_df)*100:.1f}%)")
+```
+
+This analysis reveals:
+- Whether you're exiting profitable trends too early
+- Optimal holding periods for this strategy/regime
+- How exit criteria (stop loss, take profit, trailing stop) would perform with different horizons
 
 ## CLI Usage
 

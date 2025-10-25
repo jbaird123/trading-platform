@@ -273,10 +273,24 @@ class PerformanceDiagnosticModel:
         features.extend(exit_cols)
 
         # 3. Pattern match: All post_exit_analysis_* columns (LOOKAHEAD)
+        # NOTE: Exclude the nested post_exit_analysis_simulated_holds column
+        # (it should have been unpacked by the registry before training)
         post_exit_cols = [
-            col for col in df.columns if col.startswith("post_exit_analysis_")
+            col
+            for col in df.columns
+            if col.startswith("post_exit_analysis_")
+            and col != "post_exit_analysis_simulated_holds"
         ]
         features.extend(post_exit_cols)
+
+        # 3a. Pattern match: All sim_hold_* numeric columns (LOOKAHEAD)
+        # These are the unpacked simulated hold features (PnL, etc.)
+        sim_hold_numeric_cols = [
+            col
+            for col in df.columns
+            if col.startswith("sim_hold_") and not col.endswith("_exit_reason")
+        ]
+        features.extend(sim_hold_numeric_cols)
 
         # 4. Categorical: side (one-hot encode)
         if "side" in df.columns:
@@ -299,6 +313,18 @@ class PerformanceDiagnosticModel:
             )
             df = pd.concat([df, exit_reason_dummies], axis=1)
             features.extend(exit_reason_dummies.columns.tolist())
+
+        # 6a. Categorical: sim_hold_*_exit_reason columns (one-hot encode, LOOKAHEAD)
+        # Encode all categorical exit_reason columns from simulated holds
+        sim_hold_exit_reason_cols = [
+            col
+            for col in df.columns
+            if col.endswith("_exit_reason") and col.startswith("sim_hold_")
+        ]
+        for col in sim_hold_exit_reason_cols:
+            col_dummies = pd.get_dummies(df[col], prefix=col, drop_first=False)
+            df = pd.concat([df, col_dummies], axis=1)
+            features.extend(col_dummies.columns.tolist())
 
         # 7. Temporal: Derived from entry_time
         if "entry_time" in df.columns:

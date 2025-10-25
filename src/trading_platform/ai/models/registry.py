@@ -17,6 +17,8 @@ from typing import Any
 
 import pandas as pd
 
+from trading_platform.ai.feature_engineering.unpacking import unpack_simulated_holds
+from trading_platform.ai.models.performance_diagnostic import PerformanceDiagnosticModel
 from trading_platform.ai.models.profitability import ProfitabilityModel
 
 
@@ -182,6 +184,63 @@ class ModelRegistry:
 
             # Train model - raise error if insufficient data
             model.fit(enriched_trades_df)
+            trained_models[key] = model
+
+        return trained_models
+
+    def train_all_diagnostic_from_enriched(
+        self,
+        enriched_df: pd.DataFrame,
+        min_trades: int = 50,
+        n_estimators: int = 100,
+        random_state: int = 42,
+    ) -> dict[str, PerformanceDiagnosticModel]:
+        """Train diagnostic models for all contexts from enriched trade data.
+
+        This method unpacks the nested post_exit_analysis_simulated_holds column
+        before training, ensuring all features are available to the model.
+
+        Args:
+            enriched_df: DataFrame with enriched trade data including
+                post-trade analysis
+            min_trades: Minimum trades required per context (default: 50)
+            n_estimators: Number of trees in RandomForestClassifier
+            random_state: Random seed for reproducibility
+
+        Returns:
+            Dictionary of trained models {key: model}
+
+        Raises:
+            ValueError: If any context has insufficient data
+        """
+        # First, unpack the nested analysis data into flat features
+        enriched_df = unpack_simulated_holds(enriched_df)
+
+        # Find all unique contexts
+        contexts = enriched_df[
+            ["execution_timeframe", "strategy_archetype"]
+        ].drop_duplicates()
+
+        trained_models = {}
+
+        for _, row in contexts.iterrows():
+            timeframe = row["execution_timeframe"]
+            archetype = row["strategy_archetype"]
+            key = f"{timeframe}_{archetype}"
+
+            # Create diagnostic model
+            model = PerformanceDiagnosticModel(
+                timeframe=timeframe,
+                archetype=archetype,
+                n_estimators=n_estimators,
+                random_state=random_state,
+            )
+
+            # Train model - will raise error if insufficient data
+            model.fit(enriched_df)
+
+            # Register and store
+            self.register_model("diagnostic", key, model)
             trained_models[key] = model
 
         return trained_models
