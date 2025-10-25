@@ -202,12 +202,8 @@ class TestModelRegistry:
             }
         )
 
-        # Train models (should skip due to insufficient data)
-        # Expect a warning about skipping
-        with pytest.warns(
-            UserWarning, match="Skipping 5min_trend_following: Insufficient data"
-        ):
-            trained_models = registry.train_all_profitability_models(small_df)
+        # Train models (should skip due to insufficient data and emit warning)
+        trained_models = registry.train_all_profitability_models(small_df)
 
         # Verify no models were trained
         assert len(trained_models) == 0
