@@ -72,6 +72,23 @@ def execute_campaign_runs(
             run_config_dir.mkdir(parents=True, exist_ok=True)
             run_config_path = run_config_dir / "run_config.yaml"
 
+            # Load base strategy and apply parameter overrides
+            from pathlib import Path as PathType
+
+            strategy_path_resolved = (
+                PathType(plan.strategy_path)
+                if not PathType(plan.strategy_path).is_absolute()
+                else plan.strategy_path
+            )
+            with open(strategy_path_resolved) as f:
+                strategy_data = yaml.safe_load(f)
+
+            # Apply parameter overrides to strategy
+            if run.param_overrides:
+                if "parameters" not in strategy_data:
+                    strategy_data["parameters"] = {}
+                strategy_data["parameters"].update(run.param_overrides)
+
             # Build RunConfig data structure
             run_config_data: dict[str, Any] = {
                 "run_id": run.run_id,
@@ -83,7 +100,7 @@ def execute_campaign_runs(
                     "start": run.start_date,
                     "end": run.end_date,
                 },
-                "strategy_path": str(plan.strategy_path),
+                "strategy": strategy_data,
                 "execution_model": "next_bar_open",
             }
 
@@ -101,10 +118,6 @@ def execute_campaign_runs(
             # Add RMM config if specified
             if plan.rmm_path:
                 run_config_data["rmm_path"] = str(plan.rmm_path)
-
-            # Apply parameter overrides if specified
-            if run.param_overrides:
-                run_config_data["strategy_param_overrides"] = run.param_overrides
 
             # Save RunConfig to YAML
             with open(run_config_path, "w") as f:
