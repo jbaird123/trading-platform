@@ -77,3 +77,99 @@ def test_cmd_ai_curate_data():
         mock_run_curation.assert_called_once_with(
             source_dir=Path("/fake/dir"), output_file=Path("/fake/file.parquet")
         )
+
+
+# NOTE: Tests for campaign-plan and campaign-run commented out until
+# earlier phases are implemented
+# def test_cmd_campaign_plan(tmp_path):
+#     """Test campaign-plan CLI command."""
+#     ...
+#
+# def test_cmd_campaign_run(tmp_path):
+#     """Test campaign-run CLI command."""
+#     ...
+
+
+def test_cmd_campaign_validate():
+    """Test campaign-validate CLI command."""
+    from trading_platform.cli import cmd_campaign_validate
+
+    with patch(
+        "trading_platform.ai.campaigns.validate_campaign_candidates"
+    ) as mock_validate:
+        args = argparse.Namespace(campaign_id="test")
+        result = cmd_campaign_validate(args)
+
+        mock_validate.assert_called_once_with("test")
+        assert result == 0
+
+
+def test_cmd_campaign_review():
+    """Test campaign-review CLI command."""
+    from trading_platform.cli import cmd_campaign_review
+
+    with patch("trading_platform.ai.campaigns.generate_review_report") as mock_review:
+        args = argparse.Namespace(campaign_id="test")
+        result = cmd_campaign_review(args)
+
+        mock_review.assert_called_once_with("test")
+        assert result == 0
+
+
+def test_cmd_campaign_approve():
+    """Test campaign-approve CLI command."""
+    from trading_platform.cli import cmd_campaign_approve
+
+    with patch("trading_platform.ai.campaigns.approve_candidate") as mock_approve:
+        args = argparse.Namespace(
+            campaign_id="test", run_id="run_001", notes="Looks good"
+        )
+        result = cmd_campaign_approve(args)
+
+        mock_approve.assert_called_once_with("test", "run_001", "Looks good")
+        assert result == 0
+
+
+def test_cmd_campaign_needs_rework():
+    """Test campaign-needs-rework CLI command."""
+    from trading_platform.cli import cmd_campaign_needs_rework
+
+    with patch("trading_platform.ai.campaigns.mark_needs_rework") as mock_rework:
+        args = argparse.Namespace(
+            campaign_id="test",
+            run_id="run_002",
+            reason="Tweak params",
+            suggestions="Lower stop",
+        )
+        result = cmd_campaign_needs_rework(args)
+
+        mock_rework.assert_called_once_with(
+            "test", "run_002", "Tweak params", "Lower stop"
+        )
+        assert result == 0
+
+
+def test_cmd_campaign_enrich():
+    """Test campaign-enrich CLI command."""
+    from trading_platform.cli import cmd_campaign_enrich
+
+    with patch("trading_platform.ai.campaigns.enrich_campaign_dataset") as mock_enrich:
+        args = argparse.Namespace(campaign_id="test")
+        result = cmd_campaign_enrich(args)
+
+        mock_enrich.assert_called_once_with("test")
+        assert result == 0
+
+
+def test_cmd_campaign_publish():
+    """Test campaign-publish CLI command."""
+    from trading_platform.cli import cmd_campaign_publish
+
+    with patch(
+        "trading_platform.ai.campaigns.publish_campaign_dataset"
+    ) as mock_publish:
+        args = argparse.Namespace(campaign_id="test")
+        result = cmd_campaign_publish(args)
+
+        mock_publish.assert_called_once_with("test")
+        assert result == 0

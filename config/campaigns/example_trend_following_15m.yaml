@@ -1,0 +1,46 @@
+campaign_id: trend_following_15m_v1
+strategy_path: config/strategy/ema_crossover.yaml
+execution_timeframe: 15m
+strategy_archetype: trend_following
+description: "EMA crossover trend following on 15m timeframe with multi-timeframe context"
+
+run_matrix:
+  - instrument: EURUSD
+    start_date: "2023-01-01"
+    end_date: "2023-06-30"
+    param_overrides:
+      fast_length: 10
+      slow_length: 20
+
+  - instrument: EURUSD
+    start_date: "2023-01-01"
+    end_date: "2023-06-30"
+    param_overrides:
+      fast_length: 12
+      slow_length: 25
+
+  - instrument: GBPUSD
+    start_date: "2023-01-01"
+    end_date: "2023-06-30"
+    param_overrides:
+      fast_length: 10
+      slow_length: 20
+
+contextual_features:
+  - name: h1_rsi
+    type: RSI
+    params:
+      length: 14
+    timeframe: 1h
+
+  - name: h4_ema_50
+    type: EMA
+    params:
+      length: 50
+    timeframe: 4h
+
+  - name: d1_atr
+    type: ATR
+    params:
+      length: 14
+    timeframe: 1D

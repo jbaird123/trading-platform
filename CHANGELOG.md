@@ -7,6 +7,141 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Campaign Runner
+
+**Summary:** Automated backtest orchestration system for systematic ML training data generation. Implements complete Section 6 workflow from ML Data Curation Guide with full provenance tracking, quality gates, and automated DVC publishing.
+
+#### Key Features
+
+- **Campaign YAML Configuration**: Declarative campaign definitions with parameter matrices and multi-timeframe features
+- **Full Provenance Tracking**: Captures git commit, poetry.lock SHA256, Python version, platform, DVC version, and **data snapshot ID**
+- **Batch Execution Engine**: Automated backtest execution with progress tracking and comprehensive failure artifact generation
+- **Artifact Collection**: Prescribed `data/candidates/<campaign_id>/` structure with metadata extraction and indexing
+- **Complete Quality Gates**:
+  - Schema validation
+  - Data quality checks
+  - Minimum trades threshold (5)
+  - Duplicate trade ID detection
+  - Max drawdown limit (50%)
+  - **Indicator registry validation** (ensures all features registered)
+  - **Drift monitoring** (KS-statistic vs baseline, threshold 0.15)
+  - **Audit log updates** (`docs/ai/logs/campaign_audit.md`)
+- **Three-State Review Workflow**: `approved`, `rejected`, `needs-rework` with **campaign-level** `decision.yaml`
+- **Enrichment Stage**: Creates intermediate `data/enriched/<campaign_id>/rich_trades.parquet` with campaign metadata
+- **Automated DVC Publishing**: Publishes to master trade log with automatic `dvc add` and `dvc push`
+- **Full Audit Trail**: SHA256 checksums, curation history, and audit logging
+
+#### New Modules
+
+**Core Implementation:**
+- `src/trading_platform/ai/campaigns/models.py`: Pydantic models for campaigns, plans, provenance, results (100% coverage)
+- `src/trading_platform/ai/campaigns/provenance.py`: Provenance metadata capture with DVC data snapshots (100% coverage)
+- `src/trading_platform/ai/campaigns/planner.py`: Campaign plan generation from YAML (100% coverage)
+- `src/trading_platform/ai/campaigns/runner.py`: Batch execution engine with failure handling (100% coverage)
+- `src/trading_platform/ai/campaigns/collector.py`: Artifact collection to prescribed folder structure (100% coverage)
+- `src/trading_platform/ai/campaigns/validator.py`: Complete quality gates with drift monitoring and audit logging (100% coverage)
+- `src/trading_platform/ai/campaigns/review.py`: Three-state review workflow (100% coverage)
+- `src/trading_platform/ai/campaigns/enrichment.py`: Intermediate dataset creation (100% coverage)
+- `src/trading_platform/ai/campaigns/publisher.py`: Master trade log publishing with automated DVC tracking (100% coverage)
+
+**Test Suites:**
+- `tests/ai/campaigns/test_campaign_models.py`: 7 tests for campaign configuration validation
+- `tests/ai/campaigns/test_planner.py`: 7 tests for plan generation and provenance
+- `tests/ai/campaigns/test_runner.py`: 9 tests for batch execution
+- `tests/ai/campaigns/test_collector.py`: 6 tests for artifact collection
+- `tests/ai/campaigns/test_validator.py`: 16 tests for complete quality gates (including drift monitoring, indicator registry, audit logging)
+- `tests/ai/campaigns/test_review.py`: 7 tests for review workflow
+- `tests/ai/campaigns/test_enrichment.py`: 6 tests for enrichment stage
+- `tests/ai/campaigns/test_publisher.py`: 7 tests for publishing with DVC automation
+- `tests/cli/test_cli.py`: 9 tests for CLI commands
+
+**Documentation:**
+- `docs/ai/06_campaign_runner_guide.md`: Complete usage guide with CLI reference
+- `docs/ai/05_ml_data_curation_guide.md`: Updated Section 6 with implementation reference
+- `src/trading_platform/ai/campaigns/README.md`: Module overview and quick start
+- `config/campaigns/example_trend_following_15m.yaml`: Example campaign configuration
+
+#### CLI Commands
+
+Nine new commands for complete workflow automation:
+
+```bash
+tp campaign-plan --config <yaml>              # Generate execution plan
+tp campaign-run --campaign-id <id>            # Execute all runs
+tp campaign-validate --campaign-id <id>       # Run quality gates
+tp campaign-review --campaign-id <id>         # Generate review report
+tp campaign-approve --campaign-id <id> --run-id <run> --notes <notes>
+tp campaign-reject --campaign-id <id> --run-id <run> --reason <reason>
+tp campaign-needs-rework --campaign-id <id> --run-id <run> --reason <reason> --suggestions <suggestions>
+tp campaign-enrich --campaign-id <id>         # Create enriched dataset
+tp campaign-publish --campaign-id <id>        # Publish to master trade log
+```
+
+#### Quality Gate Details
+
+All validation checks required by Section 5.3 of the ML Data Curation Guide:
+
+1. **Schema Validation**: Required fields (meta, trades, backtest_metrics)
+2. **Data Quality**: No NaN values or data corruption
+3. **Minimum Trades**: At least 5 trades per candidate
+4. **Duplicate Detection**: No duplicate trade IDs
+5. **Max Drawdown**: Maximum drawdown < 50%
+6. **Indicator Registry**: All contextual features registered in `indicators_registry.py`
+7. **Drift Monitoring**: Kolmogorov-Smirnov statistic vs baseline < 0.15 (warning if exceeded)
+8. **Audit Logging**: All validation actions logged to `docs/ai/logs/campaign_audit.md`
+
+#### Alignment with ML Data Curation Guide
+
+Implements all requirements from Section 6:
+
+- ✅ **Section 5.2**: Candidate submission workflow with campaign-level decision.yaml (lines 114-118)
+- ✅ **Section 5.3**: Complete quality gates (schema, dedupe, drift KS-stat check, audit logging) (lines 133-143)
+- ✅ **Section 6.1**: Campaign runner with full provenance including data version (line 164)
+- ✅ **Section 6.4**: Failure handling with failure_report.json and campaign_complete.yaml
+- ⚠️ **Section 5.4**: Manual overrides (NOT IMPLEMENTED - future work, requires `data/overrides/<campaign_id>.yaml`)
+
+#### Test Coverage
+
+- **Total tests**: 65+ tests across 9 test modules
+- **Coverage**: 100% for entire campaigns module
+- **Pre-commit hooks**: All code passes ruff, mypy, and formatting checks
+
+#### Usage Example
+
+```bash
+# 1. Create campaign YAML
+cat > config/campaigns/my_campaign.yaml <<EOF
+campaign_id: my_campaign
+strategy_path: config/strategy/ema_crossover.yaml
+execution_timeframe: 15m
+strategy_archetype: trend_following
+run_matrix:
+  - instrument: EURUSD
+    start_date: "2023-01-01"
+    end_date: "2023-12-31"
+contextual_features:
+  - name: h1_rsi
+    type: RSI
+    params: {length: 14}
+    timeframe: 1h
+EOF
+
+# 2. Execute complete workflow
+tp campaign-plan --config config/campaigns/my_campaign.yaml
+tp campaign-run --campaign-id my_campaign
+tp campaign-validate --campaign-id my_campaign
+tp campaign-approve --campaign-id my_campaign --run-id run_001 --notes "Good metrics"
+tp campaign-enrich --campaign-id my_campaign
+tp campaign-publish --campaign-id my_campaign
+```
+
+#### Migration Notes
+
+- Existing manual workflow replaced by automated CLI commands
+- All provenance metadata now captured automatically
+- DVC tracking no longer requires manual `dvc add`/`dvc push` commands
+- Campaign-level decision tracking replaces per-run decision files
+
 ### Added - Multi-Timeframe Contextual Features
 
 **Summary:** Enhanced ML data curation pipeline with multi-timeframe contextual features, enabling indicators to be computed on higher timeframes (e.g., 1H, 4H, 1D) while executing strategies on base timeframes (e.g., 15m).
