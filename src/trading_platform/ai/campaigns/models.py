@@ -130,3 +130,34 @@ class ExecutionResults(BaseModel):
     run_results: List["RunResult"] = Field(
         default_factory=list, description="Individual run results"
     )
+
+
+class CandidateMetadata(BaseModel):
+    """Metadata extracted from a candidate backtest."""
+
+    model_config = {"extra": "forbid"}
+
+    run_id: str = Field(..., description="Unique run identifier")
+    strategy_archetype: str = Field(..., description="Strategy type")
+    execution_timeframe: str = Field(..., description="Execution timeframe")
+    total_pnl: float = Field(..., description="Total profit/loss")
+    sharpe_ratio: Optional[float] = Field(default=None, description="Sharpe ratio")
+    win_rate: float = Field(..., description="Win rate (0-1)")
+    total_trades: int = Field(..., description="Total number of trades")
+    max_drawdown: float = Field(..., description="Maximum drawdown")
+
+
+class ArtifactSummary(BaseModel):
+    """Summary of collected campaign artifacts."""
+
+    model_config = {"extra": "forbid"}
+
+    campaign_id: str = Field(..., description="Campaign identifier")
+    total_candidates: int = Field(..., description="Number of candidates collected")
+    candidates_dir: Path = Field(
+        ..., description="Path to candidates directory (data/candidates/<campaign_id>)"
+    )
+    collected_at: str = Field(..., description="ISO timestamp of collection")
+    candidates: List[CandidateMetadata] = Field(
+        default_factory=list, description="List of candidate metadata"
+    )
