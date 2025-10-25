@@ -204,3 +204,17 @@ class ValidationReport(BaseModel):
     results: List[CandidateValidation] = Field(
         default_factory=list, description="Individual validation results"
     )
+
+
+class EnrichmentResult(BaseModel):
+    """Result of campaign enrichment."""
+
+    model_config = {"extra": "forbid"}
+
+    campaign_id: str = Field(..., description="Campaign identifier")
+    approved_candidates: int = Field(..., description="Number of approved candidates")
+    total_trades_enriched: int = Field(
+        ..., description="Total trades in enriched dataset"
+    )
+    output_path: Path = Field(..., description="Path to enriched parquet file")
+    enriched_at: str = Field(..., description="ISO timestamp of enrichment")

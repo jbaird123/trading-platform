@@ -1,5 +1,6 @@
 """Campaign runner for automated backtest orchestration."""
 
+from .enrichment import enrich_campaign_dataset
 from .models import (
     ArtifactSummary,
     CampaignConfig,
@@ -7,6 +8,7 @@ from .models import (
     CandidateMetadata,
     CandidateValidation,
     CheckResult,
+    EnrichmentResult,
     ExecutionResults,
     Provenance,
     RunMatrixEntry,
@@ -28,4 +30,6 @@ __all__ = [
     "CheckResult",
     "CandidateValidation",
     "ValidationReport",
+    "EnrichmentResult",
+    "enrich_campaign_dataset",
 ]
