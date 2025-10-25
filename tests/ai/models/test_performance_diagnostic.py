@@ -263,3 +263,32 @@ class TestPerformanceDiagnosticModel:
         )
 
         assert model.get_model_key() == "5min_trend_following"
+
+    def test_fit_uses_all_features_including_lookahead(self, sample_trades_df):
+        """Verify model includes flattened sim_hold_* features."""
+        # Add sim_hold_* columns (as if data was unpacked)
+        sample_trades_df["sim_hold_10_pnl"] = np.random.uniform(-20, 40, 60)
+        sample_trades_df["sim_hold_10_exit_reason"] = np.random.choice(
+            ["horizon_reached", "stop_loss_hit"], 60
+        )
+        sample_trades_df["sim_hold_20_pnl"] = np.random.uniform(-30, 50, 60)
+        sample_trades_df["sim_hold_20_exit_reason"] = np.random.choice(
+            ["horizon_reached", "stop_loss_hit", "take_profit_hit"], 60
+        )
+
+        model = PerformanceDiagnosticModel(
+            timeframe="5min", archetype="trend_following"
+        )
+        model.fit(sample_trades_df)
+
+        # Verify sim_hold_* columns are included in features
+        feature_names = model.feature_names_
+        assert feature_names is not None
+
+        # Check for sim_hold numeric features
+        assert any("sim_hold_10_pnl" in f for f in feature_names)
+        assert any("sim_hold_20_pnl" in f for f in feature_names)
+
+        # Check for one-hot encoded exit reasons
+        assert any("sim_hold_10_exit_reason" in f for f in feature_names)
+        assert any("sim_hold_20_exit_reason" in f for f in feature_names)
