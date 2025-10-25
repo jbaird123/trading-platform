@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-
 from trading_platform.ai.models.profitability import ProfitabilityModel
 from trading_platform.ai.models.registry import ModelRegistry
 
@@ -15,22 +14,24 @@ def sample_trades_df():
     """Create sample enriched trades DataFrame for testing."""
     # Create 50 trades per context (4 contexts = 200 total trades)
     # Contexts: 5min/trend, 5min/mean_reversion, 15min/trend, 15min/mean_reversion
-    return pd.DataFrame({
-        # Context metadata
-        "execution_timeframe": ["5min"] * 100 + ["15min"] * 100,
-        "strategy_archetype": ["trend_following"] * 50 + ["mean_reversion"] * 50
-                            + ["trend_following"] * 50 + ["mean_reversion"] * 50,
-
-        # Entry features
-        "context_at_entry_rsi": [50.0] * 200,
-        "context_at_entry_atr": [0.001] * 200,
-        "side": ["long", "short"] * 100,
-        "symbol": ["EUR_USD"] * 200,
-        "entry_time": pd.date_range("2024-01-01", periods=200, freq="1h"),
-
-        # Target
-        "pnl": [10.0, -5.0] * 100,  # Alternating profitable/unprofitable
-    })
+    return pd.DataFrame(
+        {
+            # Context metadata
+            "execution_timeframe": ["5min"] * 100 + ["15min"] * 100,
+            "strategy_archetype": ["trend_following"] * 50
+            + ["mean_reversion"] * 50
+            + ["trend_following"] * 50
+            + ["mean_reversion"] * 50,
+            # Entry features
+            "context_at_entry_rsi": [50.0] * 200,
+            "context_at_entry_atr": [0.001] * 200,
+            "side": ["long", "short"] * 100,
+            "symbol": ["EUR_USD"] * 200,
+            "entry_time": pd.date_range("2024-01-01", periods=200, freq="1h"),
+            # Target
+            "pnl": [10.0, -5.0] * 100,  # Alternating profitable/unprofitable
+        }
+    )
 
 
 @pytest.fixture
@@ -97,12 +98,12 @@ class TestModelRegistry:
         registry.register_model(
             "profitability",
             "5min_trend_following",
-            ProfitabilityModel("5min", "trend_following")
+            ProfitabilityModel("5min", "trend_following"),
         )
         registry.register_model(
             "profitability",
             "15min_mean_reversion",
-            ProfitabilityModel("15min", "mean_reversion")
+            ProfitabilityModel("15min", "mean_reversion"),
         )
 
         # Verify listing
@@ -148,8 +149,7 @@ class TestModelRegistry:
 
         # Get model that doesn't exist (should create)
         model = registry.get_or_create_profitability_model(
-            timeframe="5min",
-            archetype="trend_following"
+            timeframe="5min", archetype="trend_following"
         )
 
         assert model is not None
@@ -161,8 +161,7 @@ class TestModelRegistry:
 
         # Get same model again (should return existing)
         model2 = registry.get_or_create_profitability_model(
-            timeframe="5min",
-            archetype="trend_following"
+            timeframe="5min", archetype="trend_following"
         )
         assert model2 is model  # Same instance
 
@@ -191,15 +190,17 @@ class TestModelRegistry:
         registry = ModelRegistry(model_dir=temp_dir)
 
         # Create data with only 10 trades per context (need 50)
-        small_df = pd.DataFrame({
-            "execution_timeframe": ["5min"] * 10,
-            "strategy_archetype": ["trend_following"] * 10,
-            "context_at_entry_rsi": [50.0] * 10,
-            "side": ["long"] * 10,
-            "symbol": ["EUR_USD"] * 10,
-            "entry_time": pd.date_range("2024-01-01", periods=10, freq="1h"),
-            "pnl": [10.0] * 10,
-        })
+        small_df = pd.DataFrame(
+            {
+                "execution_timeframe": ["5min"] * 10,
+                "strategy_archetype": ["trend_following"] * 10,
+                "context_at_entry_rsi": [50.0] * 10,
+                "side": ["long"] * 10,
+                "symbol": ["EUR_USD"] * 10,
+                "entry_time": pd.date_range("2024-01-01", periods=10, freq="1h"),
+                "pnl": [10.0] * 10,
+            }
+        )
 
         # Train models (should skip due to insufficient data)
         trained_models = registry.train_all_profitability_models(small_df)
@@ -222,9 +223,7 @@ class TestModelRegistry:
 
         # Predict
         predictions = registry.predict_profitability(
-            X=test_df,
-            timeframe="5min",
-            archetype="trend_following"
+            X=test_df, timeframe="5min", archetype="trend_following"
         )
 
         # Verify predictions
@@ -240,7 +239,7 @@ class TestModelRegistry:
             registry.predict_profitability(
                 X=sample_trades_df.head(5),
                 timeframe="5min",
-                archetype="trend_following"
+                archetype="trend_following",
             )
 
     def test_get_model_path(self, temp_dir):

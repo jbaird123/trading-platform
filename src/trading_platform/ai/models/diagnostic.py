@@ -5,13 +5,13 @@ combination. Each model uses ALL available features (including lookahead) to pre
 quintiles, making them suitable for offline regime analysis and strategy improvement.
 """
 
+from pathlib import Path
+
 import joblib
 import numpy as np
 import pandas as pd
-from pathlib import Path
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
-from typing import Any
 
 
 class PerformanceDiagnosticModel:
@@ -33,7 +33,13 @@ class PerformanceDiagnosticModel:
     Target: Quintile classification based on r_multiple (0=worst 20%, 4=best 20%)
     """
 
-    def __init__(self, timeframe: str, archetype: str, n_estimators: int = 100, random_state: int = 42):
+    def __init__(
+        self,
+        timeframe: str,
+        archetype: str,
+        n_estimators: int = 100,
+        random_state: int = 42,
+    ):
         """Initialize PerformanceDiagnosticModel for specific context.
 
         Args:
@@ -93,11 +99,21 @@ class PerformanceDiagnosticModel:
                 f"got {len(df)}"
             )
 
+        # Remove rows with missing r_multiple (can't classify without target)
+        df_clean = df.dropna(subset=["r_multiple"]).copy()
+
+        if len(df_clean) < 50:
+            raise ValueError(
+                f"Insufficient data after removing missing r_multiple: "
+                f"need 50+ trades for {self.timeframe}_{self.archetype}, "
+                f"got {len(df_clean)}"
+            )
+
         # Extract features (ALL features including lookahead)
-        X = self._extract_features(df)
+        X = self._extract_features(df_clean)
 
         # Create target: quintile classification based on r_multiple
-        y = self._create_quintile_target(df["r_multiple"].values)
+        y = self._create_quintile_target(df_clean["r_multiple"].values)
 
         # Store feature names for later alignment
         self.feature_names_ = X.columns.tolist()
@@ -245,7 +261,9 @@ class PerformanceDiagnosticModel:
         features.extend(exit_cols)
 
         # 3. Pattern match: All post_exit_analysis_* columns (LOOKAHEAD)
-        post_exit_cols = [col for col in df.columns if col.startswith("post_exit_analysis_")]
+        post_exit_cols = [
+            col for col in df.columns if col.startswith("post_exit_analysis_")
+        ]
         features.extend(post_exit_cols)
 
         # 4. Categorical: side (one-hot encode)
@@ -256,13 +274,17 @@ class PerformanceDiagnosticModel:
 
         # 5. Categorical: symbol (one-hot encode)
         if "symbol" in df.columns:
-            symbol_dummies = pd.get_dummies(df["symbol"], prefix="symbol", drop_first=False)
+            symbol_dummies = pd.get_dummies(
+                df["symbol"], prefix="symbol", drop_first=False
+            )
             df = pd.concat([df, symbol_dummies], axis=1)
             features.extend(symbol_dummies.columns.tolist())
 
         # 6. Categorical: exit_reason (one-hot encode, LOOKAHEAD)
         if "exit_reason" in df.columns:
-            exit_reason_dummies = pd.get_dummies(df["exit_reason"], prefix="exit_reason", drop_first=False)
+            exit_reason_dummies = pd.get_dummies(
+                df["exit_reason"], prefix="exit_reason", drop_first=False
+            )
             df = pd.concat([df, exit_reason_dummies], axis=1)
             features.extend(exit_reason_dummies.columns.tolist())
 
@@ -282,7 +304,7 @@ class PerformanceDiagnosticModel:
         cost_features = [
             "cost_breakdown_commission",
             "cost_breakdown_slippage",
-            "cost_breakdown_spread"
+            "cost_breakdown_spread",
         ]
         for feat in cost_features:
             if feat in df.columns:
@@ -327,7 +349,7 @@ class PerformanceDiagnosticModel:
             r_multiples,
             q=5,
             labels=[0, 1, 2, 3, 4],
-            duplicates="drop"  # Handle case where we have duplicate bin edges
+            duplicates="drop",  # Handle case where we have duplicate bin edges
         )
 
         # Convert to numpy array (qcut may return Series or ndarray)

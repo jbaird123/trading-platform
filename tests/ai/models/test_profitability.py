@@ -3,8 +3,6 @@
 import numpy as np
 import pandas as pd
 import pytest
-from pathlib import Path
-
 from trading_platform.ai.models.profitability import ProfitabilityModel
 
 
@@ -20,26 +18,36 @@ def sample_trades_df():
         # Context filters
         "execution_timeframe": ["5min"] * 100 + ["15min"] * 100,
         "strategy_archetype": ["trend_following"] * 100 + ["mean_reversion"] * 100,
-
         # Entry features (known at entry time)
-        "context_at_entry_strategy_features_ema_fast": np.random.uniform(1.0, 1.5, n_trades),
-        "context_at_entry_strategy_features_ema_slow": np.random.uniform(0.9, 1.4, n_trades),
-        "context_at_entry_strategy_features_h1_rsi": np.random.uniform(20, 80, n_trades),
-        "context_at_entry_strategy_features_d1_atr": np.random.uniform(0.001, 0.01, n_trades),
-        "context_at_entry_strategy_features_volume": np.random.uniform(1000, 5000, n_trades),
-
+        "context_at_entry_strategy_features_ema_fast": np.random.uniform(
+            1.0, 1.5, n_trades
+        ),
+        "context_at_entry_strategy_features_ema_slow": np.random.uniform(
+            0.9, 1.4, n_trades
+        ),
+        "context_at_entry_strategy_features_h1_rsi": np.random.uniform(
+            20, 80, n_trades
+        ),
+        "context_at_entry_strategy_features_d1_atr": np.random.uniform(
+            0.001, 0.01, n_trades
+        ),
+        "context_at_entry_strategy_features_volume": np.random.uniform(
+            1000, 5000, n_trades
+        ),
         # Entry metadata
         "side": np.random.choice(["long", "short"], n_trades),
         "symbol": np.random.choice(["EURUSD", "GBPUSD"], n_trades),
         "entry_time": pd.date_range("2024-01-01", periods=n_trades, freq="1h"),
-
         # Exit features (lookahead - should NOT be used)
-        "context_at_exit_strategy_features_ema_fast": np.random.uniform(1.0, 1.5, n_trades),
+        "context_at_exit_strategy_features_ema_fast": np.random.uniform(
+            1.0, 1.5, n_trades
+        ),
         "bars_held": np.random.randint(5, 50, n_trades),
         "exit_reason": np.random.choice(["take_profit", "stop_loss"], n_trades),
-
         # Target
-        "pnl": np.random.uniform(-100, 200, n_trades),  # Mix of profitable and unprofitable
+        "pnl": np.random.uniform(
+            -100, 200, n_trades
+        ),  # Mix of profitable and unprofitable
     }
 
     return pd.DataFrame(data)
@@ -80,7 +88,9 @@ class TestProfitabilityModel:
                 "hour_of_day",
                 "day_of_week",
             ]
-            assert any(feature.startswith(prefix) for prefix in valid_prefixes), f"Unexpected feature: {feature}"
+            assert any(
+                feature.startswith(prefix) for prefix in valid_prefixes
+            ), f"Unexpected feature: {feature}"
 
     def test_fit_filters_by_context(self, sample_trades_df):
         """Verify training data filtered by timeframe/archetype."""
@@ -97,7 +107,9 @@ class TestProfitabilityModel:
         model.fit(sample_trades_df)
 
         # Get a subset for prediction
-        test_data = sample_trades_df[sample_trades_df["execution_timeframe"] == "5min"].head(10)
+        test_data = sample_trades_df[
+            sample_trades_df["execution_timeframe"] == "5min"
+        ].head(10)
         predictions = model.predict(test_data)
 
         assert isinstance(predictions, np.ndarray)
@@ -109,17 +121,24 @@ class TestProfitabilityModel:
         model = ProfitabilityModel(timeframe="5min", archetype="trend_following")
         model.fit(sample_trades_df)
 
-        test_data = sample_trades_df[sample_trades_df["execution_timeframe"] == "5min"].head(10)
+        test_data = sample_trades_df[
+            sample_trades_df["execution_timeframe"] == "5min"
+        ].head(10)
         probabilities = model.predict_proba(test_data)
 
         assert isinstance(probabilities, np.ndarray)
-        assert probabilities.shape == (10, 2)  # Binary classification: [prob_class_0, prob_class_1]
+        assert probabilities.shape == (
+            10,
+            2,
+        )  # Binary classification: [prob_class_0, prob_class_1]
         assert np.all((probabilities >= 0) & (probabilities <= 1))
         assert np.allclose(probabilities.sum(axis=1), 1.0)  # Probabilities sum to 1
 
     def test_save_and_load(self, sample_trades_df, tmp_path):
         """Verify model serialization works."""
-        model = ProfitabilityModel(timeframe="5min", archetype="trend_following", random_state=42)
+        model = ProfitabilityModel(
+            timeframe="5min", archetype="trend_following", random_state=42
+        )
         model.fit(sample_trades_df)
 
         # Save model
@@ -135,7 +154,9 @@ class TestProfitabilityModel:
         assert loaded_model.feature_names_ == model.feature_names_
 
         # Predictions should match
-        test_data = sample_trades_df[sample_trades_df["execution_timeframe"] == "5min"].head(5)
+        test_data = sample_trades_df[
+            sample_trades_df["execution_timeframe"] == "5min"
+        ].head(5)
         original_pred = model.predict_proba(test_data)
         loaded_pred = loaded_model.predict_proba(test_data)
         np.testing.assert_array_almost_equal(original_pred, loaded_pred)
@@ -159,7 +180,9 @@ class TestProfitabilityModel:
 
     def test_fit_with_insufficient_data_raises(self, sample_trades_df):
         """Need minimum 50 trades."""
-        model = ProfitabilityModel(timeframe="1h", archetype="swing")  # Context doesn't exist
+        model = ProfitabilityModel(
+            timeframe="1h", archetype="swing"
+        )  # Context doesn't exist
 
         with pytest.raises(ValueError, match="Insufficient data: need 50\\+ trades"):
             model.fit(sample_trades_df)

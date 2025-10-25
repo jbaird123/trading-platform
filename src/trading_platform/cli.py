@@ -995,13 +995,11 @@ def cmd_train_profitability_models(args: argparse.Namespace) -> int:
     registry = ModelRegistry(model_dir=model_dir)
 
     # Train models
-    print(f"\nTraining profitability models...")
+    print("\nTraining profitability models...")
     print(f"Model directory: {model_dir}")
 
     trained_models = registry.train_all_profitability_models(
-        enriched_df,
-        n_estimators=args.n_estimators,
-        random_state=args.random_state
+        enriched_df, n_estimators=args.n_estimators, random_state=args.random_state
     )
 
     if not trained_models:
@@ -1039,7 +1037,9 @@ def cmd_train_diagnostic_models(args: argparse.Namespace) -> int:
     registry = ModelRegistry(model_dir=model_dir)
 
     # Find all unique contexts
-    contexts = enriched_df[["execution_timeframe", "strategy_archetype"]].drop_duplicates()
+    contexts = enriched_df[
+        ["execution_timeframe", "strategy_archetype"]
+    ].drop_duplicates()
 
     print(f"\nTraining diagnostic models for {len(contexts)} contexts...")
     print(f"Model directory: {model_dir}")
@@ -1055,7 +1055,7 @@ def cmd_train_diagnostic_models(args: argparse.Namespace) -> int:
             timeframe=timeframe,
             archetype=archetype,
             n_estimators=args.n_estimators,
-            random_state=args.random_state
+            random_state=args.random_state,
         )
 
         try:
@@ -1092,7 +1092,9 @@ def cmd_predict_profitability(args: argparse.Namespace) -> int:
 
     prof_models = registry.list_models("profitability")
     if not prof_models:
-        print("Error: No profitability models found. Train models first.", file=sys.stderr)
+        print(
+            "Error: No profitability models found. Train models first.", file=sys.stderr
+        )
         return 1
 
     print(f"Loaded {len(prof_models)} profitability models")
@@ -1117,22 +1119,22 @@ def cmd_predict_profitability(args: argparse.Namespace) -> int:
 
         try:
             pred_proba = registry.predict_profitability_proba(
-                X=pd.DataFrame([trade]),
-                timeframe=timeframe,
-                archetype=archetype
+                X=pd.DataFrame([trade]), timeframe=timeframe, archetype=archetype
             )
-            predictions.append({
-                "index": trade.name,
-                "prob_profitable": pred_proba.iloc[0]["prob_profitable"],
-                "prediction": 1 if pred_proba.iloc[0]["prob_profitable"] >= 0.5 else 0
-            })
+            predictions.append(
+                {
+                    "index": trade.name,
+                    "prob_profitable": pred_proba.iloc[0]["prob_profitable"],
+                    "prediction": 1
+                    if pred_proba.iloc[0]["prob_profitable"] >= 0.5
+                    else 0,
+                }
+            )
         except ValueError as e:
             print(f"Warning: Skipping trade (no model): {e}")
-            predictions.append({
-                "index": trade.name,
-                "prob_profitable": None,
-                "prediction": None
-            })
+            predictions.append(
+                {"index": trade.name, "prob_profitable": None, "prediction": None}
+            )
 
     # Save predictions
     output_path = Path(args.output) if args.output else Path("predictions.csv")
@@ -1203,15 +1205,16 @@ def cmd_analyze_regime(args: argparse.Namespace) -> int:
 
         # Predict quintiles
         quintiles = model.predict(context_trades)
-        proba = model.predict_proba(context_trades)
 
-        results.append({
-            "context": key,
-            "n_trades": len(context_trades),
-            "avg_quintile": quintiles.mean(),
-            "quintile_0_pct": (quintiles == 0).sum() / len(quintiles) * 100,
-            "quintile_4_pct": (quintiles == 4).sum() / len(quintiles) * 100,
-        })
+        results.append(
+            {
+                "context": key,
+                "n_trades": len(context_trades),
+                "avg_quintile": quintiles.mean(),
+                "quintile_0_pct": (quintiles == 0).sum() / len(quintiles) * 100,
+                "quintile_4_pct": (quintiles == 4).sum() / len(quintiles) * 100,
+            }
+        )
 
     # Display results
     if results:
@@ -1361,99 +1364,89 @@ def main() -> int:
     # ML Model Training Commands
     ptpm = sub.add_parser(
         "train-profitability-models",
-        help="Train profitability models from enriched trade data"
+        help="Train profitability models from enriched trade data",
     )
     ptpm.add_argument(
         "--enriched-data",
         required=True,
-        help="Path to enriched trade data (parquet file)"
+        help="Path to enriched trade data (parquet file)",
     )
     ptpm.add_argument(
-        "--model-dir",
-        default=None,
-        help="Directory to save models (default: models/)"
+        "--model-dir", default=None, help="Directory to save models (default: models/)"
     )
     ptpm.add_argument(
         "--n-estimators",
         type=int,
         default=100,
-        help="Number of trees in RandomForest (default: 100)"
+        help="Number of trees in RandomForest (default: 100)",
     )
     ptpm.add_argument(
         "--random-state",
         type=int,
         default=42,
-        help="Random seed for reproducibility (default: 42)"
+        help="Random seed for reproducibility (default: 42)",
     )
     ptpm.set_defaults(func=cmd_train_profitability_models)
 
     ptdm = sub.add_parser(
         "train-diagnostic-models",
-        help="Train diagnostic models from enriched trade data"
+        help="Train diagnostic models from enriched trade data",
     )
     ptdm.add_argument(
         "--enriched-data",
         required=True,
-        help="Path to enriched trade data (parquet file)"
+        help="Path to enriched trade data (parquet file)",
     )
     ptdm.add_argument(
-        "--model-dir",
-        default=None,
-        help="Directory to save models (default: models/)"
+        "--model-dir", default=None, help="Directory to save models (default: models/)"
     )
     ptdm.add_argument(
         "--n-estimators",
         type=int,
         default=100,
-        help="Number of trees in RandomForest (default: 100)"
+        help="Number of trees in RandomForest (default: 100)",
     )
     ptdm.add_argument(
         "--random-state",
         type=int,
         default=42,
-        help="Random seed for reproducibility (default: 42)"
+        help="Random seed for reproducibility (default: 42)",
     )
     ptdm.set_defaults(func=cmd_train_diagnostic_models)
 
     ppp = sub.add_parser(
         "predict-profitability",
-        help="Predict profitability for trades using trained models"
+        help="Predict profitability for trades using trained models",
     )
     ppp.add_argument(
-        "--input-data",
-        required=True,
-        help="Path to input trade data (parquet file)"
+        "--input-data", required=True, help="Path to input trade data (parquet file)"
     )
     ppp.add_argument(
         "--model-dir",
         default=None,
-        help="Directory containing trained models (default: models/)"
+        help="Directory containing trained models (default: models/)",
     )
     ppp.add_argument(
         "--output",
         default=None,
-        help="Output path for predictions (default: predictions.csv)"
+        help="Output path for predictions (default: predictions.csv)",
     )
     ppp.set_defaults(func=cmd_predict_profitability)
 
     par = sub.add_parser(
         "analyze-regime",
-        help="Analyze regime performance using trained diagnostic models"
+        help="Analyze regime performance using trained diagnostic models",
     )
     par.add_argument(
-        "--input-data",
-        required=True,
-        help="Path to input trade data (parquet file)"
+        "--input-data", required=True, help="Path to input trade data (parquet file)"
     )
     par.add_argument(
         "--model-dir",
         default=None,
-        help="Directory containing trained models (default: models/)"
+        help="Directory containing trained models (default: models/)",
     )
     par.add_argument(
-        "--output",
-        default=None,
-        help="Output path for analysis results (CSV)"
+        "--output", default=None, help="Output path for analysis results (CSV)"
     )
     par.set_defaults(func=cmd_analyze_regime)
 

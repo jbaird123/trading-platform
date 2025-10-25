@@ -5,13 +5,13 @@ combination. Each model uses only entry-time features (no lookahead) to predict 
 will be profitable, making them suitable for real-time signal filtering.
 """
 
+from pathlib import Path
+
 import joblib
 import numpy as np
 import pandas as pd
-from pathlib import Path
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
-from typing import Any
 
 
 class ProfitabilityModel:
@@ -30,7 +30,13 @@ class ProfitabilityModel:
     Target: Binary classification (profitable=1, unprofitable=0)
     """
 
-    def __init__(self, timeframe: str, archetype: str, n_estimators: int = 100, random_state: int = 42):
+    def __init__(
+        self,
+        timeframe: str,
+        archetype: str,
+        n_estimators: int = 100,
+        random_state: int = 42,
+    ):
         """Initialize ProfitabilityModel for specific context.
 
         Args:
@@ -238,7 +244,9 @@ class ProfitabilityModel:
 
         # 3. Categorical: symbol (one-hot encode)
         if "symbol" in df.columns:
-            symbol_dummies = pd.get_dummies(df["symbol"], prefix="symbol", drop_first=False)
+            symbol_dummies = pd.get_dummies(
+                df["symbol"], prefix="symbol", drop_first=False
+            )
             df = pd.concat([df, symbol_dummies], axis=1)
             features.extend(symbol_dummies.columns.tolist())
 

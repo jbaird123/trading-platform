@@ -6,20 +6,21 @@ Full tests will be added when the analyzer is fully implemented.
 
 import pandas as pd
 import pytest
-
 from trading_platform.reporting.diagnostics import RuleBasedAnalyzer
 
 
 @pytest.fixture
 def sample_trades_df():
     """Create sample trades DataFrame for testing."""
-    return pd.DataFrame({
-        "execution_timeframe": ["5min"] * 10,
-        "strategy_archetype": ["trend_following"] * 10,
-        "pnl": [10.0, -5.0, 15.0, -3.0, 8.0, -10.0, 12.0, -7.0, 20.0, -4.0],
-        "entry_time": pd.date_range("2024-01-01", periods=10, freq="1h"),
-        "exit_time": pd.date_range("2024-01-01 01:00", periods=10, freq="1h"),
-    })
+    return pd.DataFrame(
+        {
+            "execution_timeframe": ["5min"] * 10,
+            "strategy_archetype": ["trend_following"] * 10,
+            "pnl": [10.0, -5.0, 15.0, -3.0, 8.0, -10.0, 12.0, -7.0, 20.0, -4.0],
+            "entry_time": pd.date_range("2024-01-01", periods=10, freq="1h"),
+            "exit_time": pd.date_range("2024-01-01 01:00", periods=10, freq="1h"),
+        }
+    )
 
 
 class TestRuleBasedAnalyzer:

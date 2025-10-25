@@ -10,8 +10,9 @@ Examples of rules:
 - Risk/reward ratio problems
 """
 
-import pandas as pd
 from typing import Any
+
+import pandas as pd
 
 
 class RuleBasedAnalyzer:
@@ -41,11 +42,7 @@ class RuleBasedAnalyzer:
         Note: This is a stub implementation. Will be fully implemented later.
         """
         # Placeholder: Return empty analysis
-        return {
-            "findings": [],
-            "recommendations": [],
-            "metrics": {}
-        }
+        return {"findings": [], "recommendations": [], "metrics": {}}
 
     def detect_win_rate_issues(self, trades_df: pd.DataFrame) -> list[str]:
         """Detect win rate vs expectancy inconsistencies.

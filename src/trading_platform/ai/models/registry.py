@@ -45,7 +45,9 @@ class ModelRegistry:
 
         # Separate registries for each model family
         self._profitability_models: dict[str, ProfitabilityModel] = {}
-        self._diagnostic_models: dict[str, Any] = {}  # Will use PerformanceDiagnosticModel later
+        self._diagnostic_models: dict[
+            str, Any
+        ] = {}  # Will use PerformanceDiagnosticModel later
 
     def register_model(self, family: str, key: str, model: Any) -> None:
         """Register a model in the specified family.
@@ -60,14 +62,20 @@ class ModelRegistry:
         """
         if family == "profitability":
             if key in self._profitability_models:
-                raise ValueError(f"Model key '{key}' already registered in profitability family")
+                raise ValueError(
+                    f"Model key '{key}' already registered in profitability family"
+                )
             self._profitability_models[key] = model
         elif family == "diagnostic":
             if key in self._diagnostic_models:
-                raise ValueError(f"Model key '{key}' already registered in diagnostic family")
+                raise ValueError(
+                    f"Model key '{key}' already registered in diagnostic family"
+                )
             self._diagnostic_models[key] = model
         else:
-            raise ValueError(f"Invalid model family: {family}. Must be 'profitability' or 'diagnostic'")
+            raise ValueError(
+                f"Invalid model family: {family}. Must be 'profitability' or 'diagnostic'"
+            )
 
     def get_model(self, family: str, key: str) -> Any | None:
         """Retrieve a model by family and key.
@@ -107,7 +115,7 @@ class ModelRegistry:
         timeframe: str,
         archetype: str,
         n_estimators: int = 100,
-        random_state: int = 42
+        random_state: int = 42,
     ) -> ProfitabilityModel:
         """Get existing profitability model or create new one.
 
@@ -129,7 +137,7 @@ class ModelRegistry:
                 timeframe=timeframe,
                 archetype=archetype,
                 n_estimators=n_estimators,
-                random_state=random_state
+                random_state=random_state,
             )
             self.register_model("profitability", key, model)
 
@@ -139,7 +147,7 @@ class ModelRegistry:
         self,
         enriched_trades_df: pd.DataFrame,
         n_estimators: int = 100,
-        random_state: int = 42
+        random_state: int = 42,
     ) -> dict[str, ProfitabilityModel]:
         """Train profitability models for all contexts in the data.
 
@@ -152,7 +160,9 @@ class ModelRegistry:
             Dictionary of trained models {key: model}
         """
         # Find all unique contexts
-        contexts = enriched_trades_df[["execution_timeframe", "strategy_archetype"]].drop_duplicates()
+        contexts = enriched_trades_df[
+            ["execution_timeframe", "strategy_archetype"]
+        ].drop_duplicates()
 
         trained_models = {}
 
@@ -166,7 +176,7 @@ class ModelRegistry:
                 timeframe=timeframe,
                 archetype=archetype,
                 n_estimators=n_estimators,
-                random_state=random_state
+                random_state=random_state,
             )
 
             # Try to train
@@ -181,10 +191,7 @@ class ModelRegistry:
         return trained_models
 
     def predict_profitability(
-        self,
-        X: pd.DataFrame,
-        timeframe: str,
-        archetype: str
+        self, X: pd.DataFrame, timeframe: str, archetype: str
     ) -> pd.Series:
         """Predict profitability using the appropriate model.
 
@@ -209,10 +216,7 @@ class ModelRegistry:
         return pd.Series(predictions, index=X.index)
 
     def predict_profitability_proba(
-        self,
-        X: pd.DataFrame,
-        timeframe: str,
-        archetype: str
+        self, X: pd.DataFrame, timeframe: str, archetype: str
     ) -> pd.DataFrame:
         """Predict profitability probabilities using the appropriate model.
 
@@ -235,9 +239,7 @@ class ModelRegistry:
 
         proba = model.predict_proba(X)
         return pd.DataFrame(
-            proba,
-            columns=["prob_unprofitable", "prob_profitable"],
-            index=X.index
+            proba, columns=["prob_unprofitable", "prob_profitable"], index=X.index
         )
 
     def save(self) -> None:

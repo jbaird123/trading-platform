@@ -6,50 +6,46 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-
 from trading_platform.ai.models.diagnostic import PerformanceDiagnosticModel
 
 
 @pytest.fixture
 def sample_trades_df():
     """Create sample enriched trades DataFrame with lookahead features."""
-    return pd.DataFrame({
-        # Context metadata
-        "execution_timeframe": ["5min"] * 60,
-        "strategy_archetype": ["trend_following"] * 60,
-
-        # Entry features
-        "context_at_entry_rsi": np.random.uniform(30, 70, 60),
-        "context_at_entry_atr": np.random.uniform(0.0005, 0.002, 60),
-        "side": ["long", "short"] * 30,
-        "symbol": ["EUR_USD"] * 60,
-        "entry_time": pd.date_range("2024-01-01", periods=60, freq="1h"),
-
-        # Exit features (lookahead)
-        "context_at_exit_rsi": np.random.uniform(30, 70, 60),
-        "context_at_exit_atr": np.random.uniform(0.0005, 0.002, 60),
-
-        # Trade execution features (lookahead)
-        "bars_held": np.random.randint(1, 50, 60),
-        "mae_currency": np.random.uniform(-50, 0, 60),
-        "mfe_currency": np.random.uniform(0, 100, 60),
-        "r_multiple": np.random.uniform(-2, 5, 60),  # Target basis
-
-        # Exit metadata (lookahead)
-        "exit_reason": np.random.choice(["take_profit", "stop_loss", "trailing_stop"], 60),
-
-        # Post-trade analysis (lookahead)
-        "post_exit_analysis_max_favorable_pip": np.random.uniform(0, 50, 60),
-        "post_exit_analysis_max_adverse_pip": np.random.uniform(-50, 0, 60),
-
-        # Cost features
-        "cost_breakdown_commission": [2.0] * 60,
-        "cost_breakdown_slippage": [1.0] * 60,
-        "cost_breakdown_spread": [1.5] * 60,
-
-        # Target (not used directly - we compute quintiles from r_multiple)
-        "pnl": np.random.uniform(-50, 100, 60),
-    })
+    return pd.DataFrame(
+        {
+            # Context metadata
+            "execution_timeframe": ["5min"] * 60,
+            "strategy_archetype": ["trend_following"] * 60,
+            # Entry features
+            "context_at_entry_rsi": np.random.uniform(30, 70, 60),
+            "context_at_entry_atr": np.random.uniform(0.0005, 0.002, 60),
+            "side": ["long", "short"] * 30,
+            "symbol": ["EUR_USD"] * 60,
+            "entry_time": pd.date_range("2024-01-01", periods=60, freq="1h"),
+            # Exit features (lookahead)
+            "context_at_exit_rsi": np.random.uniform(30, 70, 60),
+            "context_at_exit_atr": np.random.uniform(0.0005, 0.002, 60),
+            # Trade execution features (lookahead)
+            "bars_held": np.random.randint(1, 50, 60),
+            "mae_currency": np.random.uniform(-50, 0, 60),
+            "mfe_currency": np.random.uniform(0, 100, 60),
+            "r_multiple": np.random.uniform(-2, 5, 60),  # Target basis
+            # Exit metadata (lookahead)
+            "exit_reason": np.random.choice(
+                ["take_profit", "stop_loss", "trailing_stop"], 60
+            ),
+            # Post-trade analysis (lookahead)
+            "post_exit_analysis_max_favorable_pip": np.random.uniform(0, 50, 60),
+            "post_exit_analysis_max_adverse_pip": np.random.uniform(-50, 0, 60),
+            # Cost features
+            "cost_breakdown_commission": [2.0] * 60,
+            "cost_breakdown_slippage": [1.0] * 60,
+            "cost_breakdown_spread": [1.5] * 60,
+            # Target (not used directly - we compute quintiles from r_multiple)
+            "pnl": np.random.uniform(-50, 100, 60),
+        }
+    )
 
 
 @pytest.fixture
@@ -65,8 +61,7 @@ class TestPerformanceDiagnosticModel:
     def test_fit_with_valid_trades_df(self, sample_trades_df):
         """Verify model can be trained successfully."""
         model = PerformanceDiagnosticModel(
-            timeframe="5min",
-            archetype="trend_following"
+            timeframe="5min", archetype="trend_following"
         )
 
         model.fit(sample_trades_df)
@@ -79,8 +74,7 @@ class TestPerformanceDiagnosticModel:
     def test_fit_extracts_all_features(self, sample_trades_df):
         """Verify model uses ALL features including lookahead."""
         model = PerformanceDiagnosticModel(
-            timeframe="5min",
-            archetype="trend_following"
+            timeframe="5min", archetype="trend_following"
         )
 
         model.fit(sample_trades_df)
@@ -110,8 +104,7 @@ class TestPerformanceDiagnosticModel:
         combined_df = pd.concat([sample_trades_df, other_context], ignore_index=True)
 
         model = PerformanceDiagnosticModel(
-            timeframe="5min",
-            archetype="trend_following"
+            timeframe="5min", archetype="trend_following"
         )
         model.fit(combined_df)
 
@@ -123,8 +116,7 @@ class TestPerformanceDiagnosticModel:
     def test_predict_returns_quintile_array(self, sample_trades_df):
         """Verify predictions are quintiles (0-4)."""
         model = PerformanceDiagnosticModel(
-            timeframe="5min",
-            archetype="trend_following"
+            timeframe="5min", archetype="trend_following"
         )
         model.fit(sample_trades_df)
 
@@ -139,8 +131,7 @@ class TestPerformanceDiagnosticModel:
     def test_predict_proba_returns_probabilities(self, sample_trades_df):
         """Verify probability predictions."""
         model = PerformanceDiagnosticModel(
-            timeframe="5min",
-            archetype="trend_following"
+            timeframe="5min", archetype="trend_following"
         )
         model.fit(sample_trades_df)
 
@@ -160,9 +151,7 @@ class TestPerformanceDiagnosticModel:
         """Verify model serialization and deserialization."""
         # Train and save model
         model = PerformanceDiagnosticModel(
-            timeframe="5min",
-            archetype="trend_following",
-            n_estimators=50
+            timeframe="5min", archetype="trend_following", n_estimators=50
         )
         model.fit(sample_trades_df)
 
@@ -185,8 +174,7 @@ class TestPerformanceDiagnosticModel:
     def test_metadata_stored(self, sample_trades_df):
         """Verify timeframe and archetype are stored."""
         model = PerformanceDiagnosticModel(
-            timeframe="15min",
-            archetype="mean_reversion"
+            timeframe="15min", archetype="mean_reversion"
         )
 
         assert model.timeframe == "15min"
@@ -195,8 +183,7 @@ class TestPerformanceDiagnosticModel:
     def test_fit_with_empty_dataframe_raises(self):
         """Verify error on empty DataFrame."""
         model = PerformanceDiagnosticModel(
-            timeframe="5min",
-            archetype="trend_following"
+            timeframe="5min", archetype="trend_following"
         )
 
         empty_df = pd.DataFrame()
@@ -207,8 +194,7 @@ class TestPerformanceDiagnosticModel:
     def test_fit_with_insufficient_data_raises(self, sample_trades_df):
         """Verify error when context has < 50 trades."""
         model = PerformanceDiagnosticModel(
-            timeframe="5min",
-            archetype="trend_following"
+            timeframe="5min", archetype="trend_following"
         )
 
         # Use only 20 trades
@@ -220,8 +206,7 @@ class TestPerformanceDiagnosticModel:
     def test_fit_with_missing_r_multiple_column_raises(self, sample_trades_df):
         """Verify error when target column is missing."""
         model = PerformanceDiagnosticModel(
-            timeframe="5min",
-            archetype="trend_following"
+            timeframe="5min", archetype="trend_following"
         )
 
         # Remove target column
@@ -233,8 +218,7 @@ class TestPerformanceDiagnosticModel:
     def test_feature_names_stored(self, sample_trades_df):
         """Verify feature names are stored for alignment."""
         model = PerformanceDiagnosticModel(
-            timeframe="5min",
-            archetype="trend_following"
+            timeframe="5min", archetype="trend_following"
         )
         model.fit(sample_trades_df)
 
@@ -246,8 +230,7 @@ class TestPerformanceDiagnosticModel:
     def test_predict_with_unfitted_model_raises(self, sample_trades_df):
         """Verify error when predicting with unfitted model."""
         model = PerformanceDiagnosticModel(
-            timeframe="5min",
-            archetype="trend_following"
+            timeframe="5min", archetype="trend_following"
         )
 
         with pytest.raises(ValueError, match="not fitted"):
@@ -256,8 +239,7 @@ class TestPerformanceDiagnosticModel:
     def test_quintile_target_creation(self, sample_trades_df):
         """Verify quintiles are created correctly from r_multiple."""
         model = PerformanceDiagnosticModel(
-            timeframe="5min",
-            archetype="trend_following"
+            timeframe="5min", archetype="trend_following"
         )
         model.fit(sample_trades_df)
 
@@ -274,8 +256,7 @@ class TestPerformanceDiagnosticModel:
     def test_get_model_key(self):
         """Verify model key generation."""
         model = PerformanceDiagnosticModel(
-            timeframe="5min",
-            archetype="trend_following"
+            timeframe="5min", archetype="trend_following"
         )
 
         assert model.get_model_key() == "5min_trend_following"
