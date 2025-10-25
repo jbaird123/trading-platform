@@ -12,7 +12,6 @@ import json
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 from unittest.mock import Mock, patch
 
@@ -60,7 +59,15 @@ class TestPydanticValidation:
         config = {
             "strategy_name": "test",
             "long_entry_rules": [
-                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
+                {
+                    "all_of": [
+                        {
+                            "condition": "is_above",
+                            "left": {"field": "close"},
+                            "right": {"value": 1.0},
+                        }
+                    ]
+                }
             ],
         }
         # Should not raise
@@ -134,10 +141,26 @@ class TestSlopeFilterLogic:
                 }
             ],
             "long_entry_rules": [
-                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
+                {
+                    "all_of": [
+                        {
+                            "condition": "is_above",
+                            "left": {"field": "close"},
+                            "right": {"value": 1.0},
+                        }
+                    ]
+                }
             ],
             "long_exit_rules": [
-                {"all_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.0}}]}
+                {
+                    "all_of": [
+                        {
+                            "condition": "is_below",
+                            "left": {"field": "close"},
+                            "right": {"value": 1.0},
+                        }
+                    ]
+                }
             ],
             "parameters": {"slope_filter": True, "slope_feature": "ema_slow"},
         }
@@ -174,7 +197,15 @@ class TestSlopeFilterLogic:
             "strategy_name": "MissingSlopeStrategy",
             "features": [],
             "long_entry_rules": [
-                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
+                {
+                    "all_of": [
+                        {
+                            "condition": "is_above",
+                            "left": {"field": "close"},
+                            "right": {"value": 1.0},
+                        }
+                    ]
+                }
             ],
             "long_exit_rules": [],
             "parameters": {"slope_filter": True, "slope_feature": "missing_column"},
@@ -213,11 +244,27 @@ class TestAIFilterLogic:
             overlays=[],
             features=[],
             long_entry_blocks=[
-                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
+                {
+                    "all_of": [
+                        {
+                            "condition": "is_above",
+                            "left": {"field": "close"},
+                            "right": {"value": 1.0},
+                        }
+                    ]
+                }
             ],
             long_exit_blocks=[],
             short_entry_blocks=[
-                {"all_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.5}}]}
+                {
+                    "all_of": [
+                        {
+                            "condition": "is_below",
+                            "left": {"field": "close"},
+                            "right": {"value": 1.5},
+                        }
+                    ]
+                }
             ],
             short_exit_blocks=[],
             parameters={},
@@ -253,7 +300,15 @@ class TestAIFilterLogic:
             "strategy_name": "AIFilterMissingFeatures",
             "features": [],
             "long_entry_rules": [
-                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
+                {
+                    "all_of": [
+                        {
+                            "condition": "is_above",
+                            "left": {"field": "close"},
+                            "right": {"value": 1.0},
+                        }
+                    ]
+                }
             ],
             "long_exit_rules": [],
             "ai_filter": {
@@ -299,7 +354,15 @@ class TestAIFilterLogic:
             overlays=[],
             features=[],
             long_entry_blocks=[
-                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
+                {
+                    "all_of": [
+                        {
+                            "condition": "is_above",
+                            "left": {"field": "close"},
+                            "right": {"value": 1.0},
+                        }
+                    ]
+                }
             ],
             long_exit_blocks=[],
             short_entry_blocks=[],
@@ -338,7 +401,15 @@ class TestAIFilterLogic:
             "strategy_name": "AIFilterException",
             "features": [],
             "long_entry_rules": [
-                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
+                {
+                    "all_of": [
+                        {
+                            "condition": "is_above",
+                            "left": {"field": "close"},
+                            "right": {"value": 1.0},
+                        }
+                    ]
+                }
             ],
             "long_exit_rules": [],
             "ai_filter": {
@@ -386,7 +457,15 @@ class TestAIFilterLogic:
             overlays=[],
             features=[],
             long_entry_blocks=[
-                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
+                {
+                    "all_of": [
+                        {
+                            "condition": "is_above",
+                            "left": {"field": "close"},
+                            "right": {"value": 1.0},
+                        }
+                    ]
+                }
             ],
             long_exit_blocks=[],
             short_entry_blocks=[],
@@ -426,10 +505,26 @@ class TestSignalStateMachine:
             long_entry_blocks=[],
             long_exit_blocks=[],
             short_entry_blocks=[
-                {"all_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 0.9}}]}
+                {
+                    "all_of": [
+                        {
+                            "condition": "is_below",
+                            "left": {"field": "close"},
+                            "right": {"value": 0.9},
+                        }
+                    ]
+                }
             ],
             short_exit_blocks=[
-                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.1}}]}
+                {
+                    "all_of": [
+                        {
+                            "condition": "is_above",
+                            "left": {"field": "close"},
+                            "right": {"value": 1.1},
+                        }
+                    ]
+                }
             ],
             parameters={},
         )
@@ -460,16 +555,48 @@ class TestSignalStateMachine:
             overlays=[],
             features=[],
             long_entry_blocks=[
-                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.1}}]}
+                {
+                    "all_of": [
+                        {
+                            "condition": "is_above",
+                            "left": {"field": "close"},
+                            "right": {"value": 1.1},
+                        }
+                    ]
+                }
             ],
             long_exit_blocks=[
-                {"all_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.0}}]}
+                {
+                    "all_of": [
+                        {
+                            "condition": "is_below",
+                            "left": {"field": "close"},
+                            "right": {"value": 1.0},
+                        }
+                    ]
+                }
             ],
             short_entry_blocks=[
-                {"all_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 0.9}}]}
+                {
+                    "all_of": [
+                        {
+                            "condition": "is_below",
+                            "left": {"field": "close"},
+                            "right": {"value": 0.9},
+                        }
+                    ]
+                }
             ],
             short_exit_blocks=[
-                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
+                {
+                    "all_of": [
+                        {
+                            "condition": "is_above",
+                            "left": {"field": "close"},
+                            "right": {"value": 1.0},
+                        }
+                    ]
+                }
             ],
             parameters={},
         )
@@ -530,7 +657,15 @@ class TestSignalStateMachine:
                 }
             ],
             "long_entry_rules": [
-                {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
+                {
+                    "all_of": [
+                        {
+                            "condition": "is_above",
+                            "left": {"field": "close"},
+                            "right": {"value": 1.0},
+                        }
+                    ]
+                }
             ],
             "long_exit_rules": [],
         }
@@ -601,7 +736,10 @@ class TestSeriesForOperandEdgeCases:
     """Test fail-loud behavior for invalid operands in _series_for_operand."""
 
     def test_series_for_operand_dict_without_ref(self):
-        """Test _series_for_operand with dict that doesn't have required keys - should raise ValueError."""
+        """
+        Test _series_for_operand with dict that doesn't have required
+        keys - should raise ValueError.
+        """
         df = pd.DataFrame(
             {"close": [1.0, 1.1, 1.2]}, index=pd.date_range("2024-01-01", periods=3)
         )
@@ -640,7 +778,15 @@ def test_validate_strategy_config_with_pydantic():
         "strategy_name": "test_strategy",
         "features": [],
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 1.0},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": [],
     }
@@ -667,11 +813,17 @@ def test_validate_strategy_config_with_pydantic_features():
     """Test validate_strategy_config accepts features and rules."""
     valid_config = {
         "strategy_name": "test_with_features",
-        "features": [
-            {"name": "sma_20", "type": "SMA", "params": {"length": 20}}
-        ],
+        "features": [{"name": "sma_20", "type": "SMA", "params": {"length": 20}}],
         "long_entry_rules": [
-            {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
+            {
+                "all_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 1.0},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": [],
     }
@@ -717,7 +869,15 @@ def test_load_strategy_config_from_file_path():
         "entry_signals": [
             {
                 "rules": [
-                    {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.1000}}]}
+                    {
+                        "all_of": [
+                            {
+                                "condition": "is_above",
+                                "left": {"field": "close"},
+                                "right": {"value": 1.1000},
+                            }
+                        ]
+                    }
                 ]
             }
         ],
@@ -800,7 +960,15 @@ def test_compile_strategy_edge_cases():
     strategy_config = {
         "strategy_name": "TestStrategy",
         "long_entry_rules": [
-            {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
+            {
+                "all_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 1.0},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": [],
         "parameters": {"param1": 1.5},
@@ -901,10 +1069,26 @@ def _base_config() -> dict[str, Any]:
     return {
         "strategy_name": "Test",
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": {"value": 1}, "right": {"value": 0}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"value": 1},
+                        "right": {"value": 0},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": {"value": 1}, "right": {"value": 2}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"value": 1},
+                        "right": {"value": 2},
+                    }
+                ]
+            }
         ],
     }
 
@@ -919,7 +1103,11 @@ def test_validate_strategy_config_pydantic_strict_validation():
     invalid_cfg = {
         "strategy_name": "invalid",
         "long_entry_rules": [
-            {"all_of": [{"bad_field": "invalid"}]}  # Missing required predicate fields
+            {
+                "all_of": [
+                    {"bad_field": "invalid"}  # Missing required predicate fields
+                ]
+            }
         ],
     }
     with pytest.raises(ValueError, match="Strategy validation error"):
@@ -946,8 +1134,12 @@ def test_series_for_operand_variants():
 
 def test_eval_predicate_all_conditions():
     df = pd.DataFrame({"a": [1, 2, 3], "b": [3, 2, 1]})
-    above = ys._eval_predicate(df, {"condition": "is_above", "left": {"ref": "b"}, "right": {"ref": "a"}})
-    below = ys._eval_predicate(df, {"condition": "is_below", "left": {"ref": "a"}, "right": {"ref": "b"}})
+    above = ys._eval_predicate(
+        df, {"condition": "is_above", "left": {"ref": "b"}, "right": {"ref": "a"}}
+    )
+    below = ys._eval_predicate(
+        df, {"condition": "is_below", "left": {"ref": "a"}, "right": {"ref": "b"}}
+    )
     cross_up = ys._eval_predicate(
         df, {"condition": "cross_above", "left": {"ref": "a"}, "right": {"ref": "b"}}
     )
@@ -960,13 +1152,23 @@ def test_eval_predicate_all_conditions():
     assert list(cross_up) == [False, False, True]
     assert list(cross_down) == [False, False, True]
     with pytest.raises(ValueError, match="Unknown predicate condition"):
-        ys._eval_predicate(df, {"condition": "unknown", "left": {"ref": "a"}, "right": {"ref": "b"}})
+        ys._eval_predicate(
+            df, {"condition": "unknown", "left": {"ref": "a"}, "right": {"ref": "b"}}
+        )
 
 
 def test_eval_rule_block_branches():
     df = pd.DataFrame({"x": [2, 3, 4], "y": [0, 1, 2]})
-    all_block = {"all_of": [{"condition": "is_above", "left": {"ref": "x"}, "right": {"ref": "y"}}]}
-    any_block = {"any_of": [{"condition": "is_below", "left": {"ref": "y"}, "right": {"ref": "x"}}]}
+    all_block = {
+        "all_of": [
+            {"condition": "is_above", "left": {"ref": "x"}, "right": {"ref": "y"}}
+        ]
+    }
+    any_block = {
+        "any_of": [
+            {"condition": "is_below", "left": {"ref": "y"}, "right": {"ref": "x"}}
+        ]
+    }
     none_block: dict[str, Any] = {}
     assert ys._eval_rule_block(df, all_block).all()
     assert ys._eval_rule_block(df, any_block).iloc[0]
@@ -1005,10 +1207,26 @@ def test_compiled_strategy_generate_signals_basic(monkeypatch):
         overlays=[],
         features=[{"name": "feat"}],
         long_entry_blocks=[
-            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.5}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 1.5},
+                    }
+                ]
+            }
         ],
         long_exit_blocks=[
-            {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.5}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 1.5},
+                    }
+                ]
+            }
         ],
         short_entry_blocks=[],
         short_exit_blocks=[],
@@ -1116,16 +1334,48 @@ def test_compiled_strategy_slope_and_ai_filter(monkeypatch):
         overlays=[],
         features=[{"name": "fast"}],
         long_entry_blocks=[
-            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 0.5}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 0.5},
+                    }
+                ]
+            }
         ],
         long_exit_blocks=[
-            {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 3.5}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 3.5},
+                    }
+                ]
+            }
         ],
         short_entry_blocks=[
-            {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 3.5}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 3.5},
+                    }
+                ]
+            }
         ],
         short_exit_blocks=[
-            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 3.5}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 3.5},
+                    }
+                ]
+            }
         ],
         parameters={"slope_filter": True, "slope_feature": "ema_slow"},
         slope_filter=True,
@@ -1153,10 +1403,26 @@ def test_compiled_strategy_slope_filter_missing_column(monkeypatch):
         overlays=[],
         features=[],
         long_entry_blocks=[
-            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 0}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 0},
+                    }
+                ]
+            }
         ],
         long_exit_blocks=[
-            {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 5}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 5},
+                    }
+                ]
+            }
         ],
         short_entry_blocks=[],
         short_exit_blocks=[],
@@ -1180,7 +1446,15 @@ def test_compiled_strategy_ai_filter_missing_features(monkeypatch, caplog):
         overlays=[],
         features=[{"name": "fast"}],
         long_entry_blocks=[
-            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 0}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 0},
+                    }
+                ]
+            }
         ],
         long_exit_blocks=[],
         short_entry_blocks=[],
@@ -1205,7 +1479,15 @@ def test_compiled_strategy_ai_filter_exception(monkeypatch, caplog):
         overlays=[],
         features=[],
         long_entry_blocks=[
-            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 0}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 0},
+                    }
+                ]
+            }
         ],
         long_exit_blocks=[],
         short_entry_blocks=[],
@@ -1244,7 +1526,15 @@ def test_compiled_strategy_ai_filter_with_inputs(monkeypatch):
         overlays=[],
         features=[{"name": "fast"}],
         long_entry_blocks=[
-            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 0}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 0},
+                    }
+                ]
+            }
         ],
         long_exit_blocks=[],
         short_entry_blocks=[],
@@ -1265,10 +1555,26 @@ def test_compile_strategy_ai_enabled(monkeypatch):
     cfg = {
         "strategy_name": "compile",
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": {"value": 1}, "right": {"value": 0}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"value": 1},
+                        "right": {"value": 0},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": {"value": 1}, "right": {"value": 2}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"value": 1},
+                        "right": {"value": 2},
+                    }
+                ]
+            }
         ],
         "features": [],
         "parameters": {"slope_filter": True, "slope_feature": "custom"},
@@ -1291,10 +1597,26 @@ def test_compile_strategy_ai_filter_enabled_independently():
     cfg = {
         "strategy_name": "no-ai",
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": {"value": 1}, "right": {"value": 0}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"value": 1},
+                        "right": {"value": 0},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": {"value": 1}, "right": {"value": 2}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"value": 1},
+                        "right": {"value": 2},
+                    }
+                ]
+            }
         ],
         "ai_filter": {"enabled": True},
         "parameters": {},
@@ -1327,10 +1649,26 @@ def test_yaml_strategy_compile_and_signals_is_above_below():
         "overlays": ["ema_fast", "ema_slow"],
         "features": [],
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.5}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 1.5},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.5}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 1.5},
+                    }
+                ]
+            }
         ],
     }
     strat = compile_strategy(cfg)
@@ -1411,13 +1749,29 @@ def test_yaml_strategy_all_of_and_short_side():
         "short_entry_rules": [
             {
                 "all_of": [
-                    {"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.5}},
-                    {"condition": "is_above", "left": {"field": "close"}, "right": {"value": 0}},
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 1.5},
+                    },
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 0},
+                    },
                 ]
             }
         ],
         "short_exit_rules": [
-            {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.5}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 1.5},
+                    }
+                ]
+            }
         ],
     }
     strat = compile_strategy(cfg)
@@ -1443,22 +1797,55 @@ def test_same_bar_exit_and_opposite_entry():
     - Long exit = fast crosses below slow
     - Short entry = fast crosses below slow
 
-    Without proper handling, the exit would set state to flat and never check for entry.
+    Without proper handling, the exit would set state to flat and never
+    check for entry.
     """
     cfg = {
         "strategy_name": "CrossoverTest",
         "features": [],
         "long_entry_rules": [
-            {"all_of": [{"condition": "cross_above", "left": {"field": "close"}, "right": {"value": 10.0}}]}
+            {
+                "all_of": [
+                    {
+                        "condition": "cross_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 10.0},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": [
-            {"any_of": [{"condition": "cross_below", "left": {"field": "close"}, "right": {"value": 10.0}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "cross_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 10.0},
+                    }
+                ]
+            }
         ],
         "short_entry_rules": [
-            {"all_of": [{"condition": "cross_below", "left": {"field": "close"}, "right": {"value": 10.0}}]}
+            {
+                "all_of": [
+                    {
+                        "condition": "cross_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 10.0},
+                    }
+                ]
+            }
         ],
         "short_exit_rules": [
-            {"any_of": [{"condition": "cross_above", "left": {"field": "close"}, "right": {"value": 10.0}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "cross_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 10.0},
+                    }
+                ]
+            }
         ],
     }
     strat = compile_strategy(cfg)
@@ -1496,7 +1883,8 @@ def test_same_bar_exit_and_opposite_entry():
 
 
 def test_yaml_strategy_context_parsing():
-    """Test that YAMLStrategy correctly parses context block from YAML.
+    """
+    Test that YAMLStrategy correctly parses context block from YAML.
 
     Task 1.2: Validates context parsing from strategy YAML.
     """
@@ -1512,7 +1900,13 @@ def test_yaml_strategy_context_parsing():
         ],
         "long_entry_rules": [
             {
-                "all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}],
+                "all_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 1.0},
+                    }
+                ],
                 "context": {"order_block_low": {"ref": "order_block_low"}},
             }
         ],
@@ -1532,7 +1926,8 @@ def test_yaml_strategy_context_parsing():
 
 
 def test_yaml_strategy_signal_object_generation():
-    """Test that generate_signals returns Signal objects with context.
+    """
+    Test that generate_signals returns Signal objects with context.
 
     Task 1.4: Validates Signal object generation with populated context.
     """
@@ -1550,7 +1945,13 @@ def test_yaml_strategy_signal_object_generation():
         ],
         "long_entry_rules": [
             {
-                "all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}],
+                "all_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 1.0},
+                    }
+                ],
                 "context": {"order_block_low": {"ref": "order_block_low"}},
             }
         ],
@@ -1621,10 +2022,26 @@ def test_load_strategy_with_new_indicators():
             },
         ],
         "long_entry_rules": [
-            {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
+            {
+                "all_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 1.0},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": [
-            {"all_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.0}}]}
+            {
+                "all_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 1.0},
+                    }
+                ]
+            }
         ],
     }
 
@@ -1672,10 +2089,26 @@ def test_new_indicator_schema_validation():
             },
         ],
         "long_entry_rules": [
-            {"all_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1.0}}]}
+            {
+                "all_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 1.0},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": [
-            {"all_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1.0}}]}
+            {
+                "all_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 1.0},
+                    }
+                ]
+            }
         ],
     }
 
@@ -1778,7 +2211,15 @@ def test_predicate_slope_is_above():
             }
         ],
         "long_exit_rules": [
-            {"all_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 5.0}}]}
+            {
+                "all_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "close"},
+                        "right": {"value": 5.0},
+                    }
+                ]
+            }
         ],
     }
 

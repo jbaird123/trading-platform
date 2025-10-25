@@ -1629,7 +1629,7 @@ def test_rmm_context_with_yaml_path():
         cfg_raw = {"rmm_path": yaml_path}
 
         # Mock the RMMEngine to avoid complex dependencies
-        expected_cfg = RMMConfig(**rmm_config)
+        expected_cfg = RMMConfig(**rmm_config)  # type: ignore[arg-type]
 
         with patch("trading_platform.core.sweeps.RMMEngine") as mock_engine_class:
             mock_engine = Mock()
@@ -1710,7 +1710,7 @@ def test_rmm_context_with_json_path():
 
     try:
         cfg_raw = {"rmm_path": json_path}
-        expected_cfg = RMMConfig(**rmm_config)
+        expected_cfg = RMMConfig(**rmm_config)  # type: ignore[arg-type]
 
         # Mock the RMMEngine to avoid complex dependencies
         with patch("trading_platform.core.sweeps.RMMEngine") as mock_engine_class:

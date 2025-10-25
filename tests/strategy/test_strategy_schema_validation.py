@@ -6,19 +6,51 @@ from trading_platform.strategy.yaml_strategy import validate_strategy_config
 
 MINIMAL_LONG_RULES = {
     "long_entry_rules": [
-        {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1}}]}
+        {
+            "any_of": [
+                {
+                    "condition": "is_above",
+                    "left": {"field": "close"},
+                    "right": {"value": 1},
+                }
+            ]
+        }
     ],
     "long_exit_rules": [
-        {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1}}]}
+        {
+            "any_of": [
+                {
+                    "condition": "is_below",
+                    "left": {"field": "close"},
+                    "right": {"value": 1},
+                }
+            ]
+        }
     ],
 }
 
 MINIMAL_SHORT_RULES = {
     "short_entry_rules": [
-        {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 1}}]}
+        {
+            "any_of": [
+                {
+                    "condition": "is_below",
+                    "left": {"field": "close"},
+                    "right": {"value": 1},
+                }
+            ]
+        }
     ],
     "short_exit_rules": [
-        {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1}}]}
+        {
+            "any_of": [
+                {
+                    "condition": "is_above",
+                    "left": {"field": "close"},
+                    "right": {"value": 1},
+                }
+            ]
+        }
     ],
 }
 
@@ -55,10 +87,12 @@ def test_strategy_validation_accepts_entry_rules_without_exit():
 
 
 def test_strategy_validation_rejects_exit_rules_without_entry():
-    """STRICT VALIDATION: Rejects strategies with only exit rules (no entry rules).
+    """
+    STRICT VALIDATION: Rejects strategies with only exit rules (no entry
+    rules).
 
-    A strategy without entry rules cannot generate trades, so this is a configuration error.
-    Fail loudly to catch this mistake early.
+    A strategy without entry rules cannot generate trades, so this is a
+    configuration error. Fail loudly to catch this mistake early.
     """
     cfg = {
         "strategy_name": "ExitOnly",
@@ -78,7 +112,15 @@ def test_strategy_validation_rejects_invalid_condition_string():
     cfg = {
         "strategy_name": "S",
         "long_entry_rules": [
-            {"any_of": [{"condition": "is_sideways", "left": {"field": "close"}, "right": {"value": 1}}]}
+            {
+                "any_of": [
+                    {
+                        "condition": "is_sideways",
+                        "left": {"field": "close"},
+                        "right": {"value": 1},
+                    }
+                ]
+            }
         ],
         "long_exit_rules": MINIMAL_LONG_RULES["long_exit_rules"],
     }

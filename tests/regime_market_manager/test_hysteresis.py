@@ -12,6 +12,7 @@ from trading_platform.regime_market_manager.engine import RMMEngine
 from trading_platform.regime_market_manager.models import (
     RMMConfig,
     RMMHysteresis,
+    RMMIndicatorRef,
     RMMPredicate,
     RMMRegime,
     RMMRuleBlock,
@@ -36,7 +37,7 @@ def _make_engine(min_bars: int, cooldown: int) -> RMMEngine:
                     all_of=[
                         RMMPredicate(
                             condition="is_above",
-                            left={"ref": "trend_strength"},
+                            left=RMMIndicatorRef(ref="trend_strength"),
                             right=0.5,
                         )
                     ]
@@ -49,7 +50,7 @@ def _make_engine(min_bars: int, cooldown: int) -> RMMEngine:
                     all_of=[
                         RMMPredicate(
                             condition="is_below",
-                            left={"ref": "trend_strength"},
+                            left=RMMIndicatorRef(ref="trend_strength"),
                             right=0.5,
                         )
                     ]
@@ -79,9 +80,7 @@ def _make_frame(values: Iterable[float]) -> pd.DataFrame:
 def test_hysteresis_disabled_matches_raw_series() -> None:
     engine = _make_engine(min_bars=0, cooldown=0)
     df = _make_frame([0.7, 0.2, 0.8, 0.3])
-    result = engine.classify_regime(
-        df, timeframe="1H", already_resampled=True
-    )
+    result = engine.classify_regime(df, timeframe="1H", already_resampled=True)
 
     assert result["label"].tolist() == result["raw_label"].tolist()
     assert result["confidence"].tolist() == result["raw_confidence"].tolist()
@@ -90,9 +89,7 @@ def test_hysteresis_disabled_matches_raw_series() -> None:
 def test_min_bars_delays_first_switch() -> None:
     engine = _make_engine(min_bars=2, cooldown=0)
     df = _make_frame([0.7, 0.65, 0.3, 0.2, 0.2])
-    result = engine.classify_regime(
-        df, timeframe="1H", already_resampled=True
-    )
+    result = engine.classify_regime(df, timeframe="1H", already_resampled=True)
 
     assert result["raw_label"].tolist() == [
         "trend_high",
@@ -114,9 +111,7 @@ def test_min_bars_delays_first_switch() -> None:
 def test_cooldown_blocks_immediate_flip() -> None:
     engine = _make_engine(min_bars=0, cooldown=2)
     df = _make_frame([0.7, 0.3, 0.3, 0.7, 0.7])
-    result = engine.classify_regime(
-        df, timeframe="1H", already_resampled=True
-    )
+    result = engine.classify_regime(df, timeframe="1H", already_resampled=True)
 
     assert result["raw_label"].tolist() == [
         "trend_high",

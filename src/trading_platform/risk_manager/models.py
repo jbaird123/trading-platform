@@ -184,7 +184,9 @@ class REMConfig(_StrictModel):
     )
     trailing_stop: TrailingStopRule | None = Field(
         default=None,
-        description="Optional trailing-stop definition used to ratchet protective stops.",
+        description=(
+            "Optional trailing-stop definition used to ratchet " "protective stops."
+        ),
     )
 
 
@@ -243,7 +245,9 @@ class DynamicREMConfig(_StrictModel):
     )
     description: str | None = Field(
         default=None,
-        description="Narrative description covering the risk approach this config encodes.",
+        description=(
+            "Narrative description covering the risk approach " "this config encodes."
+        ),
     )
     version: str | None = Field(
         default=None,
@@ -261,12 +265,16 @@ class DynamicREMConfig(_StrictModel):
         Field(
             default=None,
             ge=0,
-            description="R-multiple at which the stop-loss is lifted to the entry price.",
+            description=(
+                "R-multiple at which the stop-loss is lifted to " "the entry price."
+            ),
         ),
     ] = None
     partial_exits: list[PartialExitRule] = Field(
         default_factory=list,
-        description="Sequence of partial exit targets evaluated in order of appearance.",
+        description=(
+            "Sequence of partial exit targets evaluated in order " "of appearance."
+        ),
     )
     trailing_stop: DynamicTrailingStopRule | None = Field(
         default=None,

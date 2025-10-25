@@ -82,10 +82,26 @@ def test_cmd_run_backtest_reads_csv_path(
         "strategy": {
             "strategy_name": "TestStrat",
             "long_entry_rules": [
-                {"any_of": [{"condition": "is_above", "left": {"field": "close"}, "right": {"value": 1}}]}
+                {
+                    "any_of": [
+                        {
+                            "condition": "is_above",
+                            "left": {"field": "close"},
+                            "right": {"value": 1},
+                        }
+                    ]
+                }
             ],
             "long_exit_rules": [
-                {"any_of": [{"condition": "is_below", "left": {"field": "close"}, "right": {"value": 2}}]}
+                {
+                    "any_of": [
+                        {
+                            "condition": "is_below",
+                            "left": {"field": "close"},
+                            "right": {"value": 2},
+                        }
+                    ]
+                }
             ],
         },
     }

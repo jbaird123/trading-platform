@@ -1136,16 +1136,16 @@ def test_valid_run_configs_pydantic():
     without separators.
     """
     # Minimal valid config
-    config1 = RunConfig(
+    config1 = RunConfig(  # type: ignore[call-arg]
         instrument=_instrument("EUR_USD"),
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
     # [SYS-1.3.5]: Symbol normalized to "EURUSD" (no separator)
-    assert config1.instrument["symbol"] == "EURUSD"
+    assert config1.instrument["symbol"] == "EURUSD"  # type: ignore[index]
 
     # Config with all common optional fields
-    config2 = RunConfig(
+    config2 = RunConfig(  # type: ignore[call-arg]
         run_id="my_test_run_123",
         user_id="test_user",
         run_seed=42,
@@ -1161,7 +1161,7 @@ def test_valid_run_configs_pydantic():
     assert config2.run_id == "my_test_run_123"
     assert config2.warmup_bars == 50
     # [SYS-1.3.5]: Symbol normalized to "GBPJPY"
-    assert config2.instrument["symbol"] == "GBPJPY"
+    assert config2.instrument["symbol"] == "GBPJPY"  # type: ignore[index]
 
 
 def test_invalid_run_configs_pydantic():
@@ -1174,7 +1174,7 @@ def test_invalid_run_configs_pydantic():
 
     # Test: Extra unknown property should be rejected (extra='forbid')
     with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
-        RunConfig(
+        RunConfig(  # type: ignore[call-arg]
             instrument=_instrument(),
             execution_model="next_bar_open",
             exit_tie_break="stop_then_tp",
@@ -1183,19 +1183,19 @@ def test_invalid_run_configs_pydantic():
 
     # Test: Invalid enum value should be rejected
     with pytest.raises(ValidationError):
-        RunConfig(
+        RunConfig(  # type: ignore[call-arg]
             instrument=_instrument(),
-            execution_model="invalid_model",  # Invalid enum value
+            execution_model="invalid_model",  # type: ignore[arg-type]
             exit_tie_break="stop_then_tp",
         )
 
     # Test: Invalid type should be rejected
     with pytest.raises(ValidationError):
-        RunConfig(
+        RunConfig(  # type: ignore[call-arg]
             instrument=_instrument(),
             execution_model="next_bar_open",
             exit_tie_break="stop_then_tp",
-            warmup_bars="not_an_int",  # Should be int
+            warmup_bars="not_an_int",  # type: ignore[arg-type]
         )
 
 

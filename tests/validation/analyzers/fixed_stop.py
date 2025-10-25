@@ -14,6 +14,8 @@ Categories:
 
 from __future__ import annotations
 
+from typing import Any
+
 import pandas as pd
 
 from tests.validation.ambiguity_analyzer import (
@@ -92,7 +94,8 @@ class FixedStopTPAnalyzer(AmbiguityAnalyzer):
         tv_df: pd.DataFrame,
         ohlcv_data: pd.DataFrame,
         ohlcv_1min: pd.DataFrame | None = None,
-    ) -> dict[str, list[int]]:
+        **kwargs: Any,
+    ) -> dict[str, list[dict[str, Any]]]:
         """
         Analyze exit price/time discrepancies for fixed stop/TP strategies.
 

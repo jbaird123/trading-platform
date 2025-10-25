@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import patch
 
 import pytest
 from trading_platform.regime_market_manager.config import (
@@ -90,9 +89,7 @@ def test_validate_rmm_config_regime_structure() -> None:
             }
         ]
     }
-    with pytest.raises(
-        ValueError, match="regime.conditions requires all_of or any_of"
-    ):
+    with pytest.raises(ValueError, match="regime.conditions requires all_of or any_of"):
         validate_rmm_config(missing_clauses)
 
     empty_predicates = {
@@ -104,9 +101,7 @@ def test_validate_rmm_config_regime_structure() -> None:
             }
         ]
     }
-    with pytest.raises(
-        ValueError, match="predicate list must be a non-empty array"
-    ):
+    with pytest.raises(ValueError, match="predicate list must be a non-empty array"):
         validate_rmm_config(empty_predicates)
 
     non_list_predicates = {
@@ -118,9 +113,7 @@ def test_validate_rmm_config_regime_structure() -> None:
             }
         ]
     }
-    with pytest.raises(
-        ValueError, match="predicate list must be a non-empty array"
-    ):
+    with pytest.raises(ValueError, match="predicate list must be a non-empty array"):
         validate_rmm_config(non_list_predicates)
 
 

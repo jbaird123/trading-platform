@@ -1,7 +1,0 @@
-{
-  "user_id": "example_user",
-  "runs_dir": "runs",
-  "instrument": {"symbol": "EURUSD"},
-  "blackout_utc": [["23:00", "01:00"]],
-  "pm_limits": {"max_open_long": 1, "max_open_short": 1}
-}

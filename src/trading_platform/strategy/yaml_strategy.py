@@ -42,7 +42,6 @@ def load_strategy_config(doc: dict[str, Any] | str | Path) -> dict[str, Any]:
     p = Path(str(doc))
     txt = p.read_text()
     # Best-effort JSON/YAML parse without external deps: expect JSON here
-    import json
 
     return cast(dict[str, Any], json.loads(txt))
 
@@ -151,8 +150,16 @@ def _eval_predicate(df: pd.DataFrame, pred: dict[str, Any]) -> pd.Series:
         now = (left < right).fillna(False)
         return prev & now
 
-    # FAIL LOUDLY: Unknown condition is a configuration error, not a runtime edge case
-    valid_conditions = ["cross_above", "cross_below", "is_above", "is_below", "slope_is_above", "roc_is_above"]
+    # FAIL LOUDLY: Unknown condition is a configuration error, not a runtime
+    # edge case
+    valid_conditions = [
+        "cross_above",
+        "cross_below",
+        "is_above",
+        "is_below",
+        "slope_is_above",
+        "roc_is_above",
+    ]
     raise ValueError(
         f"Unknown predicate condition: '{cond}'. "
         f"Valid conditions are: {valid_conditions}. "

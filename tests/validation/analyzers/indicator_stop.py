@@ -151,9 +151,7 @@ class IndicatorStopAnalyzer(AmbiguityAnalyzer):
             prev_close = float(prev_bar_series["close"])
 
             if self.indicator_type.lower() == "bollinger":
-                band_value = self._get_bollinger_band_value(
-                    prev_bar_series, direction
-                )
+                band_value = self._get_bollinger_band_value(prev_bar_series, direction)
                 if band_value is not None:
                     expected_stop_prev = (
                         band_value - offset_value
@@ -340,7 +338,9 @@ class IndicatorStopAnalyzer(AmbiguityAnalyzer):
             # Platform fills at next-bar open when stop triggers intrabar
             platform_expected_fill = None
             if exit_time in ohlcv_data.index:
-                platform_expected_fill = float(ohlcv_data.loc[exit_time, "open"])
+                open_value = ohlcv_data.loc[exit_time, "open"]
+                # Type ignore: pandas scalar extraction is complex
+                platform_expected_fill = float(open_value)  # type: ignore[arg-type]
 
             platform_consistent = False
             if platform_expected_fill is not None:
@@ -353,7 +353,12 @@ class IndicatorStopAnalyzer(AmbiguityAnalyzer):
             tv_stop_expected = None
             tv_consistent = False
             if tv_exit_time in ohlcv_data.index:
-                band_row = ohlcv_data.loc[tv_exit_time]
+                band_row_data = ohlcv_data.loc[tv_exit_time]
+                # Handle potential duplicate indices
+                if isinstance(band_row_data, pd.DataFrame):
+                    band_row = band_row_data.iloc[0]
+                else:
+                    band_row = band_row_data
                 tv_band_value = self._get_bollinger_band_value(band_row, direction)
                 if tv_band_value is not None:
                     tv_stop_expected = (
@@ -426,9 +431,7 @@ class IndicatorStopAnalyzer(AmbiguityAnalyzer):
         """
         # Try common naming patterns
         length = self.indicator_params.get("length", "")
-        prefix = str(
-            self.indicator_params.get("column_prefix", self.indicator_type)
-        )
+        prefix = str(self.indicator_params.get("column_prefix", self.indicator_type))
 
         possible_names = [
             self.indicator_type.upper(),
@@ -474,9 +477,7 @@ class IndicatorStopAnalyzer(AmbiguityAnalyzer):
             f"Available: {list(ohlcv_data.columns)}"
         )
 
-    def _get_bollinger_band_value(
-        self, row: pd.Series, direction: str
-    ) -> float | None:
+    def _get_bollinger_band_value(self, row: pd.Series, direction: str) -> float | None:
         lower_col = str(self.indicator_params.get("lower_column", "BB Lower"))
         upper_col = str(self.indicator_params.get("upper_column", "BB Upper"))
         column = lower_col if direction == "long" else upper_col
@@ -544,7 +545,11 @@ class IndicatorStopAnalyzer(AmbiguityAnalyzer):
         stop_timestamp: Optional[pd.Timestamp] = None
         for ts, bar in minute_bars.iterrows():
             if _stop_hit(bar):
-                stop_timestamp = pd.Timestamp(ts)
+                # ts is already a Timestamp from DataFrame index
+                if isinstance(ts, pd.Timestamp):
+                    stop_timestamp = ts
+                else:
+                    stop_timestamp = pd.Timestamp(ts)  # type: ignore[arg-type]
                 break
 
         if stop_timestamp is None:
@@ -584,9 +589,10 @@ class IndicatorStopAnalyzer(AmbiguityAnalyzer):
                 confidence=0.9,
             )
 
-        if platform_exit_time == tv_exit_time and abs(
-            platform_exit_price - tv_exit_price
-        ) > self.tolerance:
+        if (
+            platform_exit_time == tv_exit_time
+            and abs(platform_exit_price - tv_exit_price) > self.tolerance
+        ):
             explanation = (
                 explanation_prefix
                 + "Both engines exit on same hourly bar, but platform uses "

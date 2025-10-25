@@ -1,0 +1,71 @@
+# Trend Following Strategy with Chandelier Stop
+#
+# This strategy uses EMA crossover for trend detection and the Chandelier
+# Stop for position management. The Chandelier Stop adapts to volatility
+# and trails from recent highs/lows.
+
+name: "EMA Trend with Chandelier Stop"
+description: >
+  Simple trend following using EMA crossover with volatility-adaptive
+  Chandelier trailing stop for position protection.
+
+# Technical indicators required for strategy AND Chandelier Stop
+features:
+  # Trend indicators
+  - name: ema_fast
+    type: EMA
+    params:
+      length: 12
+      source: close
+
+  - name: ema_slow
+    type: EMA
+    params:
+      length: 26
+      source: close
+
+  # Required for Chandelier Stop
+  - name: atr_14
+    type: ATR
+    params:
+      length: 14
+
+  - name: hhv_22
+    type: HHV
+    params:
+      length: 22
+      source: high
+
+  - name: llv_22
+    type: LLV
+    params:
+      length: 22
+      source: low
+
+# Entry rules: Fast EMA crosses above Slow EMA
+long_entry_rules:
+  - all_of:
+      - condition: cross_above
+        left: {ref: ema_fast}
+        right: {ref: ema_slow}
+
+# Exit rules: Fast EMA crosses below Slow EMA
+long_exit_rules:
+  - all_of:
+      - condition: cross_below
+        left: {ref: ema_fast}
+        right: {ref: ema_slow}
+
+# Short entries: opposite of longs
+short_entry_rules:
+  - all_of:
+      - condition: cross_below
+        left: {ref: ema_fast}
+        right: {ref: ema_slow}
+
+# Short exits: opposite of long exits
+short_exit_rules:
+  - all_of:
+      - condition: cross_above
+        left: {ref: ema_fast}
+        right: {ref: ema_slow}

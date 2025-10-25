@@ -14,7 +14,6 @@ from __future__ import annotations
 from typing import Any
 
 from trading_platform.portfolio.position import Position
-
 from trading_platform.risk_manager.models import (
     ATRDistanceRule,
     DynamicREMConfig,

@@ -12,9 +12,9 @@ VALIDATION PHILOSOPHY:
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Literal
+from typing import Any
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from trading_platform.core.config import FeatureConfig
 
@@ -25,6 +25,7 @@ class StrategyCondition(str, Enum):
     These match the conditions supported by the strategy engine.
     Any condition not in this enum will be rejected at validation time.
     """
+
     CROSS_ABOVE = "cross_above"
     CROSS_BELOW = "cross_below"
     IS_ABOVE = "is_above"
@@ -35,6 +36,7 @@ class StrategyCondition(str, Enum):
 
 class OHLCField(str, Enum):
     """Valid OHLC price field references."""
+
     OPEN = "open"
     HIGH = "high"
     LOW = "low"
@@ -50,31 +52,30 @@ class Operand(BaseModel):
 
     model_config = {"extra": "forbid"}
 
-    ref: str | None = Field(
-        default=None, description="Reference to a feature by name"
-    )
+    ref: str | None = Field(default=None, description="Reference to a feature by name")
     value: float | None = Field(default=None, description="Constant numeric value")
     field: OHLCField | None = Field(
         default=None, description="Reference to OHLCV field"
     )
 
     @model_validator(mode="after")
-    def validate_exactly_one_operand_type(self) -> "Operand":
+    def validate_exactly_one_operand_type(self) -> Operand:
         """Ensure exactly one of ref, value, or field is provided.
 
         Raises:
             ValueError: If zero or multiple operand types are provided.
         """
-        provided = sum([
-            self.ref is not None,
-            self.value is not None,
-            self.field is not None,
-        ])
+        provided = sum(
+            [
+                self.ref is not None,
+                self.value is not None,
+                self.field is not None,
+            ]
+        )
 
         if provided == 0:
             raise ValueError(
-                "Operand must have exactly one of: ref, value, or field. "
-                "Got none."
+                "Operand must have exactly one of: ref, value, or field. " "Got none."
             )
         if provided > 1:
             raise ValueError(
@@ -132,30 +133,33 @@ class RuleBlock(BaseModel):
     )
     context: dict[str, Any] | None = Field(
         default=None,
-        description="Optional context mapping for contextual REM rules (e.g., order_block_low)",
+        description=(
+            "Optional context mapping for contextual REM rules "
+            "(e.g., order_block_low)"
+        ),
     )
 
     @model_validator(mode="after")
-    def validate_exactly_one_logic_type(self) -> "RuleBlock":
+    def validate_exactly_one_logic_type(self) -> RuleBlock:
         """Ensure exactly one of all_of or any_of is provided.
 
         Raises:
             ValueError: If zero or both logic types are provided.
         """
-        provided = sum([
-            self.all_of is not None,
-            self.any_of is not None,
-        ])
+        provided = sum(
+            [
+                self.all_of is not None,
+                self.any_of is not None,
+            ]
+        )
 
         if provided == 0:
             raise ValueError(
-                "RuleBlock must have exactly one of: all_of or any_of. "
-                "Got neither."
+                "RuleBlock must have exactly one of: all_of or any_of. " "Got neither."
             )
         if provided > 1:
             raise ValueError(
-                "RuleBlock must have exactly one of: all_of or any_of. "
-                "Got both."
+                "RuleBlock must have exactly one of: all_of or any_of. " "Got both."
             )
 
         return self
@@ -176,15 +180,41 @@ class StrategyConfig(BaseModel):
             "version": "1.0",
             "parameters": {"ema_fast_length": 20, "ema_slow_length": 50},
             "features": [
-                {"name": "ema_fast", "type": "EMA", "params": {"length": 20}, "source": "close"},
-                {"name": "ema_slow", "type": "EMA", "params": {"length": 50}, "source": "close"}
+                {
+                    "name": "ema_fast",
+                    "type": "EMA",
+                    "params": {"length": 20},
+                    "source": "close"
+                },
+                {
+                    "name": "ema_slow",
+                    "type": "EMA",
+                    "params": {"length": 50},
+                    "source": "close"
+                }
             ],
             "overlays": ["ema_fast", "ema_slow"],
             "long_entry_rules": [
-                {"all_of": [{"condition": "cross_above", "left": {"ref": "ema_fast"}, "right": {"ref": "ema_slow"}}]}
+                {
+                    "all_of": [
+                        {
+                            "condition": "cross_above",
+                            "left": {"ref": "ema_fast"},
+                            "right": {"ref": "ema_slow"}
+                        }
+                    ]
+                }
             ],
             "long_exit_rules": [
-                {"any_of": [{"condition": "cross_below", "left": {"ref": "ema_fast"}, "right": {"ref": "ema_slow"}}]}
+                {
+                    "any_of": [
+                        {
+                            "condition": "cross_below",
+                            "left": {"ref": "ema_fast"},
+                            "right": {"ref": "ema_slow"}
+                        }
+                    ]
+                }
             ]
         }
     """
@@ -199,7 +229,9 @@ class StrategyConfig(BaseModel):
 
     parameters: dict[str, Any] = Field(
         default_factory=dict,
-        description="Strategy parameters that can be overridden (e.g., indicator lengths)",
+        description=(
+            "Strategy parameters that can be overridden " "(e.g., indicator lengths)"
+        ),
     )
 
     features: list[FeatureConfig] = Field(
@@ -209,7 +241,9 @@ class StrategyConfig(BaseModel):
 
     overlays: list[str] = Field(
         default_factory=list,
-        description="List of feature names to overlay on price chart for visualization",
+        description=(
+            "List of feature names to overlay on price chart " "for visualization"
+        ),
     )
 
     long_entry_rules: list[RuleBlock] | None = Field(
@@ -227,17 +261,22 @@ class StrategyConfig(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_has_entry_rules(self) -> "StrategyConfig":
+    def validate_has_entry_rules(self) -> StrategyConfig:
         """Ensure strategy has at least one entry rule (long or short).
 
         A strategy without any entry rules cannot generate trades.
-        This matches the JSON schema requirement: anyOf[long_entry_rules, short_entry_rules].
+        This matches the JSON schema requirement:
+        anyOf[long_entry_rules, short_entry_rules].
 
         Raises:
             ValueError: If neither long_entry_rules nor short_entry_rules are provided.
         """
-        has_long_entry = self.long_entry_rules is not None and len(self.long_entry_rules) > 0
-        has_short_entry = self.short_entry_rules is not None and len(self.short_entry_rules) > 0
+        has_long_entry = (
+            self.long_entry_rules is not None and len(self.long_entry_rules) > 0
+        )
+        has_short_entry = (
+            self.short_entry_rules is not None and len(self.short_entry_rules) > 0
+        )
 
         if not has_long_entry and not has_short_entry:
             raise ValueError(

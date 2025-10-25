@@ -4,10 +4,9 @@ This module provides utilities to extract field descriptions from Pydantic model
 replacing the previous approach of reading descriptions from JSON schemas.
 """
 
-from typing import Any, get_args, get_origin
+from typing import get_args, get_origin
 
 from pydantic import BaseModel
-from pydantic.fields import FieldInfo
 
 
 def get_field_descriptions(model_class: type[BaseModel]) -> dict[str, str]:
@@ -95,7 +94,9 @@ def get_field_description_from_path(
     return all_descriptions.get(field_path)
 
 
-def extract_descriptions_for_brief(brief_schema_class: type[BaseModel]) -> dict[str, str]:
+def extract_descriptions_for_brief(
+    brief_schema_class: type[BaseModel],
+) -> dict[str, str]:
     """Extract descriptions for brief schema fields.
 
     This is a convenience function specifically for brief generation,

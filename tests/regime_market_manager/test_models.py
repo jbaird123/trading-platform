@@ -2,7 +2,6 @@
 
 import pytest
 from pydantic import ValidationError
-
 from trading_platform.regime_market_manager.models import RMMConfig
 
 
@@ -98,9 +97,9 @@ def test_rejects_unknown_nested_field_in_regime(valid_rmm_config_dict: dict):
 def test_rejects_invalid_predicate_condition(valid_rmm_config_dict: dict):
     """Test that using an invalid string for a predicate condition fails."""
     invalid_config = valid_rmm_config_dict.copy()
-    invalid_config["regimes"][0]["conditions"]["all_of"][0][
-        "condition"
-    ] = "is_greater_than"  # Invalid condition
+    invalid_config["regimes"][0]["conditions"]["all_of"][0]["condition"] = (
+        "is_greater_than"  # Invalid condition
+    )
 
     with pytest.raises(ValidationError) as excinfo:
         RMMConfig(**invalid_config)

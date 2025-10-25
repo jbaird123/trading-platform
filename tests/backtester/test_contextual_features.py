@@ -100,6 +100,128 @@ def test_backtester_adds_contextual_features_to_trade_context() -> None:
     assert ctx_atr_value > 0, f"Expected positive ATR, got {ctx_atr_value}"
 
 
+def test_backtester_trade_context_with_multi_timeframe_at_entry_and_exit() -> None:
+    """Test that multi-timeframe contextual features are captured at entry and exit.
+
+    Configure a RunConfig with contextual_features that use timeframe="1H",
+    run a backtest that generates at least one trade, and verify that both
+    context_at_entry and context_at_exit contain the correctly calculated
+    higher-timeframe feature.
+    """
+    # Create 15-minute data for 20 hours (80 bars) to get 20 1H bars
+    # RSI(14) needs 14 bars, so we need at least 15 1H bars for valid RSI
+    idx = pd.date_range(start="2024-01-01 00:00:00", periods=80, freq="15min")
+    df = pd.DataFrame(
+        {
+            "open": [100.0 + i * 0.1 for i in range(80)],
+            "high": [101.0 + i * 0.1 for i in range(80)],
+            "low": [99.0 + i * 0.1 for i in range(80)],
+            "close": [100.5 + i * 0.1 for i in range(80)],
+            "volume": [1000] * 80,
+        },
+        index=idx,
+    )
+
+    # Create a simple strategy
+    strategy = CompiledStrategy(
+        name="test_mtf_strategy",
+        features=[],
+        overlays=[],
+        long_entry_blocks=[],
+        long_exit_blocks=[],
+        short_entry_blocks=[],
+        short_exit_blocks=[],
+        parameters={},
+    )
+    strategy.generate_signals(df)  # Initialize _feature_df
+
+    # Create signals: enter at bar 64 (16:00), exit at bar 68 (17:00)
+    # This ensures we have 16-17 1H bars, giving valid RSI values
+    signals = pd.Series(
+        [None] * 64 + ["enter_long"] + [None] * 3 + ["exit_long"] + [None] * 11,
+        index=df.index,
+    )
+
+    # Create RunConfig with multi-timeframe contextual feature
+    config = RunConfig.model_validate(
+        {
+            "run_id": "test_mtf_contextual",
+            "instrument": {
+                "symbol": "EURUSD",
+            },
+            "contextual_features": [
+                {
+                    "name": "h1_rsi",
+                    "type": "RSI",
+                    "params": {"length": 14},
+                    "timeframe": "1h",
+                }
+            ],
+        }
+    )
+
+    # Create a basic REM
+    rem = RiskExitManager(
+        config={"stop_loss": {"type": "offset", "price_offset": 0.0010}}
+    )
+
+    # Run backtest
+    trades = run_backtest(
+        market_data=df,
+        signals=signals,
+        strategy=strategy,
+        config=config,
+        rem=rem,
+    )
+
+    # Assertions
+    assert len(trades) > 0, "Expected at least one trade"
+    first_trade = trades[0]
+
+    # Compute expected 1H RSI values for verification
+    from trading_platform.data.resample import resample_data
+    from trading_platform.strategy.features import compute_features
+
+    # Resample to 1H and compute RSI
+    df_1h = resample_data(df, "1h")
+    features_1h = compute_features(
+        df_1h,
+        [{"name": "h1_rsi", "type": "RSI", "params": {"length": 14}}],
+    )
+    # Forward-fill to base timeframe
+    expected_rsi = features_1h["h1_rsi"].reindex(df.index, method="ffill")
+
+    # Verify context_at_entry contains expected value
+    assert hasattr(first_trade, "context_at_entry")
+    assert first_trade.context_at_entry is not None
+    assert isinstance(first_trade.context_at_entry, dict)
+    assert "strategy_features" in first_trade.context_at_entry
+
+    entry_features = first_trade.context_at_entry["strategy_features"]
+    assert "h1_rsi" in entry_features
+
+    h1_rsi_entry = entry_features["h1_rsi"]
+    expected_entry_rsi = expected_rsi.iloc[64]
+    assert h1_rsi_entry == expected_entry_rsi, (
+        f"Entry RSI mismatch: got {h1_rsi_entry}, " f"expected {expected_entry_rsi}"
+    )
+
+    # Verify context_at_exit contains expected value
+    assert hasattr(first_trade, "context_at_exit")
+    assert first_trade.context_at_exit is not None
+    assert isinstance(first_trade.context_at_exit, dict)
+    assert "strategy_features" in first_trade.context_at_exit
+
+    exit_features = first_trade.context_at_exit["strategy_features"]
+    assert "h1_rsi" in exit_features
+
+    h1_rsi_exit = exit_features["h1_rsi"]
+    expected_exit_rsi = expected_rsi.iloc[68]
+    assert h1_rsi_exit == expected_exit_rsi, (
+        f"Exit RSI mismatch: got {h1_rsi_exit}, " f"expected {expected_exit_rsi}"
+    )
+
+
 def test_trade_context_always_includes_volume() -> None:
     """Test that volume is always included in trade context."""
     # Create sample market data with varying volume

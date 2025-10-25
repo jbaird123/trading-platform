@@ -1,0 +1,25 @@
+# Chandelier Stop - Tighter Version for Intraday/Shorter Timeframes
+#
+# Uses shorter lookback period and lower multiplier for more responsive
+# stop management on shorter timeframes (5min, 15min, 1H).
+
+name: "Chandelier Stop Tight (2.0x ATR, 10 period)"
+description: >
+  Tighter Chandelier Stop for intraday trading or shorter timeframes.
+  More responsive to price changes with shorter lookback and smaller
+  ATR multiplier. Use with caution - may get stopped out more often.
+
+stop_loss:
+  type: indicator
+  indicator: chandelier
+  params:
+    multiplier: 2.0      # Tighter multiplier
+    length: 10           # Shorter HHV/LLV period
+    atr_length: 10       # Shorter ATR period
+
+take_profit: null
+
+# Note: Strategy must include:
+#   - atr_10 (or generic atr)
+#   - hhv_10 with source: high
+#   - llv_10 with source: low
