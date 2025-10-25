@@ -147,6 +147,29 @@ def execute_campaign_runs(
                     f"[{datetime.now(timezone.utc).isoformat()}] "
                     f"Completed: {run.run_id} (success)\n"
                 )
+
+                # Copy brief.json to candidates directory for validation
+                import shutil
+
+                from trading_platform.core import paths
+
+                brief_src = (
+                    paths.RUNS_DIR / "campaign_runner" / run.run_id / "brief.json"
+                )
+                if brief_src.exists():
+                    candidates_dir = (
+                        paths.PROJECT_ROOT
+                        / "data"
+                        / "candidates"
+                        / plan.campaign_id
+                        / run.run_id
+                    )
+                    candidates_dir.mkdir(parents=True, exist_ok=True)
+                    shutil.copy(brief_src, candidates_dir / "brief.json")
+                    log_file.write(
+                        f"[{datetime.now(timezone.utc).isoformat()}] "
+                        f"Copied brief to candidates: {candidates_dir}\n"
+                    )
             else:
                 status = "failed"
                 failed += 1
