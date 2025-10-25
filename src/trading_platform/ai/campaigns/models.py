@@ -61,3 +61,40 @@ class CampaignConfig(BaseModel):
     rem_path: Optional[Path] = Field(default=None, description="Path to REM config")
     rmm_path: Optional[Path] = Field(default=None, description="Path to RMM config")
     description: Optional[str] = Field(default=None, description="Campaign description")
+
+
+class SingleRun(BaseModel):
+    """A single backtest run within a campaign."""
+
+    model_config = {"extra": "forbid"}
+
+    run_id: str = Field(..., description="Unique run identifier")
+    instrument: str = Field(..., description="Trading instrument symbol")
+    start_date: str = Field(..., description="Backtest start date (YYYY-MM-DD)")
+    end_date: str = Field(..., description="Backtest end date (YYYY-MM-DD)")
+    param_overrides: Optional[Dict[str, Any]] = Field(
+        default=None, description="Strategy parameter overrides"
+    )
+    output_path: Path = Field(..., description="Output directory for this run")
+
+
+class CampaignPlan(BaseModel):
+    """Complete campaign execution plan with provenance."""
+
+    model_config = {"extra": "forbid"}
+
+    campaign_id: str = Field(..., description="Unique campaign identifier")
+    strategy_path: Path = Field(..., description="Path to strategy YAML file")
+    execution_timeframe: str = Field(
+        ..., description="Base execution timeframe (e.g., 15m, 1h)"
+    )
+    strategy_archetype: str = Field(
+        ..., description="Strategy type for model selection"
+    )
+    runs: List[SingleRun] = Field(..., description="List of individual runs")
+    contextual_features: List[FeatureConfig] = Field(
+        default_factory=list, description="Multi-timeframe features"
+    )
+    provenance: Provenance = Field(..., description="Provenance metadata")
+    rem_path: Optional[Path] = Field(default=None, description="Path to REM config")
+    rmm_path: Optional[Path] = Field(default=None, description="Path to RMM config")
