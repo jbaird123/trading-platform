@@ -976,6 +976,260 @@ def cmd_clear_cache(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_train_profitability_models(args: argparse.Namespace) -> int:
+    """Train profitability models from enriched trade data."""
+    from trading_platform.ai.models import ModelRegistry
+
+    # Load enriched data
+    enriched_path = Path(args.enriched_data)
+    if not enriched_path.exists():
+        print(f"Error: Enriched data not found: {enriched_path}", file=sys.stderr)
+        return 1
+
+    print(f"Loading enriched data from: {enriched_path}")
+    enriched_df = pd.read_parquet(enriched_path)
+    print(f"Loaded {len(enriched_df)} trades")
+
+    # Initialize registry
+    model_dir = Path(args.model_dir) if args.model_dir else Path("models")
+    registry = ModelRegistry(model_dir=model_dir)
+
+    # Train models
+    print(f"\nTraining profitability models...")
+    print(f"Model directory: {model_dir}")
+
+    trained_models = registry.train_all_profitability_models(
+        enriched_df,
+        n_estimators=args.n_estimators,
+        random_state=args.random_state
+    )
+
+    if not trained_models:
+        print("\nNo models trained (insufficient data for all contexts)")
+        return 1
+
+    # Save models
+    print(f"\nSaving {len(trained_models)} models...")
+    registry.save()
+
+    print("\nProfitability models trained successfully:")
+    for key in trained_models.keys():
+        model_path = registry.get_model_path("profitability", key)
+        print(f"  - {key}: {model_path}")
+
+    return 0
+
+
+def cmd_train_diagnostic_models(args: argparse.Namespace) -> int:
+    """Train diagnostic models from enriched trade data."""
+    from trading_platform.ai.models import ModelRegistry, PerformanceDiagnosticModel
+
+    # Load enriched data
+    enriched_path = Path(args.enriched_data)
+    if not enriched_path.exists():
+        print(f"Error: Enriched data not found: {enriched_path}", file=sys.stderr)
+        return 1
+
+    print(f"Loading enriched data from: {enriched_path}")
+    enriched_df = pd.read_parquet(enriched_path)
+    print(f"Loaded {len(enriched_df)} trades")
+
+    # Initialize registry
+    model_dir = Path(args.model_dir) if args.model_dir else Path("models")
+    registry = ModelRegistry(model_dir=model_dir)
+
+    # Find all unique contexts
+    contexts = enriched_df[["execution_timeframe", "strategy_archetype"]].drop_duplicates()
+
+    print(f"\nTraining diagnostic models for {len(contexts)} contexts...")
+    print(f"Model directory: {model_dir}")
+
+    trained_count = 0
+    for _, row in contexts.iterrows():
+        timeframe = row["execution_timeframe"]
+        archetype = row["strategy_archetype"]
+        key = f"{timeframe}_{archetype}"
+
+        # Create and train model
+        model = PerformanceDiagnosticModel(
+            timeframe=timeframe,
+            archetype=archetype,
+            n_estimators=args.n_estimators,
+            random_state=args.random_state
+        )
+
+        try:
+            model.fit(enriched_df)
+            registry.register_model("diagnostic", key, model)
+            trained_count += 1
+            print(f"  ✓ Trained {key}")
+        except ValueError as e:
+            print(f"  ✗ Skipped {key}: {e}")
+
+    if trained_count == 0:
+        print("\nNo models trained (insufficient data for all contexts)")
+        return 1
+
+    # Save models
+    print(f"\nSaving {trained_count} models...")
+    registry.save()
+
+    print(f"\nDiagnostic models trained successfully: {trained_count} models")
+
+    return 0
+
+
+def cmd_predict_profitability(args: argparse.Namespace) -> int:
+    """Predict profitability for new trades using trained models."""
+    from trading_platform.ai.models import ModelRegistry
+
+    # Load models
+    model_dir = Path(args.model_dir) if args.model_dir else Path("models")
+    registry = ModelRegistry(model_dir=model_dir)
+
+    print(f"Loading models from: {model_dir}")
+    registry.load()
+
+    prof_models = registry.list_models("profitability")
+    if not prof_models:
+        print("Error: No profitability models found. Train models first.", file=sys.stderr)
+        return 1
+
+    print(f"Loaded {len(prof_models)} profitability models")
+
+    # Load input data
+    input_path = Path(args.input_data)
+    if not input_path.exists():
+        print(f"Error: Input data not found: {input_path}", file=sys.stderr)
+        return 1
+
+    print(f"Loading input data from: {input_path}")
+    input_df = pd.read_parquet(input_path)
+    print(f"Loaded {len(input_df)} trades")
+
+    # Make predictions
+    print("\nGenerating predictions...")
+    predictions = []
+
+    for _, trade in input_df.iterrows():
+        timeframe = trade["execution_timeframe"]
+        archetype = trade["strategy_archetype"]
+
+        try:
+            pred_proba = registry.predict_profitability_proba(
+                X=pd.DataFrame([trade]),
+                timeframe=timeframe,
+                archetype=archetype
+            )
+            predictions.append({
+                "index": trade.name,
+                "prob_profitable": pred_proba.iloc[0]["prob_profitable"],
+                "prediction": 1 if pred_proba.iloc[0]["prob_profitable"] >= 0.5 else 0
+            })
+        except ValueError as e:
+            print(f"Warning: Skipping trade (no model): {e}")
+            predictions.append({
+                "index": trade.name,
+                "prob_profitable": None,
+                "prediction": None
+            })
+
+    # Save predictions
+    output_path = Path(args.output) if args.output else Path("predictions.csv")
+    pred_df = pd.DataFrame(predictions)
+    pred_df.to_csv(output_path, index=False)
+
+    print(f"\nPredictions saved to: {output_path}")
+    print(f"Total predictions: {len(pred_df)}")
+    print(f"Predicted profitable: {pred_df['prediction'].sum()}")
+
+    return 0
+
+
+def cmd_analyze_regime(args: argparse.Namespace) -> int:
+    """Analyze regime performance using trained diagnostic models."""
+    from trading_platform.ai.models import ModelRegistry
+
+    # Load models
+    model_dir = Path(args.model_dir) if args.model_dir else Path("models")
+    registry = ModelRegistry(model_dir=model_dir)
+
+    print(f"Loading models from: {model_dir}")
+    registry.load()
+
+    diag_models = registry.list_models("diagnostic")
+    if not diag_models:
+        print("Error: No diagnostic models found. Train models first.", file=sys.stderr)
+        return 1
+
+    print(f"Loaded {len(diag_models)} diagnostic models")
+
+    # Load input data
+    input_path = Path(args.input_data)
+    if not input_path.exists():
+        print(f"Error: Input data not found: {input_path}", file=sys.stderr)
+        return 1
+
+    print(f"Loading input data from: {input_path}")
+    input_df = pd.read_parquet(input_path)
+    print(f"Loaded {len(input_df)} trades")
+
+    # Analyze regime
+    print("\nAnalyzing regime performance...")
+
+    # Group by context and get quintile distributions
+    contexts = input_df[["execution_timeframe", "strategy_archetype"]].drop_duplicates()
+
+    results = []
+    for _, row in contexts.iterrows():
+        timeframe = row["execution_timeframe"]
+        archetype = row["strategy_archetype"]
+        key = f"{timeframe}_{archetype}"
+
+        # Get model
+        model = registry.get_model("diagnostic", key)
+        if model is None:
+            print(f"Warning: No model for {key}")
+            continue
+
+        # Filter trades for this context
+        context_trades = input_df[
+            (input_df["execution_timeframe"] == timeframe)
+            & (input_df["strategy_archetype"] == archetype)
+        ]
+
+        if len(context_trades) == 0:
+            continue
+
+        # Predict quintiles
+        quintiles = model.predict(context_trades)
+        proba = model.predict_proba(context_trades)
+
+        results.append({
+            "context": key,
+            "n_trades": len(context_trades),
+            "avg_quintile": quintiles.mean(),
+            "quintile_0_pct": (quintiles == 0).sum() / len(quintiles) * 100,
+            "quintile_4_pct": (quintiles == 4).sum() / len(quintiles) * 100,
+        })
+
+    # Display results
+    if results:
+        results_df = pd.DataFrame(results)
+        print("\nRegime Analysis Results:")
+        print(results_df.to_string(index=False))
+
+        # Save if output specified
+        if args.output:
+            output_path = Path(args.output)
+            results_df.to_csv(output_path, index=False)
+            print(f"\nResults saved to: {output_path}")
+    else:
+        print("\nNo results generated")
+
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(prog="tp", description="Trading Platform CLI")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -1103,6 +1357,105 @@ def main() -> int:
     )
     pcpb.add_argument("--campaign-id", required=True, help="Campaign identifier")
     pcpb.set_defaults(func=cmd_campaign_publish)
+
+    # ML Model Training Commands
+    ptpm = sub.add_parser(
+        "train-profitability-models",
+        help="Train profitability models from enriched trade data"
+    )
+    ptpm.add_argument(
+        "--enriched-data",
+        required=True,
+        help="Path to enriched trade data (parquet file)"
+    )
+    ptpm.add_argument(
+        "--model-dir",
+        default=None,
+        help="Directory to save models (default: models/)"
+    )
+    ptpm.add_argument(
+        "--n-estimators",
+        type=int,
+        default=100,
+        help="Number of trees in RandomForest (default: 100)"
+    )
+    ptpm.add_argument(
+        "--random-state",
+        type=int,
+        default=42,
+        help="Random seed for reproducibility (default: 42)"
+    )
+    ptpm.set_defaults(func=cmd_train_profitability_models)
+
+    ptdm = sub.add_parser(
+        "train-diagnostic-models",
+        help="Train diagnostic models from enriched trade data"
+    )
+    ptdm.add_argument(
+        "--enriched-data",
+        required=True,
+        help="Path to enriched trade data (parquet file)"
+    )
+    ptdm.add_argument(
+        "--model-dir",
+        default=None,
+        help="Directory to save models (default: models/)"
+    )
+    ptdm.add_argument(
+        "--n-estimators",
+        type=int,
+        default=100,
+        help="Number of trees in RandomForest (default: 100)"
+    )
+    ptdm.add_argument(
+        "--random-state",
+        type=int,
+        default=42,
+        help="Random seed for reproducibility (default: 42)"
+    )
+    ptdm.set_defaults(func=cmd_train_diagnostic_models)
+
+    ppp = sub.add_parser(
+        "predict-profitability",
+        help="Predict profitability for trades using trained models"
+    )
+    ppp.add_argument(
+        "--input-data",
+        required=True,
+        help="Path to input trade data (parquet file)"
+    )
+    ppp.add_argument(
+        "--model-dir",
+        default=None,
+        help="Directory containing trained models (default: models/)"
+    )
+    ppp.add_argument(
+        "--output",
+        default=None,
+        help="Output path for predictions (default: predictions.csv)"
+    )
+    ppp.set_defaults(func=cmd_predict_profitability)
+
+    par = sub.add_parser(
+        "analyze-regime",
+        help="Analyze regime performance using trained diagnostic models"
+    )
+    par.add_argument(
+        "--input-data",
+        required=True,
+        help="Path to input trade data (parquet file)"
+    )
+    par.add_argument(
+        "--model-dir",
+        default=None,
+        help="Directory containing trained models (default: models/)"
+    )
+    par.add_argument(
+        "--output",
+        default=None,
+        help="Output path for analysis results (CSV)"
+    )
+    par.set_defaults(func=cmd_analyze_regime)
 
     args = p.parse_args()
     return int(args.func(args))
