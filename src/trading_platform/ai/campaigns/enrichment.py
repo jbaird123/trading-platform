@@ -78,6 +78,14 @@ def enrich_campaign_dataset(campaign_id: str) -> EnrichmentResult:
     # Concatenate all trade DataFrames
     df = pd.concat(dfs, ignore_index=True)
 
+    # Drop redundant columns that were flattened by json_normalize
+    # (data is preserved in flattened columns like context_at_exit_strategy_features_*)
+    columns_to_drop = [
+        col for col in ["context_at_exit", "post_exit_analysis"] if col in df.columns
+    ]
+    if columns_to_drop:
+        df = df.drop(columns=columns_to_drop)
+
     # Save updated parquet
     df.to_parquet(output_path)
 
