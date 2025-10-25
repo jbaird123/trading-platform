@@ -75,6 +75,7 @@ class TestProfitabilityModel:
         model.fit(sample_trades_df)
 
         # Should only include context_at_entry_* features plus side, symbol, temporal
+        assert model.feature_names_ is not None
         for feature in model.feature_names_:
             # Should NOT include exit features
             assert not feature.startswith("context_at_exit_")

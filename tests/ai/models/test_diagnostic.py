@@ -81,6 +81,7 @@ class TestPerformanceDiagnosticModel:
 
         # Verify lookahead features are included
         feature_names = model.feature_names_
+        assert feature_names is not None
 
         # Should have entry features
         assert any("context_at_entry" in f for f in feature_names)

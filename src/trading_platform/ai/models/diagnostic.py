@@ -1,8 +1,9 @@
 """PerformanceDiagnosticModel - Context-specific regime analysis models.
 
-This module implements specialized performance diagnostic models, one per timeframe/archetype
-combination. Each model uses ALL available features (including lookahead) to predict performance
-quintiles, making them suitable for offline regime analysis and strategy improvement.
+This module implements specialized performance diagnostic models, one per
+timeframe/archetype combination. Each model uses ALL available features
+(including lookahead) to predict performance quintiles, making them suitable
+for offline regime analysis and strategy improvement.
 """
 
 from pathlib import Path
@@ -17,20 +18,24 @@ from sklearn.impute import SimpleImputer
 class PerformanceDiagnosticModel:
     """Context-specific quintile classifier for regime analysis.
 
-    Each model specializes in a specific timeframe/archetype combination and uses ALL features
-    including lookahead data. This is for offline analysis only - identifying which market
-    regimes produce better/worse performance.
+    Each model specializes in a specific timeframe/archetype combination and
+    uses ALL features including lookahead data. This is for offline analysis
+    only - identifying which market regimes produce better/worse performance.
 
     Features used (ALL available data):
     - Entry features: All `context_at_entry_*` columns
-    - Entry metadata: `side`, `symbol` (one-hot encoded), temporal from `entry_time`
+    - Entry metadata: `side`, `symbol` (one-hot encoded), temporal from
+      `entry_time`
     - Exit features: All `context_at_exit_*` columns (LOOKAHEAD)
     - Exit metadata: `exit_reason` (one-hot encoded, LOOKAHEAD)
-    - Trade execution: `bars_held`, `mae_currency`, `mfe_currency` (LOOKAHEAD)
+    - Trade execution: `bars_held`, `mae_currency`, `mfe_currency`
+      (LOOKAHEAD)
     - Post-trade analysis: All `post_exit_analysis_*` columns (LOOKAHEAD)
-    - Cost features: `cost_breakdown_commission`, `cost_breakdown_slippage`, `cost_breakdown_spread`
+    - Cost features: `cost_breakdown_commission`, `cost_breakdown_slippage`,
+      `cost_breakdown_spread`
 
-    Target: Quintile classification based on r_multiple (0=worst 20%, 4=best 20%)
+    Target: Quintile classification based on r_multiple
+            (0=worst 20%, 4=best 20%)
     """
 
     def __init__(
@@ -83,7 +88,8 @@ class PerformanceDiagnosticModel:
         # Validate input has data
         if len(trades_df) == 0:
             raise ValueError(
-                f"Insufficient data: need 50+ trades for {self.timeframe}_{self.archetype}, got 0"
+                f"Insufficient data: need 50+ trades for "
+                f"{self.timeframe}_{self.archetype}, got 0"
             )
 
         # Filter data by context
@@ -95,8 +101,8 @@ class PerformanceDiagnosticModel:
         # Validate minimum samples
         if len(df) < 50:
             raise ValueError(
-                f"Insufficient data: need 50+ trades for {self.timeframe}_{self.archetype}, "
-                f"got {len(df)}"
+                f"Insufficient data: need 50+ trades for "
+                f"{self.timeframe}_{self.archetype}, got {len(df)}"
             )
 
         # Remove rows with missing r_multiple (can't classify without target)
@@ -113,7 +119,9 @@ class PerformanceDiagnosticModel:
         X = self._extract_features(df_clean)
 
         # Create target: quintile classification based on r_multiple
-        y = self._create_quintile_target(df_clean["r_multiple"].values)
+        # Convert to numpy array explicitly for type safety
+        r_multiple_values: np.ndarray = np.asarray(df_clean["r_multiple"].values)
+        y = self._create_quintile_target(r_multiple_values)
 
         # Store feature names for later alignment
         self.feature_names_ = X.columns.tolist()
@@ -144,7 +152,7 @@ class PerformanceDiagnosticModel:
         Raises:
             ValueError: If model not fitted
         """
-        if self.model is None:
+        if self.model is None or self.imputer is None:
             raise ValueError("Model not fitted. Call fit() first.")
 
         # Extract and align features
@@ -154,7 +162,9 @@ class PerformanceDiagnosticModel:
         # Impute missing values
         X_imputed = self.imputer.transform(X_aligned)
 
-        return self.model.predict(X_imputed)
+        # Type narrowing: we know model is fitted here
+        predictions: np.ndarray = self.model.predict(X_imputed)
+        return predictions
 
     def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
         """Predict quintile probabilities.
@@ -171,7 +181,7 @@ class PerformanceDiagnosticModel:
         Raises:
             ValueError: If model not fitted
         """
-        if self.model is None:
+        if self.model is None or self.imputer is None:
             raise ValueError("Model not fitted. Call fit() first.")
 
         # Extract and align features
@@ -181,7 +191,9 @@ class PerformanceDiagnosticModel:
         # Impute missing values
         X_imputed = self.imputer.transform(X_aligned)
 
-        return self.model.predict_proba(X_imputed)
+        # Type narrowing: we know model is fitted here
+        probabilities: np.ndarray = self.model.predict_proba(X_imputed)
+        return probabilities
 
     def save(self, path: Path) -> None:
         """Save model to disk.
@@ -354,6 +366,8 @@ class PerformanceDiagnosticModel:
 
         # Convert to numpy array (qcut may return Series or ndarray)
         if isinstance(quintiles, pd.Series):
-            return quintiles.astype(int).values
+            result: np.ndarray = quintiles.astype(int).values
+            return result
         else:
-            return quintiles.astype(int)
+            result_arr: np.ndarray = np.asarray(quintiles.astype(int))
+            return result_arr

@@ -1,7 +1,8 @@
 """RuleBasedAnalyzer - Heuristic rules for quick strategy insights.
 
-This module implements rule-based diagnostic analysis using heuristics and pattern detection.
-Unlike ML models, these rules provide immediate insights without requiring training data.
+This module implements rule-based diagnostic analysis using heuristics and
+pattern detection. Unlike ML models, these rules provide immediate insights
+without requiring training data.
 
 Examples of rules:
 - Win rate vs expectancy inconsistencies

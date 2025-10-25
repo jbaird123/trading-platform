@@ -1,8 +1,9 @@
 """ProfitabilityModel - Context-specific predictive models for signal filtering.
 
-This module implements specialized profitability prediction models, one per timeframe/archetype
-combination. Each model uses only entry-time features (no lookahead) to predict whether a trade
-will be profitable, making them suitable for real-time signal filtering.
+This module implements specialized profitability prediction models, one per
+timeframe/archetype combination. Each model uses only entry-time features (no
+lookahead) to predict whether a trade will be profitable, making them suitable
+for real-time signal filtering.
 """
 
 from pathlib import Path
@@ -17,9 +18,9 @@ from sklearn.impute import SimpleImputer
 class ProfitabilityModel:
     """Context-specific binary classifier for profitability prediction.
 
-    Each model specializes in a specific timeframe/archetype combination and uses only features
-    known at entry time (no lookahead). This ensures the model can be used in real-time for
-    signal filtering.
+    Each model specializes in a specific timeframe/archetype combination and
+    uses only features known at entry time (no lookahead). This ensures the
+    model can be used in real-time for signal filtering.
 
     Features used:
     - All `context_at_entry_*` columns (market indicators at entry)
@@ -75,7 +76,8 @@ class ProfitabilityModel:
         # Validate input has data
         if len(trades_df) == 0:
             raise ValueError(
-                f"Insufficient data: need 50+ trades for {self.timeframe}_{self.archetype}, got 0"
+                f"Insufficient data: need 50+ trades for "
+                f"{self.timeframe}_{self.archetype}, got 0"
             )
 
         # Filter data by context
@@ -87,8 +89,8 @@ class ProfitabilityModel:
         # Validate minimum samples
         if len(df) < 50:
             raise ValueError(
-                f"Insufficient data: need 50+ trades for {self.timeframe}_{self.archetype}, "
-                f"got {len(df)}"
+                f"Insufficient data: need 50+ trades for "
+                f"{self.timeframe}_{self.archetype}, got {len(df)}"
             )
 
         # Extract features (ONLY entry-time features - NO lookahead)
@@ -126,7 +128,7 @@ class ProfitabilityModel:
         Raises:
             ValueError: If model not fitted
         """
-        if self.model is None:
+        if self.model is None or self.imputer is None:
             raise ValueError("Model not fitted. Call fit() first.")
 
         # Extract and align features
@@ -136,7 +138,9 @@ class ProfitabilityModel:
         # Impute missing values
         X_imputed = self.imputer.transform(X_aligned)
 
-        return self.model.predict(X_imputed)
+        # Type narrowing: we know model is fitted here
+        predictions: np.ndarray = self.model.predict(X_imputed)
+        return predictions
 
     def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
         """Predict profitability probabilities.
@@ -151,7 +155,7 @@ class ProfitabilityModel:
         Raises:
             ValueError: If model not fitted
         """
-        if self.model is None:
+        if self.model is None or self.imputer is None:
             raise ValueError("Model not fitted. Call fit() first.")
 
         # Extract and align features
@@ -161,7 +165,9 @@ class ProfitabilityModel:
         # Impute missing values
         X_imputed = self.imputer.transform(X_aligned)
 
-        return self.model.predict_proba(X_imputed)
+        # Type narrowing: we know model is fitted here
+        probabilities: np.ndarray = self.model.predict_proba(X_imputed)
+        return probabilities
 
     def save(self, path: Path) -> None:
         """Save model to disk.

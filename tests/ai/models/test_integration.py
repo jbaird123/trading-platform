@@ -13,7 +13,6 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-
 from trading_platform.ai.models import (
     ModelRegistry,
     PerformanceDiagnosticModel,
@@ -160,7 +159,7 @@ def test_full_workflow_with_real_data(enriched_data_path):
 
         # Test diagnostic predictions
         for key in loaded_diag:
-            model = new_registry.get_model("diagnostic", key)
+            model = new_registry.get_model("diagnostic", key)  # type: ignore[assignment]
             if model is None:
                 continue
 

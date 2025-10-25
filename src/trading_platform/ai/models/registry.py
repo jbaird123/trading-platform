@@ -28,7 +28,8 @@ class ModelRegistry:
     1. Profitability models: Binary classifiers for signal filtering (no lookahead)
     2. Diagnostic models: Quintile classifiers for regime analysis (with lookahead)
 
-    Each family contains multiple specialized models, one per timeframe/archetype combination.
+    Each family contains multiple specialized models, one per
+    timeframe/archetype combination.
     """
 
     def __init__(self, model_dir: Path | None = None):
@@ -74,7 +75,8 @@ class ModelRegistry:
             self._diagnostic_models[key] = model
         else:
             raise ValueError(
-                f"Invalid model family: {family}. Must be 'profitability' or 'diagnostic'"
+                f"Invalid model family: {family}. "
+                f"Must be 'profitability' or 'diagnostic'"
             )
 
     def get_model(self, family: str, key: str) -> Any | None:
@@ -213,7 +215,8 @@ class ModelRegistry:
             raise ValueError(f"Profitability model '{key}' not found. Train it first.")
 
         predictions = model.predict(X)
-        return pd.Series(predictions, index=X.index)
+        result: pd.Series[Any] = pd.Series(predictions, index=X.index)
+        return result
 
     def predict_profitability_proba(
         self, X: pd.DataFrame, timeframe: str, archetype: str
