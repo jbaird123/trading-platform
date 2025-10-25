@@ -5,11 +5,14 @@ from .models import (
     CampaignConfig,
     CampaignPlan,
     CandidateMetadata,
+    CandidateValidation,
+    CheckResult,
     ExecutionResults,
     Provenance,
     RunMatrixEntry,
     RunResult,
     SingleRun,
+    ValidationReport,
 )
 
 __all__ = [
@@ -22,4 +25,7 @@ __all__ = [
     "ExecutionResults",
     "CandidateMetadata",
     "ArtifactSummary",
+    "CheckResult",
+    "CandidateValidation",
+    "ValidationReport",
 ]

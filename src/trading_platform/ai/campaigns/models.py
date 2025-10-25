@@ -161,3 +161,46 @@ class ArtifactSummary(BaseModel):
     candidates: List[CandidateMetadata] = Field(
         default_factory=list, description="List of candidate metadata"
     )
+
+
+class CheckResult(BaseModel):
+    """Result of a validation check."""
+
+    model_config = {"extra": "forbid"}
+
+    check_name: str = Field(..., description="Name of the validation check")
+    status: str = Field(..., description="Check status (passed/failed/warning)")
+    message: Optional[str] = Field(default=None, description="Check message or issue")
+
+
+class CandidateValidation(BaseModel):
+    """Validation results for a single candidate."""
+
+    model_config = {"extra": "forbid"}
+
+    run_id: str = Field(..., description="Candidate run identifier")
+    overall_status: str = Field(
+        ..., description="Overall status (passed/failed/warning)"
+    )
+    checks: Dict[str, CheckResult] = Field(
+        default_factory=dict, description="Individual check results"
+    )
+    issues: List[str] = Field(
+        default_factory=list, description="List of validation issues"
+    )
+
+
+class ValidationReport(BaseModel):
+    """Campaign validation report."""
+
+    model_config = {"extra": "forbid"}
+
+    campaign_id: str = Field(..., description="Campaign identifier")
+    validated_at: str = Field(..., description="ISO timestamp of validation")
+    total_candidates: int = Field(..., description="Total candidates validated")
+    passed: int = Field(..., description="Number passed")
+    failed: int = Field(..., description="Number failed")
+    warnings: int = Field(..., description="Number with warnings")
+    results: List[CandidateValidation] = Field(
+        default_factory=list, description="Individual validation results"
+    )
