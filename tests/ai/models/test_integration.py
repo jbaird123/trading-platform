@@ -57,13 +57,10 @@ def test_full_workflow_with_real_data(enriched_data_path):
 
         # Train profitability models
         print("\nTraining profitability models...")
-        prof_models = registry.train_all_profitability_models(df)
-
-        if len(prof_models) == 0:
-            pytest.skip(
-                "Insufficient data to train profitability models "
-                "(need 50+ trades per context)"
-            )
+        try:
+            prof_models = registry.train_all_profitability_models(df)
+        except ValueError as e:
+            pytest.skip(f"Insufficient data to train profitability models: {e}")
 
         print(f"Trained {len(prof_models)} profitability models:")
         for key in prof_models.keys():

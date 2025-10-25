@@ -185,8 +185,8 @@ class TestModelRegistry:
             assert model.model is not None
             assert model.feature_names_ is not None
 
-    def test_train_profitability_models_insufficient_data_skips(self, temp_dir):
-        """Verify contexts with insufficient data are skipped."""
+    def test_train_profitability_models_insufficient_data_raises(self, temp_dir):
+        """Verify training fails with insufficient data."""
         registry = ModelRegistry(model_dir=temp_dir)
 
         # Create data with only 10 trades per context (need 50)
@@ -202,11 +202,12 @@ class TestModelRegistry:
             }
         )
 
-        # Train models (should skip due to insufficient data and emit warning)
-        trained_models = registry.train_all_profitability_models(small_df)
-
-        # Verify no models were trained
-        assert len(trained_models) == 0
+        # Verify training raises ValueError due to insufficient data
+        with pytest.raises(
+            ValueError,
+            match="Insufficient data: need 50\\+ trades for 5min_trend_following",
+        ):
+            registry.train_all_profitability_models(small_df)
 
     def test_predict_with_profitability_model(self, temp_dir, sample_trades_df):
         """Verify prediction routing to correct model."""

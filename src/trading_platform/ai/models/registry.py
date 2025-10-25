@@ -12,7 +12,6 @@ The registry supports:
 - Routing predictions to appropriate models
 """
 
-import warnings
 from pathlib import Path
 from typing import Any
 
@@ -181,14 +180,9 @@ class ModelRegistry:
                 random_state=random_state,
             )
 
-            # Try to train
-            try:
-                model.fit(enriched_trades_df)
-                trained_models[key] = model
-            except ValueError as e:
-                # Skip contexts with insufficient data
-                warnings.warn(f"Skipping {key}: {e}")
-                continue
+            # Train model - raise error if insufficient data
+            model.fit(enriched_trades_df)
+            trained_models[key] = model
 
         return trained_models
 
