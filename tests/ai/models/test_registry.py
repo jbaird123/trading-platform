@@ -29,8 +29,10 @@ def sample_trades_df():
             "side": ["long", "short"] * 100,
             "symbol": ["EUR_USD"] * 200,
             "entry_time": pd.date_range("2024-01-01", periods=200, freq="1h"),
-            # Target
+            # Target and risk data
             "pnl": [10.0, -5.0] * 100,  # Alternating profitable/unprofitable
+            "initial_stop_loss_pips": [20.0] * 200,
+            "r_multiple": [0.5, -0.25] * 100,
         }
     )
 
@@ -200,6 +202,8 @@ class TestModelRegistry:
                 "symbol": ["EUR_USD"] * 10,
                 "entry_time": pd.date_range("2024-01-01", periods=10, freq="1h"),
                 "pnl": [10.0] * 10,
+                "r_multiple": [0.5] * 10,
+                "initial_stop_loss_pips": [20.0] * 10,
             }
         )
 
@@ -212,25 +216,40 @@ class TestModelRegistry:
 
     def test_predict_with_profitability_model(self, temp_dir, sample_trades_df):
         """Verify prediction routing to correct model."""
+        import numpy as np
+
         registry = ModelRegistry(model_dir=temp_dir)
 
         # Train models
         registry.train_all_profitability_models(sample_trades_df)
 
-        # Create test data for 5min/trend_following context
-        test_df = sample_trades_df[
-            (sample_trades_df["execution_timeframe"] == "5min")
-            & (sample_trades_df["strategy_archetype"] == "trend_following")
-        ].head(5)
+        # Create NEW test data that doesn't overlap with training period
+        # Training data ends at some point, so we create data after that
+        test_df = pd.DataFrame(
+            {
+                "execution_timeframe": ["5min"] * 5,
+                "strategy_archetype": ["trend_following"] * 5,
+                "context_at_entry_rsi": np.random.uniform(30, 70, 5),
+                "context_at_entry_atr": np.random.uniform(0.0005, 0.002, 5),
+                "side": ["long", "short", "long", "short", "long"],
+                "symbol": ["EUR_USD"] * 5,
+                "entry_time": pd.date_range(
+                    "2025-01-01", periods=5, freq="1h"
+                ),  # Future data
+                "initial_stop_loss_pips": np.random.uniform(10, 50, 5),
+            }
+        )
 
         # Predict
         predictions = registry.predict_profitability(
             X=test_df, timeframe="5min", archetype="trend_following"
         )
 
-        # Verify predictions
+        # Verify predictions are continuous R-multiple values
         assert len(predictions) == 5
-        assert all(p in [0, 1] for p in predictions)
+        assert isinstance(predictions, pd.Series)
+        # Predictions should be floats (not just 0/1)
+        assert predictions.dtype in [float, "float64"]
 
     def test_predict_with_missing_model_raises(self, temp_dir, sample_trades_df):
         """Verify error when predicting with non-existent model."""
@@ -320,3 +339,213 @@ class TestModelRegistry:
 
         # Verify all contexts were trained
         assert len(trained_models) == 4
+
+    def test_train_all_diagnostic_models_segregates_by_risk(self, temp_dir):
+        """Verify diagnostic models are segregated by data availability (Step 10)."""
+        import numpy as np
+
+        registry = ModelRegistry(model_dir=temp_dir)
+
+        # Create mixed data: some with r_multiple, some without
+        # 100 trades with r_multiple (can train rmultiple model)
+        # 50 trades with pnl but no r_multiple (can train pnl_no_risk model)
+        # Total 150 for 5min_trend_following context
+        df_with_risk = pd.DataFrame(
+            {
+                "execution_timeframe": ["5min"] * 100,
+                "strategy_archetype": ["trend_following"] * 100,
+                "context_at_entry_rsi": np.random.uniform(30, 70, 100),
+                "side": ["long", "short"] * 50,
+                "symbol": ["EUR_USD"] * 100,
+                "entry_time": pd.date_range("2024-01-01", periods=100, freq="1h"),
+                "pnl": np.random.uniform(-50, 100, 100),
+                "r_multiple": np.random.uniform(-2, 5, 100),  # Has risk data
+                "initial_stop_loss_pips": np.random.uniform(10, 50, 100),
+            }
+        )
+
+        df_no_risk = pd.DataFrame(
+            {
+                "execution_timeframe": ["5min"] * 50,
+                "strategy_archetype": ["trend_following"] * 50,
+                "context_at_entry_rsi": np.random.uniform(30, 70, 50),
+                "side": ["long", "short"] * 25,
+                "symbol": ["EUR_USD"] * 50,
+                "entry_time": pd.date_range("2024-05-01", periods=50, freq="1h"),
+                "pnl": np.random.uniform(-50, 100, 50),
+                "r_multiple": np.full(50, np.nan),  # No risk data (explicit float NaN)
+                "initial_stop_loss_pips": np.full(50, np.nan),
+            }
+        )
+
+        combined_df = pd.concat([df_with_risk, df_no_risk], ignore_index=True)
+
+        # Add required lookahead features for diagnostic model
+        combined_df["context_at_exit_rsi"] = np.random.uniform(30, 70, 150)
+        combined_df["bars_held"] = np.random.randint(1, 50, 150)
+        combined_df["mae_currency"] = np.random.uniform(-50, 0, 150)
+        combined_df["mfe_currency"] = np.random.uniform(0, 100, 150)
+        combined_df["exit_reason"] = np.random.choice(["take_profit", "stop_loss"], 150)
+
+        # Train diagnostic models - should create segregated models
+        trained_models = registry.train_all_diagnostic_models(combined_df)
+
+        # Verify segregated models were created
+        model_keys = list(trained_models.keys())
+
+        # Should have models with different suffixes
+        assert any(
+            "_rmultiple" in key for key in model_keys
+        ), "Expected _rmultiple model"
+        assert any(
+            "_pnl_no_risk" in key for key in model_keys
+        ), "Expected _pnl_no_risk model"
+
+        # Verify models have correct target_metric
+        for key, model in trained_models.items():
+            if "_rmultiple" in key:
+                assert model.target_metric == "r_multiple"
+            elif "_pnl_no_risk" in key:
+                assert model.target_metric == "pnl"
+
+    def test_analyze_performance_regime_validates_data_type(self, temp_dir):
+        """Verify analyze_performance_regime raises error for mismatched data (Step 12)."""
+        import numpy as np
+
+        registry = ModelRegistry(model_dir=temp_dir)
+
+        # Train a model on data WITH risk
+        df_with_risk = pd.DataFrame(
+            {
+                "execution_timeframe": ["5min"] * 100,
+                "strategy_archetype": ["trend_following"] * 100,
+                "context_at_entry_rsi": np.random.uniform(30, 70, 100),
+                "side": ["long", "short"] * 50,
+                "symbol": ["EUR_USD"] * 100,
+                "entry_time": pd.date_range("2024-01-01", periods=100, freq="1h"),
+                "pnl": np.random.uniform(-50, 100, 100),
+                "r_multiple": np.random.uniform(-2, 5, 100),
+                "initial_stop_loss_pips": np.random.uniform(10, 50, 100),
+                "context_at_exit_rsi": np.random.uniform(30, 70, 100),
+                "bars_held": np.random.randint(1, 50, 100),
+                "mae_currency": np.random.uniform(-50, 0, 100),
+                "mfe_currency": np.random.uniform(0, 100, 100),
+                "exit_reason": np.random.choice(["take_profit", "stop_loss"], 100),
+            }
+        )
+
+        trained_models = registry.train_all_diagnostic_models(df_with_risk)
+
+        # Try to use the _no_risk model on data that HAS r_multiple
+        # This should raise a ValueError
+        test_data_with_risk = df_with_risk.head(10)
+
+        # Get the _no_risk model key (if it exists)
+        no_risk_keys = [k for k in trained_models.keys() if "_no_risk" in k]
+
+        if no_risk_keys:
+            with pytest.raises(ValueError, match="data type mismatch"):
+                registry.analyze_performance_regime(
+                    X=test_data_with_risk,
+                    timeframe="5min",
+                    archetype="trend_following",
+                    model_suffix="_pnl_no_risk",
+                )
+
+    def test_predict_profitability_raises_lookahead_error(self, temp_dir):
+        """Verify predict_profitability detects and prevents lookahead bias (Step 18)."""
+        import numpy as np
+
+        registry = ModelRegistry(model_dir=temp_dir)
+
+        # Train a model on specific date range
+        training_df = pd.DataFrame(
+            {
+                "execution_timeframe": ["5min"] * 100,
+                "strategy_archetype": ["trend_following"] * 100,
+                "context_at_entry_rsi": np.random.uniform(30, 70, 100),
+                "side": ["long", "short"] * 50,
+                "symbol": ["EUR_USD"] * 100,
+                "entry_time": pd.date_range("2024-01-01", periods=100, freq="1h"),
+                "pnl": np.random.uniform(-50, 100, 100),
+                "r_multiple": np.random.uniform(-2, 5, 100),
+                "initial_stop_loss_pips": np.random.uniform(10, 50, 100),
+            }
+        )
+
+        trained_models = registry.train_all_profitability_models(training_df)
+        assert len(trained_models) > 0
+
+        # Try to predict on data that overlaps with training period
+        # Training period: 2024-01-01 to 2024-01-05 03:00:00 (100 hours)
+        overlapping_df = pd.DataFrame(
+            {
+                "execution_timeframe": ["5min"] * 5,
+                "strategy_archetype": ["trend_following"] * 5,
+                "context_at_entry_rsi": np.random.uniform(30, 70, 5),
+                "side": ["long"] * 5,
+                "symbol": ["EUR_USD"] * 5,
+                "entry_time": pd.date_range(
+                    "2024-01-03", periods=5, freq="1h"
+                ),  # Overlaps!
+                "initial_stop_loss_pips": np.random.uniform(10, 50, 5),
+            }
+        )
+
+        # Should raise ValueError due to lookahead bias
+        with pytest.raises(ValueError, match="Lookahead bias detected"):
+            registry.predict_profitability(
+                X=overlapping_df, timeframe="5min", archetype="trend_following"
+            )
+
+    def test_analyze_performance_regime_raises_lookahead_error(self, temp_dir):
+        """Verify analyze_performance_regime detects lookahead bias (Step 19)."""
+        import numpy as np
+
+        registry = ModelRegistry(model_dir=temp_dir)
+
+        # Train a diagnostic model
+        training_df = pd.DataFrame(
+            {
+                "execution_timeframe": ["5min"] * 100,
+                "strategy_archetype": ["trend_following"] * 100,
+                "context_at_entry_rsi": np.random.uniform(30, 70, 100),
+                "side": ["long", "short"] * 50,
+                "symbol": ["EUR_USD"] * 100,
+                "entry_time": pd.date_range("2024-01-01", periods=100, freq="1h"),
+                "pnl": np.random.uniform(-50, 100, 100),
+                "r_multiple": np.random.uniform(-2, 5, 100),
+                "initial_stop_loss_pips": np.random.uniform(10, 50, 100),
+                "context_at_exit_rsi": np.random.uniform(30, 70, 100),
+                "bars_held": np.random.randint(1, 50, 100),
+                "mae_currency": np.random.uniform(-50, 0, 100),
+                "mfe_currency": np.random.uniform(0, 100, 100),
+                "exit_reason": np.random.choice(["take_profit", "stop_loss"], 100),
+            }
+        )
+
+        trained_models = registry.train_all_diagnostic_models(training_df)
+        assert len(trained_models) > 0
+
+        # Try to predict on overlapping data
+        overlapping_df = pd.DataFrame(
+            {
+                "execution_timeframe": ["5min"] * 5,
+                "strategy_archetype": ["trend_following"] * 5,
+                "context_at_entry_rsi": np.random.uniform(30, 70, 5),
+                "side": ["long"] * 5,
+                "symbol": ["EUR_USD"] * 5,
+                "entry_time": pd.date_range(
+                    "2024-01-02", periods=5, freq="1h"
+                ),  # Overlaps!
+                "r_multiple": np.random.uniform(-2, 5, 5),
+                "context_at_exit_rsi": np.random.uniform(30, 70, 5),
+                "bars_held": np.random.randint(1, 50, 5),
+            }
+        )
+
+        # Should raise ValueError due to lookahead bias
+        with pytest.raises(ValueError, match="Lookahead bias detected"):
+            registry.analyze_performance_regime(
+                X=overlapping_df, timeframe="5min", archetype="trend_following"
+            )
