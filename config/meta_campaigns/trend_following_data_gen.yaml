@@ -8,7 +8,6 @@ run_grid:
     - { start: "2018-01-01", end: "2023-12-31" }
   instruments:
     - EUR_USD
-    - GBP_USD
   execution_timeframes:
     - 1min
     - 5min

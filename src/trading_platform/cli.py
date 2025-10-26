@@ -22,8 +22,6 @@ from trading_platform.core.demo import generate_demo_run
 from trading_platform.core.meta_campaign_config import MetaCampaignConfig
 from trading_platform.core.meta_campaign_generator import (
     calculate_cartesian_product,
-    campaign_config_to_yaml_dict,
-    generate_campaign_filename,
 )
 from trading_platform.core.policy import TradingWindowPolicy
 from trading_platform.core.run import finalize_run, initialize_run
@@ -1277,43 +1275,68 @@ def _write_campaign_files(
     meta_campaign_id: str,
 ) -> int:
     """
-    Write campaign configuration files.
+    Write campaign configuration files grouped by profile and timeframe.
+
+    Creates one campaign config file per (profile, timeframe) combination,
+    each with a run_matrix containing all parameter/instrument variations.
 
     Returns:
         Number of files written
     """
     import yaml
 
-    profile_counters: dict[str, int] = {}
-    generated_count = 0
-
+    # Group campaigns by (profile, timeframe)
+    campaigns_by_group: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for campaign in campaigns:
         profile_name = campaign["profile_name"]
-        instrument = campaign["instrument"]
         timeframe = campaign["execution_timeframe"]
+        group_key = (profile_name, timeframe)
 
-        # Get and increment counter for this profile
-        if profile_name not in profile_counters:
-            profile_counters[profile_name] = 0
-        param_index = profile_counters[profile_name]
-        profile_counters[profile_name] += 1
+        if group_key not in campaigns_by_group:
+            campaigns_by_group[group_key] = []
+        campaigns_by_group[group_key].append(campaign)
 
-        # Generate filename
-        filename = generate_campaign_filename(
-            meta_campaign_id=meta_campaign_id,
-            profile_name=profile_name,
-            instrument=instrument,
-            timeframe=timeframe,
-            param_index=param_index,
+    generated_count = 0
+
+    # Write one file per (profile, timeframe) group
+    for (profile_name, timeframe), group_campaigns in campaigns_by_group.items():
+        # Use first campaign as template for common fields
+        first = group_campaigns[0]
+
+        # Build run_matrix from all campaigns in this group
+        run_matrix = []
+        for campaign in group_campaigns:
+            run_entry = {
+                "instrument": campaign["instrument"],
+                "start_date": campaign["date_range"]["start"],
+                "end_date": campaign["date_range"]["end"],
+                "param_overrides": campaign["strategy_params"],
+            }
+            run_matrix.append(run_entry)
+
+        # Build campaign config in correct format
+        description = (
+            f"Meta-campaign: {meta_campaign_id}, "
+            f"Profile: {profile_name}, Timeframe: {timeframe}"
         )
+        campaign_config = {
+            "campaign_id": f"{meta_campaign_id}_{profile_name}_{timeframe}",
+            "strategy_path": str(first["strategy_path"]),
+            "execution_timeframe": timeframe,
+            "strategy_archetype": first["archetype"],
+            "description": description,
+            "run_matrix": run_matrix,
+        }
 
-        # Convert to YAML dict
-        yaml_dict = campaign_config_to_yaml_dict(campaign)
+        # Add REM path if present
+        if first["rem_path"] is not None:
+            campaign_config["rem_path"] = str(first["rem_path"])
 
         # Write file
+        filename = f"{meta_campaign_id}_{profile_name}_{timeframe}.yaml"
         output_path = output_dir / filename
         with open(output_path, "w") as f:
-            yaml.dump(yaml_dict, f, default_flow_style=False, sort_keys=False)
+            yaml.dump(campaign_config, f, default_flow_style=False, sort_keys=False)
 
         generated_count += 1
 
@@ -1322,13 +1345,14 @@ def _write_campaign_files(
 
 def _print_summary(generated_count: int, output_dir: Path) -> None:
     """Print summary of generated campaigns."""
-    print(f"✓ Generated {generated_count} campaign configurations")
+    print(f"✓ Generated {generated_count} campaign config file(s)")
     print(f"✓ Output directory: {output_dir}")
     print()
     print("Next steps:")
     print("  1. Review generated configs in " + str(output_dir))
-    print("  2. Run campaigns with: tp campaign-run <campaign_file>")
-    print("  3. Review results with: tp campaign-review")
+    print("  2. Create campaign plan: tp campaign-plan --config <config_file>")
+    print("  3. Execute campaign: tp campaign-run --campaign-id <campaign_id>")
+    print("  4. Review results: tp campaign-review --campaign-id <campaign_id>")
     print()
 
 
