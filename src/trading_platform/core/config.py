@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import logging
+import re
 from enum import Enum
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 
 from . import paths
 from .utils import gen_run_id, normalize_symbol
@@ -18,6 +19,7 @@ class PriceSource(str, Enum):
 
     STRICT VALIDATION: Only these source fields are supported.
     """
+
     OPEN = "open"
     HIGH = "high"
     LOW = "low"
@@ -71,6 +73,24 @@ class FeatureConfig(BaseModel):
                 f"Unknown indicator type '{value}'. Must be one of: {allowed}."
             )
         return value
+
+    @field_validator("name")
+    @classmethod
+    def validate_name_based_on_context(cls, v: str, info: ValidationInfo) -> str:
+        """Validate feature name based on context (global vs strategy)."""
+        context = info.context or {}
+        is_global = context.get("is_global", False)
+
+        if is_global:
+            # Global features MUST have timeframe prefix
+            pattern = r"^(m1|m5|m15|h1|h4|d1)_[a-z0-9_]+$"
+            if not re.match(pattern, v):
+                raise ValueError(
+                    f"Global features must have timeframe prefix "
+                    f"(m1_, m5_, m15_, h1_, h4_, d1_). Got: {v}"
+                )
+
+        return v
 
 
 # Default contextual features computed on every run

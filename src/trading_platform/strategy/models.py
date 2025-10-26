@@ -11,6 +11,7 @@ VALIDATION PHILOSOPHY:
 
 from __future__ import annotations
 
+import re
 from enum import Enum
 from typing import Any
 
@@ -284,5 +285,27 @@ class StrategyConfig(BaseModel):
                 "Provide either long_entry_rules or short_entry_rules (or both). "
                 "A strategy without entry rules cannot generate trades."
             )
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_feature_names_no_timeframe_prefix(self) -> StrategyConfig:
+        """Ensure strategy features do NOT have timeframe prefixes.
+
+        Strategy features must not have timeframe prefixes
+        (m1_, m5_, m15_, h1_, h4_, d1_).
+        Only global features should have timeframe prefixes.
+
+        Raises:
+            ValueError: If any feature has a timeframe prefix.
+        """
+        timeframe_prefix_pattern = r"^(m1|m5|m15|h1|h4|d1)_"
+
+        for feature in self.features:
+            if re.match(timeframe_prefix_pattern, feature.name):
+                raise ValueError(
+                    f"Strategy features must NOT have timeframe prefix. "
+                    f"Found: {feature.name}"
+                )
 
         return self
