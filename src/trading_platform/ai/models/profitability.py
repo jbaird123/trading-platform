@@ -11,12 +11,12 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.impute import SimpleImputer
 
 
 class ProfitabilityModel:
-    """Context-specific binary classifier for profitability prediction.
+    """Context-specific regressor for R-multiple prediction.
 
     Each model specializes in a specific timeframe/archetype combination and
     uses only features known at entry time (no lookahead). This ensures the
@@ -28,7 +28,7 @@ class ProfitabilityModel:
     - `symbol` (currency pair) - one-hot encoded
     - Temporal features from `entry_time` (hour, day_of_week, trading session)
 
-    Target: Binary classification (profitable=1, unprofitable=0)
+    Target: R-multiple (continuous risk-adjusted return)
     """
 
     def __init__(
@@ -43,7 +43,7 @@ class ProfitabilityModel:
         Args:
             timeframe: Execution timeframe (e.g., "5min", "15min", "1h")
             archetype: Strategy archetype (e.g., "trend_following", "mean_reversion")
-            n_estimators: Number of trees in RandomForestClassifier
+            n_estimators: Number of trees in RandomForestRegressor
             random_state: Random seed for reproducibility
         """
         self.timeframe = timeframe
@@ -52,9 +52,11 @@ class ProfitabilityModel:
         self.random_state = random_state
 
         # Model components (initialized during fit)
-        self.model: RandomForestClassifier | None = None
+        self.model: RandomForestRegressor | None = None
         self.feature_names_: list[str] | None = None
         self.imputer: SimpleImputer | None = None
+        self.training_start_date_: pd.Timestamp | None = None
+        self.training_end_date_: pd.Timestamp | None = None
 
     def fit(self, trades_df: pd.DataFrame) -> "ProfitabilityModel":
         """Train model on historical trades.
@@ -93,11 +95,49 @@ class ProfitabilityModel:
                 f"{self.timeframe}_{self.archetype}, got {len(df)}"
             )
 
+        # Validate r_multiple column exists and has no nulls (required for training)
+        if "r_multiple" not in df.columns:
+            raise ValueError(
+                f"Training failed for {self.timeframe}_{self.archetype}: "
+                f"Missing required column 'r_multiple'."
+            )
+
+        if df["r_multiple"].isnull().any():
+            n_null = df["r_multiple"].isnull().sum()
+            raise ValueError(
+                f"Training failed for {self.timeframe}_{self.archetype}: "
+                f"Cannot train without historical 'r_multiple' values. "
+                f"Found {n_null} missing values."
+            )
+
+        # Validate initial_stop_loss_pips exists and is valid (required for predictions)
+        if "initial_stop_loss_pips" not in df.columns:
+            raise ValueError(
+                f"Training failed for {self.timeframe}_{self.archetype}: "
+                f"Missing required column 'initial_stop_loss_pips'."
+            )
+
+        if (
+            df["initial_stop_loss_pips"].isnull().any()
+            or (df["initial_stop_loss_pips"] <= 0).any()
+        ):
+            n_null = df["initial_stop_loss_pips"].isnull().sum()
+            n_invalid = (df["initial_stop_loss_pips"] <= 0).sum()
+            raise ValueError(
+                f"Training failed for {self.timeframe}_{self.archetype}: "
+                f"All trades must have a valid 'initial_stop_loss_pips' > 0. "
+                f"Found {n_null} null and {n_invalid} invalid values."
+            )
+
+        # Record training date range (for lookahead bias prevention)
+        self.training_start_date_ = pd.to_datetime(df["entry_time"]).min()
+        self.training_end_date_ = pd.to_datetime(df["entry_time"]).max()
+
         # Extract features (ONLY entry-time features - NO lookahead)
         X = self._extract_features(df)
 
-        # Create target: binary classification (profitable=1, unprofitable=0)
-        y = (df["pnl"] > 0).astype(int).values
+        # Create target: R-multiple regression
+        y = df["r_multiple"].values
 
         # Store feature names for later alignment
         self.feature_names_ = X.columns.tolist()
@@ -107,7 +147,7 @@ class ProfitabilityModel:
         X_imputed = self.imputer.fit_transform(X)
 
         # Initialize and fit model
-        self.model = RandomForestClassifier(
+        self.model = RandomForestRegressor(
             n_estimators=self.n_estimators,
             random_state=self.random_state,
             n_jobs=-1,  # Use all cores
@@ -117,13 +157,13 @@ class ProfitabilityModel:
         return self
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
-        """Predict profitability (binary: 0 or 1).
+        """Predict R-multiple (continuous risk-adjusted return).
 
         Args:
             X: DataFrame with trade features (same structure as training data)
 
         Returns:
-            Array of predictions (0=unprofitable, 1=profitable)
+            Array of R-multiple predictions (e.g., 2.5 means 2.5x risk, -1.0 means 1x loss)
 
         Raises:
             ValueError: If model not fitted
@@ -142,15 +182,22 @@ class ProfitabilityModel:
         predictions: np.ndarray = self.model.predict(X_imputed)
         return predictions
 
-    def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
-        """Predict profitability probabilities.
+    def predict_with_confidence(self, X: pd.DataFrame) -> pd.DataFrame:
+        """Predict R-multiple with confidence intervals.
+
+        Uses individual tree predictions from the RandomForestRegressor to
+        calculate prediction uncertainty. Returns a 95% confidence interval
+        (mean ± 2*std).
 
         Args:
-            X: DataFrame with trade features
+            X: DataFrame with trade features (same structure as training data)
 
         Returns:
-            Array of shape (n_samples, 2) with probabilities for each class
-            [:,0] = probability of unprofitable, [:,1] = probability of profitable
+            DataFrame with columns:
+                - prediction: Mean R-multiple prediction across all trees
+                - std: Standard deviation of tree predictions
+                - lower_bound: prediction - 2*std (95% CI lower bound)
+                - upper_bound: prediction + 2*std (95% CI upper bound)
 
         Raises:
             ValueError: If model not fitted
@@ -165,9 +212,25 @@ class ProfitabilityModel:
         # Impute missing values
         X_imputed = self.imputer.transform(X_aligned)
 
-        # Type narrowing: we know model is fitted here
-        probabilities: np.ndarray = self.model.predict_proba(X_imputed)
-        return probabilities
+        # Get predictions from all individual trees
+        all_tree_predictions = np.array(
+            [tree.predict(X_imputed) for tree in self.model.estimators_]
+        )
+
+        # Calculate statistics across trees (axis=0 to aggregate across trees)
+        predictions = all_tree_predictions.mean(axis=0)
+        std = all_tree_predictions.std(axis=0)
+
+        # Calculate 95% confidence interval (±2 std)
+        return pd.DataFrame(
+            {
+                "prediction": predictions,
+                "std": std,
+                "lower_bound": predictions - 2 * std,
+                "upper_bound": predictions + 2 * std,
+            },
+            index=X.index,
+        )
 
     def save(self, path: Path) -> None:
         """Save model to disk.
@@ -184,6 +247,8 @@ class ProfitabilityModel:
             "imputer": self.imputer,
             "timeframe": self.timeframe,
             "archetype": self.archetype,
+            "training_start_date": self.training_start_date_,
+            "training_end_date": self.training_end_date_,
             "hyperparams": {
                 "n_estimators": self.n_estimators,
                 "random_state": self.random_state,
@@ -216,6 +281,9 @@ class ProfitabilityModel:
         instance.model = model_data["model"]
         instance.feature_names_ = model_data["feature_names"]
         instance.imputer = model_data["imputer"]
+        # Handle backward compatibility for training dates
+        instance.training_start_date_ = model_data.get("training_start_date")
+        instance.training_end_date_ = model_data.get("training_end_date")
 
         return instance
 
@@ -242,13 +310,17 @@ class ProfitabilityModel:
         entry_cols = [col for col in df.columns if col.startswith("context_at_entry_")]
         features.extend(entry_cols)
 
-        # 2. Categorical: side (one-hot encode)
+        # 2. Risk parameter: initial_stop_loss_pips (known at entry)
+        if "initial_stop_loss_pips" in df.columns:
+            features.append("initial_stop_loss_pips")
+
+        # 3. Categorical: side (one-hot encode)
         if "side" in df.columns:
             side_dummies = pd.get_dummies(df["side"], prefix="side", drop_first=False)
             df = pd.concat([df, side_dummies], axis=1)
             features.extend(side_dummies.columns.tolist())
 
-        # 3. Categorical: symbol (one-hot encode)
+        # 4. Categorical: symbol (one-hot encode)
         if "symbol" in df.columns:
             symbol_dummies = pd.get_dummies(
                 df["symbol"], prefix="symbol", drop_first=False
@@ -256,7 +328,7 @@ class ProfitabilityModel:
             df = pd.concat([df, symbol_dummies], axis=1)
             features.extend(symbol_dummies.columns.tolist())
 
-        # 4. Temporal: Derived from entry_time
+        # 5. Temporal: Derived from entry_time
         if "entry_time" in df.columns:
             df["hour_of_day"] = pd.to_datetime(df["entry_time"]).dt.hour
             df["day_of_week"] = pd.to_datetime(df["entry_time"]).dt.dayofweek

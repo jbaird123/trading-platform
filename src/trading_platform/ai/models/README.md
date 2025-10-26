@@ -9,16 +9,17 @@ The ML models architecture uses **context-specific models** - one model per time
 ### Two Model Families
 
 1. **ProfitabilityModel** - Real-time signal filtering
-   - **Purpose**: Predict if a trade will be profitable before entry
-   - **Features**: Only entry-time data (NO lookahead)
-   - **Target**: Binary classification (profitable=1, unprofitable=0)
-   - **Use case**: Production trading systems, live signal filtering
+   - **Purpose**: Predict expected R-multiple (risk-adjusted return) before entry
+   - **Features**: Only entry-time data (NO lookahead), including `initial_stop_loss_pips`
+   - **Target**: R-multiple regression (continuous values, e.g., 2.5R, -1.0R)
+   - **Use case**: Production trading systems, live signal filtering, risk-adjusted forecasting
 
 2. **PerformanceDiagnosticModel** - Offline regime analysis
    - **Purpose**: Identify market regimes with better/worse performance
    - **Features**: ALL available data (including lookahead)
-   - **Target**: Quintile classification (0=worst 20%, 4=best 20%)
+   - **Target**: Quintile classification based on adaptable metric (r_multiple or pnl)
    - **Use case**: Backtesting, strategy improvement, regime detection
+   - **Segregated training**: Separate models for data with/without risk parameters
 
 ### ModelRegistry
 
@@ -82,16 +83,16 @@ registry.load()
 print("Profitability models:", registry.list_models("profitability"))
 print("Diagnostic models:", registry.list_models("diagnostic"))
 
-# Predict profitability for new trades
-predictions = registry.predict_profitability(
+# Predict R-multiple for new trades
+r_multiple_predictions = registry.predict_profitability(
     X=new_trades_df,
     timeframe="5min",
     archetype="trend_following"
 )
 
-# Get probability scores
-proba = registry.predict_profitability_proba(
-    X=new_trades_df,
+# Analyze regime performance (diagnostic models)
+regime_predictions = registry.analyze_performance_regime(
+    X=enriched_trades_df,
     timeframe="5min",
     archetype="trend_following"
 )
@@ -142,6 +143,7 @@ poetry run tp analyze-regime \
 ### ProfitabilityModel Features (Entry-time only)
 
 - **Context features**: All `context_at_entry_*` columns
+- **Risk parameter**: `initial_stop_loss_pips` (known at entry)
 - **Side**: One-hot encoded (`side_long`, `side_short`)
 - **Symbol**: One-hot encoded (e.g., `symbol_EUR_USD`)
 - **Temporal features**:
@@ -154,6 +156,8 @@ poetry run tp analyze-regime \
 - `context_at_exit_*`, `post_exit_analysis_*`
 - `pnl`, `pnl_movement`
 
+**Target**: `r_multiple` (continuous regression)
+
 ### PerformanceDiagnosticModel Features (All available data)
 
 - **Entry features**: All `context_at_entry_*` columns
@@ -164,7 +168,7 @@ poetry run tp analyze-regime \
 - **Cost features**: `cost_breakdown_commission`, `cost_breakdown_slippage`, `cost_breakdown_spread`
 - **Categorical/temporal**: Same as ProfitabilityModel
 
-**Target**: Quintiles based on `r_multiple` (0=worst, 4=best)
+**Target**: Quintiles based on adaptable metric (default: `r_multiple`, can be `pnl`) (0=worst, 4=best)
 
 ## Model Storage
 
@@ -185,10 +189,11 @@ models/
 ```
 
 Each `.pkl` file contains:
-- Fitted RandomForestClassifier
+- Fitted RandomForestRegressor (profitability) or RandomForestClassifier (diagnostic)
 - SimpleImputer for handling missing values
 - Feature names for alignment
-- Model metadata (timeframe, archetype, hyperparameters)
+- Model metadata (timeframe, archetype, hyperparameters, training dates)
+- Lookahead bias prevention: training_start_date, training_end_date
 
 ## Requirements
 
@@ -224,14 +229,14 @@ registry.load()
 
 # Filter signals before execution
 signal_features = extract_entry_features(current_market_state)
-prob_profitable = registry.predict_profitability_proba(
+predicted_r_multiple = registry.predict_profitability(
     X=signal_features,
     timeframe=strategy.timeframe,
     archetype=strategy.archetype
 )
 
-# Only execute if probability > threshold
-if prob_profitable.iloc[0]["prob_profitable"] >= 0.6:
+# Only execute if expected R-multiple > threshold
+if predicted_r_multiple.iloc[0] > 0.5:  # Expect at least 0.5R
     execute_trade(signal)
 ```
 

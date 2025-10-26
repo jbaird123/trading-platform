@@ -26,8 +26,10 @@ class ModelRegistry:
     """Central registry for managing specialized ML models.
 
     The registry maintains two separate model families:
-    1. Profitability models: Binary classifiers for signal filtering (no lookahead)
+    1. Profitability models: R-multiple regressors for signal filtering (no lookahead)
     2. Diagnostic models: Quintile classifiers for regime analysis (with lookahead)
+       - Supports segregated training by data availability
+       - Models keyed with suffixes: _rmultiple, _pnl_with_risk, _pnl_no_risk
 
     Each family contains multiple specialized models, one per
     timeframe/archetype combination.
@@ -245,47 +247,176 @@ class ModelRegistry:
 
         return trained_models
 
-    def predict_profitability(
-        self, X: pd.DataFrame, timeframe: str, archetype: str
-    ) -> pd.Series:
-        """Predict profitability using the appropriate model.
+    def train_all_diagnostic_models(
+        self,
+        enriched_df: pd.DataFrame,
+        min_trades: int = 50,
+        n_estimators: int = 100,
+        random_state: int = 42,
+    ) -> dict[str, PerformanceDiagnosticModel]:
+        """Train diagnostic models with segregated training by data availability.
+
+        Implements segregated training strategy:
+        - For trades with r_multiple: train r_multiple model
+        - For trades without r_multiple but with pnl: train pnl_no_risk model
+        - Keys include suffix: e.g., "5min_trend_following_rmultiple"
 
         Args:
-            X: DataFrame with trade features
-            timeframe: Execution timeframe
-            archetype: Strategy archetype
+            enriched_df: DataFrame with enriched trade data including
+                post-trade analysis
+            min_trades: Minimum trades required per partition (default: 50)
+            n_estimators: Number of trees in RandomForestClassifier
+            random_state: Random seed for reproducibility
 
         Returns:
-            Series of predictions (0=unprofitable, 1=profitable)
+            Dictionary of trained models {key: model}
 
         Raises:
-            ValueError: If model not found
+            ValueError: If any partition has insufficient data
         """
-        key = f"{timeframe}_{archetype}"
-        model = self.get_model("profitability", key)
+        # First, unpack the nested analysis data into flat features
+        enriched_df = unpack_simulated_holds(enriched_df)
+
+        # Find all unique contexts
+        contexts = enriched_df[
+            ["execution_timeframe", "strategy_archetype"]
+        ].drop_duplicates()
+
+        trained_models = {}
+
+        for _, row in contexts.iterrows():
+            timeframe = row["execution_timeframe"]
+            archetype = row["strategy_archetype"]
+            base_key = f"{timeframe}_{archetype}"
+
+            # Filter by context
+            context_df = enriched_df[
+                (enriched_df["execution_timeframe"] == timeframe)
+                & (enriched_df["strategy_archetype"] == archetype)
+            ].copy()
+
+            # Partition 1: Trades with r_multiple (can train r_multiple model)
+            df_with_risk = context_df[context_df["r_multiple"].notna()].copy()
+
+            if len(df_with_risk) >= min_trades:
+                model_key = f"{base_key}_rmultiple"
+                model = PerformanceDiagnosticModel(
+                    timeframe=timeframe,
+                    archetype=archetype,
+                    target_metric="r_multiple",
+                    n_estimators=n_estimators,
+                    random_state=random_state,
+                )
+                model.fit(df_with_risk)
+                self.register_model("diagnostic", model_key, model)
+                trained_models[model_key] = model
+
+            # Partition 2: Trades without r_multiple (can train pnl_no_risk model)
+            df_no_risk = context_df[context_df["r_multiple"].isna()].copy()
+
+            if len(df_no_risk) >= min_trades:
+                model_key = f"{base_key}_pnl_no_risk"
+                model = PerformanceDiagnosticModel(
+                    timeframe=timeframe,
+                    archetype=archetype,
+                    target_metric="pnl",
+                    n_estimators=n_estimators,
+                    random_state=random_state,
+                )
+                model.fit(df_no_risk)
+                self.register_model("diagnostic", model_key, model)
+                trained_models[model_key] = model
+
+        return trained_models
+
+    def analyze_performance_regime(
+        self,
+        X: pd.DataFrame,
+        timeframe: str,
+        archetype: str,
+        model_suffix: str | None = None,
+    ) -> pd.Series:
+        """Analyze performance regime with context-aware guardrails.
+
+        Args:
+            X: DataFrame with trade features (including lookahead, must include 'entry_time')
+            timeframe: Execution timeframe
+            archetype: Strategy archetype
+            model_suffix: Model suffix (e.g., "_rmultiple", "_pnl_no_risk")
+                         If None, auto-detects based on data
+
+        Returns:
+            Series of quintile predictions (0-4)
+
+        Raises:
+            ValueError: If model not found, data type mismatch, or lookahead bias detected
+        """
+        # Auto-detect model suffix if not provided
+        if model_suffix is None:
+            # Check if data has r_multiple
+            if "r_multiple" in X.columns and X["r_multiple"].notna().any():
+                model_suffix = "_rmultiple"
+            else:
+                model_suffix = "_pnl_no_risk"
+
+        key = f"{timeframe}_{archetype}{model_suffix}"
+        model = self.get_model("diagnostic", key)
 
         if model is None:
-            raise ValueError(f"Profitability model '{key}' not found. Train it first.")
+            raise ValueError(f"Diagnostic model '{key}' not found. Train it first.")
+
+        # Validate data type matches model
+        has_risk_data = "r_multiple" in X.columns and X["r_multiple"].notna().any()
+
+        if "_rmultiple" in model_suffix and not has_risk_data:
+            raise ValueError(
+                f"Data type mismatch: Model '{key}' expects r_multiple data, "
+                f"but input data has no r_multiple values."
+            )
+
+        if "_no_risk" in model_suffix and has_risk_data:
+            raise ValueError(
+                f"Data type mismatch: Model '{key}' was trained on data without "
+                f"r_multiple, but input data has r_multiple values."
+            )
+
+        # Lookahead bias prevention: Check if prediction data overlaps with training period
+        if "entry_time" in X.columns and model.training_start_date_ is not None:
+            input_times = pd.to_datetime(X["entry_time"])
+            input_start = input_times.min()
+            input_end = input_times.max()
+
+            # Check for temporal overlap
+            if (
+                input_end >= model.training_start_date_
+                and input_start <= model.training_end_date_
+            ):
+                raise ValueError(
+                    f"Lookahead bias detected! Model '{key}' was trained on data from "
+                    f"{model.training_start_date_} to {model.training_end_date_}, "
+                    f"but prediction data spans {input_start} to {input_end}. "
+                    f"These periods overlap, which would use training data for predictions."
+                )
 
         predictions = model.predict(X)
         result: pd.Series[Any] = pd.Series(predictions, index=X.index)
         return result
 
-    def predict_profitability_proba(
+    def predict_profitability(
         self, X: pd.DataFrame, timeframe: str, archetype: str
-    ) -> pd.DataFrame:
-        """Predict profitability probabilities using the appropriate model.
+    ) -> pd.Series:
+        """Predict R-multiple using the appropriate model.
 
         Args:
-            X: DataFrame with trade features
+            X: DataFrame with trade features (must include 'entry_time' column)
             timeframe: Execution timeframe
             archetype: Strategy archetype
 
         Returns:
-            DataFrame with columns [prob_unprofitable, prob_profitable]
+            Series of R-multiple predictions (continuous values)
 
         Raises:
-            ValueError: If model not found
+            ValueError: If model not found or lookahead bias detected
         """
         key = f"{timeframe}_{archetype}"
         model = self.get_model("profitability", key)
@@ -293,10 +424,27 @@ class ModelRegistry:
         if model is None:
             raise ValueError(f"Profitability model '{key}' not found. Train it first.")
 
-        proba = model.predict_proba(X)
-        return pd.DataFrame(
-            proba, columns=["prob_unprofitable", "prob_profitable"], index=X.index
-        )
+        # Lookahead bias prevention: Check if prediction data overlaps with training period
+        if "entry_time" in X.columns and model.training_start_date_ is not None:
+            input_times = pd.to_datetime(X["entry_time"])
+            input_start = input_times.min()
+            input_end = input_times.max()
+
+            # Check for temporal overlap
+            if (
+                input_end >= model.training_start_date_
+                and input_start <= model.training_end_date_
+            ):
+                raise ValueError(
+                    f"Lookahead bias detected! Model '{key}' was trained on data from "
+                    f"{model.training_start_date_} to {model.training_end_date_}, "
+                    f"but prediction data spans {input_start} to {input_end}. "
+                    f"These periods overlap, which would use training data for predictions."
+                )
+
+        predictions = model.predict(X)
+        result: pd.Series[Any] = pd.Series(predictions, index=X.index)
+        return result
 
     def save(self) -> None:
         """Save all models to disk.

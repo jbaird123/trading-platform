@@ -11,6 +11,7 @@ This test verifies the end-to-end workflow:
 import tempfile
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 from trading_platform.ai.models import (
@@ -141,18 +142,15 @@ def test_full_workflow_with_real_data(enriched_data_path):
             if len(context_data) == 0:
                 continue
 
-            # Predict profitability
+            # Predict R-multiple
             predictions = new_registry.predict_profitability(
-                X=context_data, timeframe=timeframe, archetype=archetype
-            )
-            proba = new_registry.predict_profitability_proba(
                 X=context_data, timeframe=timeframe, archetype=archetype
             )
 
             assert len(predictions) == len(context_data)
-            assert len(proba) == len(context_data)
-            assert all(p in [0, 1] for p in predictions)
-            print(f"  {key}: {len(predictions)} predictions")
+            # Predictions should be continuous R-multiple values
+            assert isinstance(predictions, pd.Series)
+            print(f"  {key}: {len(predictions)} R-multiple predictions")
 
         # Test diagnostic predictions
         for key in loaded_diag:
@@ -202,16 +200,18 @@ def test_individual_model_with_real_data(enriched_data_path):
     if len(context_df) < 50:
         pytest.skip(f"Insufficient data for {timeframe}_{archetype}")
 
+    # Check if context has r_multiple data
+    if context_df["r_multiple"].isna().all():
+        pytest.skip(f"No r_multiple data for {timeframe}_{archetype}")
+
     # Train individual model
     model = ProfitabilityModel(timeframe=timeframe, archetype=archetype)
     model.fit(context_df)
 
-    # Make predictions
+    # Make predictions (continuous R-multiple values)
     predictions = model.predict(context_df.head(5))
-    proba = model.predict_proba(context_df.head(5))
 
     assert len(predictions) == 5
-    assert len(proba) == 5
-    assert all(p in [0, 1] for p in predictions)
+    assert isinstance(predictions, np.ndarray)
 
     print(f"\n✅ Individual model test passed for {timeframe}_{archetype}")

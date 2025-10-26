@@ -42,6 +42,7 @@ class PerformanceDiagnosticModel:
         self,
         timeframe: str,
         archetype: str,
+        target_metric: str = "r_multiple",
         n_estimators: int = 100,
         random_state: int = 42,
     ):
@@ -50,11 +51,13 @@ class PerformanceDiagnosticModel:
         Args:
             timeframe: Execution timeframe (e.g., "5min", "15min", "1h")
             archetype: Strategy archetype (e.g., "trend_following", "mean_reversion")
+            target_metric: Target metric for quintile classification (e.g., "r_multiple", "pnl")
             n_estimators: Number of trees in RandomForestClassifier
             random_state: Random seed for reproducibility
         """
         self.timeframe = timeframe
         self.archetype = archetype
+        self.target_metric = target_metric
         self.n_estimators = n_estimators
         self.random_state = random_state
 
@@ -62,6 +65,8 @@ class PerformanceDiagnosticModel:
         self.model: RandomForestClassifier | None = None
         self.feature_names_: list[str] | None = None
         self.imputer: SimpleImputer | None = None
+        self.training_start_date_: pd.Timestamp | None = None
+        self.training_end_date_: pd.Timestamp | None = None
 
     def fit(self, trades_df: pd.DataFrame) -> "PerformanceDiagnosticModel":
         """Train model on historical trades.
@@ -105,23 +110,27 @@ class PerformanceDiagnosticModel:
                 f"{self.timeframe}_{self.archetype}, got {len(df)}"
             )
 
-        # Remove rows with missing r_multiple (can't classify without target)
-        df_clean = df.dropna(subset=["r_multiple"]).copy()
+        # Remove rows with missing target metric (can't classify without target)
+        df_clean = df.dropna(subset=[self.target_metric]).copy()
 
         if len(df_clean) < 50:
             raise ValueError(
-                f"Insufficient data after removing missing r_multiple: "
+                f"Insufficient data after removing missing {self.target_metric}: "
                 f"need 50+ trades for {self.timeframe}_{self.archetype}, "
                 f"got {len(df_clean)}"
             )
 
+        # Record training date range (for lookahead bias prevention)
+        self.training_start_date_ = pd.to_datetime(df_clean["entry_time"]).min()
+        self.training_end_date_ = pd.to_datetime(df_clean["entry_time"]).max()
+
         # Extract features (ALL features including lookahead)
         X = self._extract_features(df_clean)
 
-        # Create target: quintile classification based on r_multiple
+        # Create target: quintile classification based on target_metric
         # Convert to numpy array explicitly for type safety
-        r_multiple_values: np.ndarray = np.asarray(df_clean["r_multiple"].values)
-        y = self._create_quintile_target(r_multiple_values)
+        target_values: np.ndarray = np.asarray(df_clean[self.target_metric].values)
+        y = self._create_quintile_target(target_values)
 
         # Store feature names for later alignment
         self.feature_names_ = X.columns.tolist()
@@ -210,6 +219,9 @@ class PerformanceDiagnosticModel:
             "imputer": self.imputer,
             "timeframe": self.timeframe,
             "archetype": self.archetype,
+            "target_metric": self.target_metric,
+            "training_start_date": self.training_start_date_,
+            "training_end_date": self.training_end_date_,
             "hyperparams": {
                 "n_estimators": self.n_estimators,
                 "random_state": self.random_state,
@@ -230,10 +242,12 @@ class PerformanceDiagnosticModel:
         """
         model_data = joblib.load(path)
 
-        # Reconstruct instance
+        # Reconstruct instance (handle backward compatibility for target_metric)
+        target_metric = model_data.get("target_metric", "r_multiple")
         instance = cls(
             timeframe=model_data["timeframe"],
             archetype=model_data["archetype"],
+            target_metric=target_metric,
             n_estimators=model_data["hyperparams"]["n_estimators"],
             random_state=model_data["hyperparams"]["random_state"],
         )
@@ -242,6 +256,9 @@ class PerformanceDiagnosticModel:
         instance.model = model_data["model"]
         instance.feature_names_ = model_data["feature_names"]
         instance.imputer = model_data["imputer"]
+        # Handle backward compatibility for training dates
+        instance.training_start_date_ = model_data.get("training_start_date")
+        instance.training_end_date_ = model_data.get("training_end_date")
 
         return instance
 

@@ -292,3 +292,43 @@ class TestPerformanceDiagnosticModel:
         # Check for one-hot encoded exit reasons
         assert any("sim_hold_10_exit_reason" in f for f in feature_names)
         assert any("sim_hold_20_exit_reason" in f for f in feature_names)
+
+    def test_can_fit_with_pnl_target(self, sample_trades_df):
+        """Verify model can be initialized with target_metric='pnl' for adaptable analysis."""
+        model = PerformanceDiagnosticModel(
+            timeframe="5min", archetype="trend_following", target_metric="pnl"
+        )
+
+        # Should fit successfully with pnl as target
+        model.fit(sample_trades_df)
+
+        # Verify model is fitted
+        assert model.model is not None
+        assert model.target_metric == "pnl"
+
+        # Predictions should still be quintiles (0-4)
+        predictions = model.predict(sample_trades_df.head(10))
+        assert all(p in [0, 1, 2, 3, 4] for p in predictions)
+
+    def test_fit_records_training_date_range(self, sample_trades_df):
+        """Verify model records training date range (Step 14)."""
+        model = PerformanceDiagnosticModel(
+            timeframe="5min", archetype="trend_following"
+        )
+        model.fit(sample_trades_df)
+
+        # Verify training dates are recorded
+        assert hasattr(model, "training_start_date_")
+        assert hasattr(model, "training_end_date_")
+        assert model.training_start_date_ is not None
+        assert model.training_end_date_ is not None
+
+        # Verify dates are pandas Timestamp
+        assert isinstance(model.training_start_date_, pd.Timestamp)
+        assert isinstance(model.training_end_date_, pd.Timestamp)
+
+        # Verify dates match the data
+        expected_start = pd.to_datetime(sample_trades_df["entry_time"]).min()
+        expected_end = pd.to_datetime(sample_trades_df["entry_time"]).max()
+        assert model.training_start_date_ == expected_start
+        assert model.training_end_date_ == expected_end
