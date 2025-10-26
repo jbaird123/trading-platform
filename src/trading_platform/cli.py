@@ -1118,22 +1118,25 @@ def cmd_predict_profitability(args: argparse.Namespace) -> int:
         archetype = trade["strategy_archetype"]
 
         try:
-            pred_proba = registry.predict_profitability_proba(
+            pred_r_multiple = registry.predict_profitability(
                 X=pd.DataFrame([trade]), timeframe=timeframe, archetype=archetype
             )
+            r_mult_value = pred_r_multiple.iloc[0]
             predictions.append(
                 {
                     "index": trade.name,
-                    "prob_profitable": pred_proba.iloc[0]["prob_profitable"],
-                    "prediction": 1
-                    if pred_proba.iloc[0]["prob_profitable"] >= 0.5
-                    else 0,
+                    "predicted_r_multiple": r_mult_value,
+                    "prediction_favorable": 1 if r_mult_value > 0 else 0,
                 }
             )
         except ValueError as e:
             print(f"Warning: Skipping trade (no model): {e}")
             predictions.append(
-                {"index": trade.name, "prob_profitable": None, "prediction": None}
+                {
+                    "index": trade.name,
+                    "predicted_r_multiple": None,
+                    "prediction_favorable": None,
+                }
             )
 
     # Save predictions
