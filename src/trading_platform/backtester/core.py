@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import math
 from datetime import datetime
+from pathlib import Path
 from typing import Any, cast
 
 import pandas as pd
@@ -134,6 +135,7 @@ def run_backtest(
     return_exposure: bool = False,
     return_skips: bool = False,
     data_handler: Any = None,
+    global_features_config_path: Path | str | None = None,
 ) -> (
     list[Trade]
     | tuple[list[Trade], list[tuple[datetime, float]]]
@@ -200,16 +202,25 @@ def run_backtest(
         execution_timeframe = instrument_cfg.get("timeframe", "1H")
 
         # Resolve global features (filtered by timeframe)
-        resolved_features = resolve_global_features(execution_timeframe)
+        resolved_features = resolve_global_features(
+            execution_timeframe, config_path=global_features_config_path
+        )
 
         # Convert ResolvedFeature objects to dict format for compute_features
+        # NOTE: Only include timeframe if it's HIGHER than execution timeframe
+        # to trigger resampling. If timeframe == execution_timeframe, omit it
+        # to compute directly on market_data (matching old behavior)
         global_features_list = [
             {
                 "name": f.name,
                 "type": f.type,
                 "params": f.params,
                 "source": f.source,
-                "timeframe": f.timeframe,
+                **(
+                    {}
+                    if f.timeframe == execution_timeframe
+                    else {"timeframe": f.timeframe}
+                ),
             }
             for f in resolved_features
         ]

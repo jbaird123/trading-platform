@@ -1,0 +1,25 @@
+# Frozen global features for golden validation tests.
+# This config is FROZEN and must NOT be modified unless golden files are regenerated.
+#
+# These features match the original golden file schema:
+#   - ctx_strategy_features_ctx_atr (becomes h1_atr after timeframe strip)
+#   - ctx_strategy_features_ctx_ema_slow (becomes h1_ema_slow after timeframe strip)
+#   - ctx_strategy_features_ctx_rsi (becomes h1_rsi after timeframe strip)
+#
+# Feature names have NO parameter suffixes (e.g., h1_atr not h1_atr_14)
+# to match the old golden file naming convention.
+features:
+  - name: "h1_atr"
+    type: "ATR"
+    params: { "length": 14 }
+    timeframe: "1H"
+
+  - name: "h1_ema_slow"
+    type: "EMA"
+    params: { "length": 200 }
+    timeframe: "1H"
+
+  - name: "h1_rsi"
+    type: "RSI"
+    params: { "length": 14 }
+    timeframe: "1H"

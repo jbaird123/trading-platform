@@ -648,11 +648,14 @@ def load_platform_trades(
         ohlcv_to_use = ohlcv_1h
 
     # Run backtest with 1-min data handler (for zoom capability)
+    # Use frozen golden features config for golden validation tests
+    golden_features_path = Path("data/dvc/golden/features/global.yaml")
     results = run_backtest_from_config(
         config=config,
         market_data=ohlcv_to_use,
         strategy_config=strategy_config,
         data_handler=data_handler,
+        global_features_config_path=golden_features_path,
     )
 
     # Filter trades to validation range
@@ -951,15 +954,6 @@ def verify_golden_trades_hash(
             )
     finally:
         import os
-        import shutil
-
-        # TEMPORARY: Save copy to workspace for inspection
-        workspace_dir = Path("workspace")
-        workspace_dir.mkdir(exist_ok=True)
-        safe_strategy_name = strategy_name.replace("/", "_")
-        saved_path = workspace_dir / f"current_{safe_strategy_name}.csv"
-        shutil.copy(temp_path, saved_path)
-        print(f"Saved current trades to: {saved_path}")
 
         os.unlink(temp_path)
 

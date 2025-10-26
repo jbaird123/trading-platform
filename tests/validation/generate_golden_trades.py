@@ -171,13 +171,15 @@ def generate_golden_trades_for_strategy(
     else:
         ohlcv_filtered = ohlcv_1h
 
-    # Run backtest
+    # Run backtest with frozen golden features config
     print(f"Running backtest with {len(ohlcv_filtered)} bars...")
+    golden_features_path = project_root / "data/dvc/golden/features/global.yaml"
     results = run_backtest_from_config(
         config=config,
         market_data=ohlcv_filtered,
         strategy_config=strategy_config,
         data_handler=data_handler,
+        global_features_config_path=golden_features_path,
     )
 
     # Filter trades to validation range
