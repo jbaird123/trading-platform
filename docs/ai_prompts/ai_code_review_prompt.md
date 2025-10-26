@@ -99,38 +99,19 @@ You must perform the review in the following distinct, ordered passes. For each 
 
 ## **Documentation Requirements**
 
-After completing the code review, you must document your findings using the new folder structure:
+After providing the final verdict on the code review, you must perform the final documentation and file management steps.
 
-### For Completed Tasks
+### If the Code Review is "Approved"
 
-1. **Create a dated folder** in `docs/code_tasks/completed/` with format: `YYYY-MM-DD_feature_name/`
-   - Use the git commit date of completion (today's date if just completed)
-   - Use a short, descriptive feature name (e.g., `multi_timeframe_context`, `adaptive_trend_implementation`)
+1.  **Create the Completed Task Directory:** Use `mkdir -p` to create a new directory in `docs/code_tasks/completed/`. The directory name must follow the format `YYYY-MM-DD_feature_name`.
+    -   Example: `mkdir -p docs/code_tasks/completed/2025-10-26_meta_campaign_system`
 
-2. **Save the code review** as `code_review.md` inside that folder
-   - Full path: `docs/code_tasks/completed/YYYY-MM-DD_feature_name/code_review.md`
+2.  **Move and Rename the Task File:** Use `git mv` to move the task markdown file from `docs/code_tasks/active/` to the newly created directory and rename it to `task_list.md`.
+    -   Example: `git mv docs/code_tasks/active/2025-10-26_meta_campaign_system.md docs/code_tasks/completed/2025-10-26_meta_campaign_system/task_list.md`
 
-3. **Move the task list** to the same folder as `task_list.md`
-   - If it's currently in `docs/code_tasks/active/`, use `git mv` to move it
-   - Rename it to `task_list.md` in the completed folder
+3.  **Save the Code Review:** Write the full code review text (including all passes and the final verdict) to a new file named `code_review.md` inside the completed task directory.
+    -   Example: `write_file(path='docs/code_tasks/completed/2025-10-26_meta_campaign_system/code_review.md', content='...')`
 
-4. **Add any additional documentation** to the same folder:
-   - `implementation_findings.md` - Any discoveries or notes from implementation
-   - `review_response.md` - Responses to review feedback (if applicable)
-
-### Example Structure
-
-```
-docs/code_tasks/completed/2025-10-23_multi_timeframe_context/
-├── task_list.md                    # Original task plan
-├── code_review.md                  # This review document
-├── implementation_findings.md      # Optional: implementation notes
-└── review_response.md              # Optional: review feedback responses
-```
-
-### For Active/In-Progress Tasks
-
-- Keep task files in `docs/code_tasks/active/` with format: `YYYY-MM-DD_feature_name.md`
-- Only move to `completed/` when the code review is approved and work is done
+These steps should be performed as distinct tool calls.
 
 See `docs/code_tasks/README.md` for complete documentation structure guidelines.
