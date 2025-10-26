@@ -15,7 +15,7 @@ from trading_platform.data.integrity_validator import (
 def test_check_gaps_in_time_series() -> None:
     """Test detection of gaps in time series."""
     # Create sample data with gaps
-    dates = pd.date_range("2020-01-01", periods=10, freq="1H")
+    dates = pd.date_range("2020-01-01", periods=10, freq="1h")
     # Remove some dates to create gaps
     dates_with_gaps = dates.delete([3, 4, 5])  # 3-hour gap
 
@@ -59,7 +59,7 @@ def test_validate_parquet_file(tmp_path: Path) -> None:
     # Create valid parquet file
     df = pd.DataFrame(
         {
-            "timestamp": pd.date_range("2020-01-01", periods=100, freq="1H"),
+            "timestamp": pd.date_range("2020-01-01", periods=100, freq="1h"),
             "close": np.random.randn(100) + 100,
         }
     )
@@ -81,7 +81,7 @@ def test_validate_all_instruments(tmp_path: Path) -> None:
     for instrument in ["EUR_USD", "GBP_USD"]:
         df = pd.DataFrame(
             {
-                "timestamp": pd.date_range("2020-01-01", periods=100, freq="1H"),
+                "timestamp": pd.date_range("2020-01-01", periods=100, freq="1h"),
                 "close": np.random.randn(100) + 100,
             }
         )
