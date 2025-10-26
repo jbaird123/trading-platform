@@ -94,8 +94,9 @@ class OandaStubAdapter(ExecutionAdapter):
                     )
             if side in {"long", "short"}:
                 if self.pm.current_position and self.pm.current_position.side != side:
-                    # TODO: Integrate global features using resolve_global_features()
-                    # See backtester/core.py lines 191-231 for reference
+                    # Note: Context enrichment with global features is computed in
+                    # controller.py. Stub passes None as it doesn't have access to
+                    # market data or config. Real adapter would enrich context here.
                     self.pm.close_position(
                         exit_price=price,
                         exit_time=when,
@@ -103,8 +104,8 @@ class OandaStubAdapter(ExecutionAdapter):
                         context_at_exit=None,
                     )
                 if not self.pm.current_position:
-                    # TODO: Integrate global features for context_at_entry
-                    # Compute global features and merge into context dict
+                    # Note: Context enrichment with global features is computed in
+                    # controller.py. Stub passes None as design choice for simplicity.
                     self.pm.create_new_position(
                         symbol=symbol,
                         side=side,
@@ -113,7 +114,9 @@ class OandaStubAdapter(ExecutionAdapter):
                         entry_time=when,
                     )
             elif side == "flat" and self.pm.current_position:
-                # TODO: Integrate global features here using resolve_global_features()
+                # Note: Context enrichment with global features is computed in
+                # controller.py. Stub passes None as it doesn't have access to
+                # market data or config.
                 self.pm.close_position(
                     exit_price=price,
                     exit_time=when,
