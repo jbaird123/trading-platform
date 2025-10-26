@@ -21,7 +21,9 @@ class ResolvedFeature:
     source: str
 
 
-def resolve_global_features(execution_timeframe: str) -> list[ResolvedFeature]:
+def resolve_global_features(
+    execution_timeframe: str, config_path: Path | str | None = None
+) -> list[ResolvedFeature]:
     """Resolve global features for the given execution timeframe.
 
     Loads global.yaml, validates all feature names have timeframe prefixes,
@@ -29,16 +31,23 @@ def resolve_global_features(execution_timeframe: str) -> list[ResolvedFeature]:
 
     Args:
         execution_timeframe: The timeframe at which the strategy executes
+        config_path: Optional path to global features YAML file.
+                     Defaults to config/features/global.yaml.
+                     Used by golden validation tests to specify a stable
+                     fixture file independent of production config changes.
 
     Returns:
         List of ResolvedFeature objects that should be computed
 
     Raises:
-        FileNotFoundError: If config/features/global.yaml does not exist
+        FileNotFoundError: If the config file does not exist
         ValueError: If any feature name is invalid (missing prefix,
             unrecognized timeframe, etc.)
     """
-    global_yaml_path = Path("config/features/global.yaml")
+    if config_path is None:
+        global_yaml_path = Path("config/features/global.yaml")
+    else:
+        global_yaml_path = Path(config_path)
 
     if not global_yaml_path.exists():
         raise FileNotFoundError(
