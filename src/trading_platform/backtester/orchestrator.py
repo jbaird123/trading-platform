@@ -6,6 +6,7 @@ from a RunConfig, primarily for testing and programmatic use.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, cast
 
 import pandas as pd
@@ -23,6 +24,7 @@ def run_backtest_from_config(
     strategy_config: dict[str, Any] | None = None,
     strategy_path: str | None = None,
     data_handler: Any = None,
+    global_features_config_path: Path | str | None = None,
 ) -> dict[str, Any]:
     """Run a complete backtest from a RunConfig.
 
@@ -112,6 +114,7 @@ def run_backtest_from_config(
         return_exposure=True,
         return_skips=False,
         data_handler=data_handler,
+        global_features_config_path=global_features_config_path,
     )
 
     # Handle return value (can be tuple or list)

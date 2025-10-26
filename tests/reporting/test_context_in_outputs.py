@@ -40,6 +40,9 @@ def test_trade_context_includes_new_features_in_brief() -> None:
                 "adx_4h_DI+": 25.0,  # ADX directional indicator
                 "adx_4h_DI-": 20.0,  # ADX directional indicator
             },
+            "global_features": {
+                "volume": 50000.0,  # Market context
+            },
             "regime": {
                 "label": "trending",
                 "confidence": 0.85,
@@ -113,6 +116,9 @@ def test_trade_context_includes_new_features_in_csv(tmp_path: Path) -> None:
                 "adx_4h_DI+": 25.0,  # ADX directional indicator
                 "adx_4h_DI-": 20.0,  # ADX directional indicator
             },
+            "global_features": {
+                "volume": 50000.0,  # Market context
+            },
             "regime": {
                 "label": "trending",
                 "confidence": 0.85,
@@ -170,9 +176,7 @@ def test_trade_context_includes_new_features_in_csv(tmp_path: Path) -> None:
     assert df.iloc[0]["ctx_regime_hysteresis_bars_in_state"] == 0
 
     assert "ctx_regime_hysteresis_cooldown_remaining" in df.columns
-    assert (
-        df.iloc[0]["ctx_regime_hysteresis_cooldown_remaining"] == 0
-    )
+    assert df.iloc[0]["ctx_regime_hysteresis_cooldown_remaining"] == 0
 
 
 def test_context_at_entry_defaults_to_none_when_missing() -> None:

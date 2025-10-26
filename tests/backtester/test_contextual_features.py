@@ -108,17 +108,15 @@ def test_backtester_adds_contextual_features_to_trade_context() -> None:
             assert first_trade.context_at_entry is not None
             assert isinstance(first_trade.context_at_entry, dict)
 
-            # Check for nested strategy_features structure
-            assert "strategy_features" in first_trade.context_at_entry
-            strategy_features = first_trade.context_at_entry["strategy_features"]
-            assert isinstance(strategy_features, dict)
+            # Check for nested global_features structure
+            assert "global_features" in first_trade.context_at_entry
+            global_features = first_trade.context_at_entry["global_features"]
+            assert isinstance(global_features, dict)
 
-            # Check that h1_atr_14 exists in strategy_features
-            assert (
-                "h1_atr_14" in strategy_features
-            ), "Global feature h1_atr_14 not found"
+            # Check that h1_atr_14 exists in global_features
+            assert "h1_atr_14" in global_features, "Global feature h1_atr_14 not found"
 
-            h1_atr_value = strategy_features["h1_atr_14"]
+            h1_atr_value = global_features["h1_atr_14"]
 
             # Verify it's a number
             assert isinstance(
@@ -241,9 +239,9 @@ def test_backtester_trade_context_with_multi_timeframe_at_entry_and_exit() -> No
             assert hasattr(first_trade, "context_at_entry")
             assert first_trade.context_at_entry is not None
             assert isinstance(first_trade.context_at_entry, dict)
-            assert "strategy_features" in first_trade.context_at_entry
+            assert "global_features" in first_trade.context_at_entry
 
-            entry_features = first_trade.context_at_entry["strategy_features"]
+            entry_features = first_trade.context_at_entry["global_features"]
             assert "h1_rsi_14" in entry_features
 
             h1_rsi_entry = entry_features["h1_rsi_14"]
@@ -257,9 +255,9 @@ def test_backtester_trade_context_with_multi_timeframe_at_entry_and_exit() -> No
             assert hasattr(first_trade, "context_at_exit")
             assert first_trade.context_at_exit is not None
             assert isinstance(first_trade.context_at_exit, dict)
-            assert "strategy_features" in first_trade.context_at_exit
+            assert "global_features" in first_trade.context_at_exit
 
-            exit_features = first_trade.context_at_exit["strategy_features"]
+            exit_features = first_trade.context_at_exit["global_features"]
             assert "h1_rsi_14" in exit_features
 
             h1_rsi_exit = exit_features["h1_rsi_14"]
@@ -336,18 +334,18 @@ def test_trade_context_always_includes_volume() -> None:
     first_trade = trades[0]
     assert isinstance(first_trade, Trade)
 
-    # Check that volume exists in nested strategy_features
+    # Check that volume exists in nested global_features
     assert first_trade.context_at_entry is not None
     assert isinstance(first_trade.context_at_entry, dict)
-    assert "strategy_features" in first_trade.context_at_entry
-    strategy_features = first_trade.context_at_entry["strategy_features"]
-    assert isinstance(strategy_features, dict)
-    assert "volume" in strategy_features, "volume not in strategy_features"
+    assert "global_features" in first_trade.context_at_entry
+    global_features = first_trade.context_at_entry["global_features"]
+    assert isinstance(global_features, dict)
+    assert "volume" in global_features, "volume not in global_features"
 
     # Verify the volume value matches the entry bar
     # Entry is at bar 15 (index 15), volume should be 1000 + 15*100 = 2500
     expected_volume = 1000 + 15 * 100
-    actual_volume = strategy_features["volume"]
+    actual_volume = global_features["volume"]
     assert (
         actual_volume == expected_volume
     ), f"Expected volume {expected_volume}, got {actual_volume}"

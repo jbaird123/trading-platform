@@ -165,7 +165,14 @@ def compute_features(
             name = str(spec.get("name"))
             typ = str(spec.get("type"))
             params = spec.get("params") or {}
-            source = str(spec.get("source", "close"))
+            # Handle PriceSource enum and None properly
+            source_val = spec.get("source", "close")
+            if hasattr(source_val, "value"):  # PriceSource enum
+                source = source_val.value
+            elif source_val is None:
+                source = "close"
+            else:
+                source = str(source_val)
             source_ref = None
 
             # Extract source_ref if present
@@ -228,7 +235,14 @@ def _process_single_feature(
     name = str(spec.get("name"))
     typ = str(spec.get("type"))
     params = spec.get("params") or {}
-    source = str(spec.get("source", "close"))
+    # Handle PriceSource enum and None properly
+    source_val = spec.get("source", "close")
+    if hasattr(source_val, "value"):  # PriceSource enum
+        source = source_val.value
+    elif source_val is None:
+        source = "close"
+    else:
+        source = str(source_val)
     source_ref = None
 
     # Extract source_ref if present

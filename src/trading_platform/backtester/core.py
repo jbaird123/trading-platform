@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import math
 from datetime import datetime
+from pathlib import Path
 from typing import Any, cast
 
 import pandas as pd
@@ -134,6 +135,7 @@ def run_backtest(
     return_exposure: bool = False,
     return_skips: bool = False,
     data_handler: Any = None,
+    global_features_config_path: Path | str | None = None,
 ) -> (
     list[Trade]
     | tuple[list[Trade], list[tuple[datetime, float]]]
@@ -200,16 +202,25 @@ def run_backtest(
         execution_timeframe = instrument_cfg.get("timeframe", "1H")
 
         # Resolve global features (filtered by timeframe)
-        resolved_features = resolve_global_features(execution_timeframe)
+        resolved_features = resolve_global_features(
+            execution_timeframe, config_path=global_features_config_path
+        )
 
         # Convert ResolvedFeature objects to dict format for compute_features
+        # NOTE: Only include timeframe if it's HIGHER than execution timeframe
+        # to trigger resampling. If timeframe == execution_timeframe, omit it
+        # to compute directly on market_data (matching old behavior)
         global_features_list = [
             {
                 "name": f.name,
                 "type": f.type,
                 "params": f.params,
                 "source": f.source,
-                "timeframe": f.timeframe,
+                **(
+                    {}
+                    if f.timeframe == execution_timeframe
+                    else {"timeframe": f.timeframe}
+                ),
             }
             for f in resolved_features
         ]
@@ -379,34 +390,34 @@ def run_backtest(
             command = signal
             strategy_features = strategy.get_context(i)
 
-        # Enrich with global features from config/features/global.yaml
+        # Build global features dict separately from strategy features
+        global_features: dict[str, Any] = {}
         if global_feature_names and data_with_global_features is not market_data:
             for feature_name in global_feature_names:
                 if feature_name in data_with_global_features.columns:
                     val = data_with_global_features[feature_name].iloc[i]
                     # Convert NaN to None for JSON serialization
                     if isinstance(val, float) and math.isnan(val):
-                        strategy_features[feature_name] = None
+                        global_features[feature_name] = None
                     else:
-                        strategy_features[feature_name] = val
+                        global_features[feature_name] = val
 
-        # Always include raw volume for analysis
-        strategy_features["volume"] = current_bar["volume"]
+        # Always include raw volume in global features (market context)
+        global_features["volume"] = current_bar["volume"]
 
         # Build consistent nested context structure
-        # Always use strategy_features, add regime if RMM is present
+        # Separate strategy_features and global_features for semantic clarity
         regime_data = None
         if rmm_context is not None:
             rmm_ctx = rmm_context.get(cast(datetime, current_bar.name))
             regime_data = _build_regime_data(rmm_ctx)
 
+        context = {
+            "strategy_features": strategy_features,
+            "global_features": global_features,
+        }
         if regime_data is not None:
-            context = {
-                "strategy_features": strategy_features,
-                "regime": regime_data,
-            }
-        else:
-            context = {"strategy_features": strategy_features}
+            context["regime"] = regime_data
 
         # === REM EXIT PHASE: Check risk-based exits ===
         # REM exits (stop-loss, take-profit) are ALWAYS executed immediately
