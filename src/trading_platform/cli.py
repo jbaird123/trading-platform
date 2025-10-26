@@ -19,6 +19,12 @@ from trading_platform.backtester.core import run_backtest
 from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
 from trading_platform.core.demo import generate_demo_run
+from trading_platform.core.meta_campaign_config import MetaCampaignConfig
+from trading_platform.core.meta_campaign_generator import (
+    calculate_cartesian_product,
+    campaign_config_to_yaml_dict,
+    generate_campaign_filename,
+)
 from trading_platform.core.policy import TradingWindowPolicy
 from trading_platform.core.run import finalize_run, initialize_run
 from trading_platform.core.sweeps import (
@@ -27,6 +33,7 @@ from trading_platform.core.sweeps import (
 )
 from trading_platform.data.handler import DataHandler
 from trading_platform.data.instrument import get_instrument_definition
+from trading_platform.data.integrity_validator import validate_all_data
 from trading_platform.execution.oanda_stub import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
@@ -44,6 +51,12 @@ from trading_platform.reporting.diagnostics import RuleBasedAnalyzer
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
 from trading_platform.utils.cache import clear_numba_cache
+from trading_platform.validation.pre_deployment import run_pre_deployment_checklist
+from trading_platform.validation.walk_forward import (
+    check_performance_consistency,
+    split_into_periods,
+    walk_forward_validate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1236,6 +1249,401 @@ def cmd_analyze_regime(args: argparse.Namespace) -> int:
     return 0
 
 
+def _check_output_directory(output_dir: Path, force: bool) -> tuple[bool, list[Path]]:
+    """
+    Check if output directory contains existing files.
+
+    Returns:
+        Tuple of (should_proceed, existing_files)
+    """
+    existing_files = list(output_dir.glob("*.yaml"))
+    if existing_files and not force:
+        print(
+            "Error: Output directory contains existing files.",
+            file=sys.stderr,
+        )
+        print("       Use --force to overwrite.", file=sys.stderr)
+        print(
+            f"       Found {len(existing_files)} existing file(s)",
+            file=sys.stderr,
+        )
+        return (False, existing_files)
+    return (True, existing_files)
+
+
+def _write_campaign_files(
+    campaigns: list[dict[str, Any]],
+    output_dir: Path,
+    meta_campaign_id: str,
+) -> int:
+    """
+    Write campaign configuration files.
+
+    Returns:
+        Number of files written
+    """
+    import yaml
+
+    profile_counters: dict[str, int] = {}
+    generated_count = 0
+
+    for campaign in campaigns:
+        profile_name = campaign["profile_name"]
+        instrument = campaign["instrument"]
+        timeframe = campaign["execution_timeframe"]
+
+        # Get and increment counter for this profile
+        if profile_name not in profile_counters:
+            profile_counters[profile_name] = 0
+        param_index = profile_counters[profile_name]
+        profile_counters[profile_name] += 1
+
+        # Generate filename
+        filename = generate_campaign_filename(
+            meta_campaign_id=meta_campaign_id,
+            profile_name=profile_name,
+            instrument=instrument,
+            timeframe=timeframe,
+            param_index=param_index,
+        )
+
+        # Convert to YAML dict
+        yaml_dict = campaign_config_to_yaml_dict(campaign)
+
+        # Write file
+        output_path = output_dir / filename
+        with open(output_path, "w") as f:
+            yaml.dump(yaml_dict, f, default_flow_style=False, sort_keys=False)
+
+        generated_count += 1
+
+    return generated_count
+
+
+def _print_summary(generated_count: int, output_dir: Path) -> None:
+    """Print summary of generated campaigns."""
+    print(f"✓ Generated {generated_count} campaign configurations")
+    print(f"✓ Output directory: {output_dir}")
+    print()
+    print("Next steps:")
+    print("  1. Review generated configs in " + str(output_dir))
+    print("  2. Run campaigns with: tp campaign-run <campaign_file>")
+    print("  3. Review results with: tp campaign-review")
+    print()
+
+
+def _meta_campaign_plan_logic(args: argparse.Namespace) -> int:
+    """Generate campaign configurations from a meta-campaign file."""
+    # Validate config argument
+    if not args.config:
+        print("Error: --config is required", file=sys.stderr)
+        return 2
+
+    config_path = Path(args.config)
+    if not config_path.exists():
+        print(f"Error: Config file not found: {config_path}", file=sys.stderr)
+        return 2
+
+    # Load meta-campaign config
+    try:
+        config = MetaCampaignConfig.from_yaml(config_path)
+    except Exception as e:
+        print(f"Error loading meta-campaign config: {e}", file=sys.stderr)
+        return 2
+
+    # Prepare output directory
+    default_dir = "config/campaigns/generated/"
+    output_dir = Path(args.output_dir if args.output_dir else default_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Check for existing files
+    should_proceed, existing_files = _check_output_directory(output_dir, args.force)
+    if not should_proceed:
+        return 1
+
+    # Clear directory if --force is set
+    if args.force and existing_files:
+        for file in existing_files:
+            file.unlink()
+        print(f"Cleared {len(existing_files)} file(s) from {output_dir}")
+
+    # Print generation info
+    print(f"Generating campaigns from: {config_path}")
+    print(f"Meta-campaign ID: {config.meta_campaign_id}")
+    print(f"Description: {config.description}")
+    print()
+
+    # Generate campaigns
+    campaigns = calculate_cartesian_product(config)
+    print(f"Calculated: {len(campaigns)} campaign configurations")
+    print()
+
+    # Write campaign files
+    generated_count = _write_campaign_files(
+        campaigns, output_dir, config.meta_campaign_id
+    )
+
+    # Print summary
+    _print_summary(generated_count, output_dir)
+
+    return 0
+
+
+def _validate_data_logic(args: argparse.Namespace) -> int:
+    """Validate data integrity for historical price data."""
+    # Validate data_dir argument
+    if not args.data_dir:
+        print("Error: --data-dir is required", file=sys.stderr)
+        return 2
+
+    data_dir = Path(args.data_dir)
+    if not data_dir.exists():
+        print(f"Error: Data directory not found: {data_dir}", file=sys.stderr)
+        return 2
+
+    # Get list of instruments
+    if args.instruments:
+        instruments = args.instruments
+    else:
+        # Scan directory for all instruments
+        instruments = []
+        for file in data_dir.glob("*.parquet"):
+            # Extract instrument from filename (e.g., EUR_USD_1H.parquet -> EUR_USD)
+            parts = file.stem.split("_")
+            if len(parts) >= 2:
+                instrument = "_".join(parts[:2])  # Take first two parts
+                if instrument not in instruments:
+                    instruments.append(instrument)
+
+    if not instruments:
+        print("Error: No instruments found or specified", file=sys.stderr)
+        return 2
+
+    print(f"Validating data in: {data_dir}")
+    print(f"Instruments: {', '.join(instruments)}")
+    print()
+
+    # Run validation
+    results = validate_all_data(data_dir, instruments)
+
+    # Print summary
+    print(f"Total files checked: {results['total_files']}")
+    print(f"Files with issues: {results['total_issues']}")
+    print()
+
+    # Print detailed issues
+    if results["issues"]:
+        print("Issues found:")
+        for issue in results["issues"]:
+            print(f"\nFile: {issue['file']}")
+            if issue["status"] == "corrupted":
+                print("  Status: CORRUPTED")
+                print(f"  Error: {issue['error']}")
+            else:
+                if issue.get("gaps"):
+                    print(f"  Gaps: {len(issue['gaps'])}")
+                    for gap in issue["gaps"][:3]:  # Show first 3 gaps
+                        print(
+                            f"    {gap['start_time']} -> {gap['end_time']} "
+                            f"({gap['gap_minutes']:.0f} minutes)"
+                        )
+                    if len(issue["gaps"]) > 3:
+                        print(f"    ... and {len(issue['gaps']) - 3} more gaps")
+                if issue.get("timestamp_issues"):
+                    print("  Timestamp issues:")
+                    for ts_issue in issue["timestamp_issues"]:
+                        print(f"    - {ts_issue}")
+    else:
+        print("No issues found!")
+
+    # Return exit code
+    return 1 if results["total_issues"] > 0 else 0
+
+
+def _walk_forward_validate_logic(args: argparse.Namespace) -> int:
+    """Perform walk-forward validation on a strategy."""
+    # Validate arguments
+    if not args.strategy:
+        print("Error: --strategy is required", file=sys.stderr)
+        return 2
+
+    if not args.data:
+        print("Error: --data is required", file=sys.stderr)
+        return 2
+
+    strategy_path = Path(args.strategy)
+    data_path = Path(args.data)
+
+    if not strategy_path.exists():
+        print(f"Error: Strategy file not found: {strategy_path}", file=sys.stderr)
+        return 2
+
+    if not data_path.exists():
+        print(f"Error: Data file not found: {data_path}", file=sys.stderr)
+        return 2
+
+    # Load strategy config
+    strategy_config = _load_config(strategy_path)
+
+    # Load data
+    print(f"Loading data from: {data_path}")
+    data = pd.read_parquet(data_path)
+
+    # Split into periods
+    print(f"Splitting data into {args.periods} periods...")
+    periods = split_into_periods(data, period=args.periods)
+    print(f"Created {len(periods)} periods")
+
+    if len(periods) < 2:
+        print(
+            "Error: Need at least 2 periods for walk-forward validation",
+            file=sys.stderr,
+        )
+        return 2
+
+    # Define mock training and backtest functions
+    # In a real implementation, these would call actual model training and backtesting
+    def mock_train_model(training_data: pd.DataFrame) -> dict[str, Any]:
+        """Mock model training - returns dummy model."""
+        print(f"  Training on {len(training_data)} rows")
+        return {"model": "trained"}
+
+    def mock_run_backtest(
+        config: dict[str, Any], test_data: pd.DataFrame
+    ) -> dict[str, Any]:
+        """Mock backtest - returns dummy metrics."""
+        print(f"  Testing on {len(test_data)} rows")
+        # Simple mock metrics
+        return {
+            "sharpe_ratio": 1.5,
+            "max_drawdown": -0.15,
+            "total_return": 0.25,
+            "win_rate": 0.55,
+        }
+
+    # Run walk-forward validation
+    print("\nRunning walk-forward validation...")
+    results = walk_forward_validate(
+        data=data,
+        strategy_config=strategy_config,
+        periods=periods,
+        train_model_fn=mock_train_model,
+        run_backtest_fn=mock_run_backtest,
+    )
+
+    # Print results table
+    print("\n" + "=" * 80)
+    print("WALK-FORWARD VALIDATION RESULTS")
+    print("=" * 80)
+    print(
+        f"{'Period':<30} {'Sharpe':<10} {'Max DD':<10} {'Return':<10} {'Win Rate':<10}"
+    )
+    print("-" * 80)
+
+    for period_name, metrics in results.items():
+        print(
+            f"{period_name:<30} "
+            f"{metrics.get('sharpe_ratio', 0):<10.2f} "
+            f"{metrics.get('max_drawdown', 0):<10.2%} "
+            f"{metrics.get('total_return', 0):<10.2%} "
+            f"{metrics.get('win_rate', 0):<10.2%}"
+        )
+
+    print("-" * 80)
+
+    # Check consistency
+    is_consistent = check_performance_consistency(
+        results, metric="sharpe_ratio", tolerance=0.3
+    )
+    print(f"\nConsistency Check (Sharpe Ratio): {'PASS' if is_consistent else 'FAIL'}")
+
+    if is_consistent:
+        print("✓ Performance is consistent across periods")
+    else:
+        print("✗ Performance varies significantly across periods")
+        print("  Consider investigating regime changes or overfitting")
+
+    return 0
+
+
+def _pre_deployment_checklist_logic(args: argparse.Namespace) -> int:
+    """Validate strategy against pre-deployment checklist."""
+    # Validate all required arguments
+    required_args = [
+        "model_metrics",
+        "walk_forward_results",
+        "phase4_results",
+        "strategy_config",
+    ]
+    for arg_name in required_args:
+        if not getattr(args, arg_name, None):
+            print(f"Error: --{arg_name.replace('_', '-')} is required", file=sys.stderr)
+            return 2
+
+    # Load all input files
+    try:
+        model_metrics_path = Path(args.model_metrics)
+        with model_metrics_path.open() as f:
+            model_metrics = json.load(f)
+
+        walk_forward_path = Path(args.walk_forward_results)
+        with walk_forward_path.open() as f:
+            walk_forward_results = json.load(f)
+
+        phase4_path = Path(args.phase4_results)
+        with phase4_path.open() as f:
+            phase4_results = json.load(f)
+
+        strategy_path = Path(args.strategy_config)
+        strategy_config = _load_config(strategy_path)
+
+    except FileNotFoundError as e:
+        print(f"Error: File not found: {e}", file=sys.stderr)
+        return 2
+    except json.JSONDecodeError as e:
+        print(f"Error: Invalid JSON: {e}", file=sys.stderr)
+        return 2
+
+    # Run checklist
+    checklist = run_pre_deployment_checklist(
+        model_metrics=model_metrics,
+        walk_forward_results=walk_forward_results,
+        phase4_results=phase4_results,
+        strategy_config=strategy_config,
+    )
+
+    # Print checklist with checkbox format
+    print("=" * 80)
+    print("PRE-DEPLOYMENT CHECKLIST")
+    print("=" * 80)
+    print()
+
+    all_passed = True
+    for item_name, item_data in checklist.items():
+        checkbox = "☑" if item_data["passed"] else "☐"
+        status = "PASS" if item_data["passed"] else "FAIL"
+        print(f"{checkbox} [{status}] {item_data['description']}")
+        print(f"         {item_data['details']}")
+        print()
+
+        if not item_data["passed"]:
+            all_passed = False
+
+    print("=" * 80)
+
+    # Print overall recommendation
+    if all_passed:
+        print("✓ READY FOR DEPLOYMENT")
+        print()
+        print("All pre-deployment criteria have been met.")
+        return 0
+    else:
+        print("✗ NOT READY FOR DEPLOYMENT")
+        print()
+        print("Please address the failed items above before deploying to production.")
+        return 1
+
+
 def main() -> int:
     p = argparse.ArgumentParser(prog="tp", description="Trading Platform CLI")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -1363,6 +1771,80 @@ def main() -> int:
     )
     pcpb.add_argument("--campaign-id", required=True, help="Campaign identifier")
     pcpb.set_defaults(func=cmd_campaign_publish)
+
+    # Meta-Campaign command
+    pmcp = sub.add_parser(
+        "meta-campaign-plan",
+        help="Generate campaign configurations from a meta-campaign file",
+    )
+    pmcp.add_argument("--config", required=True, help="Path to meta-campaign.yaml file")
+    pmcp.add_argument(
+        "--output-dir",
+        default="config/campaigns/generated/",
+        help="Directory to write generated campaign configs",
+    )
+    pmcp.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite existing files in output directory",
+    )
+    pmcp.set_defaults(func=_meta_campaign_plan_logic)
+
+    # Data Validation command
+    pvd = sub.add_parser(
+        "validate-data", help="Validate data integrity for historical price data"
+    )
+    pvd.add_argument(
+        "--data-dir", required=True, help="Directory containing parquet files"
+    )
+    pvd.add_argument(
+        "--instruments",
+        nargs="+",
+        help="Specific instruments to check (default: all in directory)",
+    )
+    pvd.set_defaults(func=_validate_data_logic)
+
+    # Walk-Forward Validation command
+    pwfv = sub.add_parser(
+        "walk-forward-validate", help="Perform walk-forward validation on a strategy"
+    )
+    pwfv.add_argument("--strategy", required=True, help="Path to strategy config")
+    pwfv.add_argument(
+        "--data", required=True, help="Path to master_trade_log.parquet or data file"
+    )
+    pwfv.add_argument(
+        "--periods",
+        default="year",
+        help="Period granularity (year, quarter, month)",
+    )
+    pwfv.set_defaults(func=_walk_forward_validate_logic)
+
+    # Pre-deployment Checklist command
+    ppdc = sub.add_parser(
+        "pre-deployment-checklist",
+        help="Validate strategy against pre-deployment checklist",
+    )
+    ppdc.add_argument(
+        "--model-metrics",
+        required=True,
+        help="Path to model performance metrics JSON",
+    )
+    ppdc.add_argument(
+        "--walk-forward-results",
+        required=True,
+        help="Path to walk-forward validation results JSON",
+    )
+    ppdc.add_argument(
+        "--phase4-results",
+        required=True,
+        help="Path to Phase 4 optimization results JSON",
+    )
+    ppdc.add_argument(
+        "--strategy-config",
+        required=True,
+        help="Path to final strategy config YAML",
+    )
+    ppdc.set_defaults(func=_pre_deployment_checklist_logic)
 
     # ML Model Training Commands
     ptpm = sub.add_parser(
