@@ -26,6 +26,7 @@ class PriceSource(str, Enum):
     CLOSE = "close"
     HL2 = "hl2"
     OHLC4 = "ohlc4"
+    VOLUME = "volume"
 
 
 class FeatureConfig(BaseModel):

@@ -188,21 +188,56 @@ def run_backtest(
 
     symbol = resolve_instrument_symbol(config.instrument)
 
-    # TODO: Compute global features using resolve_global_features()
-    # The contextual_features field has been removed from RunConfig.
-    # Global features will be loaded from config/features/global.yaml instead.
-    # if config.contextual_features:  # REMOVED - use global.yaml instead
-    #     from trading_platform.strategy.features import compute_features
-    #
-    #     # Convert FeatureConfig objects to dict format for compute_features
-    #     features_list = [...]
-    #     data_with_context = compute_features(
-    #         market_data, features_list, strategy_parameters={}
-    #     )
+    # Compute global features from config/features/global.yaml
+    data_with_global_features = market_data
+    global_features_list = []
+    try:
+        from trading_platform.core.feature_resolver import resolve_global_features
+        from trading_platform.strategy.features import compute_features
+
+        # Get execution timeframe from config
+        instrument_cfg = config.instrument or {}
+        execution_timeframe = instrument_cfg.get("timeframe", "1H")
+
+        # Resolve global features (filtered by timeframe)
+        resolved_features = resolve_global_features(execution_timeframe)
+
+        # Convert ResolvedFeature objects to dict format for compute_features
+        global_features_list = [
+            {
+                "name": f.name,
+                "type": f.type,
+                "params": f.params,
+                "source": f.source,
+                "timeframe": f.timeframe,
+            }
+            for f in resolved_features
+        ]
+
+        if global_features_list:
+            data_with_global_features = compute_features(
+                market_data, global_features_list, strategy_parameters={}
+            )
+            logger.info(
+                f"Computed {len(global_features_list)} global features: "
+                f"{[f['name'] for f in global_features_list]}"
+            )
+    except FileNotFoundError:
+        # global.yaml doesn't exist - this is okay, just log it
+        logger.info("No global.yaml found - proceeding without global features")
+    except Exception as e:
+        # Log but don't fail the backtest if global features fail
+        logger.warning(f"Failed to load global features: {e}")
+
+    from typing import cast
+
+    global_feature_names: set[str] = {
+        cast(str, f["name"]) for f in global_features_list
+    }
 
     # Use the complete instrument definition from config
     # (RunConfig validator ensures it has all required fields)
-    instrument_dict = config.instrument
+    instrument_dict: dict[str, Any] = config.instrument or {}
 
     portfolio = PortfolioManager(
         base_currency="USD",
@@ -344,17 +379,16 @@ def run_backtest(
             command = signal
             strategy_features = strategy.get_context(i)
 
-        # TODO: Enrich with global features from resolve_global_features()
-        # The contextual_features field has been removed from RunConfig.
-        # if config.contextual_features and data_with_context is not market_data:
-        #     for feature in config.contextual_features:
-        #         feature_name = feature.name
-        #         if feature_name in data_with_context.columns:
-        #             val = data_with_context[feature_name].iloc[i]
-        #             if isinstance(val, float) and math.isnan(val):
-        #                 strategy_features[feature_name] = None
-        #             else:
-        #                 strategy_features[feature_name] = val
+        # Enrich with global features from config/features/global.yaml
+        if global_feature_names and data_with_global_features is not market_data:
+            for feature_name in global_feature_names:
+                if feature_name in data_with_global_features.columns:
+                    val = data_with_global_features[feature_name].iloc[i]
+                    # Convert NaN to None for JSON serialization
+                    if isinstance(val, float) and math.isnan(val):
+                        strategy_features[feature_name] = None
+                    else:
+                        strategy_features[feature_name] = val
 
         # Always include raw volume for analysis
         strategy_features["volume"] = current_bar["volume"]
