@@ -1,6 +1,6 @@
-# Profitability Model Regressor Refactor Plan
+# Profitability Model Regressor Refactor Plan (v2)
 
-This document outlines the tasks required to refactor the `ProfitabilityModel` from a binary classifier to a regressor, and to harden both it and the `PerformanceDiagnosticModel` against data that lacks a defined risk.
+This document outlines the tasks required to refactor the `ProfitabilityModel` from a binary classifier to a regressor, and to harden both it and the `PerformanceDiagnosticModel` against data that lacks a defined risk. This plan incorporates feedback to improve validation, documentation, and downstream compatibility.
 
 **Developer:** Before starting, create a new branch named `feature/refactor-profitability-model`.
 
@@ -8,103 +8,125 @@ This document outlines the tasks required to refactor the `ProfitabilityModel` f
 
 ## Part 1: Refactor `ProfitabilityModel` to a Regressor
 
-1.  [ ] **Create Failing Test for Missing Data:** In `tests/ai/models/test_profitability.py`, add a new test method `test_fit_raises_error_on_missing_r_multiple`.
-    *   Inside this test, initialize a `ProfitabilityModel`.
-    *   Create a sample DataFrame (e.g., from a dictionary) with all required columns, but ensure at least one row has `np.nan` for the `r_multiple` value.
-    *   Use `pytest.raises` to assert that calling `model.fit(your_dataframe)` raises a `ValueError`.
+1.  [ ] **Create Failing Test for Missing `r_multiple`:** In `tests/ai/models/test_profitability.py`, add a new test `test_fit_raises_error_on_missing_r_multiple`. This test should create a sample DataFrame where `r_multiple` is `np.nan` and assert that `model.fit()` raises a `ValueError` with a message about missing historical `r_multiple` values.
 
-2.  [ ] **Implement Strict Check in `ProfitabilityModel`:** In `src/trading_platform/ai/models/profitability.py`, modify the `fit` method.
-    *   After filtering the `df` by context, add a new check:
-        ```python
-        if df["r_multiple"].isnull().any() or df["initial_stop_loss_pips"].isnull().any():
-            raise ValueError(
-                f"Training failed for {self.timeframe}_{self.archetype}: The "
-                f"ProfitabilityModel requires all trades to have a defined "
-                f"initial risk (stop-loss). Found trades with missing "
-                f"'r_multiple' or 'initial_stop_loss_pips'. Please filter the "
-                f"dataset before training."
-            )
-        ```
+2.  [ ] **Create Failing Test for Invalid `initial_stop_loss_pips`:** In the same test file, add `test_fit_raises_error_on_invalid_stop_loss`. This test should check for both `np.nan` and non-positive (`<= 0`) values in the `initial_stop_loss_pips` column and assert that `model.fit()` raises a `ValueError` with a message about requiring a valid stop loss > 0.
 
-3.  [ ] **Create Failing Test for Model Type:** In `tests/ai/models/test_profitability.py`, add a new test `test_model_is_regressor`.
-    *   Fit a `ProfitabilityModel` on a small, valid sample DataFrame.
-    *   Assert that `isinstance(model.model, RandomForestRegressor)` is `True`. This test will fail initially.
+3.  [ ] **Implement Strict Validation in `fit`:** In `src/trading_platform/ai/models/profitability.py`, modify the `fit` method. After filtering the `df` by context, add the following validation logic:
+    ```python
+    if df["r_multiple"].isnull().any():
+        raise ValueError(
+            f"Training failed for {self.timeframe}_{self.archetype}: "
+            f"Cannot train without historical 'r_multiple' values. "
+            f"Found {df['r_multiple'].isnull().sum()} missing values."
+        )
 
-4.  [ ] **Implement `RandomForestRegressor`:** In `src/trading_platform/ai/models/profitability.py`:
-    *   Change the import from `sklearn.ensemble.RandomForestClassifier` to `from sklearn.ensemble import RandomForestRegressor`.
-    *   In the `__init__` method, change the type hint for `self.model` to `RandomForestRegressor | None`.
-    *   In the `fit` method, change the model initialization to `self.model = RandomForestRegressor(...)`.
+    if df["initial_stop_loss_pips"].isnull().any() or (df["initial_stop_loss_pips"] <= 0).any():
+        n_null = df["initial_stop_loss_pips"].isnull().sum()
+        n_invalid = (df["initial_stop_loss_pips"] <= 0).sum()
+        raise ValueError(
+            f"Training failed for {self.timeframe}_{self.archetype}: "
+            f"All trades must have a valid 'initial_stop_loss_pips' > 0. "
+            f"Found {n_null} null and {n_invalid} invalid values."
+        )
+    ```
 
-5.  [ ] **Create Failing Test for Prediction Output:** In `tests/ai/models/test_profitability.py`, add a new test `test_predict_returns_continuous_values`.
-    *   Fit a model on valid data.
-    *   Call `model.predict(...)`.
-    *   Assert that the output array's `dtype` is `float`, not `int`.
+4.  [ ] **Implement `RandomForestRegressor`:** In `src/trading_platform/ai/models/profitability.py`, refactor the class to use `RandomForestRegressor`. This includes changing the import, updating the type hint for `self.model`, and initializing `RandomForestRegressor` in the `fit` method.
 
-6.  [ ] **Implement Regression Target:** In `src/trading_platform/ai/models/profitability.py`, modify the `fit` method.
-    *   Change the target variable creation from `y = (df["pnl"] > 0).astype(int).values` to `y = df["r_multiple"].values`.
+5.  [ ] **Implement Regression Target:** In the `fit` method of `profitability.py`, change the target variable creation to `y = df["r_multiple"].values`.
 
-7.  [ ] **Create Failing Test for `predict_proba`:** In `tests/ai/models/test_profitability.py`, add a new test `test_predict_proba_is_removed`.
-    *   Assert that calling `model.predict_proba(...)` raises an `AttributeError`.
+6.  [ ] **Remove `predict_proba` Method:** In `src/trading_platform/ai/models/profitability.py`, delete the entire `predict_proba` method.
 
-8.  [ ] **Remove `predict_proba` Method:** In `src/trading_platform/ai/models/profitability.py`, delete the entire `predict_proba` method.
-
-9.  [ ] **Create Failing Test for Risk Feature:** In `tests/ai/models/test_profitability.py`, add a new test `test_fit_includes_risk_feature`.
-    *   Fit a model on valid data that includes the `initial_stop_loss_pips` column.
-    *   Assert that the string `"initial_stop_loss_pips"` is present in `model.feature_names_`.
-
-10. [ ] **Implement Risk Feature Extraction:** In `src/trading_platform/ai/models/profitability.py`, modify the `_extract_features` method.
-    *   Add a new step to explicitly include the risk feature:
-        ```python
-        # After extracting context_at_entry_* columns
-        if "initial_stop_loss_pips" in df.columns:
-            features.append("initial_stop_loss_pips")
-        ```
+7.  [ ] **Implement Risk Feature Extraction:** In the `_extract_features` method of `profitability.py`, ensure the `initial_stop_loss_pips` feature is correctly extracted. The final line of the method must be `return df[features].copy()` to construct the feature DataFrame.
 
 ## Part 2: Harden `PerformanceDiagnosticModel`
 
-11. [ ] **Create Failing Test for Missing Data:** In `tests/ai/models/test_performance_diagnostic.py`, add a new test `test_fit_raises_error_on_missing_r_multiple`.
-    *   This test should initialize a `PerformanceDiagnosticModel` and call `fit()` with a DataFrame containing `np.nan` in the `r_multiple` column.
-    *   Use `pytest.raises` to assert that this call raises a `ValueError`.
+8.  [ ] **Create Failing Test for Missing `r_multiple`:** In `tests/ai/models/test_performance_diagnostic.py`, add a new test `test_fit_raises_error_on_missing_r_multiple`. It should assert that `model.fit()` raises a `ValueError` if any row is missing an `r_multiple`.
 
-12. [ ] **Implement Strict Check in `PerformanceDiagnosticModel`:** In `src/trading_platform/ai/models/performance_diagnostic.py`, modify the `fit` method.
-    *   Remove the lines:
-        ```python
-        # Remove rows with missing r_multiple (can't classify without target)
-        df_clean = df.dropna(subset=["r_multiple"]).copy()
-
-        if len(df_clean) < 50:
-            raise ValueError(...)
-        ```
-    *   Replace them with a single, stricter check that runs on the `df` DataFrame (after context filtering):
-        ```python
-        if df["r_multiple"].isnull().any():
-            raise ValueError(
-                f"Training failed for {self.timeframe}_{self.archetype}: The "
-                f"PerformanceDiagnosticModel requires all trades to have a defined "
-                f"'r_multiple'. Please filter the dataset before training."
-            )
-        ```
-    *   Ensure subsequent code uses `df` instead of `df_clean`.
+9.  [ ] **Implement Strict Check in `PerformanceDiagnosticModel`:** In `src/trading_platform/ai/models/performance_diagnostic.py`, modify the `fit` method. Replace the existing `dropna()` call with the stricter check:
+    ```python
+    if df["r_multiple"].isnull().any():
+        raise ValueError(
+            f"Training failed for {self.timeframe}_{self.archetype}: The "
+            f"PerformanceDiagnosticModel requires all trades to have a defined "
+            f"'r_multiple'. Found {df['r_multiple'].isnull().sum()} missing values."
+        )
+    ```
+    Ensure subsequent code in the method uses `df` instead of the old `df_clean` variable.
 
 ## Part 3: Update `ModelRegistry`
 
-13. [ ] **Update Test for Removed Method:** In `tests/ai/models/test_registry.py`, locate any tests for `predict_profitability_proba`.
-    *   Change the test to assert that calling `registry.predict_profitability_proba(...)` now raises an `AttributeError`.
+10. [ ] **Remove `predict_profitability_proba`:** In `src/trading_platform/ai/models/registry.py`, delete the entire `predict_profitability_proba` method. Update any corresponding tests in `tests/ai/models/test_registry.py` to assert this method no longer exists.
 
-14. [ ] **Remove Method from Registry:** In `src/trading_platform/ai/models/registry.py`, delete the entire `predict_profitability_proba` method.
+11. [ ] **Create Failing Test for Prediction Guardrail:** In `tests/ai/models/test_registry.py`, add a new test `test_predict_profitability_raises_error_on_missing_risk`. This test should call `registry.predict_profitability` with input data `X` that is missing or contains invalid (`NaN`, `<= 0`) values in the `initial_stop_loss_pips` column. Assert that a `ValueError` is raised.
 
-15. [ ] **Create Failing Test for Prediction Guardrail:** In `tests/ai/models/test_registry.py`, add a new test `test_predict_profitability_raises_error_on_missing_risk`.
-    *   Load or create a fitted `ProfitabilityModel` in the registry.
-    *   Create an input DataFrame `X` for prediction that *does not* have the `initial_stop_loss_pips` column.
-    *   Use `pytest.raises` to assert that `registry.predict_profitability(X, ...)` raises a `ValueError`.
+12. [ ] **Implement Prediction Guardrail:** In `src/trading_platform/ai/models/registry.py`, modify the `predict_profitability` method to include the improved guardrail at the beginning:
+    ```python
+    if "initial_stop_loss_pips" not in X.columns:
+        raise ValueError(
+            "Cannot predict R-multiple: The input data must include "
+            "the 'initial_stop_loss_pips' column."
+        )
 
-16. [ ] **Implement Prediction Guardrail:** In `src/trading_platform/ai/models/registry.py`, modify the `predict_profitability` method.
-    *   At the beginning of the method, add the guardrail:
-        ```python
-        if "initial_stop_loss_pips" not in X.columns or (X["initial_stop_loss_pips"] <= 0).any():
-            raise ValueError(
-                "Cannot predict R-multiple: The input data must include a valid "
-                "'initial_stop_loss_pips' column with values greater than 0."
-            )
-        ```
-    *   Update the method's return type hint from `pd.Series` to `pd.Series[float]`.
+    if X["initial_stop_loss_pips"].isnull().any() or (X["initial_stop_loss_pips"] <= 0).any():
+        n_null = X["initial_stop_loss_pips"].isnull().sum()
+        n_invalid = (X["initial_stop_loss_pips"] <= 0).sum()
+        raise ValueError(
+            f"Cannot predict R-multiple: All trades must have a valid "
+            f"'initial_stop_loss_pips' > 0. Found {n_null} null and "
+            f"{n_invalid} invalid values."
+        )
+    ```
+
+## Part 4: Update Documentation
+
+13. [ ] **Update `ProfitabilityModel` Docstrings:** In `src/trading_platform/ai/models/profitability.py`, update the class and method docstrings to reflect the change to a regressor that predicts `r_multiple`. Ensure the main class docstring clearly explains the new target and features.
+
+14. [ ] **Update Project READMEs:** Search for and update any `README.md` files within the `src/trading_platform/ai/` directory that refer to the `ProfitabilityModel` as a classifier. Change the description to reflect the new regression approach.
+
+## Part 5: Update Downstream Dependencies
+
+15. [ ] **Identify and Refactor Downstream Code:** Search the codebase for usages of `predict_profitability` and the now-deleted `predict_profitability_proba`.
+    *   Update any code that used the old probability output (e.g., `if prob_profitable > 0.6`).
+    *   The new logic should use the predicted R-multiple (e.g., `if predicted_r_multiple > 1.5`).
+    *   Pay special attention to files like `strategy/ai_strategy.py` and `ai/inference_client.py` if they exist.
+
+## Part 6: (Optional but Recommended) Implement Confidence Intervals
+
+16. [ ] **Create Test for Confidence Interval Method:** In `tests/ai/models/test_profitability.py`, add a new test `test_predict_with_confidence_returns_correct_shape`.
+    *   This test should fit a model, call a new `predict_with_confidence` method, and assert that the output is a DataFrame containing the columns `["prediction", "std", "lower_bound", "upper_bound"]`.
+
+17. [ ] **Implement `predict_with_confidence`:** In `src/trading_platform/ai/models/profitability.py`, add the new method as described in the feedback. This method will get the predictions from each individual tree in the forest to calculate a mean and standard deviation.
+    ```python
+    def predict_with_confidence(self, X: pd.DataFrame) -> pd.DataFrame:
+        """Predict R-multiple with confidence intervals.
+
+        Returns:
+            DataFrame with columns:
+            - prediction: Mean predicted R-multiple
+            - std: Standard deviation across trees
+            - lower_bound: prediction - 2*std
+            - upper_bound: prediction + 2*std
+        """
+        if self.model is None or self.imputer is None:
+            raise ValueError("Model not fitted. Call fit() first.")
+
+        X_features = self._extract_features(X)
+        X_aligned = self._align_features(X_features)
+        X_imputed = self.imputer.transform(X_aligned)
+
+        all_tree_predictions = np.array([
+            tree.predict(X_imputed)
+            for tree in self.model.estimators_
+        ])
+
+        predictions = all_tree_predictions.mean(axis=0)
+        std = all_tree_predictions.std(axis=0)
+
+        return pd.DataFrame({
+            "prediction": predictions,
+            "std": std,
+            "lower_bound": predictions - 2 * std,
+            "upper_bound": predictions + 2 * std
+        }, index=X.index)
+    ```
