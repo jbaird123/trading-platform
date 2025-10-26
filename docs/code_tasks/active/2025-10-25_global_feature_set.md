@@ -73,11 +73,55 @@ This ensures that feature names in `context_at_entry` and `context_at_exit` can 
 
 10. [ ] **Implement Strategy Feature Name Validator:** In `src/trading_platform/strategy/models.py`, modify the `StrategyConfig` model to add a `@model_validator(mode='after')` that iterates through `self.features` and validates that each feature name does NOT match the pattern `^(m1|m5|m15|h1|h4|d1)_`. If any feature name has a timeframe prefix, raise a `ValueError` with message: `"Strategy features must NOT have timeframe prefix. Found: {feature.name}"`.
 
-11. [ ] **Add Test for RunConfig Contextual Features Removal:** In `tests/core/test_config.py`, add a test `test_run_config_has_no_contextual_features_field` that verifies the `RunConfig` model does not have a `contextual_features` field. Attempt to instantiate `RunConfig` with `contextual_features=[]` and assert that a `ValidationError` is raised (indicating the field doesn't exist).
+11. [ ] **Remove Contextual Features from RunConfig:** In `src/trading_platform/core/config.py`, remove the `contextual_features` field from the `RunConfig` model. Ensure no default value or optional field remains.
 
-12. [ ] **Remove Contextual Features from RunConfig:** In `src/trading_platform/core/config.py`, remove the `contextual_features` field from the `RunConfig` model. Ensure no default value or optional field remains.
+12. [ ] **Add Test for RunConfig Contextual Features Removal:** In `tests/core/test_config.py`, add a test `test_run_config_has_no_contextual_features_field` that verifies the `RunConfig` model does not have a `contextual_features` field. Attempt to instantiate `RunConfig` with `contextual_features=[]` and assert that a `ValidationError` is raised (indicating the field doesn't exist).
 
-### 4. Create Shared Feature Resolver Utility
+### 4. Create Timeframe Comparison Utility
+
+1.  [ ] **Add Test for Timeframe Comparison:** Create a new test file `tests/core/test_timeframes.py`. Add test functions for a new `compare_timeframes` utility that cover the following cases:
+    *   `compare_timeframes("1min", "1H")` returns a negative value (1min < 1H)
+    *   `compare_timeframes("1H", "1min")` returns a positive value (1H > 1min)
+    *   `compare_timeframes("15min", "15min")` returns 0 (equal)
+    *   `compare_timeframes("5min", "1D")` returns a negative value (5min < 1D)
+    *   It raises `ValueError` for unrecognized timeframe strings
+
+2.  [ ] **Implement Timeframe Comparison Utility:** Create a new file `src/trading_platform/core/timeframes.py`. Implement a function `compare_timeframes(tf1: str, tf2: str) -> int` that:
+    *   Defines a mapping of timeframe strings to integer ranks: `{"1min": 1, "5min": 5, "15min": 15, "1H": 60, "4H": 240, "1D": 1440}`
+    *   Returns `rank1 - rank2` (negative if tf1 < tf2, positive if tf1 > tf2, zero if equal)
+    *   Raises `ValueError` with message `"Unrecognized timeframe: {tf}"` if either timeframe is not in the mapping
+
+### 5. Create Global Feature Set Configuration Model
+
+1.  [ ] **Add Test for GlobalFeatureSetConfig:** In `tests/core/test_config.py`, add a test `test_global_feature_set_config_validates_names` that:
+    *   Creates a `GlobalFeatureSetConfig` with valid feature names (all with timeframe prefix)
+    *   Attempts to create a `GlobalFeatureSetConfig` with invalid feature names (missing timeframe prefix) and asserts `ValidationError` is raised
+    *   Verifies that the validation context `{"is_global": True}` is automatically applied to all features
+
+2.  [ ] **Implement GlobalFeatureSetConfig Model:** In `src/trading_platform/core/config.py`, create a new Pydantic model:
+    ```python
+    class GlobalFeatureSetConfig(BaseModel):
+        """Configuration for the global feature set loaded from global.yaml."""
+
+        features: list[FeatureConfig] = Field(
+            default_factory=list,
+            description="List of global features with timeframe prefixes"
+        )
+
+        @model_validator(mode='after')
+        def validate_all_features_have_prefix(self) -> Self:
+            """Ensure all features have timeframe prefix by validating with is_global context."""
+            # Re-validate each feature with is_global context
+            for feature in self.features:
+                # Trigger re-validation with context
+                FeatureConfig.model_validate(
+                    feature.model_dump(),
+                    context={"is_global": True}
+                )
+            return self
+    ```
+
+### 6. Create Shared Feature Resolver Utility
 
 1.  [ ] **Define Type-Safe `ResolvedFeature`:** In the new file for the resolver, define a `dataclass` or `pydantic.BaseModel` named `ResolvedFeature` to ensure type-safe return values.
 
@@ -103,11 +147,11 @@ This ensures that feature names in `context_at_entry` and `context_at_exit` can 
 
 3.  [ ] **Implement Feature Resolver Utility:** Create a new file `src/trading_platform/core/feature_resolver.py`. In this file, create a function `resolve_global_features(execution_timeframe: str) -> list[ResolvedFeature]`. This function will contain all the logic for:
     *   Loading the `config/features/global.yaml` file. If the file does not exist, raise a `FileNotFoundError` with message: `"Global feature configuration not found at config/features/global.yaml"`.
-    *   Parsing the YAML content into a list of `FeatureConfig` objects, passing validation context `{"is_global": True}` to enforce timeframe prefix naming.
-    *   Filtering the list: keep a feature if its `timeframe` is not set (implicit to execution timeframe) OR if its `timeframe` is greater than or equal to the `execution_timeframe`. Use the timeframe comparison logic from `src/trading_platform/core/timeframes.py` if it exists, otherwise implement comparison: `"1min" < "5min" < "15min" < "1H" < "4H" < "1D"`.
+    *   Parsing the YAML content into a `GlobalFeatureSetConfig` object (which automatically enforces timeframe prefix naming via its validator).
+    *   Filtering the features list: keep a feature if its `timeframe` is not set (implicit to execution timeframe) OR if `compare_timeframes(feature.timeframe, execution_timeframe) >= 0` (feature timeframe >= execution timeframe).
     *   Converting filtered `FeatureConfig` objects to `ResolvedFeature` objects and returning the list.
 
-### 5. Integrate Global Feature Resolution into Backtester and Live Engine
+### 7. Integrate Global Feature Resolution into Backtester and Live Engine
 
 1.  [ ] **Add Backtester Test for Global Features:** In `tests/backtester/test_core.py`, add a test that mocks `resolve_global_features` to return a list of `ResolvedFeature` objects. Run a backtest and verify that the global features are computed and included in `context_at_entry` alongside strategy features. Assert that feature names from global (with timeframe prefix) and strategy (without prefix) do not collide.
 
@@ -132,7 +176,7 @@ This ensures that feature names in `context_at_entry` and `context_at_exit` can 
     *   Simulates computing context in both backtester and live engine modes.
     *   Asserts that the context dictionaries are identical in structure and contain both global and strategy features without name collisions.
 
-### 6. Update Documentation
+### 8. Update Documentation
 
 1.  [ ] Create a new documentation file at `docs/features/global_feature_set.md`.
 2.  [ ] In this file, document the following:
@@ -142,8 +186,9 @@ This ensures that feature names in `context_at_entry` and `context_at_exit` can 
     *   **Validation Rules**: Document that Pydantic validators enforce naming conventions at config instantiation time.
     *   **Error Handling**: Explain that missing `global.yaml` raises `FileNotFoundError`, and invalid naming raises `ValidationError`.
     *   **Removal of contextual_features**: Document that `RunConfig.contextual_features` has been removed; all non-strategy features must be in `global.yaml`.
+    *   **Timeframe Comparison**: Document the `compare_timeframes` utility and how it's used for filtering.
 
-### 7. Final Verification
+### 9. Final Verification
 
 1.  [ ] Run the entire test suite using `pytest`.
 2.  [ ] Confirm that all new and existing tests pass.
