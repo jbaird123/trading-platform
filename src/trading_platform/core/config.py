@@ -94,14 +94,6 @@ class FeatureConfig(BaseModel):
         return v
 
 
-# Default contextual features computed on every run
-DEFAULT_CONTEXTUAL_FEATURES: list[FeatureConfig] = [
-    FeatureConfig(name="ctx_atr", type="ATR", params={"length": 14}),
-    FeatureConfig(name="ctx_rsi", type="RSI", params={"length": 14}),
-    FeatureConfig(name="ctx_ema_slow", type="EMA", params={"length": 200}),
-]
-
-
 class GlobalFeatureSetConfig(BaseModel):
     """Configuration for the global feature set loaded from global.yaml.
 
