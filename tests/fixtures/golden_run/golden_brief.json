@@ -86,12 +86,12 @@
   "feature_analysis": {},
   "checksums": {
     "instrument_defs_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-    "config_snapshot_hash": "5624e84a6bb3935bead87a1a9c7ecf7b9667ae7f772041eb310b8158f4bb359a"
+    "config_snapshot_hash": "faad10b1fe1ded68148254d9daea67bfcaf341df61d2b294e51778d46cc54d90"
   },
   "meta": {
     "strategy_name": "Golden_EMA_Crossover",
     "run_id": "golden_run_test",
-    "git_commit": "b7f9d46",
+    "git_commit": "d78566d",
     "run_seed": 42
   },
   "strategy_params": {},
@@ -233,12 +233,12 @@
   "rmm_policy": {},
   "rem_policy": {
     "stop_loss": {
-      "price_offset": 1000000.0,
-      "type": "offset"
+      "type": "offset",
+      "price_offset": 1000000.0
     },
     "take_profit": {
-      "price_offset": 1000000.0,
-      "type": "offset"
+      "type": "offset",
+      "price_offset": 1000000.0
     },
     "trailing_stop": {},
     "time_exit": {},
@@ -263,7 +263,7 @@
       "EURUSD"
     ],
     "app_version": "0.0.1",
-    "git_commit": "b7f9d46",
+    "git_commit": "d78566d",
     "run_seed": 42
   },
   "artifacts": {},
@@ -379,10 +379,10 @@
     "signal_quality_analysis.avg_signal_duration_bars": "Average number of consecutive bars a non-flat signal persists.",
     "blackout_policy.blackout_utc": "List of UTC blackout intervals or timestamps.",
     "blackout_policy.blackout_events": "List of event identifiers that trigger blackout windows.",
-    "rem_policy.stop_loss.price_offset": "Stop loss configuration including price offsets and conditions.",
     "rem_policy.stop_loss.type": "Stop loss configuration including price offsets and conditions.",
-    "rem_policy.take_profit.price_offset": "Take profit configuration including price offsets and conditions.",
+    "rem_policy.stop_loss.price_offset": "Stop loss configuration including price offsets and conditions.",
     "rem_policy.take_profit.type": "Take profit configuration including price offsets and conditions.",
+    "rem_policy.take_profit.price_offset": "Take profit configuration including price offsets and conditions.",
     "rem_policy.stop_loss_pips": "Human-readable stop loss distance in pips.",
     "rem_policy.take_profit_pips": "Human-readable take profit distance in pips.",
     "environment.python_version": "Version of Python used (e.g., '3.10.12').",
@@ -450,9 +450,8 @@
         "strategy_features": {
           "sma_fast": 117.5,
           "sma_slow": 118.0,
-          "ctx_atr": 2.523401,
-          "ctx_rsi": 42.69,
-          "ctx_ema_slow": null,
+          "h1_atr_14": 2.486739,
+          "d1_volume_sma_20": null,
           "volume": 1000
         }
       },

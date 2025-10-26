@@ -124,9 +124,9 @@ def test_e2e_run_with_contextual_features(tmp_path):
     assert "strategy_features" in entry_context
     strategy_features = entry_context["strategy_features"]
 
-    # Verify default contextual features
-    assert "ctx_atr" in strategy_features
-    assert isinstance(strategy_features["ctx_atr"], (int, float))
+    # Verify global features (from global.yaml with timeframe prefix)
+    assert "h1_atr_14" in strategy_features
+    assert isinstance(strategy_features["h1_atr_14"], (int, float, type(None)))
 
     # Verify volume is always present
     assert "volume" in strategy_features

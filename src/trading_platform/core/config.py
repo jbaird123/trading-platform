@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import logging
+import re
 from enum import Enum
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 
 from . import paths
 from .utils import gen_run_id, normalize_symbol
@@ -18,12 +19,14 @@ class PriceSource(str, Enum):
 
     STRICT VALIDATION: Only these source fields are supported.
     """
+
     OPEN = "open"
     HIGH = "high"
     LOW = "low"
     CLOSE = "close"
     HL2 = "hl2"
     OHLC4 = "ohlc4"
+    VOLUME = "volume"
 
 
 class FeatureConfig(BaseModel):
@@ -72,6 +75,24 @@ class FeatureConfig(BaseModel):
             )
         return value
 
+    @field_validator("name")
+    @classmethod
+    def validate_name_based_on_context(cls, v: str, info: ValidationInfo) -> str:
+        """Validate feature name based on context (global vs strategy)."""
+        context = info.context or {}
+        is_global = context.get("is_global", False)
+
+        if is_global:
+            # Global features MUST have timeframe prefix
+            pattern = r"^(m1|m5|m15|h1|h4|d1)_[a-z0-9_]+$"
+            if not re.match(pattern, v):
+                raise ValueError(
+                    f"Global features must have timeframe prefix "
+                    f"(m1_, m5_, m15_, h1_, h4_, d1_). Got: {v}"
+                )
+
+        return v
+
 
 # Default contextual features computed on every run
 DEFAULT_CONTEXTUAL_FEATURES: list[FeatureConfig] = [
@@ -79,6 +100,35 @@ DEFAULT_CONTEXTUAL_FEATURES: list[FeatureConfig] = [
     FeatureConfig(name="ctx_rsi", type="RSI", params={"length": 14}),
     FeatureConfig(name="ctx_ema_slow", type="EMA", params={"length": 200}),
 ]
+
+
+class GlobalFeatureSetConfig(BaseModel):
+    """Configuration for the global feature set loaded from global.yaml.
+
+    All features in this config MUST have timeframe prefixes.
+    This is enforced via the FeatureConfig validator when loaded with
+    is_global context.
+    """
+
+    model_config = {"extra": "forbid"}
+
+    features: list[FeatureConfig] = Field(
+        default_factory=list,
+        description="List of global features with timeframe prefixes",
+    )
+
+    @model_validator(mode="after")
+    def validate_all_features_have_prefix(self) -> GlobalFeatureSetConfig:
+        """Ensure all features have timeframe prefix by validating
+        with is_global context.
+        """
+        # Re-validate each feature with is_global context
+        for feature in self.features:
+            # Trigger re-validation with context
+            FeatureConfig.model_validate(
+                feature.model_dump(), context={"is_global": True}
+            )
+        return self
 
 
 class RunConfig(BaseModel):
@@ -257,27 +307,6 @@ class RunConfig(BaseModel):
             "Example: {'enabled': True, 'horizons': [10, 20, 50]}"
         ),
     )
-
-    contextual_features: list[FeatureConfig] | None = Field(
-        default=None,
-        description=(
-            "A list of indicators to compute for context, even if not used "
-            "in strategy rules."
-        ),
-    )
-
-    @model_validator(mode="before")
-    @classmethod
-    def inject_default_contextual_features(cls, data: Any) -> Any:
-        """Inject default contextual features if not explicitly provided."""
-        if isinstance(data, dict):
-            # Only inject defaults if key is missing (None)
-            # If user provides [], we respect that (no defaults)
-            if "contextual_features" not in data:
-                data["contextual_features"] = [
-                    f.model_dump() for f in DEFAULT_CONTEXTUAL_FEATURES
-                ]
-        return data
 
     @model_validator(mode="after")
     def enforce_workspace_runs_dir(self) -> RunConfig:
