@@ -188,31 +188,56 @@ def run_backtest(
 
     symbol = resolve_instrument_symbol(config.instrument)
 
-    # Compute contextual features if specified in config
-    data_with_context = market_data
-    if config.contextual_features:
+    # Compute global features from config/features/global.yaml
+    data_with_global_features = market_data
+    global_features_list = []
+    try:
+        from trading_platform.core.feature_resolver import resolve_global_features
         from trading_platform.strategy.features import compute_features
 
-        # Convert FeatureConfig objects to dict format for compute_features
-        features_list = [
+        # Get execution timeframe from config
+        instrument_cfg = config.instrument or {}
+        execution_timeframe = instrument_cfg.get("timeframe", "1H")
+
+        # Resolve global features (filtered by timeframe)
+        resolved_features = resolve_global_features(execution_timeframe)
+
+        # Convert ResolvedFeature objects to dict format for compute_features
+        global_features_list = [
             {
                 "name": f.name,
                 "type": f.type,
-                "params": f.params or {},
-                "source": f.source.value
-                if (f.source and hasattr(f.source, "value"))
-                else f.source,
-                "source_ref": f.source_ref,
+                "params": f.params,
+                "source": f.source,
+                "timeframe": f.timeframe,
             }
-            for f in config.contextual_features
+            for f in resolved_features
         ]
-        data_with_context = compute_features(
-            market_data, features_list, strategy_parameters={}
-        )
+
+        if global_features_list:
+            data_with_global_features = compute_features(
+                market_data, global_features_list, strategy_parameters={}
+            )
+            logger.info(
+                f"Computed {len(global_features_list)} global features: "
+                f"{[f['name'] for f in global_features_list]}"
+            )
+    except FileNotFoundError:
+        # global.yaml doesn't exist - this is okay, just log it
+        logger.info("No global.yaml found - proceeding without global features")
+    except Exception as e:
+        # Log but don't fail the backtest if global features fail
+        logger.warning(f"Failed to load global features: {e}")
+
+    from typing import cast
+
+    global_feature_names: set[str] = {
+        cast(str, f["name"]) for f in global_features_list
+    }
 
     # Use the complete instrument definition from config
     # (RunConfig validator ensures it has all required fields)
-    instrument_dict = config.instrument
+    instrument_dict: dict[str, Any] = config.instrument or {}
 
     portfolio = PortfolioManager(
         base_currency="USD",
@@ -354,12 +379,11 @@ def run_backtest(
             command = signal
             strategy_features = strategy.get_context(i)
 
-        # Enrich with contextual features if they were computed
-        if config.contextual_features and data_with_context is not market_data:
-            for feature in config.contextual_features:
-                feature_name = feature.name
-                if feature_name in data_with_context.columns:
-                    val = data_with_context[feature_name].iloc[i]
+        # Enrich with global features from config/features/global.yaml
+        if global_feature_names and data_with_global_features is not market_data:
+            for feature_name in global_feature_names:
+                if feature_name in data_with_global_features.columns:
+                    val = data_with_global_features[feature_name].iloc[i]
                     # Convert NaN to None for JSON serialization
                     if isinstance(val, float) and math.isnan(val):
                         strategy_features[feature_name] = None

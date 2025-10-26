@@ -120,6 +120,64 @@ def run_live_controller(
 
     strat = compile_strategy(strategy_cfg)
     signals = strat.generate_signals(market_data)
+
+    # Compute global features (for trade context enrichment)
+    # Note: Live trading stub currently passes None for context, but we prepare
+    # the infrastructure for when context is supported
+    # This maintains parity with backtester architecture
+    data_with_global_features = market_data
+    global_features_dict: dict[str, pd.Series] = {}
+    try:
+        import logging
+
+        from trading_platform.core.feature_resolver import resolve_global_features
+        from trading_platform.strategy.features import compute_features
+
+        logger = logging.getLogger(__name__)
+
+        # Get execution timeframe (default to 1H)
+        # In live trading without RunConfig, we default to 1H
+        # which matches the most common trading timeframe
+        execution_timeframe = "1H"
+
+        # Resolve and compute global features
+        resolved_features = resolve_global_features(execution_timeframe)
+        global_features_list = [
+            {
+                "name": f.name,
+                "type": f.type,
+                "params": f.params,
+                "source": f.source,
+                "timeframe": f.timeframe,
+            }
+            for f in resolved_features
+        ]
+
+        if global_features_list:
+            data_with_global_features = compute_features(
+                market_data, global_features_list, strategy_parameters={}
+            )
+            # Store as dict for easy access
+            from typing import cast
+
+            for feature in global_features_list:
+                fname = cast(str, feature["name"])
+                if fname in data_with_global_features.columns:
+                    global_features_dict[fname] = cast(
+                        pd.Series, data_with_global_features[fname]
+                    )
+
+            logger.info(
+                f"Computed {len(global_features_list)} global features for live trading"
+            )
+    except FileNotFoundError:
+        pass  # global.yaml doesn't exist - proceed without global features
+    except Exception as e:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            f"Failed to load global features in live trading: {e}"
+        )
     placed = 0
     for i in range(len(market_data)):
         signal = signals.iloc[i]

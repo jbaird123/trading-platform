@@ -1,0 +1,18 @@
+# Global features that are ALWAYS included in every backtest context.
+# Feature names MUST have timeframe prefix (m1_, m5_, m15_, h1_, h4_, d1_)
+features:
+  - name: "m15_rsi_14"
+    type: "RSI"
+    params: { "length": 14 }
+    timeframe: "15min"
+
+  - name: "h1_atr_14"
+    type: "ATR"
+    params: { "length": 14 }
+    timeframe: "1H"
+
+  - name: "d1_volume_sma_20"
+    type: "SMA"
+    params: { "length": 20 }
+    source: "volume"
+    timeframe: "1D"

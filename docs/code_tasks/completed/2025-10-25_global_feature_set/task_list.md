@@ -2,6 +2,29 @@
 
 This document outlines the tasks required to implement a global, mandatory feature set that will be automatically included in every backtest and live trading session. This ensures feature consistency for ML models. The implementation will be validation-first, use a shared utility to ensure backtest/live parity, and intelligently filter features based on the execution timeframe.
 
+## Implementation Status
+
+**Branch**: `feature/global-feature-set`
+**Status**: Core infrastructure complete (Sections 1-6). Backtester/Live integration pending.
+
+### Completed (Commits d4e79e7, d78566d)
+- ✅ Namespace separation via Pydantic validators
+- ✅ Global configuration file and model
+- ✅ Timeframe comparison utility
+- ✅ Feature resolver with filtering
+- ✅ Comprehensive test coverage (20 tests)
+- ✅ Complete documentation
+
+### Pending
+- ⏳ Backtester integration (Section 7, steps 1-2)
+- ⏳ Live engine integration (Section 7, steps 3-4)
+- ⏳ Integration tests (Section 7, step 5)
+- ⏳ Final verification (Section 9)
+
+The core utilities are production-ready. Backtester/live integration requires deeper understanding of existing feature computation logic and is marked with TODO comments in the codebase.
+
+---
+
 ## Architecture: Namespace Separation via Naming Conventions
 
 To prevent feature name collisions between global features and strategy features, we enforce strict naming conventions:

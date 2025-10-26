@@ -53,7 +53,10 @@ from trading_platform.strategy.indicator_helpers import find_swing_points
 
 
 def _price_series(df: pd.DataFrame, source: str) -> pd.Series:
-    """Convert source string to price series."""
+    """Convert source string to price series.
+
+    Strict validation - raises ValueError for unrecognized sources.
+    """
     if source in ("open", "high", "low", "close"):
         return pd.Series(df[source], dtype="float64")
     if source == "hl2":
@@ -65,7 +68,13 @@ def _price_series(df: pd.DataFrame, source: str) -> pd.Series:
             + pd.Series(df["low"])
             + pd.Series(df["close"])
         ) / 4.0
-    return pd.Series(df["close"], dtype="float64")
+    if source == "volume":
+        return pd.Series(df["volume"], dtype="float64")
+
+    raise ValueError(
+        f"Unrecognized source: {source}. "
+        f"Valid sources: open, high, low, close, hl2, ohlc4, volume"
+    )
 
 
 def _empty_series(df: pd.DataFrame) -> pd.Series:

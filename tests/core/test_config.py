@@ -1,7 +1,13 @@
 import logging
 
+import pytest
+from pydantic import ValidationError
 from trading_platform.core import paths
-from trading_platform.core.config import RunConfig
+from trading_platform.core.config import (
+    FeatureConfig,
+    GlobalFeatureSetConfig,
+    RunConfig,
+)
 
 
 def test_run_config_auto_populate_instrument_from_data_request() -> None:
@@ -76,3 +82,94 @@ def test_run_config_allows_custom_workspace_runs_dir(caplog) -> None:
     assert "Ignoring configured `runs_dir`" in caplog.text
     assert "outside the project workspace" in caplog.text
     assert outside_dir in caplog.text
+
+
+def test_feature_config_rejects_invalid_source() -> None:
+    """Test that FeatureConfig rejects invalid source values."""
+    with pytest.raises(ValidationError) as exc_info:
+        FeatureConfig(
+            name="test_feature",
+            type="RSI",
+            params={"length": 14},
+            source="invalid_source",  # type: ignore[arg-type]
+        )
+
+    assert "source" in str(exc_info.value)
+
+
+def test_feature_config_global_requires_timeframe_prefix() -> None:
+    """Test that global FeatureConfig requires timeframe prefix in name."""
+    with pytest.raises(ValidationError) as exc_info:
+        FeatureConfig.model_validate(
+            {
+                "name": "rsi_14",  # Missing timeframe prefix
+                "type": "RSI",
+                "params": {"length": 14},
+            },
+            context={"is_global": True},
+        )
+
+    error_msg = str(exc_info.value)
+    assert "timeframe prefix" in error_msg.lower()
+    assert "rsi_14" in error_msg
+
+
+def test_feature_config_global_accepts_valid_prefix() -> None:
+    """Test that global FeatureConfig accepts valid timeframe-prefixed names."""
+    valid_names = ["m1_rsi", "m5_ema", "m15_atr", "h1_rsi", "h4_ema", "d1_sma"]
+
+    for name in valid_names:
+        # Should not raise ValidationError
+        config = FeatureConfig.model_validate(
+            {
+                "name": name,
+                "type": "RSI",
+                "params": {"length": 14},
+            },
+            context={"is_global": True},
+        )
+        assert config.name == name
+
+
+def test_run_config_has_no_contextual_features_field() -> None:
+    """Test that RunConfig does not have a contextual_features field."""
+    with pytest.raises(ValidationError) as exc_info:
+        RunConfig.model_validate(
+            {
+                "run_id": "test",
+                "instrument": {"symbol": "EURUSD"},
+                "contextual_features": [],
+            }
+        )
+
+    error_msg = str(exc_info.value).lower()
+    assert "extra" in error_msg and (
+        "not permitted" in error_msg or "forbidden" in error_msg
+    )
+
+
+def test_global_feature_set_config_validates_names() -> None:
+    """Test that GlobalFeatureSetConfig validates feature names."""
+    # Valid: all features have timeframe prefix
+    config = GlobalFeatureSetConfig.model_validate(
+        {
+            "features": [
+                {"name": "h1_rsi_14", "type": "RSI", "params": {"length": 14}},
+                {"name": "m15_ema_9", "type": "EMA", "params": {"length": 9}},
+            ]
+        }
+    )
+    assert len(config.features) == 2
+
+    # Invalid: missing timeframe prefix
+    with pytest.raises(ValidationError) as exc_info:
+        GlobalFeatureSetConfig.model_validate(
+            {
+                "features": [
+                    {"name": "rsi_14", "type": "RSI", "params": {"length": 14}},
+                ]
+            }
+        )
+
+    error_msg = str(exc_info.value)
+    assert "timeframe prefix" in error_msg.lower()

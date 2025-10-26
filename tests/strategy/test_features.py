@@ -362,7 +362,7 @@ def test_compute_features_all_indicator_types():
 
 
 def test_price_series_fallback():
-    """Test _price_series fallback to close when invalid source (line 51)."""
+    """Test _price_series raises ValueError for invalid source (strict validation)."""
     # DataFrame with OHLC data
     df = pd.DataFrame(
         {
@@ -373,10 +373,39 @@ def test_price_series_fallback():
         }
     )
 
-    # Test with invalid source - should fallback to close (line 51)
-    result = _price_series(df, "invalid_source")
-    expected = pd.Series([1.1030, 1.1050, 1.1060], dtype="float64", name="close")
+    # Test with invalid source - should raise ValueError (strict validation)
+    with pytest.raises(ValueError, match="Unrecognized source: invalid_source"):
+        _price_series(df, "invalid_source")
+
+
+def test_price_series_volume():
+    """Test _price_series correctly handles volume source."""
+    df = pd.DataFrame(
+        {
+            "open": [1.1000, 1.1020, 1.1040],
+            "high": [1.1050, 1.1080, 1.1070],
+            "low": [1.0990, 1.1010, 1.1030],
+            "close": [1.1030, 1.1050, 1.1060],
+            "volume": [1000.0, 2000.0, 1500.0],
+        }
+    )
+
+    # Test volume source
+    result = _price_series(df, "volume")
+    expected = pd.Series([1000.0, 2000.0, 1500.0], dtype="float64", name="volume")
     pd.testing.assert_series_equal(result, expected)
+
+
+def test_price_series_ohlc4():
+    """Test _price_series ohlc4 source."""
+    df = pd.DataFrame(
+        {
+            "open": [1.1000, 1.1020, 1.1040],
+            "high": [1.1050, 1.1080, 1.1070],
+            "low": [1.0990, 1.1010, 1.1030],
+            "close": [1.1030, 1.1050, 1.1060],
+        }
+    )
 
     # Test ohlc4 source to hit lines 45-50
     result_ohlc4 = _price_series(df, "ohlc4")
