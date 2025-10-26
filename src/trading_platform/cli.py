@@ -19,6 +19,12 @@ from trading_platform.backtester.core import run_backtest
 from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
 from trading_platform.core.demo import generate_demo_run
+from trading_platform.core.meta_campaign_config import MetaCampaignConfig
+from trading_platform.core.meta_campaign_generator import (
+    calculate_cartesian_product,
+    campaign_config_to_yaml_dict,
+    generate_campaign_filename,
+)
 from trading_platform.core.policy import TradingWindowPolicy
 from trading_platform.core.run import finalize_run, initialize_run
 from trading_platform.core.sweeps import (
@@ -1236,6 +1242,110 @@ def cmd_analyze_regime(args: argparse.Namespace) -> int:
     return 0
 
 
+def _meta_campaign_plan_logic(args: argparse.Namespace) -> int:
+    """Generate campaign configurations from a meta-campaign file."""
+
+    import yaml
+
+    # Validate config argument
+    if not args.config:
+        print("Error: --config is required", file=sys.stderr)
+        return 2
+
+    config_path = Path(args.config)
+    if not config_path.exists():
+        print(f"Error: Config file not found: {config_path}", file=sys.stderr)
+        return 2
+
+    # Load meta-campaign config
+    try:
+        config = MetaCampaignConfig.from_yaml(config_path)
+    except Exception as e:
+        print(f"Error loading meta-campaign config: {e}", file=sys.stderr)
+        return 2
+
+    # Get output directory
+    output_dir = Path(
+        args.output_dir if args.output_dir else "config/campaigns/generated/"
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Check if output directory contains files
+    existing_files = list(output_dir.glob("*.yaml"))
+    if existing_files and not args.force:
+        print(
+            "Error: Output directory contains existing files. Use --force to overwrite.",
+            file=sys.stderr,
+        )
+        print(
+            f"       Found {len(existing_files)} existing file(s) in {output_dir}",
+            file=sys.stderr,
+        )
+        return 1
+
+    # Clear directory if --force is set
+    if args.force and existing_files:
+        for file in existing_files:
+            file.unlink()
+        print(f"Cleared {len(existing_files)} existing file(s) from {output_dir}")
+
+    # Generate campaigns
+    print(f"Generating campaigns from: {config_path}")
+    print(f"Meta-campaign ID: {config.meta_campaign_id}")
+    print(f"Description: {config.description}")
+    print()
+
+    campaigns = calculate_cartesian_product(config)
+    print(f"Calculated cartesian product: {len(campaigns)} campaign configurations")
+    print()
+
+    # Track campaigns by profile for indexing
+    profile_counters: dict[str, int] = {}
+
+    # Write campaign files
+    generated_count = 0
+    for campaign in campaigns:
+        profile_name = campaign["profile_name"]
+        instrument = campaign["instrument"]
+        timeframe = campaign["execution_timeframe"]
+
+        # Get and increment counter for this profile
+        if profile_name not in profile_counters:
+            profile_counters[profile_name] = 0
+        param_index = profile_counters[profile_name]
+        profile_counters[profile_name] += 1
+
+        # Generate filename
+        filename = generate_campaign_filename(
+            meta_campaign_id=config.meta_campaign_id,
+            profile_name=profile_name,
+            instrument=instrument,
+            timeframe=timeframe,
+            param_index=param_index,
+        )
+
+        # Convert to YAML dict
+        yaml_dict = campaign_config_to_yaml_dict(campaign)
+
+        # Write file
+        output_path = output_dir / filename
+        with open(output_path, "w") as f:
+            yaml.dump(yaml_dict, f, default_flow_style=False, sort_keys=False)
+
+        generated_count += 1
+
+    print(f"✓ Generated {generated_count} campaign configurations")
+    print(f"✓ Output directory: {output_dir}")
+    print()
+    print("Next steps:")
+    print("  1. Review generated configs in " + str(output_dir))
+    print("  2. Run campaigns with: tp campaign-run <campaign_file>")
+    print("  3. Review results with: tp campaign-review")
+    print()
+
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(prog="tp", description="Trading Platform CLI")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -1363,6 +1473,24 @@ def main() -> int:
     )
     pcpb.add_argument("--campaign-id", required=True, help="Campaign identifier")
     pcpb.set_defaults(func=cmd_campaign_publish)
+
+    # Meta-Campaign command
+    pmcp = sub.add_parser(
+        "meta-campaign-plan",
+        help="Generate campaign configurations from a meta-campaign file",
+    )
+    pmcp.add_argument("--config", required=True, help="Path to meta-campaign.yaml file")
+    pmcp.add_argument(
+        "--output-dir",
+        default="config/campaigns/generated/",
+        help="Directory to write generated campaign configs",
+    )
+    pmcp.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite existing files in output directory",
+    )
+    pmcp.set_defaults(func=_meta_campaign_plan_logic)
 
     # ML Model Training Commands
     ptpm = sub.add_parser(

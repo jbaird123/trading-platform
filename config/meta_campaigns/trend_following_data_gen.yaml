@@ -1,0 +1,41 @@
+# config/meta_campaigns/trend_following_data_gen.yaml
+
+meta_campaign_id: trend_following_model_generation
+description: "Generates all campaign configs needed to train all trend-following models."
+
+run_grid:
+  date_ranges:
+    - { start: "2018-01-01", end: "2023-12-31" }
+  instruments:
+    - EUR_USD
+    - GBP_USD
+  execution_timeframes:
+    - 1min
+    - 5min
+    - 15min
+    - 1H
+    - 4H
+    - 1D
+
+strategy_profiles:
+  # Profile for data WITH defined risk.
+  - name: trend_with_risk
+    strategy_path: config/master_data_generation/strategies/ema_crossover_v1.yaml
+    rem_path: config/master_data_generation/rem/chandelier_stop_v1.yaml
+    archetype: trend_following
+    param_grid:
+      - strategy_params: { fast_length: 10, slow_length: 20 }
+        rem_params: { atr_length: 22, atr_multiplier: 2.0 }
+      - strategy_params: { fast_length: 10, slow_length: 20 }
+        rem_params: { atr_length: 22, atr_multiplier: 3.0 }
+      - strategy_params: { fast_length: 20, slow_length: 50 }
+        rem_params: { atr_length: 14, atr_multiplier: 2.5 }
+
+  # Profile for data WITHOUT defined risk.
+  - name: baseline_no_risk
+    strategy_path: config/master_data_generation/strategies/ema_crossover_v1.yaml
+    rem_path: null
+    archetype: trend_following
+    param_grid:
+      - strategy_params: { fast_length: 9, slow_length: 21 }
+      - strategy_params: { fast_length: 15, slow_length: 45 }
