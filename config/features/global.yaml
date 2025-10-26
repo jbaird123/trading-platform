@@ -1,18 +1,80 @@
 # Global features that are ALWAYS included in every backtest context.
-# Feature names MUST have timeframe prefix (m1_, m5_, m15_, h1_, h4_, d1_)
+# This feature set is designed to provide a rich, multi-timeframe view of
+# market trend, momentum, volatility, and volume.
+#
+# Feature names MUST have a timeframe prefix (m15_, h1_, h4_, d1_).
+
 features:
+  # --- Trend Indicators ---
+  # Provide a view of the trend across major timeframes.
+  - name: "h1_ema_50"
+    type: "EMA"
+    params: { "length": 50 }
+    timeframe: "1H"
+  - name: "h4_ema_50"
+    type: "EMA"
+    params: { "length": 50 }
+    timeframe: "4H"
+  - name: "d1_ema_50"
+    type: "EMA"
+    params: { "length": 50 }
+    timeframe: "1D"
+  - name: "h1_adx_14"
+    type: "ADX"
+    params: { "length": 14 }
+    timeframe: "1H"
+
+  # --- Momentum Indicators ---
+  # Measure the speed and change of price movements.
   - name: "m15_rsi_14"
     type: "RSI"
     params: { "length": 14 }
     timeframe: "15min"
+  - name: "h1_rsi_14"
+    type: "RSI"
+    params: { "length": 14 }
+    timeframe: "1H"
+  - name: "h4_rsi_14"
+    type: "RSI"
+    params: { "length": 14 }
+    timeframe: "4H"
+  - name: "h1_macd"
+    type: "MACD"
+    params: { "fast": 12, "slow": 26, "signal": 9 }
+    timeframe: "1H"
 
+  # --- Volatility Indicators ---
+  # Measure the magnitude of price fluctuations.
+  - name: "m15_atr_14"
+    type: "ATR"
+    params: { "length": 14 }
+    timeframe: "15min"
   - name: "h1_atr_14"
     type: "ATR"
     params: { "length": 14 }
     timeframe: "1H"
+  - name: "d1_atr_14"
+    type: "ATR"
+    params: { "length": 14 }
+    timeframe: "1D"
+  - name: "h1_bb_width_20"
+    type: "BBWidth"
+    params: { "length": 20, "ndev": 2.0 }
+    timeframe: "1H"
 
+  # --- Volume Indicators ---
+  # Measure market participation and conviction.
+  - name: "h1_volume_sma_20"
+    type: "SMA"
+    params: { "length": 20 }
+    source: "volume"
+    timeframe: "1H"
   - name: "d1_volume_sma_20"
     type: "SMA"
     params: { "length": 20 }
     source: "volume"
     timeframe: "1D"
+  - name: "h1_obv"
+    type: "OBV"
+    params: {} # OBV has no length parameter
+    timeframe: "1H"
