@@ -28,7 +28,8 @@ def check_time_series_gaps(
     gaps = []
     for idx in range(1, len(df)):
         diff = time_diffs.iloc[idx]
-        if pd.notna(diff) and hasattr(diff, "total_seconds"):
+        # Check if diff is not NaT and is a timedelta
+        if diff is not pd.NaT and hasattr(diff, "total_seconds"):
             gap_minutes = diff.total_seconds() / 60
             if gap_minutes > max_gap_minutes:
                 gaps.append(

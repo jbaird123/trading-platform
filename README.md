@@ -17,6 +17,7 @@ Architected and developed by a single engineer leveraging AI-augmented developme
 - **Regime-Based Market Analysis (RMM)**: Classify market conditions (e.g., "trending," "ranging") and dynamically enable or disable strategies based on the prevailing regime.
 - **Comprehensive Reporting**: Automatically generates detailed HTML reports, `brief.json` summaries, and trade logs for each backtest.
 - **AI/ML Research Lab**: A dedicated module for experimenting with machine learning models for signal generation and market analysis.
+- **Meta-Campaign System**: Automate campaign generation for comprehensive ML model training across multiple parameters, instruments, and timeframes.
 
 ## Architecture
 
@@ -136,6 +137,40 @@ The most critical design principle is the strict separation of the **Strategy En
     ```bash
     poetry run tp compare path/to/run_A/brief.json path/to/run_B/brief.json
     ```
+
+## CLI Commands
+
+The platform provides a comprehensive CLI (`tp`) for all operations:
+
+### Research & Campaign Management
+- `tp meta-campaign-plan` - Generate campaign configurations from a meta-campaign file
+  - `--config` - Path to meta-campaign.yaml file
+  - `--output-dir` - Directory to write generated configs (default: config/campaigns/generated/)
+  - `--force` - Overwrite existing files
+  - See [Meta-Campaign System Guide](docs/user_guides/meta_campaign_system.md) for details
+
+- `tp campaign-run` - Execute campaign runs
+- `tp campaign-review` - Generate campaign review report
+- `tp campaign-publish` - Publish campaign dataset to master trade log
+
+### Data Validation
+- `tp validate-data` - Validate data integrity for historical price data
+  - `--data-dir` - Directory containing parquet files (required)
+  - `--instruments` - Specific instruments to check (default: all)
+
+### ML Model Training
+- `tp train-profitability-models` - Train profitability models from enriched trade data
+- `tp train-diagnostic-models` - Train diagnostic models for regime analysis
+- `tp predict-profitability` - Predict profitability for trades using trained models
+- `tp analyze-regime` - Analyze regime performance using diagnostic models
+
+### Backtesting
+- `tp run-backtest` - Run backtest and write artifacts
+  - `--config` - Path to JSON/YAML RunConfig
+  - `--demo` - Use demo backtest
+- `tp compare` - Compare briefs and write HTML report
+
+For a complete list of commands, run `tp --help` or see the [user guides](docs/user_guides/).
 
 ## Development & Quality
 

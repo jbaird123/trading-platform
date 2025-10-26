@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import itertools
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -21,23 +22,26 @@ def calculate_cartesian_product(config: MetaCampaignConfig) -> list[dict[str, An
     campaigns = []
 
     for profile in config.strategy_profiles:
-        for date_range in config.run_grid.date_ranges:
-            for instrument in config.run_grid.instruments:
-                for timeframe in config.run_grid.execution_timeframes:
-                    for param_set in profile.param_grid:
-                        campaign = {
-                            "meta_campaign_id": config.meta_campaign_id,
-                            "profile_name": profile.name,
-                            "date_range": date_range,
-                            "instrument": instrument,
-                            "execution_timeframe": timeframe,
-                            "strategy_path": profile.strategy_path,
-                            "rem_path": profile.rem_path,
-                            "archetype": profile.archetype,
-                            "strategy_params": param_set.strategy_params,
-                            "rem_params": param_set.rem_params,
-                        }
-                        campaigns.append(campaign)
+        # Use itertools.product for cartesian product
+        for date_range, instrument, timeframe, param_set in itertools.product(
+            config.run_grid.date_ranges,
+            config.run_grid.instruments,
+            config.run_grid.execution_timeframes,
+            profile.param_grid,
+        ):
+            campaign = {
+                "meta_campaign_id": config.meta_campaign_id,
+                "profile_name": profile.name,
+                "date_range": date_range,
+                "instrument": instrument,
+                "execution_timeframe": timeframe,
+                "strategy_path": profile.strategy_path,
+                "rem_path": profile.rem_path,
+                "archetype": profile.archetype,
+                "strategy_params": param_set.strategy_params,
+                "rem_params": param_set.rem_params,
+            }
+            campaigns.append(campaign)
 
     return campaigns
 
@@ -62,7 +66,11 @@ def generate_campaign_filename(
     Returns:
         Filename string with .yaml extension
     """
-    return f"{meta_campaign_id}_{profile_name}_{instrument}_{timeframe}_{param_index:02d}.yaml"
+    filename = (
+        f"{meta_campaign_id}_{profile_name}_{instrument}_"
+        f"{timeframe}_{param_index:02d}.yaml"
+    )
+    return filename
 
 
 def _get_git_commit() -> str | None:

@@ -33,6 +33,7 @@ from trading_platform.core.sweeps import (
 )
 from trading_platform.data.handler import DataHandler
 from trading_platform.data.instrument import get_instrument_definition
+from trading_platform.data.integrity_validator import validate_all_data
 from trading_platform.execution.oanda_stub import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
@@ -1242,11 +1243,91 @@ def cmd_analyze_regime(args: argparse.Namespace) -> int:
     return 0
 
 
-def _meta_campaign_plan_logic(args: argparse.Namespace) -> int:
-    """Generate campaign configurations from a meta-campaign file."""
+def _check_output_directory(output_dir: Path, force: bool) -> tuple[bool, list[Path]]:
+    """
+    Check if output directory contains existing files.
 
+    Returns:
+        Tuple of (should_proceed, existing_files)
+    """
+    existing_files = list(output_dir.glob("*.yaml"))
+    if existing_files and not force:
+        print(
+            "Error: Output directory contains existing files.",
+            file=sys.stderr,
+        )
+        print("       Use --force to overwrite.", file=sys.stderr)
+        print(
+            f"       Found {len(existing_files)} existing file(s)",
+            file=sys.stderr,
+        )
+        return (False, existing_files)
+    return (True, existing_files)
+
+
+def _write_campaign_files(
+    campaigns: list[dict[str, Any]],
+    output_dir: Path,
+    meta_campaign_id: str,
+) -> int:
+    """
+    Write campaign configuration files.
+
+    Returns:
+        Number of files written
+    """
     import yaml
 
+    profile_counters: dict[str, int] = {}
+    generated_count = 0
+
+    for campaign in campaigns:
+        profile_name = campaign["profile_name"]
+        instrument = campaign["instrument"]
+        timeframe = campaign["execution_timeframe"]
+
+        # Get and increment counter for this profile
+        if profile_name not in profile_counters:
+            profile_counters[profile_name] = 0
+        param_index = profile_counters[profile_name]
+        profile_counters[profile_name] += 1
+
+        # Generate filename
+        filename = generate_campaign_filename(
+            meta_campaign_id=meta_campaign_id,
+            profile_name=profile_name,
+            instrument=instrument,
+            timeframe=timeframe,
+            param_index=param_index,
+        )
+
+        # Convert to YAML dict
+        yaml_dict = campaign_config_to_yaml_dict(campaign)
+
+        # Write file
+        output_path = output_dir / filename
+        with open(output_path, "w") as f:
+            yaml.dump(yaml_dict, f, default_flow_style=False, sort_keys=False)
+
+        generated_count += 1
+
+    return generated_count
+
+
+def _print_summary(generated_count: int, output_dir: Path) -> None:
+    """Print summary of generated campaigns."""
+    print(f"✓ Generated {generated_count} campaign configurations")
+    print(f"✓ Output directory: {output_dir}")
+    print()
+    print("Next steps:")
+    print("  1. Review generated configs in " + str(output_dir))
+    print("  2. Run campaigns with: tp campaign-run <campaign_file>")
+    print("  3. Review results with: tp campaign-review")
+    print()
+
+
+def _meta_campaign_plan_logic(args: argparse.Namespace) -> int:
+    """Generate campaign configurations from a meta-campaign file."""
     # Validate config argument
     if not args.config:
         print("Error: --config is required", file=sys.stderr)
@@ -1264,86 +1345,113 @@ def _meta_campaign_plan_logic(args: argparse.Namespace) -> int:
         print(f"Error loading meta-campaign config: {e}", file=sys.stderr)
         return 2
 
-    # Get output directory
-    output_dir = Path(
-        args.output_dir if args.output_dir else "config/campaigns/generated/"
-    )
+    # Prepare output directory
+    default_dir = "config/campaigns/generated/"
+    output_dir = Path(args.output_dir if args.output_dir else default_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Check if output directory contains files
-    existing_files = list(output_dir.glob("*.yaml"))
-    if existing_files and not args.force:
-        print(
-            "Error: Output directory contains existing files. Use --force to overwrite.",
-            file=sys.stderr,
-        )
-        print(
-            f"       Found {len(existing_files)} existing file(s) in {output_dir}",
-            file=sys.stderr,
-        )
+    # Check for existing files
+    should_proceed, existing_files = _check_output_directory(output_dir, args.force)
+    if not should_proceed:
         return 1
 
     # Clear directory if --force is set
     if args.force and existing_files:
         for file in existing_files:
             file.unlink()
-        print(f"Cleared {len(existing_files)} existing file(s) from {output_dir}")
+        print(f"Cleared {len(existing_files)} file(s) from {output_dir}")
 
-    # Generate campaigns
+    # Print generation info
     print(f"Generating campaigns from: {config_path}")
     print(f"Meta-campaign ID: {config.meta_campaign_id}")
     print(f"Description: {config.description}")
     print()
 
+    # Generate campaigns
     campaigns = calculate_cartesian_product(config)
-    print(f"Calculated cartesian product: {len(campaigns)} campaign configurations")
+    print(f"Calculated: {len(campaigns)} campaign configurations")
     print()
-
-    # Track campaigns by profile for indexing
-    profile_counters: dict[str, int] = {}
 
     # Write campaign files
-    generated_count = 0
-    for campaign in campaigns:
-        profile_name = campaign["profile_name"]
-        instrument = campaign["instrument"]
-        timeframe = campaign["execution_timeframe"]
+    generated_count = _write_campaign_files(
+        campaigns, output_dir, config.meta_campaign_id
+    )
 
-        # Get and increment counter for this profile
-        if profile_name not in profile_counters:
-            profile_counters[profile_name] = 0
-        param_index = profile_counters[profile_name]
-        profile_counters[profile_name] += 1
-
-        # Generate filename
-        filename = generate_campaign_filename(
-            meta_campaign_id=config.meta_campaign_id,
-            profile_name=profile_name,
-            instrument=instrument,
-            timeframe=timeframe,
-            param_index=param_index,
-        )
-
-        # Convert to YAML dict
-        yaml_dict = campaign_config_to_yaml_dict(campaign)
-
-        # Write file
-        output_path = output_dir / filename
-        with open(output_path, "w") as f:
-            yaml.dump(yaml_dict, f, default_flow_style=False, sort_keys=False)
-
-        generated_count += 1
-
-    print(f"✓ Generated {generated_count} campaign configurations")
-    print(f"✓ Output directory: {output_dir}")
-    print()
-    print("Next steps:")
-    print("  1. Review generated configs in " + str(output_dir))
-    print("  2. Run campaigns with: tp campaign-run <campaign_file>")
-    print("  3. Review results with: tp campaign-review")
-    print()
+    # Print summary
+    _print_summary(generated_count, output_dir)
 
     return 0
+
+
+def _validate_data_logic(args: argparse.Namespace) -> int:
+    """Validate data integrity for historical price data."""
+    # Validate data_dir argument
+    if not args.data_dir:
+        print("Error: --data-dir is required", file=sys.stderr)
+        return 2
+
+    data_dir = Path(args.data_dir)
+    if not data_dir.exists():
+        print(f"Error: Data directory not found: {data_dir}", file=sys.stderr)
+        return 2
+
+    # Get list of instruments
+    if args.instruments:
+        instruments = args.instruments
+    else:
+        # Scan directory for all instruments
+        instruments = []
+        for file in data_dir.glob("*.parquet"):
+            # Extract instrument from filename (e.g., EUR_USD_1H.parquet -> EUR_USD)
+            parts = file.stem.split("_")
+            if len(parts) >= 2:
+                instrument = "_".join(parts[:2])  # Take first two parts
+                if instrument not in instruments:
+                    instruments.append(instrument)
+
+    if not instruments:
+        print("Error: No instruments found or specified", file=sys.stderr)
+        return 2
+
+    print(f"Validating data in: {data_dir}")
+    print(f"Instruments: {', '.join(instruments)}")
+    print()
+
+    # Run validation
+    results = validate_all_data(data_dir, instruments)
+
+    # Print summary
+    print(f"Total files checked: {results['total_files']}")
+    print(f"Files with issues: {results['total_issues']}")
+    print()
+
+    # Print detailed issues
+    if results["issues"]:
+        print("Issues found:")
+        for issue in results["issues"]:
+            print(f"\nFile: {issue['file']}")
+            if issue["status"] == "corrupted":
+                print("  Status: CORRUPTED")
+                print(f"  Error: {issue['error']}")
+            else:
+                if issue.get("gaps"):
+                    print(f"  Gaps: {len(issue['gaps'])}")
+                    for gap in issue["gaps"][:3]:  # Show first 3 gaps
+                        print(
+                            f"    {gap['start_time']} -> {gap['end_time']} "
+                            f"({gap['gap_minutes']:.0f} minutes)"
+                        )
+                    if len(issue["gaps"]) > 3:
+                        print(f"    ... and {len(issue['gaps']) - 3} more gaps")
+                if issue.get("timestamp_issues"):
+                    print("  Timestamp issues:")
+                    for ts_issue in issue["timestamp_issues"]:
+                        print(f"    - {ts_issue}")
+    else:
+        print("No issues found!")
+
+    # Return exit code
+    return 1 if results["total_issues"] > 0 else 0
 
 
 def main() -> int:
@@ -1491,6 +1599,20 @@ def main() -> int:
         help="Overwrite existing files in output directory",
     )
     pmcp.set_defaults(func=_meta_campaign_plan_logic)
+
+    # Data Validation command
+    pvd = sub.add_parser(
+        "validate-data", help="Validate data integrity for historical price data"
+    )
+    pvd.add_argument(
+        "--data-dir", required=True, help="Directory containing parquet files"
+    )
+    pvd.add_argument(
+        "--instruments",
+        nargs="+",
+        help="Specific instruments to check (default: all in directory)",
+    )
+    pvd.set_defaults(func=_validate_data_logic)
 
     # ML Model Training Commands
     ptpm = sub.add_parser(
