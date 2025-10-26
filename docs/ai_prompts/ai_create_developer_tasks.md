@@ -6,6 +6,20 @@ Your task is to create a set of clear, detailed, and unambiguous instructions fo
 
 You must tell the developer to create a new branch, and specify exactly what the branch name should be.
 
+**Developer Mandates:**
+
+At the top of the generated task list, you **must** include the following section verbatim. This is a direct set of instructions for the developer executing the plan.
+
+---
+
+### **Developer Mandates**
+
+-   **No Bypassing Checks:** You must **never** bypass `mypy` or `ruff` checks. Using `--no-verify` or similar flags to circumvent pre--commit hooks is strictly forbidden. All code must pass all static analysis and linting checks.
+-   **No Deferrals:** You must **never** mark any task as "deferred" or flag it for "future work." If a task is in the plan, it must be implemented.
+-   **Full Implementation:** All tasks must be **completely implemented** as described. Do not leave placeholders or incomplete logic.
+
+---
+
 **Your instructions must be:**
 
 1.  **Action-Oriented:** Start each major item with a verb (e.g., "Fix", "Implement", "Refactor", "Create").

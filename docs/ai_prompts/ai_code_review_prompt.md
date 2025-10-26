@@ -10,14 +10,15 @@ You must perform the review in the following distinct, ordered passes. For each 
 
 ### **Pass 1: Task Completion Verification**
 
-**Objective:** Verify that every single action item in the developer's completed task list has a corresponding code change in the provided `git diff`.
+**Objective:** Verify that every single action item in the developer's completed task list has been fully and correctly implemented without deferrals or workarounds.
 
 1.  Go through the task list item by item.
-2.  For each item, cross-reference it with the `git diff`.
-3.  Confirm that the specified file was modified, the function was changed, and the logic was implemented exactly as instructed.
-4.  **Output:**
-    -   If all tasks are verifiably complete, state: "**Pass 1/5 Complete:** All tasks are fully implemented per the instructions."
-    -   If any task is incomplete or incorrect, list each discrepancy with the task number and a description of what is missing or wrong.
+2.  For each item, cross-reference it with the `git diff` to confirm that the specified file was modified, the function was changed, and the logic was implemented exactly as instructed.
+3.  **Verify Full Implementation:** Confirm that no task has been marked as "deferred" or "future work." All tasks must be 100% complete.
+4.  **Verify No Bypassed Checks:** Check the commit history or PR comments for any indication that pre-commit hooks (mypy, ruff) were bypassed (e.g., using `--no-verify`). The code in the diff must be clean of any linting or type errors that would have been caught by these hooks.
+5.  **Output:**
+    -   If all tasks are verifiably complete and all mandates were followed, state: "**Pass 1/5 Complete:** All tasks are fully implemented per the instructions and developer mandates."
+    -   If any task is incomplete, deferred, or if checks were bypassed, list each discrepancy with the task number and a description of what is missing or wrong.
 
 ---
 
