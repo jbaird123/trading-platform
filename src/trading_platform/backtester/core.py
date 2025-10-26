@@ -188,27 +188,17 @@ def run_backtest(
 
     symbol = resolve_instrument_symbol(config.instrument)
 
-    # Compute contextual features if specified in config
-    data_with_context = market_data
-    if config.contextual_features:
-        from trading_platform.strategy.features import compute_features
-
-        # Convert FeatureConfig objects to dict format for compute_features
-        features_list = [
-            {
-                "name": f.name,
-                "type": f.type,
-                "params": f.params or {},
-                "source": f.source.value
-                if (f.source and hasattr(f.source, "value"))
-                else f.source,
-                "source_ref": f.source_ref,
-            }
-            for f in config.contextual_features
-        ]
-        data_with_context = compute_features(
-            market_data, features_list, strategy_parameters={}
-        )
+    # TODO: Compute global features using resolve_global_features()
+    # The contextual_features field has been removed from RunConfig.
+    # Global features will be loaded from config/features/global.yaml instead.
+    # if config.contextual_features:  # REMOVED - use global.yaml instead
+    #     from trading_platform.strategy.features import compute_features
+    #
+    #     # Convert FeatureConfig objects to dict format for compute_features
+    #     features_list = [...]
+    #     data_with_context = compute_features(
+    #         market_data, features_list, strategy_parameters={}
+    #     )
 
     # Use the complete instrument definition from config
     # (RunConfig validator ensures it has all required fields)
@@ -354,17 +344,17 @@ def run_backtest(
             command = signal
             strategy_features = strategy.get_context(i)
 
-        # Enrich with contextual features if they were computed
-        if config.contextual_features and data_with_context is not market_data:
-            for feature in config.contextual_features:
-                feature_name = feature.name
-                if feature_name in data_with_context.columns:
-                    val = data_with_context[feature_name].iloc[i]
-                    # Convert NaN to None for JSON serialization
-                    if isinstance(val, float) and math.isnan(val):
-                        strategy_features[feature_name] = None
-                    else:
-                        strategy_features[feature_name] = val
+        # TODO: Enrich with global features from resolve_global_features()
+        # The contextual_features field has been removed from RunConfig.
+        # if config.contextual_features and data_with_context is not market_data:
+        #     for feature in config.contextual_features:
+        #         feature_name = feature.name
+        #         if feature_name in data_with_context.columns:
+        #             val = data_with_context[feature_name].iloc[i]
+        #             if isinstance(val, float) and math.isnan(val):
+        #                 strategy_features[feature_name] = None
+        #             else:
+        #                 strategy_features[feature_name] = val
 
         # Always include raw volume for analysis
         strategy_features["volume"] = current_bar["volume"]
