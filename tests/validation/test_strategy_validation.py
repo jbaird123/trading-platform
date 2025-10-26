@@ -951,6 +951,15 @@ def verify_golden_trades_hash(
             )
     finally:
         import os
+        import shutil
+
+        # TEMPORARY: Save copy to workspace for inspection
+        workspace_dir = Path("workspace")
+        workspace_dir.mkdir(exist_ok=True)
+        safe_strategy_name = strategy_name.replace("/", "_")
+        saved_path = workspace_dir / f"current_{safe_strategy_name}.csv"
+        shutil.copy(temp_path, saved_path)
+        print(f"Saved current trades to: {saved_path}")
 
         os.unlink(temp_path)
 
@@ -2853,9 +2862,7 @@ def test_ema_crossover_2atr_stop_trade_count_matches_tradingview(
     verify_golden_trades_hash("ema_crossover/2atr_stop", platform_trades)
 
     # Align trades
-    platform_df, tv_df = align_trades(
-        platform_trades, tradingview_trades, date_range
-    )
+    platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
 
     # Compare counts
     assert len(platform_df) == len(tv_df), (
@@ -2879,9 +2886,7 @@ def test_ema_crossover_2atr_stop_entry_times_match_tradingview(
     platform_trades = platform_trades_2atr_stop
 
     # Align trades
-    platform_df, tv_df = align_trades(
-        platform_trades, tradingview_trades, date_range
-    )
+    platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
 
     # Compare entry times
     mismatches = []
@@ -2930,9 +2935,7 @@ def test_ema_crossover_2atr_stop_entry_prices_match_tradingview(
     platform_trades = platform_trades_2atr_stop
 
     # Align trades
-    platform_df, tv_df = align_trades(
-        platform_trades, tradingview_trades, date_range
-    )
+    platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
 
     # Compare entry prices
     mismatches = []
@@ -2994,9 +2997,7 @@ def test_ema_crossover_2atr_stop_exit_times_match_tradingview(
     platform_trades = platform_trades_2atr_stop
 
     # Align trades
-    platform_df, tv_df = align_trades(
-        platform_trades, tradingview_trades, date_range
-    )
+    platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
 
     # Create analyzer using factory (configured from metadata)
     analyzer = create_analyzer_for_strategy(golden_metadata)
@@ -3080,9 +3081,7 @@ def test_ema_crossover_2atr_stop_exit_prices_match_tradingview(
     platform_trades = platform_trades_2atr_stop
 
     # Align trades
-    platform_df, tv_df = align_trades(
-        platform_trades, tradingview_trades, date_range
-    )
+    platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
 
     # Create analyzer using factory (configured from metadata)
     analyzer = create_analyzer_for_strategy(golden_metadata)
@@ -3111,31 +3110,21 @@ def test_ema_crossover_2atr_stop_exit_prices_match_tradingview(
 
         # Show first 5 examples
         for trade in trades[:5]:
-            print(
-                f"\nTrade #{trade['trade_num']} "
-                f"({trade['direction'].upper()})"
-            )
-            print(
-                f"  Entry: {trade['entry_time']} @ "
-                f"{trade['entry_price']:.5f}"
-            )
+            print(f"\nTrade #{trade['trade_num']} " f"({trade['direction'].upper()})")
+            print(f"  Entry: {trade['entry_time']} @ " f"{trade['entry_price']:.5f}")
             print(f"  Exit:  {trade['exit_time']}")
             print(
                 f"  Platform: {trade['platform_exit']:.5f} "
                 f"({trade['platform_exit_reason']})"
             )
             print(
-                f"  TradingView: {trade['tv_exit']:.5f} "
-                f"({trade['tv_exit_reason']})"
+                f"  TradingView: {trade['tv_exit']:.5f} " f"({trade['tv_exit_reason']})"
             )
             print(f"  Difference: {trade['price_diff_pips']:.1f} pips")
             print(f"  → {trade['explanation']}")
 
         if len(trades) > 5:
-            print(
-                f"\n  ... and {len(trades) - 5} more with similar "
-                f"explanations"
-            )
+            print(f"\n  ... and {len(trades) - 5} more with similar " f"explanations")
 
     # Assert all discrepancies are explained
     analyzer.assert_all_explained(categories)
@@ -3171,9 +3160,7 @@ def test_ema_crossover_bb_stop_trade_count_matches_tradingview(
     except FileNotFoundError as exc:
         pytest.skip(str(exc))
 
-    platform_df, tv_df = align_trades(
-        platform_trades, tradingview_trades, date_range
-    )
+    platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
 
     assert len(platform_df) == len(tv_df), (
         f"Trade count mismatch: Platform generated {len(platform_df)} trades, "
@@ -3200,9 +3187,7 @@ def test_ema_crossover_bb_stop_exit_times_match_tradingview(
     except FileNotFoundError as exc:
         pytest.skip(str(exc))
 
-    platform_df, tv_df = align_trades(
-        platform_trades, tradingview_trades, date_range
-    )
+    platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
 
     analyzer = create_analyzer_for_strategy(golden_metadata)
     categories = analyzer.analyze_discrepancies(
@@ -3234,9 +3219,7 @@ def test_ema_crossover_bb_stop_exit_prices_match_tradingview(
     except FileNotFoundError as exc:
         pytest.skip(str(exc))
 
-    platform_df, tv_df = align_trades(
-        platform_trades, tradingview_trades, date_range
-    )
+    platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
 
     analyzer = create_analyzer_for_strategy(golden_metadata)
     categories = analyzer.analyze_discrepancies(
