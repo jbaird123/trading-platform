@@ -91,7 +91,7 @@
   "meta": {
     "strategy_name": "Golden_EMA_Crossover",
     "run_id": "golden_run_test",
-    "git_commit": "763c458",
+    "git_commit": "3b8ea2f",
     "run_seed": 42
   },
   "strategy_params": {},
@@ -263,7 +263,7 @@
       "EURUSD"
     ],
     "app_version": "0.0.1",
-    "git_commit": "763c458",
+    "git_commit": "3b8ea2f",
     "run_seed": 42
   },
   "artifacts": {},
@@ -379,7 +379,7 @@
     "signal_quality_analysis.avg_signal_duration_bars": "Average number of consecutive bars a non-flat signal persists.",
     "blackout_policy.blackout_utc": "List of UTC blackout intervals or timestamps.",
     "blackout_policy.blackout_events": "List of event identifiers that trigger blackout windows.",
-    "rem_policy.stop_loss.type": "Stop loss configuration including price offsets and conditions.",
+    "rem_policy.stop_loss.type": "Stop loss type (indicator, offset, etc.)",
     "rem_policy.stop_loss.price_offset": "Stop loss configuration including price offsets and conditions.",
     "rem_policy.take_profit.type": "Take profit configuration including price offsets and conditions.",
     "rem_policy.take_profit.price_offset": "Take profit configuration including price offsets and conditions.",
@@ -442,9 +442,9 @@
       "pnl": 6.0,
       "pnl_movement": 6.0,
       "exit_reason": "end_of_data",
-      "r_multiple": null,
-      "mfe_currency": 7.0,
-      "mae_currency": 1.0,
+      "r_multiple": 6e-06,
+      "mfe_normalized": 7.0,
+      "mae_normalized": 1.0,
       "bars_held": 6,
       "context_at_entry": {
         "strategy_features": {
@@ -452,17 +452,17 @@
           "sma_slow": 118.0
         },
         "global_features": {
-          "h1_rsi_14": 42.69265779520893,
           "h1_obv": 14000,
-          "h1_atr_14": 2.523400956639961,
-          "d1_atr_14": 25.0,
-          "h1_volume_sma_20": 1000.0,
-          "d1_ema_50": 123.0,
-          "d1_volume_sma_20": null,
-          "h1_bb_width_20": 0.09882969313297045,
           "h4_rsi_14": null,
-          "h4_ema_50": null,
+          "h1_volume_sma_20": 1000.0,
           "h1_ema_50": null,
+          "h4_ema_50": null,
+          "d1_ema_50": 123.0,
+          "h1_bb_width_20": 0.09882969313297045,
+          "d1_volume_sma_20": null,
+          "h1_rsi_14": 42.69265779520893,
+          "d1_atr_14": 25.0,
+          "h1_atr_14": 2.523400956639961,
           "volume": 1000
         }
       },
