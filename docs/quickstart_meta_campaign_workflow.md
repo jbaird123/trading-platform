@@ -174,15 +174,73 @@ done
 Execution complete: 2/2 successful
 ```
 
-### Step 6: Publish Results
+### Step 6: Validate Campaign Results
 
-After running all campaigns, publish the results to the master trade log:
+After running all campaigns, validate the candidate runs:
 
 ```bash
+# Validate each campaign
+for config in config/campaigns/generated/*.yaml; do
+  campaign_id=$(grep "^campaign_id:" "$config" | cut -d' ' -f2)
+  tp campaign-validate --campaign-id "$campaign_id"
+done
+```
+
+**Expected Output:**
+```
+Validation report created: data/candidates/my_first_campaign_trend_with_risk_1H/validation_report.json
+✓ Schema validation: PASS
+✓ Data quality: PASS
+✓ Min trades: PASS
+✓ Duplicate detection: PASS
+✓ Max drawdown: PASS
+✓ Indicator registry: PASS
+```
+
+### Step 7: Review and Approve Runs
+
+Review the validation reports and approve runs for publication:
+
+```bash
+# Generate review report for each campaign
+tp campaign-review --campaign-id my_first_campaign_trend_with_risk_1H
+
+# Approve individual runs
+tp campaign-approve --campaign-id my_first_campaign_trend_with_risk_1H \
+  --run-id my_first_campaign_trend_with_risk_1H_0000_EUR_USD \
+  --notes "Good performance metrics"
+```
+
+**Or approve all runs in a campaign at once:**
+```bash
+# This approves all runs that passed validation
+tp campaign-approve-all --campaign-id my_first_campaign_trend_with_risk_1H
+```
+
+### Step 8: Enrich Approved Runs
+
+Enrich approved candidates with ML features:
+
+```bash
+# Enrich each campaign
+for config in config/campaigns/generated/*.yaml; do
+  campaign_id=$(grep "^campaign_id:" "$config" | cut -d' ' -f2)
+  tp campaign-enrich --campaign-id "$campaign_id"
+done
+```
+
+This creates `data/enriched/<campaign_id>/rich_trades.parquet` with enriched trade data.
+
+### Step 9: Publish to Master Trade Log
+
+Finally, publish the enriched data to the master trade log:
+
+```bash
+# Publish by meta-campaign ID (not individual campaign IDs)
 tp campaign-publish --campaign-id my_first_campaign
 ```
 
-This creates `runs/my_first_campaign/master_trade_log.parquet` with all trades.
+This appends to `data/dvc/processed/training_sets/master_trade_log.parquet` and automatically runs DVC tracking.
 
 ## Phase 2: Model Training
 
@@ -325,6 +383,16 @@ Start small and scale up:
 **Problem**: "Need at least 2 periods"
 **Solution**: Use longer data range or change `--periods` to quarterly/monthly
 
+### Campaign Execution Issues
+
+**Problem**: `ValueError: Missing schema description for brief path: rem_policy.stop_loss.params.<field>`
+**Cause**: New REM indicator introduced without updating brief schema
+**Solution**:
+1. Check that the REM indicator has a Pydantic model with Field descriptions in `src/trading_platform/risk_manager/models.py`
+2. Update `src/trading_platform/reporting/schemas/brief.schema.json` to include nested properties for the new indicator's params
+3. Ensure all field descriptions in the schema match the Pydantic model Field descriptions
+4. Example: The Chandelier Stop required adding `multiplier`, `length`, and `atr_length` to the schema with detailed descriptions
+
 ## Next Steps
 
 - See [Meta-Campaign System Guide](user_guides/meta_campaign_system.md) for detailed documentation
@@ -351,6 +419,26 @@ done
 for config in config/campaigns/generated/*.yaml; do
   campaign_id=$(grep "^campaign_id:" "$config" | cut -d' ' -f2)
   tp campaign-run --campaign-id "$campaign_id"
+done
+
+# Phase 1: Validate all campaigns
+for config in config/campaigns/generated/*.yaml; do
+  campaign_id=$(grep "^campaign_id:" "$config" | cut -d' ' -f2)
+  tp campaign-validate --campaign-id "$campaign_id"
+done
+
+# Phase 1: Review and approve campaigns
+for config in config/campaigns/generated/*.yaml; do
+  campaign_id=$(grep "^campaign_id:" "$config" | cut -d' ' -f2)
+  tp campaign-review --campaign-id "$campaign_id"
+  # Approve all runs that passed validation
+  tp campaign-approve-all --campaign-id "$campaign_id"
+done
+
+# Phase 1: Enrich approved runs
+for config in config/campaigns/generated/*.yaml; do
+  campaign_id=$(grep "^campaign_id:" "$config" | cut -d' ' -f2)
+  tp campaign-enrich --campaign-id "$campaign_id"
 done
 
 # Phase 1: Publish results to master trade log
