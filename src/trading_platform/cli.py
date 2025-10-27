@@ -153,32 +153,12 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         dq_flags = data_handler.data_quality_flags
 
         # Get data for requested timeframe and date range
-        # Load with warmup buffer to allow indicators to initialize
-        # (EMA(50), SMA(50), etc need ~50-100 bars before becoming valid)
-        warmup_days = 100  # Conservative buffer for indicator warmup
-        requested_start = data_req.get("start")
-        requested_end = data_req.get("end")
-
-        # Calculate warmup start date
-        if requested_start:
-            warmup_start = pd.Timestamp(requested_start) - pd.Timedelta(
-                days=warmup_days
-            )
-            warmup_start_str = warmup_start.strftime("%Y-%m-%d")
-        else:
-            warmup_start_str = None
-
-        # Load data with warmup buffer
-        # DataHandler caches complete datasets and applies filtering
+        # Will calculate warmup requirements dynamically based on indicators
         df = data_handler.get_data(
             timeframe=data_req.get("timeframe"),
-            start=warmup_start_str,  # Load from earlier date
-            end=requested_end,
+            start=data_req.get("start"),
+            end=data_req.get("end"),
         )
-
-        # Store the actual requested start for trimming after feature calculation
-        # The backtester will trim to this range after computing global features
-        cfg._warmup_trim_start = requested_start  # type: ignore[attr-defined]
     else:
         idx = pd.date_range("2024-01-01", periods=5, freq="h")
         vals = [1.0, 2.0, 3.0, 2.0, 1.0]
@@ -251,6 +231,28 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                         f["params"] = params
     strat = compile_strategy(strat_cfg)
     signals = strat.generate_signals(df)
+
+    # Validate strategy features: check first bar for NaN values
+    # If any strategy indicators are NaN at backtest start, warmup is insufficient
+    if strat._feature_df is not None and len(strat._feature_df) > 0:
+        first_bar = strat._feature_df.iloc[0]
+        strategy_features = strat_cfg.get("features", [])
+        nan_features = []
+
+        for feature in strategy_features:
+            feature_name = feature.get("name")
+            if feature_name and feature_name in first_bar.index:
+                val = first_bar[feature_name]
+                if pd.isna(val):
+                    nan_features.append(feature_name)
+
+        if nan_features:
+            raise ValueError(
+                f"Insufficient warmup: The following strategy features have NaN "
+                f"values at backtest start ({first_bar.name}): {nan_features}. "
+                f"Indicators are not fully initialized. "
+                f"Load data from an earlier start date to allow warmup."
+            )
 
     # Get feature-enriched dataframe for REM (includes ATR, etc.)
     # This allows REM to access strategy-calculated features like ATR

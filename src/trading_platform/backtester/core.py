@@ -234,29 +234,41 @@ def run_backtest(
                 f"{[f['name'] for f in global_features_list]}"
             )
 
-            # Trim warmup buffer if present
-            # Data was loaded with extra warmup period to allow indicators to initialize
-            warmup_trim_start = (
-                config._warmup_trim_start
-                if hasattr(config, "_warmup_trim_start")
-                else None
-            )
-            if warmup_trim_start:
-                trim_start = pd.Timestamp(warmup_trim_start)
-                # Trim both market_data and data_with_global_features
-                market_data = market_data[market_data.index >= trim_start]
-                data_with_global_features = data_with_global_features[
-                    data_with_global_features.index >= trim_start
-                ]
-                logger.info(
-                    f"Trimmed warmup buffer: keeping data from {trim_start} onwards"
-                )
+            # Validate: Check first bar for NaN values in global features
+            # If any indicators are NaN at backtest start, warmup is insufficient
+            def _validate_no_nan_features():
+                if len(data_with_global_features) > 0:
+                    first_bar = data_with_global_features.iloc[0]
+                    nan_features = []
+                    for feature in global_features_list:
+                        feature_name = feature.get("name")
+                        if (
+                            feature_name
+                            and isinstance(feature_name, str)
+                            and feature_name in first_bar.index
+                        ):
+                            val = first_bar[feature_name]
+                            if pd.isna(val):
+                                nan_features.append(feature_name)
+
+                    if nan_features:
+                        raise ValueError(  # noqa: TRY301
+                            f"Insufficient warmup: The following global features "
+                            f"have NaN values at backtest start ({first_bar.name}): "
+                            f"{nan_features}. Indicators are not fully initialized. "
+                            f"Load data from an earlier start date to allow warmup."
+                        )
+
+            _validate_no_nan_features()
 
     except FileNotFoundError:
         # global.yaml doesn't exist - this is okay, just log it
         logger.info("No global.yaml found - proceeding without global features")
+    except ValueError:
+        # Re-raise ValueError (e.g., insufficient warmup) - should fail backtest
+        raise
     except Exception as e:
-        # Log but don't fail the backtest if global features fail
+        # Log but don't fail the backtest if global features fail (other errors)
         logger.warning(f"Failed to load global features: {e}")
 
     from typing import cast
