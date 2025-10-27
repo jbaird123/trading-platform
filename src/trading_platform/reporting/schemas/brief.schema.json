@@ -662,7 +662,32 @@
       "type": "object",
       "description": "Risk Exit Manager (REM) policy configuration that controls stop losses, take profits, and other exit conditions.",
       "properties": {
-        "stop_loss": { "type": "object", "description": "Stop loss configuration including price offsets and conditions." },
+        "stop_loss": {
+          "type": "object",
+          "description": "Stop loss configuration including price offsets and conditions.",
+          "properties": {
+            "type": { "type": "string", "description": "Stop loss type (indicator, offset, etc.)" },
+            "indicator": { "type": "string", "description": "Name of the indicator providing dynamic stop levels (e.g., 'chandelier')." },
+            "params": {
+              "type": "object",
+              "description": "Indicator-specific parameters.",
+              "properties": {
+                "multiplier": {
+                  "type": "number",
+                  "description": "ATR multiplier controlling stop distance. Higher values (3.0-4.0) provide wider stops suitable for volatile markets or swing trading. Lower values (2.0-2.5) create tighter stops for scalping or trend following. The stop distance equals ATR × multiplier."
+                },
+                "length": {
+                  "type": "integer",
+                  "description": "Lookback period for HHV (Highest High Value) and LLV (Lowest Low Value). Determines how far back to search for swing highs/lows that anchor the chandelier. Common values: 20-22 for intraday trading, 10-14 for day trading, 30+ for position trading. Longer periods create more stable stops."
+                },
+                "atr_length": {
+                  "type": "integer",
+                  "description": "Period length for ATR (Average True Range) calculation. Measures market volatility to dynamically adjust stop distance. Standard is 14 periods, but use 10 for faster adaptation to volatility changes or 20+ for smoother, less reactive stops."
+                }
+              }
+            }
+          }
+        },
         "take_profit": { "type": "object", "description": "Take profit configuration including price offsets and conditions." },
         "trailing_stop": { "type": "object", "description": "Trailing stop configuration if enabled." },
         "time_exit": { "type": "object", "description": "Time-based exit configuration if enabled." },
