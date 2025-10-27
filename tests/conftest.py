@@ -23,64 +23,6 @@ def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
     return {"symbol": symbol}
 
 
-@pytest.fixture(autouse=True, scope="function")
-def auto_warmup_for_tests(monkeypatch, request):
-    """Automatically enable warmup extension for all backtest calls in tests.
-
-    This fixture patches all internal backtest functions to automatically set
-    auto_extend_for_warmup=True, ensuring all tests have sufficient data
-    for indicators to warm up without modifying individual test calls.
-    """
-    from trading_platform.backtester.core import _run_backtest_simulation as original_simulation
-    from trading_platform.backtester.orchestrator import run_backtest as original_run_backtest
-
-    def simulation_with_auto_warmup(*args, **kwargs):
-        # Set auto_extend_for_warmup=True unless explicitly set to False
-        if "auto_extend_for_warmup" not in kwargs:
-            kwargs["auto_extend_for_warmup"] = True
-        return original_simulation(*args, **kwargs)
-
-    def run_backtest_with_auto_warmup(*args, **kwargs):
-        # Set auto_extend_for_warmup=True unless explicitly set to False
-        if "auto_extend_for_warmup" not in kwargs:
-            kwargs["auto_extend_for_warmup"] = True
-        return original_run_backtest(*args, **kwargs)
-
-    # Patch the internal simulation function
-    monkeypatch.setattr(
-        "trading_platform.backtester.core._run_backtest_simulation",
-        simulation_with_auto_warmup
-    )
-
-    # Patch the public orchestrator function
-    monkeypatch.setattr(
-        "trading_platform.backtester.orchestrator.run_backtest",
-        run_backtest_with_auto_warmup
-    )
-
-    # CLI now calls orchestrator.run_backtest(), so no need to patch CLI
-    # Sweeps still calls _run_backtest_simulation directly (it's a meta-orchestrator)
-    monkeypatch.setattr(
-        "trading_platform.core.sweeps._run_backtest_simulation",
-        simulation_with_auto_warmup
-    )
-
-    # Dynamically patch the test module
-    test_module = request.module
-    if hasattr(test_module, "run_backtest"):
-        monkeypatch.setattr(
-            test_module,
-            "run_backtest",
-            run_backtest_with_auto_warmup
-        )
-    if hasattr(test_module, "_run_backtest_simulation"):
-        monkeypatch.setattr(
-            test_module,
-            "_run_backtest_simulation",
-            simulation_with_auto_warmup
-        )
-
-
 @given(
     parsers.parse('a market data series with columns "{columns}"'),
     target_fixture="shared_context",
