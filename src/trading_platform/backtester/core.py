@@ -233,6 +233,25 @@ def run_backtest(
                 f"Computed {len(global_features_list)} global features: "
                 f"{[f['name'] for f in global_features_list]}"
             )
+
+            # Trim warmup buffer if present
+            # Data was loaded with extra warmup period to allow indicators to initialize
+            warmup_trim_start = (
+                config._warmup_trim_start
+                if hasattr(config, "_warmup_trim_start")
+                else None
+            )
+            if warmup_trim_start:
+                trim_start = pd.Timestamp(warmup_trim_start)
+                # Trim both market_data and data_with_global_features
+                market_data = market_data[market_data.index >= trim_start]
+                data_with_global_features = data_with_global_features[
+                    data_with_global_features.index >= trim_start
+                ]
+                logger.info(
+                    f"Trimmed warmup buffer: keeping data from {trim_start} onwards"
+                )
+
     except FileNotFoundError:
         # global.yaml doesn't exist - this is okay, just log it
         logger.info("No global.yaml found - proceeding without global features")
