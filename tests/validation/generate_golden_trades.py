@@ -38,7 +38,7 @@ from pathlib import Path
 
 import pandas as pd
 import yaml
-from trading_platform.backtester.orchestrator import run_backtest_from_config
+from trading_platform.backtester import run_backtest
 from trading_platform.core.config import RunConfig
 from trading_platform.data.handler import DataHandler
 
@@ -174,12 +174,14 @@ def generate_golden_trades_for_strategy(
     # Run backtest with frozen golden features config
     print(f"Running backtest with {len(ohlcv_filtered)} bars...")
     golden_features_path = project_root / "data/dvc/golden/features/global.yaml"
-    results = run_backtest_from_config(
+    results = run_backtest(
         config=config,
         market_data=ohlcv_filtered,
         strategy_config=strategy_config,
         data_handler=data_handler,
         global_features_config_path=golden_features_path,
+        auto_extend_for_warmup=True,  # Automatically extend for warmup
+        validate_warmup=False,  # Validation tests manage their own data
     )
 
     # Filter trades to validation range

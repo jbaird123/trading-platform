@@ -1,0 +1,230 @@
+"""Test helpers for creating warmup-aware test data.
+
+This module provides utilities to automatically generate test data with sufficient
+warmup periods for indicators to initialize properly.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any
+
+import pandas as pd
+
+
+def create_market_data_with_warmup(
+    start_date: datetime,
+    end_date: datetime,
+    freq: str = "1H",
+    execution_timeframe: str = "1H",
+    strategy_features: list[dict[str, Any]] | None = None,
+    include_global_features: bool = True,
+    ohlcv_values: dict[str, float] | None = None,
+) -> pd.DataFrame:
+    """Create test market data with automatic warmup buffer for indicators.
+
+    This function calculates the required warmup period based on the strategy features
+    and global features, then generates data starting earlier to ensure all indicators
+    can initialize properly.
+
+    Args:
+        start_date: Desired backtest start date (warmup will be added before this)
+        end_date: End date for the data
+        freq: Frequency of the bars (e.g., "1H", "15min", "1D")
+        execution_timeframe: Execution timeframe for the backtest
+        strategy_features: List of strategy feature definitions (optional)
+        include_global_features: Whether to include global features from config/features/global.yaml
+        ohlcv_values: Default OHLCV values to use (default: {"open": 1.0, "high": 1.1, "low": 0.9, "close": 1.0, "volume": 100})
+
+    Returns:
+        DataFrame with OHLCV data starting from (start_date - warmup_buffer) to end_date
+    """
+    from pathlib import Path
+
+    from trading_platform.backtester.warmup import calculate_warmup_start_date
+
+    # Default OHLCV values
+    if ohlcv_values is None:
+        ohlcv_values = {
+            "open": 1.0,
+            "high": 1.1,
+            "low": 0.9,
+            "close": 1.0,
+            "volume": 100,
+        }
+
+    # Load global features if requested
+    global_features: list[dict[str, Any]] = []
+    if include_global_features:
+        try:
+            from trading_platform.core.feature_resolver import (
+                resolve_global_features,
+            )
+
+            config_path = (
+                Path(__file__).parent.parent / "config" / "features" / "global.yaml"
+            )
+            resolved = resolve_global_features(
+                execution_timeframe, config_path=config_path
+            )
+            global_features = [
+                {
+                    "name": f.name,
+                    "type": f.type,
+                    "params": f.params,
+                    "source": f.source,
+                    **(
+                        {}
+                        if f.timeframe == execution_timeframe
+                        else {"timeframe": f.timeframe}
+                    ),
+                }
+                for f in resolved
+            ]
+        except Exception:
+            # If global features can't be loaded, skip them
+            pass
+
+    # Create initial data from start to end (we'll extend it backwards later)
+    # We need at least some data to calculate the warmup requirement
+    initial_index = pd.date_range(start_date, end_date, freq=freq)
+    temp_df = pd.DataFrame(
+        {
+            "open": ohlcv_values["open"],
+            "high": ohlcv_values["high"],
+            "low": ohlcv_values["low"],
+            "close": ohlcv_values["close"],
+            "volume": ohlcv_values["volume"],
+        },
+        index=initial_index,
+    )
+
+    # Calculate the warmup start date
+    try:
+        warmup_start, _ = calculate_warmup_start_date(
+            strategy_features=strategy_features or [],
+            global_features=global_features,
+            execution_timeframe=execution_timeframe,
+            market_data=temp_df,
+            backtest_start_date=start_date,
+            safety_days=10,
+        )
+
+        # Generate the full data range including warmup
+        full_index = pd.date_range(warmup_start, end_date, freq=freq)
+    except (ValueError, KeyError):
+        # If warmup calculation fails (e.g., insufficient data), use a conservative buffer
+        # Most tests use h1_ema_50, d1_ema_50 which need 50 bars at 1D = ~60 days
+        warmup_start = start_date - pd.Timedelta(days=100)
+        full_index = pd.date_range(warmup_start, end_date, freq=freq)
+
+    # Create the full DataFrame
+    df = pd.DataFrame(
+        {
+            "open": ohlcv_values["open"],
+            "high": ohlcv_values["high"],
+            "low": ohlcv_values["low"],
+            "close": ohlcv_values["close"],
+            "volume": ohlcv_values["volume"],
+        },
+        index=full_index,
+    )
+
+    return df
+
+
+def extend_test_data_for_warmup(
+    df: pd.DataFrame,
+    backtest_start: datetime,
+    execution_timeframe: str = "1H",
+    strategy_features: list[dict[str, Any]] | None = None,
+    include_global_features: bool = True,
+) -> pd.DataFrame:
+    """Extend existing test DataFrame backwards to include warmup period.
+
+    This is useful when you have existing test data but need to add warmup buffer.
+
+    Args:
+        df: Existing DataFrame with OHLCV data
+        backtest_start: The desired backtest start date (should be in df.index)
+        execution_timeframe: Execution timeframe for the backtest
+        strategy_features: List of strategy feature definitions (optional)
+        include_global_features: Whether to include global features
+
+    Returns:
+        Extended DataFrame with warmup period prepended
+    """
+    from pathlib import Path
+
+    from trading_platform.backtester.warmup import calculate_warmup_start_date
+
+    # Load global features if requested
+    global_features: list[dict[str, Any]] = []
+    if include_global_features:
+        try:
+            from trading_platform.core.feature_resolver import (
+                resolve_global_features,
+            )
+
+            config_path = (
+                Path(__file__).parent.parent / "config" / "features" / "global.yaml"
+            )
+            resolved = resolve_global_features(
+                execution_timeframe, config_path=config_path
+            )
+            global_features = [
+                {
+                    "name": f.name,
+                    "type": f.type,
+                    "params": f.params,
+                    "source": f.source,
+                    **(
+                        {}
+                        if f.timeframe == execution_timeframe
+                        else {"timeframe": f.timeframe}
+                    ),
+                }
+                for f in resolved
+            ]
+        except Exception:
+            pass
+
+    # Calculate warmup start
+    try:
+        warmup_start, _ = calculate_warmup_start_date(
+            strategy_features=strategy_features or [],
+            global_features=global_features,
+            execution_timeframe=execution_timeframe,
+            market_data=df,
+            backtest_start_date=backtest_start,
+            safety_days=10,
+        )
+    except (ValueError, KeyError):
+        # Conservative fallback
+        warmup_start = backtest_start - pd.Timedelta(days=100)
+
+    # If data already extends before warmup_start, return as-is
+    if df.index[0] <= pd.Timestamp(warmup_start):
+        return df
+
+    # Infer frequency from existing data
+    freq = pd.infer_freq(df.index)
+    if freq is None:
+        freq = df.index[1] - df.index[0]
+
+    # Create warmup bars by repeating the first bar's values
+    warmup_index = pd.date_range(warmup_start, df.index[0], freq=freq, inclusive="left")
+
+    if len(warmup_index) == 0:
+        return df
+
+    # Create warmup data with same values as first bar
+    first_bar = df.iloc[0]
+    warmup_df = pd.DataFrame(
+        {col: first_bar[col] for col in df.columns}, index=warmup_index
+    )
+
+    # Concatenate warmup and original data
+    extended_df = pd.concat([warmup_df, df])
+
+    return extended_df

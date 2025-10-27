@@ -596,7 +596,7 @@ def load_platform_trades(
     from pathlib import Path
 
     import yaml
-    from trading_platform.backtester.orchestrator import run_backtest_from_config
+    from trading_platform.backtester import run_backtest
     from trading_platform.core.config import RunConfig
 
     # Load strategy config
@@ -650,12 +650,14 @@ def load_platform_trades(
     # Run backtest with 1-min data handler (for zoom capability)
     # Use frozen golden features config for golden validation tests
     golden_features_path = Path("data/dvc/golden/features/global.yaml")
-    results = run_backtest_from_config(
+    results = run_backtest(
         config=config,
         market_data=ohlcv_to_use,
         strategy_config=strategy_config,
         data_handler=data_handler,
         global_features_config_path=golden_features_path,
+        auto_extend_for_warmup=True,  # Automatically extend for warmup
+        validate_warmup=False,  # Validation tests manage their own data
     )
 
     # Filter trades to validation range

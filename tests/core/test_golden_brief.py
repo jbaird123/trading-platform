@@ -6,7 +6,7 @@ from typing import Any, cast
 
 import pytest
 import yaml
-from trading_platform.backtester.core import run_backtest
+from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.core.config import RunConfig
 from trading_platform.core.run import finalize_run
 from trading_platform.data.schema import load_and_normalize_data
@@ -123,7 +123,7 @@ def test_brief_matches_golden_master(tmp_path: Path, request):
     run_config = RunConfig.model_validate(cfg_for_validation)
 
     # 4. Run the backtest
-    res = run_backtest(
+    res = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,

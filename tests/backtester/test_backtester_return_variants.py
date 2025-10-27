@@ -4,9 +4,9 @@ from datetime import datetime
 from typing import Any
 
 import pandas as pd
+from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.backtester.core import (
     _simulate_counterfactual_exact,
-    run_backtest,
 )
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
@@ -51,7 +51,7 @@ def test_run_backtest_returns_trades_and_exposure_only() -> None:
     )
     rem = RiskExitManager(config=None)
 
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,

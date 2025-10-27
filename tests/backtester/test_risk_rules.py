@@ -5,7 +5,7 @@ from typing import cast
 
 import pandas as pd
 from pytest import approx
-from trading_platform.backtester.core import run_backtest
+from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
@@ -72,7 +72,7 @@ def test_daily_loss_cap_blocks_new_entries():
     )
     rem = RiskExitManager(config=None)
 
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=sig,
         strategy=strategy,
@@ -115,7 +115,7 @@ def test_exposure_curve_tracks_gross_notional():
     )
     rem = RiskExitManager(config=None)
 
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=sig,
         strategy=strategy,
@@ -161,7 +161,7 @@ def test_position_cap_skips_same_direction_entry():
     )
     rem = RiskExitManager(config=None)
 
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=sig,
         strategy=strategy,
@@ -210,7 +210,7 @@ def test_position_cap_not_reached_when_already_open():
     )
     rem = RiskExitManager(config=None)
 
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=sig,
         strategy=strategy,
@@ -260,7 +260,7 @@ def test_position_cap_zero_blocks_new_entry():
     )
     rem = RiskExitManager(config=None)
 
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=sig,
         strategy=strategy,
@@ -311,7 +311,7 @@ def test_rmm_blocks_disallowed_side():
         }
     }
 
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=sig,
         strategy=strategy,

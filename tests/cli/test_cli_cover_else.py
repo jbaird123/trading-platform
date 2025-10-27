@@ -23,8 +23,18 @@ def _dummy_strategy() -> CompiledStrategy:
 
 
 def test_cmd_run_backtest_else_branch(tmp_path: Path, monkeypatch) -> None:
-    # Force run_backtest to return non-tuple to exercise else branch
-    monkeypatch.setattr(cli, "run_backtest", lambda *a, **k: [])
+    # Force run_backtest to return dict (non-tuple) to exercise else branch
+    import pandas as pd
+    df = pd.DataFrame({"open": [1.0], "high": [1.0], "low": [1.0], "close": [1.0], "volume": [1]})
+    mock_strat = _dummy_strategy()
+    monkeypatch.setattr(cli, "run_backtest", lambda *a, **k: {
+        "trades": [],
+        "equity_curve": [],
+        "strategy_name": "S",
+        "initial_capital": 1000,
+        "compiled_strategy": mock_strat,
+        "feature_enriched_df": df
+    })
 
     called = {"finalize": False}
 

@@ -7,7 +7,7 @@ from typing import Any, cast
 import pandas as pd
 import pytest
 from pytest import approx
-from trading_platform.backtester.core import run_backtest
+from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 
@@ -59,7 +59,7 @@ def test_counterfactual_for_blackout_skip_with_tp():
         exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config=None)
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=sig,
         strategy=strategy,
@@ -99,7 +99,7 @@ def test_rmm_skip_records_policy_snapshot() -> None:
             "policy": {"min_confidence": 0.6},
         }
     }
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=sig,
         strategy=strategy,
@@ -135,7 +135,7 @@ def test_run_backtest_returns_exposure_without_skips() -> None:
         exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config=None)
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=sig,
         strategy=strategy,
@@ -157,7 +157,7 @@ def test_corrupted_skipped_entry_raises_error() -> None:
     """
     from unittest.mock import patch
 
-    from trading_platform.backtester.core import run_backtest
+    from trading_platform.backtester.core import _run_backtest_simulation
 
     df = _mk_df()
     strategy = _dummy_strategy_cfg()
@@ -178,17 +178,17 @@ def test_corrupted_skipped_entry_raises_error() -> None:
     rem = RiskExitManager(config=None)
 
     # Patch the skipped list to inject corrupted data
-    with patch("trading_platform.backtester.core.run_backtest") as mock_run:
+    with patch("trading_platform.backtester.core._run_backtest_simulation") as mock_run:
         # Call real function but we'll test the logic directly
         mock_run.side_effect = lambda *args, **kwargs: (
-            run_backtest.__wrapped__(*args, **kwargs)
-            if hasattr(run_backtest, "__wrapped__")
+            _run_backtest_simulation.__wrapped__(*args, **kwargs)
+            if hasattr(_run_backtest_simulation, "__wrapped__")
             else ValueError("Test setup error")
         )
 
     # Instead, let's test this by directly calling the processing logic
     # after getting skipped entries
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=sig,
         strategy=strategy,

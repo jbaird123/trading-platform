@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import yaml
-from trading_platform.backtester.core import run_backtest
+from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.core.config import RunConfig
 from trading_platform.data.loader import load_and_normalize_data
 from trading_platform.portfolio.trade import Trade
@@ -74,7 +74,7 @@ def test_core_calculations_match_manual_csv():
     rem = RiskExitManager(config=rem_config, instrument=run_config.instrument)
 
     # 6. Run backtest with skipped trades tracking
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,

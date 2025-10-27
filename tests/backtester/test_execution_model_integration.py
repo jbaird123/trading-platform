@@ -11,7 +11,7 @@ from datetime import datetime
 
 import pandas as pd
 import pytest
-from trading_platform.backtester.core import run_backtest
+from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 
@@ -146,7 +146,7 @@ def test_next_bar_open_execution_model_complete_flow():
     rem = RiskExitManager(config=None, instrument=TEST_INSTRUMENT)
 
     # Run backtest
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,  # type: ignore[arg-type]
@@ -248,7 +248,7 @@ def test_next_bar_open_vs_current_bar_close_comparison():
         allow_flip_on_bar=False,
     )
 
-    result_legacy = run_backtest(
+    result_legacy = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,  # type: ignore[arg-type]
@@ -275,7 +275,7 @@ def test_next_bar_open_vs_current_bar_close_comparison():
         allow_flip_on_bar=False,
     )
 
-    result_realistic = run_backtest(
+    result_realistic = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,  # type: ignore[arg-type]

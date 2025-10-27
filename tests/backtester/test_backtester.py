@@ -11,10 +11,10 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pandas as pd
 import pytest
+from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.backtester.core import (
     _simulate_counterfactual_exact,
     _simulate_counterfactual_fast,
-    run_backtest,
 )
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
@@ -95,7 +95,7 @@ def test_rmm_blocks_signal_not_in_allowed_sides():
 
     trades_list, _, skipped_list = cast(
         BacktestTriple,
-        run_backtest(
+        _run_backtest_simulation(
             market_data=df,
             signals=signals,
             strategy=strategy,
@@ -150,7 +150,7 @@ def test_rmm_allows_signal_opens_position() -> None:
     )
     rem = RiskExitManager(config=None)
 
-    trades = run_backtest(
+    trades = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -192,7 +192,7 @@ def test_return_skips_only():
     )
     rem = RiskExitManager(config=None)
 
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -438,7 +438,7 @@ def test_backtester_with_rem_pips_stop_loss():
     strategy.generate_signals(market_data)  # Populate _feature_df for context lookups
     signals = pd.Series(["enter_long", None], index=market_data.index)
 
-    trades = run_backtest(
+    trades = _run_backtest_simulation(
         market_data=market_data,
         signals=signals,
         strategy=strategy,
@@ -514,7 +514,7 @@ class TestBacktesterCoreCoverage:
                 "policy": {"min_confidence": 0.7},
             }
         }
-        result = run_backtest(
+        result = _run_backtest_simulation(
             market_data=sample_data,
             signals=sample_signals,
             strategy=mock_strategy,
@@ -537,7 +537,7 @@ class TestBacktesterCoreCoverage:
         ):
             _, _, skipped = cast(
                 BacktestTriple,
-                run_backtest(
+                _run_backtest_simulation(
                     market_data=sample_data,
                     signals=sample_signals,
                     strategy=mock_strategy,
@@ -668,7 +668,7 @@ def test_rmm_context_enrichment_in_trades_and_skips():
     # Run backtest with RMM context - signals are passed directly to run_backtest
     trades_list, _, skipped_list = cast(
         BacktestTriple,
-        run_backtest(
+        _run_backtest_simulation(
             market_data=df,
             signals=signals,
             strategy=strategy,
@@ -860,7 +860,7 @@ def test_entry_window_allows_delayed_entry():
 
     trades_list, _, skipped_list = cast(
         BacktestTriple,
-        run_backtest(
+        _run_backtest_simulation(
             market_data=df,
             signals=signals,
             strategy=strategy,
@@ -954,7 +954,7 @@ def test_entry_window_expires():
 
     trades_list, _, skipped_list = cast(
         BacktestTriple,
-        run_backtest(
+        _run_backtest_simulation(
             market_data=df,
             signals=signals,
             strategy=strategy,
@@ -1024,7 +1024,7 @@ def test_entry_window_prevents_reentry_after_rem_exit():
     )
     rem = RiskExitManager(config=None)
 
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -1101,7 +1101,7 @@ def test_backtester_executes_pending_exit_at_next_bar_open():
     rem = RiskExitManager(config=None, instrument=TEST_INSTRUMENT)
 
     # Run backtest
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -1181,7 +1181,7 @@ def test_backtester_handles_flip_with_next_bar_open():
     rem = RiskExitManager(config=None, instrument=TEST_INSTRUMENT)
 
     # Run backtest
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,

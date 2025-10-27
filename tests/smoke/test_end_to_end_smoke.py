@@ -17,7 +17,7 @@ def test_demo_run_writes_artifacts(tmp_path):
 def test_e2e_run_with_contextual_features(tmp_path):
     """End-to-end test verifying contextual features appear in brief."""
     import pandas as pd
-    from trading_platform.backtester.core import run_backtest
+    from trading_platform.backtester.core import _run_backtest_simulation
     from trading_platform.core.config import RunConfig
     from trading_platform.core.run import finalize_run, initialize_run
     from trading_platform.risk_manager.core import RiskExitManager
@@ -76,7 +76,7 @@ def test_e2e_run_with_contextual_features(tmp_path):
     rem = RiskExitManager(
         config={"stop_loss": {"type": "offset", "price_offset": 0.0010}}
     )
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=market_data,
         signals=signals,
         strategy=strategy,

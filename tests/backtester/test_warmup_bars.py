@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 import pytest
-from trading_platform.backtester.core import run_backtest
+from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 
@@ -45,7 +45,7 @@ def test_warmup_delays_first_entry_until_threshold():
         exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config=None)
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=sig,
         strategy=strategy,
@@ -79,7 +79,7 @@ def test_no_warmup_allows_immediate_entry():
         exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config=None)
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=sig,
         strategy=strategy,

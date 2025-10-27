@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, cast
 
 import pandas as pd
-from trading_platform.backtester.core import run_backtest
+from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 
@@ -39,7 +39,7 @@ def test_backtester_uses_provided_instrument_symbol():
     )
     rem = RiskExitManager(config=None)
 
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,

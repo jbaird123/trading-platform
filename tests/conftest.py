@@ -2,19 +2,83 @@
 from __future__ import annotations
 
 from datetime import datetime
+from unittest.mock import patch
 
 import pandas as pd
+import pytest
 from pytest_bdd import given, parsers, when
 
 from tests.backtester.dummy_objects import (
     _dummy_strategy_cfg,
     _dummy_strategy_with_sl_tp,
 )
+from tests.test_helpers import (
+    create_market_data_with_warmup,
+    extend_test_data_for_warmup,
+)
 
 
 def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
     """Helper to create instrument dict for RunConfig."""
     return {"symbol": symbol}
+
+
+@pytest.fixture(autouse=True, scope="function")
+def auto_warmup_for_tests(monkeypatch, request):
+    """Automatically enable warmup extension for all backtest calls in tests.
+
+    This fixture patches all internal backtest functions to automatically set
+    auto_extend_for_warmup=True, ensuring all tests have sufficient data
+    for indicators to warm up without modifying individual test calls.
+    """
+    from trading_platform.backtester.core import _run_backtest_simulation as original_simulation
+    from trading_platform.backtester.orchestrator import run_backtest as original_run_backtest
+
+    def simulation_with_auto_warmup(*args, **kwargs):
+        # Set auto_extend_for_warmup=True unless explicitly set to False
+        if "auto_extend_for_warmup" not in kwargs:
+            kwargs["auto_extend_for_warmup"] = True
+        return original_simulation(*args, **kwargs)
+
+    def run_backtest_with_auto_warmup(*args, **kwargs):
+        # Set auto_extend_for_warmup=True unless explicitly set to False
+        if "auto_extend_for_warmup" not in kwargs:
+            kwargs["auto_extend_for_warmup"] = True
+        return original_run_backtest(*args, **kwargs)
+
+    # Patch the internal simulation function
+    monkeypatch.setattr(
+        "trading_platform.backtester.core._run_backtest_simulation",
+        simulation_with_auto_warmup
+    )
+
+    # Patch the public orchestrator function
+    monkeypatch.setattr(
+        "trading_platform.backtester.orchestrator.run_backtest",
+        run_backtest_with_auto_warmup
+    )
+
+    # CLI now calls orchestrator.run_backtest(), so no need to patch CLI
+    # Sweeps still calls _run_backtest_simulation directly (it's a meta-orchestrator)
+    monkeypatch.setattr(
+        "trading_platform.core.sweeps._run_backtest_simulation",
+        simulation_with_auto_warmup
+    )
+
+    # Dynamically patch the test module
+    test_module = request.module
+    if hasattr(test_module, "run_backtest"):
+        monkeypatch.setattr(
+            test_module,
+            "run_backtest",
+            run_backtest_with_auto_warmup
+        )
+    if hasattr(test_module, "_run_backtest_simulation"):
+        monkeypatch.setattr(
+            test_module,
+            "_run_backtest_simulation",
+            simulation_with_auto_warmup
+        )
 
 
 @given(
@@ -38,7 +102,7 @@ def market_data(columns: str) -> dict:
 @when("the backtest is run")
 def when_backtest_is_run(shared_context: dict) -> None:
     """Calls the backtester logic and stores the resulting trades."""
-    from trading_platform.backtester.core import run_backtest
+    from trading_platform.backtester.core import _run_backtest_simulation
     from trading_platform.core.config import RunConfig
     from trading_platform.risk_manager.core import RiskExitManager
 
@@ -73,7 +137,7 @@ def when_backtest_is_run(shared_context: dict) -> None:
         exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config=config.rem_config or None)
-    trades = run_backtest(
+    trades = _run_backtest_simulation(
         market_data=shared_context["market_data"],
         signals=shared_context["signals"],
         strategy=strategy,

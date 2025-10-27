@@ -15,11 +15,15 @@ from trading_platform.cli import cmd_run_backtest
 
 
 @pytest.fixture(autouse=True)
-def mock_load_instrument_data(monkeypatch):
+def mock_load_and_extend_data(monkeypatch):
+    """Mock data loading to provide sufficient warmup bars automatically."""
+
     def _mock_load_instrument_data(symbol, data_root):
-        num_rows = 100
+        # Return a large dataset that covers warmup needs
+        # DataHandler will slice this based on start/end + warmup calculation
+        num_rows = 500  # Enough for any reasonable warmup
         dates = pd.to_datetime(
-            pd.date_range(start="2024-01-01", periods=num_rows, freq="h"),
+            pd.date_range(start="2023-12-20", periods=num_rows, freq="h"),
             utc=True,
         )
         df = pd.DataFrame(

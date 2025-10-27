@@ -15,7 +15,7 @@ from typing import Any, cast
 import pandas as pd
 
 from trading_platform.ai.data_curation import run_curation_pipeline
-from trading_platform.backtester.core import run_backtest
+from trading_platform.backtester import run_backtest
 from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
 from trading_platform.core.demo import generate_demo_run
@@ -184,134 +184,15 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         logger.warning(f"Failed to save processed data parquet: {e}")
         processed_data_path = None
 
-    # Strategy can be embedded or referenced via a separate YAML/JSON file
+    # Get strategy config (can be embedded or in a separate file)
     strat_cfg = cfg_raw.get("strategy")
-    if not strat_cfg:
-        # Try loading from strategy_path if provided
-        # (extracted earlier before validation)
-        if strategy_path:
-            strat_cfg = _load_config(Path(strategy_path))
-        else:
-            raise ValueError(
-                "No strategy provided. Specify 'strategy_path' in config "
-                "or embed 'strategy' definition."
-            )
+    if not strat_cfg and strategy_path:
+        strat_cfg = _load_config(Path(strategy_path))
 
+    # Resolve file_path if strategy references another file
     if isinstance(strat_cfg, dict) and "file_path" in strat_cfg:
-        # Resolve file_path relative to the main config file
         p = Path(cfg_path.parent, strat_cfg["file_path"])
         strat_cfg = _load_config(p)
-
-    # Apply strategy_params from config (used for parameter sweeps)
-    # This allows the config to override strategy defaults
-    if isinstance(strategy_params, dict):
-        base_params = strat_cfg.get("parameters") or {}
-        if isinstance(base_params, dict):
-            base_params.update({k: v for k, v in strategy_params.items()})
-            strat_cfg["parameters"] = base_params
-
-    # Apply optional per-run overrides for strategy tunables
-    if isinstance(strategy_overrides, dict):
-        # 1) Parameter-level overrides (e.g., slope_filter)
-        param_over = strategy_overrides.get("parameters") or {}
-        if isinstance(param_over, dict):
-            base_params = strat_cfg.get("parameters") or {}
-            if isinstance(base_params, dict):
-                base_params.update({k: v for k, v in param_over.items()})
-                strat_cfg["parameters"] = base_params
-        # 2) Feature-level overrides (existing behavior)
-        feat_over = strategy_overrides.get("features") or {}
-        if isinstance(feat_over, dict) and isinstance(strat_cfg.get("features"), list):
-            for f in strat_cfg["features"]:
-                name = str(f.get("name", ""))
-                if name and name in feat_over and isinstance(feat_over[name], dict):
-                    params = f.get("params") or {}
-                    if isinstance(params, dict):
-                        params.update({k: v for k, v in feat_over[name].items()})
-                        f["params"] = params
-    strat = compile_strategy(strat_cfg)
-    signals = strat.generate_signals(df)
-
-    # Validate strategy features: check first bar for NaN values
-    # If any strategy indicators are NaN at backtest start, warmup is insufficient
-    if strat._feature_df is not None and len(strat._feature_df) > 0:
-        first_bar = strat._feature_df.iloc[0]
-        strategy_features = strat_cfg.get("features", [])
-        nan_features = []
-
-        for feature in strategy_features:
-            feature_name = feature.get("name")
-            if feature_name and feature_name in first_bar.index:
-                val = first_bar[feature_name]
-                if pd.isna(val):
-                    nan_features.append(feature_name)
-
-        if nan_features:
-            raise ValueError(
-                f"Insufficient warmup: The following strategy features have NaN "
-                f"values at backtest start ({first_bar.name}): {nan_features}. "
-                f"Indicators are not fully initialized. "
-                f"Load data from an earlier start date to allow warmup."
-            )
-
-    # Get feature-enriched dataframe for REM (includes ATR, etc.)
-    # This allows REM to access strategy-calculated features like ATR
-    # Ensure it's aligned with the (possibly sliced) input df
-    feature_enriched_df = strat._feature_df if strat._feature_df is not None else df
-    if feature_enriched_df is not None:
-        # Defensive checks: feature_df must match input df's length and index type
-        if len(feature_enriched_df) != len(df) or not isinstance(
-            feature_enriched_df.index, type(df.index)
-        ):
-            # Fall back to raw df if mismatched (can happen in tests with mocks)
-            feature_enriched_df = df
-
-    # Persist raw signals for AI Lab analysis
-    try:
-        from trading_platform.core.signal import Signal
-
-        signals_path = run_path / "signals.parquet"
-        # Ensure signals are saved with proper column name
-        if isinstance(signals, pd.Series):
-            # Extract command strings from Signal objects for serialization
-            signal_values = signals.apply(
-                lambda x: x.command if isinstance(x, Signal) else x
-            )
-            signals_df = pd.DataFrame({"signal": signal_values})
-        else:
-            signals_df = pd.DataFrame(signals)
-        signals_df.to_parquet(signals_path)
-    except Exception as e:  # pragma: no cover
-        # Safe to continue: signals.parquet is for AI Lab post-analysis
-        # Not required for backtest results
-        logger.warning(
-            f"Failed to save signals.parquet for AI Lab: {e}"
-        )  # pragma: no cover
-        signals_path = None  # pragma: no cover
-
-    # Persist prices and features for charts before finalize_run
-    try:
-        save_prices_csv(run_path / "prices.csv", df)
-    except Exception as e:  # pragma: no cover
-        # Safe to continue: prices.csv is only for interactive charts
-        # brief.json contains all data needed for analysis
-        logger.warning(f"Failed to save prices.csv: {e}")  # pragma: no cover
-    try:
-        fdf = getattr(strat, "_feature_df", None)
-        if fdf is not None:
-            save_features_for_chart(run_path, fdf, strat.features)
-    except Exception as e:  # pragma: no cover
-        # Safe to continue: features.json is for charts/debugging only
-        # Not required for backtest analysis
-        logger.warning(f"Failed to save features: {e}")  # pragma: no cover
-
-    # REM can be embedded or referenced via a separate file
-    rem_cfg: dict[str, Any] | None = cfg_raw.get("rem_config")
-    # Pass complete instrument definition with all metadata (asset_class, etc.)
-    instrument_dict = instrument_def.model_dump() if instrument_def else None
-    # Pass dict directly - RiskExitManager will validate new-format configs
-    # and allow legacy configs to bypass validation
-    rem = RiskExitManager(config=rem_cfg, instrument=instrument_dict)
 
     # RMM optional for legacy configs; if present, build per-bar context
     rmm_context: dict[datetime, dict[str, Any]] | None = None
@@ -450,18 +331,32 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     ret_exp = bool(cfg_raw.get("return_exposure", False))
     ret_skips = bool(cfg_raw.get("return_skips", True))
 
+    # Run backtest through the single entry point (orchestrator)
     res = run_backtest(
-        market_data=feature_enriched_df,
-        signals=signals,
-        strategy=strat,
         config=cfg,
-        rem=rem,
+        market_data=df,
+        strategy_config=strat_cfg,
+        strategy_path=None,  # Already loaded into strat_cfg
+        strategy_params=strategy_params,
+        strategy_overrides=strategy_overrides,
+        data_handler=data_handler,
         rmm_context=rmm_context,
         return_exposure=ret_exp,
         return_skips=ret_skips,
+        auto_extend_for_warmup=True,  # Automatically extend data for warmup
+        validate_warmup=True,
     )
+
+    # Extract results from orchestrator
+    # When return_exposure=True, orchestrator returns tuple: (trades, exposure, [skips])
+    # When return_exposure=False, orchestrator returns dict with full metadata
     skips: list[dict[str, Any]] = []
+    strat = None
+    feature_enriched_df = None
+    strategy_name = "Unknown"
+
     if isinstance(res, tuple):
+        # Tuple format from CLI-style calls (return_exposure=True)
         if len(res) == 3:
             trades = cast(list[Trade], res[0])
             exposure = cast(list[tuple[datetime, float]], res[1])
@@ -469,12 +364,64 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         else:
             trades = cast(list[Trade], res[0])
             exposure = cast(list[tuple[datetime, float]], res[1])
+        # Note: In tuple format, we don't get back strat/feature_enriched_df
+        # The orchestrator already compiled the strategy internally
+        # We'll need to recompile for saving features (not ideal, but temporary)
     else:
-        trades = cast(list[Trade], res)
-        exposure = []
+        # Dict format - extract all metadata
+        # Handle legacy list format for backwards compatibility
+        if isinstance(res, list):
+            trades = res
+            exposure = []
+        else:
+            result_dict = cast(dict[str, Any], res)
+            trades = result_dict["trades"]
+            exposure = result_dict.get("equity_curve", [])
+            strat = result_dict["compiled_strategy"]
+            feature_enriched_df = result_dict["feature_enriched_df"]
+            strategy_name = result_dict["strategy_name"]
+
+    # For tuple format, we need strategy object for features/signals saving
+    # Recompile if needed (orchestrator already did this, but didn't return it in tuple mode)
+    if strat is None:
+        strat = compile_strategy(strat_cfg)
+        # Generate signals to get feature_df (orchestrator already did this too)
+        strat.generate_signals(df)
+        feature_enriched_df = strat._feature_df if strat._feature_df is not None else df
+        strategy_name = strat.name
+
+    # Persist raw signals for AI Lab analysis
+    try:
+        from trading_platform.core.signal import Signal
+
+        signals_path = run_path / "signals.parquet"
+        signals = strat.generate_signals(df)
+        # Ensure signals are saved with proper column name
+        if isinstance(signals, pd.Series):
+            # Extract command strings from Signal objects for serialization
+            signal_values = signals.apply(
+                lambda x: x.command if isinstance(x, Signal) else x
+            )
+            signals_df = pd.DataFrame({"signal": signal_values})
+        else:
+            signals_df = pd.DataFrame(signals)
+        signals_df.to_parquet(signals_path)
+    except Exception as e:  # pragma: no cover
+        logger.warning(f"Failed to save signals.parquet for AI Lab: {e}")
+
+    # Persist prices and features for charts
+    try:
+        save_prices_csv(run_path / "prices.csv", df)
+    except Exception as e:  # pragma: no cover
+        logger.warning(f"Failed to save prices.csv: {e}")
+    try:
+        if feature_enriched_df is not None and hasattr(strat, "features"):
+            save_features_for_chart(run_path, feature_enriched_df, strat.features)
+    except Exception as e:  # pragma: no cover
+        logger.warning(f"Failed to save features: {e}")
 
     meta = {
-        "strategy_name": strat.name,
+        "strategy_name": strategy_name,
         "run_id": cfg.run_id,
         "git_commit": _get_git_commit(),
         "run_seed": cfg.run_seed,

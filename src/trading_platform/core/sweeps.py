@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import pandas as pd
-from trading_platform.backtester.core import run_backtest
+from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.core.config import RunConfig
 from trading_platform.core.robustness import walk_forward_splits
 from trading_platform.portfolio.trade import Trade
@@ -353,7 +353,7 @@ def run_parameter_sweep(
                 with log_file.open("a") as f:
                     f.write(f"  DEBUG ERROR: {e}\n")
 
-        _res = run_backtest(
+        _res = _run_backtest_simulation(
             market_data=df,
             signals=sig,
             strategy=strat,
@@ -457,7 +457,7 @@ def walk_forward_optimize_and_test(
         rem = RiskExitManager(config=rem_cfg if rem_cfg else None)
         strat = compile_strategy(scfg)
         sig = strat.generate_signals(test)
-        _res2 = run_backtest(
+        _res2 = _run_backtest_simulation(
             market_data=test,
             signals=sig,
             strategy=strat,
@@ -585,7 +585,7 @@ def walk_forward_analysis(
 
         # Run backtest on test window
         sig = strat.generate_signals(test)
-        _res = run_backtest(
+        _res = _run_backtest_simulation(
             market_data=test,
             signals=sig,
             strategy=strat,
@@ -770,7 +770,7 @@ def monte_carlo_resimulation(
             cfg_trial = cfg.model_copy(update={"cost_model": cm})
         # Generate signals on perturbed data (must be per-trial since prices changed)
         sig = strat.generate_signals(sim_df)
-        _res3 = run_backtest(
+        _res3 = _run_backtest_simulation(
             market_data=sim_df,
             signals=sig,
             strategy=strat,

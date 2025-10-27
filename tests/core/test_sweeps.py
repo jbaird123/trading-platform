@@ -126,7 +126,7 @@ class TestParameterSweepCoverage:
                 mock_strat.generate_signals.return_value = mock_sig
 
                 with patch(
-                    "trading_platform.core.sweeps.run_backtest"
+                    "trading_platform.core.sweeps._run_backtest_simulation"
                 ) as mock_backtest:
                     mock_backtest.return_value = [mock_trade]  # Returns trades directly
 
@@ -169,7 +169,7 @@ class TestParameterSweepCoverage:
             mock_compile.return_value = mock_strat
             mock_strat.generate_signals.return_value = pd.Series(["long", "short"])
 
-            with patch("trading_platform.core.sweeps.run_backtest") as mock_backtest:
+            with patch("trading_platform.core.sweeps._run_backtest_simulation") as mock_backtest:
                 mock_backtest.return_value = [mock_trade1, mock_trade2]
 
                 grid = {"param1": [1]}
@@ -202,7 +202,7 @@ class TestParameterSweepCoverage:
             mock_compile.return_value = mock_strat
             mock_strat.generate_signals.return_value = pd.Series(["flat"])
 
-            with patch("trading_platform.core.sweeps.run_backtest") as mock_backtest:
+            with patch("trading_platform.core.sweeps._run_backtest_simulation") as mock_backtest:
                 mock_backtest.return_value = []  # Empty trades list
 
                 grid = {"param1": [1]}
@@ -242,7 +242,7 @@ class TestParameterSweepCoverage:
             mock_compile.return_value = mock_strat
             mock_strat.generate_signals.return_value = pd.Series(["long"])
 
-            with patch("trading_platform.core.sweeps.run_backtest") as mock_backtest:
+            with patch("trading_platform.core.sweeps._run_backtest_simulation") as mock_backtest:
                 mock_backtest.return_value = [mock_trade1, mock_trade2, mock_trade3]
 
                 grid = {"param1": [1]}
@@ -278,7 +278,7 @@ class TestWalkForwardOptimizeCoverage:
         with patch(
             "trading_platform.core.sweeps.compile_strategy"
         ) as mock_compile, patch(
-            "trading_platform.core.sweeps.run_backtest"
+            "trading_platform.core.sweeps._run_backtest_simulation"
         ) as mock_backtest, patch("random.seed") as mock_seed:
             mock_compile.return_value = Mock()
             mock_backtest.return_value = ([], 100.0)
@@ -344,7 +344,7 @@ class TestWalkForwardOptimizeCoverage:
                     mock_strat.generate_signals.return_value = pd.Series(["long"])
 
                     with patch(
-                        "trading_platform.core.sweeps.run_backtest"
+                        "trading_platform.core.sweeps._run_backtest_simulation"
                     ) as mock_backtest:
                         # Return tuple instead of list to test line 200
                         mock_backtest.return_value = ([mock_trade], [], [])
@@ -394,7 +394,7 @@ class TestMonteCarloResimulationCoverage:
             mock_compile.return_value = mock_strat
             mock_strat.generate_signals.return_value = pd.Series(["long"])
 
-            with patch("trading_platform.core.sweeps.run_backtest") as mock_backtest:
+            with patch("trading_platform.core.sweeps._run_backtest_simulation") as mock_backtest:
                 mock_backtest.return_value = [mock_trade]
 
                 result = monte_carlo_resimulation(
@@ -441,7 +441,7 @@ class TestMonteCarloResimulationCoverage:
             mock_compile.return_value = mock_strat
             mock_strat.generate_signals.return_value = pd.Series(["long"])
 
-            with patch("trading_platform.core.sweeps.run_backtest") as mock_backtest:
+            with patch("trading_platform.core.sweeps._run_backtest_simulation") as mock_backtest:
                 mock_backtest.return_value = [mock_trade]
 
                 # Mock cfg.model_copy to test line 302
@@ -493,7 +493,7 @@ class TestMonteCarloResimulationCoverage:
             mock_compile.return_value = mock_strat
             mock_strat.generate_signals.return_value = pd.Series(["long"])
 
-            with patch("trading_platform.core.sweeps.run_backtest") as mock_backtest:
+            with patch("trading_platform.core.sweeps._run_backtest_simulation") as mock_backtest:
                 mock_backtest.return_value = [mock_trade1, mock_trade2]
 
                 result = monte_carlo_resimulation(
@@ -532,7 +532,7 @@ class TestMonteCarloResimulationCoverage:
             mock_compile.return_value = mock_strat
             mock_strat.generate_signals.return_value = pd.Series(["long"])
 
-            with patch("trading_platform.core.sweeps.run_backtest") as mock_backtest:
+            with patch("trading_platform.core.sweeps._run_backtest_simulation") as mock_backtest:
                 mock_backtest.return_value = [winning_trade, losing_trade]
 
                 result = monte_carlo_resimulation(
@@ -566,7 +566,7 @@ class TestMonteCarloResimulationCoverage:
             mock_compile.return_value = mock_strat
             mock_strat.generate_signals.return_value = pd.Series(["long"])
 
-            with patch("trading_platform.core.sweeps.run_backtest") as mock_backtest:
+            with patch("trading_platform.core.sweeps._run_backtest_simulation") as mock_backtest:
                 mock_backtest.return_value = [mock_trade]
 
                 result = monte_carlo_resimulation(
@@ -603,7 +603,7 @@ class TestMonteCarloResimulationCoverage:
             mock_compile.return_value = mock_strat
             mock_strat.generate_signals.return_value = pd.Series(["long"])
 
-            with patch("trading_platform.core.sweeps.run_backtest") as mock_backtest:
+            with patch("trading_platform.core.sweeps._run_backtest_simulation") as mock_backtest:
                 mock_backtest.return_value = [ruinous_trade]
 
                 result = monte_carlo_resimulation(
@@ -655,7 +655,7 @@ class TestEdgeCasesAndHelperFunctions:
             mock_compile.return_value = mock_strat
             mock_strat.generate_signals.return_value = pd.Series(["long"])
 
-            with patch("trading_platform.core.sweeps.run_backtest") as mock_backtest:
+            with patch("trading_platform.core.sweeps._run_backtest_simulation") as mock_backtest:
                 mock_backtest.return_value = []
 
                 # Mock Path.mkdir to raise an exception
@@ -690,7 +690,7 @@ class TestEdgeCasesAndHelperFunctions:
             mock_compile.return_value = mock_strat
             mock_strat.generate_signals.return_value = pd.Series(["long"])
 
-            with patch("trading_platform.core.sweeps.run_backtest") as mock_backtest:
+            with patch("trading_platform.core.sweeps._run_backtest_simulation") as mock_backtest:
                 mock_backtest.return_value = [mock_trade]
 
                 grid = {"param1": [1]}
@@ -732,7 +732,7 @@ class TestEdgeCasesAndHelperFunctions:
                 mock_strat.generate_signals.return_value = mock_sig
 
                 with patch(
-                    "trading_platform.core.sweeps.run_backtest"
+                    "trading_platform.core.sweeps._run_backtest_simulation"
                 ) as mock_backtest:
                     mock_backtest.return_value = [mock_trade]
 
@@ -761,7 +761,7 @@ class TestEdgeCasesAndHelperFunctions:
             mock_compile.return_value = mock_strat
             mock_strat.generate_signals.return_value = pd.Series(["flat"])
 
-            with patch("trading_platform.core.sweeps.run_backtest") as mock_backtest:
+            with patch("trading_platform.core.sweeps._run_backtest_simulation") as mock_backtest:
                 mock_backtest.return_value = []
 
                 # No grid or random_space provided
@@ -787,7 +787,7 @@ class TestEdgeCasesAndHelperFunctions:
             mock_compile.return_value = mock_strat
             mock_strat.generate_signals.return_value = pd.Series(["flat"])
 
-            with patch("trading_platform.core.sweeps.run_backtest") as mock_backtest:
+            with patch("trading_platform.core.sweeps._run_backtest_simulation") as mock_backtest:
                 # Return empty trades list
                 mock_backtest.return_value = []
 
@@ -848,7 +848,7 @@ class TestEdgeCasesAndHelperFunctions:
                     mock_strat.generate_signals.return_value = pd.Series(["long"])
 
                     with patch(
-                        "trading_platform.core.sweeps.run_backtest"
+                        "trading_platform.core.sweeps._run_backtest_simulation"
                     ) as mock_backtest:
                         # Return tuple to test line 200
                         mock_backtest.return_value = ([mock_trade], [], [])
@@ -908,7 +908,7 @@ class TestEdgeCasesAndHelperFunctions:
                 mock_strat.generate_signals.return_value = pd.Series(["long"])
 
                 with patch(
-                    "trading_platform.core.sweeps.run_backtest"
+                    "trading_platform.core.sweeps._run_backtest_simulation"
                 ) as mock_backtest:
                     mock_backtest.return_value = [mock_trade]
 
@@ -949,7 +949,7 @@ class TestEdgeCasesAndHelperFunctions:
             mock_compile.return_value = mock_strat
             mock_strat.generate_signals.return_value = pd.Series(["long"])
 
-            with patch("trading_platform.core.sweeps.run_backtest") as mock_backtest:
+            with patch("trading_platform.core.sweeps._run_backtest_simulation") as mock_backtest:
                 mock_backtest.return_value = [profitable_trade, losing_trade]
 
                 result = monte_carlo_resimulation(
@@ -983,7 +983,7 @@ class TestEdgeCasesAndHelperFunctions:
             mock_compile.return_value = mock_strat
             mock_strat.generate_signals.return_value = pd.Series(["long"])
 
-            with patch("trading_platform.core.sweeps.run_backtest") as mock_backtest:
+            with patch("trading_platform.core.sweeps._run_backtest_simulation") as mock_backtest:
                 mock_backtest.return_value = [losing_trade]
 
                 result = monte_carlo_resimulation(
@@ -1014,7 +1014,7 @@ class TestEdgeCasesAndHelperFunctions:
             mock_compile.return_value = mock_strat
             mock_strat.generate_signals.return_value = pd.Series(["flat"])
 
-            with patch("trading_platform.core.sweeps.run_backtest") as mock_backtest:
+            with patch("trading_platform.core.sweeps._run_backtest_simulation") as mock_backtest:
                 mock_backtest.return_value = []  # No trades
 
                 result = monte_carlo_resimulation(
@@ -1059,7 +1059,7 @@ class TestEdgeCasesAndHelperFunctions:
             mock_compile.return_value = mock_strat
             mock_strat.generate_signals.return_value = pd.Series(["long"])
 
-            with patch("trading_platform.core.sweeps.run_backtest") as mock_backtest:
+            with patch("trading_platform.core.sweeps._run_backtest_simulation") as mock_backtest:
                 # Simulate different outcomes across trials
                 mock_backtest.side_effect = [
                     [profitable_trade],
@@ -1129,7 +1129,7 @@ class TestEdgeCasesAndHelperFunctions:
                     mock_strat.generate_signals.return_value = pd.Series(["long"])
 
                     with patch(
-                        "trading_platform.core.sweeps.run_backtest"
+                        "trading_platform.core.sweeps._run_backtest_simulation"
                     ) as mock_backtest:
                         # Return list directly (not tuple) to test else branch line 200
                         mock_backtest.return_value = [mock_trade]
@@ -1176,7 +1176,7 @@ class TestEdgeCasesAndHelperFunctions:
                 mock_strat.generate_signals.return_value = pd.Series(["long"])
 
                 with patch(
-                    "trading_platform.core.sweeps.run_backtest"
+                    "trading_platform.core.sweeps._run_backtest_simulation"
                 ) as mock_backtest:
                     mock_backtest.return_value = [mock_trade]
 
@@ -1233,7 +1233,7 @@ class TestEdgeCasesAndHelperFunctions:
                 mock_strat.generate_signals.return_value = pd.Series(["long"])
 
                 with patch(
-                    "trading_platform.core.sweeps.run_backtest"
+                    "trading_platform.core.sweeps._run_backtest_simulation"
                 ) as mock_backtest:
                     mock_backtest.return_value = [mock_trade]
 
@@ -1268,7 +1268,7 @@ class TestEdgeCasesAndHelperFunctions:
         with patch(
             "trading_platform.core.sweeps.compile_strategy"
         ) as mock_compile, patch(
-            "trading_platform.core.sweeps.run_backtest"
+            "trading_platform.core.sweeps._run_backtest_simulation"
         ) as mock_backtest:
             # Set up mocks
             mock_compile.return_value = Mock()
@@ -1313,7 +1313,7 @@ class TestEdgeCasesAndHelperFunctions:
             mock_compile.return_value = mock_strat
             mock_strat.generate_signals.return_value = pd.Series(["long"])
 
-            with patch("trading_platform.core.sweeps.run_backtest") as mock_backtest:
+            with patch("trading_platform.core.sweeps._run_backtest_simulation") as mock_backtest:
                 mock_backtest.return_value = [zero_trade]
 
                 result = monte_carlo_resimulation(
@@ -1374,7 +1374,7 @@ class TestEdgeCasesAndHelperFunctions:
                     mock_strat.generate_signals.return_value = pd.Series(["long"])
 
                     with patch(
-                        "trading_platform.core.sweeps.run_backtest"
+                        "trading_platform.core.sweeps._run_backtest_simulation"
                     ) as mock_backtest:
                         # Return trades list (not tuple) to hit else on line 242
                         mock_backtest.return_value = [mock_trade]
@@ -1415,7 +1415,7 @@ class TestEdgeCasesAndHelperFunctions:
             mock_compile.return_value = mock_strat
             mock_strat.generate_signals.return_value = pd.Series(["long"])
 
-            with patch("trading_platform.core.sweeps.run_backtest") as mock_backtest:
+            with patch("trading_platform.core.sweeps._run_backtest_simulation") as mock_backtest:
                 mock_backtest.return_value = [mock_trade]
 
                 result = monte_carlo_resimulation(
@@ -1450,7 +1450,7 @@ class TestEdgeCasesAndHelperFunctions:
             mock_compile.return_value = mock_strat
             mock_strat.generate_signals.return_value = pd.Series(["long"])
 
-            with patch("trading_platform.core.sweeps.run_backtest") as mock_backtest:
+            with patch("trading_platform.core.sweeps._run_backtest_simulation") as mock_backtest:
                 mock_backtest.return_value = [mock_trade]
 
                 result = monte_carlo_resimulation(
@@ -1485,7 +1485,7 @@ class TestEdgeCasesAndHelperFunctions:
             mock_compile.return_value = mock_strat
             mock_strat.generate_signals.return_value = pd.Series(["long"])
 
-            with patch("trading_platform.core.sweeps.run_backtest") as mock_backtest:
+            with patch("trading_platform.core.sweeps._run_backtest_simulation") as mock_backtest:
                 mock_backtest.return_value = [profitable_trade]
 
                 result = monte_carlo_resimulation(
@@ -1513,7 +1513,7 @@ class TestEdgeCasesAndHelperFunctions:
             mock_compile.return_value = mock_strat
             mock_strat.generate_signals.return_value = pd.Series(["flat"])
 
-            with patch("trading_platform.core.sweeps.run_backtest") as mock_backtest:
+            with patch("trading_platform.core.sweeps._run_backtest_simulation") as mock_backtest:
                 mock_backtest.return_value = []
 
                 result = monte_carlo_resimulation(
@@ -1554,7 +1554,7 @@ class TestEdgeCasesAndHelperFunctions:
             mock_compile.return_value = mock_strat
             mock_strat.generate_signals.return_value = pd.Series(["long"])
 
-            with patch("trading_platform.core.sweeps.run_backtest") as mock_backtest:
+            with patch("trading_platform.core.sweeps._run_backtest_simulation") as mock_backtest:
                 # Different outcomes to create distribution for VaR/CVaR
                 mock_backtest.side_effect = [
                     [losing_trade1],
@@ -1811,7 +1811,7 @@ def test_parameter_sweep_with_rem_path():
         with patch(
             "trading_platform.core.sweeps.compile_strategy"
         ) as mock_compile, patch(
-            "trading_platform.core.sweeps.run_backtest"
+            "trading_platform.core.sweeps._run_backtest_simulation"
         ) as mock_backtest, patch(
             "trading_platform.core.sweeps.RiskExitManager"
         ) as mock_rem_class:
@@ -1865,7 +1865,7 @@ def test_parameter_sweep_with_debug_dir():
         with patch(
             "trading_platform.core.sweeps.compile_strategy"
         ) as mock_compile, patch(
-            "trading_platform.core.sweeps.run_backtest"
+            "trading_platform.core.sweeps._run_backtest_simulation"
         ) as mock_backtest, patch(
             "trading_platform.core.sweeps.RiskExitManager"
         ) as mock_rem_class:
@@ -1916,7 +1916,7 @@ def test_parameter_sweep_random_space():
 
     # Mock dependencies to avoid complex setup
     with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile, patch(
-        "trading_platform.core.sweeps.run_backtest"
+        "trading_platform.core.sweeps._run_backtest_simulation"
     ) as mock_backtest, patch(
         "trading_platform.core.sweeps.RiskExitManager"
     ) as mock_rem_class:

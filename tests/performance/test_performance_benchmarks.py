@@ -14,7 +14,7 @@ from datetime import datetime
 
 import pandas as pd
 import pytest
-from trading_platform.backtester.orchestrator import run_backtest_from_config
+from trading_platform.backtester import run_backtest
 from trading_platform.core.config import RunConfig
 from trading_platform.strategy.features import compute_features
 
@@ -196,8 +196,11 @@ def test_sys_1_9_2_multi_year_backtest_performance():
 
     # Benchmark backtest execution
     start_time = time.time()
-    result = run_backtest_from_config(
-        config, market_data=df, strategy_path="config/strategy/ema_crossover.yaml"
+    result = run_backtest(
+        config,
+        market_data=df,
+        strategy_path="config/strategy/ema_crossover.yaml",
+        validate_warmup=False,  # Performance test - skip validation
     )
     elapsed = time.time() - start_time
 
@@ -366,8 +369,11 @@ def test_backtest_execution_time_1m_bars():
     )
 
     start_time = time.time()
-    result = run_backtest_from_config(
-        config, market_data=df, strategy_path="config/strategy/ema_crossover.yaml"
+    result = run_backtest(
+        config,
+        market_data=df,
+        strategy_path="config/strategy/ema_crossover.yaml",
+        validate_warmup=False,  # Performance test - skip validation
     )
     elapsed = time.time() - start_time
 

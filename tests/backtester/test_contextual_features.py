@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pandas as pd
 import yaml
-from trading_platform.backtester.core import run_backtest
+from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.core.config import RunConfig
 from trading_platform.portfolio.trade import Trade
 from trading_platform.risk_manager.core import RiskExitManager
@@ -90,7 +90,7 @@ def test_backtester_adds_contextual_features_to_trade_context() -> None:
             )
 
             # Run backtest
-            trades = run_backtest(
+            trades = _run_backtest_simulation(
                 market_data=df,
                 signals=signals,
                 strategy=strategy,
@@ -210,7 +210,7 @@ def test_backtester_trade_context_with_multi_timeframe_at_entry_and_exit() -> No
             )
 
             # Run backtest
-            trades = run_backtest(
+            trades = _run_backtest_simulation(
                 market_data=df,
                 signals=signals,
                 strategy=strategy,
@@ -320,7 +320,7 @@ def test_trade_context_always_includes_volume() -> None:
     )
 
     # Run backtest
-    trades = run_backtest(
+    trades = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,

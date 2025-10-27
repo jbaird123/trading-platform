@@ -12,9 +12,9 @@ from __future__ import annotations
 from datetime import datetime
 
 import pandas as pd
+from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.backtester.core import (
     _enrich_trades_with_post_exit_analysis,
-    run_backtest,
 )
 from trading_platform.core.config import RunConfig
 from trading_platform.portfolio.trade import Trade
@@ -310,7 +310,7 @@ def test_post_exit_analysis_integration():
     )
     rem = RiskExitManager(config=None)
 
-    trades = run_backtest(
+    trades = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -389,7 +389,7 @@ def test_rmm_context_feature_rounding():
     )
     rem = RiskExitManager(config=None)
 
-    trades = run_backtest(
+    trades = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -462,7 +462,7 @@ def test_rmm_context_feature_rounding_edge_cases():
     rem = RiskExitManager(config=None)
 
     # Should not raise error, should handle invalid values gracefully
-    trades = run_backtest(
+    trades = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -518,7 +518,7 @@ def test_skipped_entry_index_conversion_error():
     )
     rem = RiskExitManager(config=None)
 
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -572,7 +572,7 @@ def test_post_exit_analysis_disabled():
     )
     rem = RiskExitManager(config=None)
 
-    trades = run_backtest(
+    trades = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -624,7 +624,7 @@ def test_post_exit_analysis_enabled_false():
     )
     rem = RiskExitManager(config=None)
 
-    trades = run_backtest(
+    trades = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -724,7 +724,7 @@ def test_skipped_entry_index_invalid_conversion():
     )
     rem = RiskExitManager(config=None)
 
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -826,7 +826,7 @@ def test_rmm_context_feature_rounding_with_strategy_features():
     )
     rem = RiskExitManager(config=None)
 
-    trades = run_backtest(
+    trades = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -889,10 +889,10 @@ def test_counterfactual_with_manual_invalid_entry_index():
     rem = RiskExitManager(config=None)
 
     # Patch the skipped list to inject invalid entry_index
-    (run_backtest.__wrapped__ if hasattr(run_backtest, "__wrapped__") else run_backtest)
+    (_run_backtest_simulation.__wrapped__ if hasattr(_run_backtest_simulation, "__wrapped__") else _run_backtest_simulation)
 
-    with patch("trading_platform.backtester.core.run_backtest", wraps=run_backtest):
-        result = run_backtest(
+    with patch("trading_platform.backtester.core._run_backtest_simulation", wraps=_run_backtest_simulation):
+        result = _run_backtest_simulation(
             market_data=df,
             signals=signals,
             strategy=strategy,

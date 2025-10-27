@@ -5,7 +5,7 @@ from datetime import datetime
 
 import pandas as pd
 import pytest
-from trading_platform.backtester.core import run_backtest
+from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 
@@ -54,7 +54,7 @@ def test_skip_logged_for_blackout():
         exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config=None)
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=sig,
         strategy=strategy,
@@ -90,7 +90,7 @@ def test_skip_logged_for_position_cap():
         exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config=None)
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=sig,
         strategy=strategy,
