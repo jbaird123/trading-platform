@@ -9,7 +9,6 @@ import platform
 import sys
 from dataclasses import asdict, is_dataclass
 from datetime import datetime
-from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 from statistics import median
 from typing import Any
@@ -161,33 +160,6 @@ def _leaf_paths(obj: Any, prefix: str = "") -> list[str]:
     return paths
 
 
-def _round_currency(value: float | None) -> float:
-    if value is None:
-        return 0.0
-    # Use Decimal for correct rounding of currency values
-    return float(Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
-
-
-def _round_percentage(value: float | None) -> float | None:
-    if value is None:
-        return 0.0
-    # Round percentages to 3 decimal places
-    return float(Decimal(str(value)).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP))
-
-
-def _round_price(value: float | None) -> float | None:
-    """Round price values to 4 decimal places.
-
-    Keeps currency (PnL, costs) at 2 decimals while allowing FX-like prices
-    to retain finer precision in briefs.
-    """
-    if value is None:
-        return None
-    return float(
-        Decimal(str(value)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
-    )
-
-
 def _normalize_cost_breakdown(
     data: dict[str, Any] | None,
 ) -> dict[str, float]:
@@ -197,81 +169,8 @@ def _normalize_cost_breakdown(
     normalized: dict[str, float] = {}
     for key, default in base.items():
         raw = float(data.get(key, default) or 0.0)
-        normalized[key] = _round_currency(raw)
+        normalized[key] = raw
     return normalized
-
-
-def _round_feature(name: str, value: Any) -> float | None:
-    """Round feature/indicator values based on their type.
-
-    Centralized rounding logic for all technical indicators and features.
-    This is the ONLY place where feature rounding should occur - all other
-    modules should store full precision floats.
-    """
-    import math
-
-    if value is None:
-        return None
-
-    try:
-        f = float(value)
-        if math.isnan(f) or math.isinf(f):
-            return None
-
-        name_lower = name.lower()
-
-        # ADX: 2 decimals (percentage-like indicator)
-        if "adx" in name_lower:
-            return float(
-                Decimal(str(f)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            )
-
-        # ATR: 6 decimals (price volatility - needs FX precision)
-        if "atr" in name_lower:
-            return float(
-                Decimal(str(f)).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
-            )
-
-        # RSI, Stochastic, CCI: 2 decimals (bounded oscillators)
-        if any(x in name_lower for x in ["rsi", "stoch", "cci"]):
-            return float(
-                Decimal(str(f)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            )
-
-        # Volume: whole numbers
-        if "volume" in name_lower or "vol" in name_lower:
-            return float(Decimal(str(f)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
-
-        # EMA, SMA, prices: 4 decimals (for FX precision)
-        if any(
-            x in name_lower
-            for x in ["ema", "sma", "price", "close", "open", "high", "low"]
-        ):
-            return float(
-                Decimal(str(f)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
-            )
-
-        # MACD, momentum, ROC: 4 decimals
-        if any(x in name_lower for x in ["macd", "mom", "roc"]):
-            return float(
-                Decimal(str(f)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
-            )
-
-        # Default: 4 decimals
-        return float(
-            Decimal(str(f)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
-        )
-
-    except (ValueError, TypeError):
-        return None
-
-
-def _round_dict_features(d: dict[str, Any]) -> dict[str, Any]:
-    """Round all numeric values in a dictionary using feature-based rounding."""
-    return {
-        k: _round_feature(k, v) if isinstance(v, (int, float)) else v
-        for k, v in d.items()
-    }
 
 
 def _normalize_int(value: Any, default: int = 0) -> int:
@@ -298,10 +197,10 @@ def _normalize_regime_context(regime: dict[str, Any]) -> dict[str, Any]:
         normalized["raw_label"] = label
 
     confidence = normalized.get("confidence")
-    normalized["confidence"] = _round_percentage(confidence)
+    normalized["confidence"] = float(confidence) if confidence is not None else 0.0
 
     raw_conf = normalized.get("raw_confidence", normalized["confidence"])
-    normalized["raw_confidence"] = _round_percentage(raw_conf)
+    normalized["raw_confidence"] = float(raw_conf) if raw_conf is not None else 0.0
 
     allowed = normalized.get("allowed_sides")
     if isinstance(allowed, (list, tuple, set)):
@@ -313,7 +212,7 @@ def _normalize_regime_context(regime: dict[str, Any]) -> dict[str, Any]:
 
     features = normalized.get("features")
     if isinstance(features, dict):
-        normalized["features"] = _round_dict_features(features)
+        normalized["features"] = features
 
     bars_in_state = _normalize_int(normalized.get("bars_in_state"))
     cooldown_remaining = _normalize_int(normalized.get("cooldown_remaining"))
@@ -346,7 +245,7 @@ def _normalize_trade_context(
     normalized: dict[str, Any] = {}
     for key, value in context.items():
         if key == "strategy_features" and isinstance(value, dict):
-            normalized[key] = _round_dict_features(value)
+            normalized[key] = value
         elif key == "regime" and isinstance(value, dict):
             normalized[key] = _normalize_regime_context(value)
         else:
@@ -461,8 +360,8 @@ def _serialize_trade(t: Trade) -> dict[str, Any]:
         "size": t.size,
         "entry_time": t.entry_time.isoformat(),
         "exit_time": t.exit_time.isoformat(),
-        "entry_price": _round_price(t.entry_price),
-        "exit_price": _round_price(t.exit_price),
+        "entry_price": float(t.entry_price) if t.entry_price is not None else None,
+        "exit_price": float(t.exit_price) if t.exit_price is not None else None,
         "pnl": float(t.pnl) if t.pnl is not None else 0.0,
         "pnl_movement": float(getattr(t, "pnl_movement", None) or 0.0),
         "exit_reason": t.exit_reason,
@@ -506,23 +405,23 @@ def compute_overall_performance(
     }
     return {
         "n_trades": len(trades),
-        "total_pnl": _round_currency(total_pnl),
-        "total_pnl_movement": _round_currency(total_pnl_movement),
-        "total_costs": _round_currency(total_costs),
+        "total_pnl": float(total_pnl),
+        "total_pnl_movement": float(total_pnl_movement),
+        "total_costs": float(total_costs),
         "cost_breakdown": {
-            "spread": _round_currency(total_spread),
-            "commission": _round_currency(total_commission),
-            "slippage": _round_currency(total_slippage),
+            "spread": float(total_spread),
+            "commission": float(total_commission),
+            "slippage": float(total_slippage),
         },
-        "mean_pnl": _round_currency(mean_pnl),
-        "median_pnl": _round_currency(median_pnl),
+        "mean_pnl": float(mean_pnl),
+        "median_pnl": float(median_pnl),
         "by_side_total_pnl": {
-            "long": _round_currency(by_side_total_pnl["long"]),
-            "short": _round_currency(by_side_total_pnl["short"]),
+            "long": float(by_side_total_pnl["long"]),
+            "short": float(by_side_total_pnl["short"]),
         },
-        "win_rate": _round_percentage(calculate_win_rate(trades)),
-        "initial_equity": _round_currency(initial_cash),
-        "final_equity": _round_currency(final_equity),
+        "win_rate": float(calculate_win_rate(trades)),
+        "initial_equity": float(initial_cash),
+        "final_equity": float(final_equity),
     }
 
 
@@ -532,17 +431,17 @@ def compute_risk_snapshot(trades: list[Trade]) -> dict[str, Any]:
     wins_movement = [t.pnl_movement for t in trades if t.pnl > 0]
     losses_movement = [t.pnl_movement for t in trades if t.pnl < 0]
     return {
-        "win_rate": _round_percentage(calculate_win_rate(trades)),
-        "avg_win": _round_currency((sum(wins) / len(wins)) if wins else 0.0),
-        "avg_loss": _round_currency((sum(losses) / len(losses)) if losses else 0.0),
-        "avg_win_movement": _round_currency(
+        "win_rate": float(calculate_win_rate(trades)),
+        "avg_win": float((sum(wins) / len(wins)) if wins else 0.0),
+        "avg_loss": float((sum(losses) / len(losses)) if losses else 0.0),
+        "avg_win_movement": float(
             (sum(wins_movement) / len(wins_movement)) if wins_movement else 0.0
         ),
-        "avg_loss_movement": _round_currency(
+        "avg_loss_movement": float(
             (sum(losses_movement) / len(losses_movement)) if losses_movement else 0.0
         ),
-        "max_win": _round_currency(max(wins) if wins else 0.0),
-        "max_loss": _round_currency(min(losses) if losses else 0.0),
+        "max_win": float(max(wins) if wins else 0.0),
+        "max_loss": float(min(losses) if losses else 0.0),
     }
 
 
@@ -570,11 +469,11 @@ def compute_distribution(trades: list[Trade]) -> dict[str, Any]:
     var = sum((x - mean_val) ** 2 for x in pnls) / n
     std = var**0.5
     return {
-        "pnl_mean": _round_currency(mean_val),
-        "pnl_median": _round_currency(median_val),
-        "pnl_std": _round_currency(std),
-        "p05": _round_currency(_percentile(pnls, 0.05)),
-        "p95": _round_currency(_percentile(pnls, 0.95)),
+        "pnl_mean": float(mean_val),
+        "pnl_median": float(median_val),
+        "pnl_std": float(std),
+        "p05": float(_percentile(pnls, 0.05)),
+        "p95": float(_percentile(pnls, 0.95)),
     }
 
 
@@ -647,14 +546,14 @@ def compute_equity_stats(trades: list[Trade], initial_cash: float) -> dict[str, 
             if drawdown > max_dd:
                 max_dd = drawdown
                 dd_duration = temp_duration
-    equity_curve = [[ts.isoformat(), _round_currency(float(eq))] for ts, eq in ec]
+    equity_curve = [[ts.isoformat(), float(float(eq))] for ts, eq in ec]
     drawdown_curve = [
-        [ts.isoformat(), _round_currency(float(dd))] for ts, dd in dd_curve
+        [ts.isoformat(), float(float(dd))] for ts, dd in dd_curve
     ]
     return {
         "equity_curve": equity_curve,
         "drawdown_curve": drawdown_curve,
-        "max_drawdown": _round_currency(max_dd),
+        "max_drawdown": float(max_dd),
         "dd_duration_bars": dd_duration,
         "sharpe_ratio": round(sharpe_ratio, 2),
     }
@@ -682,12 +581,12 @@ def compute_costs_aggregate(trades: list[Trade]) -> dict[str, Any]:
         b_comm += float(bd.get("commission", 0.0) or 0.0)
         b_slip += float(bd.get("slippage", 0.0) or 0.0)
     return {
-        "total_costs": _round_currency(total),
-        "avg_cost_per_trade": _round_currency(total / len(trades) if trades else 0.0),
+        "total_costs": float(total),
+        "avg_cost_per_trade": float(total / len(trades) if trades else 0.0),
         "breakdown": {
-            "spread": _round_currency(b_spread),
-            "commission": _round_currency(b_comm),
-            "slippage": _round_currency(b_slip),
+            "spread": float(b_spread),
+            "commission": float(b_comm),
+            "slippage": float(b_slip),
         },
     }
 
@@ -713,10 +612,10 @@ def _compute_regimes(
         wins = sum(1 for p in pnls if p > 0)
         result[label] = {
             "n_trades": n,
-            "total_pnl": _round_currency(float(sum(pnls))),
-            "mean_pnl": _round_currency(float(sum(pnls) / n) if n else 0.0),
-            "median_pnl": _round_currency(float(median(pnls)) if pnls else 0.0),
-            "win_rate": _round_percentage((wins / n) if n else 0.0),
+            "total_pnl": float(float(sum(pnls))),
+            "mean_pnl": float(float(sum(pnls) / n) if n else 0.0),
+            "median_pnl": float(float(median(pnls)) if pnls else 0.0),
+            "win_rate": float((wins / n) if n else 0.0),
         }
     return result
 
@@ -732,8 +631,8 @@ def _compute_exposure_metrics(
     avg = sum(values) / len(values)
     peak = max(values)
     return {
-        "average_gross_exposure": _round_currency(avg),
-        "peak_gross_exposure": _round_currency(peak),
+        "average_gross_exposure": float(avg),
+        "peak_gross_exposure": float(peak),
     }
 
 
@@ -813,8 +712,8 @@ def generate_brief(
         else 0.0
     )
     model_analysis = {
-        "avg_pnl_left_on_table_at_tp": _round_currency(avg_pnl_left_on_table_at_tp),
-        "avg_loss_avoided_by_stop": _round_currency(avg_loss_avoided_by_stop),
+        "avg_pnl_left_on_table_at_tp": float(avg_pnl_left_on_table_at_tp),
+        "avg_loss_avoided_by_stop": float(avg_loss_avoided_by_stop),
     }
     # --- Signal quality analysis section (placeholder logic) ---
     # If signals_path is provided and file exists, try to load signals; else use empty
@@ -862,8 +761,8 @@ def generate_brief(
                 avg_signal_duration_bars = 1.0 if command_count > 0 else 0.0
 
                 signal_quality_analysis = {
-                    "signal_persistence_pct": _round_currency(signal_persistence_pct),
-                    "avg_signal_duration_bars": _round_currency(
+                    "signal_persistence_pct": float(signal_persistence_pct),
+                    "avg_signal_duration_bars": float(
                         avg_signal_duration_bars
                     ),
                 }
@@ -1028,7 +927,7 @@ def generate_brief(
     skipped_trades = skipped_trades or []
     for trade in skipped_trades:
         if "cf_pnl_currency" in trade:
-            trade["cf_pnl_currency"] = _round_currency(trade["cf_pnl_currency"])
+            trade["cf_pnl_currency"] = float(trade["cf_pnl_currency"])
     placeholders["skipped_trades"] = _to_jsonable(skipped_trades)
 
     # Populate field_definitions strictly from the JSON Schema if not provided
@@ -1154,11 +1053,11 @@ def generate_brief(
                 for s in skipped_trades
                 if (s.get("skip_reason") or "unknown") == rc
             ]
-            st["total_cf_pnl"] = _round_currency(float(sum(vals)))
-            st["mean_cf_pnl"] = _round_currency(
+            st["total_cf_pnl"] = float(float(sum(vals)))
+            st["mean_cf_pnl"] = float(
                 float(sum(vals) / len(vals)) if vals else 0.0
             )
-            st["median_cf_pnl"] = _round_currency(float(_med(vals)) if vals else 0.0)
+            st["median_cf_pnl"] = float(float(_med(vals)) if vals else 0.0)
         placeholders["filter_impact"] = agg
     return placeholders
 

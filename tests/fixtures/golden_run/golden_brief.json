@@ -28,7 +28,7 @@
     }
   },
   "exposure": {
-    "average_gross_exposure": 16.58,
+    "average_gross_exposure": 16.575,
     "peak_gross_exposure": 113.0
   },
   "contrasts": {
@@ -91,7 +91,7 @@
   "meta": {
     "strategy_name": "Golden_EMA_Crossover",
     "run_id": "golden_run_test",
-    "git_commit": "3b8ea2f",
+    "git_commit": "42f174c",
     "run_seed": 42
   },
   "strategy_params": {},
@@ -263,7 +263,7 @@
       "EURUSD"
     ],
     "app_version": "0.0.1",
-    "git_commit": "3b8ea2f",
+    "git_commit": "42f174c",
     "run_seed": 42
   },
   "artifacts": {},
@@ -452,17 +452,17 @@
           "sma_slow": 118.0
         },
         "global_features": {
-          "h1_obv": 14000,
-          "h4_rsi_14": null,
           "h1_volume_sma_20": 1000.0,
-          "h1_ema_50": null,
-          "h4_ema_50": null,
-          "d1_ema_50": 123.0,
-          "h1_bb_width_20": 0.09882969313297045,
           "d1_volume_sma_20": null,
-          "h1_rsi_14": 42.69265779520893,
+          "d1_ema_50": 123.0,
           "d1_atr_14": 25.0,
+          "h1_obv": 14000,
+          "h1_bb_width_20": 0.09882969313297045,
+          "h1_ema_50": null,
+          "h1_rsi_14": 42.69265779520893,
           "h1_atr_14": 2.523400956639961,
+          "h4_ema_50": null,
+          "h4_rsi_14": null,
           "volume": 1000
         }
       },

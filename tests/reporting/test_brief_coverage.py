@@ -5,8 +5,6 @@ from datetime import datetime, timedelta
 from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.brief import (
     _extract_rem_policy,
-    _round_dict_features,
-    _round_feature,
     _to_jsonable,
     generate_brief,
 )
@@ -67,99 +65,24 @@ def test_extract_rem_policy_without_price_offsets() -> None:
     assert "take_profit_pips" not in result
 
 
-def test_round_feature_adx_atr() -> None:
-    """Test _round_feature for ADX and ATR indicators.
-
-    Validates: Lines 191-194
-    """
-    assert _round_feature("adx", 23.456789) == 23.46
-    assert _round_feature("atr", 0.0123456) == 0.012346
-    assert _round_feature("ADX_14", 50.999) == 51.0
 
 
-def test_round_feature_rsi_stoch_cci() -> None:
-    """Test _round_feature for RSI, Stochastic, CCI indicators (2 decimals).
-
-    Validates: Lines 197-200
-    """
-    assert _round_feature("rsi", 65.8765) == 65.88
-    assert _round_feature("stoch_k", 32.1234) == 32.12
-    assert _round_feature("cci", -45.678) == -45.68
 
 
-def test_round_feature_volume() -> None:
-    """Test _round_feature for volume (whole numbers).
-
-    Validates: Lines 203-204
-    """
-    assert _round_feature("volume", 12345.6789) == 12346.0
-    assert _round_feature("vol", 999.5) == 1000.0
 
 
-def test_round_feature_ema_sma_prices() -> None:
-    """Test _round_feature for EMA, SMA, and prices (4 decimals).
-
-    Validates: Lines 207-213
-    """
-    assert _round_feature("ema_fast", 1.23456789) == 1.2346
-    assert _round_feature("sma_20", 1.09876) == 1.0988
-    assert _round_feature("close", 1.12345) == 1.1235
-    assert _round_feature("open", 1.12345) == 1.1235
-    assert _round_feature("high", 1.12345) == 1.1235
-    assert _round_feature("low", 1.12345) == 1.1235
 
 
-def test_round_feature_macd_momentum_roc() -> None:
-    """Test _round_feature for MACD, momentum, ROC (4 decimals).
-
-    Validates: Lines 216-219
-    """
-    assert _round_feature("macd", 0.012345678) == 0.0123
-    assert _round_feature("momentum", -0.0056789) == -0.0057
-    assert _round_feature("roc", 0.023456) == 0.0235
 
 
-def test_round_feature_default() -> None:
-    """Test _round_feature with unknown feature name (default 4 decimals).
-
-    Validates: Lines 222-224
-    """
-    assert _round_feature("custom_indicator", 3.456789012) == 3.4568
-    assert _round_feature("unknown", 1.99999) == 2.0
 
 
-def test_round_feature_none() -> None:
-    """Test _round_feature with None value.
-
-    Validates: Lines 180-181
-    """
-    assert _round_feature("any_name", None) is None
 
 
-def test_round_feature_nan() -> None:
-    """Test _round_feature with NaN value.
-
-    Validates: Lines 183-186
-    """
-    assert _round_feature("rsi", float("nan")) is None
 
 
-def test_round_feature_inf() -> None:
-    """Test _round_feature with Inf value.
-
-    Validates: Lines 183-186
-    """
-    assert _round_feature("ema", float("inf")) is None
-    assert _round_feature("ema", float("-inf")) is None
 
 
-def test_round_feature_invalid_value() -> None:
-    """Test _round_feature with invalid value type.
-
-    Validates: Lines 226-227
-    """
-    assert _round_feature("rsi", "not_a_number") is None
-    assert _round_feature("ema", {"invalid": "type"}) is None
 
 
 def test_to_jsonable_nan() -> None:
@@ -305,31 +228,6 @@ def test_generate_brief_with_rem_policy() -> None:
     assert "stop_loss" in brief["rem_policy"]
     assert "stop_loss_pips" in brief["rem_policy"]
     assert brief["rem_policy"]["stop_loss_pips"] == "50 pips"
-
-
-def test_round_dict_features() -> None:
-    """Test _round_dict_features rounds numeric values in dict.
-
-    Validates: Line 232 - dict comprehension return
-    """
-    test_dict = {
-        "rsi": 65.8765,
-        "ema_fast": 1.23456789,
-        "volume": 12345.6789,
-        "text_field": "unchanged",
-        "none_field": None,
-    }
-
-    result = _round_dict_features(test_dict)
-
-    # Numeric values should be rounded
-    assert result["rsi"] == 65.88
-    assert result["ema_fast"] == 1.2346
-    assert result["volume"] == 12346.0
-
-    # Non-numeric values should be unchanged
-    assert result["text_field"] == "unchanged"
-    assert result["none_field"] is None
 
 
 def test_generate_brief_without_rem_policy() -> None:

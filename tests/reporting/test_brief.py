@@ -18,8 +18,6 @@ from trading_platform.reporting import brief
 from trading_platform.reporting.brief import (
     _lookup_schema,
     _percentile,
-    _round_currency,
-    _round_price,
     _schema_node_type,
     compute_equity_stats,
     compute_streaks,
@@ -169,17 +167,6 @@ def test_lookup_schema():
     assert _lookup_schema(schema, ["foo", "qux"]) is None
     assert _lookup_schema(schema, ["baz", "any"]) == {"type": "integer"}
     assert _lookup_schema(schema, ["foo"]) is not None
-
-
-def test_round_currency():
-    assert _round_currency(None) == 0.0
-    assert _round_currency(1.234) == 1.23
-    assert _round_currency(1.235) == 1.24
-
-
-def test_round_price():
-    assert _round_price(None) is None
-    assert _round_price(1.23456) == 1.2346
 
 
 @patch("os.path.exists", return_value=True)
@@ -539,8 +526,7 @@ def test_schema_lookup_handles_additional_properties_and_defaults() -> None:
 
 
 def test_rounders_and_jsonable_cover_all_branches(tmp_path: Path) -> None:
-    assert brief._round_percentage(None) == 0.0
-    assert brief._round_price(None) is None
+    # Rounding functions have been removed - briefs now use full precision
 
     @dataclass
     class Payload:
@@ -577,7 +563,7 @@ def test_streaks_regimes_and_exposure_cover_branches() -> None:
         (datetime(2024, 1, 1, 1, 0, 0), 2.5),
     ]
     metrics = brief._compute_exposure_metrics(exposures)
-    assert metrics["peak_gross_exposure"] == brief._round_currency(2.5)
+    assert metrics["peak_gross_exposure"] == 2.5
     assert brief._compute_exposure_metrics(None) == {}
 
 
@@ -710,7 +696,8 @@ def test_generate_brief_handles_signal_dataframe_and_artifacts(monkeypatch, tmp_
     assert "signals_path" in brief_data["artifacts"]
     assert "checksums" not in brief_data
     filt = brief_data["filter_impact"]["blackout"]
-    assert filt["total_cf_pnl"] == 12.35
+    # Now using full precision (no rounding)
+    assert filt["total_cf_pnl"] == 12.3456
 
 
 def test_generate_brief_handles_signal_series_with_flat_values(monkeypatch, tmp_path):
