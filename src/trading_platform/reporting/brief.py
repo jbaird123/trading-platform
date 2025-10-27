@@ -323,9 +323,7 @@ def _normalize_regime_context(regime: dict[str, Any]) -> dict[str, Any]:
     hyst = normalized.get("hysteresis")
     if isinstance(hyst, dict):
         normalized["hysteresis"] = {
-            "bars_in_state": _normalize_int(
-                hyst.get("bars_in_state"), bars_in_state
-            ),
+            "bars_in_state": _normalize_int(hyst.get("bars_in_state"), bars_in_state),
             "cooldown_remaining": _normalize_int(
                 hyst.get("cooldown_remaining"), cooldown_remaining
             ),
@@ -426,13 +424,9 @@ def _empty_sections() -> dict[str, Any]:
 
 def _serialize_trade(t: Trade) -> dict[str, Any]:
     """Serialize trade with proper rounding for brief output."""
-    context_at_entry = _normalize_trade_context(
-        getattr(t, "context_at_entry", None)
-    )
+    context_at_entry = _normalize_trade_context(getattr(t, "context_at_entry", None))
 
-    context_at_exit = _normalize_trade_context(
-        getattr(t, "context_at_exit", None)
-    )
+    context_at_exit = _normalize_trade_context(getattr(t, "context_at_exit", None))
 
     # Handle post-exit analysis (supports both old dict and new Pydantic model)
     post_exit = getattr(t, "post_exit_analysis", None)
@@ -442,16 +436,17 @@ def _serialize_trade(t: Trade) -> dict[str, Any]:
         )
 
         if isinstance(post_exit, PostExitAnalysis):
-            # New format: convert Pydantic model to dict with rounding
+            # New format: convert Pydantic model to dict
+            # (no rounding - preserve full precision)
             post_exit = post_exit.model_dump()
         elif isinstance(post_exit, dict):
-            # Legacy format: round MFE/MAE values
+            # Legacy format: preserve full precision for MFE/MAE values
             post_exit = {
                 horizon: {
-                    "mfe": _round_currency(data.get("mfe"))
+                    "mfe": float(data.get("mfe") or 0.0)
                     if isinstance(data, dict)
                     else data,
-                    "mae": _round_currency(data.get("mae"))
+                    "mae": float(data.get("mae") or 0.0)
                     if isinstance(data, dict)
                     else data,
                 }
@@ -468,12 +463,12 @@ def _serialize_trade(t: Trade) -> dict[str, Any]:
         "exit_time": t.exit_time.isoformat(),
         "entry_price": _round_price(t.entry_price),
         "exit_price": _round_price(t.exit_price),
-        "pnl": _round_currency(t.pnl),
-        "pnl_movement": _round_currency(getattr(t, "pnl_movement", None)),
+        "pnl": float(t.pnl) if t.pnl is not None else 0.0,
+        "pnl_movement": float(getattr(t, "pnl_movement", None) or 0.0),
         "exit_reason": t.exit_reason,
         "r_multiple": getattr(t, "r_multiple", None),
-        "mfe_currency": _round_currency(getattr(t, "mfe_currency", None)),
-        "mae_currency": _round_currency(getattr(t, "mae_currency", None)),
+        "mfe_currency": float(getattr(t, "mfe_currency", None) or 0.0),
+        "mae_currency": float(getattr(t, "mae_currency", None) or 0.0),
         "bars_held": getattr(t, "bars_held", None),
         "context_at_entry": context_at_entry,
         "context_at_exit": context_at_exit,
