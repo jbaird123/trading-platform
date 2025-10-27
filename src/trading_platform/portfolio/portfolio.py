@@ -574,8 +574,13 @@ class PortfolioManager:
 
         initial_risk_ccy = self._open_position.initial_risk_ccy
         r_multiple = None
-        if initial_risk_ccy and initial_risk_ccy > 0:
-            r_multiple = pnl / initial_risk_ccy
+        if initial_risk_ccy is not None:
+            try:
+                if float(initial_risk_ccy) > 0:
+                    r_multiple = pnl / initial_risk_ccy
+            except (ValueError, TypeError):
+                # Handle arrays, mocks, or invalid types
+                pass
 
         # Ensure the recorded trade has a non-null context_at_entry for
         # reporting/brief generation convenience. Position.context_at_entry

@@ -333,6 +333,7 @@ def run_backtest(
     for i in range(len(market_data)):
         signal = signals.iloc[i]
         current_bar = market_data.iloc[i]
+        prior_bar = market_data.iloc[i - 1] if i > 0 else None
 
         # === EXECUTION PHASE: Execute pending actions ===
         # Execute pending exit from previous bar (next_bar_open model)
@@ -362,15 +363,32 @@ def run_backtest(
 
         # Execute pending entry from previous bar (next_bar_open model)
         if pending_entry is not None:
+            # Calculate initial stop loss price for r_multiple calculation
+            entry_price = current_bar["open"]
+            initial_risk_ccy = None
+            if rem is not None:
+                stop_price = rem.calculate_initial_stop_price(
+                    entry_price=entry_price,
+                    side=pending_entry["side"],
+                    entry_bar=current_bar,
+                    signal_context=pending_entry.get("context", {}),
+                    prior_bar=prior_bar,
+                )
+                if stop_price is not None:
+                    # initial_risk_ccy = distance * size
+                    initial_risk_ccy = (
+                        abs(entry_price - stop_price) * pending_entry["size"]
+                    )
+
             portfolio.create_new_position(
                 symbol=pending_entry["symbol"],
                 side=pending_entry["side"],
-                entry_price=current_bar["open"],
+                entry_price=entry_price,
                 size=pending_entry["size"],
                 entry_time=cast(datetime, current_bar.name),
                 instrument=pending_entry["instrument"],
                 context_at_entry=pending_entry.get("context"),
-                initial_risk_ccy=None,
+                initial_risk_ccy=initial_risk_ccy,
             )
             # Mark that we've entered on this entry window
             portfolio._entry_windows[pending_entry["side"]] = (
@@ -424,7 +442,6 @@ def run_backtest(
         # at the intra-bar price when hit, regardless of execution_model.
         # This is realistic behavior - protective orders execute intra-bar.
         # The execution_model setting only applies to signal-based entries/exits.
-        prior_bar = market_data.iloc[i - 1] if i > 0 else None
         if portfolio.current_position and rem is not None:
             rem_result = rem.check_exits_intrabar(
                 portfolio.current_position,
@@ -602,15 +619,30 @@ def run_backtest(
 
                     if config.execution_model == "current_bar_close":
                         # Immediate execution at bar close
+                        # Calculate initial stop loss price for r_multiple calculation
+                        entry_price = current_bar["close"]
+                        initial_risk_ccy = None
+                        if rem is not None:
+                            stop_price = rem.calculate_initial_stop_price(
+                                entry_price=entry_price,
+                                side=side,
+                                entry_bar=current_bar,
+                                signal_context=context,
+                                prior_bar=prior_bar,
+                            )
+                            if stop_price is not None:
+                                # initial_risk_ccy = distance * size
+                                initial_risk_ccy = abs(entry_price - stop_price) * size
+
                         portfolio.create_new_position(
                             symbol=symbol,
                             side=side,
-                            entry_price=current_bar["close"],
+                            entry_price=entry_price,
                             size=size,
                             entry_time=cast(datetime, current_bar.name),
                             instrument=instrument_dict,
                             context_at_entry=context,
-                            initial_risk_ccy=None,
+                            initial_risk_ccy=initial_risk_ccy,
                         )
                         # Mark that we've entered on this entry window
                         portfolio._entry_windows[side] = (
@@ -831,6 +863,23 @@ def _simulate_counterfactual_exact(
         cost_model=cost_model,
     )
     entry_time = cast(datetime, market_data.index[start_index])
+
+    # Calculate initial stop loss price for r_multiple calculation
+    entry_bar = market_data.iloc[start_index]
+    prior_bar = market_data.iloc[start_index - 1] if start_index > 0 else None
+    initial_risk_ccy = None
+    if rem is not None:
+        stop_price = rem.calculate_initial_stop_price(
+            entry_price=entry_price,
+            side=side,
+            entry_bar=entry_bar,
+            signal_context={},  # Counterfactual uses config-based stops
+            prior_bar=prior_bar,
+        )
+        if stop_price is not None:
+            # initial_risk_ccy = distance * size
+            initial_risk_ccy = abs(entry_price - stop_price) * size
+
     pm.create_new_position(
         symbol=symbol,
         side=side,
@@ -838,7 +887,7 @@ def _simulate_counterfactual_exact(
         size=size,
         entry_time=entry_time,
         instrument=instrument,
-        initial_risk_ccy=None,
+        initial_risk_ccy=initial_risk_ccy,
     )
 
     bars_touched = 0

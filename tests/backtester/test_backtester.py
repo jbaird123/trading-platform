@@ -305,6 +305,16 @@ def test_counterfactual_exact_rem_exit_breaks_loop() -> None:
     )
 
     class StubREM:
+        def calculate_initial_stop_price(
+            self,
+            entry_price: float,
+            side: str,
+            entry_bar: pd.Series,
+            signal_context: dict[str, Any],
+            prior_bar: pd.Series | None = None,
+        ) -> float | None:
+            return None
+
         def check_exits(
             self,
             position: Any,
@@ -357,6 +367,16 @@ def test_counterfactual_exact_returns_empty_when_position_not_created(
     )
 
     class NoExitREM:
+        def calculate_initial_stop_price(
+            self,
+            entry_price: float,
+            side: str,
+            entry_bar: pd.Series,
+            signal_context: dict[str, Any],
+            prior_bar: pd.Series | None = None,
+        ) -> float | None:
+            return None
+
         def check_exits(self, position: Any, current_bar: pd.Series) -> None:
             return None
 
