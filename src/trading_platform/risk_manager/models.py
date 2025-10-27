@@ -44,6 +44,51 @@ class FixedPipsRule(_StrictModel):
     ]
 
 
+class ChandelierParams(_StrictModel):
+    """Parameters for Chandelier Stop indicator."""
+
+    multiplier: Annotated[
+        float,
+        Field(
+            default=3.0,
+            gt=0,
+            description=(
+                "ATR multiplier controlling stop distance. Higher values (3.0-4.0) "
+                "provide wider stops suitable for volatile markets or swing trading. "
+                "Lower values (2.0-2.5) create tighter stops for scalping or trend "
+                "following. The stop distance equals ATR × multiplier."
+            ),
+        ),
+    ] = 3.0
+    length: Annotated[
+        int,
+        Field(
+            default=22,
+            gt=0,
+            description=(
+                "Lookback period for HHV (Highest High Value) and LLV (Lowest Low "
+                "Value). Determines how far back to search for swing highs/lows that "
+                "anchor the chandelier. Common values: 20-22 for intraday trading, "
+                "10-14 for day trading, 30+ for position trading. Longer periods "
+                "create more stable stops."
+            ),
+        ),
+    ] = 22
+    atr_length: Annotated[
+        int,
+        Field(
+            default=14,
+            gt=0,
+            description=(
+                "Period length for ATR (Average True Range) calculation. Measures "
+                "market volatility to dynamically adjust stop distance. Standard is "
+                "14 periods, but use 10 for faster adaptation to volatility changes "
+                "or 20+ for smoother, less reactive stops."
+            ),
+        ),
+    ] = 14
+
+
 class IndicatorRule(_StrictModel):
     """Exit distance calculated using a registered indicator."""
 
@@ -51,17 +96,26 @@ class IndicatorRule(_StrictModel):
     indicator: str = Field(
         description="Name of the registered indicator providing the dynamic distance."
     )
-    params: dict[str, Any] = Field(
-        description="Indicator-specific parameters validated against the registry."
+    params: dict[str, Any] | ChandelierParams = Field(
+        description=(
+            "Indicator-specific parameters. For 'chandelier' indicator, uses "
+            "ChandelierParams with multiplier, length, and atr_length fields. "
+            "For other indicators, validated against the registry."
+        )
     )
 
     @field_validator("params")
     @classmethod
-    def _ensure_params_dict(cls, value: dict[str, Any]) -> dict[str, Any]:
+    def _ensure_params_dict(
+        cls, value: dict[str, Any] | ChandelierParams
+    ) -> dict[str, Any] | ChandelierParams:
         if value is None:
             raise ValueError("Indicator params cannot be null")
+        # Allow ChandelierParams model or dict
+        if isinstance(value, ChandelierParams):
+            return value
         if not isinstance(value, dict):
-            raise ValueError("Indicator params must be an object")
+            raise ValueError("Indicator params must be an object or ChandelierParams")
         return value
 
     @model_validator(mode="after")
@@ -70,7 +124,11 @@ class IndicatorRule(_StrictModel):
         if spec is None:
             raise ValueError(f"Unknown REM indicator '{self.indicator}'")
 
-        params = dict(self.params)
+        # Convert ChandelierParams to dict for validation
+        if isinstance(self.params, ChandelierParams):
+            params = self.params.model_dump()
+        else:
+            params = dict(self.params)
 
         # Required parameters
         for key, expected_type in spec.required_params.items():
@@ -310,6 +368,7 @@ __all__ = [
     "PriceOffsetRule",
     "FixedPipsRule",
     "IndicatorRule",
+    "ChandelierParams",
     "ReferenceRule",
     "DistanceRule",
     "TrailingStopRule",
