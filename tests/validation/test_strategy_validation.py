@@ -688,11 +688,19 @@ def load_platform_trades(
             execution_timeframe=execution_timeframe,
             market_data=ohlcv_1h,
             backtest_start_date=backtest_start_date,
-            safety_days=10,
         )
 
         # Convert warmup_start_date to timestamp
         warmup_start = pd.Timestamp(warmup_start_date, tz="UTC")
+
+        # DEBUG: Print warmup info for bb_stop
+        if "bb_stop" in str(strategy_config.get("strategy_name", "")).lower():
+            print("\n=== DEBUG: bb_stop warmup calculation ===")
+            print(f"Backtest start date: {backtest_start_date}")
+            print(f"Calculated warmup start: {warmup_start}")
+            print(f"Warmup info: {warmup_info}")
+            print(f"Days of warmup: {(backtest_start_date - warmup_start).days}")
+            print("=========================================\n")
 
         # Filter data from warmup start to validation end
         ohlcv_to_use = ohlcv_1h[

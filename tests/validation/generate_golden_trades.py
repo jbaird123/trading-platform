@@ -201,7 +201,6 @@ def generate_golden_trades_for_strategy(
             execution_timeframe=execution_timeframe,
             market_data=ohlcv_1h,
             backtest_start_date=backtest_start_date,
-            safety_days=10,
         )
 
         # Convert warmup_start_date to timestamp

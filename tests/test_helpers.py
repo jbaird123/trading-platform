@@ -33,8 +33,11 @@ def create_market_data_with_warmup(
         freq: Frequency of the bars (e.g., "1H", "15min", "1D")
         execution_timeframe: Execution timeframe for the backtest
         strategy_features: List of strategy feature definitions (optional)
-        include_global_features: Whether to include global features from config/features/global.yaml
-        ohlcv_values: Default OHLCV values to use (default: {"open": 1.0, "high": 1.1, "low": 0.9, "close": 1.0, "volume": 100})
+        include_global_features: Whether to include global features from
+            config/features/global.yaml
+        ohlcv_values: Default OHLCV values to use
+            (default: {"open": 1.0, "high": 1.1, "low": 0.9, "close": 1.0,
+            "volume": 100})
 
     Returns:
         DataFrame with OHLCV data starting from (start_date - warmup_buffer) to end_date
@@ -107,14 +110,14 @@ def create_market_data_with_warmup(
             execution_timeframe=execution_timeframe,
             market_data=temp_df,
             backtest_start_date=start_date,
-            safety_days=10,
         )
 
         # Generate the full data range including warmup
         full_index = pd.date_range(warmup_start, end_date, freq=freq)
     except (ValueError, KeyError):
-        # If warmup calculation fails (e.g., insufficient data), use a conservative buffer
-        # Most tests use h1_ema_50, d1_ema_50 which need 50 bars at 1D = ~60 days
+        # If warmup calculation fails (e.g., insufficient data), use a
+        # conservative buffer. Most tests use h1_ema_50, d1_ema_50 which
+        # need 50 bars at 1D = ~60 days
         warmup_start = start_date - pd.Timedelta(days=100)
         full_index = pd.date_range(warmup_start, end_date, freq=freq)
 
@@ -197,7 +200,6 @@ def extend_test_data_for_warmup(
             execution_timeframe=execution_timeframe,
             market_data=df,
             backtest_start_date=backtest_start,
-            safety_days=10,
         )
     except (ValueError, KeyError):
         # Conservative fallback

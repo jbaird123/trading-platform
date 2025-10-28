@@ -11,7 +11,7 @@ not calendar time. This handles Forex (weekend gaps), Crypto (24/7), and Stock
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date
 from typing import Any
 
 import pandas as pd
@@ -60,7 +60,6 @@ def calculate_warmup_start_date(
     execution_timeframe: str,
     market_data: pd.DataFrame,
     backtest_start_date: pd.Timestamp | str,
-    safety_days: int = 10,
 ) -> tuple[date, dict[str, Any]]:
     """Calculate the start date for loading data with warmup period.
 
@@ -68,7 +67,7 @@ def calculate_warmup_start_date(
     1. For each indicator (strategy + global), calculate bars needed
     2. Count backwards that many bars in the actual data (resampled if needed)
     3. Find the earliest timestamp across all indicators
-    4. Convert to date and subtract safety buffer
+    4. Use that as the warmup start date
 
     This is instrument-agnostic because it counts actual bars in the data,
     not calendar time. Works for Forex, Crypto, Stocks automatically.
@@ -79,14 +78,12 @@ def calculate_warmup_start_date(
         execution_timeframe: Execution timeframe (e.g., "1H", "15min")
         market_data: The market data to analyze (must include warmup period)
         backtest_start_date: When the backtest should start
-        safety_days: Extra days to add as safety buffer (default 10)
 
     Returns:
         Tuple of (warmup_start_date, info_dict) where info_dict contains:
             - required_bars: dict mapping feature names to bars needed
             - earliest_feature: name of the feature requiring most warmup
             - earliest_timestamp: the earliest timestamp found
-            - safety_buffer_days: the safety buffer applied
 
     Raises:
         ValueError: If insufficient data available for warmup
@@ -110,8 +107,9 @@ def calculate_warmup_start_date(
         )
     start_idx: int = start_idx_raw
 
-    # Track all warmup requirements
-    warmup_timestamps: dict[str, pd.Timestamp] = {}
+    # Track all warmup requirements with timeframe info
+    # Format: {feature_name: (timestamp, timeframe)}
+    warmup_info_dict: dict[str, tuple[pd.Timestamp, str]] = {}
     bars_needed: dict[str, int] = {}
 
     # Process strategy features (on execution timeframe)
@@ -132,8 +130,9 @@ def calculate_warmup_start_date(
                 f"but only {start_idx} available."
             )
 
-        warmup_timestamps[f"strategy_{feature_name}"] = pd.Timestamp(
-            market_data.index[warmup_idx]
+        warmup_info_dict[f"strategy_{feature_name}"] = (
+            pd.Timestamp(market_data.index[warmup_idx]),
+            execution_timeframe,
         )
 
     # Process global features (may be on different timeframes)
@@ -155,8 +154,9 @@ def calculate_warmup_start_date(
                     f"({feature_type}). Need {bars} bars before "
                     f"{backtest_start}, but only {start_idx} available."
                 )
-            warmup_timestamps[f"global_{feature_name}"] = pd.Timestamp(
-                market_data.index[warmup_idx]
+            warmup_info_dict[f"global_{feature_name}"] = (
+                pd.Timestamp(market_data.index[warmup_idx]),
+                execution_timeframe,
             )
         else:
             # Feature is on a different timeframe - resample and count
@@ -181,12 +181,13 @@ def calculate_warmup_start_date(
                     f"{start_idx_resampled} available."
                 )
 
-            warmup_timestamps[f"global_{feature_name}"] = pd.Timestamp(
-                resampled.index[warmup_idx_resampled]
+            warmup_info_dict[f"global_{feature_name}"] = (
+                pd.Timestamp(resampled.index[warmup_idx_resampled]),
+                feature_timeframe,
             )
 
     # Find earliest timestamp
-    if not warmup_timestamps:
+    if not warmup_info_dict:
         # No indicators - no warmup needed
         return backtest_start.date(), {
             "required_bars": {},
@@ -195,18 +196,16 @@ def calculate_warmup_start_date(
             "safety_buffer_days": 0,
         }
 
-    earliest_feature = min(warmup_timestamps, key=warmup_timestamps.get)  # type: ignore
-    earliest_timestamp = warmup_timestamps[earliest_feature]
+    # Find the feature with earliest timestamp
+    earliest_feature = min(warmup_info_dict, key=lambda k: warmup_info_dict[k][0])
+    earliest_timestamp, earliest_timeframe = warmup_info_dict[earliest_feature]
 
-    # Convert to date (strip time component)
-    earliest_date = earliest_timestamp.date()
-
-    # Apply safety buffer
-    warmup_start_date = earliest_date - timedelta(days=safety_days)
+    # Use earliest_timestamp directly as warmup start (no safety buffer)
+    warmup_start_date = earliest_timestamp.date()
 
     return warmup_start_date, {
         "required_bars": bars_needed,
         "earliest_feature": earliest_feature,
         "earliest_timestamp": earliest_timestamp,
-        "safety_buffer_days": safety_days,
+        "safety_buffer_days": 0,
     }

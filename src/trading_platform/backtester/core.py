@@ -216,7 +216,6 @@ def _run_backtest_simulation(
                 execution_timeframe=execution_timeframe,
                 market_data=market_data,
                 backtest_start_date=backtest_start,
-                safety_days=10,
             )
 
             # Extend data backwards if needed
