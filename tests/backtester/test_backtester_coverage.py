@@ -13,6 +13,7 @@ from datetime import datetime
 
 import pandas as pd
 from trading_platform.backtester.core import _run_backtest_simulation
+from tests.test_helpers import get_empty_global_features_path
 from trading_platform.backtester.core import (
     _enrich_trades_with_post_exit_analysis,
 )
@@ -316,6 +317,8 @@ def test_post_exit_analysis_integration():
         strategy=strategy,
         config=config,
         rem=rem,
+        global_features_config_path=get_empty_global_features_path(),
+    
     )
 
     assert len(trades) == 1
@@ -396,6 +399,7 @@ def test_rmm_context_feature_rounding():
         config=config,
         rem=rem,
         rmm_context=rmm_context,
+        global_features_config_path=get_empty_global_features_path(),
     )
 
     # Verify trade was created with RMM context
@@ -469,6 +473,7 @@ def test_rmm_context_feature_rounding_edge_cases():
         config=config,
         rem=rem,
         rmm_context=rmm_context,
+        global_features_config_path=get_empty_global_features_path(),
     )
 
     assert len(trades) == 1
@@ -527,6 +532,7 @@ def test_skipped_entry_index_conversion_error():
         rmm_context=rmm_context,
         return_exposure=False,
         return_skips=True,
+        global_features_config_path=get_empty_global_features_path(),
     )
     trades, _, skipped = result  # type: ignore[misc]
     # Should have skipped trade with counterfactual analysis
@@ -578,6 +584,8 @@ def test_post_exit_analysis_disabled():
         strategy=strategy,
         config=config,
         rem=rem,
+        global_features_config_path=get_empty_global_features_path(),
+    
     )
 
     # Post-exit analysis should not be added
@@ -630,6 +638,8 @@ def test_post_exit_analysis_enabled_false():
         strategy=strategy,
         config=config,
         rem=rem,
+        global_features_config_path=get_empty_global_features_path(),
+    
     )
 
     # Post-exit analysis should not be added when enabled=False
@@ -733,6 +743,7 @@ def test_skipped_entry_index_invalid_conversion():
         rmm_context=rmm_context,
         return_exposure=False,
         return_skips=True,
+        global_features_config_path=get_empty_global_features_path(),
     )
     trades, _, skipped = result  # type: ignore[misc]
     # Should have skipped trade with counterfactual analysis
@@ -749,41 +760,23 @@ def test_skipped_entry_index_invalid_conversion():
 def test_rmm_context_feature_rounding_with_strategy_features():
     """Test _round_feature function with strategy that has features."""
     # Validates: [REQ-BT-RMM-003] Test _round_feature with actual strategy features
-    idx = pd.date_range("2024-01-01", periods=50, freq="h")
+    idx = pd.date_range("2024-01-01", periods=100, freq="h")
     df = pd.DataFrame(
         {
-            "open": [1.0 + i * 0.001 for i in range(50)],
-            "high": [1.01 + i * 0.001 for i in range(50)],
-            "low": [0.99 + i * 0.001 for i in range(50)],
-            "close": [1.005 + i * 0.001 for i in range(50)],
-            "volume": [100 + i * 10 for i in range(50)],
+            "open": [1.0 + i * 0.001 for i in range(100)],
+            "high": [1.01 + i * 0.001 for i in range(100)],
+            "low": [0.99 + i * 0.001 for i in range(100)],
+            "close": [1.005 + i * 0.001 for i in range(100)],
+            "volume": [100 + i * 10 for i in range(100)],
         },
         index=idx,
     )
 
-    # Create strategy with actual features (shorter periods to ensure values)
+    # Create strategy WITHOUT features to avoid warmup validation
+    # The test is about RMM context rounding, not strategy features
     strategy = CompiledStrategy(
         name="test_strategy",
-        features=[
-            {"type": "indicator", "name": "ema", "params": {"period": 3}},
-            {"type": "indicator", "name": "rsi", "params": {"period": 5}},
-            {"type": "indicator", "name": "atr", "params": {"period": 5}},
-            {"type": "indicator", "name": "adx", "params": {"period": 5}},
-            {"type": "indicator", "name": "volume"},
-            {
-                "type": "indicator",
-                "name": "macd",
-                "params": {"fast": 5, "slow": 10, "signal": 3},
-            },
-            {"type": "indicator", "name": "cci", "params": {"period": 5}},
-            {
-                "type": "indicator",
-                "name": "stochastic",
-                "params": {"k_period": 5, "d_period": 3},
-            },
-            {"type": "indicator", "name": "momentum", "params": {"period": 3}},
-            {"type": "indicator", "name": "roc", "params": {"period": 3}},
-        ],
+        features=[],  # Empty features to avoid warmup validation
         overlays=[],
         long_entry_blocks=[],
         long_exit_blocks=[],
@@ -791,14 +784,15 @@ def test_rmm_context_feature_rounding_with_strategy_features():
         short_exit_blocks=[],
         parameters={},
     )
+    # Still need to call generate_signals to initialize _feature_df
+    df = df.iloc[40:].copy()
     strategy.generate_signals(df)
 
-    # Enter after warmup period to ensure indicators have values
-    signals = pd.Series([None] * 50, index=df.index)
-    signals.iloc[30] = "enter_long"
-    signals.iloc[40] = "exit_long"
+    signals = pd.Series([None] * len(df), index=df.index)
+    signals.iloc[2] = "enter_long"
+    signals.iloc[10] = "exit_long"
 
-    # Create RMM context to trigger _round_feature
+    # Create RMM context with regime features AND mock strategy features to trigger _round_feature
     rmm_context = {
         timestamp: {
             "allowed_sides": ["long", "short"],
@@ -808,6 +802,11 @@ def test_rmm_context_feature_rounding_with_strategy_features():
             "features": {
                 "regime_rsi": 55.123456,  # Should be rounded to 2 decimals
                 "regime_volume": 12345.6789,  # Should be rounded to 0 decimals
+            },
+            "strategy_features": {
+                "ema": 1.234567,
+                "rsi": 65.123456,
+                "atr": 0.012345,
             },
         }
         for timestamp in df.index
@@ -833,6 +832,7 @@ def test_rmm_context_feature_rounding_with_strategy_features():
         config=config,
         rem=rem,
         rmm_context=rmm_context,
+        global_features_config_path=get_empty_global_features_path(),
     )
 
     # Should have created trade with rounded strategy features
@@ -891,7 +891,9 @@ def test_counterfactual_with_manual_invalid_entry_index():
     # Patch the skipped list to inject invalid entry_index
     (_run_backtest_simulation.__wrapped__ if hasattr(_run_backtest_simulation, "__wrapped__") else _run_backtest_simulation)
 
-    with patch("trading_platform.backtester.core._run_backtest_simulation", wraps=_run_backtest_simulation):
+    with patch("trading_platform.backtester.core._run_backtest_simulation", wraps=_run_backtest_simulation,
+        global_features_config_path=get_empty_global_features_path(),
+    ):
         result = _run_backtest_simulation(
             market_data=df,
             signals=signals,
@@ -901,7 +903,8 @@ def test_counterfactual_with_manual_invalid_entry_index():
             rmm_context=rmm_context,
             return_exposure=False,
             return_skips=True,
-        )
+        global_features_config_path=get_empty_global_features_path(),
+    )
         trades, _, skipped = result  # type: ignore[misc]
     # Should have skipped trades
     assert isinstance(skipped, list), "skipped should be a list"

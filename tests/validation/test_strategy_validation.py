@@ -623,7 +623,7 @@ def load_platform_trades(
     if rem_config:
         config_dict["rem_config"] = rem_config
 
-    # Create RunConfig (will set warmup_bars later after calculating)
+    # Create RunConfig (trim handled by warmup guards)
     config = RunConfig.model_validate(config_dict)
 
     # ALL strategies use 1-minute data resampled to 1H
@@ -707,11 +707,7 @@ def load_platform_trades(
             (ohlcv_1h.index >= warmup_start) & (ohlcv_1h.index <= end_date)
         ].copy()
 
-        # Calculate warmup_bars: number of bars from warmup start to backtest start
-        warmup_bars = len(ohlcv_to_use[ohlcv_to_use.index < backtest_start_date])
-
-        # Update config with calculated warmup_bars
-        config = RunConfig.model_validate({**config_dict, "warmup_bars": warmup_bars})
+        config = RunConfig.model_validate(config_dict)
     else:
         ohlcv_to_use = ohlcv_1h
 

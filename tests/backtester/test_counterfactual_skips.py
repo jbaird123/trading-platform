@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 from pytest import approx
 from trading_platform.backtester.core import _run_backtest_simulation
+from tests.test_helpers import get_empty_global_features_path
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 
@@ -67,6 +68,7 @@ def test_counterfactual_for_blackout_skip_with_tp():
         rem=rem,
         return_exposure=True,
         return_skips=True,
+        global_features_config_path=get_empty_global_features_path(),
     )
     trades, _exp, skips = result  # type: ignore[misc]
     assert skips and "cf_exit_time" in skips[0]  # type: ignore[index]
@@ -108,6 +110,7 @@ def test_rmm_skip_records_policy_snapshot() -> None:
         rmm_context=rmm_ctx,
         return_exposure=True,
         return_skips=True,
+        global_features_config_path=get_empty_global_features_path(),
     )
     trades, exposures, skips = cast(tuple[list, list, list], result)
     skips_typed = cast(list[dict[str, Any]], skips)
@@ -142,6 +145,8 @@ def test_run_backtest_returns_exposure_without_skips() -> None:
         config=config,
         rem=rem,
         return_exposure=True,
+        global_features_config_path=get_empty_global_features_path(),
+    
     )
     trades, exposure_curve = cast(tuple[list, list], result)
     assert trades == []
@@ -196,6 +201,7 @@ def test_corrupted_skipped_entry_raises_error() -> None:
         rem=rem,
         return_exposure=True,
         return_skips=True,
+        global_features_config_path=get_empty_global_features_path(),
     )
     trades, _exposure, skips = cast(tuple[list, list, list[dict]], result)
 

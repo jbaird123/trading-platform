@@ -22,6 +22,7 @@ from trading_platform.core.sweeps import (
     run_parameter_sweep,
     walk_forward_optimize_and_test,
 )
+from tests.test_helpers import create_market_data_with_warmup, get_empty_global_features_path
 from trading_platform.regime_market_manager.models import RMMConfig
 
 # --- test_sweeps_100_coverage.py ---
@@ -38,10 +39,13 @@ class TestRmmContextCoverage:
 
     def test_rmm_context_with_yaml_and_json_extensions(self):
         """Test _rmm_context handles both .yaml and .yml extensions."""
-        df = pd.DataFrame(
-            {"close": [1.0, 1.1]},
-            index=pd.date_range("2024-01-01", periods=2, freq="D"),
+        df = create_market_data_with_warmup(
+            start_date=datetime(2024, 1, 1),
+            end_date=datetime(2024, 1, 2),
+            freq="1D",
+            include_global_features=False,
         )
+        df = df[["close"]]  # Only need close for this test
 
         # Test .yml extension
         rmm_config = {
@@ -92,15 +96,11 @@ class TestParameterSweepCoverage:
 
     def test_debug_logging_exception_handling(self):
         """Test exception handling in debug logging lines 114-115."""
-        df = pd.DataFrame(
-            {
-                "open": [1.0, 1.1],
-                "high": [1.05, 1.15],
-                "low": [0.95, 1.05],
-                "close": [1.02, 1.12],
-                "volume": [100, 200],
-            },
-            index=pd.date_range("2024-01-01", periods=2, freq="h"),
+        df = create_market_data_with_warmup(
+            start_date=datetime(2024, 1, 1),
+            end_date=datetime(2024, 1, 1, 2),
+            freq="1H",
+            include_global_features=False,
         )
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1947,19 +1947,21 @@ def test_parameter_sweep_random_space():
 
 def _df() -> pd.DataFrame:
     start = datetime(2024, 1, 1)
-    idx = [start + timedelta(hours=i) for i in range(60)]
-    # Simple wave to induce a few crosses
-    close = [1.0 + 0.001 * ((i % 10) - 5) for i in range(60)]
-    return pd.DataFrame(
-        {
-            "open": close,
-            "high": [c + 0.0005 for c in close],
-            "low": [c - 0.0005 for c in close],
-            "close": close,
-            "volume": [1] * 60,
-        },
-        index=idx,
+    end = datetime(2024, 1, 3, 12)  # 60 hours
+    df = create_market_data_with_warmup(
+        start_date=start,
+        end_date=end,
+        freq="1H",
+        include_global_features=False,
     )
+    # Simple wave to induce a few crosses
+    close = [1.0 + 0.001 * ((i % 10) - 5) for i in range(len(df))]
+    df["open"] = close
+    df["high"] = [c + 0.0005 for c in close]
+    df["low"] = [c - 0.0005 for c in close]
+    df["close"] = close
+    df["volume"] = 1
+    return df
 
 
 def _strategy_cfg() -> dict:
@@ -2036,7 +2038,6 @@ def test_run_parameter_sweep_returns_top_and_results():
     base_cfg = {
         "initial_cash": 100000.0,
         "position_size": 10000.0,
-        "warmup_bars": 0,
         "tie_break_policy": {"rule": "stop_then_tp"},
         "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
         "instrument": {"symbol": "EURUSD"},
@@ -2060,7 +2061,6 @@ def test_parameter_sweep_pnl_minus_dd_objective():
     base_cfg = {
         "initial_cash": 100000.0,
         "position_size": 10000.0,
-        "warmup_bars": 0,
         "tie_break_policy": {"rule": "stop_then_tp"},
         "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
         "instrument": {"symbol": "EURUSD"},
@@ -2082,7 +2082,6 @@ def test_parameter_sweep_pnl_dd_vol_objective():
     base_cfg = {
         "initial_cash": 100000.0,
         "position_size": 10000.0,
-        "warmup_bars": 0,
         "tie_break_policy": {"rule": "stop_then_tp"},
         "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
         "instrument": {"symbol": "EURUSD"},

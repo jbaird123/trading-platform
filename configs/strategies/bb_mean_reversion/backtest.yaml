@@ -1,6 +1,5 @@
 user_id: "bb_trader"
 initial_cash: 10000
-warmup_bars: 100  # Need 100 bars for BB calculation (20-period + buffer)
 entry_window_bars: 3  # Allow entry within 3 bars of signal transition
 tie_break_policy:
   rule: "stop_then_tp"

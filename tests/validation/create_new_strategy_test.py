@@ -466,8 +466,7 @@ def create_config_files(
     print(f"✅ Created rem.yaml: {rem_path}")
 
     # run_config.yaml
-    run_config_yaml = """warmup_bars: 100  # Enough for indicators to stabilize
-execution_model: "next_bar_open"  # Match TradingView
+    run_config_yaml = """execution_model: "next_bar_open"  # Match TradingView
 exit_tie_break: "stop_then_tp"  # If both hit same bar
 
 instrument:

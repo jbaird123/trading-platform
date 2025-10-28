@@ -5,6 +5,7 @@ from typing import Any
 
 import pandas as pd
 from trading_platform.backtester.core import _run_backtest_simulation
+from tests.test_helpers import get_empty_global_features_path
 from trading_platform.backtester.core import (
     _simulate_counterfactual_exact,
 )
@@ -58,6 +59,8 @@ def test_run_backtest_returns_trades_and_exposure_only() -> None:
         config=config,
         rem=rem,
         return_exposure=True,
+        global_features_config_path=get_empty_global_features_path(),
+    
     )
     trades, exposure = result[:2]  # Extract only trades and exposure
 

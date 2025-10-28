@@ -11,6 +11,8 @@ from typing import Any, cast
 import pandas as pd
 import pytest
 
+from tests.test_helpers import get_empty_global_features_path
+
 
 @pytest.fixture
 def cli_stubs(monkeypatch, tmp_path):

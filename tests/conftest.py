@@ -79,6 +79,11 @@ def when_backtest_is_run(shared_context: dict) -> None:
         exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config=config.rem_config or None)
+
+    # Use minimal global features for unit tests to avoid warmup requirements
+    from pathlib import Path
+    test_global_config = Path(__file__).parent / "fixtures" / "global_empty.yaml"
+
     trades = _run_backtest_simulation(
         market_data=shared_context["market_data"],
         signals=shared_context["signals"],
@@ -87,6 +92,7 @@ def when_backtest_is_run(shared_context: dict) -> None:
         rem=rem,
         return_exposure=False,
         return_skips=False,
+        global_features_config_path=test_global_config,
     )
     shared_context["trades"] = trades
 

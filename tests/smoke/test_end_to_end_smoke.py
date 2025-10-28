@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 
 from trading_platform.core.demo import generate_demo_run
+from tests.test_helpers import get_empty_global_features_path
 
 
 def test_demo_run_writes_artifacts(tmp_path):
@@ -82,6 +83,8 @@ def test_e2e_run_with_contextual_features(tmp_path):
         strategy=strategy,
         config=config,
         rem=rem,
+        global_features_config_path=get_empty_global_features_path(),
+    
     )
 
     # Handle return type (can be just trades or tuple with exposure/skipped)

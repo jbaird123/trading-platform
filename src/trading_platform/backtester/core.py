@@ -136,7 +136,6 @@ def _run_backtest_simulation(
     return_skips: bool = False,
     data_handler: Any = None,
     global_features_config_path: Path | str | None = None,
-    auto_extend_for_warmup: bool = False,
 ) -> (
     list[Trade]
     | tuple[list[Trade], list[tuple[datetime, float]]]
@@ -158,103 +157,10 @@ def _run_backtest_simulation(
         return_exposure: If True, returns the exposure curve.
         return_skips: If True, returns a list of skipped trades.
         data_handler: Optional DataHandler for 1-minute resolution zoom.
-        auto_extend_for_warmup: If True, automatically extends market_data backwards
-            to ensure indicators have sufficient warmup. Useful for tests.
 
     Returns:
         A list of completed Trade objects, and optionally other artifacts.
     """
-    # Track original backtest start for validation (after warmup period)
-    # The backtest start is after warmup_bars from the beginning of market_data
-    warmup_threshold = max(0, config.warmup_bars)
-    if len(market_data) > warmup_threshold:
-        original_backtest_start = market_data.index[warmup_threshold]
-    elif len(market_data) > 0:
-        original_backtest_start = market_data.index[0]
-    else:
-        original_backtest_start = None
-
-    # Auto-extend market data if requested (typically for tests)
-    logger.debug(
-        f"run_backtest called with auto_extend_for_warmup={auto_extend_for_warmup}"
-    )
-    if auto_extend_for_warmup and len(market_data) > 0:
-        from trading_platform.backtester.warmup import calculate_warmup_start_date
-
-        backtest_start = market_data.index[0]
-        instrument_cfg = config.instrument or {}
-        execution_timeframe = instrument_cfg.get("timeframe", "1H")
-
-        # Load global features to calculate warmup
-        try:
-            from trading_platform.core.feature_resolver import (
-                resolve_global_features,
-            )
-
-            resolved = resolve_global_features(
-                execution_timeframe, config_path=global_features_config_path
-            )
-            global_features_list = [
-                {
-                    "name": f.name,
-                    "type": f.type,
-                    "params": f.params,
-                    "source": f.source,
-                    **(
-                        {}
-                        if f.timeframe == execution_timeframe
-                        else {"timeframe": f.timeframe}
-                    ),
-                }
-                for f in resolved
-            ]
-
-            # Calculate warmup start
-            warmup_start, _ = calculate_warmup_start_date(
-                strategy_features=strategy.features or [],
-                global_features=global_features_list,
-                execution_timeframe=execution_timeframe,
-                market_data=market_data,
-                backtest_start_date=backtest_start,
-            )
-
-            # Extend data backwards if needed
-            if warmup_start < backtest_start:
-                freq = pd.infer_freq(market_data.index)
-                if freq is None:
-                    freq = market_data.index[1] - market_data.index[0]
-
-                warmup_index = pd.date_range(
-                    warmup_start, backtest_start, freq=freq, inclusive="left"
-                )
-
-                if len(warmup_index) > 0:
-                    # Create warmup bars with same values as first bar
-                    first_bar = market_data.iloc[0]
-                    warmup_df = pd.DataFrame(
-                        {col: first_bar[col] for col in market_data.columns},
-                        index=warmup_index,
-                    )
-
-                    # Extend market_data
-                    market_data = pd.concat([warmup_df, market_data])
-
-                    # Extend signals with None values
-                    warmup_signals = pd.Series(
-                        [None] * len(warmup_index), index=warmup_index
-                    )
-                    signals = pd.concat([warmup_signals, signals])
-
-                    logger.debug(
-                        f"Auto-extended data for warmup: added "
-                        f"{len(warmup_index)} bars from {warmup_start} to "
-                        f"{backtest_start}"
-                    )
-
-        except Exception as e:
-            # If warmup calculation fails, continue with original data
-            logger.debug(f"Warmup auto-extension failed: {e}. Using original data.")
-            pass
     # --- Input validation (fail fast) ---
     required_cols = {"open", "high", "low", "close", "volume"}
     missing = required_cols.difference(set(market_data.columns))
@@ -289,26 +195,40 @@ def _run_backtest_simulation(
 
     symbol = resolve_instrument_symbol(config.instrument)
 
+    def _first_valid_timestamp(
+        df_obj: pd.DataFrame | None, feature_names: list[str]
+    ) -> pd.Timestamp | None:
+        """Return the first timestamp where every feature is non-null."""
+        if df_obj is None or df_obj.empty:
+            return None
+        if not feature_names:
+            return df_obj.index[0]
+
+        present = [name for name in feature_names if name in df_obj.columns]
+        if not present:
+            return df_obj.index[0]
+
+        mask = df_obj[present].notna().all(axis=1)
+        valid_index = df_obj.index[mask]
+        if len(valid_index) == 0:
+            return None
+        return valid_index[0]
+
     # Compute global features from config/features/global.yaml
     data_with_global_features = market_data
-    global_features_list = []
+    global_features_list: list[dict[str, Any]] = []
+    global_valid_start: pd.Timestamp | None = None
     try:
         from trading_platform.core.feature_resolver import resolve_global_features
         from trading_platform.strategy.features import compute_features
 
-        # Get execution timeframe from config
         instrument_cfg = config.instrument or {}
         execution_timeframe = instrument_cfg.get("timeframe", "1H")
 
-        # Resolve global features (filtered by timeframe)
         resolved_features = resolve_global_features(
             execution_timeframe, config_path=global_features_config_path
         )
 
-        # Convert ResolvedFeature objects to dict format for compute_features
-        # NOTE: Only include timeframe if it's HIGHER than execution timeframe
-        # to trigger resampling. If timeframe == execution_timeframe, omit it
-        # to compute directly on market_data (matching old behavior)
         global_features_list = [
             {
                 "name": f.name,
@@ -333,92 +253,79 @@ def _run_backtest_simulation(
                 f"{[f['name'] for f in global_features_list]}"
             )
 
-            # Validate: Check for NaN values in global features at backtest start
-            # Note: Always validate even if auto_extend was used - this catches bugs
-            def _validate_global_features():
-                if len(data_with_global_features) > 0:
-                    # Use original_backtest_start if data was extended for warmup
-                    validation_timestamp = (
-                        original_backtest_start
-                        if original_backtest_start is not None
-                        else data_with_global_features.index[0]
-                    )
-
-                    # Find the bar at the original backtest start
-                    try:
-                        check_bar = data_with_global_features.loc[validation_timestamp]
-                    except KeyError:
-                        # If exact timestamp not found, use first bar
-                        check_bar = data_with_global_features.iloc[0]
-
-                    nan_features = []
-                    for feature in global_features_list:
-                        feature_name = feature.get("name")
-                        if (
-                            feature_name
-                            and isinstance(feature_name, str)
-                            and feature_name in check_bar.index
-                        ):
-                            val = check_bar[feature_name]
-                            if pd.isna(val):
-                                nan_features.append(feature_name)
-
-                    if nan_features:
-                        raise ValueError(  # noqa: TRY301
-                            f"Insufficient warmup: The following global features "
-                            f"have NaN values at backtest start "
-                            f"({validation_timestamp}): {nan_features}. "
-                            f"Indicators are not fully initialized. Load data from "
-                            f"an earlier start date to allow warmup."
-                        )
-
-            _validate_global_features()
+            global_names = [
+                cast(str, feature["name"])
+                for feature in global_features_list
+                if isinstance(feature.get("name"), str)
+            ]
+            global_valid_start = _first_valid_timestamp(
+                data_with_global_features, global_names
+            )
+            if global_valid_start is None:
+                raise ValueError(
+                    "Insufficient warmup: Global features never fully initialize. "
+                    "Load additional history before the backtest start."
+                )
 
     except FileNotFoundError:
-        # global.yaml doesn't exist - this is okay, just log it
         logger.info("No global.yaml found - proceeding without global features")
     except ValueError:
-        # Re-raise ValueError (e.g., insufficient warmup) - should fail backtest
         raise
-    except Exception as e:
-        # Log but don't fail the backtest if global features fail (other errors)
-        logger.warning(f"Failed to load global features: {e}")
+    except Exception as exc:
+        logger.warning(f"Failed to load global features: {exc}")
 
-    # Validate strategy features for NaN values at backtest start
-    # This catches insufficient warmup for strategy indicators
+    strategy_valid_start: pd.Timestamp | None = None
+    strategy_features = strategy.features or []
     if strategy._feature_df is not None and len(strategy._feature_df) > 0:
-        validation_timestamp = (
-            original_backtest_start
-            if original_backtest_start is not None
-            else strategy._feature_df.index[0]
+        strategy_names = [
+            str(feature.get("name"))
+            for feature in strategy_features
+            if isinstance(feature.get("name"), str)
+        ]
+        strategy_valid_start = _first_valid_timestamp(
+            strategy._feature_df, strategy_names
         )
-
-        try:
-            check_bar = strategy._feature_df.loc[validation_timestamp]
-        except KeyError:
-            # If exact timestamp not found, use first bar
-            check_bar = strategy._feature_df.iloc[0]
-
-        nan_features = []
-        strategy_features = strategy.features or []
-        for feature in strategy_features:
-            feature_name = feature.get("name")
-            if (
-                feature_name
-                and isinstance(feature_name, str)
-                and feature_name in check_bar.index
-            ):
-                val = check_bar[feature_name]
-                if pd.isna(val):
-                    nan_features.append(feature_name)
-
-        if nan_features:
+        if strategy_names and strategy_valid_start is None:
             raise ValueError(
-                f"Insufficient warmup: The following strategy features "
-                f"have NaN values at backtest start ({validation_timestamp}): "
-                f"{nan_features}. Indicators are not fully initialized. "
-                f"Load data from an earlier start date to allow warmup."
+                "Insufficient warmup: Strategy features never fully initialize. "
+                "Load additional history or reduce indicator lookback."
             )
+
+    if len(market_data) > 0:
+        run_start_candidates: list[pd.Timestamp] = [market_data.index[0]]
+        if global_valid_start is not None:
+            run_start_candidates.append(global_valid_start)
+        if strategy_valid_start is not None:
+            run_start_candidates.append(strategy_valid_start)
+
+        run_start = max(run_start_candidates)
+
+        def _trim_indexed(data_obj: pd.DataFrame | pd.Series) -> Any:
+            return data_obj.loc[data_obj.index >= run_start]
+
+        market_data = _trim_indexed(market_data)
+        signals = _trim_indexed(signals)
+
+        if len(market_data) == 0:
+            raise ValueError(
+                "Insufficient warmup: No data remains after removing "
+                "warmup bars."
+            )
+
+        if isinstance(signals, pd.Series) and len(signals) == 0:
+            raise ValueError(
+                "Insufficient warmup: Signals are empty after removing "
+                "warmup bars."
+            )
+
+        if strategy._feature_df is not None and len(strategy._feature_df) > 0:
+            strategy._feature_df = _trim_indexed(strategy._feature_df)
+
+        if (
+            data_with_global_features is not market_data
+            and len(data_with_global_features) > 0
+        ):
+            data_with_global_features = _trim_indexed(data_with_global_features)
 
     from typing import cast
 

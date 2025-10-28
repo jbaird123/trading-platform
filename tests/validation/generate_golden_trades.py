@@ -211,11 +211,6 @@ def generate_golden_trades_for_strategy(
             (ohlcv_1h.index >= warmup_start) & (ohlcv_1h.index <= end_date)
         ].copy()
 
-        # Calculate warmup_bars: number of bars from warmup start to backtest start
-        warmup_bars = len(ohlcv_filtered[ohlcv_filtered.index < backtest_start_date])
-
-        # Update config with calculated warmup_bars
-        run_config_dict["warmup_bars"] = warmup_bars
     else:
         ohlcv_filtered = ohlcv_1h
 

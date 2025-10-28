@@ -372,6 +372,10 @@ short_exit_rules: [...]   # Generates "exit_short"
 
 ## Phase 4: Backtester Changes (30 min)
 
+> **Note (2025-10-27):** The original refactor relied on a `warmup_bars` field.
+> The engine now derives the first fully initialized timestamp for strategy and
+> global features and trims any warmup rows automatically before the main loop.
+
 ### 4.1 Update Main Loop
 - [x] Refactor main loop in `src/trading_platform/backtester/core.py`
 ```python

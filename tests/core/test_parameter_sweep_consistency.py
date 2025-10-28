@@ -13,6 +13,8 @@ import pandas as pd
 import pytest
 from trading_platform.cli import cmd_run_backtest
 
+from tests.test_helpers import get_empty_global_features_path
+
 
 @pytest.fixture(autouse=True)
 def mock_load_and_extend_data(monkeypatch):
@@ -137,7 +139,6 @@ def test_parameter_sweep_matches_standalone(tmp_path, monkeypatch):
         "user_id": "sweep",
         "initial_cash": 100000,
         "position_size": 10000,
-        "warmup_bars": 50,
         "data_request": {
             "symbol": "EUR_USD",
             "timeframe": "1H",
@@ -163,7 +164,6 @@ def test_parameter_sweep_matches_standalone(tmp_path, monkeypatch):
         "user_id": "standalone",
         "initial_cash": 100000,
         "position_size": 10000,
-        "warmup_bars": 50,
         "data_request": {
             "symbol": "EUR_USD",
             "timeframe": "1H",
@@ -320,7 +320,6 @@ def test_strategy_params_override_file_defaults(tmp_path, monkeypatch):
         "user_id": "test",
         "initial_cash": 100000,
         "position_size": 10000,
-        "warmup_bars": 50,
         "data_request": {
             "symbol": "EUR_USD",
             "timeframe": "1H",

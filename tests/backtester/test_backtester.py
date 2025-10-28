@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pandas as pd
 import pytest
 from trading_platform.backtester.core import _run_backtest_simulation
+from tests.test_helpers import get_empty_global_features_path
 from trading_platform.backtester.core import (
     _simulate_counterfactual_exact,
     _simulate_counterfactual_fast,
@@ -104,6 +105,7 @@ def test_rmm_blocks_signal_not_in_allowed_sides():
             rmm_context=rmm_context,
             return_exposure=False,
             return_skips=True,
+            global_features_config_path=get_empty_global_features_path(),
         ),
     )
 
@@ -157,6 +159,7 @@ def test_rmm_allows_signal_opens_position() -> None:
         config=config,
         rem=rem,
         rmm_context=rmm_context,
+        global_features_config_path=get_empty_global_features_path(),
     )
 
     assert len(trades) == 1
@@ -200,6 +203,7 @@ def test_return_skips_only():
         rem=rem,
         return_exposure=False,
         return_skips=True,
+        global_features_config_path=get_empty_global_features_path(),
     )
 
     _, exposure_curve, _ = cast(BacktestTriple, result)
@@ -444,6 +448,7 @@ def test_backtester_with_rem_pips_stop_loss():
         strategy=strategy,
         config=config,
         rem=rem,
+        global_features_config_path=get_empty_global_features_path(),
     )
 
     assert len(trades) == 1
@@ -545,6 +550,7 @@ class TestBacktesterCoreCoverage:
                     rem=mock_rem,
                     return_exposure=False,
                     return_skips=True,
+                    global_features_config_path=get_empty_global_features_path(),
                 ),
             )
         if skipped:
@@ -677,6 +683,7 @@ def test_rmm_context_enrichment_in_trades_and_skips():
             rmm_context=rmm_context,
             return_exposure=False,
             return_skips=True,
+            global_features_config_path=get_empty_global_features_path(),
         ),
     )
 
@@ -869,6 +876,7 @@ def test_entry_window_allows_delayed_entry():
             rmm_context=rmm_context,
             return_exposure=False,
             return_skips=True,
+            global_features_config_path=get_empty_global_features_path(),
         ),
     )
 
@@ -963,6 +971,7 @@ def test_entry_window_expires():
             rmm_context=rmm_context,
             return_exposure=False,
             return_skips=True,
+            global_features_config_path=get_empty_global_features_path(),
         ),
     )
 
@@ -1033,6 +1042,7 @@ def test_entry_window_prevents_reentry_after_rem_exit():
         rmm_context=rmm_context,
         return_exposure=False,
         return_skips=False,
+        global_features_config_path=get_empty_global_features_path(),
     )
     trades_list = result if isinstance(result, list) else result[0]
 
@@ -1091,7 +1101,6 @@ def test_backtester_executes_pending_exit_at_next_bar_open():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
         entry_window_bars=0,
-        warmup_bars=0,
         min_hold_bars=0,
     )
 
@@ -1170,7 +1179,6 @@ def test_backtester_handles_flip_with_next_bar_open():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
         entry_window_bars=0,
-        warmup_bars=0,
         min_hold_bars=0,
         allow_flip_on_bar=True,
     )

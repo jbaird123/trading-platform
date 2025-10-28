@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from pytest_bdd import given, parsers, then, when
 from trading_platform.backtester.core import _run_backtest_simulation
+from tests.test_helpers import get_empty_global_features_path
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 
@@ -44,7 +45,9 @@ def when_backtest_is_run(shared_context: dict) -> None:
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    rem = RiskExitManager(config=config.rem_config or {})
+    rem = RiskExitManager(config=config.rem_config or {},
+        global_features_config_path=get_empty_global_features_path(),
+    )
     trades = _run_backtest_simulation(
         market_data=shared_context["market_data"],
         signals=shared_context["signals"],
@@ -53,6 +56,7 @@ def when_backtest_is_run(shared_context: dict) -> None:
         rem=rem,
         return_exposure=False,
         return_skips=False,
+        global_features_config_path=get_empty_global_features_path(),
     )
     shared_context["trades"] = trades
 

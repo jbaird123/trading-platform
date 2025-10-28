@@ -6,6 +6,7 @@ from typing import cast
 import pandas as pd
 from pytest import approx
 from trading_platform.backtester.core import _run_backtest_simulation
+from tests.test_helpers import get_empty_global_features_path
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
@@ -80,6 +81,7 @@ def test_daily_loss_cap_blocks_new_entries():
         rem=rem,
         return_exposure=True,
         return_skips=True,
+        global_features_config_path=get_empty_global_features_path(),
     )
     trades, exposure, skipped = cast(tuple[list, list, list], result)
 
@@ -123,6 +125,7 @@ def test_exposure_curve_tracks_gross_notional():
         rem=rem,
         return_exposure=True,
         return_skips=True,
+        global_features_config_path=get_empty_global_features_path(),
     )
     trades, curve, skipped = cast(tuple[list, list, list], result)
 
@@ -169,6 +172,7 @@ def test_position_cap_skips_same_direction_entry():
         rem=rem,
         return_exposure=True,
         return_skips=True,
+        global_features_config_path=get_empty_global_features_path(),
     )
     trades, exposure, skipped = cast(tuple[list, list, list], result)
 
@@ -218,6 +222,7 @@ def test_position_cap_not_reached_when_already_open():
         rem=rem,
         return_exposure=True,
         return_skips=True,
+        global_features_config_path=get_empty_global_features_path(),
     )
     trades, exposure, skipped = cast(tuple[list, list, list], result)
 
@@ -268,6 +273,7 @@ def test_position_cap_zero_blocks_new_entry():
         rem=rem,
         return_exposure=True,
         return_skips=True,
+        global_features_config_path=get_empty_global_features_path(),
     )
     trades, exposure, skipped = cast(tuple[list, list, list], result)
 

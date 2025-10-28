@@ -15,6 +15,7 @@ from typing import Any, cast
 
 import yaml
 from trading_platform.backtester.core import _run_backtest_simulation
+from tests.test_helpers import get_empty_global_features_path
 from trading_platform.core.config import RunConfig
 from trading_platform.data.loader import load_and_normalize_data
 from trading_platform.portfolio.trade import Trade
@@ -82,6 +83,7 @@ def test_core_calculations_match_manual_csv():
         rem=rem,
         return_exposure=True,
         return_skips=True,
+        global_features_config_path=get_empty_global_features_path(),
     )
 
     # 7. Unpack results

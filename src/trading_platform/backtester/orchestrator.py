@@ -30,7 +30,6 @@ def run_backtest(
     strategy_overrides: dict[str, Any] | None = None,
     data_handler: Any = None,
     global_features_config_path: Path | str | None = None,
-    auto_extend_for_warmup: bool = False,
     rmm_context: dict[datetime, dict[str, Any]] | None = None,
     return_exposure: bool = False,
     return_skips: bool = False,
@@ -54,8 +53,6 @@ def run_backtest(
         strategy_overrides: Optional per-run overrides for strategy tunables
         data_handler: Optional DataHandler for 1-minute resolution access
         global_features_config_path: Optional path to global features config
-        auto_extend_for_warmup: If True, automatically extends market_data backwards
-            for warmup. If False, assumes market_data already has sufficient warmup.
         rmm_context: Optional RMM context for risk mode management
         return_exposure: If True, return exposure curve as second element of tuple
         return_skips: If True, return skip records as third element of tuple
@@ -168,7 +165,6 @@ def run_backtest(
         return_skips=return_skips,
         data_handler=data_handler,
         global_features_config_path=global_features_config_path,
-        auto_extend_for_warmup=auto_extend_for_warmup,
     )
 
     # Handle return value based on return_exposure and return_skips flags

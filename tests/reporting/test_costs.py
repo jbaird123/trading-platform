@@ -8,6 +8,8 @@ from pytest import approx
 from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.brief import generate_brief, save_run_brief
 
+from tests.test_helpers import get_empty_global_features_path
+
 
 def _trade(
     pnl: float,

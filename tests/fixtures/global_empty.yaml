@@ -1,4 +1,9 @@
-# Empty global features for tests that don't need global context
-# Use this to avoid warmup requirements in simple unit tests
+# Minimal global features for unit tests
+# Unit tests should focus on specific backtester behaviors without the overhead
+# of production global features that require significant warmup data.
+#
+# Tests that need global features should:
+# 1. Use integration tests with proper warmup data, OR
+# 2. Use create_test_market_data() helper with include_global_features=True
 
 features: []

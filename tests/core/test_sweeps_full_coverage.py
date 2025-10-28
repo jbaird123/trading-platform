@@ -13,6 +13,8 @@ import yaml
 from trading_platform.core.sweeps import _rmm_context, run_parameter_sweep
 from trading_platform.regime_market_manager.models import RMMConfig
 
+from tests.test_helpers import get_empty_global_features_path
+
 
 def test_rmm_context_with_data_handler_cache_hit():
     """Test _rmm_context returns cached context from DataHandler."""

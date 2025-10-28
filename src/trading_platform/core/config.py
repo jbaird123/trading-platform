@@ -188,10 +188,6 @@ class RunConfig(BaseModel):
     rmm_config: dict[str, Any] | None = Field(
         default=None, description="Regime Market Manager configuration, if any."
     )
-    warmup_bars: int = Field(
-        default=0,
-        description="Number of initial bars to ignore for entries (indicator warm-up).",
-    )
     entry_window_bars: int = Field(
         default=0,
         description=(
@@ -238,6 +234,16 @@ class RunConfig(BaseModel):
             "same bar."
         ),
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_warmup_bars(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "warmup_bars" in data:
+            raise ValueError(
+                "warmup_bars has been removed; ensure market data already "
+                "contains enough history for indicator warmup."
+            )
+        return data
     execution_model: Literal["current_bar_close", "next_bar_open"] = Field(
         "current_bar_close",
         description=(

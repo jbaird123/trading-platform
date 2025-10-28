@@ -342,7 +342,6 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         rmm_context=rmm_context,
         return_exposure=ret_exp,
         return_skips=ret_skips,
-        auto_extend_for_warmup=True,  # Automatically extend data for warmup
     )
 
     # Extract results from orchestrator

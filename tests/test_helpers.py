@@ -230,3 +230,18 @@ def extend_test_data_for_warmup(
     extended_df = pd.concat([warmup_df, df])
 
     return extended_df
+
+
+def get_empty_global_features_path() -> Any:
+    """Get path to empty global features config for unit tests.
+
+    Unit tests should use this to avoid loading production global features
+    which require significant warmup data. This returns a path to an empty
+    global features config file.
+
+    Returns:
+        Path to tests/fixtures/global_empty.yaml
+    """
+    from pathlib import Path
+
+    return Path(__file__).parent / "fixtures" / "global_empty.yaml"

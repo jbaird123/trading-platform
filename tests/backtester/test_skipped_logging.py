@@ -6,6 +6,7 @@ from datetime import datetime
 import pandas as pd
 import pytest
 from trading_platform.backtester.core import _run_backtest_simulation
+from tests.test_helpers import get_empty_global_features_path
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 
@@ -62,6 +63,7 @@ def test_skip_logged_for_blackout():
         rem=rem,
         return_exposure=True,
         return_skips=True,
+        global_features_config_path=get_empty_global_features_path(),
     )
     trades, _exp, skips = result  # type: ignore[misc]
     assert skips is not None
@@ -98,6 +100,7 @@ def test_skip_logged_for_position_cap():
         rem=rem,
         return_exposure=True,
         return_skips=True,
+        global_features_config_path=get_empty_global_features_path(),
     )
     trades, _exp, skips = result  # type: ignore[misc]
     # One entry, second long should be skipped due to cap
