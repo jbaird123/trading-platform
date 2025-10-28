@@ -122,28 +122,8 @@ def run_backtest(
     strat = compile_strategy(strategy_config)
     signals = strat.generate_signals(df)
 
-    # Validate strategy features: check first bar for NaN values
-    # If any strategy indicators are NaN at backtest start, warmup is insufficient
-    # Skip validation if auto_extend_for_warmup is enabled - core.py will handle it
-    if validate_warmup and not auto_extend_for_warmup and strat._feature_df is not None and len(strat._feature_df) > 0:
-        first_bar = strat._feature_df.iloc[0]
-        strategy_features = strategy_config.get("features", [])
-        nan_features = []
-
-        for feature in strategy_features:
-            feature_name = feature.get("name")
-            if feature_name and feature_name in first_bar.index:
-                val = first_bar[feature_name]
-                if pd.isna(val):
-                    nan_features.append(feature_name)
-
-        if nan_features:
-            raise ValueError(
-                f"Insufficient warmup: The following strategy features have NaN "
-                f"values at backtest start ({first_bar.name}): {nan_features}. "
-                f"Indicators are not fully initialized. "
-                f"Load data from an earlier start date to allow warmup."
-            )
+    # Note: Warmup validation is handled in _run_backtest_simulation()
+    # which validates ALL features (strategy + global) in one place
 
     # Get feature-enriched dataframe for REM (includes ATR, etc.)
     feature_enriched_df = strat._feature_df if strat._feature_df is not None else df

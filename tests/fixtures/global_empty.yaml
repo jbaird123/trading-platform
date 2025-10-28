@@ -1,0 +1,4 @@
+# Empty global features for tests that don't need global context
+# Use this to avoid warmup requirements in simple unit tests
+
+features: []

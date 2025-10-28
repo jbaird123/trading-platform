@@ -322,14 +322,9 @@ def _run_backtest_simulation(
                 f"{[f['name'] for f in global_features_list]}"
             )
 
-            # Validate: Check original backtest start bar for NaN values
-            # If any indicators are NaN at backtest start, warmup is insufficient
-            # Skip validation if auto_extend_for_warmup was used (warmup is guaranteed)
-            def _validate_no_nan_features():
-                # Skip validation if auto-extend was enabled - warmup is guaranteed
-                if auto_extend_for_warmup:
-                    return
-
+            # Validate: Check for NaN values in global features at backtest start
+            # Note: Always validate even if auto_extend was used - this catches bugs
+            def _validate_global_features():
                 if len(data_with_global_features) > 0:
                     # Use original_backtest_start if data was extended for warmup
                     validation_timestamp = (
@@ -365,7 +360,7 @@ def _run_backtest_simulation(
                             f"Load data from an earlier start date to allow warmup."
                         )
 
-            _validate_no_nan_features()
+            _validate_global_features()
 
     except FileNotFoundError:
         # global.yaml doesn't exist - this is okay, just log it
@@ -376,6 +371,42 @@ def _run_backtest_simulation(
     except Exception as e:
         # Log but don't fail the backtest if global features fail (other errors)
         logger.warning(f"Failed to load global features: {e}")
+
+    # Validate strategy features for NaN values at backtest start
+    # This catches insufficient warmup for strategy indicators
+    if strategy._feature_df is not None and len(strategy._feature_df) > 0:
+        validation_timestamp = (
+            original_backtest_start
+            if original_backtest_start is not None
+            else strategy._feature_df.index[0]
+        )
+
+        try:
+            check_bar = strategy._feature_df.loc[validation_timestamp]
+        except KeyError:
+            # If exact timestamp not found, use first bar
+            check_bar = strategy._feature_df.iloc[0]
+
+        nan_features = []
+        strategy_features = strategy.features or []
+        for feature in strategy_features:
+            feature_name = feature.get("name")
+            if (
+                feature_name
+                and isinstance(feature_name, str)
+                and feature_name in check_bar.index
+            ):
+                val = check_bar[feature_name]
+                if pd.isna(val):
+                    nan_features.append(feature_name)
+
+        if nan_features:
+            raise ValueError(
+                f"Insufficient warmup: The following strategy features "
+                f"have NaN values at backtest start ({validation_timestamp}): "
+                f"{nan_features}. Indicators are not fully initialized. "
+                f"Load data from an earlier start date to allow warmup."
+            )
 
     from typing import cast
 
