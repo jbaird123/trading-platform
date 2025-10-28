@@ -1,5 +1,5 @@
 outs:
-- md5: f415f19b285e04cee855eab01badb8ef
-  size: 59317177
+- md5: b26cf0b02e382ddf8ba9548d6952d872
+  size: 85099366
   hash: md5
   path: eurusd_1min.csv
