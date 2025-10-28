@@ -163,7 +163,8 @@ class ProfitabilityModel:
             X: DataFrame with trade features (same structure as training data)
 
         Returns:
-            Array of R-multiple predictions (e.g., 2.5 means 2.5x risk, -1.0 means 1x loss)
+            Array of R-multiple predictions (e.g., 2.5 means 2.5x risk,
+            -1.0 means 1x loss)
 
         Raises:
             ValueError: If model not fitted

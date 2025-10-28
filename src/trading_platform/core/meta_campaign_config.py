@@ -35,9 +35,7 @@ class StrategyProfile:
 
 @dataclass
 class RunGrid:
-    """
-    Defines the grid of date ranges, instruments, and timeframes for campaign generation.
-    """
+    """Define date ranges, instruments, and timeframes for campaigns."""
 
     date_ranges: list[dict[str, str]]
     instruments: list[str]

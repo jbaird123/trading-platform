@@ -6,10 +6,11 @@ from datetime import datetime
 import pandas as pd
 import pytest
 from trading_platform.backtester.core import _run_backtest_simulation
-from tests.test_helpers import get_empty_global_features_path
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
+
+from tests.test_helpers import get_empty_global_features_path
 
 
 def _dummy_strategy() -> CompiledStrategy:

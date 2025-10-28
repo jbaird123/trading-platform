@@ -13,8 +13,6 @@ import pandas as pd
 import pytest
 from trading_platform.cli import cmd_run_backtest
 
-from tests.test_helpers import get_empty_global_features_path
-
 
 @pytest.fixture(autouse=True)
 def mock_load_and_extend_data(monkeypatch):

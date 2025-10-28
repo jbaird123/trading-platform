@@ -7,7 +7,6 @@ from argparse import Namespace
 from pathlib import Path
 
 from trading_platform.cli import cmd_run_backtest, main
-from tests.test_helpers import get_empty_global_features_path
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
 

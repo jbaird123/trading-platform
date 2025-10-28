@@ -6,6 +6,7 @@ import os
 import tempfile
 from datetime import datetime
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
 import pytest
@@ -15,8 +16,6 @@ from trading_platform.core.config import RunConfig
 from trading_platform.portfolio.trade import Trade
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
-
-
 
 
 def test_backtester_adds_contextual_features_to_trade_context() -> None:
@@ -93,7 +92,7 @@ def test_backtester_adds_contextual_features_to_trade_context() -> None:
             )
 
             # Run backtest with explicit global features config path
-            trades = _run_backtest_simulation(
+            trades_result = _run_backtest_simulation(
                 market_data=df,
                 signals=signals,
                 strategy=strategy,
@@ -102,9 +101,12 @@ def test_backtester_adds_contextual_features_to_trade_context() -> None:
                 global_features_config_path=global_yaml_path,
             )
 
+            assert isinstance(trades_result, list)
+            trades: list[Trade] = cast(list[Trade], trades_result)
+
             # Assertions
             assert len(trades) > 0, "Expected at least one trade"
-            first_trade = trades[0]
+            first_trade: Trade = trades[0]
 
             assert hasattr(
                 first_trade, "context_at_entry"
@@ -220,7 +222,7 @@ def test_backtester_trade_context_with_multi_timeframe_at_entry_and_exit() -> No
             )
 
             # Run backtest with explicit global features path
-            trades = _run_backtest_simulation(
+            trades_result = _run_backtest_simulation(
                 market_data=df,
                 signals=signals,
                 strategy=strategy,
@@ -230,8 +232,10 @@ def test_backtester_trade_context_with_multi_timeframe_at_entry_and_exit() -> No
             )
 
             # Assertions
+            assert isinstance(trades_result, list)
+            trades = cast(list[Trade], trades_result)
             assert len(trades) > 0, "Expected at least one trade"
-            first_trade = trades[0]
+            first_trade: Trade = trades[0]
 
             # Compute expected 1H RSI values for verification
             from trading_platform.data.resample import resample_data
@@ -259,9 +263,7 @@ def test_backtester_trade_context_with_multi_timeframe_at_entry_and_exit() -> No
             assert entry_time is not None
             expected_entry_rsi = expected_rsi.loc[entry_time]
             h1_rsi_entry = entry_features["h1_rsi_14"]
-            assert h1_rsi_entry == pytest.approx(
-                expected_entry_rsi, rel=1e-6
-            )
+            assert h1_rsi_entry == pytest.approx(expected_entry_rsi, rel=1e-6)
 
             # Verify context_at_exit contains expected value
             assert hasattr(first_trade, "context_at_exit")
@@ -276,9 +278,7 @@ def test_backtester_trade_context_with_multi_timeframe_at_entry_and_exit() -> No
             assert exit_time is not None
             expected_exit_rsi = expected_rsi.loc[exit_time]
             h1_rsi_exit = exit_features["h1_rsi_14"]
-            assert h1_rsi_exit == pytest.approx(
-                expected_exit_rsi, rel=1e-6
-            )
+            assert h1_rsi_exit == pytest.approx(expected_exit_rsi, rel=1e-6)
         finally:
             os.chdir(original_cwd)
 
@@ -336,7 +336,7 @@ def test_trade_context_always_includes_volume() -> None:
     from tests.test_helpers import get_empty_global_features_path
 
     # Run backtest with empty global features (only volume is added automatically)
-    trades = _run_backtest_simulation(
+    trades_raw = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -346,9 +346,10 @@ def test_trade_context_always_includes_volume() -> None:
     )
 
     # Assertions
-    assert isinstance(trades, list)
+    assert isinstance(trades_raw, list)
+    trades: list[Trade] = cast(list[Trade], trades_raw)
     assert len(trades) > 0, "Expected at least one trade"
-    first_trade = trades[0]
+    first_trade: Trade = trades[0]
     assert isinstance(first_trade, Trade)
 
     # Check that volume exists in nested global_features

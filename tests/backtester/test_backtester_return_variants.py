@@ -4,15 +4,15 @@ from datetime import datetime
 from typing import Any
 
 import pandas as pd
-from trading_platform.backtester.core import _run_backtest_simulation
-from tests.test_helpers import get_empty_global_features_path
 from trading_platform.backtester.core import (
+    _run_backtest_simulation,
     _simulate_counterfactual_exact,
 )
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 
 from tests.backtester.dummy_objects import _dummy_strategy_cfg
+from tests.test_helpers import get_empty_global_features_path
 
 # Minimal instrument for testing
 TEST_INSTRUMENT = {
@@ -60,7 +60,6 @@ def test_run_backtest_returns_trades_and_exposure_only() -> None:
         rem=rem,
         return_exposure=True,
         global_features_config_path=get_empty_global_features_path(),
-    
     )
     trades, exposure = result[:2]  # Extract only trades and exposure
 

@@ -26,6 +26,12 @@ returns just `trades`.
 
 logger = logging.getLogger(__name__)
 
+SimulationReturn = (
+    list[Trade]
+    | tuple[list[Trade], list[tuple[datetime, float]]]
+    | tuple[list[Trade], list[tuple[datetime, float]], list[dict[str, Any]]]
+)
+
 
 def _enrich_trades_with_post_exit_analysis(
     trades: list[Trade],
@@ -136,11 +142,7 @@ def _run_backtest_simulation(
     return_skips: bool = False,
     data_handler: Any = None,
     global_features_config_path: Path | str | None = None,
-) -> (
-    list[Trade]
-    | tuple[list[Trade], list[tuple[datetime, float]]]
-    | tuple[list[Trade], list[tuple[datetime, float]], list[dict[str, Any]]]
-):
+) -> SimulationReturn:
     """INTERNAL: Bar-by-bar backtest simulation engine.
 
     DO NOT CALL DIRECTLY. Use orchestrator.run_backtest() instead.
@@ -202,22 +204,23 @@ def _run_backtest_simulation(
         if df_obj is None or df_obj.empty:
             return None
         if not feature_names:
-            return df_obj.index[0]
+            return pd.Timestamp(df_obj.index[0])
 
         present = [name for name in feature_names if name in df_obj.columns]
         if not present:
-            return df_obj.index[0]
+            return pd.Timestamp(df_obj.index[0])
 
         mask = df_obj[present].notna().all(axis=1)
         valid_index = df_obj.index[mask]
         if len(valid_index) == 0:
             return None
-        return valid_index[0]
+        return pd.Timestamp(valid_index[0])
 
     # Compute global features from config/features/global.yaml
     data_with_global_features = market_data
     global_features_list: list[dict[str, Any]] = []
     global_valid_start: pd.Timestamp | None = None
+    global_validation_error: str | None = None
     try:
         from trading_platform.core.feature_resolver import resolve_global_features
         from trading_platform.strategy.features import compute_features
@@ -262,7 +265,7 @@ def _run_backtest_simulation(
                 data_with_global_features, global_names
             )
             if global_valid_start is None:
-                raise ValueError(
+                global_validation_error = (
                     "Insufficient warmup: Global features never fully initialize. "
                     "Load additional history before the backtest start."
                 )
@@ -273,6 +276,9 @@ def _run_backtest_simulation(
         raise
     except Exception as exc:
         logger.warning(f"Failed to load global features: {exc}")
+
+    if global_validation_error is not None:
+        raise ValueError(global_validation_error)
 
     strategy_valid_start: pd.Timestamp | None = None
     strategy_features = strategy.features or []
@@ -308,14 +314,12 @@ def _run_backtest_simulation(
 
         if len(market_data) == 0:
             raise ValueError(
-                "Insufficient warmup: No data remains after removing "
-                "warmup bars."
+                "Insufficient warmup: No data remains after removing " "warmup bars."
             )
 
         if isinstance(signals, pd.Series) and len(signals) == 0:
             raise ValueError(
-                "Insufficient warmup: Signals are empty after removing "
-                "warmup bars."
+                "Insufficient warmup: Signals are empty after removing " "warmup bars."
             )
 
         if strategy._feature_df is not None and len(strategy._feature_df) > 0:
@@ -330,9 +334,7 @@ def _run_backtest_simulation(
     warmup_threshold = 0
 
     global_feature_names: set[str] = {
-        str(f["name"])
-        for f in global_features_list
-        if isinstance(f.get("name"), str)
+        str(f["name"]) for f in global_features_list if isinstance(f.get("name"), str)
     }
 
     # Use the complete instrument definition from config
@@ -485,15 +487,18 @@ def _run_backtest_simulation(
             pending_entry = None
 
         # Extract command and context from Signal object (or use legacy format)
+        strategy_context = strategy.get_context(i)
         if isinstance(signal, Signal):
             command = signal.command
             # Merge signal context with strategy context
-            strategy_context = strategy.get_context(i)
-            strategy_features = {**strategy_context, **signal.context}
+            strategy_feature_context = {
+                **strategy_context,
+                **signal.context,
+            }
         else:
             # Legacy format: signal is just a command string
             command = signal
-            strategy_features = strategy.get_context(i)
+            strategy_feature_context = strategy_context
 
         # Build global features dict separately from strategy features
         global_features: dict[str, Any] = {}
@@ -518,7 +523,7 @@ def _run_backtest_simulation(
             regime_data = _build_regime_data(rmm_ctx)
 
         context = {
-            "strategy_features": strategy_features,
+            "strategy_features": strategy_feature_context,
             "global_features": global_features,
         }
         if regime_data is not None:

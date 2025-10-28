@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 from trading_platform.core.sweeps import monte_carlo_resimulation
-from tests.test_helpers import get_empty_global_features_path
 
 
 def _df() -> pd.DataFrame:

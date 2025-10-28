@@ -408,8 +408,8 @@ class TestModelRegistry:
             elif "_pnl_no_risk" in key:
                 assert model.target_metric == "pnl"
 
-    def test_analyze_performance_regime_validates_data_type(self, temp_dir):
-        """Verify analyze_performance_regime raises error for mismatched data (Step 12)."""
+    def test_analyze_performance_regime_validates_data_type(self, temp_dir) -> None:
+        """Verify analyze_performance_regime rejects mismatched data."""
         import numpy as np
 
         registry = ModelRegistry(model_dir=temp_dir)
@@ -452,8 +452,8 @@ class TestModelRegistry:
                     model_suffix="_pnl_no_risk",
                 )
 
-    def test_predict_profitability_raises_lookahead_error(self, temp_dir):
-        """Verify predict_profitability detects and prevents lookahead bias (Step 18)."""
+    def test_predict_profitability_raises_lookahead_error(self, temp_dir) -> None:
+        """Verify predict_profitability detects lookahead bias conditions."""
         import numpy as np
 
         registry = ModelRegistry(model_dir=temp_dir)

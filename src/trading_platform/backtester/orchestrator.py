@@ -14,7 +14,10 @@ from typing import Any, cast
 import pandas as pd
 import yaml
 
-from trading_platform.backtester.core import _run_backtest_simulation
+from trading_platform.backtester.core import (
+    SimulationReturn,
+    _run_backtest_simulation,
+)
 from trading_platform.core.config import RunConfig
 from trading_platform.portfolio.trade import Trade
 from trading_platform.risk_manager.core import RiskExitManager
@@ -154,7 +157,7 @@ def run_backtest(
     )
 
     # Run backtest simulation
-    res = _run_backtest_simulation(
+    res: SimulationReturn = _run_backtest_simulation(
         market_data=feature_enriched_df,
         signals=signals,
         strategy=strat,
@@ -171,6 +174,10 @@ def run_backtest(
     # CLI uses tuple format (return_exposure=True), tests/programmatic use dict format
     if return_exposure:
         # Return tuple format for CLI use (includes exposure curve)
+        if isinstance(res, list):  # pragma: no cover - defensive guard
+            raise AssertionError(
+                "Simulation returned list when exposure output was requested."
+            )
         return res
 
     # Otherwise return dict format for programmatic/test use

@@ -3,11 +3,11 @@ from typing import Any, cast
 
 import pandas as pd
 from trading_platform.backtester.core import _run_backtest_simulation
-from tests.test_helpers import get_empty_global_features_path
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 
 from tests.backtester.dummy_objects import _dummy_strategy_cfg as dummy_strategy
+from tests.test_helpers import get_empty_global_features_path
 
 
 def test_backtester_uses_provided_instrument_symbol():

@@ -35,12 +35,14 @@ IMPORTANT:
 
 import csv
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
 import yaml
 from trading_platform.backtester import run_backtest
 from trading_platform.core.config import RunConfig
 from trading_platform.data.handler import DataHandler
+from trading_platform.portfolio.trade import Trade
 
 
 def generate_golden_trades_for_strategy(
@@ -227,6 +229,8 @@ def generate_golden_trades_for_strategy(
         data_handler=data_handler,
         global_features_config_path=golden_features_path,
     )
+    assert isinstance(results, dict)
+    trades_source = cast(list[Trade], results["trades"])
 
     # Filter trades to validation range
     trades_list = []
@@ -236,13 +240,13 @@ def generate_golden_trades_for_strategy(
             days=1, seconds=-1
         )
 
-        for trade in results["trades"]:
+        for trade in trades_source:
             if trade.exit_reason == "end_of_data":
                 continue
             if val_start <= trade.entry_time <= val_end:
                 trades_list.append(trade)
     else:
-        trades_list = [t for t in results["trades"] if t.exit_reason != "end_of_data"]
+        trades_list = [t for t in trades_source if t.exit_reason != "end_of_data"]
 
     print(f"Total trades after filtering: {len(trades_list)}")
 

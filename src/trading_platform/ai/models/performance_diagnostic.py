@@ -50,8 +50,10 @@ class PerformanceDiagnosticModel:
 
         Args:
             timeframe: Execution timeframe (e.g., "5min", "15min", "1h")
-            archetype: Strategy archetype (e.g., "trend_following", "mean_reversion")
-            target_metric: Target metric for quintile classification (e.g., "r_multiple", "pnl")
+            archetype: Strategy archetype (e.g., "trend_following",
+                "mean_reversion")
+            target_metric: Target metric for quintile classification
+                (e.g., "r_multiple", "pnl")
             n_estimators: Number of trees in RandomForestClassifier
             random_state: Random seed for reproducibility
         """

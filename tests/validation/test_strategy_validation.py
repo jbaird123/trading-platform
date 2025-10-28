@@ -13,10 +13,11 @@ See: docs/GOLDEN_VALIDATION.md for the golden validation contract.
 
 from datetime import timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 import pytest
+from trading_platform.portfolio.trade import Trade
 
 # Golden validation utilities (ALWAYS use these for golden tests)
 
@@ -645,7 +646,8 @@ def load_platform_trades(
 
         # Load global features config to calculate warmup
         golden_features_path = Path("data/dvc/golden/features/global.yaml")
-        execution_timeframe = config.instrument.get("timeframe", "1H")
+        instrument_cfg = config.instrument or {}
+        execution_timeframe = instrument_cfg.get("timeframe", "1H")
 
         # Resolve global features
         resolved_global = resolve_global_features(
@@ -721,6 +723,8 @@ def load_platform_trades(
         data_handler=data_handler,
         global_features_config_path=golden_features_path,
     )
+    assert isinstance(results, dict)
+    trades_source = cast(list[Trade], results["trades"])
 
     # Filter trades to validation range
     # Helper function to convert Trade object to dict with all fields
@@ -772,7 +776,7 @@ def load_platform_trades(
 
         trades_list = [
             trade_to_dict(trade)
-            for trade in results["trades"]
+            for trade in trades_source
             if (
                 trade.exit_reason != "end_of_data"
                 and start_date <= trade.entry_time <= end_date
@@ -782,7 +786,7 @@ def load_platform_trades(
         # No filtering, just convert and exclude end_of_data
         trades_list = [
             trade_to_dict(trade)
-            for trade in results["trades"]
+            for trade in trades_source
             if trade.exit_reason != "end_of_data"
         ]
 

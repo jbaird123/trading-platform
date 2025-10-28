@@ -96,7 +96,14 @@ class TestRMMPathLoading:
             mock_strat = MagicMock()
             mock_strat._feature_df = pd.DataFrame()
             mock_compile.return_value = mock_strat
-            mock_backtest.return_value = {"trades": [], "equity_curve": [], "strategy_name": "Test", "initial_capital": 100000, "compiled_strategy": mock_strat, "feature_enriched_df": pd.DataFrame()}
+            mock_backtest.return_value = {
+                "trades": [],
+                "equity_curve": [],
+                "strategy_name": "Test",
+                "initial_capital": 100000,
+                "compiled_strategy": mock_strat,
+                "feature_enriched_df": pd.DataFrame(),
+            }
 
             result = cmd_run_backtest(args)
             assert result == 0
@@ -207,7 +214,14 @@ class TestRMMModeBranches:
             mock_strat = MagicMock()
             mock_strat._feature_df = pd.DataFrame()
             mock_compile.return_value = mock_strat
-            mock_backtest.return_value = {"trades": [], "equity_curve": [], "strategy_name": "Test", "initial_capital": 100000, "compiled_strategy": mock_strat, "feature_enriched_df": pd.DataFrame()}
+            mock_backtest.return_value = {
+                "trades": [],
+                "equity_curve": [],
+                "strategy_name": "Test",
+                "initial_capital": 100000,
+                "compiled_strategy": mock_strat,
+                "feature_enriched_df": pd.DataFrame(),
+            }
 
             result = cmd_run_backtest(args)
             assert result == 0
@@ -292,7 +306,14 @@ class TestRMMModeBranches:
             mock_strat = MagicMock()
             mock_strat._feature_df = pd.DataFrame()
             mock_compile.return_value = mock_strat
-            mock_backtest.return_value = {"trades": [], "equity_curve": [], "strategy_name": "Test", "initial_capital": 100000, "compiled_strategy": mock_strat, "feature_enriched_df": pd.DataFrame()}
+            mock_backtest.return_value = {
+                "trades": [],
+                "equity_curve": [],
+                "strategy_name": "Test",
+                "initial_capital": 100000,
+                "compiled_strategy": mock_strat,
+                "feature_enriched_df": pd.DataFrame(),
+            }
 
             result = cmd_run_backtest(args)
             assert result == 0
@@ -399,7 +420,14 @@ class TestRMMModeBranches:
             mock_strat = MagicMock()
             mock_strat._feature_df = pd.DataFrame()
             mock_compile.return_value = mock_strat
-            mock_backtest.return_value = {"trades": [], "equity_curve": [], "strategy_name": "Test", "initial_capital": 100000, "compiled_strategy": mock_strat, "feature_enriched_df": pd.DataFrame()}
+            mock_backtest.return_value = {
+                "trades": [],
+                "equity_curve": [],
+                "strategy_name": "Test",
+                "initial_capital": 100000,
+                "compiled_strategy": mock_strat,
+                "feature_enriched_df": pd.DataFrame(),
+            }
 
             result = cmd_run_backtest(args)
             assert result == 0
@@ -489,7 +517,14 @@ class TestRMMModeBranches:
             mock_strat = MagicMock()
             mock_strat._feature_df = pd.DataFrame()
             mock_compile.return_value = mock_strat
-            mock_backtest.return_value = {"trades": [], "equity_curve": [], "strategy_name": "Test", "initial_capital": 100000, "compiled_strategy": mock_strat, "feature_enriched_df": pd.DataFrame()}
+            mock_backtest.return_value = {
+                "trades": [],
+                "equity_curve": [],
+                "strategy_name": "Test",
+                "initial_capital": 100000,
+                "compiled_strategy": mock_strat,
+                "feature_enriched_df": pd.DataFrame(),
+            }
 
             result = cmd_run_backtest(args)
             assert result == 0
@@ -624,7 +659,14 @@ class TestRMMModeBranches:
             mock_strat = MagicMock()
             mock_strat._feature_df = pd.DataFrame()
             mock_compile.return_value = mock_strat
-            mock_backtest.return_value = {"trades": [], "equity_curve": [], "strategy_name": "Test", "initial_capital": 100000, "compiled_strategy": mock_strat, "feature_enriched_df": pd.DataFrame()}
+            mock_backtest.return_value = {
+                "trades": [],
+                "equity_curve": [],
+                "strategy_name": "Test",
+                "initial_capital": 100000,
+                "compiled_strategy": mock_strat,
+                "feature_enriched_df": pd.DataFrame(),
+            }
 
             result = cmd_run_backtest(args)
             assert result == 0
@@ -702,7 +744,14 @@ class TestParamsSnapshotElif:
             mock_strat = MagicMock()
             mock_strat._feature_df = pd.DataFrame()
             mock_compile.return_value = mock_strat
-            mock_backtest.return_value = {"trades": [], "equity_curve": [], "strategy_name": "Test", "initial_capital": 100000, "compiled_strategy": mock_strat, "feature_enriched_df": pd.DataFrame()}
+            mock_backtest.return_value = {
+                "trades": [],
+                "equity_curve": [],
+                "strategy_name": "Test",
+                "initial_capital": 100000,
+                "compiled_strategy": mock_strat,
+                "feature_enriched_df": pd.DataFrame(),
+            }
 
             result = cmd_run_backtest(args)
             assert result == 0
@@ -783,7 +832,14 @@ class TestDataQualityFlags:
             mock_strat = MagicMock()
             mock_strat._feature_df = pd.DataFrame()
             mock_compile.return_value = mock_strat
-            mock_backtest.return_value = {"trades": [], "equity_curve": [], "strategy_name": "Test", "initial_capital": 100000, "compiled_strategy": mock_strat, "feature_enriched_df": pd.DataFrame()}
+            mock_backtest.return_value = {
+                "trades": [],
+                "equity_curve": [],
+                "strategy_name": "Test",
+                "initial_capital": 100000,
+                "compiled_strategy": mock_strat,
+                "feature_enriched_df": pd.DataFrame(),
+            }
 
             result = cmd_run_backtest(args)
             assert result == 0

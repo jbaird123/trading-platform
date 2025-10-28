@@ -11,8 +11,6 @@ from typing import Any, cast
 import pandas as pd
 import pytest
 
-from tests.test_helpers import get_empty_global_features_path
-
 
 @pytest.fixture
 def cli_stubs(monkeypatch, tmp_path):
@@ -317,7 +315,9 @@ def test_cmd_run_backtest_fast_mode_last_days_and_overrides(
 
     # Check that orchestrator received correct overrides
     assert calls["run_backtest"]["strategy_overrides"]["parameters"]["p"] == 2
-    assert calls["run_backtest"]["strategy_overrides"]["features"]["ema"]["length"] == 10
+    assert (
+        calls["run_backtest"]["strategy_overrides"]["features"]["ema"]["length"] == 10
+    )
     spans = json.loads((run_path / "rmm_spans.json").read_text())
     assert {item["mode"] for item in spans} >= {"both", "long_only", "short_only"}
     market_data = calls["run_backtest"]["market_data"]
