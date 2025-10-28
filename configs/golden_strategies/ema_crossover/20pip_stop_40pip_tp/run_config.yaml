@@ -15,7 +15,6 @@ execution_model: "next_bar_open"  # REQUIRED - matches TradingView behavior
 exit_tie_break: "stop_then_tp"
 
 # Warmup period (bars to skip before generating trades)
-warmup_bars: 100
 
 # Random seed for reproducibility
 run_seed: 42

@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 from trading_platform.core.sweeps import walk_forward_optimize_and_test
+from tests.test_helpers import get_empty_global_features_path
 
 
 def _df_wf() -> pd.DataFrame:
@@ -96,7 +97,6 @@ def test_walk_forward_optimize_and_test_returns_payload():
     base_cfg = {
         "initial_cash": 100000.0,
         "position_size": 10000.0,
-        "warmup_bars": 0,
         "tie_break_policy": {"rule": "stop_then_tp"},
         "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
         "instrument": {"symbol": "EURUSD"},

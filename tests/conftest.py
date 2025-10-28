@@ -2,13 +2,19 @@
 from __future__ import annotations
 
 from datetime import datetime
+from unittest.mock import patch
 
 import pandas as pd
+import pytest
 from pytest_bdd import given, parsers, when
 
 from tests.backtester.dummy_objects import (
     _dummy_strategy_cfg,
     _dummy_strategy_with_sl_tp,
+)
+from tests.test_helpers import (
+    create_market_data_with_warmup,
+    extend_test_data_for_warmup,
 )
 
 
@@ -38,7 +44,7 @@ def market_data(columns: str) -> dict:
 @when("the backtest is run")
 def when_backtest_is_run(shared_context: dict) -> None:
     """Calls the backtester logic and stores the resulting trades."""
-    from trading_platform.backtester.core import run_backtest
+    from trading_platform.backtester.core import _run_backtest_simulation
     from trading_platform.core.config import RunConfig
     from trading_platform.risk_manager.core import RiskExitManager
 
@@ -73,7 +79,12 @@ def when_backtest_is_run(shared_context: dict) -> None:
         exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config=config.rem_config or None)
-    trades = run_backtest(
+
+    # Use minimal global features for unit tests to avoid warmup requirements
+    from pathlib import Path
+    test_global_config = Path(__file__).parent / "fixtures" / "global_empty.yaml"
+
+    trades = _run_backtest_simulation(
         market_data=shared_context["market_data"],
         signals=shared_context["signals"],
         strategy=strategy,
@@ -81,6 +92,7 @@ def when_backtest_is_run(shared_context: dict) -> None:
         rem=rem,
         return_exposure=False,
         return_skips=False,
+        global_features_config_path=test_global_config,
     )
     shared_context["trades"] = trades
 

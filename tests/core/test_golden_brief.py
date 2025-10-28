@@ -6,7 +6,8 @@ from typing import Any, cast
 
 import pytest
 import yaml
-from trading_platform.backtester.core import run_backtest
+from trading_platform.backtester.core import _run_backtest_simulation
+from tests.test_helpers import get_empty_global_features_path
 from trading_platform.core.config import RunConfig
 from trading_platform.core.run import finalize_run
 from trading_platform.data.schema import load_and_normalize_data
@@ -123,7 +124,7 @@ def test_brief_matches_golden_master(tmp_path: Path, request):
     run_config = RunConfig.model_validate(cfg_for_validation)
 
     # 4. Run the backtest
-    res = run_backtest(
+    res = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -131,6 +132,7 @@ def test_brief_matches_golden_master(tmp_path: Path, request):
         rem=rem,
         return_exposure=True,
         return_skips=True,
+        global_features_config_path=get_empty_global_features_path(),
     )
     # Unpack results with proper type casting to satisfy mypy
     skips: list[dict[str, Any]] = []

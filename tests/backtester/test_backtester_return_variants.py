@@ -4,9 +4,10 @@ from datetime import datetime
 from typing import Any
 
 import pandas as pd
+from trading_platform.backtester.core import _run_backtest_simulation
+from tests.test_helpers import get_empty_global_features_path
 from trading_platform.backtester.core import (
     _simulate_counterfactual_exact,
-    run_backtest,
 )
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
@@ -51,13 +52,15 @@ def test_run_backtest_returns_trades_and_exposure_only() -> None:
     )
     rem = RiskExitManager(config=None)
 
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
         config=config,
         rem=rem,
         return_exposure=True,
+        global_features_config_path=get_empty_global_features_path(),
+    
     )
     trades, exposure = result[:2]  # Extract only trades and exposure
 
@@ -68,6 +71,16 @@ def test_run_backtest_returns_trades_and_exposure_only() -> None:
 
 
 class _NeverExitREM:
+    def calculate_initial_stop_price(
+        self,
+        entry_price: float,
+        side: str,
+        entry_bar: pd.Series,
+        signal_context: dict[str, Any],
+        prior_bar: pd.Series | None = None,
+    ) -> float | None:
+        return None
+
     def check_exits(
         self,
         position: Any,

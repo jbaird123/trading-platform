@@ -29,6 +29,6 @@ def test_mfe_mae_bars_serialized_in_brief_trades():
         initial_cash=1000.0,
     )
     tr = brief["trades"][0]
-    assert tr["mfe_currency"] == approx(25.0)
-    assert tr["mae_currency"] == approx(5.0)
+    assert tr["mfe_normalized"] == approx(25.0)
+    assert tr["mae_normalized"] == approx(5.0)
     assert tr["bars_held"] == 3

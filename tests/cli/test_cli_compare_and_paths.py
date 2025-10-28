@@ -8,6 +8,7 @@ from pathlib import Path
 import pandas as pd
 from pytest import MonkeyPatch
 from trading_platform.cli import cmd_compare, cmd_run_backtest, cmd_run_live
+from tests.test_helpers import get_empty_global_features_path
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
 

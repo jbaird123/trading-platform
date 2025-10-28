@@ -596,7 +596,7 @@ def load_platform_trades(
     from pathlib import Path
 
     import yaml
-    from trading_platform.backtester.orchestrator import run_backtest_from_config
+    from trading_platform.backtester import run_backtest
     from trading_platform.core.config import RunConfig
 
     # Load strategy config
@@ -623,34 +623,98 @@ def load_platform_trades(
     if rem_config:
         config_dict["rem_config"] = rem_config
 
-    # Override warmup_bars to 0 when using extended data
-    if date_range:
-        config_dict["warmup_bars"] = 0
-
-    # Create RunConfig
+    # Create RunConfig (trim handled by warmup guards)
     config = RunConfig.model_validate(config_dict)
 
     # ALL strategies use 1-minute data resampled to 1H
     ohlcv_1h = data_handler.get_data(timeframe="1H")
 
-    # Apply date filtering to extended range
+    # Calculate warmup period dynamically based on features
     if date_range:
         from datetime import timedelta
 
+        import yaml
+        from trading_platform.backtester.warmup import calculate_warmup_start_date
+        from trading_platform.core.feature_resolver import resolve_global_features
+
+        # Get backtest start date from validation range
+        backtest_start_date = pd.to_datetime(date_range["start"], utc=True)
         end_date = pd.to_datetime(date_range["end"], utc=True) + timedelta(
             days=1, seconds=-1
         )
-        warmup_start = pd.Timestamp("2022-12-01", tz="UTC")
+
+        # Load global features config to calculate warmup
+        golden_features_path = Path("data/dvc/golden/features/global.yaml")
+        execution_timeframe = config.instrument.get("timeframe", "1H")
+
+        # Resolve global features
+        resolved_global = resolve_global_features(
+            execution_timeframe, config_path=golden_features_path
+        )
+        global_features_list = [
+            {
+                "name": f.name,
+                "type": f.type,
+                "params": f.params,
+                "source": f.source,
+                "timeframe": f.timeframe,
+            }
+            for f in resolved_global
+        ]
+
+        # Compile strategy to get parameters
+        from trading_platform.strategy.features import _resolve_parameter
+        from trading_platform.strategy.yaml_strategy import compile_strategy
+
+        compiled_strategy = compile_strategy(strategy_config)
+
+        # Resolve parameter placeholders in strategy features
+        strategy_params = compiled_strategy.parameters or {}
+        resolved_strategy_features = []
+        for feature in compiled_strategy.features or []:
+            resolved_feature = feature.copy()
+            if "params" in resolved_feature:
+                resolved_params = {
+                    k: _resolve_parameter(v, strategy_params)
+                    for k, v in resolved_feature["params"].items()
+                }
+                resolved_feature["params"] = resolved_params
+            resolved_strategy_features.append(resolved_feature)
+
+        # Calculate warmup start date
+        warmup_start_date, warmup_info = calculate_warmup_start_date(
+            strategy_features=resolved_strategy_features,
+            global_features=global_features_list,
+            execution_timeframe=execution_timeframe,
+            market_data=ohlcv_1h,
+            backtest_start_date=backtest_start_date,
+        )
+
+        # Convert warmup_start_date to timestamp
+        warmup_start = pd.Timestamp(warmup_start_date, tz="UTC")
+
+        # DEBUG: Print warmup info for bb_stop
+        if "bb_stop" in str(strategy_config.get("strategy_name", "")).lower():
+            print("\n=== DEBUG: bb_stop warmup calculation ===")
+            print(f"Backtest start date: {backtest_start_date}")
+            print(f"Calculated warmup start: {warmup_start}")
+            print(f"Warmup info: {warmup_info}")
+            print(f"Days of warmup: {(backtest_start_date - warmup_start).days}")
+            print("=========================================\n")
+
+        # Filter data from warmup start to validation end
         ohlcv_to_use = ohlcv_1h[
             (ohlcv_1h.index >= warmup_start) & (ohlcv_1h.index <= end_date)
         ].copy()
+
+        config = RunConfig.model_validate(config_dict)
     else:
         ohlcv_to_use = ohlcv_1h
 
     # Run backtest with 1-min data handler (for zoom capability)
     # Use frozen golden features config for golden validation tests
     golden_features_path = Path("data/dvc/golden/features/global.yaml")
-    results = run_backtest_from_config(
+    results = run_backtest(
         config=config,
         market_data=ohlcv_to_use,
         strategy_config=strategy_config,

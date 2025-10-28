@@ -8,19 +8,22 @@ from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
+import pytest
 import yaml
-from trading_platform.backtester.core import run_backtest
+from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.core.config import RunConfig
 from trading_platform.portfolio.trade import Trade
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
 
+
+
 def test_backtester_adds_contextual_features_to_trade_context() -> None:
     """Test that backtester computes and includes global features."""
     # Create sample market data with sufficient bars for ATR calculation
     idx = [datetime(2024, 1, 1, h) for h in range(20)]
-    df = pd.DataFrame(
+    df_full = pd.DataFrame(
         {
             "open": [100.0 + i * 0.5 for i in range(20)],
             "high": [101.0 + i * 0.5 for i in range(20)],
@@ -30,6 +33,7 @@ def test_backtester_adds_contextual_features_to_trade_context() -> None:
         },
         index=idx,
     )
+    df = df_full
 
     # Create a simple strategy that generates one trade
     strategy = CompiledStrategy(
@@ -42,11 +46,11 @@ def test_backtester_adds_contextual_features_to_trade_context() -> None:
         short_exit_blocks=[],
         parameters={},
     )
-    strategy.generate_signals(df)  # Initialize _feature_df
+    strategy.generate_signals(df)  # Initialize _feature_df on trimmed data
 
-    # Create signals with one entry at bar 15 and exit at bar 18
+    # Create signals with one entry near the middle of the trimmed window
     signals = pd.Series(
-        [None] * 15 + ["enter_long"] + [None] * 2 + ["exit_long", None],
+        [None] * 14 + ["enter_long", None, "exit_long"] + [None] * 3,
         index=df.index,
     )
 
@@ -73,7 +77,6 @@ def test_backtester_adds_contextual_features_to_trade_context() -> None:
         try:
             os.chdir(tmpdir)
 
-            # Create RunConfig without contextual_features
             config = RunConfig.model_validate(
                 {
                     "run_id": "test_contextual",
@@ -89,13 +92,14 @@ def test_backtester_adds_contextual_features_to_trade_context() -> None:
                 config={"stop_loss": {"type": "offset", "price_offset": 0.0010}}
             )
 
-            # Run backtest
-            trades = run_backtest(
+            # Run backtest with explicit global features config path
+            trades = _run_backtest_simulation(
                 market_data=df,
                 signals=signals,
                 strategy=strategy,
                 config=config,
                 rem=rem,
+                global_features_config_path=global_yaml_path,
             )
 
             # Assertions
@@ -139,7 +143,7 @@ def test_backtester_trade_context_with_multi_timeframe_at_entry_and_exit() -> No
     # Create 15-minute data for 20 hours (80 bars) to get 20 1H bars
     # RSI(14) needs 14 bars, so we need at least 15 1H bars for valid RSI
     idx = pd.date_range(start="2024-01-01 00:00:00", periods=80, freq="15min")
-    df = pd.DataFrame(
+    df_full = pd.DataFrame(
         {
             "open": [100.0 + i * 0.1 for i in range(80)],
             "high": [101.0 + i * 0.1 for i in range(80)],
@@ -149,6 +153,7 @@ def test_backtester_trade_context_with_multi_timeframe_at_entry_and_exit() -> No
         },
         index=idx,
     )
+    df = df_full
 
     # Create a simple strategy
     strategy = CompiledStrategy(
@@ -161,12 +166,18 @@ def test_backtester_trade_context_with_multi_timeframe_at_entry_and_exit() -> No
         short_exit_blocks=[],
         parameters={},
     )
-    strategy.generate_signals(df)  # Initialize _feature_df
+    strategy.generate_signals(df)  # Initialize _feature_df on trimmed data
 
-    # Create signals: enter at bar 64 (16:00), exit at bar 68 (17:00)
-    # This ensures we have 16-17 1H bars, giving valid RSI values
+    warmup_bars = 56  # 14 hours * 4 bars/hour for 15min data
+    remaining = len(df) - (warmup_bars + 4)
     signals = pd.Series(
-        [None] * 64 + ["enter_long"] + [None] * 3 + ["exit_long"] + [None] * 11,
+        (
+            [None] * warmup_bars
+            + ["enter_long"]
+            + [None] * 2
+            + ["exit_long"]
+            + [None] * max(0, remaining)
+        ),
         index=df.index,
     )
 
@@ -193,7 +204,6 @@ def test_backtester_trade_context_with_multi_timeframe_at_entry_and_exit() -> No
         try:
             os.chdir(tmpdir)
 
-            # Create RunConfig with 15min execution timeframe
             config = RunConfig.model_validate(
                 {
                     "run_id": "test_mtf_contextual",
@@ -209,13 +219,14 @@ def test_backtester_trade_context_with_multi_timeframe_at_entry_and_exit() -> No
                 config={"stop_loss": {"type": "offset", "price_offset": 0.0010}}
             )
 
-            # Run backtest
-            trades = run_backtest(
+            # Run backtest with explicit global features path
+            trades = _run_backtest_simulation(
                 market_data=df,
                 signals=signals,
                 strategy=strategy,
                 config=config,
                 rem=rem,
+                global_features_config_path=global_yaml_path,
             )
 
             # Assertions
@@ -244,11 +255,12 @@ def test_backtester_trade_context_with_multi_timeframe_at_entry_and_exit() -> No
             entry_features = first_trade.context_at_entry["global_features"]
             assert "h1_rsi_14" in entry_features
 
+            entry_time = first_trade.entry_time
+            assert entry_time is not None
+            expected_entry_rsi = expected_rsi.loc[entry_time]
             h1_rsi_entry = entry_features["h1_rsi_14"]
-            expected_entry_rsi = expected_rsi.iloc[64]
-            assert h1_rsi_entry == expected_entry_rsi, (
-                f"Entry RSI mismatch: got {h1_rsi_entry}, "
-                f"expected {expected_entry_rsi}"
+            assert h1_rsi_entry == pytest.approx(
+                expected_entry_rsi, rel=1e-6
             )
 
             # Verify context_at_exit contains expected value
@@ -260,11 +272,12 @@ def test_backtester_trade_context_with_multi_timeframe_at_entry_and_exit() -> No
             exit_features = first_trade.context_at_exit["global_features"]
             assert "h1_rsi_14" in exit_features
 
+            exit_time = first_trade.exit_time
+            assert exit_time is not None
+            expected_exit_rsi = expected_rsi.loc[exit_time]
             h1_rsi_exit = exit_features["h1_rsi_14"]
-            expected_exit_rsi = expected_rsi.iloc[68]
-            assert h1_rsi_exit == expected_exit_rsi, (
-                f"Exit RSI mismatch: got {h1_rsi_exit}, "
-                f"expected {expected_exit_rsi}"
+            assert h1_rsi_exit == pytest.approx(
+                expected_exit_rsi, rel=1e-6
             )
         finally:
             os.chdir(original_cwd)
@@ -319,13 +332,17 @@ def test_trade_context_always_includes_volume() -> None:
         config={"stop_loss": {"type": "offset", "price_offset": 0.0010}}
     )
 
-    # Run backtest
-    trades = run_backtest(
+    # Import test helper for empty global features
+    from tests.test_helpers import get_empty_global_features_path
+
+    # Run backtest with empty global features (only volume is added automatically)
+    trades = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
         config=config,
         rem=rem,
+        global_features_config_path=get_empty_global_features_path(),
     )
 
     # Assertions

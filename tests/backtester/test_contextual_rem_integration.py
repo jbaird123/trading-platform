@@ -6,7 +6,8 @@ Task 3.1: End-to-end test of Signal context flowing to REM.
 from __future__ import annotations
 
 import pandas as pd
-from trading_platform.backtester.core import run_backtest
+from trading_platform.backtester.core import _run_backtest_simulation
+from tests.test_helpers import get_empty_global_features_path
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
@@ -109,13 +110,15 @@ def test_contextual_rem_with_order_block_strategy():
     signals = strategy.generate_signals(market_data)
 
     # run_backtest with return_exposure=True returns (trades, exposure)
-    result = run_backtest(
+    result = _run_backtest_simulation(
         config=run_config,
         market_data=market_data,
         signals=signals,
         strategy=strategy,
         rem=rem,
         return_exposure=True,
+        global_features_config_path=get_empty_global_features_path(),
+    
     )
     trades, _ = result  # type: ignore[misc]
 

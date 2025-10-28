@@ -11,7 +11,8 @@ from datetime import datetime
 
 import pandas as pd
 import pytest
-from trading_platform.backtester.core import run_backtest
+from trading_platform.backtester.core import _run_backtest_simulation
+from tests.test_helpers import get_empty_global_features_path
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 
@@ -23,6 +24,10 @@ TEST_INSTRUMENT = {
 
 class DummyStrategy:
     """Minimal strategy for testing."""
+
+    def __init__(self):
+        self.features: list[dict[str, object]] = []
+        self._feature_df = None
 
     def generate_signals(self, df):
         pass
@@ -137,7 +142,6 @@ def test_next_bar_open_execution_model_complete_flow():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
         entry_window_bars=0,  # Immediate execution on entry window open
-        warmup_bars=0,
         min_hold_bars=0,
         allow_flip_on_bar=False,
     )
@@ -146,7 +150,7 @@ def test_next_bar_open_execution_model_complete_flow():
     rem = RiskExitManager(config=None, instrument=TEST_INSTRUMENT)
 
     # Run backtest
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,  # type: ignore[arg-type]
@@ -155,6 +159,7 @@ def test_next_bar_open_execution_model_complete_flow():
         rmm_context=None,
         return_exposure=False,
         return_skips=False,
+        global_features_config_path=get_empty_global_features_path(),
     )
     trades_list = result if isinstance(result, list) else result[0]
 
@@ -243,17 +248,17 @@ def test_next_bar_open_vs_current_bar_close_comparison():
         execution_model="current_bar_close",
         exit_tie_break="stop_then_tp",
         entry_window_bars=0,
-        warmup_bars=0,
         min_hold_bars=0,
         allow_flip_on_bar=False,
     )
 
-    result_legacy = run_backtest(
+    result_legacy = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,  # type: ignore[arg-type]
         config=config_legacy,
         rem=rem,
+        global_features_config_path=get_empty_global_features_path(),
     )
     trades_legacy = (
         result_legacy if isinstance(result_legacy, list) else result_legacy[0]
@@ -270,17 +275,17 @@ def test_next_bar_open_vs_current_bar_close_comparison():
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
         entry_window_bars=0,
-        warmup_bars=0,
         min_hold_bars=0,
         allow_flip_on_bar=False,
     )
 
-    result_realistic = run_backtest(
+    result_realistic = _run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,  # type: ignore[arg-type]
         config=config_realistic,
         rem=rem,
+        global_features_config_path=get_empty_global_features_path(),
     )
     trades_realistic = (
         result_realistic if isinstance(result_realistic, list) else result_realistic[0]

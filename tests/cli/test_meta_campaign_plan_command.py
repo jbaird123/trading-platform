@@ -64,9 +64,10 @@ strategy_profiles:
 
     assert result.returncode == 0
 
-    # Should generate 2 campaign files (1 instrument × 1 timeframe × 2 param_sets)
+    # Should generate 1 campaign file with 2 runs in run_matrix
+    # (1 instrument × 1 timeframe × 1 profile, with 2 param sets consolidated)
     generated_files = list(output_dir.glob("*.yaml"))
-    assert len(generated_files) == 2
+    assert len(generated_files) == 1
 
 
 def test_meta_campaign_plan_output_yaml_structure(tmp_path: Path) -> None:
@@ -122,16 +123,20 @@ strategy_profiles:
     with open(generated_files[0]) as f:
         campaign_config = yaml.safe_load(f)
 
-    # Verify required fields
-    assert "start_date" in campaign_config
-    assert campaign_config["start_date"] == "2020-01-01"
-    assert "end_date" in campaign_config
-    assert "instrument" in campaign_config
+    # Verify required fields in new format with run_matrix
+    assert "campaign_id" in campaign_config
     assert "execution_timeframe" in campaign_config
-    assert "strategy" in campaign_config
-    assert "archetype" in campaign_config
-    assert "metadata" in campaign_config
-    assert campaign_config["metadata"]["meta_campaign_id"] == "test_campaign"
+    assert campaign_config["execution_timeframe"] == "15min"
+    assert "strategy_path" in campaign_config
+    assert "strategy_archetype" in campaign_config
+    assert "run_matrix" in campaign_config
+    assert len(campaign_config["run_matrix"]) >= 1
+    # Verify first run has required fields
+    first_run = campaign_config["run_matrix"][0]
+    assert "start_date" in first_run
+    assert first_run["start_date"] == "2020-01-01"
+    assert "end_date" in first_run
+    assert "instrument" in first_run
 
 
 def test_meta_campaign_plan_prints_summary(tmp_path: Path) -> None:

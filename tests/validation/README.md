@@ -257,7 +257,6 @@ rem:
 
 **run_config.yaml**:
 ```yaml
-warmup_bars: 100  # Enough for indicators to stabilize
 execution_model: "next_bar_open"  # Match TradingView
 exit_tie_break: "stop_then_tp"  # If both hit same bar
 

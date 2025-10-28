@@ -15,15 +15,13 @@ from typing import Any, cast
 import pandas as pd
 
 from trading_platform.ai.data_curation import run_curation_pipeline
-from trading_platform.backtester.core import run_backtest
+from trading_platform.backtester import run_backtest
 from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
 from trading_platform.core.demo import generate_demo_run
 from trading_platform.core.meta_campaign_config import MetaCampaignConfig
 from trading_platform.core.meta_campaign_generator import (
     calculate_cartesian_product,
-    campaign_config_to_yaml_dict,
-    generate_campaign_filename,
 )
 from trading_platform.core.policy import TradingWindowPolicy
 from trading_platform.core.run import finalize_run, initialize_run
@@ -48,7 +46,6 @@ from trading_platform.reporting.chart_export import (
 from trading_platform.reporting.compare_html import save_comparison_report
 from trading_platform.reporting.csv_export import save_prices_csv
 from trading_platform.reporting.diagnostics import RuleBasedAnalyzer
-from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
 from trading_platform.utils.cache import clear_numba_cache
 from trading_platform.validation.pre_deployment import run_pre_deployment_checklist
@@ -155,7 +152,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         dq_flags = data_handler.data_quality_flags
 
         # Get data for requested timeframe and date range
-        # DataHandler caches complete datasets and applies filtering
+        # Will calculate warmup requirements dynamically based on indicators
         df = data_handler.get_data(
             timeframe=data_req.get("timeframe"),
             start=data_req.get("start"),
@@ -186,112 +183,15 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         logger.warning(f"Failed to save processed data parquet: {e}")
         processed_data_path = None
 
-    # Strategy can be embedded or referenced via a separate YAML/JSON file
+    # Get strategy config (can be embedded or in a separate file)
     strat_cfg = cfg_raw.get("strategy")
-    if not strat_cfg:
-        # Try loading from strategy_path if provided
-        # (extracted earlier before validation)
-        if strategy_path:
-            strat_cfg = _load_config(Path(strategy_path))
-        else:
-            raise ValueError(
-                "No strategy provided. Specify 'strategy_path' in config "
-                "or embed 'strategy' definition."
-            )
+    if not strat_cfg and strategy_path:
+        strat_cfg = _load_config(Path(strategy_path))
 
+    # Resolve file_path if strategy references another file
     if isinstance(strat_cfg, dict) and "file_path" in strat_cfg:
-        # Resolve file_path relative to the main config file
         p = Path(cfg_path.parent, strat_cfg["file_path"])
         strat_cfg = _load_config(p)
-
-    # Apply strategy_params from config (used for parameter sweeps)
-    # This allows the config to override strategy defaults
-    if isinstance(strategy_params, dict):
-        base_params = strat_cfg.get("parameters") or {}
-        if isinstance(base_params, dict):
-            base_params.update({k: v for k, v in strategy_params.items()})
-            strat_cfg["parameters"] = base_params
-
-    # Apply optional per-run overrides for strategy tunables
-    if isinstance(strategy_overrides, dict):
-        # 1) Parameter-level overrides (e.g., slope_filter)
-        param_over = strategy_overrides.get("parameters") or {}
-        if isinstance(param_over, dict):
-            base_params = strat_cfg.get("parameters") or {}
-            if isinstance(base_params, dict):
-                base_params.update({k: v for k, v in param_over.items()})
-                strat_cfg["parameters"] = base_params
-        # 2) Feature-level overrides (existing behavior)
-        feat_over = strategy_overrides.get("features") or {}
-        if isinstance(feat_over, dict) and isinstance(strat_cfg.get("features"), list):
-            for f in strat_cfg["features"]:
-                name = str(f.get("name", ""))
-                if name and name in feat_over and isinstance(feat_over[name], dict):
-                    params = f.get("params") or {}
-                    if isinstance(params, dict):
-                        params.update({k: v for k, v in feat_over[name].items()})
-                        f["params"] = params
-    strat = compile_strategy(strat_cfg)
-    signals = strat.generate_signals(df)
-
-    # Get feature-enriched dataframe for REM (includes ATR, etc.)
-    # This allows REM to access strategy-calculated features like ATR
-    # Ensure it's aligned with the (possibly sliced) input df
-    feature_enriched_df = strat._feature_df if strat._feature_df is not None else df
-    if feature_enriched_df is not None:
-        # Defensive checks: feature_df must match input df's length and index type
-        if len(feature_enriched_df) != len(df) or not isinstance(
-            feature_enriched_df.index, type(df.index)
-        ):
-            # Fall back to raw df if mismatched (can happen in tests with mocks)
-            feature_enriched_df = df
-
-    # Persist raw signals for AI Lab analysis
-    try:
-        from trading_platform.core.signal import Signal
-
-        signals_path = run_path / "signals.parquet"
-        # Ensure signals are saved with proper column name
-        if isinstance(signals, pd.Series):
-            # Extract command strings from Signal objects for serialization
-            signal_values = signals.apply(
-                lambda x: x.command if isinstance(x, Signal) else x
-            )
-            signals_df = pd.DataFrame({"signal": signal_values})
-        else:
-            signals_df = pd.DataFrame(signals)
-        signals_df.to_parquet(signals_path)
-    except Exception as e:  # pragma: no cover
-        # Safe to continue: signals.parquet is for AI Lab post-analysis
-        # Not required for backtest results
-        logger.warning(
-            f"Failed to save signals.parquet for AI Lab: {e}"
-        )  # pragma: no cover
-        signals_path = None  # pragma: no cover
-
-    # Persist prices and features for charts before finalize_run
-    try:
-        save_prices_csv(run_path / "prices.csv", df)
-    except Exception as e:  # pragma: no cover
-        # Safe to continue: prices.csv is only for interactive charts
-        # brief.json contains all data needed for analysis
-        logger.warning(f"Failed to save prices.csv: {e}")  # pragma: no cover
-    try:
-        fdf = getattr(strat, "_feature_df", None)
-        if fdf is not None:
-            save_features_for_chart(run_path, fdf, strat.features)
-    except Exception as e:  # pragma: no cover
-        # Safe to continue: features.json is for charts/debugging only
-        # Not required for backtest analysis
-        logger.warning(f"Failed to save features: {e}")  # pragma: no cover
-
-    # REM can be embedded or referenced via a separate file
-    rem_cfg: dict[str, Any] | None = cfg_raw.get("rem_config")
-    # Pass complete instrument definition with all metadata (asset_class, etc.)
-    instrument_dict = instrument_def.model_dump() if instrument_def else None
-    # Pass dict directly - RiskExitManager will validate new-format configs
-    # and allow legacy configs to bypass validation
-    rem = RiskExitManager(config=rem_cfg, instrument=instrument_dict)
 
     # RMM optional for legacy configs; if present, build per-bar context
     rmm_context: dict[datetime, dict[str, Any]] | None = None
@@ -430,18 +330,30 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     ret_exp = bool(cfg_raw.get("return_exposure", False))
     ret_skips = bool(cfg_raw.get("return_skips", True))
 
+    # Run backtest through the single entry point (orchestrator)
     res = run_backtest(
-        market_data=feature_enriched_df,
-        signals=signals,
-        strategy=strat,
         config=cfg,
-        rem=rem,
+        market_data=df,
+        strategy_config=strat_cfg,
+        strategy_path=None,  # Already loaded into strat_cfg
+        strategy_params=strategy_params,
+        strategy_overrides=strategy_overrides,
+        data_handler=data_handler,
         rmm_context=rmm_context,
         return_exposure=ret_exp,
         return_skips=ret_skips,
     )
+
+    # Extract results from orchestrator
+    # When return_exposure=True, orchestrator returns tuple: (trades, exposure, [skips])
+    # When return_exposure=False, orchestrator returns dict with full metadata
     skips: list[dict[str, Any]] = []
+    strat = None
+    feature_enriched_df = None
+    strategy_name = "Unknown"
+
     if isinstance(res, tuple):
+        # Tuple format from CLI-style calls (return_exposure=True)
         if len(res) == 3:
             trades = cast(list[Trade], res[0])
             exposure = cast(list[tuple[datetime, float]], res[1])
@@ -449,12 +361,65 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         else:
             trades = cast(list[Trade], res[0])
             exposure = cast(list[tuple[datetime, float]], res[1])
+        # Note: In tuple format, we don't get back strat/feature_enriched_df
+        # The orchestrator already compiled the strategy internally
+        # We'll need to recompile for saving features (not ideal, but temporary)
     else:
-        trades = cast(list[Trade], res)
-        exposure = []
+        # Dict format - extract all metadata
+        # Handle legacy list format for backwards compatibility
+        if isinstance(res, list):
+            trades = res
+            exposure = []
+        else:
+            result_dict = cast(dict[str, Any], res)
+            trades = result_dict["trades"]
+            exposure = result_dict.get("equity_curve", [])
+            strat = result_dict["compiled_strategy"]
+            feature_enriched_df = result_dict["feature_enriched_df"]
+            strategy_name = result_dict["strategy_name"]
+
+    # For tuple format, we need strategy object for features/signals saving
+    # Recompile if needed (orchestrator already did this, but didn't return
+    # it in tuple mode)
+    if strat is None:
+        strat = compile_strategy(strat_cfg)
+        # Generate signals to get feature_df (orchestrator already did this too)
+        strat.generate_signals(df)
+        feature_enriched_df = strat._feature_df if strat._feature_df is not None else df
+        strategy_name = strat.name
+
+    # Persist raw signals for AI Lab analysis
+    try:
+        from trading_platform.core.signal import Signal
+
+        signals_path = run_path / "signals.parquet"
+        signals = strat.generate_signals(df)
+        # Ensure signals are saved with proper column name
+        if isinstance(signals, pd.Series):
+            # Extract command strings from Signal objects for serialization
+            signal_values = signals.apply(
+                lambda x: x.command if isinstance(x, Signal) else x
+            )
+            signals_df = pd.DataFrame({"signal": signal_values})
+        else:
+            signals_df = pd.DataFrame(signals)
+        signals_df.to_parquet(signals_path)
+    except Exception as e:  # pragma: no cover
+        logger.warning(f"Failed to save signals.parquet for AI Lab: {e}")
+
+    # Persist prices and features for charts
+    try:
+        save_prices_csv(run_path / "prices.csv", df)
+    except Exception as e:  # pragma: no cover
+        logger.warning(f"Failed to save prices.csv: {e}")
+    try:
+        if feature_enriched_df is not None and hasattr(strat, "features"):
+            save_features_for_chart(run_path, feature_enriched_df, strat.features)
+    except Exception as e:  # pragma: no cover
+        logger.warning(f"Failed to save features: {e}")
 
     meta = {
-        "strategy_name": strat.name,
+        "strategy_name": strategy_name,
         "run_id": cfg.run_id,
         "git_commit": _get_git_commit(),
         "run_seed": cfg.run_seed,
@@ -1277,43 +1242,68 @@ def _write_campaign_files(
     meta_campaign_id: str,
 ) -> int:
     """
-    Write campaign configuration files.
+    Write campaign configuration files grouped by profile and timeframe.
+
+    Creates one campaign config file per (profile, timeframe) combination,
+    each with a run_matrix containing all parameter/instrument variations.
 
     Returns:
         Number of files written
     """
     import yaml
 
-    profile_counters: dict[str, int] = {}
-    generated_count = 0
-
+    # Group campaigns by (profile, timeframe)
+    campaigns_by_group: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for campaign in campaigns:
         profile_name = campaign["profile_name"]
-        instrument = campaign["instrument"]
         timeframe = campaign["execution_timeframe"]
+        group_key = (profile_name, timeframe)
 
-        # Get and increment counter for this profile
-        if profile_name not in profile_counters:
-            profile_counters[profile_name] = 0
-        param_index = profile_counters[profile_name]
-        profile_counters[profile_name] += 1
+        if group_key not in campaigns_by_group:
+            campaigns_by_group[group_key] = []
+        campaigns_by_group[group_key].append(campaign)
 
-        # Generate filename
-        filename = generate_campaign_filename(
-            meta_campaign_id=meta_campaign_id,
-            profile_name=profile_name,
-            instrument=instrument,
-            timeframe=timeframe,
-            param_index=param_index,
+    generated_count = 0
+
+    # Write one file per (profile, timeframe) group
+    for (profile_name, timeframe), group_campaigns in campaigns_by_group.items():
+        # Use first campaign as template for common fields
+        first = group_campaigns[0]
+
+        # Build run_matrix from all campaigns in this group
+        run_matrix = []
+        for campaign in group_campaigns:
+            run_entry = {
+                "instrument": campaign["instrument"],
+                "start_date": campaign["date_range"]["start"],
+                "end_date": campaign["date_range"]["end"],
+                "param_overrides": campaign["strategy_params"],
+            }
+            run_matrix.append(run_entry)
+
+        # Build campaign config in correct format
+        description = (
+            f"Meta-campaign: {meta_campaign_id}, "
+            f"Profile: {profile_name}, Timeframe: {timeframe}"
         )
+        campaign_config = {
+            "campaign_id": f"{meta_campaign_id}_{profile_name}_{timeframe}",
+            "strategy_path": str(first["strategy_path"]),
+            "execution_timeframe": timeframe,
+            "strategy_archetype": first["archetype"],
+            "description": description,
+            "run_matrix": run_matrix,
+        }
 
-        # Convert to YAML dict
-        yaml_dict = campaign_config_to_yaml_dict(campaign)
+        # Add REM path if present
+        if first["rem_path"] is not None:
+            campaign_config["rem_path"] = str(first["rem_path"])
 
         # Write file
+        filename = f"{meta_campaign_id}_{profile_name}_{timeframe}.yaml"
         output_path = output_dir / filename
         with open(output_path, "w") as f:
-            yaml.dump(yaml_dict, f, default_flow_style=False, sort_keys=False)
+            yaml.dump(campaign_config, f, default_flow_style=False, sort_keys=False)
 
         generated_count += 1
 
@@ -1322,13 +1312,14 @@ def _write_campaign_files(
 
 def _print_summary(generated_count: int, output_dir: Path) -> None:
     """Print summary of generated campaigns."""
-    print(f"✓ Generated {generated_count} campaign configurations")
+    print(f"✓ Generated {generated_count} campaign config file(s)")
     print(f"✓ Output directory: {output_dir}")
     print()
     print("Next steps:")
     print("  1. Review generated configs in " + str(output_dir))
-    print("  2. Run campaigns with: tp campaign-run <campaign_file>")
-    print("  3. Review results with: tp campaign-review")
+    print("  2. Create campaign plan: tp campaign-plan --config <config_file>")
+    print("  3. Execute campaign: tp campaign-run --campaign-id <campaign_id>")
+    print("  4. Review results: tp campaign-review --campaign-id <campaign_id>")
     print()
 
 

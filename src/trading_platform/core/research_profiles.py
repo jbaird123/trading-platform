@@ -26,7 +26,6 @@ def make_research_config(
         "runs_dir": "runs",
         "initial_cash": 100000,
         "position_size": 25000,
-        "warmup_bars": 50,
         "tie_break_policy": {"rule": "stop_then_tp"},
         "data_request": {
             "symbol": symbol,

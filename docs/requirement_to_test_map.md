@@ -247,7 +247,7 @@
 #### BT-7.7
 
 - [`tests/core/test_runconfig_warmup.py`](tests/core/test_runconfig_warmup.py)
-- [`tests/backtester/test_warmup_bars.py`](tests/backtester/test_warmup_bars.py)
+- [`tests/backtester/test_warmup_guards.py`](tests/backtester/test_warmup_guards.py)
 
 #### BT-7.8
 

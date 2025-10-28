@@ -30,7 +30,7 @@ def test_validate_data_prints_summary(
     valid_file = data_dir / "EUR_USD_1H.parquet"
     df_valid = pd.DataFrame(
         {
-            "timestamp": pd.date_range("2020-01-01", periods=100, freq="H"),
+            "timestamp": pd.date_range("2020-01-01", periods=100, freq="h"),
             "open": [1.1] * 100,
             "high": [1.2] * 100,
             "low": [1.0] * 100,
@@ -42,8 +42,8 @@ def test_validate_data_prints_summary(
 
     # Create file with gaps (24+ hour gap)
     gap_file = data_dir / "GBP_USD_1H.parquet"
-    timestamps_with_gap = list(pd.date_range("2020-01-01", periods=50, freq="H"))
-    timestamps_with_gap.extend(pd.date_range("2020-01-05", periods=50, freq="H"))
+    timestamps_with_gap = list(pd.date_range("2020-01-01", periods=50, freq="h"))
+    timestamps_with_gap.extend(pd.date_range("2020-01-05", periods=50, freq="h"))
     df_gap = pd.DataFrame(
         {
             "timestamp": timestamps_with_gap,
@@ -77,9 +77,9 @@ def test_validate_data_returns_nonzero_if_issues_found(tmp_path: Path) -> None:
 
     # Create file with gaps
     gap_file = data_dir / "EUR_USD_1H.parquet"
-    timestamps_with_gap = list(pd.date_range("2020-01-01", periods=50, freq="H"))
+    timestamps_with_gap = list(pd.date_range("2020-01-01", periods=50, freq="h"))
     # Add a 3-day gap
-    timestamps_with_gap.extend(pd.date_range("2020-01-05", periods=50, freq="H"))
+    timestamps_with_gap.extend(pd.date_range("2020-01-05", periods=50, freq="h"))
     df_gap = pd.DataFrame(
         {
             "timestamp": timestamps_with_gap,

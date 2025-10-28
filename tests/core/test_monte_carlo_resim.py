@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 from trading_platform.core.sweeps import monte_carlo_resimulation
+from tests.test_helpers import get_empty_global_features_path
 
 
 def _df() -> pd.DataFrame:
@@ -96,7 +97,6 @@ def test_monte_carlo_resimulation_returns_distributions_and_exemplars():
     base_cfg = {
         "initial_cash": 100000.0,
         "position_size": 10000.0,
-        "warmup_bars": 0,
         "instrument": {"symbol": "EURUSD"},
         "tie_break_policy": {"rule": "stop_then_tp"},
         "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
@@ -123,7 +123,6 @@ def test_monte_carlo_resimulation_with_jitter_and_perturbation():
     base_cfg = {
         "initial_cash": 100000.0,
         "position_size": 10000.0,
-        "warmup_bars": 0,
         "instrument": {"symbol": "EURUSD"},
         "tie_break_policy": {"rule": "stop_then_tp"},
         "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
@@ -153,7 +152,6 @@ def test_monte_carlo_resimulation_block_perturbation():
     base_cfg = {
         "initial_cash": 100000.0,
         "position_size": 10000.0,
-        "warmup_bars": 0,
         "instrument": {"symbol": "EURUSD"},
         "tie_break_policy": {"rule": "stop_then_tp"},
         "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},

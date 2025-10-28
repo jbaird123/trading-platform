@@ -125,7 +125,7 @@ def resolve_instrument_symbol(instrument: Any) -> str:
     return result
 
 
-def run_backtest(
+def _run_backtest_simulation(
     market_data: pd.DataFrame,
     signals: pd.Series,
     strategy: CompiledStrategy,
@@ -141,8 +141,13 @@ def run_backtest(
     | tuple[list[Trade], list[tuple[datetime, float]]]
     | tuple[list[Trade], list[tuple[datetime, float]], list[dict[str, Any]]]
 ):
-    """
-    Runs a simple, iterative (bar-by-bar) backtest to generate trades from signals.
+    """INTERNAL: Bar-by-bar backtest simulation engine.
+
+    DO NOT CALL DIRECTLY. Use orchestrator.run_backtest() instead.
+
+    This is the low-level simulation engine that executes trades bar-by-bar.
+    All backtest entry points should go through the orchestrator, which handles
+    data loading, warmup calculation, and validation before calling this function.
 
     Args:
         market_data: DataFrame with OHLCV data.
@@ -190,26 +195,40 @@ def run_backtest(
 
     symbol = resolve_instrument_symbol(config.instrument)
 
+    def _first_valid_timestamp(
+        df_obj: pd.DataFrame | None, feature_names: list[str]
+    ) -> pd.Timestamp | None:
+        """Return the first timestamp where every feature is non-null."""
+        if df_obj is None or df_obj.empty:
+            return None
+        if not feature_names:
+            return df_obj.index[0]
+
+        present = [name for name in feature_names if name in df_obj.columns]
+        if not present:
+            return df_obj.index[0]
+
+        mask = df_obj[present].notna().all(axis=1)
+        valid_index = df_obj.index[mask]
+        if len(valid_index) == 0:
+            return None
+        return valid_index[0]
+
     # Compute global features from config/features/global.yaml
     data_with_global_features = market_data
-    global_features_list = []
+    global_features_list: list[dict[str, Any]] = []
+    global_valid_start: pd.Timestamp | None = None
     try:
         from trading_platform.core.feature_resolver import resolve_global_features
         from trading_platform.strategy.features import compute_features
 
-        # Get execution timeframe from config
         instrument_cfg = config.instrument or {}
         execution_timeframe = instrument_cfg.get("timeframe", "1H")
 
-        # Resolve global features (filtered by timeframe)
         resolved_features = resolve_global_features(
             execution_timeframe, config_path=global_features_config_path
         )
 
-        # Convert ResolvedFeature objects to dict format for compute_features
-        # NOTE: Only include timeframe if it's HIGHER than execution timeframe
-        # to trigger resampling. If timeframe == execution_timeframe, omit it
-        # to compute directly on market_data (matching old behavior)
         global_features_list = [
             {
                 "name": f.name,
@@ -233,17 +252,87 @@ def run_backtest(
                 f"Computed {len(global_features_list)} global features: "
                 f"{[f['name'] for f in global_features_list]}"
             )
-    except FileNotFoundError:
-        # global.yaml doesn't exist - this is okay, just log it
-        logger.info("No global.yaml found - proceeding without global features")
-    except Exception as e:
-        # Log but don't fail the backtest if global features fail
-        logger.warning(f"Failed to load global features: {e}")
 
-    from typing import cast
+            global_names = [
+                str(feature["name"])
+                for feature in global_features_list
+                if isinstance(feature.get("name"), str)
+            ]
+            global_valid_start = _first_valid_timestamp(
+                data_with_global_features, global_names
+            )
+            if global_valid_start is None:
+                raise ValueError(
+                    "Insufficient warmup: Global features never fully initialize. "
+                    "Load additional history before the backtest start."
+                )
+
+    except FileNotFoundError:
+        logger.info("No global.yaml found - proceeding without global features")
+    except ValueError:
+        raise
+    except Exception as exc:
+        logger.warning(f"Failed to load global features: {exc}")
+
+    strategy_valid_start: pd.Timestamp | None = None
+    strategy_features = strategy.features or []
+    if strategy._feature_df is not None and len(strategy._feature_df) > 0:
+        strategy_names = [
+            str(feature.get("name"))
+            for feature in strategy_features
+            if isinstance(feature.get("name"), str)
+        ]
+        strategy_valid_start = _first_valid_timestamp(
+            strategy._feature_df, strategy_names
+        )
+        if strategy_names and strategy_valid_start is None:
+            raise ValueError(
+                "Insufficient warmup: Strategy features never fully initialize. "
+                "Load additional history or reduce indicator lookback."
+            )
+
+    if len(market_data) > 0:
+        run_start_candidates: list[pd.Timestamp] = [market_data.index[0]]
+        if global_valid_start is not None:
+            run_start_candidates.append(global_valid_start)
+        if strategy_valid_start is not None:
+            run_start_candidates.append(strategy_valid_start)
+
+        run_start = max(run_start_candidates)
+
+        def _trim_indexed(data_obj: pd.DataFrame | pd.Series) -> Any:
+            return data_obj.loc[data_obj.index >= run_start]
+
+        market_data = _trim_indexed(market_data)
+        signals = _trim_indexed(signals)
+
+        if len(market_data) == 0:
+            raise ValueError(
+                "Insufficient warmup: No data remains after removing "
+                "warmup bars."
+            )
+
+        if isinstance(signals, pd.Series) and len(signals) == 0:
+            raise ValueError(
+                "Insufficient warmup: Signals are empty after removing "
+                "warmup bars."
+            )
+
+        if strategy._feature_df is not None and len(strategy._feature_df) > 0:
+            trimmed_features = _trim_indexed(strategy._feature_df)
+            object.__setattr__(strategy, "_feature_df", trimmed_features)
+
+        if (
+            data_with_global_features is not market_data
+            and len(data_with_global_features) > 0
+        ):
+            data_with_global_features = _trim_indexed(data_with_global_features)
+    warmup_threshold = 0
 
     global_feature_names: set[str] = {
-        cast(str, f["name"]) for f in global_features_list
+        str(f["name"])
+        for f in global_features_list
+        if isinstance(f.get("name"), str)
     }
 
     # Use the complete instrument definition from config
@@ -324,8 +413,6 @@ def run_backtest(
     def _fmt_ts(val: Any) -> str:
         return val.isoformat() if isinstance(val, datetime) else str(val)
 
-    warmup_threshold = max(0, config.warmup_bars)
-
     # Pending actions for next_bar_open execution model
     pending_exit: dict[str, Any] | None = None
     pending_entry: dict[str, Any] | None = None
@@ -333,6 +420,7 @@ def run_backtest(
     for i in range(len(market_data)):
         signal = signals.iloc[i]
         current_bar = market_data.iloc[i]
+        prior_bar = market_data.iloc[i - 1] if i > 0 else None
 
         # === EXECUTION PHASE: Execute pending actions ===
         # Execute pending exit from previous bar (next_bar_open model)
@@ -362,15 +450,32 @@ def run_backtest(
 
         # Execute pending entry from previous bar (next_bar_open model)
         if pending_entry is not None:
+            # Calculate initial stop loss price for r_multiple calculation
+            entry_price = current_bar["open"]
+            initial_risk_ccy = None
+            if rem is not None:
+                stop_price = rem.calculate_initial_stop_price(
+                    entry_price=entry_price,
+                    side=pending_entry["side"],
+                    entry_bar=current_bar,
+                    signal_context=pending_entry.get("context", {}),
+                    prior_bar=prior_bar,
+                )
+                if stop_price is not None:
+                    # initial_risk_ccy = distance * size
+                    initial_risk_ccy = (
+                        abs(entry_price - stop_price) * pending_entry["size"]
+                    )
+
             portfolio.create_new_position(
                 symbol=pending_entry["symbol"],
                 side=pending_entry["side"],
-                entry_price=current_bar["open"],
+                entry_price=entry_price,
                 size=pending_entry["size"],
                 entry_time=cast(datetime, current_bar.name),
                 instrument=pending_entry["instrument"],
                 context_at_entry=pending_entry.get("context"),
-                initial_risk_ccy=None,
+                initial_risk_ccy=initial_risk_ccy,
             )
             # Mark that we've entered on this entry window
             portfolio._entry_windows[pending_entry["side"]] = (
@@ -424,7 +529,6 @@ def run_backtest(
         # at the intra-bar price when hit, regardless of execution_model.
         # This is realistic behavior - protective orders execute intra-bar.
         # The execution_model setting only applies to signal-based entries/exits.
-        prior_bar = market_data.iloc[i - 1] if i > 0 else None
         if portfolio.current_position and rem is not None:
             rem_result = rem.check_exits_intrabar(
                 portfolio.current_position,
@@ -602,15 +706,30 @@ def run_backtest(
 
                     if config.execution_model == "current_bar_close":
                         # Immediate execution at bar close
+                        # Calculate initial stop loss price for r_multiple calculation
+                        entry_price = current_bar["close"]
+                        initial_risk_ccy = None
+                        if rem is not None:
+                            stop_price = rem.calculate_initial_stop_price(
+                                entry_price=entry_price,
+                                side=side,
+                                entry_bar=current_bar,
+                                signal_context=context,
+                                prior_bar=prior_bar,
+                            )
+                            if stop_price is not None:
+                                # initial_risk_ccy = distance * size
+                                initial_risk_ccy = abs(entry_price - stop_price) * size
+
                         portfolio.create_new_position(
                             symbol=symbol,
                             side=side,
-                            entry_price=current_bar["close"],
+                            entry_price=entry_price,
                             size=size,
                             entry_time=cast(datetime, current_bar.name),
                             instrument=instrument_dict,
                             context_at_entry=context,
-                            initial_risk_ccy=None,
+                            initial_risk_ccy=initial_risk_ccy,
                         )
                         # Mark that we've entered on this entry window
                         portfolio._entry_windows[side] = (
@@ -831,6 +950,23 @@ def _simulate_counterfactual_exact(
         cost_model=cost_model,
     )
     entry_time = cast(datetime, market_data.index[start_index])
+
+    # Calculate initial stop loss price for r_multiple calculation
+    entry_bar = market_data.iloc[start_index]
+    prior_bar = market_data.iloc[start_index - 1] if start_index > 0 else None
+    initial_risk_ccy = None
+    if rem is not None:
+        stop_price = rem.calculate_initial_stop_price(
+            entry_price=entry_price,
+            side=side,
+            entry_bar=entry_bar,
+            signal_context={},  # Counterfactual uses config-based stops
+            prior_bar=prior_bar,
+        )
+        if stop_price is not None:
+            # initial_risk_ccy = distance * size
+            initial_risk_ccy = abs(entry_price - stop_price) * size
+
     pm.create_new_position(
         symbol=symbol,
         side=side,
@@ -838,7 +974,7 @@ def _simulate_counterfactual_exact(
         size=size,
         entry_time=entry_time,
         instrument=instrument,
-        initial_risk_ccy=None,
+        initial_risk_ccy=initial_risk_ccy,
     )
 
     bars_touched = 0

@@ -13,6 +13,8 @@ import yaml
 from trading_platform.core.sweeps import _rmm_context, run_parameter_sweep
 from trading_platform.regime_market_manager.models import RMMConfig
 
+from tests.test_helpers import get_empty_global_features_path
+
 
 def test_rmm_context_with_data_handler_cache_hit():
     """Test _rmm_context returns cached context from DataHandler."""
@@ -208,7 +210,7 @@ def test_run_parameter_sweep_with_strategy_path():
         with patch(
             "trading_platform.core.sweeps.compile_strategy"
         ) as mock_compile, patch(
-            "trading_platform.core.sweeps.run_backtest"
+            "trading_platform.core.sweeps._run_backtest_simulation"
         ) as mock_backtest:
             mock_strategy = Mock()
             mock_strategy.generate_signals.return_value = pd.Series(
@@ -276,7 +278,7 @@ def test_run_parameter_sweep_with_strategy_path_json():
         with patch(
             "trading_platform.core.sweeps.compile_strategy"
         ) as mock_compile, patch(
-            "trading_platform.core.sweeps.run_backtest"
+            "trading_platform.core.sweeps._run_backtest_simulation"
         ) as mock_backtest:
             mock_strategy = Mock()
             mock_strategy.generate_signals.return_value = pd.Series(
@@ -342,7 +344,7 @@ def test_run_parameter_sweep_with_debug_dir():
         with patch(
             "trading_platform.core.sweeps.compile_strategy"
         ) as mock_compile, patch(
-            "trading_platform.core.sweeps.run_backtest"
+            "trading_platform.core.sweeps._run_backtest_simulation"
         ) as mock_backtest:
             # Create mock strategy with features
             mock_strategy = Mock()
@@ -424,7 +426,7 @@ def test_run_parameter_sweep_debug_dir_exception_handling():
         with patch(
             "trading_platform.core.sweeps.compile_strategy"
         ) as mock_compile, patch(
-            "trading_platform.core.sweeps.run_backtest"
+            "trading_platform.core.sweeps._run_backtest_simulation"
         ) as mock_backtest:
             # Strategy that raises exception during feature access
             mock_strategy = Mock()
@@ -488,7 +490,7 @@ def test_run_parameter_sweep_debug_no_features():
         with patch(
             "trading_platform.core.sweeps.compile_strategy"
         ) as mock_compile, patch(
-            "trading_platform.core.sweeps.run_backtest"
+            "trading_platform.core.sweeps._run_backtest_simulation"
         ) as mock_backtest:
             # Strategy with NO features (or empty features list)
             mock_strategy = Mock()
@@ -554,7 +556,7 @@ def test_run_parameter_sweep_debug_no_feature_dataframe():
         with patch(
             "trading_platform.core.sweeps.compile_strategy"
         ) as mock_compile, patch(
-            "trading_platform.core.sweeps.run_backtest"
+            "trading_platform.core.sweeps._run_backtest_simulation"
         ) as mock_backtest:
             # Strategy with features but NO _feature_df
             mock_strategy = Mock()
@@ -623,7 +625,7 @@ def test_run_parameter_sweep_debug_no_ema_columns():
         with patch(
             "trading_platform.core.sweeps.compile_strategy"
         ) as mock_compile, patch(
-            "trading_platform.core.sweeps.run_backtest"
+            "trading_platform.core.sweeps._run_backtest_simulation"
         ) as mock_backtest:
             # Strategy with feature_df but NO ema columns
             mock_strategy = Mock()
@@ -698,7 +700,7 @@ def test_monte_carlo_resimulation_no_ohlc_columns():
     }
 
     with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile, patch(
-        "trading_platform.core.sweeps.run_backtest"
+        "trading_platform.core.sweeps._run_backtest_simulation"
     ) as mock_backtest:
         mock_strategy = Mock()
         mock_strategy.generate_signals.return_value = pd.Series(
@@ -756,7 +758,7 @@ def test_monte_carlo_resimulation_gaussian_mode_no_ohlc():
     }
 
     with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile, patch(
-        "trading_platform.core.sweeps.run_backtest"
+        "trading_platform.core.sweeps._run_backtest_simulation"
     ) as mock_backtest:
         mock_strategy = Mock()
         mock_strategy.generate_signals.return_value = pd.Series(

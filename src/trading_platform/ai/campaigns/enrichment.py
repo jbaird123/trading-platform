@@ -78,6 +78,11 @@ def enrich_campaign_dataset(campaign_id: str) -> EnrichmentResult:
     # Concatenate all trade DataFrames
     df = pd.concat(dfs, ignore_index=True)
 
+    # Flatten nested post_exit_analysis_simulated_holds into separate columns
+    from trading_platform.ai.feature_engineering.unpacking import unpack_simulated_holds
+
+    df = unpack_simulated_holds(df)
+
     # Drop redundant columns that were flattened by json_normalize
     # (data is preserved in flattened columns like context_at_exit_strategy_features_*)
     columns_to_drop = [

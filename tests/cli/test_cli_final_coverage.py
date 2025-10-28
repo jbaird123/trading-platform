@@ -25,7 +25,6 @@ def test_cli_data_request_with_start_end_filtering(tmp_path):
         "runs_dir": "runs",
         "initial_cash": 100000,
         "position_size": 1000,
-        "warmup_bars": 10,
         "instrument": {"symbol": "EUR_USD"},
         "strategy_path": "config/strategy/ema_crossover.yaml",
     }

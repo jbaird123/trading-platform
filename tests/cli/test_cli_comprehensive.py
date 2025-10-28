@@ -69,8 +69,9 @@ class TestCmdRunBacktestPaths:
             mock_load.return_value = (df, [])
 
             mock_strat = MagicMock()
+            mock_strat._feature_df = pd.DataFrame()
             mock_compile.return_value = mock_strat
-            mock_backtest.return_value = []
+            mock_backtest.return_value = {"trades": [], "equity_curve": [], "strategy_name": "Test", "initial_capital": 100000, "compiled_strategy": mock_strat, "feature_enriched_df": pd.DataFrame()}
 
             from trading_platform.cli import cmd_run_backtest
 
@@ -134,8 +135,9 @@ class TestCmdRunBacktestPaths:
             mock_load.return_value = (df, [])
 
             mock_strat = MagicMock()
+            mock_strat._feature_df = pd.DataFrame()
             mock_compile.return_value = mock_strat
-            mock_backtest.return_value = []
+            mock_backtest.return_value = {"trades": [], "equity_curve": [], "strategy_name": "Test", "initial_capital": 100000, "compiled_strategy": mock_strat, "feature_enriched_df": pd.DataFrame()}
 
             from trading_platform.cli import cmd_run_backtest
 
@@ -198,8 +200,9 @@ class TestCmdRunBacktestPaths:
             mock_load.return_value = (df, [])
 
             mock_strat = MagicMock()
+            mock_strat._feature_df = pd.DataFrame()
             mock_compile.return_value = mock_strat
-            mock_backtest.return_value = []
+            mock_backtest.return_value = {"trades": [], "equity_curve": [], "strategy_name": "Test", "initial_capital": 100000, "compiled_strategy": mock_strat, "feature_enriched_df": pd.DataFrame()}
 
             from trading_platform.cli import cmd_run_backtest
 
@@ -263,8 +266,9 @@ class TestCmdRunBacktestPaths:
             mock_load.return_value = (df, [])
 
             mock_strat = MagicMock()
+            mock_strat._feature_df = pd.DataFrame()
             mock_compile.return_value = mock_strat
-            mock_backtest.return_value = []
+            mock_backtest.return_value = {"trades": [], "equity_curve": [], "strategy_name": "Test", "initial_capital": 100000, "compiled_strategy": mock_strat, "feature_enriched_df": pd.DataFrame()}
 
             from trading_platform.cli import cmd_run_backtest
 
@@ -328,8 +332,9 @@ class TestCmdRunBacktestPaths:
             mock_load.return_value = (df, [])
 
             mock_strat = MagicMock()
+            mock_strat._feature_df = pd.DataFrame()
             mock_compile.return_value = mock_strat
-            mock_backtest.return_value = []
+            mock_backtest.return_value = {"trades": [], "equity_curve": [], "strategy_name": "Test", "initial_capital": 100000, "compiled_strategy": mock_strat, "feature_enriched_df": pd.DataFrame()}
 
             from trading_platform.cli import cmd_run_backtest
 
@@ -394,8 +399,9 @@ class TestCmdRunBacktestPaths:
             mock_load.return_value = (df, [])
 
             mock_strat = MagicMock()
+            mock_strat._feature_df = pd.DataFrame()
             mock_compile.return_value = mock_strat
-            mock_backtest.return_value = []
+            mock_backtest.return_value = {"trades": [], "equity_curve": [], "strategy_name": "Test", "initial_capital": 100000, "compiled_strategy": mock_strat, "feature_enriched_df": pd.DataFrame()}
 
             from trading_platform.cli import cmd_run_backtest
 
@@ -454,8 +460,9 @@ class TestAdditionalCoverage:
             mock_init.return_value = run_path
 
             mock_strat = MagicMock()
+            mock_strat._feature_df = pd.DataFrame()
             mock_compile.return_value = mock_strat
-            mock_backtest.return_value = []
+            mock_backtest.return_value = {"trades": [], "equity_curve": [], "strategy_name": "Test", "initial_capital": 100000, "compiled_strategy": mock_strat, "feature_enriched_df": pd.DataFrame()}
 
             from trading_platform.cli import cmd_run_backtest
 
@@ -513,8 +520,9 @@ class TestAdditionalCoverage:
             mock_parquet.side_effect = Exception("Save failed")
 
             mock_strat = MagicMock()
+            mock_strat._feature_df = pd.DataFrame()
             mock_compile.return_value = mock_strat
-            mock_backtest.return_value = []
+            mock_backtest.return_value = {"trades": [], "equity_curve": [], "strategy_name": "Test", "initial_capital": 100000, "compiled_strategy": mock_strat, "feature_enriched_df": pd.DataFrame()}
 
             from trading_platform.cli import cmd_run_backtest
 
@@ -570,6 +578,7 @@ class TestAdditionalCoverage:
             mock_init.return_value = run_path
 
             mock_strat = MagicMock()
+            mock_strat._feature_df = pd.DataFrame()
             mock_compile.return_value = mock_strat
 
             # Return tuple with 2 elements (trades, exposure)
@@ -631,8 +640,9 @@ class TestAdditionalCoverage:
             mock_init.return_value = run_path
 
             mock_strat = MagicMock()
+            mock_strat._feature_df = pd.DataFrame()
             mock_compile.return_value = mock_strat
-            mock_backtest.return_value = []
+            mock_backtest.return_value = {"trades": [], "equity_curve": [], "strategy_name": "Test", "initial_capital": 100000, "compiled_strategy": mock_strat, "feature_enriched_df": pd.DataFrame()}
             mock_mc.return_value = {"trials": 100}
 
             from trading_platform.cli import cmd_run_backtest

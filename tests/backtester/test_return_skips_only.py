@@ -5,7 +5,8 @@ from datetime import datetime
 
 import pandas as pd
 import pytest
-from trading_platform.backtester.core import run_backtest
+from trading_platform.backtester.core import _run_backtest_simulation
+from tests.test_helpers import get_empty_global_features_path
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
@@ -50,7 +51,7 @@ def test_return_skips_without_exposure():
         exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config=None)
-    result = run_backtest(
+    result = _run_backtest_simulation(
         market_data=df,
         signals=sig,
         strategy=strategy,
@@ -58,6 +59,7 @@ def test_return_skips_without_exposure():
         rem=rem,
         return_exposure=False,
         return_skips=True,
+        global_features_config_path=get_empty_global_features_path(),
     )
     trades, _, skipped = result  # type: ignore[misc]
     assert isinstance(skipped, list)

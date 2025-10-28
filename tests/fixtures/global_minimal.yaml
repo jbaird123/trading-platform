@@ -1,0 +1,5 @@
+# Minimal global features configuration for tests
+# This file intentionally has NO features to avoid warmup requirements
+# Tests that need global features should use a specific global.yaml with short periods
+
+features: []

@@ -11,6 +11,8 @@ from typing import Any, cast
 import pandas as pd
 import pytest
 
+from tests.test_helpers import get_empty_global_features_path
+
 
 @pytest.fixture
 def cli_stubs(monkeypatch, tmp_path):
@@ -98,11 +100,12 @@ def cli_stubs(monkeypatch, tmp_path):
 
     monkeypatch.setattr(cli, "run_backtest", fake_run_backtest)
 
-    monkeypatch.setattr(
-        cli,
-        "RiskExitManager",
-        lambda config=None, instrument=None: SimpleNamespace(config=config),
-    )
+    if hasattr(cli, "RiskExitManager"):
+        monkeypatch.setattr(
+            cli,
+            "RiskExitManager",
+            lambda config=None, instrument=None: SimpleNamespace(config=config),
+        )
 
     class DummyRMMEngine:
         def __init__(self, config: Any) -> None:
@@ -312,8 +315,9 @@ def test_cmd_run_backtest_fast_mode_last_days_and_overrides(
     ns = Namespace(demo=False, user="user", config=str(cfg_path))
     assert cli.cmd_run_backtest(ns) == 0
 
-    assert compiled_cfg["parameters"]["p"] == 2
-    assert compiled_cfg["features"][0]["params"]["length"] == 10
+    # Check that orchestrator received correct overrides
+    assert calls["run_backtest"]["strategy_overrides"]["parameters"]["p"] == 2
+    assert calls["run_backtest"]["strategy_overrides"]["features"]["ema"]["length"] == 10
     spans = json.loads((run_path / "rmm_spans.json").read_text())
     assert {item["mode"] for item in spans} >= {"both", "long_only", "short_only"}
     market_data = calls["run_backtest"]["market_data"]
@@ -622,11 +626,12 @@ def test_cmd_run_backtest_with_paths_and_failures(tmp_path, monkeypatch):
 
     monkeypatch.setattr(cli, "compile_strategy", compile_capture)
 
-    monkeypatch.setattr(
-        cli,
-        "RiskExitManager",
-        lambda config=None, instrument=None: SimpleNamespace(config=config),
-    )
+    if hasattr(cli, "RiskExitManager"):
+        monkeypatch.setattr(
+            cli,
+            "RiskExitManager",
+            lambda config=None, instrument=None: SimpleNamespace(config=config),
+        )
 
     class SpanRMM:
         def __init__(self, config: Any) -> None:
@@ -672,6 +677,7 @@ def test_cmd_run_backtest_with_paths_and_failures(tmp_path, monkeypatch):
 
     def run_backtest(**kwargs):
         state["market_len"] = len(kwargs["market_data"])
+        state["strategy_overrides"] = kwargs.get("strategy_overrides", {})
         return (
             [SimpleNamespace(entry=datetime(2024, 1, 1))],
             [(datetime(2024, 1, 1), 1.0)],
@@ -688,7 +694,8 @@ def test_cmd_run_backtest_with_paths_and_failures(tmp_path, monkeypatch):
     assert cli.cmd_run_backtest(ns) == 0
     assert state["market_len"] == 6  # No filtering without fast_mode
     assert state["params"] == {"length": 1}
-    assert compiled_cfg["features"][0]["params"]["length"] == 2
+    # Check that strategy_overrides were passed to orchestrator
+    assert state["strategy_overrides"]["features"]["ema"]["length"] == 2
 
 
 def test_cmd_run_backtest_rmm_constant_modes(cli_stubs, tmp_path, monkeypatch):

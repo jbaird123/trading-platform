@@ -1154,12 +1154,10 @@ def test_valid_run_configs_pydantic():
         instrument=_instrument("GBP_JPY"),
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
-        warmup_bars=50,
         entry_window_bars=3,
         allow_flip_on_bar=True,
     )
     assert config2.run_id == "my_test_run_123"
-    assert config2.warmup_bars == 50
     # [SYS-1.3.5]: Symbol normalized to "GBPJPY"
     assert config2.instrument["symbol"] == "GBPJPY"  # type: ignore[index]
 
@@ -1195,7 +1193,7 @@ def test_invalid_run_configs_pydantic():
             instrument=_instrument(),
             execution_model="next_bar_open",
             exit_tie_break="stop_then_tp",
-            warmup_bars="not_an_int",  # type: ignore[arg-type]
+            initial_cash="not_a_number",  # type: ignore[arg-type]
         )
 
 
