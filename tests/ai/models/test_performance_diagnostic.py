@@ -294,7 +294,7 @@ class TestPerformanceDiagnosticModel:
         assert any("sim_hold_20_exit_reason" in f for f in feature_names)
 
     def test_can_fit_with_pnl_target(self, sample_trades_df):
-        """Verify model can be initialized with target_metric='pnl' for adaptable analysis."""
+        """Verify initialization with target_metric='pnl' for flexibility."""
         model = PerformanceDiagnosticModel(
             timeframe="5min", archetype="trend_following", target_metric="pnl"
         )

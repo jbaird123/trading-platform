@@ -77,7 +77,8 @@ class TestProfitabilityModel:
         model = ProfitabilityModel(timeframe="5min", archetype="trend_following")
         model.fit(sample_trades_df)
 
-        # Should only include context_at_entry_* features plus side, symbol, temporal, and risk parameters
+        # Should only include context_at_entry_* features plus side, symbol,
+        # temporal, and risk parameters
         assert model.feature_names_ is not None
         for feature in model.feature_names_:
             # Should NOT include exit features
@@ -260,8 +261,10 @@ class TestProfitabilityModel:
         assert model.training_start_date_ == expected_start
         assert model.training_end_date_ == expected_end
 
-    def test_predict_with_confidence_returns_correct_shape(self, sample_trades_df):
-        """Verify predict_with_confidence returns DataFrame with predictions and confidence intervals (Step 22)."""
+    def test_predict_with_confidence_returns_correct_shape(
+        self, sample_trades_df
+    ) -> None:
+        """Verify predict_with_confidence returns predictions and intervals."""
         model = ProfitabilityModel(timeframe="5min", archetype="trend_following")
         model.fit(sample_trades_df)
 

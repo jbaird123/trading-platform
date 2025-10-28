@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 import json
-
 from pathlib import Path
 
 from trading_platform.core.demo import generate_demo_run
+
 from tests.test_helpers import extend_test_data_for_warmup
 
 
@@ -61,7 +61,9 @@ def test_e2e_run_with_contextual_features(tmp_path):
 
     # Generate signals with trades - enter after sufficient warmup
     warmup_len = len(market_data) - len(base_data)
-    trade_pattern = [None] * 210 + ["enter_long"] + [None] * 9 + ["exit_long"] + [None] * 29
+    trade_pattern = (
+        [None] * 210 + ["enter_long"] + [None] * 9 + ["exit_long"] + [None] * 29
+    )
     signals = pd.Series(
         [None] * warmup_len + trade_pattern,
         index=market_data.index,
@@ -95,7 +97,6 @@ def test_e2e_run_with_contextual_features(tmp_path):
         config=config,
         rem=rem,
         global_features_config_path=global_features_path,
-    
     )
 
     # Handle return type (can be just trades or tuple with exposure/skipped)

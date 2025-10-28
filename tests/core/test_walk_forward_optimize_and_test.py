@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 from trading_platform.core.sweeps import walk_forward_optimize_and_test
-from tests.test_helpers import get_empty_global_features_path
 
 
 def _df_wf() -> pd.DataFrame:

@@ -15,7 +15,6 @@ from datetime import datetime
 import pandas as pd
 import pytest
 from trading_platform.backtester import run_backtest
-from tests.test_helpers import get_empty_global_features_path
 from trading_platform.core.config import RunConfig
 from trading_platform.strategy.features import compute_features
 

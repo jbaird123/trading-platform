@@ -339,17 +339,19 @@ class ModelRegistry:
         """Analyze performance regime with context-aware guardrails.
 
         Args:
-            X: DataFrame with trade features (including lookahead, must include 'entry_time')
+            X: DataFrame with trade features (including lookahead, must include
+                'entry_time')
             timeframe: Execution timeframe
             archetype: Strategy archetype
-            model_suffix: Model suffix (e.g., "_rmultiple", "_pnl_no_risk")
-                         If None, auto-detects based on data
+            model_suffix: Model suffix (e.g., "_rmultiple", "_pnl_no_risk").
+                If None, auto-detects based on data
 
         Returns:
             Series of quintile predictions (0-4)
 
         Raises:
-            ValueError: If model not found, data type mismatch, or lookahead bias detected
+            ValueError: If model not found, data type mismatch, or lookahead bias
+                detected
         """
         # Auto-detect model suffix if not provided
         if model_suffix is None:
@@ -380,7 +382,8 @@ class ModelRegistry:
                 f"r_multiple, but input data has r_multiple values."
             )
 
-        # Lookahead bias prevention: Check if prediction data overlaps with training period
+        # Lookahead bias prevention: Check if prediction data overlaps with
+        # training period
         if "entry_time" in X.columns and model.training_start_date_ is not None:
             input_times = pd.to_datetime(X["entry_time"])
             input_start = input_times.min()
@@ -392,10 +395,11 @@ class ModelRegistry:
                 and input_start <= model.training_end_date_
             ):
                 raise ValueError(
-                    f"Lookahead bias detected! Model '{key}' was trained on data from "
-                    f"{model.training_start_date_} to {model.training_end_date_}, "
-                    f"but prediction data spans {input_start} to {input_end}. "
-                    f"These periods overlap, which would use training data for predictions."
+                    f"Lookahead bias detected! Model '{key}' was trained on "
+                    f"data from {model.training_start_date_} to "
+                    f"{model.training_end_date_}, but prediction data spans "
+                    f"{input_start} to {input_end}. These periods overlap, "
+                    "which would use training data for predictions."
                 )
 
         predictions = model.predict(X)
@@ -424,7 +428,8 @@ class ModelRegistry:
         if model is None:
             raise ValueError(f"Profitability model '{key}' not found. Train it first.")
 
-        # Lookahead bias prevention: Check if prediction data overlaps with training period
+        # Lookahead bias prevention: Check if prediction data overlaps with
+        # training period
         if "entry_time" in X.columns and model.training_start_date_ is not None:
             input_times = pd.to_datetime(X["entry_time"])
             input_start = input_times.min()
@@ -436,10 +441,11 @@ class ModelRegistry:
                 and input_start <= model.training_end_date_
             ):
                 raise ValueError(
-                    f"Lookahead bias detected! Model '{key}' was trained on data from "
-                    f"{model.training_start_date_} to {model.training_end_date_}, "
-                    f"but prediction data spans {input_start} to {input_end}. "
-                    f"These periods overlap, which would use training data for predictions."
+                    f"Lookahead bias detected! Model '{key}' was trained on "
+                    f"data from {model.training_start_date_} to "
+                    f"{model.training_end_date_}, but prediction data spans "
+                    f"{input_start} to {input_end}. These periods overlap, "
+                    "which would use training data for predictions."
                 )
 
         predictions = model.predict(X)

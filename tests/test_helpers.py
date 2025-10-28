@@ -90,7 +90,10 @@ def create_market_data_with_warmup(
 
     # Create initial data from start to end (we'll extend it backwards later)
     # We need at least some data to calculate the warmup requirement
-    initial_index = pd.date_range(start_date, end_date, freq=freq)
+    start_ts = pd.Timestamp(start_date)
+    end_ts = pd.Timestamp(end_date)
+    freq_alias = freq.replace("H", "h") if isinstance(freq, str) else freq
+    initial_index = pd.date_range(start_ts, end_ts, freq=freq_alias)
     temp_df = pd.DataFrame(
         {
             "open": ohlcv_values["open"],
@@ -109,17 +112,18 @@ def create_market_data_with_warmup(
             global_features=global_features,
             execution_timeframe=execution_timeframe,
             market_data=temp_df,
-            backtest_start_date=start_date,
+            backtest_start_date=start_ts,
         )
 
+        warmup_ts = pd.Timestamp(warmup_start)
         # Generate the full data range including warmup
-        full_index = pd.date_range(warmup_start, end_date, freq=freq)
+        full_index = pd.date_range(warmup_ts, end_ts, freq=freq_alias)
     except (ValueError, KeyError):
         # If warmup calculation fails (e.g., insufficient data), use a
         # conservative buffer. Most tests use h1_ema_50, d1_ema_50 which
         # need 50 bars at 1D = ~60 days
-        warmup_start = start_date - pd.Timedelta(days=100)
-        full_index = pd.date_range(warmup_start, end_date, freq=freq)
+        warmup_ts = start_ts - pd.Timedelta(days=100)
+        full_index = pd.date_range(warmup_ts, end_ts, freq=freq_alias)
 
     # Create the full DataFrame
     df = pd.DataFrame(
@@ -199,23 +203,28 @@ def extend_test_data_for_warmup(
             global_features=global_features,
             execution_timeframe=execution_timeframe,
             market_data=df,
-            backtest_start_date=backtest_start,
+            backtest_start_date=pd.Timestamp(backtest_start),
         )
     except (ValueError, KeyError):
         # Conservative fallback
-        warmup_start = backtest_start - pd.Timedelta(days=100)
+        warmup_start = pd.Timestamp(backtest_start) - pd.Timedelta(days=100)
+
+    warmup_ts = pd.Timestamp(warmup_start)
 
     # If data already extends before warmup_start, return as-is
-    if df.index[0] <= pd.Timestamp(warmup_start):
+    if df.index[0] <= warmup_ts:
         return df
 
     # Infer frequency from existing data
-    freq = pd.infer_freq(df.index)
+    freq = pd.infer_freq(pd.DatetimeIndex(df.index))
     if freq is None:
         freq = df.index[1] - df.index[0]
 
     # Create warmup bars by repeating the first bar's values
-    warmup_index = pd.date_range(warmup_start, df.index[0], freq=freq, inclusive="left")
+    freq_alias = freq.replace("H", "h") if isinstance(freq, str) else freq
+    warmup_index = pd.date_range(
+        warmup_ts, df.index[0], freq=freq_alias, inclusive="left"
+    )
 
     if len(warmup_index) == 0:
         return df

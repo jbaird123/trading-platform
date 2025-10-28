@@ -15,13 +15,14 @@ from typing import Any, cast
 
 import yaml
 from trading_platform.backtester.core import _run_backtest_simulation
-from tests.test_helpers import get_empty_global_features_path
 from trading_platform.core.config import RunConfig
 from trading_platform.data.loader import load_and_normalize_data
 from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.brief import compute_overall_performance
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
+
+from tests.test_helpers import get_empty_global_features_path
 
 
 def test_core_calculations_match_manual_csv():

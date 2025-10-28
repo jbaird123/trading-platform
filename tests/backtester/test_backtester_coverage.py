@@ -12,15 +12,16 @@ from __future__ import annotations
 from datetime import datetime
 
 import pandas as pd
-from trading_platform.backtester.core import _run_backtest_simulation
-from tests.test_helpers import get_empty_global_features_path
 from trading_platform.backtester.core import (
     _enrich_trades_with_post_exit_analysis,
+    _run_backtest_simulation,
 )
 from trading_platform.core.config import RunConfig
 from trading_platform.portfolio.trade import Trade
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
+
+from tests.test_helpers import get_empty_global_features_path
 
 
 def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
@@ -318,7 +319,6 @@ def test_post_exit_analysis_integration():
         config=config,
         rem=rem,
         global_features_config_path=get_empty_global_features_path(),
-    
     )
 
     assert len(trades) == 1
@@ -585,7 +585,6 @@ def test_post_exit_analysis_disabled():
         config=config,
         rem=rem,
         global_features_config_path=get_empty_global_features_path(),
-    
     )
 
     # Post-exit analysis should not be added
@@ -639,7 +638,6 @@ def test_post_exit_analysis_enabled_false():
         config=config,
         rem=rem,
         global_features_config_path=get_empty_global_features_path(),
-    
     )
 
     # Post-exit analysis should not be added when enabled=False
@@ -792,7 +790,8 @@ def test_rmm_context_feature_rounding_with_strategy_features():
     signals.iloc[2] = "enter_long"
     signals.iloc[10] = "exit_long"
 
-    # Create RMM context with regime features AND mock strategy features to trigger _round_feature
+    # Create RMM context with regime features and mock strategy features to
+    # trigger _round_feature
     rmm_context = {
         timestamp: {
             "allowed_sides": ["long", "short"],
@@ -889,9 +888,15 @@ def test_counterfactual_with_manual_invalid_entry_index():
     rem = RiskExitManager(config=None)
 
     # Patch the skipped list to inject invalid entry_index
-    (_run_backtest_simulation.__wrapped__ if hasattr(_run_backtest_simulation, "__wrapped__") else _run_backtest_simulation)
+    (
+        _run_backtest_simulation.__wrapped__
+        if hasattr(_run_backtest_simulation, "__wrapped__")
+        else _run_backtest_simulation
+    )
 
-    with patch("trading_platform.backtester.core._run_backtest_simulation", wraps=_run_backtest_simulation,
+    with patch(
+        "trading_platform.backtester.core._run_backtest_simulation",
+        wraps=_run_backtest_simulation,
         global_features_config_path=get_empty_global_features_path(),
     ):
         result = _run_backtest_simulation(
@@ -903,8 +908,8 @@ def test_counterfactual_with_manual_invalid_entry_index():
             rmm_context=rmm_context,
             return_exposure=False,
             return_skips=True,
-        global_features_config_path=get_empty_global_features_path(),
-    )
+            global_features_config_path=get_empty_global_features_path(),
+        )
         trades, _, skipped = result  # type: ignore[misc]
     # Should have skipped trades
     assert isinstance(skipped, list), "skipped should be a list"

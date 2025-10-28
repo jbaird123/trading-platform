@@ -2,19 +2,13 @@
 from __future__ import annotations
 
 from datetime import datetime
-from unittest.mock import patch
 
 import pandas as pd
-import pytest
 from pytest_bdd import given, parsers, when
 
 from tests.backtester.dummy_objects import (
     _dummy_strategy_cfg,
     _dummy_strategy_with_sl_tp,
-)
-from tests.test_helpers import (
-    create_market_data_with_warmup,
-    extend_test_data_for_warmup,
 )
 
 
@@ -82,6 +76,7 @@ def when_backtest_is_run(shared_context: dict) -> None:
 
     # Use minimal global features for unit tests to avoid warmup requirements
     from pathlib import Path
+
     test_global_config = Path(__file__).parent / "fixtures" / "global_empty.yaml"
 
     trades = _run_backtest_simulation(

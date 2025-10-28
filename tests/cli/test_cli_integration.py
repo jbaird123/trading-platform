@@ -68,7 +68,14 @@ def test_cmd_run_backtest_minimal_integration(tmp_path: Path) -> None:
         mock_compile.return_value = mock_strat
 
         # Mock backtest - return compiled_strategy to avoid recompilation
-        mock_backtest.return_value = {"trades": [], "equity_curve": [], "strategy_name": "Test", "initial_capital": 100000, "compiled_strategy": mock_strat, "feature_enriched_df": df}
+        mock_backtest.return_value = {
+            "trades": [],
+            "equity_curve": [],
+            "strategy_name": "Test",
+            "initial_capital": 100000,
+            "compiled_strategy": mock_strat,
+            "feature_enriched_df": df,
+        }
 
         from trading_platform.cli import cmd_run_backtest
 
@@ -76,7 +83,8 @@ def test_cmd_run_backtest_minimal_integration(tmp_path: Path) -> None:
 
         assert result == 0
         mock_init.assert_called_once()
-        # compile_strategy is called inside orchestrator (run_backtest), not directly by CLI
+        # compile_strategy is called inside orchestrator (run_backtest), not
+        # directly by CLI
         mock_backtest.assert_called_once()
         mock_final.assert_called_once()
 

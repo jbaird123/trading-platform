@@ -193,6 +193,10 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         p = Path(cfg_path.parent, strat_cfg["file_path"])
         strat_cfg = _load_config(p)
 
+    if not isinstance(strat_cfg, dict):
+        raise ValueError("Strategy configuration must be a dict.")
+    strat_cfg = cast(dict[str, Any], strat_cfg)
+
     # RMM optional for legacy configs; if present, build per-bar context
     rmm_context: dict[datetime, dict[str, Any]] | None = None
     rmm_cfg: dict[str, Any] | None = cfg_raw.get("rmm_config")

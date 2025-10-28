@@ -4,10 +4,11 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 from trading_platform.backtester.core import _run_backtest_simulation
-from tests.test_helpers import get_empty_global_features_path
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
+
+from tests.test_helpers import get_empty_global_features_path
 
 
 def _dummy_strategy_cfg() -> CompiledStrategy:
@@ -63,7 +64,6 @@ def test_event_blackout_blocks_new_entries():
         config=config,
         rem=rem,
         global_features_config_path=get_empty_global_features_path(),
-    
     )
 
     assert isinstance(trades, list)
@@ -111,6 +111,5 @@ def test_static_blackout_blocks_new_entries():
         config=config,
         rem=rem,
         global_features_config_path=get_empty_global_features_path(),
-    
     )
     assert isinstance(trades, list)
