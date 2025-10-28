@@ -8,8 +8,11 @@ def mock_global_features_for_backtester_tests(monkeypatch, request):
 
     Skip mocking for tests that explicitly need global features (e.g., contextual feature tests).
     """
-    # Skip mocking for test_contextual_features.py tests
-    if "test_contextual_features" in request.node.nodeid:
+    # Skip mocking for tests that require real global features
+    if any(
+        name in request.node.nodeid
+        for name in ("test_contextual_features", "test_warmup_guards")
+    ):
         return
 
     def mock_resolve(*args, **kwargs):

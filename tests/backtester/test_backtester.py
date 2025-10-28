@@ -475,10 +475,9 @@ class TestBacktesterCoreCoverage:
         )
 
     @pytest.fixture
-    def sample_signals(self):
-        return pd.Series(
-            [None, "enter_long", "exit_long", "enter_short"] * 2 + [None] * 2
-        )
+    def sample_signals(self, sample_data):
+        commands = [None, "enter_long", "exit_long", "enter_short"] * 2 + [None] * 2
+        return pd.Series(commands, index=sample_data.index)
 
     @pytest.fixture
     def mock_config(self):
@@ -499,6 +498,8 @@ class TestBacktesterCoreCoverage:
     def mock_strategy(self):
         strategy = MagicMock(spec=CompiledStrategy)
         strategy.get_context.return_value = {"test": "context"}
+        strategy.features = []
+        strategy._feature_df = None
         return strategy
 
     @pytest.fixture

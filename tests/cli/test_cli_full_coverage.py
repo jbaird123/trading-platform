@@ -100,11 +100,12 @@ def cli_stubs(monkeypatch, tmp_path):
 
     monkeypatch.setattr(cli, "run_backtest", fake_run_backtest)
 
-    monkeypatch.setattr(
-        cli,
-        "RiskExitManager",
-        lambda config=None, instrument=None: SimpleNamespace(config=config),
-    )
+    if hasattr(cli, "RiskExitManager"):
+        monkeypatch.setattr(
+            cli,
+            "RiskExitManager",
+            lambda config=None, instrument=None: SimpleNamespace(config=config),
+        )
 
     class DummyRMMEngine:
         def __init__(self, config: Any) -> None:
@@ -625,11 +626,12 @@ def test_cmd_run_backtest_with_paths_and_failures(tmp_path, monkeypatch):
 
     monkeypatch.setattr(cli, "compile_strategy", compile_capture)
 
-    monkeypatch.setattr(
-        cli,
-        "RiskExitManager",
-        lambda config=None, instrument=None: SimpleNamespace(config=config),
-    )
+    if hasattr(cli, "RiskExitManager"):
+        monkeypatch.setattr(
+            cli,
+            "RiskExitManager",
+            lambda config=None, instrument=None: SimpleNamespace(config=config),
+        )
 
     class SpanRMM:
         def __init__(self, config: Any) -> None:

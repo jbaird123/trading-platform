@@ -254,7 +254,7 @@ def _run_backtest_simulation(
             )
 
             global_names = [
-                cast(str, feature["name"])
+                str(feature["name"])
                 for feature in global_features_list
                 if isinstance(feature.get("name"), str)
             ]
@@ -319,18 +319,20 @@ def _run_backtest_simulation(
             )
 
         if strategy._feature_df is not None and len(strategy._feature_df) > 0:
-            strategy._feature_df = _trim_indexed(strategy._feature_df)
+            trimmed_features = _trim_indexed(strategy._feature_df)
+            object.__setattr__(strategy, "_feature_df", trimmed_features)
 
         if (
             data_with_global_features is not market_data
             and len(data_with_global_features) > 0
         ):
             data_with_global_features = _trim_indexed(data_with_global_features)
-
-    from typing import cast
+    warmup_threshold = 0
 
     global_feature_names: set[str] = {
-        cast(str, f["name"]) for f in global_features_list
+        str(f["name"])
+        for f in global_features_list
+        if isinstance(f.get("name"), str)
     }
 
     # Use the complete instrument definition from config

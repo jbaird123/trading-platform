@@ -65,12 +65,22 @@ def test_strategy_features_must_be_warmed() -> None:
     strategy_config = {
         "strategy_name": "ema_test",
         "features": [
-            {"name": "ema_10", "type": "EMA", "params": {"length": 10}},
+        {"name": "sma_10", "type": "SMA", "params": {"length": 10}},
         ],
-        "long_entry_rules": [],
+        "long_entry_rules": [
+            {
+                "all_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 0},
+                    }
+                ]
+            }
+        ],
     }
 
-    with pytest.raises(ValueError, match="strategy features"):
+    with pytest.raises(ValueError, match="Strategy features"):
         _run_with_config(
             df,
             strategy_config=strategy_config,
@@ -85,7 +95,17 @@ def test_global_features_must_be_warmed(tmp_path) -> None:
     strategy_config = {
         "strategy_name": "no_features",
         "features": [],
-        "long_entry_rules": [],
+        "long_entry_rules": [
+            {
+                "all_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 0},
+                    }
+                ]
+            }
+        ],
     }
 
     features_dir = tmp_path / "config" / "features"
@@ -93,13 +113,13 @@ def test_global_features_must_be_warmed(tmp_path) -> None:
     global_yaml = features_dir / "global.yaml"
     global_yaml.write_text(
         "features:\n"
-        "  - name: \"h1_atr_14\"\n"
-        "    type: \"ATR\"\n"
-        "    params: { \"length\": 14 }\n"
+        "  - name: \"h1_sma_20\"\n"
+        "    type: \"SMA\"\n"
+        "    params: { \"length\": 20 }\n"
         "    timeframe: \"1H\"\n"
     )
 
-    with pytest.raises(ValueError, match="global features"):
+    with pytest.raises(ValueError, match="Global features"):
         _run_with_config(
             df,
             strategy_config=strategy_config,

@@ -1193,7 +1193,7 @@ def test_invalid_run_configs_pydantic():
             instrument=_instrument(),
             execution_model="next_bar_open",
             exit_tie_break="stop_then_tp",
-            allow_flip_on_bar="yes",  # type: ignore[arg-type]
+            initial_cash="not_a_number",  # type: ignore[arg-type]
         )
 
 

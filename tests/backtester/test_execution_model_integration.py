@@ -25,6 +25,10 @@ TEST_INSTRUMENT = {
 class DummyStrategy:
     """Minimal strategy for testing."""
 
+    def __init__(self):
+        self.features: list[dict[str, object]] = []
+        self._feature_df = None
+
     def generate_signals(self, df):
         pass
 
@@ -246,8 +250,6 @@ def test_next_bar_open_vs_current_bar_close_comparison():
         entry_window_bars=0,
         min_hold_bars=0,
         allow_flip_on_bar=False,
-    
-        global_features_config_path=get_empty_global_features_path(),
     )
 
     result_legacy = _run_backtest_simulation(
@@ -275,8 +277,6 @@ def test_next_bar_open_vs_current_bar_close_comparison():
         entry_window_bars=0,
         min_hold_bars=0,
         allow_flip_on_bar=False,
-    
-        global_features_config_path=get_empty_global_features_path(),
     )
 
     result_realistic = _run_backtest_simulation(
