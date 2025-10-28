@@ -15,9 +15,9 @@ features:
     type: "EMA"
     params: { "length": 50 }
     timeframe: "4H"
-  - name: "d1_ema_50"
+  - name: "d1_ema_20"
     type: "EMA"
-    params: { "length": 50 }
+    params: { "length": 20 }
     timeframe: "1D"
   - name: "h1_adx_14"
     type: "ADX"

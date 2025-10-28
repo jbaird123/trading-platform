@@ -164,11 +164,20 @@ def _run_backtest_simulation(
     Returns:
         A list of completed Trade objects, and optionally other artifacts.
     """
-    # Track original backtest start for validation (before any warmup extension)
-    original_backtest_start = market_data.index[0] if len(market_data) > 0 else None
+    # Track original backtest start for validation (after warmup period)
+    # The backtest start is after warmup_bars from the beginning of market_data
+    warmup_threshold = max(0, config.warmup_bars)
+    if len(market_data) > warmup_threshold:
+        original_backtest_start = market_data.index[warmup_threshold]
+    elif len(market_data) > 0:
+        original_backtest_start = market_data.index[0]
+    else:
+        original_backtest_start = None
 
     # Auto-extend market data if requested (typically for tests)
-    logger.debug(f"run_backtest called with auto_extend_for_warmup={auto_extend_for_warmup}")
+    logger.debug(
+        f"run_backtest called with auto_extend_for_warmup={auto_extend_for_warmup}"
+    )
     if auto_extend_for_warmup and len(market_data) > 0:
         from trading_platform.backtester.warmup import calculate_warmup_start_date
 
@@ -232,12 +241,15 @@ def _run_backtest_simulation(
                     market_data = pd.concat([warmup_df, market_data])
 
                     # Extend signals with None values
-                    warmup_signals = pd.Series([None] * len(warmup_index), index=warmup_index)
+                    warmup_signals = pd.Series(
+                        [None] * len(warmup_index), index=warmup_index
+                    )
                     signals = pd.concat([warmup_signals, signals])
 
                     logger.debug(
-                        f"Auto-extended data for warmup: added {len(warmup_index)} bars "
-                        f"from {warmup_start} to {backtest_start}"
+                        f"Auto-extended data for warmup: added "
+                        f"{len(warmup_index)} bars from {warmup_start} to "
+                        f"{backtest_start}"
                     )
 
         except Exception as e:
@@ -355,9 +367,10 @@ def _run_backtest_simulation(
                     if nan_features:
                         raise ValueError(  # noqa: TRY301
                             f"Insufficient warmup: The following global features "
-                            f"have NaN values at backtest start ({validation_timestamp}): "
-                            f"{nan_features}. Indicators are not fully initialized. "
-                            f"Load data from an earlier start date to allow warmup."
+                            f"have NaN values at backtest start "
+                            f"({validation_timestamp}): {nan_features}. "
+                            f"Indicators are not fully initialized. Load data from "
+                            f"an earlier start date to allow warmup."
                         )
 
             _validate_global_features()
@@ -491,8 +504,6 @@ def _run_backtest_simulation(
 
     def _fmt_ts(val: Any) -> str:
         return val.isoformat() if isinstance(val, datetime) else str(val)
-
-    warmup_threshold = max(0, config.warmup_bars)
 
     # Pending actions for next_bar_open execution model
     pending_exit: dict[str, Any] | None = None

@@ -34,8 +34,11 @@ def run_backtest(
     rmm_context: dict[datetime, dict[str, Any]] | None = None,
     return_exposure: bool = False,
     return_skips: bool = False,
-    validate_warmup: bool = True,
-) -> dict[str, Any] | tuple[list[Trade], list[tuple[datetime, float]]] | tuple[list[Trade], list[tuple[datetime, float]], list[dict[str, Any]]]:
+) -> (
+    dict[str, Any]
+    | tuple[list[Trade], list[tuple[datetime, float]]]
+    | tuple[list[Trade], list[tuple[datetime, float]], list[dict[str, Any]]]
+):
     """Run a backtest. This is the ONLY public entry point for all backtests.
 
     All backtest entry points (CLI, tests, sweeps, programmatic use) MUST go through
@@ -56,15 +59,14 @@ def run_backtest(
         rmm_context: Optional RMM context for risk mode management
         return_exposure: If True, return exposure curve as second element of tuple
         return_skips: If True, return skip records as third element of tuple
-        validate_warmup: If True, validates that strategy features don't have NaN
-            values at the first bar (indicating insufficient warmup)
 
     Returns:
         If return_exposure=False and return_skips=False:
             Dictionary with keys: trades, equity_curve, strategy_name, initial_capital,
             compiled_strategy, feature_enriched_df
         If return_exposure=True:
-            Tuple of (trades_list, exposure_curve) or (trades_list, exposure_curve, skips)
+            Tuple of (trades_list, exposure_curve) or
+            (trades_list, exposure_curve, skips)
 
     Raises:
         ValueError: If warmup validation fails or strategy config is missing
@@ -81,6 +83,7 @@ def run_backtest(
                     strategy_config = yaml.safe_load(f)
                 else:  # .json
                     import json
+
                     strategy_config = json.load(f)
         elif config.strategy:
             strategy_config = config.strategy
@@ -175,7 +178,8 @@ def run_backtest(
         return res
 
     # Otherwise return dict format for programmatic/test use
-    # Even if return_skips=True, we return dict (skips are in the tuple but we extract trades)
+    # Even if return_skips=True, we return dict (skips are in the tuple
+    # but we extract trades)
     if isinstance(res, tuple):
         trades_list = cast(list[Trade], res[0])
         # Could be (trades, skips) or (trades, exposure) depending on flags

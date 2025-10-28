@@ -200,7 +200,6 @@ def test_sys_1_9_2_multi_year_backtest_performance():
         config,
         market_data=df,
         strategy_path="config/strategy/ema_crossover.yaml",
-        validate_warmup=False,  # Performance test - skip validation
     )
     elapsed = time.time() - start_time
 
@@ -373,7 +372,6 @@ def test_backtest_execution_time_1m_bars():
         config,
         market_data=df,
         strategy_path="config/strategy/ema_crossover.yaml",
-        validate_warmup=False,  # Performance test - skip validation
     )
     elapsed = time.time() - start_time
 

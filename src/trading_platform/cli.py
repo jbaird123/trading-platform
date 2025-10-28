@@ -46,7 +46,6 @@ from trading_platform.reporting.chart_export import (
 from trading_platform.reporting.compare_html import save_comparison_report
 from trading_platform.reporting.csv_export import save_prices_csv
 from trading_platform.reporting.diagnostics import RuleBasedAnalyzer
-from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
 from trading_platform.utils.cache import clear_numba_cache
 from trading_platform.validation.pre_deployment import run_pre_deployment_checklist
@@ -344,7 +343,6 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         return_exposure=ret_exp,
         return_skips=ret_skips,
         auto_extend_for_warmup=True,  # Automatically extend data for warmup
-        validate_warmup=True,
     )
 
     # Extract results from orchestrator
@@ -382,7 +380,8 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
             strategy_name = result_dict["strategy_name"]
 
     # For tuple format, we need strategy object for features/signals saving
-    # Recompile if needed (orchestrator already did this, but didn't return it in tuple mode)
+    # Recompile if needed (orchestrator already did this, but didn't return
+    # it in tuple mode)
     if strat is None:
         strat = compile_strategy(strat_cfg)
         # Generate signals to get feature_df (orchestrator already did this too)
