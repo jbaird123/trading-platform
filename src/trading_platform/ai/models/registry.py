@@ -156,16 +156,32 @@ class ModelRegistry:
     ) -> dict[str, ProfitabilityModel]:
         """Train profitability models for all contexts in the data.
 
+        Profitability models require r_multiple values, so only trades from
+        campaigns with risk management (stop losses) are used for training.
+
         Args:
             enriched_trades_df: DataFrame with enriched trade data
-            n_estimators: Number of trees in RandomForestClassifier
+            n_estimators: Number of trees in RandomForestRegressor
             random_state: Random seed for reproducibility
 
         Returns:
             Dictionary of trained models {key: model}
         """
-        # Find all unique contexts
-        contexts = enriched_trades_df[
+        # Filter to only trades with r_multiple (from campaigns with risk management)
+        # Profitability models predict r_multiple, so they can only train on trades
+        # that have defined stop losses
+        trades_with_risk = enriched_trades_df[
+            enriched_trades_df["r_multiple"].notnull()
+        ].copy()
+
+        if len(trades_with_risk) == 0:
+            raise ValueError(
+                "No trades with r_multiple found. Profitability models require "
+                "trades from campaigns with risk management (stop losses)."
+            )
+
+        # Find all unique contexts in the filtered data
+        contexts = trades_with_risk[
             ["execution_timeframe", "strategy_archetype"]
         ].drop_duplicates()
 
@@ -184,8 +200,8 @@ class ModelRegistry:
                 random_state=random_state,
             )
 
-            # Train model - raise error if insufficient data
-            model.fit(enriched_trades_df)
+            # Train model on filtered data (only trades with r_multiple)
+            model.fit(trades_with_risk)
             trained_models[key] = model
 
         return trained_models

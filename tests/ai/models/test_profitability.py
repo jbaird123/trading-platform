@@ -49,7 +49,7 @@ def sample_trades_df():
             -100, 200, n_trades
         ),  # Mix of profitable and unprofitable
         # Risk data
-        "initial_stop_loss_pips": np.random.uniform(10, 50, n_trades),
+        "initial_stop_loss_price": np.random.uniform(1.15, 1.25, n_trades),
         "r_multiple": np.random.uniform(-2, 5, n_trades),
     }
 
@@ -88,7 +88,7 @@ class TestProfitabilityModel:
             # Should include entry features or metadata
             valid_prefixes = [
                 "context_at_entry_",
-                "initial_stop_loss_pips",  # Risk parameter (known at entry)
+                "initial_stop_loss_price",  # Risk parameter (known at entry)
                 "side_",  # One-hot encoded
                 "symbol_",  # One-hot encoded
                 "hour_of_day",
@@ -199,22 +199,15 @@ class TestProfitabilityModel:
             model.fit(df_with_nulls)
 
     def test_fit_raises_error_on_invalid_stop_loss(self, sample_trades_df):
-        """Verify model raises ValueError when initial_stop_loss_pips is invalid."""
+        """Verify model raises ValueError when initial_stop_loss_price is invalid."""
         model = ProfitabilityModel(timeframe="5min", archetype="trend_following")
 
         # Test with null stop_loss
         df_with_null_stop = sample_trades_df.copy()
-        df_with_null_stop.loc[0, "initial_stop_loss_pips"] = np.nan
+        df_with_null_stop.loc[0, "initial_stop_loss_price"] = np.nan
 
-        with pytest.raises(ValueError, match="valid 'initial_stop_loss_pips' > 0"):
+        with pytest.raises(ValueError, match="valid 'initial_stop_loss_price'"):
             model.fit(df_with_null_stop)
-
-        # Test with non-positive stop_loss
-        df_with_invalid_stop = sample_trades_df.copy()
-        df_with_invalid_stop.loc[0, "initial_stop_loss_pips"] = 0
-
-        with pytest.raises(ValueError, match="valid 'initial_stop_loss_pips' > 0"):
-            model.fit(df_with_invalid_stop)
 
     def test_predict_returns_continuous_r_multiple(self, sample_trades_df):
         """Verify predict() returns continuous R-multiple values (not binary 0/1)."""

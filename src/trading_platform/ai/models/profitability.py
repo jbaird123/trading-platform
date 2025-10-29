@@ -110,23 +110,20 @@ class ProfitabilityModel:
                 f"Found {n_null} missing values."
             )
 
-        # Validate initial_stop_loss_pips exists and is valid (required for predictions)
-        if "initial_stop_loss_pips" not in df.columns:
+        # Validate initial_stop_loss_price exists and is valid
+        # (required for predictions)
+        if "initial_stop_loss_price" not in df.columns:
             raise ValueError(
                 f"Training failed for {self.timeframe}_{self.archetype}: "
-                f"Missing required column 'initial_stop_loss_pips'."
+                f"Missing required column 'initial_stop_loss_price'."
             )
 
-        if (
-            df["initial_stop_loss_pips"].isnull().any()
-            or (df["initial_stop_loss_pips"] <= 0).any()
-        ):
-            n_null = df["initial_stop_loss_pips"].isnull().sum()
-            n_invalid = (df["initial_stop_loss_pips"] <= 0).sum()
+        if df["initial_stop_loss_price"].isnull().any():
+            n_null = df["initial_stop_loss_price"].isnull().sum()
             raise ValueError(
                 f"Training failed for {self.timeframe}_{self.archetype}: "
-                f"All trades must have a valid 'initial_stop_loss_pips' > 0. "
-                f"Found {n_null} null and {n_invalid} invalid values."
+                f"All trades must have a valid 'initial_stop_loss_price'. "
+                f"Found {n_null} null values."
             )
 
         # Record training date range (for lookahead bias prevention)
@@ -311,9 +308,9 @@ class ProfitabilityModel:
         entry_cols = [col for col in df.columns if col.startswith("context_at_entry_")]
         features.extend(entry_cols)
 
-        # 2. Risk parameter: initial_stop_loss_pips (known at entry)
-        if "initial_stop_loss_pips" in df.columns:
-            features.append("initial_stop_loss_pips")
+        # 2. Risk parameter: initial_stop_loss_price (known at entry)
+        if "initial_stop_loss_price" in df.columns:
+            features.append("initial_stop_loss_price")
 
         # 3. Categorical: side (one-hot encode)
         if "side" in df.columns:
