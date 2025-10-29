@@ -257,6 +257,49 @@ class RiskExitManager:
             prior_bar=prior_bar,
         )
 
+    def calculate_initial_take_profit_price(
+        self,
+        entry_price: float,
+        side: str,
+        entry_bar: pd.Series,
+        signal_context: dict[str, Any],
+        prior_bar: pd.Series | None = None,
+    ) -> float | None:
+        """
+        Calculate the initial take profit price at position entry time.
+
+        Args:
+            entry_price: The entry price for the position
+            side: "long" or "short"
+            entry_bar: The bar on which entry occurs
+            signal_context: Signal context dict with strategy_features, etc.
+            prior_bar: The bar immediately before entry_bar (for indicator stops)
+
+        Returns:
+            Initial take profit price, or None if no take profit configured
+        """
+        if self.config is None or self.config.take_profit is None:
+            return None
+
+        # Create a minimal Position-like object for _resolve_stop_rule
+        from types import SimpleNamespace
+
+        temp_position = SimpleNamespace(
+            entry_price=entry_price,
+            side=side,
+            symbol="",  # Not used in _resolve_stop_rule
+            size=1.0,  # Not used in _resolve_stop_rule
+        )
+
+        return self._resolve_stop_rule(
+            self.config.take_profit,
+            temp_position,  # type: ignore[arg-type]
+            entry_bar,
+            signal_context,
+            is_stop=False,
+            prior_bar=prior_bar,
+        )
+
     def check_exits(
         self,
         position: Position,

@@ -90,6 +90,8 @@ class PortfolioManager:
         instrument: dict | None = None,
         context_at_entry: dict | None = None,
         initial_risk_ccy: float | None = None,
+        stop_loss: float | None = None,
+        take_profit: float | None = None,
     ) -> None:
         """Creates and holds a new open position."""
         if self._open_position:
@@ -113,6 +115,8 @@ class PortfolioManager:
             entry_time=entry_time,
             context_at_entry=ctx,
             initial_risk_ccy=initial_risk_ccy,
+            stop_loss=stop_loss,
+            take_profit=take_profit,
         )
 
     def process_command(
@@ -495,6 +499,8 @@ class PortfolioManager:
             mae_currency=max(pos.mae_currency, adverse),
             unrealized_pnl=unrealized,
             initial_risk_ccy=pos.initial_risk_ccy,
+            stop_loss=pos.stop_loss,
+            take_profit=pos.take_profit,
             context_at_entry=pos.context_at_entry,  # Preserve the context!
         )
 

@@ -455,8 +455,17 @@ def _run_backtest_simulation(
             # Calculate initial stop loss price for r_multiple calculation
             entry_price = current_bar["open"]
             initial_risk_ccy = None
+            stop_price = None
+            tp_price = None
             if rem is not None:
                 stop_price = rem.calculate_initial_stop_price(
+                    entry_price=entry_price,
+                    side=pending_entry["side"],
+                    entry_bar=current_bar,
+                    signal_context=pending_entry.get("context", {}),
+                    prior_bar=prior_bar,
+                )
+                tp_price = rem.calculate_initial_take_profit_price(
                     entry_price=entry_price,
                     side=pending_entry["side"],
                     entry_bar=current_bar,
@@ -478,6 +487,8 @@ def _run_backtest_simulation(
                 instrument=pending_entry["instrument"],
                 context_at_entry=pending_entry.get("context"),
                 initial_risk_ccy=initial_risk_ccy,
+                stop_loss=stop_price,
+                take_profit=tp_price,
             )
             # Mark that we've entered on this entry window
             portfolio._entry_windows[pending_entry["side"]] = (
@@ -711,8 +722,17 @@ def _run_backtest_simulation(
                         # Calculate initial stop loss price for r_multiple calculation
                         entry_price = current_bar["close"]
                         initial_risk_ccy = None
+                        stop_price = None
+                        tp_price = None
                         if rem is not None:
                             stop_price = rem.calculate_initial_stop_price(
+                                entry_price=entry_price,
+                                side=side,
+                                entry_bar=current_bar,
+                                signal_context=context,
+                                prior_bar=prior_bar,
+                            )
+                            tp_price = rem.calculate_initial_take_profit_price(
                                 entry_price=entry_price,
                                 side=side,
                                 entry_bar=current_bar,
@@ -732,6 +752,8 @@ def _run_backtest_simulation(
                             instrument=instrument_dict,
                             context_at_entry=context,
                             initial_risk_ccy=initial_risk_ccy,
+                            stop_loss=stop_price,
+                            take_profit=tp_price,
                         )
                         # Mark that we've entered on this entry window
                         portfolio._entry_windows[side] = (
@@ -957,8 +979,17 @@ def _simulate_counterfactual_exact(
     entry_bar = market_data.iloc[start_index]
     prior_bar = market_data.iloc[start_index - 1] if start_index > 0 else None
     initial_risk_ccy = None
+    stop_price = None
+    tp_price = None
     if rem is not None:
         stop_price = rem.calculate_initial_stop_price(
+            entry_price=entry_price,
+            side=side,
+            entry_bar=entry_bar,
+            signal_context={},  # Counterfactual uses config-based stops
+            prior_bar=prior_bar,
+        )
+        tp_price = rem.calculate_initial_take_profit_price(
             entry_price=entry_price,
             side=side,
             entry_bar=entry_bar,
@@ -977,6 +1008,8 @@ def _simulate_counterfactual_exact(
         entry_time=entry_time,
         instrument=instrument,
         initial_risk_ccy=initial_risk_ccy,
+        stop_loss=stop_price,
+        take_profit=tp_price,
     )
 
     bars_touched = 0
