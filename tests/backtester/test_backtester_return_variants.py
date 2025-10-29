@@ -80,6 +80,16 @@ class _NeverExitREM:
     ) -> float | None:
         return None
 
+    def calculate_initial_take_profit_price(
+        self,
+        entry_price: float,
+        side: str,
+        entry_bar: pd.Series,
+        signal_context: dict[str, Any],
+        prior_bar: pd.Series | None = None,
+    ) -> float | None:
+        return None
+
     def check_exits(
         self,
         position: Any,
