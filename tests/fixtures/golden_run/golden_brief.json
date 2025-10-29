@@ -91,7 +91,7 @@
   "meta": {
     "strategy_name": "Golden_EMA_Crossover",
     "run_id": "golden_run_test",
-    "git_commit": "b06fe71",
+    "git_commit": "730b08b",
     "run_seed": 42
   },
   "strategy_params": {},
@@ -263,7 +263,7 @@
       "EURUSD"
     ],
     "app_version": "0.0.1",
-    "git_commit": "b06fe71",
+    "git_commit": "730b08b",
     "run_seed": 42
   },
   "artifacts": {},
@@ -451,9 +451,7 @@
           "sma_fast": 117.5,
           "sma_slow": 118.0
         },
-        "global_features": {
-          "volume": 1000
-        }
+        "global_features": {}
       },
       "context_at_exit": null,
       "cost_breakdown": {

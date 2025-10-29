@@ -512,9 +512,6 @@ def _run_backtest_simulation(
                     else:
                         global_features[feature_name] = val
 
-        # Always include raw volume in global features (market context)
-        global_features["volume"] = current_bar["volume"]
-
         # Build consistent nested context structure
         # Separate strategy_features and global_features for semantic clarity
         regime_data = None

@@ -144,7 +144,3 @@ def test_e2e_run_with_contextual_features(tmp_path):
     # Verify global features (from global.yaml with timeframe prefix)
     assert "h1_atr_14" in global_features
     assert isinstance(global_features["h1_atr_14"], (int, float, type(None)))
-
-    # Verify volume is in global features (market context)
-    assert "volume" in global_features
-    assert isinstance(global_features["volume"], (int, float))
