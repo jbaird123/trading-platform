@@ -91,7 +91,7 @@
   "meta": {
     "strategy_name": "Golden_EMA_Crossover",
     "run_id": "golden_run_test",
-    "git_commit": "e88b2ab",
+    "git_commit": "cf66a92",
     "run_seed": 42
   },
   "strategy_params": {},
@@ -263,7 +263,7 @@
       "EURUSD"
     ],
     "app_version": "0.0.1",
-    "git_commit": "e88b2ab",
+    "git_commit": "cf66a92",
     "run_seed": 42
   },
   "artifacts": {},
@@ -443,7 +443,7 @@
       "pnl_movement": 6.0,
       "exit_reason": "end_of_data",
       "r_multiple": 6e-06,
-      "stop_loss": 1000113.0,
+      "initial_stop_loss_price": 1000113.0,
       "take_profit": -999887.0,
       "mfe_normalized": 7.0,
       "mae_normalized": 1.0,

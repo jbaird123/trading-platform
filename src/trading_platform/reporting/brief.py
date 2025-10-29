@@ -366,7 +366,9 @@ def _serialize_trade(t: Trade) -> dict[str, Any]:
         "pnl_movement": float(getattr(t, "pnl_movement", None) or 0.0),
         "exit_reason": t.exit_reason,
         "r_multiple": getattr(t, "r_multiple", None),
-        "stop_loss": float(t.stop_loss) if t.stop_loss is not None else None,
+        "initial_stop_loss_price": float(t.stop_loss)
+        if t.stop_loss is not None
+        else None,
         "take_profit": float(t.take_profit) if t.take_profit is not None else None,
         "mfe_normalized": float(getattr(t, "mfe_currency", None) or 0.0),
         "mae_normalized": float(getattr(t, "mae_currency", None) or 0.0),

@@ -297,7 +297,7 @@
           "mfe_currency": { "type": ["number", "null"], "description": "Maximum Favorable Excursion in currency units." },
           "mae_currency": { "type": ["number", "null"], "description": "Maximum Adverse Excursion in currency units." },
           "bars_held": { "type": ["integer", "null"], "description": "Number of bars the trade was held open." },
-          "stop_loss": { "type": ["number", "null"], "description": "Initial stop loss price set at trade entry. Null for trades without risk management." },
+          "initial_stop_loss_price": { "type": ["number", "null"], "description": "Initial stop loss price set at trade entry. Null for trades without risk management." },
           "take_profit": { "type": ["number", "null"], "description": "Initial take profit price set at trade entry. Null for trades without take profit targets." },
           "context_at_entry": {
             "type": ["object", "null"],
