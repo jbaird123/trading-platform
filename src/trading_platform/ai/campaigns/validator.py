@@ -214,9 +214,11 @@ def validate_campaign_candidates(
 
         # Drift monitoring check (KS-statistic)
         if baseline_df is not None and len(baseline_df) > 0 and len(trades) > 0:
-            # Extract r_multiple from candidate trades
+            # Extract r_multiple from candidate trades, filtering out None values
             candidate_r_multiples = [
-                t.get("r_multiple", 0.0) for t in trades if "r_multiple" in t
+                t["r_multiple"]
+                for t in trades
+                if "r_multiple" in t and t["r_multiple"] is not None
             ]
 
             if candidate_r_multiples and "r_multiple" in baseline_df.columns:
