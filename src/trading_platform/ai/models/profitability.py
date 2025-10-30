@@ -14,6 +14,8 @@ import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.impute import SimpleImputer
 
+from ._timeframe_utils import drop_lower_timeframe_global_features
+
 
 class ProfitabilityModel:
     """Context-specific regressor for R-multiple prediction.
@@ -129,6 +131,9 @@ class ProfitabilityModel:
         # Record training date range (for lookahead bias prevention)
         self.training_start_date_ = pd.to_datetime(df["entry_time"]).min()
         self.training_end_date_ = pd.to_datetime(df["entry_time"]).max()
+
+        # Drop global features below execution timeframe
+        df = drop_lower_timeframe_global_features(df, self.timeframe)
 
         # Extract features (ONLY entry-time features - NO lookahead)
         X = self._extract_features(df)

@@ -980,9 +980,35 @@ def cmd_train_profitability_models(args: argparse.Namespace) -> int:
     print("\nTraining profitability models...")
     print(f"Model directory: {model_dir}")
 
-    trained_models = registry.train_all_profitability_models(
-        enriched_df, n_estimators=args.n_estimators, random_state=args.random_state
-    )
+    trades_with_risk = enriched_df[enriched_df["r_multiple"].notnull()].copy()
+
+    if len(trades_with_risk) == 0:
+        print(
+            "\nNo models trained (no trades with r_multiple found in enriched data)",
+            file=sys.stderr,
+        )
+        return 1
+
+    contexts = trades_with_risk[
+        ["execution_timeframe", "strategy_archetype"]
+    ].drop_duplicates()
+
+    trained_models: dict[str, Any] = {}
+
+    for _, row in contexts.iterrows():
+        timeframe = row["execution_timeframe"]
+        archetype = row["strategy_archetype"]
+        key = f"{timeframe}_{archetype}"
+        print(f"  → Training {key}...")
+        model = registry.get_or_create_profitability_model(
+            timeframe=timeframe,
+            archetype=archetype,
+            n_estimators=args.n_estimators,
+            random_state=args.random_state,
+        )
+        model.fit(trades_with_risk)
+        trained_models[key] = model
+        print(f"  ✓ Finished {key}")
 
     if not trained_models:
         print("\nNo models trained (insufficient data for all contexts)")
@@ -1041,10 +1067,11 @@ def cmd_train_diagnostic_models(args: argparse.Namespace) -> int:
         )
 
         try:
+            print(f"  → Training {key}...")
             model.fit(enriched_df)
             registry.register_model("diagnostic", key, model)
             trained_count += 1
-            print(f"  ✓ Trained {key}")
+            print(f"  ✓ Finished {key}")
         except ValueError as e:
             print(f"  ✗ Skipped {key}: {e}")
 
