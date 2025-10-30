@@ -23,7 +23,7 @@
 
 set -e  # Exit on any error
 
-# --- Configuration ---
+# --- Configuration ---ƒ
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -117,6 +117,8 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
         echo -e "${YELLOW}[0/9] Cleaning up old campaign data and ML artifacts...${NC}"
         rm -rf data/candidates
         rm -rf data/enriched
+        rm -rf data/campaigns
+        rm -rf workspace/runs/campaign_runner
         rm -rf data/dvc/ml
         echo -e "${GREEN}✓ Cleanup complete${NC}"
         echo ""
