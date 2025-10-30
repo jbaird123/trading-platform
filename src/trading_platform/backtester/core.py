@@ -197,6 +197,20 @@ def _run_backtest_simulation(
 
     symbol = resolve_instrument_symbol(config.instrument)
 
+    def _timeframe_to_minutes(timeframe: str) -> int:
+        """Convert timeframe string (e.g., '1H', '15min') to minutes."""
+        normalized = str(timeframe).strip()
+        candidates = (normalized.lower(), normalized)
+        for candidate in candidates:
+            try:
+                delta = pd.to_timedelta(candidate)
+            except ValueError:
+                continue
+            minutes = int(delta.total_seconds() // 60)
+            if minutes > 0:
+                return minutes
+        raise ValueError(f"Unsupported timeframe string: {timeframe!r}")
+
     def _first_valid_timestamp(
         df_obj: pd.DataFrame | None, feature_names: list[str]
     ) -> pd.Timestamp | None:
@@ -221,31 +235,47 @@ def _run_backtest_simulation(
     global_features_list: list[dict[str, Any]] = []
     global_valid_start: pd.Timestamp | None = None
     global_validation_error: str | None = None
+    global_feature_timeframes: dict[str, int] = {}
+    execution_tf_minutes: int | None = None
     try:
         from trading_platform.core.feature_resolver import resolve_global_features
         from trading_platform.strategy.features import compute_features
 
         instrument_cfg = config.instrument or {}
         execution_timeframe = instrument_cfg.get("timeframe", "1H")
+        try:
+            execution_tf_minutes = _timeframe_to_minutes(execution_timeframe)
+        except ValueError as exc:  # pragma: no cover - validated upstream
+            raise ValueError(
+                "Unsupported execution timeframe in instrument config: "
+                f"{execution_timeframe!r}"
+            ) from exc
 
         resolved_features = resolve_global_features(
             execution_timeframe, config_path=global_features_config_path
         )
 
-        global_features_list = [
-            {
-                "name": f.name,
-                "type": f.type,
-                "params": f.params,
-                "source": f.source,
-                **(
-                    {}
-                    if f.timeframe == execution_timeframe
-                    else {"timeframe": f.timeframe}
-                ),
+        for resolved in resolved_features:
+            feature_dict: dict[str, Any] = {
+                "name": resolved.name,
+                "type": resolved.type,
+                "params": resolved.params,
+                "source": resolved.source,
             }
-            for f in resolved_features
-        ]
+            feature_tf = resolved.timeframe or execution_timeframe
+            if resolved.timeframe and resolved.timeframe != execution_timeframe:
+                feature_dict["timeframe"] = resolved.timeframe
+
+            name_str = str(resolved.name)
+            try:
+                global_feature_timeframes[name_str] = _timeframe_to_minutes(feature_tf)
+            except ValueError as exc:
+                raise ValueError(
+                    "Unsupported timeframe for global feature "
+                    f"{name_str!r}: {feature_tf!r}"
+                ) from exc
+
+            global_features_list.append(feature_dict)
 
         if global_features_list:
             data_with_global_features = compute_features(
@@ -418,6 +448,7 @@ def _run_backtest_simulation(
     # Pending actions for next_bar_open execution model
     pending_exit: dict[str, Any] | None = None
     pending_entry: dict[str, Any] | None = None
+    last_context_at_exit: dict[str, Any] | None = None
 
     for i in range(len(market_data)):
         signal = signals.iloc[i]
@@ -517,8 +548,20 @@ def _run_backtest_simulation(
             for feature_name in global_feature_names:
                 if feature_name in data_with_global_features.columns:
                     val = data_with_global_features[feature_name].iloc[i]
+                    feature_minutes = global_feature_timeframes.get(feature_name)
                     # Convert NaN to None for JSON serialization
                     if isinstance(val, float) and math.isnan(val):
+                        if (
+                            execution_tf_minutes is not None
+                            and feature_minutes is not None
+                            and feature_minutes >= execution_tf_minutes
+                        ):
+                            raise ValueError(
+                                "Global feature "
+                                f"{feature_name!r} is NaN at {current_bar.name}. "
+                                "Features at or above the execution timeframe "
+                                "must be fully populated."
+                            )
                         global_features[feature_name] = None
                     else:
                         global_features[feature_name] = val
@@ -536,6 +579,7 @@ def _run_backtest_simulation(
         }
         if regime_data is not None:
             context["regime"] = regime_data
+        last_context_at_exit = context
 
         # === REM EXIT PHASE: Check risk-based exits ===
         # REM exits (stop-loss, take-profit) are ALWAYS executed immediately
@@ -809,11 +853,16 @@ def _run_backtest_simulation(
     # Force-close any remaining open position at end of backtest
     if portfolio.current_position:
         last_bar = market_data.iloc[-1]
+        if last_context_at_exit is None:
+            raise ValueError(
+                "End-of-data exit detected without recorded context. "
+                "Ensure context is captured before closing open positions."
+            )
         portfolio.close_position(
             exit_price=last_bar["close"],
             exit_time=cast(datetime, market_data.index[-1]),
             exit_reason="end_of_data",
-            context_at_exit=None,
+            context_at_exit=last_context_at_exit,
         )
         # Update the last exposure entry to reflect the closed position
         if return_exposure and exposure_curve:
