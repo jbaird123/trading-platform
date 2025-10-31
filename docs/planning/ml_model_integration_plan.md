@@ -33,11 +33,6 @@
 4. **Reviewer Artifacts**
    - Optional report (Markdown/HTML) capturing rankings, diffs, and context references.
 
-5. **CI/CD Integration**
-   - CLI entry points for each stage (generate, validate, summarize).
-   - Status JSON or exit codes so pipelines can fail if objectives are missed.
-   - Version tags capturing diagnostic model hash and dataset provenance.
-
 6. **AI Orchestration Layer**
    - Prompt templates or scripts that call the CLI commands.
    - Supports iterative experimentation by adjusting generator parameters.
