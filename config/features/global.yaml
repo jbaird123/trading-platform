@@ -7,6 +7,10 @@
 features:
   # --- Trend Indicators ---
   # Provide a view of the trend across major timeframes.
+  - name: "m15_ema_50"
+    type: "EMA"
+    params: { "length": 50 }
+    timeframe: "15min"
   - name: "h1_ema_50"
     type: "EMA"
     params: { "length": 50 }
@@ -19,10 +23,26 @@ features:
     type: "EMA"
     params: { "length": 50 }
     timeframe: "1D"
+  - name: "w1_ema_50"
+    type: "EMA"
+    params: { "length": 50 }
+    timeframe: "1W"
   - name: "h1_adx_14"
     type: "ADX"
     params: { "length": 14 }
     timeframe: "1H"
+  - name: "h4_adx_14"
+    type: "ADX"
+    params: { "length": 14 }
+    timeframe: "4H"
+  - name: "d1_adx_14"
+    type: "ADX"
+    params: { "length": 14 }
+    timeframe: "1D"
+  - name: "w1_adx_14"
+    type: "ADX"
+    params: { "length": 14 }
+    timeframe: "1W"
 
   # --- Momentum Indicators ---
   # Measure the speed and change of price movements.
@@ -38,10 +58,30 @@ features:
     type: "RSI"
     params: { "length": 14 }
     timeframe: "4H"
+  - name: "d1_rsi_14"
+    type: "RSI"
+    params: { "length": 14 }
+    timeframe: "1D"
+  - name: "w1_rsi_14"
+    type: "RSI"
+    params: { "length": 14 }
+    timeframe: "1W"
   - name: "h1_macd"
     type: "MACD"
     params: { "fast": 12, "slow": 26, "signal": 9 }
     timeframe: "1H"
+  - name: "h4_macd"
+    type: "MACD"
+    params: { "fast": 12, "slow": 26, "signal": 9 }
+    timeframe: "4H"
+  - name: "d1_macd"
+    type: "MACD"
+    params: { "fast": 12, "slow": 26, "signal": 9 }
+    timeframe: "1D"
+  - name: "w1_macd"
+    type: "MACD"
+    params: { "fast": 12, "slow": 26, "signal": 9 }
+    timeframe: "1W"
 
   # --- Volatility Indicators ---
   # Measure the magnitude of price fluctuations.
@@ -57,24 +97,63 @@ features:
     type: "ATR"
     params: { "length": 14 }
     timeframe: "1D"
+  - name: "h4_atr_14"
+    type: "ATR"
+    params: { "length": 14 }
+    timeframe: "4H"
+  - name: "w1_atr_14"
+    type: "ATR"
+    params: { "length": 14 }
+    timeframe: "1W"
   - name: "h1_bb_width_20"
     type: "BBWidth"
     params: { "length": 20, "ndev": 2.0 }
     timeframe: "1H"
+  - name: "h4_bb_width_20"
+    type: "BBWidth"
+    params: { "length": 20, "ndev": 2.0 }
+    timeframe: "4H"
+  - name: "d1_bb_width_20"
+    type: "BBWidth"
+    params: { "length": 20, "ndev": 2.0 }
+    timeframe: "1D"
 
   # --- Volume Indicators ---
   # Measure market participation and conviction.
+  - name: "m15_volume_sma_20"
+    type: "SMA"
+    params: { "length": 20 }
+    source: "volume"
+    timeframe: "15min"
   - name: "h1_volume_sma_20"
     type: "SMA"
     params: { "length": 20 }
     source: "volume"
     timeframe: "1H"
+  - name: "h4_volume_sma_20"
+    type: "SMA"
+    params: { "length": 20 }
+    source: "volume"
+    timeframe: "4H"
   - name: "d1_volume_sma_20"
     type: "SMA"
     params: { "length": 20 }
     source: "volume"
     timeframe: "1D"
+  - name: "w1_volume_sma_20"
+    type: "SMA"
+    params: { "length": 20 }
+    source: "volume"
+    timeframe: "1W"
   - name: "h1_obv"
     type: "OBV"
     params: {} # OBV has no length parameter
     timeframe: "1H"
+  - name: "d1_obv"
+    type: "OBV"
+    params: {}
+    timeframe: "1D"
+  - name: "w1_obv"
+    type: "OBV"
+    params: {}
+    timeframe: "1W"
