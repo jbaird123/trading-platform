@@ -45,7 +45,11 @@ FeatureBound = dict[str, Union[str, float]]
 
 
 def _feature_bounds(
-    feature_frame: pd.DataFrame, top_features: Iterable[str], mask: np.ndarray
+    feature_frame: pd.DataFrame,
+    top_features: Iterable[str],
+    mask: np.ndarray,
+    lower_quantile: float,
+    upper_quantile: float,
 ) -> list[FeatureBound]:
     high_df = feature_frame.loc[mask]
     if high_df.empty:
@@ -56,8 +60,8 @@ def _feature_bounds(
         if feature not in high_df.columns:
             continue
         series = high_df[feature].astype(float)
-        lower = float(series.quantile(0.25))
-        upper = float(series.quantile(0.75))
+        lower = float(series.quantile(lower_quantile))
+        upper = float(series.quantile(upper_quantile))
         bounds.append({"feature": feature, "lower": lower, "upper": upper})
     return bounds
 
@@ -66,6 +70,9 @@ def collect_diagnostic_contexts(
     enriched_path: Path,
     registry,
     output_dir: Path,
+    *,
+    lower_quantile: float = 0.25,
+    upper_quantile: float = 0.75,
 ) -> None:
     """Generate diagnostic summaries for each context using trained models."""
 
@@ -115,7 +122,11 @@ def collect_diagnostic_contexts(
         }
 
         summary["feature_bounds"] = _feature_bounds(
-            feature_frame, top_features, predictions == 4
+            feature_frame,
+            top_features,
+            predictions == 4,
+            lower_quantile,
+            upper_quantile,
         )
 
         context_dir = output_dir / context_key

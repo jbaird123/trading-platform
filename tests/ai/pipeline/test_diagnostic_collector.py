@@ -81,3 +81,33 @@ def test_collect_diagnostic_contexts_creates_summary(
     assert bounds["f1"]["upper"] == pytest.approx(1.75)
     assert bounds["f2"]["lower"] == pytest.approx(0.2)
     assert bounds["f2"]["upper"] == pytest.approx(0.4)
+
+
+def test_collect_diagnostic_contexts_custom_quantiles(
+    tmp_path: Path, enriched_parquet: Path
+):
+    probs = np.array([[0.1, 0.1, 0.1, 0.1, 0.6], [0.05, 0.1, 0.1, 0.1, 0.65]])
+    preds = np.array([4, 4])
+    model = _StubModel(feature_names=["f1", "f2"], probs=probs, preds=preds)
+    registry = _StubRegistry({"1H_trend_following": model})
+
+    from trading_platform.ai.pipeline.diagnostic_collector import (
+        collect_diagnostic_contexts,
+    )
+
+    output_dir = tmp_path / "outputs"
+    collect_diagnostic_contexts(
+        enriched_path=enriched_parquet,
+        registry=registry,
+        output_dir=output_dir,
+        lower_quantile=0.0,
+        upper_quantile=1.0,
+    )
+
+    summary_path = output_dir / "1H_trend_following" / "diagnostic_summary.json"
+    summary = json.loads(summary_path.read_text())
+    bounds = {item["feature"]: item for item in summary["feature_bounds"]}
+    assert bounds["f1"]["lower"] == pytest.approx(1.0)
+    assert bounds["f1"]["upper"] == pytest.approx(2.0)
+    assert bounds["f2"]["lower"] == pytest.approx(0.1)
+    assert bounds["f2"]["upper"] == pytest.approx(0.5)

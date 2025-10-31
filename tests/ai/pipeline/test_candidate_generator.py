@@ -41,16 +41,24 @@ def test_generate_rmm_candidates_creates_yaml(tmp_path: Path) -> None:
     conditions = candidate["regimes"][0]["conditions"]["all_of"]
     assert conditions == [
         {
-            "condition": "is_between",
+            "condition": "is_above",
             "left": {"ref": "f1"},
-            "lower": 1.1,
-            "upper": 1.9,
+            "right": 1.1,
         },
         {
-            "condition": "is_between",
+            "condition": "is_below",
+            "left": {"ref": "f1"},
+            "right": 1.9,
+        },
+        {
+            "condition": "is_above",
             "left": {"ref": "f2"},
-            "lower": 0.2,
-            "upper": 0.6,
+            "right": 0.2,
+        },
+        {
+            "condition": "is_below",
+            "left": {"ref": "f2"},
+            "right": 0.6,
         },
     ]
 

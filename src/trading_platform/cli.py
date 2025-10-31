@@ -26,6 +26,7 @@ from trading_platform.core.meta_campaign_generator import (
 from trading_platform.core.policy import TradingWindowPolicy
 from trading_platform.core.run import finalize_run, initialize_run
 from trading_platform.core.sweeps import (
+    _rmm_context,
     run_parameter_sweep,
     walk_forward_optimize_and_test,
 )
@@ -1257,6 +1258,8 @@ def cmd_ai_generate_rmm_candidates(args: argparse.Namespace) -> int:
     enriched_path = Path(args.enriched_path)
     model_dir = Path(args.model_dir)
     output_dir = Path(args.output_dir)
+    lower_quantile = float(getattr(args, "lower_quantile", 0.25))
+    upper_quantile = float(getattr(args, "upper_quantile", 0.75))
     summary_dir = output_dir / "diagnostic_summaries"
     summary_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1268,6 +1271,8 @@ def cmd_ai_generate_rmm_candidates(args: argparse.Namespace) -> int:
                 enriched_path=enriched_path,
                 registry=registry,
                 output_dir=summary_dir,
+                lower_quantile=lower_quantile,
+                upper_quantile=upper_quantile,
             )
         except Exception as exc:  # pragma: no cover - logged for inspection
             logger.warning("Skipping diagnostic context collection: %s", exc)
@@ -1288,19 +1293,110 @@ def cmd_ai_validate_rmm_candidates(args: argparse.Namespace) -> int:
     from trading_platform.ai.pipeline.validation_runner import validate_all_candidates
 
     candidate_root = Path(args.candidates_dir)
-    strategy_config_path = Path(args.strategy_config)
+    run_config_path = Path(args.strategy_config)
     enriched_path = Path(args.enriched_path)
     output_dir = Path(args.output_dir)
+    data_root_arg = getattr(args, "data_root", None)
+    data_root = Path(data_root_arg) if data_root_arg else paths.RAW_DATA_DIR
 
-    def _stub_backtest(candidate: Path, strategy: Path, enriched: Path) -> dict:
-        return {"trades": [], "equity_curve": [], "skipped": []}
+    def _resolve_relative(base: Path, value: str | Path) -> Path:
+        path = Path(value)
+        if not path.is_absolute():
+            return (base / path).resolve()
+        return path
+
+    def _execute_backtest(candidate: Path, config_path: Path, _: Path) -> dict:
+        cfg_path = config_path
+        cfg_raw = deepcopy(_load_config(cfg_path))
+        cfg_raw["rmm_config"] = _load_config(candidate)
+        cfg_raw.pop("rmm_path", None)
+
+        rem_path_val = cfg_raw.pop("rem_path", None)
+        if rem_path_val:
+            rem_path = _resolve_relative(cfg_path.parent, rem_path_val)
+            cfg_raw["rem_config"] = _load_config(rem_path)
+
+        global_feat_val = cfg_raw.pop("global_features_config_path", None)
+        global_feat_path = (
+            _resolve_relative(cfg_path.parent, global_feat_val)
+            if global_feat_val
+            else None
+        )
+
+        cfg_raw.pop("fast_mode", None)
+        cfg_raw.pop("rmm", None)
+        cfg_raw.pop("data", None)
+
+        strategy_overrides = cfg_raw.pop("strategy_overrides", None)
+        strategy_path_val = cfg_raw.pop("strategy_path", None)
+        strategy_params = cfg_raw.pop("strategy_params", None)
+
+        strategy_cfg = cfg_raw.get("strategy")
+        if strategy_path_val:
+            strategy_path = _resolve_relative(cfg_path.parent, strategy_path_val)
+            strategy_cfg = _load_config(strategy_path)
+        if not isinstance(strategy_cfg, dict):
+            raise ValueError("Strategy configuration must be a dict.")
+        cfg_raw["strategy"] = strategy_cfg
+
+        cfg = RunConfig.model_validate(cfg_raw)
+
+        data_request = cfg.data_request
+        if not data_request:
+            raise ValueError("Run config must define data_request.")
+        symbol = str(data_request.get("symbol") or "")
+        if not symbol:
+            raise ValueError("data_request.symbol is required for validation.")
+        timeframe = data_request.get("timeframe")
+        start = data_request.get("start")
+        end = data_request.get("end")
+
+        instrument_def = get_instrument_definition(symbol)
+        data_handler = DataHandler(
+            symbol=symbol,
+            data_root=data_root,
+            instrument=instrument_def,
+        )
+        market_data = data_handler.get_data(
+            timeframe=timeframe,
+            start=start,
+            end=end,
+        )
+
+        try:
+            rmm_ctx = _rmm_context(market_data, cfg_raw, data_handler=data_handler)
+        except Exception as exc:  # pragma: no cover - defensive guard
+            logger.warning("Failed to compute RMM context for %s: %s", candidate, exc)
+            rmm_ctx = None
+
+        result = run_backtest(
+            cfg,
+            market_data,
+            strategy_config=strategy_cfg,
+            strategy_params=strategy_params,
+            strategy_overrides=strategy_overrides,
+            data_handler=data_handler,
+            global_features_config_path=global_feat_path,
+            rmm_context=rmm_ctx,
+            return_skips=True,
+        )
+        if isinstance(result, tuple):
+            trades_list = result[0]
+            exposure_curve = result[1] if len(result) > 1 else []
+            skipped_items = result[2] if len(result) > 2 else []
+            return {
+                "trades": trades_list,
+                "equity_curve": exposure_curve,
+                "skipped": skipped_items,
+            }
+        return result
 
     validate_all_candidates(
         candidate_root,
-        strategy_config_path,
+        run_config_path,
         enriched_path,
         output_dir,
-        backtest_fn=_stub_backtest,
+        backtest_fn=_execute_backtest,
     )
 
     print(f"Validation reports written to {output_dir}")
@@ -1817,6 +1913,18 @@ def main() -> int:
     pagr.add_argument(
         "--output-dir", required=True, help="Directory to write candidate artifacts"
     )
+    pagr.add_argument(
+        "--lower-quantile",
+        type=float,
+        default=0.25,
+        help="Lower quantile for feature bounds (default: 0.25)",
+    )
+    pagr.add_argument(
+        "--upper-quantile",
+        type=float,
+        default=0.75,
+        help="Upper quantile for feature bounds (default: 0.75)",
+    )
     pagr.set_defaults(func=cmd_ai_generate_rmm_candidates)
 
     pav = sub.add_parser(
@@ -1838,6 +1946,10 @@ def main() -> int:
     )
     pav.add_argument(
         "--output-dir", required=True, help="Directory to write validation reports"
+    )
+    pav.add_argument(
+        "--data-root",
+        help="Optional override for raw data directory used by DataHandler",
     )
     pav.set_defaults(func=cmd_ai_validate_rmm_candidates)
 

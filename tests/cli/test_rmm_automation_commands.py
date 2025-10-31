@@ -2,6 +2,10 @@ import json
 import subprocess
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
+import yaml
+
 
 def _write_summary(summary_root: Path, context_key: str) -> None:
     summary_dir = summary_root / context_key
@@ -63,6 +67,106 @@ def test_ai_validate_rmm_candidates_command(tmp_path: Path) -> None:
     summaries_dir = artifacts_dir / "diagnostic_summaries"
     _write_summary(summaries_dir, "1H_trend_following")
 
+    data_root = tmp_path / "data_root"
+    full_dir = data_root / "full" / "eurusd"
+    full_dir.mkdir(parents=True, exist_ok=True)
+    idx = pd.date_range("2024-01-01", periods=600, freq="h", tz="UTC")
+    prices = 1.05 + np.linspace(0.0, 0.02, len(idx))
+    df = pd.DataFrame(
+        {
+            "timestamp": idx,
+            "open": prices,
+            "high": prices + 0.0002,
+            "low": prices - 0.0002,
+            "close": prices,
+            "volume": np.full(len(idx), 1000),
+        }
+    )
+    csv_path = full_dir / "EURUSD.csv"
+    df.to_csv(csv_path, index=False)
+
+    strategy_file = tmp_path / "strategy.yaml"
+    strategy_definition = {
+        "strategy_name": "TestSMACrossover",
+        "features": [
+            {
+                "name": "sma_fast",
+                "type": "SMA",
+                "params": {"length": 5},
+                "source": "close",
+            },
+            {
+                "name": "sma_slow",
+                "type": "SMA",
+                "params": {"length": 12},
+                "source": "close",
+            },
+        ],
+        "long_entry_rules": [
+            {
+                "all_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"ref": "sma_fast"},
+                        "right": {"ref": "sma_slow"},
+                    }
+                ]
+            }
+        ],
+        "long_exit_rules": [
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"ref": "sma_fast"},
+                        "right": {"ref": "sma_slow"},
+                    }
+                ]
+            }
+        ],
+        "short_entry_rules": [
+            {
+                "all_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"ref": "sma_fast"},
+                        "right": {"ref": "sma_slow"},
+                    }
+                ]
+            }
+        ],
+        "short_exit_rules": [
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"ref": "sma_fast"},
+                        "right": {"ref": "sma_slow"},
+                    }
+                ]
+            }
+        ],
+    }
+    strategy_file.write_text(yaml.safe_dump(strategy_definition, sort_keys=False))
+
+    global_features = tmp_path / "global_features.yaml"
+    global_features.write_text("features: []\n")
+
+    run_config = tmp_path / "run_config.yaml"
+    run_config_data = {
+        "user_id": "test_user",
+        "initial_cash": 10000,
+        "position_size": 1,
+        "data_request": {
+            "symbol": "EURUSD",
+            "timeframe": "1H",
+        },
+        "strategy_path": str(strategy_file),
+        "rem_config": {},
+        "global_features_config_path": str(global_features),
+    }
+    run_config.write_text(yaml.safe_dump(run_config_data, sort_keys=False))
+
     generate_result = _run_command(
         [
             "ai-generate-rmm-candidates",
@@ -77,8 +181,6 @@ def test_ai_validate_rmm_candidates_command(tmp_path: Path) -> None:
     assert generate_result.returncode == 0
 
     candidate_root = artifacts_dir / "candidates"
-    strategy_config = tmp_path / "strategy.yaml"
-    strategy_config.write_text("{}\n")
     output_dir = tmp_path / "reports"
 
     validate_result = _run_command(
@@ -87,11 +189,13 @@ def test_ai_validate_rmm_candidates_command(tmp_path: Path) -> None:
             "--candidates-dir",
             str(candidate_root),
             "--strategy-config",
-            str(strategy_config),
+            str(run_config),
             "--enriched-path",
             str(enriched),
             "--output-dir",
             str(output_dir),
+            "--data-root",
+            str(data_root),
         ]
     )
     assert validate_result.returncode == 0

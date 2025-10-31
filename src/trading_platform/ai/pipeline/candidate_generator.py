@@ -24,15 +24,25 @@ def _context_dir(output_dir: Path, context_key: str) -> Path:
 
 def _candidate_yaml(context_key: str, bounds: Iterable[dict]) -> dict:
     timeframe, *_ = context_key.split("_", 1)
-    conditions = [
-        {
-            "condition": "is_between",
-            "left": {"ref": item["feature"]},
-            "lower": item["lower"],
-            "upper": item["upper"],
-        }
-        for item in bounds
-    ]
+    conditions: list[dict] = []
+    for item in bounds:
+        feature_ref = {"ref": item["feature"]}
+        lower_bound = float(item["lower"])
+        upper_bound = float(item["upper"])
+        conditions.append(
+            {
+                "condition": "is_above",
+                "left": feature_ref,
+                "right": lower_bound,
+            }
+        )
+        conditions.append(
+            {
+                "condition": "is_below",
+                "left": feature_ref,
+                "right": upper_bound,
+            }
+        )
 
     return {
         "name": f"auto_{context_key}",

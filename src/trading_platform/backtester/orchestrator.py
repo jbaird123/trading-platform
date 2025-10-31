@@ -183,10 +183,12 @@ def run_backtest(
     # Otherwise return dict format for programmatic/test use
     # Even if return_skips=True, we return dict (skips are in the tuple
     # but we extract trades)
+    skipped_records: list[dict[str, Any]] = []
     if isinstance(res, tuple):
         trades_list = cast(list[Trade], res[0])
-        # Could be (trades, skips) or (trades, exposure) depending on flags
         exposure = cast(list[tuple[Any, float]], res[1]) if len(res) > 1 else []
+        if len(res) > 2:
+            skipped_records = cast(list[dict[str, Any]], res[2])
     else:
         trades_list = cast(list[Trade], res)
         exposure = []
@@ -206,4 +208,5 @@ def run_backtest(
         "initial_capital": float(config.initial_cash),
         "compiled_strategy": strat,
         "feature_enriched_df": feature_enriched_df,
+        "skipped": skipped_records,
     }

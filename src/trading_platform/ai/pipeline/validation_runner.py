@@ -63,7 +63,17 @@ def validate_rmm_candidate(
     backtest_result = backtest_fn(candidate_path, strategy_config_path, enriched_path)
 
     trades = backtest_result.get("trades", [])
-    equity = backtest_result.get("equity_curve", [])
+    equity_entries = backtest_result.get("equity_curve", [])
+    equity: list[float] = []
+    for entry in equity_entries:
+        if isinstance(entry, (tuple, list)) and entry:
+            value = entry[-1]
+        else:
+            value = entry
+        try:
+            equity.append(float(value))
+        except (TypeError, ValueError):
+            continue
     skipped = backtest_result.get("skipped", [])
 
     pnl_array = _trade_pnls(trades)
