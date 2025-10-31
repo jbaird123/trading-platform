@@ -9,6 +9,14 @@ analyze the results, and propose a final high-performing RMM configuration.
 
 ---
 
+## Goal
+
+Your primary goal is to find the RMM configuration that **maximizes the Sharpe
+Ratio** of the validation backtest, under the following constraints:
+- The total number of trades must not be reduced by more than 50% compared to the
+  baseline run.
+- The `max_drawdown` must not increase compared to the baseline run.
+
 ## Required Inputs
 
 Before starting, you must have the following file paths:
@@ -23,6 +31,17 @@ Before starting, you must have the following file paths:
 
 Follow these steps precisely. Explain your actions and report findings at each
 major step.
+
+### Step 0: Establish Baseline
+
+1.  Before generating any candidates, you must first establish a performance
+    baseline.
+2.  Run a backtest using the **Baseline Strategy Config** with a null RMM filter
+    (`rmm_config: null`).
+3.  Save the `brief.json` from this run.
+4.  Report the key baseline metrics: `total_pnl`, `sharpe`, `max_drawdown`, and
+    `n_trades`. This baseline is the benchmark against which all subsequent
+    candidates will be measured.
 
 ### Step 1: Setup the Experiment Workspace
 
@@ -39,8 +58,8 @@ major step.
     *   Provide the required paths for `--enriched-path` and `--model-dir`.
     *   Use the workspace directory you created in Step 1 for the
         `--output-dir`.
-    *   For the first run, start with a baseline quantile range (e.g.,
-        `--lower-quantile 0.25` and `--upper-quantile 0.75`).
+    *   Use the quantile parameters specified for the current iteration by the
+        logic in Step 5.
 2.  **Confirm Execution:** Report that the command was successful and state the
     location of the generated candidate YAML files.
 3.  **Handle empty results:** If no candidates were produced (or the command
@@ -74,26 +93,24 @@ major step.
     *   Identify and report the following key metrics for the top candidate:
         `total_pnl`, `sharpe`, `max_drawdown`, `n_trades`, and `n_skipped`.
     *   Identify the `candidate_path` for the winning candidate.
-3.  **Capture baseline metrics.**
-    *   If you already have a baseline run (e.g., no RMM), gather matching
-        metrics from its report so you can compare in Step 5.
-    *   If no baseline data exists, note this explicitly and explain how you
-        will interpret the candidate results without it.
 
 ### Step 5: Decide and Iterate (or Conclude)
 
-1.  **Assess the results.** Compare the metrics of the best candidate to a
-    baseline (e.g., a run with no RMM filter). Does the new RMM configuration
-    provide a meaningful improvement (higher Sharpe, lower drawdown) without
-    cutting the trade count to an unacceptable level?
+1.  **Assess the results.** Compare the metrics of the best candidate to the
+    baseline metrics from Step 0. Does the candidate meet the optimization
+    goals defined at the start?
 2.  **Make a decision:**
-    *   **If the results are promising:** Proceed to Step 6.
-    *   **If results are weak (e.g., few trades, flat Sharpe):** Propose a new
-        iteration. Explain your reasoning (for example, "Trade count dropped too
-        far; widening the quantile range to `0.15`/`0.85` to loosen filters."),
-        then return to Step 2 with the new parameters.
-    *   **If multiple iterations fail:** Conclude that an effective RMM config
-        was not found with this method and report that outcome to the user.
+    *   **If the optimization goal is met:** Proceed to Step 6.
+    *   **If the optimization goal is not met:** Propose a new iteration. You
+        **must** follow this systematic search path for the quantiles:
+        *   **Iteration 1:** Use `--lower-quantile 0.25` and `--upper-quantile 0.75`.
+        *   **Iteration 2:** Use `--lower-quantile 0.20` and `--upper-quantile 0.80` (Wider).
+        *   **Iteration 3:** Use `--lower-quantile 0.30` and `--upper-quantile 0.70` (Tighter).
+        State which iteration you are on and which parameters you are using,
+        then return to Step 2.
+    *   **If all three iterations fail to meet the goal:** Conclude that an
+        effective RMM config was not found with this method and report that
+        outcome to the user.
 
 ### Step 6: Promote the Winning Candidate
 
