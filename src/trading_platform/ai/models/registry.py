@@ -12,6 +12,7 @@ The registry supports:
 - Routing predictions to appropriate models
 """
 
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -49,9 +50,8 @@ class ModelRegistry:
 
         # Separate registries for each model family
         self._profitability_models: dict[str, ProfitabilityModel] = {}
-        self._diagnostic_models: dict[
-            str, Any
-        ] = {}  # Will use PerformanceDiagnosticModel later
+        self._diagnostic_models: dict[str, Any] = {}
+        self._logger = logging.getLogger(__name__)
 
     def register_model(self, family: str, key: str, model: Any) -> None:
         """Register a model in the specified family.
@@ -506,18 +506,22 @@ class ModelRegistry:
         if prof_dir.exists():
             for model_path in prof_dir.glob("*.pkl"):
                 key = model_path.stem  # Filename without extension
-                model = ProfitabilityModel.load(model_path)
-                self._profitability_models[key] = model
+                prof_model = ProfitabilityModel.load(model_path)
+                self._profitability_models[key] = prof_model
 
-        # Load diagnostic models (when implemented)
+        # Load diagnostic models
         diag_dir = self.model_dir / "diagnostic"
         if diag_dir.exists():
             for model_path in diag_dir.glob("*.pkl"):
                 key = model_path.stem
-                # TODO: Load PerformanceDiagnosticModel when implemented
-                # model = PerformanceDiagnosticModel.load(model_path)
-                # self._diagnostic_models[key] = model
-                pass
+                try:
+                    diag_model = PerformanceDiagnosticModel.load(model_path)
+                except Exception as exc:  # pragma: no cover - defensive logging
+                    self._logger.warning(
+                        "Failed to load diagnostic model %s: %s", model_path, exc
+                    )
+                    continue
+                self._diagnostic_models[key] = diag_model
 
     def get_model_path(self, family: str, key: str) -> Path:
         """Get the filesystem path for a model.

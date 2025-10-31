@@ -11,11 +11,22 @@ def _write_summary(root: Path, context: str) -> Path:
     summary = {
         "context_key": context,
         "model_hash": "hash123",
-        "top_features": ["f1", "f2"],
+        "top_features": [
+            "context_at_entry_global_features_h1_rsi_14",
+            "context_at_entry_global_features_h1_atr_14",
+        ],
         "high_quintile_trades": 15,
         "feature_bounds": [
-            {"feature": "f1", "lower": 1.1, "upper": 1.9},
-            {"feature": "f2", "lower": 0.2, "upper": 0.6},
+            {
+                "feature": "context_at_entry_global_features_h1_rsi_14",
+                "lower": 41.4,
+                "upper": 58.6,
+            },
+            {
+                "feature": "context_at_entry_global_features_h1_atr_14",
+                "lower": 0.001,
+                "upper": 0.002,
+            },
         ],
         "summary_path": str(context_dir / "diagnostic_summary.json"),
     }
@@ -42,27 +53,69 @@ def test_generate_rmm_candidates_creates_yaml(tmp_path: Path) -> None:
     assert conditions == [
         {
             "condition": "is_above",
-            "left": {"ref": "f1"},
-            "right": 1.1,
+            "left": {"ref": "context_at_entry_global_features_h1_rsi_14"},
+            "right": 41.4,
         },
         {
             "condition": "is_below",
-            "left": {"ref": "f1"},
-            "right": 1.9,
+            "left": {"ref": "context_at_entry_global_features_h1_rsi_14"},
+            "right": 58.6,
         },
         {
             "condition": "is_above",
-            "left": {"ref": "f2"},
-            "right": 0.2,
+            "left": {"ref": "context_at_entry_global_features_h1_atr_14"},
+            "right": 0.001,
         },
         {
             "condition": "is_below",
-            "left": {"ref": "f2"},
-            "right": 0.6,
+            "left": {"ref": "context_at_entry_global_features_h1_atr_14"},
+            "right": 0.002,
         },
     ]
 
     metadata_path = context_dir / "metadata.json"
     metadata = json.loads(metadata_path.read_text())
     assert metadata["context_key"] == "1H_trend_following"
-    assert metadata["candidates"][0]["feature_bounds"][0]["lower"] == 1.1
+    assert (
+        metadata["candidates"][0]["feature_bounds"][0]["feature"]
+        == "context_at_entry_global_features_h1_rsi_14"
+    )
+
+
+def test_generate_rmm_candidates_filters_unsupported_features(tmp_path: Path) -> None:
+    summary_root = tmp_path / "summaries"
+    summary_root.mkdir()
+
+    context_dir = summary_root / "1H_trend_following"
+    context_dir.mkdir(parents=True, exist_ok=True)
+    summary = {
+        "context_key": "1H_trend_following",
+        "model_hash": "hash123",
+        "feature_bounds": [
+            {
+                "feature": "context_at_entry_strategy_features_ema_fast",
+                "lower": 1.0,
+                "upper": 2.0,
+            },
+            {
+                "feature": "context_at_entry_global_features_h1_rsi_14",
+                "lower": 40.0,
+                "upper": 60.0,
+            },
+        ],
+        "summary_path": str(context_dir / "diagnostic_summary.json"),
+    }
+    (context_dir / "diagnostic_summary.json").write_text(json.dumps(summary, indent=2))
+
+    output_dir = tmp_path / "candidates"
+    generate_rmm_candidates(summary_root, output_dir, candidates_per_context=1)
+
+    candidate_path = output_dir / "1H_trend_following" / "candidate-001.yaml"
+    candidate = yaml.safe_load(candidate_path.read_text())
+    feature_refs = [
+        cond["left"]["ref"]
+        for cond in candidate["regimes"][0]["conditions"]["all_of"]
+        if "left" in cond
+    ]
+    assert "context_at_entry_strategy_features_ema_fast" not in feature_refs
+    assert "context_at_entry_global_features_h1_rsi_14" in feature_refs
