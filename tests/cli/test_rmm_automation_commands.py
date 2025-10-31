@@ -14,11 +14,22 @@ def _write_summary(summary_root: Path, context_key: str) -> None:
     summary = {
         "context_key": context_key,
         "model_hash": "hash123",
-        "top_features": ["f1", "f2"],
+        "top_features": [
+            "context_at_entry_global_features_h1_rsi_14",
+            "context_at_entry_global_features_h1_atr_14",
+        ],
         "high_quintile_trades": 10,
         "feature_bounds": [
-            {"feature": "f1", "lower": 1.0, "upper": 2.0},
-            {"feature": "f2", "lower": 0.2, "upper": 0.6},
+            {
+                "feature": "context_at_entry_global_features_h1_rsi_14",
+                "lower": 40.0,
+                "upper": 60.0,
+            },
+            {
+                "feature": "context_at_entry_global_features_h1_atr_14",
+                "lower": 0.001,
+                "upper": 0.002,
+            },
         ],
         "summary_path": str(summary_path),
     }
