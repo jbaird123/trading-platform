@@ -1245,6 +1245,68 @@ def cmd_analyze_regime(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_ai_generate_rmm_candidates(args: argparse.Namespace) -> int:
+    """Generate RMM candidate configurations from diagnostic summaries."""
+
+    from trading_platform.ai.models import ModelRegistry
+    from trading_platform.ai.pipeline.candidate_generator import generate_rmm_candidates
+    from trading_platform.ai.pipeline.diagnostic_collector import (
+        collect_diagnostic_contexts,
+    )
+
+    enriched_path = Path(args.enriched_path)
+    model_dir = Path(args.model_dir)
+    output_dir = Path(args.output_dir)
+    summary_dir = output_dir / "diagnostic_summaries"
+    summary_dir.mkdir(parents=True, exist_ok=True)
+
+    if model_dir.exists():
+        registry = ModelRegistry(model_dir=model_dir)
+        try:
+            registry.load()
+            collect_diagnostic_contexts(
+                enriched_path=enriched_path,
+                registry=registry,
+                output_dir=summary_dir,
+            )
+        except Exception as exc:  # pragma: no cover - logged for inspection
+            logger.warning("Skipping diagnostic context collection: %s", exc)
+    else:
+        logger.info(
+            "Model directory %s not found; skipping context collection.", model_dir
+        )
+
+    candidate_dir = output_dir / "candidates"
+    generate_rmm_candidates(summary_dir, candidate_dir)
+    print(f"RMM candidates written to {candidate_dir}")
+    return 0
+
+
+def cmd_ai_validate_rmm_candidates(args: argparse.Namespace) -> int:
+    """Validate RMM candidates and produce aggregate metrics."""
+
+    from trading_platform.ai.pipeline.validation_runner import validate_all_candidates
+
+    candidate_root = Path(args.candidates_dir)
+    strategy_config_path = Path(args.strategy_config)
+    enriched_path = Path(args.enriched_path)
+    output_dir = Path(args.output_dir)
+
+    def _stub_backtest(candidate: Path, strategy: Path, enriched: Path) -> dict:
+        return {"trades": [], "equity_curve": [], "skipped": []}
+
+    validate_all_candidates(
+        candidate_root,
+        strategy_config_path,
+        enriched_path,
+        output_dir,
+        backtest_fn=_stub_backtest,
+    )
+
+    print(f"Validation reports written to {output_dir}")
+    return 0
+
+
 def _check_output_directory(output_dir: Path, force: bool) -> tuple[bool, list[Path]]:
     """
     Check if output directory contains existing files.
@@ -1741,6 +1803,43 @@ def main() -> int:
     )
     pcd.add_argument("--output-file", required=True, help="Output parquet file path")
     pcd.set_defaults(func=cmd_ai_curate_data)
+
+    pagr = sub.add_parser(
+        "ai-generate-rmm-candidates",
+        help="Generate RMM candidates from diagnostic summaries",
+    )
+    pagr.add_argument("--enriched-path", required=True, help="Path to enriched data")
+    pagr.add_argument(
+        "--model-dir",
+        required=True,
+        help="Directory containing trained diagnostic models",
+    )
+    pagr.add_argument(
+        "--output-dir", required=True, help="Directory to write candidate artifacts"
+    )
+    pagr.set_defaults(func=cmd_ai_generate_rmm_candidates)
+
+    pav = sub.add_parser(
+        "ai-validate-rmm-candidates",
+        help="Validate RMM candidates and aggregate metrics",
+    )
+    pav.add_argument(
+        "--candidates-dir", required=True, help="Directory containing candidates"
+    )
+    pav.add_argument(
+        "--strategy-config",
+        required=True,
+        help="Path to strategy configuration YAML",
+    )
+    pav.add_argument(
+        "--enriched-path",
+        required=True,
+        help="Path to enriched trades used for validation",
+    )
+    pav.add_argument(
+        "--output-dir", required=True, help="Directory to write validation reports"
+    )
+    pav.set_defaults(func=cmd_ai_validate_rmm_candidates)
 
     # Campaign commands
     pcp = sub.add_parser("campaign-plan", help="Generate campaign execution plan")

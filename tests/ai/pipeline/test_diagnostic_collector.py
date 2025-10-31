@@ -74,3 +74,10 @@ def test_collect_diagnostic_contexts_creates_summary(
     assert summary["high_quintile_trades"] == 2
     assert summary["top_features"] == ["f1", "f2"]
     assert summary["summary_path"] == str(summary_path)
+
+    bounds = {item["feature"]: item for item in summary["feature_bounds"]}
+    assert set(bounds) == {"f1", "f2"}
+    assert bounds["f1"]["lower"] == pytest.approx(1.25)
+    assert bounds["f1"]["upper"] == pytest.approx(1.75)
+    assert bounds["f2"]["lower"] == pytest.approx(0.2)
+    assert bounds["f2"]["upper"] == pytest.approx(0.4)
