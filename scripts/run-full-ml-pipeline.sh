@@ -2,15 +2,16 @@
 # Complete ML Training Pipeline: Campaign Generation to Model Training
 #
 # This script executes the full end-to-end ML data curation and model training pipeline:
-#   1. Generate campaign plans for all campaigns
-#   2. Execute all campaign runs (backtests)
-#   3. Validate all candidates
-#   4. Generate review reports
-#   5. Auto-approve all passing candidates
-#   6. Enrich approved candidates
-#   7. Publish to master trade log
-#   8. Train diagnostic models
-#   9. Train profitability models
+#   1. Generate individual campaign configs from meta-campaign definitions
+#   2. Generate campaign plans for all campaigns
+#   3. Execute all campaign runs (backtests)
+#   4. Validate all candidates
+#   5. Generate review reports
+#   6. Auto-approve all passing candidates
+#   7. Enrich approved candidates
+#   8. Publish to master trade log
+#   9. Train diagnostic models
+#  10. Train profitability models
 #
 # Usage:
 #   ./scripts/run-full-ml-pipeline.sh [--skip-cleanup] [--start-from <stage>]
@@ -18,8 +19,9 @@
 # Options:
 #   --skip-cleanup    Skip initial cleanup of existing campaign data
 #   --start-from      Start execution from a specific stage.
-#                     Stages: cleanup, planning, execution, validation, review,
-#                             approve, enrich, publish, train_diagnostic, train_profitability
+#                     Stages: cleanup, meta_campaign, planning, execution,
+#                             validation, review, approve, enrich, publish,
+#                             train_diagnostic, train_profitability
 
 set -e  # Exit on any error
 
@@ -31,6 +33,12 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
+
+TOTAL_STAGES=10
+
+META_CAMPAIGN_CONFIGS=(
+    "config/meta_campaigns/trend_following_data_gen.yaml"
+)
 
 # Get the directory of this script and navigate to project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -65,15 +73,16 @@ done
 get_stage_num() {
     case "$1" in
         "cleanup") echo 0 ;;
-        "planning") echo 1 ;;
-        "execution") echo 2 ;;
-        "validation") echo 3 ;;
-        "review") echo 4 ;;
-        "approve") echo 5 ;;
-        "enrich") echo 6 ;;
-        "publish") echo 7 ;;
-        "train_diagnostic") echo 8 ;;
-        "train_profitability") echo 9 ;;
+        "meta_campaign") echo 1 ;;
+        "planning") echo 2 ;;
+        "execution") echo 3 ;;
+        "validation") echo 4 ;;
+        "review") echo 5 ;;
+        "approve") echo 6 ;;
+        "enrich") echo 7 ;;
+        "publish") echo 8 ;;
+        "train_diagnostic") echo 9 ;;
+        "train_profitability") echo 10 ;;
         *) echo "invalid" ;;
     esac
 }
@@ -114,7 +123,7 @@ echo ""
 # Stage 0: Cleanup
 if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
     if [ "$SKIP_CLEANUP" = false ]; then
-        echo -e "${YELLOW}[0/9] Cleaning up old campaign data and ML artifacts...${NC}"
+        echo -e "${YELLOW}[${CURRENT_STAGE}/${TOTAL_STAGES}] Cleaning up old campaign data and ML artifacts...${NC}"
         rm -rf data/candidates
         rm -rf data/enriched
         rm -rf data/campaigns
@@ -123,15 +132,36 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
         echo -e "${GREEN}✓ Cleanup complete${NC}"
         echo ""
     else
-        echo -e "${YELLOW}[0/9] Skipping cleanup.${NC}"
+        echo -e "${YELLOW}[${CURRENT_STAGE}/${TOTAL_STAGES}] Skipping cleanup.${NC}"
         echo ""
     fi
 fi
 ((CURRENT_STAGE++))
 
-# Stage 1: Generate Plans
+# Stage 1: Generate campaigns from meta-campaign definitions
 if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
-    echo -e "${YELLOW}[1/9] Generating campaign plans...${NC}"
+    echo -e "${YELLOW}[${CURRENT_STAGE}/${TOTAL_STAGES}] Generating campaign configs from meta-campaigns...${NC}"
+    META_COUNT=0
+    for meta_config in "${META_CAMPAIGN_CONFIGS[@]}"; do
+        if [ ! -f "$meta_config" ]; then
+            echo -e "${RED}Error: Meta-campaign config not found: $meta_config${NC}"
+            exit 1
+        fi
+        echo "  Meta-campaign: $meta_config"
+        poetry run tp meta-campaign-plan \
+            --config "$meta_config" \
+            --output-dir "config/campaigns/generated" \
+            --force
+        META_COUNT=$((META_COUNT + 1))
+    done
+    echo -e "${GREEN}✓ Generated configs from ${META_COUNT} meta-campaign(s)${NC}"
+    echo ""
+fi
+((CURRENT_STAGE++))
+
+# Stage 2: Generate Plans
+if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
+    echo -e "${YELLOW}[${CURRENT_STAGE}/${TOTAL_STAGES}] Generating campaign plans...${NC}"
     PLAN_COUNT=0
     for campaign in "${CAMPAIGNS[@]}"; do
         CONFIG_FILE="config/campaigns/generated/${campaign}.yaml"
@@ -148,9 +178,9 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
 fi
 ((CURRENT_STAGE++))
 
-# Stage 2: Execute All Campaigns
+# Stage 3: Execute All Campaigns
 if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
-    echo -e "${YELLOW}[2/9] Executing all campaign runs...${NC}"
+    echo -e "${YELLOW}[${CURRENT_STAGE}/${TOTAL_STAGES}] Executing all campaign runs...${NC}"
     RUN_COUNT=0
     for campaign in "${CAMPAIGNS[@]}"; do
         echo -e "${CYAN}Running campaign: $campaign${NC}"
@@ -163,9 +193,9 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
 fi
 ((CURRENT_STAGE++))
 
-# Stage 3: Validate All Campaigns
+# Stage 4: Validate All Campaigns
 if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
-    echo -e "${YELLOW}[3/9] Validating all campaigns...${NC}"
+    echo -e "${YELLOW}[${CURRENT_STAGE}/${TOTAL_STAGES}] Validating all campaigns...${NC}"
     TOTAL_PASSED=0
     TOTAL_FAILED=0
     TOTAL_WARNINGS=0
@@ -192,9 +222,9 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
 fi
 ((CURRENT_STAGE++))
 
-# Stage 4: Generate Review Reports
+# Stage 5: Generate Review Reports
 if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
-    echo -e "${YELLOW}[4/9] Generating review reports...${NC}"
+    echo -e "${YELLOW}[${CURRENT_STAGE}/${TOTAL_STAGES}] Generating review reports...${NC}"
     for campaign in "${CAMPAIGNS[@]}"; do
         echo "  Reviewing: $campaign"
         poetry run tp campaign-review --campaign-id "$campaign"
@@ -204,9 +234,9 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
 fi
 ((CURRENT_STAGE++))
 
-# Stage 5: Auto-Approve All Passing Candidates
+# Stage 6: Auto-Approve All Passing Candidates
 if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
-    echo -e "${YELLOW}[5/9] Auto-approving all passing candidates...${NC}"
+    echo -e "${YELLOW}[${CURRENT_STAGE}/${TOTAL_STAGES}] Auto-approving all passing candidates...${NC}"
     APPROVED_COUNT=0
     for campaign in "${CAMPAIGNS[@]}"; do
         VALIDATION_REPORT="data/candidates/$campaign/validation_report.json"
@@ -230,9 +260,9 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
 fi
 ((CURRENT_STAGE++))
 
-# Stage 6: Enrich All Campaigns
+# Stage 7: Enrich All Campaigns
 if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
-    echo -e "${YELLOW}[6/9] Enriching all approved campaigns...${NC}"
+    echo -e "${YELLOW}[${CURRENT_STAGE}/${TOTAL_STAGES}] Enriching all approved campaigns...${NC}"
     TOTAL_TRADES=0
     for campaign in "${CAMPAIGNS[@]}"; do
         echo "  Enriching: $campaign"
@@ -250,9 +280,9 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
 fi
 ((CURRENT_STAGE++))
 
-# Stage 7: Publish to Master Trade Log
+# Stage 8: Publish to Master Trade Log
 if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
-    echo -e "${YELLOW}[7/9] Publishing to master trade log...${NC}"
+    echo -e "${YELLOW}[${CURRENT_STAGE}/${TOTAL_STAGES}] Publishing to master trade log...${NC}"
     for campaign in "${CAMPAIGNS[@]}"; do
         echo "  Publishing: $campaign"
         poetry run tp campaign-publish --campaign-id "$campaign"
@@ -262,9 +292,9 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
 fi
 ((CURRENT_STAGE++))
 
-# Stage 8: Train Diagnostic Models
+# Stage 9: Train Diagnostic Models
 if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
-    echo -e "${YELLOW}[8/9] Training diagnostic models...${NC}"
+    echo -e "${YELLOW}[${CURRENT_STAGE}/${TOTAL_STAGES}] Training diagnostic models...${NC}"
     poetry run tp train-diagnostic-models \
         --enriched-data data/dvc/processed/training_sets/master_trade_log.parquet \
         --model-dir data/dvc/ml/models
@@ -274,9 +304,9 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
 fi
 ((CURRENT_STAGE++))
 
-# Stage 9: Train Profitability Models
+# Stage 10: Train Profitability Models
 if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
-    echo -e "${YELLOW}[9/9] Training profitability models...${NC}"
+    echo -e "${YELLOW}[${CURRENT_STAGE}/${TOTAL_STAGES}] Training profitability models...${NC}"
     poetry run tp train-profitability-models \
         --enriched-data data/dvc/processed/training_sets/master_trade_log.parquet \
         --model-dir data/dvc/ml/models

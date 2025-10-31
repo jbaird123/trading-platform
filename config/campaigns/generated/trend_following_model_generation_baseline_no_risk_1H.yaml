@@ -17,3 +17,15 @@ run_matrix:
   param_overrides:
     fast_length: 15
     slow_length: 45
+- instrument: EUR_USD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    fast_length: 12
+    slow_length: 26
+- instrument: EUR_USD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    fast_length: 5
+    slow_length: 20
