@@ -675,6 +675,46 @@ def test_ema_slope_in_compute_features():
     assert pd.isna(result["ema_slope_14"].iloc[0])
 
 
+def test_ema_trend_alignment_in_compute_features():
+    """Verify EMATrendAlignment produces alignment metrics."""
+    df = pd.DataFrame(
+        {
+            "open": [10, 11, 12, 13, 14, 15, 16, 17],
+            "high": [10.5, 11.5, 12.5, 13.5, 14.5, 15.5, 16.5, 17.5],
+            "low": [9.5, 10.5, 11.5, 12.5, 13.5, 14.5, 15.5, 16.5],
+            "close": [10, 11, 12, 13, 14, 15, 16, 17],
+            "volume": [100] * 8,
+        },
+        index=pd.date_range("2024-01-01", periods=8, freq="1h"),
+    )
+
+    specs = [
+        {
+            "name": "trend_alignment",
+            "type": "EMATrendAlignment",
+            "params": {
+                "timeframes": ["1H", "4H"],
+                "length": 3,
+                "slope_period": 1,
+            },
+            "source": "close",
+        }
+    ]
+
+    result = compute_features(df, specs)
+
+    stack_col = "trend_alignment_stack_score"
+    align_col = "trend_alignment_full_alignment"
+    nonzero_col = "trend_alignment_nonzero_fraction"
+
+    for column in (stack_col, align_col, nonzero_col):
+        assert column in result.columns
+        assert result[column].dtype == "float64"
+
+    stack_values = result[stack_col].dropna()
+    assert all((stack_values >= -1.0) & (stack_values <= 1.0))
+
+
 def test_rsi_in_compute_features():
     """Task 3: Test RSI indicator (already exists, verify it works).
 

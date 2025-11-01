@@ -70,6 +70,18 @@ INDICATORS: dict[str, dict] = {
         "implementation": impl.compute_ema_slope,
         "ta": {"module": "", "class": ""},  # custom implementation
     },
+    "EMASlopePct": {
+        "display": "EMA Slope Percent",
+        "category": "trend",
+        "description": "EMA slope expressed as percent of EMA value.",
+        "params": [
+            {"name": "length", "type": "int", "default": 14},
+            {"name": "slope_period", "type": "int", "default": 1},
+        ],
+        "safety": "validated",
+        "implementation": impl.compute_ema_slope_pct,
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
     "WMA": {
         "display": "Weighted Moving Average",
         "category": "trend",
@@ -126,6 +138,15 @@ INDICATORS: dict[str, dict] = {
             "function": "adx",
         },
     },
+    "ADXStrength": {
+        "display": "ADX Strength",
+        "category": "trend",
+        "description": "ADX scaled to a 0-1 strength score.",
+        "params": [{"name": "length", "type": "int", "default": 14}],
+        "safety": "validated",
+        "implementation": impl.compute_adx_strength,
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
     "RSI": {
         "display": "Relative Strength Index",
         "category": "momentum",
@@ -137,6 +158,15 @@ INDICATORS: dict[str, dict] = {
             "module": "pandas_ta.momentum",
             "function": "rsi",
         },
+    },
+    "RSIBias": {
+        "display": "RSI Bias",
+        "category": "momentum",
+        "description": "RSI normalised to [-1, 1] to show bias.",
+        "params": [{"name": "length", "type": "int", "default": 14}],
+        "safety": "validated",
+        "implementation": impl.compute_rsi_bias,
+        "ta": {"module": "", "class": ""},  # custom implementation
     },
     "STOCH": {
         "display": "Stochastic Oscillator",
@@ -235,6 +265,28 @@ INDICATORS: dict[str, dict] = {
             "module": "pandas_ta.volatility",
             "function": "atr",
         },
+    },
+    "ATRPercent": {
+        "display": "ATR Percent",
+        "category": "volatility",
+        "description": "ATR expressed as a percentage of price.",
+        "params": [{"name": "length", "type": "int", "default": 14}],
+        "safety": "validated",
+        "implementation": impl.compute_atr_percent,
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
+    "EMATrendAlignment": {
+        "display": "EMA Trend Alignment",
+        "category": "trend",
+        "description": "Alignment metrics for EMA slopes across timeframes.",
+        "params": [
+            {"name": "timeframes", "type": "list", "default": []},
+            {"name": "length", "type": "int", "default": 50},
+            {"name": "slope_period", "type": "int", "default": 1},
+        ],
+        "safety": "validated",
+        "implementation": impl.compute_ema_trend_alignment,
+        "ta": {"module": "", "class": ""},  # custom implementation
     },
     "ATRPercentile": {
         "display": "ATR Percentile",

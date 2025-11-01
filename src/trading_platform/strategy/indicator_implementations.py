@@ -49,6 +49,7 @@ from ta.volume import (
     OnBalanceVolumeIndicator,
 )
 
+from trading_platform.data.resample import resample_data
 from trading_platform.strategy.indicator_helpers import find_swing_points
 
 
@@ -316,6 +317,137 @@ def compute_ema_slope(
     ema_values = ema(_price_series(df, source), length)
     slope = ema_values.diff(periods=slope_period)
     return slope
+
+
+def compute_ema_slope_pct(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute EMA slope as a percentage of the EMA value."""
+    length = int(params.get("length", 14))
+    slope_period = int(params.get("slope_period", 1))
+    price_series = _price_series(df, source)
+    ema_values = ema(price_series, length)
+    slope = ema_values.diff(periods=slope_period)
+    denominator = ema_values.replace(0.0, np.nan)
+    pct = slope / denominator
+    pct = pct.replace([np.inf, -np.inf], np.nan)
+    return pct
+
+
+def compute_rsi_bias(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute RSI bias normalised to [-1, 1]."""
+    length = int(params.get("length", 14))
+    rsi_vals = rsi(_price_series(df, source), length)
+    bias = (rsi_vals - 50.0) / 50.0
+    bias = bias.clip(lower=-1.0, upper=1.0)
+    return bias
+
+
+def compute_adx_strength(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute ADX strength scaled to [0, 1]."""
+    length = int(params.get("length", 14))
+    adx_df = adx(df, length)
+    adx_vals = adx_df["ADX"]
+    strength = (adx_vals / 50.0).clip(lower=0.0, upper=1.0)
+    return strength
+
+
+def compute_atr_percent(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute ATR as a percent of price."""
+    length = int(params.get("length", 14))
+    atr_vals = atr(df, length)
+    price_series = _price_series(df, source).replace(0.0, np.nan)
+    atr_pct = (atr_vals / price_series).replace([np.inf, -np.inf], np.nan)
+    return atr_pct
+
+
+def compute_ema_trend_alignment(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> dict[str, pd.Series]:
+    """Compute multi-timeframe EMA slope alignment metrics."""
+    timeframes_param = params.get("timeframes") or []
+    if isinstance(timeframes_param, str):
+        tf_list = [timeframes_param]
+    else:
+        tf_list = list(timeframes_param)
+
+    tf_list = [str(tf) for tf in tf_list if str(tf)]
+    if not tf_list:
+        empty = pd.Series(np.nan, index=df.index, dtype="float64")
+        return {
+            "stack_score": empty,
+            "full_alignment": empty,
+            "nonzero_fraction": empty,
+        }
+
+    length = int(params.get("length", 50))
+    slope_period = int(params.get("slope_period", 1))
+
+    slope_pct_values: dict[str, pd.Series] = {}
+
+    for tf in tf_list:
+        try:
+            resampled = resample_data(df, rule=tf)
+        except Exception:
+            slope_pct_values[tf] = pd.Series(np.nan, index=df.index, dtype="float64")
+            continue
+
+        pct = compute_ema_slope_pct(
+            resampled,
+            {"length": length, "slope_period": slope_period},
+            source,
+            source_ref,
+        )
+        pct = pct.reindex(df.index, method="ffill")
+        slope_pct_values[tf] = pct
+
+    slope_pct_df = pd.DataFrame(slope_pct_values, index=df.index)
+    sign_df = slope_pct_df.apply(np.sign)
+    sign_df = sign_df.where(~slope_pct_df.isna(), np.nan)
+
+    positive_count = (sign_df > 0).sum(axis=1)
+    negative_count = (sign_df < 0).sum(axis=1)
+    nonzero_count = (sign_df != 0).sum(axis=1)
+
+    with np.errstate(invalid="ignore", divide="ignore"):
+        stack_score = (positive_count - negative_count) / nonzero_count
+
+    stack_score = stack_score.replace([np.inf, -np.inf], np.nan)
+
+    full_alignment = (
+        (nonzero_count > 0)
+        & ((positive_count == nonzero_count) | (negative_count == nonzero_count))
+    ).astype(float)
+
+    nonzero_fraction = (nonzero_count / len(tf_list)).astype(float)
+
+    stack_score = stack_score.astype(float)
+    return {
+        "stack_score": stack_score,
+        "full_alignment": full_alignment,
+        "nonzero_fraction": nonzero_fraction,
+    }
 
 
 def compute_bb_width(
