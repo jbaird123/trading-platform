@@ -206,8 +206,8 @@ def extend_test_data_for_warmup(
             backtest_start_date=pd.Timestamp(backtest_start),
         )
     except (ValueError, KeyError):
-        # Conservative fallback
-        warmup_start = pd.Timestamp(backtest_start) - pd.Timedelta(days=100)
+        # Conservative fallback (ensure enough history for weekly features)
+        warmup_start = pd.Timestamp(backtest_start) - pd.Timedelta(days=730)
 
     warmup_ts = pd.Timestamp(warmup_start)
 

@@ -46,6 +46,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 cd "$PROJECT_ROOT"
 
+
 # --- Argument Parsing ---
 SKIP_CLEANUP=false
 START_STAGE="cleanup"
@@ -184,7 +185,10 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
     RUN_COUNT=0
     for campaign in "${CAMPAIGNS[@]}"; do
         echo -e "${CYAN}Running campaign: $campaign${NC}"
-        poetry run tp campaign-run --campaign-id "$campaign" --fail-fast
+        if ! poetry run tp campaign-run --campaign-id "$campaign" --fail-fast; then
+            echo -e "${RED}Campaign run failed for $campaign. Check logs under data/campaigns/$campaign for details.${NC}"
+            exit 1
+        fi
         RUN_COUNT=$((RUN_COUNT + 1))
         echo -e "${GREEN}✓ $campaign completed ($RUN_COUNT/${#CAMPAIGNS[@]})${NC}"
     done

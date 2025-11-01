@@ -84,11 +84,11 @@ class FeatureConfig(BaseModel):
 
         if is_global:
             # Global features MUST have timeframe prefix
-            pattern = r"^(m1|m5|m15|h1|h4|d1)_[a-z0-9_]+$"
+            pattern = r"^(m1|m5|m15|h1|h4|d1|w1)_[a-z0-9_]+$"
             if not re.match(pattern, v):
                 raise ValueError(
                     f"Global features must have timeframe prefix "
-                    f"(m1_, m5_, m15_, h1_, h4_, d1_). Got: {v}"
+                    f"(m1_, m5_, m15_, h1_, h4_, d1_, w1_). Got: {v}"
                 )
 
         return v
@@ -244,6 +244,7 @@ class RunConfig(BaseModel):
                 "contains enough history for indicator warmup."
             )
         return data
+
     execution_model: Literal["current_bar_close", "next_bar_open"] = Field(
         "current_bar_close",
         description=(

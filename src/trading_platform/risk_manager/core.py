@@ -62,7 +62,10 @@ class RiskExitManager:
         elif isinstance(config, REMConfig):
             self.config = config
         elif isinstance(config, dict):
-            self.config = REMConfig(**config)
+            if not config:
+                self.config = None
+            else:
+                self.config = REMConfig(**config)
         else:
             raise TypeError(
                 f"config must be REMConfig, dict, or None, got {type(config)}"
