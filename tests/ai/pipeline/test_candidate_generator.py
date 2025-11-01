@@ -53,22 +53,22 @@ def test_generate_rmm_candidates_creates_yaml(tmp_path: Path) -> None:
     assert conditions == [
         {
             "condition": "is_above",
-            "left": {"ref": "context_at_entry_global_features_h1_rsi_14"},
+            "left": {"ref": "h1_rsi_14"},
             "right": 41.4,
         },
         {
             "condition": "is_below",
-            "left": {"ref": "context_at_entry_global_features_h1_rsi_14"},
+            "left": {"ref": "h1_rsi_14"},
             "right": 58.6,
         },
         {
             "condition": "is_above",
-            "left": {"ref": "context_at_entry_global_features_h1_atr_14"},
+            "left": {"ref": "h1_atr_14"},
             "right": 0.001,
         },
         {
             "condition": "is_below",
-            "left": {"ref": "context_at_entry_global_features_h1_atr_14"},
+            "left": {"ref": "h1_atr_14"},
             "right": 0.002,
         },
     ]
@@ -118,4 +118,4 @@ def test_generate_rmm_candidates_filters_unsupported_features(tmp_path: Path) ->
         if "left" in cond
     ]
     assert "context_at_entry_strategy_features_ema_fast" not in feature_refs
-    assert "context_at_entry_global_features_h1_rsi_14" in feature_refs
+    assert "h1_rsi_14" in feature_refs

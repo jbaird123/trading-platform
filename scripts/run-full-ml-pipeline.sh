@@ -14,7 +14,8 @@
 #  10. Train profitability models
 #
 # Usage:
-#   ./scripts/run-full-ml-pipeline.sh [--skip-cleanup] [--start-from <stage>]
+#   ./scripts/run-full-ml-pipeline.sh [--skip-cleanup] [--start-from <stage>] \
+#       [--train-start YYYY-MM-DD] [--train-end YYYY-MM-DD]
 #
 # Options:
 #   --skip-cleanup    Skip initial cleanup of existing campaign data
@@ -22,6 +23,8 @@
 #                     Stages: cleanup, meta_campaign, planning, execution,
 #                             validation, review, approve, enrich, publish,
 #                             train_diagnostic, train_profitability
+#   --train-start     Optional inclusive start date for profitability training
+#   --train-end       Optional inclusive end date for profitability training
 
 set -e  # Exit on any error
 
@@ -39,6 +42,10 @@ TOTAL_STAGES=10
 META_CAMPAIGN_CONFIGS=(
     "config/meta_campaigns/trend_following_data_gen.yaml"
 )
+
+# Profitability training date overrides (set env vars to enable)
+TRAIN_PROFITABILITY_START=${TRAIN_PROFITABILITY_START:-}
+TRAIN_PROFITABILITY_END=${TRAIN_PROFITABILITY_END:-}
 
 # Get the directory of this script and navigate to project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -62,6 +69,16 @@ while [[ $# -gt 0 ]]; do
         START_STAGE="$2"
         shift # past argument
         shift # past value
+        ;;
+        --train-start)
+        TRAIN_PROFITABILITY_START="$2"
+        shift
+        shift
+        ;;
+        --train-end)
+        TRAIN_PROFITABILITY_END="$2"
+        shift
+        shift
         ;;
         *)
         echo "Unknown option: $1"
@@ -311,9 +328,23 @@ fi
 # Stage 10: Train Profitability Models
 if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
     echo -e "${YELLOW}[${CURRENT_STAGE}/${TOTAL_STAGES}] Training profitability models...${NC}"
-    poetry run tp train-profitability-models \
-        --enriched-data data/dvc/processed/training_sets/master_trade_log.parquet \
-        --model-dir data/dvc/ml/models
+    PROF_CMD=(
+        poetry
+        run
+        tp
+        train-profitability-models
+        --enriched-data
+        data/dvc/processed/training_sets/master_trade_log.parquet
+        --model-dir
+        data/dvc/ml/models
+    )
+    if [ -n "$TRAIN_PROFITABILITY_START" ]; then
+        PROF_CMD+=(--train-start "$TRAIN_PROFITABILITY_START")
+    fi
+    if [ -n "$TRAIN_PROFITABILITY_END" ]; then
+        PROF_CMD+=(--train-end "$TRAIN_PROFITABILITY_END")
+    fi
+    "${PROF_CMD[@]}"
     PROFITABILITY_COUNT=$(find data/dvc/ml/models/profitability -name "*.pkl" 2>/dev/null | wc -l | xargs)
     echo -e "${GREEN}✓ Trained ${PROFITABILITY_COUNT} profitability models${NC}"
     echo ""

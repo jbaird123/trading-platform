@@ -991,6 +991,46 @@ def cmd_train_profitability_models(args: argparse.Namespace) -> int:
     enriched_df = pd.read_parquet(enriched_path)
     print(f"Loaded {len(enriched_df)} trades")
 
+    enriched_df["entry_time"] = pd.to_datetime(
+        enriched_df["entry_time"], utc=True, errors="coerce"
+    )
+
+    start_ts = None
+    end_ts = None
+    if args.train_start:
+        try:
+            start_ts = pd.Timestamp(args.train_start, tz="UTC")
+        except ValueError:
+            print(
+                f"Error: Invalid --train-start date '{args.train_start}'",
+                file=sys.stderr,
+            )
+            return 1
+    if args.train_end:
+        try:
+            end_ts = pd.Timestamp(args.train_end, tz="UTC")
+        except ValueError:
+            print(
+                f"Error: Invalid --train-end date '{args.train_end}'",
+                file=sys.stderr,
+            )
+            return 1
+
+    if start_ts and end_ts and end_ts < start_ts:
+        print(
+            "Error: --train-end must be on or after --train-start.",
+            file=sys.stderr,
+        )
+        return 1
+
+    if start_ts:
+        enriched_df = enriched_df[enriched_df["entry_time"] >= start_ts].copy()
+    if end_ts:
+        enriched_df = enriched_df[enriched_df["entry_time"] <= end_ts].copy()
+
+    if start_ts or end_ts:
+        print(f"Filtered trades count: {len(enriched_df)}")
+
     # Initialize registry
     model_dir = Path(args.model_dir) if args.model_dir else Path("models")
     registry = ModelRegistry(model_dir=model_dir)
@@ -2127,6 +2167,16 @@ def main() -> int:
         type=int,
         default=42,
         help="Random seed for reproducibility (default: 42)",
+    )
+    ptpm.add_argument(
+        "--train-start",
+        type=str,
+        help="Optional inclusive training start date (e.g., 2018-01-01).",
+    )
+    ptpm.add_argument(
+        "--train-end",
+        type=str,
+        help="Optional inclusive training end date (e.g., 2021-12-31).",
     )
     ptpm.set_defaults(func=cmd_train_profitability_models)
 

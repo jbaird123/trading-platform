@@ -13,13 +13,13 @@ import argparse
 import json
 import logging
 from pathlib import Path
-from typing import Iterable
+from typing import Sequence
 
 import numpy as np
 import pandas as pd
 
 try:  # Optional dependency: matplotlib is only required for histograms.
-    import matplotlib.pyplot as plt
+    import matplotlib.pyplot as plt  # type: ignore[import-not-found]
 except Exception:  # pragma: no cover - matplotlib may be absent in CI
     plt = None
 
@@ -34,7 +34,7 @@ def _setup_logging(verbose: bool) -> None:
     )
 
 
-def _parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
+def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Audit feature availability/variance in the trade dataset."
     )
@@ -111,7 +111,7 @@ def _basic_profile(df: pd.DataFrame, out_dir: Path) -> dict[str, object]:
         stats = numeric.describe().transpose()
         _save_dataframe(stats, out_dir / "describe_numeric.csv")
 
-    summary = {
+    summary: dict[str, object] = {
         "row_count": len(df),
         "column_count": df.shape[1],
         "numeric_columns": numeric.shape[1],
@@ -281,7 +281,7 @@ def _plot_top_variance_histograms(
         LOGGER.debug("Wrote %s", plot_path)
 
 
-def main(argv: Iterable[str] | None = None) -> None:
+def main(argv: Sequence[str] | None = None) -> None:
     args = _parse_args(argv)
     _setup_logging(args.verbose)
     df = _load_dataframe(args.input)
