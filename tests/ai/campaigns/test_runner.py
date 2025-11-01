@@ -1,8 +1,9 @@
 """Tests for campaign batch execution engine."""
 
 import json
+import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 import yaml
@@ -104,11 +105,15 @@ def test_execute_campaign_single_run(single_run_plan, tmp_path):
     runs_dir = tmp_path / "runs"
     campaign_dir = tmp_path / "campaign"
 
-    with patch("subprocess.run") as mock_run:
-        # Mock successful execution
-        mock_run.return_value = MagicMock(
-            returncode=0, stdout="Success", stderr="", args=[]
-        )
+    with patch(
+        "trading_platform.ai.campaigns.runner._run_backtest_logic"
+    ) as mock_runner:
+
+        def _success(*_args, **_kwargs):
+            print("success output")
+            return 0
+
+        mock_runner.side_effect = _success
 
         results = execute_campaign_runs(
             single_run_plan, runs_dir=runs_dir, campaign_dir=campaign_dir
@@ -118,6 +123,7 @@ def test_execute_campaign_single_run(single_run_plan, tmp_path):
         assert results.successful == 1
         assert results.failed == 0
         assert results.campaign_id == "test_campaign_001"
+        assert "success output" in results.run_results[0].stdout
 
 
 def test_execute_campaign_multiple_runs(multi_run_plan, tmp_path):
@@ -125,11 +131,10 @@ def test_execute_campaign_multiple_runs(multi_run_plan, tmp_path):
     runs_dir = tmp_path / "runs"
     campaign_dir = tmp_path / "campaign"
 
-    with patch("subprocess.run") as mock_run:
-        # Mock successful execution for all runs
-        mock_run.return_value = MagicMock(
-            returncode=0, stdout="Success", stderr="", args=[]
-        )
+    with patch(
+        "trading_platform.ai.campaigns.runner._run_backtest_logic"
+    ) as mock_runner:
+        mock_runner.side_effect = [0, 0, 0]
 
         results = execute_campaign_runs(
             multi_run_plan, runs_dir=runs_dir, campaign_dir=campaign_dir
@@ -137,7 +142,7 @@ def test_execute_campaign_multiple_runs(multi_run_plan, tmp_path):
 
         assert results.successful == 3
         assert results.failed == 0
-        assert mock_run.call_count == 3
+        assert mock_runner.call_count == 3
 
 
 def test_execute_campaign_fails_fast_on_error(multi_run_plan, tmp_path):
@@ -145,25 +150,37 @@ def test_execute_campaign_fails_fast_on_error(multi_run_plan, tmp_path):
     runs_dir = tmp_path / "runs"
     campaign_dir = tmp_path / "campaign"
 
-    with patch("subprocess.run") as mock_run:
-        with patch("platform.platform", return_value="Darwin-25.0.0"):
-            # First run succeeds, second fails
-            mock_run.side_effect = [
-                MagicMock(returncode=0, stdout="Success", stderr="", args=[]),
-                MagicMock(returncode=1, stdout="", stderr="Error occurred", args=[]),
+    with patch(
+        "trading_platform.ai.campaigns.runner._run_backtest_logic"
+    ) as mock_runner, patch("platform.platform", return_value="Darwin-25.0.0"):
+        call_iter = iter(
+            [
+                ("first ok", "", 0),
+                ("", "second failure", 1),
             ]
+        )
 
-            results = execute_campaign_runs(
-                multi_run_plan,
-                runs_dir=runs_dir,
-                campaign_dir=campaign_dir,
-                fail_fast=True,
-            )
+        def _side_effect(*_args, **_kwargs):
+            out, err, code = next(call_iter)
+            if out:
+                print(out)
+            if err:
+                print(err, file=sys.stderr)
+            return code
 
-            # Should stop after 2 runs (1 success, 1 failure)
-            assert results.successful == 1
-            assert results.failed == 1
-            assert mock_run.call_count == 2
+        mock_runner.side_effect = _side_effect
+
+        results = execute_campaign_runs(
+            multi_run_plan,
+            runs_dir=runs_dir,
+            campaign_dir=campaign_dir,
+            fail_fast=True,
+        )
+
+        assert results.successful == 1
+        assert results.failed == 1
+        assert mock_runner.call_count == 2
+        assert "second failure" in results.run_results[1].stderr
 
 
 def test_execute_campaign_continues_on_error(multi_run_plan, tmp_path):
@@ -171,26 +188,37 @@ def test_execute_campaign_continues_on_error(multi_run_plan, tmp_path):
     runs_dir = tmp_path / "runs"
     campaign_dir = tmp_path / "campaign"
 
-    with patch("subprocess.run") as mock_run:
-        with patch("platform.platform", return_value="Darwin-25.0.0"):
-            # First succeeds, second fails, third succeeds
-            mock_run.side_effect = [
-                MagicMock(returncode=0, stdout="Success", stderr="", args=[]),
-                MagicMock(returncode=1, stdout="", stderr="Error", args=[]),
-                MagicMock(returncode=0, stdout="Success", stderr="", args=[]),
+    with patch(
+        "trading_platform.ai.campaigns.runner._run_backtest_logic"
+    ) as mock_runner, patch("platform.platform", return_value="Darwin-25.0.0"):
+        call_iter = iter(
+            [
+                ("", "first failure", 1),
+                ("second ok", "", 0),
+                ("third ok", "", 0),
             ]
+        )
 
-            results = execute_campaign_runs(
-                multi_run_plan,
-                runs_dir=runs_dir,
-                campaign_dir=campaign_dir,
-                continue_on_error=True,
-            )
+        def _side_effect(*_args, **_kwargs):
+            out, err, code = next(call_iter)
+            if out:
+                print(out)
+            if err:
+                print(err, file=sys.stderr)
+            return code
 
-            # All 3 runs attempted
-            assert results.successful == 2
-            assert results.failed == 1
-            assert mock_run.call_count == 3
+        mock_runner.side_effect = _side_effect
+
+        results = execute_campaign_runs(
+            multi_run_plan,
+            runs_dir=runs_dir,
+            campaign_dir=campaign_dir,
+            continue_on_error=True,
+        )
+
+        assert results.successful == 2
+        assert results.failed == 1
+        assert mock_runner.call_count == 3
 
 
 def test_execute_campaign_writes_execution_log(single_run_plan, tmp_path):
@@ -198,10 +226,10 @@ def test_execute_campaign_writes_execution_log(single_run_plan, tmp_path):
     runs_dir = tmp_path / "runs"
     campaign_dir = tmp_path / "campaign"
 
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value = MagicMock(
-            returncode=0, stdout="Success", stderr="", args=[]
-        )
+    with patch(
+        "trading_platform.ai.campaigns.runner._run_backtest_logic"
+    ) as mock_runner:
+        mock_runner.return_value = 0
 
         execute_campaign_runs(
             single_run_plan, runs_dir=runs_dir, campaign_dir=campaign_dir
@@ -220,42 +248,42 @@ def test_execute_campaign_creates_failure_reports(single_run_plan, tmp_path):
     runs_dir = tmp_path / "runs"
     campaign_dir = tmp_path / "campaign"
 
-    with patch("subprocess.run") as mock_run:
-        with patch("platform.platform", return_value="Darwin-25.0.0"):
-            mock_run.return_value = MagicMock(
-                returncode=1,
-                stdout="Partial output",
-                stderr="Traceback: Error occurred",
-                args=[],
-            )
+    with patch(
+        "trading_platform.ai.campaigns.runner._run_backtest_logic"
+    ) as mock_runner, patch("platform.platform", return_value="Darwin-25.0.0"):
 
-            results = execute_campaign_runs(
-                single_run_plan,
-                runs_dir=runs_dir,
-                campaign_dir=campaign_dir,
-                continue_on_error=True,
-            )
+        def _failure(*_args, **_kwargs):
+            print("Partial output", end="")
+            print("Traceback: Error occurred", file=sys.stderr)
+            return 1
 
-            assert results.failed == 1
+        mock_runner.side_effect = _failure
 
-            # Check failure report exists
-            failure_report = (
-                campaign_dir
-                / "failures"
-                / "test_campaign_001_0000_EURUSD_failure_report.json"
-            )
-            assert failure_report.exists()
+        results = execute_campaign_runs(
+            single_run_plan,
+            runs_dir=runs_dir,
+            campaign_dir=campaign_dir,
+            continue_on_error=True,
+        )
 
-            # Verify report contents
-            with open(failure_report) as f:
-                report = json.load(f)
+        assert results.failed == 1
 
-            assert report["run_id"] == "test_campaign_001_0000_EURUSD"
-            assert report["exit_code"] == 1
-            assert "Traceback" in report["stderr"]
-            assert "failed_at" in report
-            assert "config_snapshot" in report
-            assert "environment" in report
+        failure_report = (
+            campaign_dir
+            / "failures"
+            / "test_campaign_001_0000_EURUSD_failure_report.json"
+        )
+        assert failure_report.exists()
+
+        with open(failure_report) as f:
+            report = json.load(f)
+
+        assert report["run_id"] == "test_campaign_001_0000_EURUSD"
+        assert report["exit_code"] == 1
+        assert "Traceback" in report["stderr"]
+        assert "failed_at" in report
+        assert "config_snapshot" in report
+        assert "environment" in report
 
 
 def test_execute_campaign_raises_on_error_without_flags(multi_run_plan, tmp_path):
@@ -263,22 +291,19 @@ def test_execute_campaign_raises_on_error_without_flags(multi_run_plan, tmp_path
     runs_dir = tmp_path / "runs"
     campaign_dir = tmp_path / "campaign"
 
-    with patch("subprocess.run") as mock_run:
-        with patch("platform.platform", return_value="Darwin-25.0.0"):
-            # First succeeds, second fails
-            mock_run.side_effect = [
-                MagicMock(returncode=0, stdout="Success", stderr="", args=[]),
-                MagicMock(returncode=1, stdout="", stderr="Error", args=[]),
-            ]
+    with patch(
+        "trading_platform.ai.campaigns.runner._run_backtest_logic"
+    ) as mock_runner, patch("platform.platform", return_value="Darwin-25.0.0"):
+        mock_runner.side_effect = [0, 1]
 
-            with pytest.raises(RuntimeError, match="failed with exit code"):
-                execute_campaign_runs(
-                    multi_run_plan,
-                    runs_dir=runs_dir,
-                    campaign_dir=campaign_dir,
-                    fail_fast=False,
-                    continue_on_error=False,
-                )
+        with pytest.raises(RuntimeError, match="failed with exit code"):
+            execute_campaign_runs(
+                multi_run_plan,
+                runs_dir=runs_dir,
+                campaign_dir=campaign_dir,
+                fail_fast=False,
+                continue_on_error=False,
+            )
 
 
 def test_execute_campaign_creates_completion_summary(multi_run_plan, tmp_path):
@@ -286,33 +311,27 @@ def test_execute_campaign_creates_completion_summary(multi_run_plan, tmp_path):
     runs_dir = tmp_path / "runs"
     campaign_dir = tmp_path / "campaign"
 
-    with patch("subprocess.run") as mock_run:
-        with patch("platform.platform", return_value="Darwin-25.0.0"):
-            # Mix of success and failure
-            mock_run.side_effect = [
-                MagicMock(returncode=0, stdout="Success", stderr="", args=[]),
-                MagicMock(returncode=1, stdout="", stderr="Error", args=[]),
-                MagicMock(returncode=0, stdout="Success", stderr="", args=[]),
-            ]
+    with patch(
+        "trading_platform.ai.campaigns.runner._run_backtest_logic"
+    ) as mock_runner, patch("platform.platform", return_value="Darwin-25.0.0"):
+        mock_runner.side_effect = [0, 1, 0]
 
-            execute_campaign_runs(
-                multi_run_plan,
-                runs_dir=runs_dir,
-                campaign_dir=campaign_dir,
-                continue_on_error=True,
-            )
+        execute_campaign_runs(
+            multi_run_plan,
+            runs_dir=runs_dir,
+            campaign_dir=campaign_dir,
+            continue_on_error=True,
+        )
 
-            # Check completion summary exists
-            summary_file = campaign_dir / "campaign_complete.yaml"
-            assert summary_file.exists()
+        summary_file = campaign_dir / "campaign_complete.yaml"
+        assert summary_file.exists()
 
-            # Verify summary contents
-            with open(summary_file) as f:
-                summary = yaml.safe_load(f)
+        with open(summary_file) as f:
+            summary = yaml.safe_load(f)
 
-            assert summary["campaign_id"] == "test_campaign_002"
-            assert summary["total_runs"] == 3
-            assert summary["successful"] == 2
-            assert summary["failed"] == 1
-            assert "total_runtime_seconds" in summary
-            assert "completed_at" in summary
+        assert summary["campaign_id"] == "test_campaign_002"
+        assert summary["total_runs"] == 3
+        assert summary["successful"] == 2
+        assert summary["failed"] == 1
+        assert "total_runtime_seconds" in summary
+        assert "completed_at" in summary

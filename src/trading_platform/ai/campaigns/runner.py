@@ -1,9 +1,12 @@
 """Campaign batch execution engine with failure artifact generation."""
 
+import argparse
+import io
 import json
 import platform
-import subprocess
 import sys
+import traceback
+from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime, timezone
 from pathlib import Path
 from time import time
@@ -16,6 +19,7 @@ from trading_platform.ai.campaigns.models import (
     ExecutionResults,
     RunResult,
 )
+from trading_platform.cli import _run_backtest_logic
 
 
 def execute_campaign_runs(
@@ -127,24 +131,43 @@ def execute_campaign_runs(
             with open(run_config_path, "w") as f:
                 yaml.dump(run_config_data, f, default_flow_style=False)
 
-            # Build command to execute backtest
-            cmd = [
-                "poetry",
-                "run",
-                "tp",
-                "run-backtest",
-                "--config",
-                str(run_config_path),
-            ]
+            # Execute the run in-process to leverage shared caches
+            args = argparse.Namespace(
+                config=str(run_config_path),
+                demo=False,
+                user="campaign_runner",
+                output_dir=None,
+                clear_cache=False,
+            )
 
-            # Execute the run
-            result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            stdout_buffer = io.StringIO()
+            stderr_buffer = io.StringIO()
+            exit_code = 0
+            try:
+                with redirect_stdout(stdout_buffer):
+                    with redirect_stderr(stderr_buffer):
+                        exit_code = _run_backtest_logic(args)
+            except SystemExit as exc:  # pragma: no cover - defensive
+                code = exc.code
+                if isinstance(code, int):
+                    exit_code = code
+                else:
+                    exit_code = 1
+                    stderr_buffer.write(f"SystemExit: {code}\n")
+            except Exception:  # pragma: no cover - defensive
+                exit_code = 1
+                stderr_buffer.write(traceback.format_exc())
+
+            stdout_text = stdout_buffer.getvalue()
+            stderr_text = stderr_buffer.getvalue()
+            stdout_buffer.close()
+            stderr_buffer.close()
 
             run_end = time()
             execution_time = run_end - run_start
 
             # Process results
-            if result.returncode == 0:
+            if exit_code == 0:
                 status = "success"
                 successful += 1
                 log_file.write(
@@ -179,16 +202,16 @@ def execute_campaign_runs(
                 failed += 1
                 log_file.write(
                     f"[{datetime.now(timezone.utc).isoformat()}] "
-                    f"Failed: {run.run_id} (exit code {result.returncode})\n"
+                    f"Failed: {run.run_id} (exit code {exit_code})\n"
                 )
 
                 # Create failure report
                 failure_report = {
                     "run_id": run.run_id,
                     "failed_at": datetime.now(timezone.utc).isoformat(),
-                    "exit_code": result.returncode,
-                    "stderr": result.stderr,
-                    "stdout": result.stdout,
+                    "exit_code": exit_code,
+                    "stderr": stderr_text,
+                    "stdout": stdout_text,
                     "config_snapshot": {
                         "instrument": run.instrument,
                         "start_date": run.start_date,
@@ -220,9 +243,9 @@ def execute_campaign_runs(
             run_result = RunResult(
                 run_id=run.run_id,
                 status=status,
-                exit_code=result.returncode,
-                stdout=result.stdout,
-                stderr=result.stderr,
+                exit_code=exit_code,
+                stdout=stdout_text,
+                stderr=stderr_text,
                 execution_time_seconds=execution_time,
             )
             run_results.append(run_result)
@@ -238,8 +261,7 @@ def execute_campaign_runs(
                 elif not continue_on_error and not fail_fast:
                     log_file.close()
                     raise RuntimeError(
-                        f"Run {run.run_id} failed with exit code "
-                        f"{result.returncode}"
+                        f"Run {run.run_id} failed with exit code {exit_code}"
                     )
 
     finally:

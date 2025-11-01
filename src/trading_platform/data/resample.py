@@ -7,6 +7,7 @@ at multiple timeframes (e.g., 15m strategy with 1H contextual features).
 
 from __future__ import annotations
 
+import re
 import warnings
 
 import pandas as pd
@@ -52,14 +53,35 @@ def resample_data(data: pd.DataFrame, rule: str) -> pd.DataFrame:
         "volume": "sum",
     }
 
-    # Normalize rule to lowercase to avoid pandas deprecation warnings
-    rule = str(rule).lower()
+    # Normalize rule casing:
+    # - minute-based rules should remain lower (e.g., 1min)
+    # - all other rules should use uppercase suffix (e.g., 1H, 1D, 1W)
+    raw_rule = str(rule).strip()
+    normalized_rule = raw_rule
 
-    # Validate that the rule is parsable by attempting a dummy offset
+    match = re.fullmatch(r"(\d+)\s*([A-Za-z]+)", raw_rule)
+    if match:
+        value, unit = match.groups()
+        unit_lower = unit.lower()
+        if unit_lower in {"min", "t"}:
+            unit_token = "min"
+        elif unit_lower == "h":
+            unit_token = "h"
+        elif unit_lower == "d":
+            unit_token = "d"
+        elif unit_lower == "w":
+            unit_token = "W"  # pandas prefers uppercase W for weeks
+        else:
+            unit_token = unit
+        normalized_rule = f"{value}{unit_token}"
+
+    # Validate and obtain canonical frequency via pandas offset
     try:
-        pd.tseries.frequencies.to_offset(rule)
+        offset = pd.tseries.frequencies.to_offset(normalized_rule)
     except ValueError as e:
-        raise ValueError(f"Invalid frequency rule: {rule}") from e
+        raise ValueError(f"Invalid frequency rule: {raw_rule}") from e
+
+    rule = offset.freqstr
 
     # Perform resampling with closed="left", label="right" to align
     # with TradingView-style bar labeling convention:

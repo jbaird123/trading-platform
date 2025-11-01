@@ -10,6 +10,7 @@ cached timeframe that evenly divides into the target, minimizing computation.
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -20,6 +21,18 @@ from .schema import resample_ohlc
 
 if TYPE_CHECKING:
     from .instrument import InstrumentDefinition
+
+
+@dataclass
+class _CachedInstrumentData:
+    raw_data: pd.DataFrame
+    data_quality_flags: list[str]
+    cache: dict[str, pd.DataFrame]
+    base_timeframe: str
+    base_minutes: int
+
+
+_GLOBAL_INSTRUMENT_CACHE: dict[tuple[str, Path], _CachedInstrumentData] = {}
 
 
 def _parse_timeframe_to_minutes(timeframe: str) -> int:
@@ -95,26 +108,41 @@ class DataHandler:
             data_root: Root directory containing data files
             instrument: Instrument definition for session-aware resampling
         """
+        resolved_root = Path(data_root).resolve()
         self.symbol = symbol
-        self.data_root = data_root
+        self.data_root = resolved_root
         self.instrument = instrument
 
-        # Load raw data once
-        self._raw_data, self.data_quality_flags = load_instrument_data(
-            symbol, data_root
-        )
+        cache_key = (symbol, resolved_root)
+        cached = _GLOBAL_INSTRUMENT_CACHE.get(cache_key)
 
-        # Cache: timeframe_str -> full_dataframe
-        # All cached data contains the complete dataset
-        self._cache: dict[str, pd.DataFrame] = {}
+        if cached is None:
+            raw_data, dq_flags = load_instrument_data(symbol, resolved_root)
+            base_timeframe, base_minutes = self._detect_base_timeframe_from_df(raw_data)
+            cache: dict[str, pd.DataFrame] = {base_timeframe: raw_data}
+            cached = _CachedInstrumentData(
+                raw_data=raw_data,
+                data_quality_flags=dq_flags,
+                cache=cache,
+                base_timeframe=base_timeframe,
+                base_minutes=base_minutes,
+            )
+            _GLOBAL_INSTRUMENT_CACHE[cache_key] = cached
+
+        # Load raw data once (shared across handler instances)
+        self._raw_data = cached.raw_data
+        self.data_quality_flags = cached.data_quality_flags
+
+        # Cache: timeframe_str -> full_dataframe (shared per instrument)
+        self._cache = cached.cache
 
         # RMM context cache: (rmm_config_hash, timeframe) -> rmm_context_dict
         # Caches regime classification results to avoid recomputation
         self._rmm_cache: dict[tuple[str, str], dict] = {}
 
         # Detect base timeframe from raw data instead of assuming
-        self._base_timeframe, self._base_minutes = self._detect_base_timeframe()
-        self._cache[self._base_timeframe] = self._raw_data
+        self._base_timeframe = cached.base_timeframe
+        self._base_minutes = cached.base_minutes
 
     def get_data(
         self,
@@ -166,6 +194,57 @@ class DataHandler:
 
         return df
 
+    @staticmethod
+    def _detect_base_timeframe_from_df(df: pd.DataFrame) -> tuple[str, int]:
+        """Detect the base timeframe of the provided dataframe.
+
+        Args:
+            df: DataFrame indexed by datetime containing at least two bars
+
+        Returns:
+            Tuple of (timeframe_string, minutes)
+
+        Raises:
+            ValueError: If the dataframe contains fewer than two rows or the
+                resulting cadence cannot be mapped to a supported timeframe.
+        """
+        if len(df) < 2:
+            raise ValueError(
+                "Cannot detect base timeframe: need at least two bars "
+                f"but received {len(df)}."
+            )
+
+        index = df.index
+        if not isinstance(index, pd.DatetimeIndex):
+            raise TypeError(
+                "Expected a DatetimeIndex to detect base timeframe, "
+                f"received {type(index)}."
+            )
+
+        # Calculate time differences between consecutive bars
+        time_diffs = index[1:] - index[:-1]
+        most_common_diff = time_diffs.value_counts().idxmax()
+
+        timedelta = pd.Timedelta(most_common_diff)
+        minutes = int(timedelta.total_seconds() / 60)
+
+        mapping: dict[int, str] = {
+            1: "1min",
+            5: "5min",
+            15: "15min",
+            60: "1h",
+            240: "4h",
+            1440: "1d",
+            10080: "1w",
+        }
+
+        timeframe = mapping.get(minutes)
+        if timeframe is None:
+            raise ValueError(
+                f"Detected unsupported timeframe: {minutes} minutes between bars."
+            )
+        return timeframe, minutes
+
     def _detect_base_timeframe(self) -> tuple[str, int]:
         """Detect the base timeframe of the raw data.
 
@@ -178,40 +257,7 @@ class DataHandler:
         Raises:
             ValueError: If timeframe cannot be detected or data is irregular
         """
-        if len(self._raw_data) < 2:
-            raise ValueError(
-                f"Cannot detect base timeframe: need at least 2 bars, "
-                f"got {len(self._raw_data)}"
-            )
-
-        # Calculate time differences between consecutive bars
-        time_diffs = self._raw_data.index[1:] - self._raw_data.index[:-1]
-
-        # Get the most common difference (mode)
-        most_common_diff = time_diffs.value_counts().idxmax()
-
-        # Convert to minutes (cast to Timedelta for type safety)
-        timedelta = pd.Timedelta(most_common_diff)
-        minutes = int(timedelta.total_seconds() / 60)
-
-        # Map to standard timeframe string
-        if minutes == 1:
-            return ("1min", 1)
-        elif minutes == 5:
-            return ("5min", 5)
-        elif minutes == 15:
-            return ("15min", 15)
-        elif minutes == 60:
-            return ("1h", 60)
-        elif minutes == 240:
-            return ("4h", 240)
-        elif minutes == 1440:
-            return ("1d", 1440)
-        else:
-            raise ValueError(
-                f"Detected unusual timeframe: {minutes} minutes. "
-                f"Expected standard timeframes: 1min, 5min, 15min, 1h, 4h, or 1d"
-            )
+        return self._detect_base_timeframe_from_df(self._raw_data)
 
     def _find_best_resample_source(self, target_timeframe: str) -> pd.DataFrame:
         """Find the largest cached timeframe that evenly divides into target.
