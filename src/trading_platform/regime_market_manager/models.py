@@ -34,6 +34,14 @@ class RMMFeatureConfig(BaseModel):
         default=None,
         description="Reference another computed feature as the input series.",
     )
+    timeframe: str | None = Field(
+        default=None,
+        description=(
+            "Optional pandas offset alias if feature should be computed on a "
+            "different timeframe than the RMM classification timeframe."
+        ),
+        pattern=r"^\d*(?:[DHMS]|[mM][iI][nN]|[tT]|[wW])$",
+    )
 
     @field_validator("type")
     @classmethod

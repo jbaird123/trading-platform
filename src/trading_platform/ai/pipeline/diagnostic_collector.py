@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
-from typing import Iterable, Union
+from typing import Iterable, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -24,12 +24,39 @@ def _model_hash(model: object) -> str:
 
 
 def _select_feature_frame(context_df: pd.DataFrame, model: object) -> pd.DataFrame:
+    """Extract and align the feature frame expected by the diagnostic model.
+
+    Diagnostic models expose `feature_names_` (post-encoding) while the raw
+    enriched trades only contain canonical columns (e.g., `side`, `exit_reason`).
+    Models are responsible for expanding these into one-hot encoded features,
+    so we reuse the fitted model's extraction utilities when available.
+    """
+
+    extract_features = getattr(model, "_extract_features", None)
+    if callable(extract_features):
+        feature_frame = cast(pd.DataFrame, extract_features(context_df.copy()))
+    else:
+        feature_names = getattr(model, "feature_names_", None)
+        if isinstance(feature_names, (list, tuple, np.ndarray, pd.Index)):
+            names = [str(name) for name in feature_names]
+            missing = [name for name in names if name not in context_df.columns]
+            frame = context_df.copy()
+            for name in missing:
+                frame[name] = 0.0
+            feature_frame = frame.loc[:, names]
+        else:
+            available = [c for c in context_df.columns if c not in META_COLUMNS]
+            feature_frame = context_df.loc[:, available]
+
     feature_names = getattr(model, "feature_names_", None)
     if isinstance(feature_names, (list, tuple, np.ndarray, pd.Index)):
-        names = [str(name) for name in feature_names]
-        return context_df.loc[:, names]
-    available = [c for c in context_df.columns if c not in META_COLUMNS]
-    return context_df.loc[:, available]
+        ordered = [str(name) for name in feature_names]
+        for name in ordered:
+            if name not in feature_frame.columns:
+                feature_frame[name] = 0.0
+        feature_frame = feature_frame.loc[:, ordered]
+
+    return feature_frame
 
 
 def _top_features(model: object, feature_names: Iterable[str]) -> list[str]:

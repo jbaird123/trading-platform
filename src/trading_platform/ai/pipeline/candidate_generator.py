@@ -3,20 +3,55 @@
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 from pathlib import Path
 from typing import Iterable
 
 import yaml
+from trading_platform.core.config import GlobalFeatureSetConfig
+from trading_platform.core.paths import PROJECT_ROOT
+
+
+def _to_plain_feature_spec(feature: dict) -> dict:
+    spec = dict(feature)
+    source = spec.get("source")
+    if source is not None and hasattr(source, "value"):
+        spec["source"] = source.value
+    return spec
+
+
+@lru_cache(maxsize=1)
+def _global_feature_lookup() -> dict[str, dict]:
+    """Map context feature names to global feature specs."""
+
+    global_path = PROJECT_ROOT / "config" / "features" / "global.yaml"
+    if not global_path.exists():
+        return {}
+
+    raw_cfg = yaml.safe_load(global_path.read_text()) or {}
+    model = GlobalFeatureSetConfig.model_validate(raw_cfg, context={"is_global": True})
+
+    lookup: dict[str, dict] = {}
+    for feature in model.features:
+        spec = _to_plain_feature_spec(feature.model_dump())
+        context_key = f"context_at_entry_global_features_{spec['name']}"
+        lookup[context_key] = spec
+    return lookup
+
+
+def _normalize_feature_name(feature_name: str) -> tuple[str | None, dict | None]:
+    """Return (normalized_name, spec) for a diagnostic feature."""
+
+    lookup = _global_feature_lookup()
+    spec = lookup.get(feature_name)
+    if spec is None:
+        return None, None
+    return spec["name"], spec
 
 
 def _is_supported_feature(feature_name: str) -> bool:
-    """Return True if feature can be referenced safely in RMM config."""
-
-    allowed_prefixes = (
-        "context_at_entry_global_",
-        "context_at_entry_features_global_",
-    )
-    return any(feature_name.startswith(prefix) for prefix in allowed_prefixes)
+    name, spec = _normalize_feature_name(feature_name)
+    return name is not None and spec is not None
 
 
 def _load_summaries(summary_root: Path) -> list[dict]:
@@ -32,13 +67,25 @@ def _context_dir(output_dir: Path, context_key: str) -> Path:
     return directory
 
 
+MAX_FEATURE_PREDICATES = 4
+
+
 def _candidate_yaml(context_key: str, bounds: Iterable[dict]) -> dict:
     timeframe, *_ = context_key.split("_", 1)
     conditions: list[dict] = []
+    feature_specs: dict[str, dict] = {}
     for item in bounds:
-        if not _is_supported_feature(item["feature"]):
+        normalized_name, spec = _normalize_feature_name(item["feature"])
+        if not normalized_name or spec is None:
             continue
-        feature_ref = {"ref": item["feature"]}
+
+        if normalized_name in feature_specs:
+            continue
+        if len(feature_specs) >= MAX_FEATURE_PREDICATES:
+            continue
+
+        feature_specs.setdefault(normalized_name, spec)
+        feature_ref = {"ref": normalized_name}
         lower_bound = float(item["lower"])
         upper_bound = float(item["upper"])
         conditions.append(
@@ -60,6 +107,11 @@ def _candidate_yaml(context_key: str, bounds: Iterable[dict]) -> dict:
         "name": f"auto_{context_key}",
         "version": "1",
         "timeframe": timeframe,
+        "features": list(feature_specs.values()),
+        "policy": {
+            "min_confidence": 0.6,
+            "allow_labels": ["high_performance"],
+        },
         "regimes": [
             {
                 "label": "high_performance",

@@ -124,6 +124,23 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         cfg_raw.pop("rmm_path", None)
 
     # Remove CLI-only fields that aren't part of RunConfig schema
+    global_features_config_path: Path | None = None
+    global_feat_val = cfg_raw.pop("global_features_config_path", None)
+    if global_feat_val:
+        gf_path = Path(str(global_feat_val))
+        if not gf_path.is_absolute():
+            candidate_path = (cfg_path.parent / gf_path).resolve()
+            if candidate_path.exists():
+                global_features_config_path = candidate_path
+            else:
+                root_candidate = (paths.PROJECT_ROOT / gf_path).resolve()
+                if root_candidate.exists():
+                    global_features_config_path = root_candidate
+                else:
+                    global_features_config_path = candidate_path
+        else:
+            global_features_config_path = gf_path
+
     cfg_raw.pop("fast_mode", None)  # Removed - not needed
     cfg_raw.pop("rmm", None)  # Legacy field - not part of schema
     cfg_raw.pop("data", None)  # Legacy - use data_request instead
@@ -344,6 +361,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         strategy_params=strategy_params,
         strategy_overrides=strategy_overrides,
         data_handler=data_handler,
+        global_features_config_path=global_features_config_path,
         rmm_context=rmm_context,
         return_exposure=ret_exp,
         return_skips=ret_skips,
@@ -1302,7 +1320,13 @@ def cmd_ai_validate_rmm_candidates(args: argparse.Namespace) -> int:
     def _resolve_relative(base: Path, value: str | Path) -> Path:
         path = Path(value)
         if not path.is_absolute():
-            return (base / path).resolve()
+            candidate_path = (base / path).resolve()
+            if candidate_path.exists():
+                return candidate_path
+            project_candidate = (paths.PROJECT_ROOT / path).resolve()
+            if project_candidate.exists():
+                return project_candidate
+            return candidate_path
         return path
 
     def _execute_backtest(candidate: Path, config_path: Path, _: Path) -> dict:
