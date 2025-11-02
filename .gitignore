@@ -252,3 +252,6 @@ src/trading_platform/py.typed
 data/enriched
 data/campaigns
 data/candidates
+
+# Analysis equity curve outputs
+analysis/rmm/featureset_trial/selected_combos/equity_curves/
