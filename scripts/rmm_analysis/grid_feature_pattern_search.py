@@ -24,62 +24,18 @@ from sklearn.metrics import (
 )
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
+from trading_platform.ai.models.feature_groups import (
+    ENGINEERED_GROUP_PATTERNS,
+    RISK_FEATURE_COLUMNS,
+    add_normalized_risk_features,
+    collect_group_patterns,
+)
 
 TRAIN_START = "2018-01-01"
 TRAIN_END = "2021-12-31"
 TEST_START = "2022-01-01"
 
-DEFAULT_GROUPS = {
-    "alignment": [
-        "trend_alignment",
-        "ema_50_slope_pct",
-        "ema_50_distance_pct",
-    ],
-    "volatility": [
-        "atr_percentile",
-        "atr_slope_pct",
-        "bb_width_percentile",
-        "range_atr_ratio",
-        "true_range_zscore",
-    ],
-    "structure": [
-        "close_to_hhv",
-        "close_to_llv",
-        "hhv_20_slope",
-        "llv_20_slope",
-    ],
-    "momentum": [
-        "rsi_bias",
-        "rsi_slope",
-        "roc_",
-        "prior_return",
-    ],
-    "volume": [
-        "volume_sma_ratio",
-    ],
-    "calendar": [
-        "calendar",
-        "day_of_week",
-    ],
-}
-
-
-def _augment_risk_features(df: pd.DataFrame) -> pd.DataFrame:
-    if "initial_stop_loss_price" not in df.columns or "entry_price" not in df.columns:
-        df["risk_distance_abs"] = np.nan
-        df["risk_distance_pct_entry"] = np.nan
-        df["risk_distance_atr_ratio"] = np.nan
-        return df
-    risk_distance = (df["entry_price"] - df["initial_stop_loss_price"]).abs()
-    df["risk_distance_abs"] = risk_distance
-    entry_abs = df["entry_price"].abs().replace(0, np.nan)
-    df["risk_distance_pct_entry"] = np.divide(risk_distance, entry_abs)
-    if "context_at_entry_strategy_features_atr_14" in df.columns:
-        atr = df["context_at_entry_strategy_features_atr_14"].replace(0, np.nan)
-        df["risk_distance_atr_ratio"] = np.divide(risk_distance, atr)
-    else:
-        df["risk_distance_atr_ratio"] = np.nan
-    return df
+DEFAULT_GROUPS = ENGINEERED_GROUP_PATTERNS
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -140,7 +96,7 @@ def load_data(path: Path) -> pd.DataFrame:
     df = pd.read_parquet(path)
     df["entry_time"] = pd.to_datetime(df["entry_time"], utc=True)
     df = df[df["r_multiple"].notna()].copy()
-    df = _augment_risk_features(df)
+    df = add_normalized_risk_features(df)
     return df
 
 
@@ -160,9 +116,8 @@ def _collect_features(df: pd.DataFrame, patterns: Iterable[str]) -> pd.DataFrame
         if any(pattern in lowered for pattern in patterns):
             columns.append(col)
     feature_frame = df[columns].copy()
-    feature_frame["risk_distance_abs"] = df["risk_distance_abs"]
-    feature_frame["risk_distance_pct_entry"] = df["risk_distance_pct_entry"]
-    feature_frame["risk_distance_atr_ratio"] = df["risk_distance_atr_ratio"]
+    for column in RISK_FEATURE_COLUMNS:
+        feature_frame[column] = df[column]
     feature_frame["hour_of_day"] = df["entry_time"].dt.hour
     feature_frame["day_of_week"] = df["entry_time"].dt.dayofweek
     categorical = pd.get_dummies(
@@ -287,10 +242,7 @@ def generate_group_combinations(
 
 
 def collect_patterns(group_names: Iterable[str]) -> list[str]:
-    patterns: list[str] = []
-    for name in group_names:
-        patterns.extend(DEFAULT_GROUPS[name])
-    return patterns
+    return collect_group_patterns(group_names)
 
 
 def main(argv: Sequence[str] | None = None) -> None:

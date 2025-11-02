@@ -6,10 +6,10 @@ from typing import cast
 
 import numpy as np
 import pandas as pd
+from trading_platform.ai.models.feature_groups import add_normalized_risk_features
 
 from scripts.rmm_analysis.grid_feature_pattern_search import (
     DEFAULT_GROUPS,
-    _augment_risk_features,
     _collect_features,
     collect_patterns,
     evaluate_context,
@@ -70,7 +70,7 @@ def _build_context_dataframe() -> pd.DataFrame:
     for pattern in collect_patterns(["alignment"]):
         column = f"context_at_entry_global_features_{pattern}"
         frame[column] = np.linspace(0.1, 0.9, size)
-    return _augment_risk_features(frame)
+    return add_normalized_risk_features(frame)
 
 
 def test_evaluate_context_produces_metrics() -> None:

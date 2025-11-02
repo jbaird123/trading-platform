@@ -15,6 +15,20 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.impute import SimpleImputer
 
 from ._timeframe_utils import drop_lower_timeframe_global_features
+from .feature_groups import (
+    ENGINEERED_GROUP_PATTERNS,
+    RISK_FEATURE_COLUMNS,
+    add_normalized_risk_features,
+    collect_group_patterns,
+)
+
+SELECTED_FEATURE_GROUPS: dict[tuple[str, str], tuple[str, ...]] = {
+    ("5min", "trend_following"): ("calendar",),
+    ("15min", "trend_following"): ("calendar",),
+    ("1H", "trend_following"): ("alignment", "structure"),
+    ("4H", "trend_following"): ("structure", "momentum"),
+    ("1D", "trend_following"): ("volatility",),
+}
 
 
 class ProfitabilityModel:
@@ -307,23 +321,45 @@ class ProfitabilityModel:
         Returns:
             DataFrame with only features known at entry time
         """
-        features = []
+        df = df.copy()
+        df = add_normalized_risk_features(df)
 
-        # 1. Pattern match: All context_at_entry_* columns
-        entry_cols = [col for col in df.columns if col.startswith("context_at_entry_")]
+        features: list[str] = []
+
+        group_names = SELECTED_FEATURE_GROUPS.get((self.timeframe, self.archetype))
+        if group_names is not None:
+            pattern_list = collect_group_patterns(group_names)
+        else:
+            pattern_list = [
+                pattern
+                for patterns in ENGINEERED_GROUP_PATTERNS.values()
+                for pattern in patterns
+            ]
+        lowered_patterns = [pattern.lower() for pattern in pattern_list]
+
+        entry_cols: list[str] = []
+        for col in df.columns:
+            if not col.startswith("context_at_entry_"):
+                continue
+            if col.startswith("context_at_entry_global_") and lowered_patterns:
+                lowered = col.lower()
+                if not any(pattern in lowered for pattern in lowered_patterns):
+                    continue
+            entry_cols.append(col)
+
         features.extend(entry_cols)
 
-        # 2. Risk parameter: initial_stop_loss_price (known at entry)
-        if "initial_stop_loss_price" in df.columns:
-            features.append("initial_stop_loss_price")
+        for column in RISK_FEATURE_COLUMNS:
+            if column in df.columns:
+                features.append(column)
 
-        # 3. Categorical: side (one-hot encode)
+        # Categorical: side (one-hot encode)
         if "side" in df.columns:
             side_dummies = pd.get_dummies(df["side"], prefix="side", drop_first=False)
             df = pd.concat([df, side_dummies], axis=1)
             features.extend(side_dummies.columns.tolist())
 
-        # 4. Categorical: symbol (one-hot encode)
+        # Categorical: symbol (one-hot encode)
         if "symbol" in df.columns:
             symbol_dummies = pd.get_dummies(
                 df["symbol"], prefix="symbol", drop_first=False
@@ -331,7 +367,7 @@ class ProfitabilityModel:
             df = pd.concat([df, symbol_dummies], axis=1)
             features.extend(symbol_dummies.columns.tolist())
 
-        # 5. Temporal: Derived from entry_time
+        # Temporal: Derived from entry_time
         if "entry_time" in df.columns:
             df["hour_of_day"] = pd.to_datetime(df["entry_time"]).dt.hour
             df["day_of_week"] = pd.to_datetime(df["entry_time"]).dt.dayofweek

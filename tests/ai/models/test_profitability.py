@@ -34,10 +34,16 @@ def sample_trades_df():
         "context_at_entry_strategy_features_volume": np.random.uniform(
             1000, 5000, n_trades
         ),
+        "context_at_entry_strategy_features_atr_14": np.random.uniform(
+            0.5,
+            1.5,
+            n_trades,
+        ),
         # Entry metadata
         "side": np.random.choice(["long", "short"], n_trades),
         "symbol": np.random.choice(["EURUSD", "GBPUSD"], n_trades),
         "entry_time": pd.date_range("2024-01-01", periods=n_trades, freq="1h"),
+        "entry_price": np.random.uniform(1.10, 1.30, n_trades),
         # Exit features (lookahead - should NOT be used)
         "context_at_exit_strategy_features_ema_fast": np.random.uniform(
             1.0, 1.5, n_trades
@@ -80,6 +86,7 @@ class TestProfitabilityModel:
         # Should only include context_at_entry_* features plus side, symbol,
         # temporal, and risk parameters
         assert model.feature_names_ is not None
+        assert "initial_stop_loss_price" not in model.feature_names_
         for feature in model.feature_names_:
             # Should NOT include exit features
             assert not feature.startswith("context_at_exit_")
@@ -88,11 +95,11 @@ class TestProfitabilityModel:
             # Should include entry features or metadata
             valid_prefixes = [
                 "context_at_entry_",
-                "initial_stop_loss_price",  # Risk parameter (known at entry)
                 "side_",  # One-hot encoded
                 "symbol_",  # One-hot encoded
                 "hour_of_day",
                 "day_of_week",
+                "risk_distance_",
             ]
             assert any(
                 feature.startswith(prefix) or feature == prefix
