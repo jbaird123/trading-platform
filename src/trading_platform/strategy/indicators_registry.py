@@ -275,6 +275,18 @@ INDICATORS: dict[str, dict] = {
         "implementation": impl.compute_atr_percent,
         "ta": {"module": "", "class": ""},  # custom implementation
     },
+    "ATRSlopePercent": {
+        "display": "ATR Slope Percent",
+        "category": "volatility",
+        "description": "Slope of ATR normalised by ATR value.",
+        "params": [
+            {"name": "length", "type": "int", "default": 14},
+            {"name": "slope_period", "type": "int", "default": 1},
+        ],
+        "safety": "validated",
+        "implementation": impl.compute_atr_slope_pct,
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
     "EMATrendAlignment": {
         "display": "EMA Trend Alignment",
         "category": "trend",
@@ -286,6 +298,136 @@ INDICATORS: dict[str, dict] = {
         ],
         "safety": "validated",
         "implementation": impl.compute_ema_trend_alignment,
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
+    "EMADistancePercent": {
+        "display": "EMA Distance Percent",
+        "category": "trend",
+        "description": "Percent distance between price and EMA.",
+        "params": [{"name": "length", "type": "int", "default": 14}],
+        "safety": "validated",
+        "implementation": impl.compute_ema_distance_pct,
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
+    "RSISlope": {
+        "display": "RSI Slope",
+        "category": "momentum",
+        "description": "Slope of RSI over a given period.",
+        "params": [
+            {"name": "length", "type": "int", "default": 14},
+            {"name": "slope_period", "type": "int", "default": 1},
+        ],
+        "safety": "validated",
+        "implementation": impl.compute_rsi_slope,
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
+    "BBWidthPercentile": {
+        "display": "BB Width Percentile",
+        "category": "volatility",
+        "description": "Percentile rank of Bollinger Band width.",
+        "params": [
+            {"name": "length", "type": "int", "default": 20},
+            {"name": "ndev", "type": "float", "default": 2.0},
+            {"name": "lookback", "type": "int", "default": 100},
+        ],
+        "safety": "validated",
+        "implementation": impl.compute_bb_width_percentile,
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
+    "RangeATRRatio": {
+        "display": "Range / ATR Ratio",
+        "category": "volatility",
+        "description": "High-low range divided by ATR.",
+        "params": [{"name": "length", "type": "int", "default": 14}],
+        "safety": "validated",
+        "implementation": impl.compute_range_atr_ratio,
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
+    "TrueRangeZScore": {
+        "display": "True Range Z-Score",
+        "category": "volatility",
+        "description": "Z-score of the true range.",
+        "params": [{"name": "window", "type": "int", "default": 50}],
+        "safety": "validated",
+        "implementation": impl.compute_true_range_zscore,
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
+    "CloseToHHVPercent": {
+        "display": "Close to HHV Percent",
+        "category": "levels",
+        "description": "Percent distance from close to rolling HHV.",
+        "params": [{"name": "length", "type": "int", "default": 20}],
+        "safety": "validated",
+        "implementation": impl.compute_close_to_hhv_pct,
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
+    "CloseToLLVPercent": {
+        "display": "Close to LLV Percent",
+        "category": "levels",
+        "description": "Percent distance from close to rolling LLV.",
+        "params": [{"name": "length", "type": "int", "default": 20}],
+        "safety": "validated",
+        "implementation": impl.compute_close_to_llv_pct,
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
+    "HHVSlope": {
+        "display": "HHV Slope",
+        "category": "trend",
+        "description": "Slope of rolling highest high series.",
+        "params": [
+            {"name": "length", "type": "int", "default": 20},
+            {"name": "slope_period", "type": "int", "default": 1},
+        ],
+        "safety": "validated",
+        "implementation": impl.compute_hhv_slope,
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
+    "LLVSlope": {
+        "display": "LLV Slope",
+        "category": "trend",
+        "description": "Slope of rolling lowest low series.",
+        "params": [
+            {"name": "length", "type": "int", "default": 20},
+            {"name": "slope_period", "type": "int", "default": 1},
+        ],
+        "safety": "validated",
+        "implementation": impl.compute_llv_slope,
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
+    "VolumeSMARatio": {
+        "display": "Volume / SMA Ratio",
+        "category": "volume",
+        "description": "Volume relative to its SMA.",
+        "params": [{"name": "length", "type": "int", "default": 20}],
+        "safety": "validated",
+        "implementation": impl.compute_volume_sma_ratio,
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
+    "PriorReturn": {
+        "display": "Prior Return",
+        "category": "momentum",
+        "description": "Price return over the previous N bars.",
+        "params": [{"name": "window", "type": "int", "default": 1}],
+        "safety": "validated",
+        "implementation": impl.compute_prior_return,
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
+    "CalendarSessions": {
+        "display": "Calendar Sessions",
+        "category": "time",
+        "description": "Session one-hot encoding for Asia/London/NY.",
+        "params": [],
+        "safety": "validated",
+        "implementation": impl.compute_calendar_sessions,
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
+    "DayOfWeekOneHot": {
+        "display": "Day Of Week One-Hot",
+        "category": "time",
+        "description": "Day of week one-hot encoding.",
+        "params": [],
+        "safety": "validated",
+        "implementation": impl.compute_day_of_week_onehot,
         "ta": {"module": "", "class": ""},  # custom implementation
     },
     "ATRPercentile": {

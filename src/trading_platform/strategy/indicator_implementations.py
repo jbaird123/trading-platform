@@ -379,6 +379,23 @@ def compute_atr_percent(
     return atr_pct
 
 
+def compute_atr_slope_pct(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute ATR slope normalised by ATR value."""
+    length = int(params.get("length", 14))
+    slope_period = int(params.get("slope_period", 1))
+    atr_vals = atr(df, length)
+    slope = atr_vals.diff(slope_period)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        slope_pct = slope / atr_vals
+    slope_pct = slope_pct.replace([np.inf, -np.inf], np.nan)
+    return slope_pct
+
+
 def compute_ema_trend_alignment(
     df: pd.DataFrame,
     params: dict[str, Any],
@@ -448,6 +465,237 @@ def compute_ema_trend_alignment(
         "full_alignment": full_alignment,
         "nonzero_fraction": nonzero_fraction,
     }
+
+
+def compute_ema_distance_pct(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute percent distance between price and EMA."""
+    length = int(params.get("length", 14))
+    price = _price_series(df, source)
+    ema_values = ema(price, length)
+    denominator = price.replace(0.0, np.nan)
+    distance = (price - ema_values) / denominator
+    distance = distance.replace([np.inf, -np.inf], np.nan)
+    return distance
+
+
+def compute_rsi_slope(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute slope of RSI."""
+    length = int(params.get("length", 14))
+    slope_period = int(params.get("slope_period", 1))
+    rsi_values = rsi(_price_series(df, source), length)
+    return rsi_values.diff(slope_period)
+
+
+def _rolling_percentile(series: pd.Series, lookback: int) -> pd.Series:
+    """Return rolling percentile (0-1) of current value within lookback."""
+
+    def _percentile(values: pd.Series) -> float:
+        if len(values) == 0:
+            return float("nan")
+        current = values.iloc[-1]
+        count = (values <= current).sum()
+        return float(count) / float(len(values))
+
+    return series.rolling(window=lookback, min_periods=1).apply(_percentile, raw=False)
+
+
+def compute_bb_width_percentile(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute percentile rank of Bollinger Band width."""
+    length = int(params.get("length", 20))
+    ndev = float(params.get("ndev", 2.0))
+    lookback = int(params.get("lookback", 100))
+    width = compute_bb_width(df, {"length": length, "ndev": ndev}, source, source_ref)
+    return _rolling_percentile(width, lookback)
+
+
+def compute_range_atr_ratio(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute high-low range divided by ATR."""
+    length = int(params.get("length", 14))
+    atr_vals = atr(df, length)
+    range_values = df["high"] - df["low"]
+    denominator = atr_vals.replace(0.0, np.nan)
+    ratio = range_values / denominator
+    ratio = ratio.replace([np.inf, -np.inf], np.nan)
+    return ratio
+
+
+def _true_range(df: pd.DataFrame) -> pd.Series:
+    high_low = df["high"] - df["low"]
+    high_close = (df["high"] - df["close"].shift(1)).abs()
+    low_close = (df["low"] - df["close"].shift(1)).abs()
+    return pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+
+
+def compute_true_range_zscore(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute z-score of true range over rolling window."""
+    window = int(params.get("window", 50))
+    tr = _true_range(df)
+    mean = tr.rolling(window=window, min_periods=1).mean()
+    std = tr.rolling(window=window, min_periods=1).std(ddof=0)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        zscore = (tr - mean) / std
+    zscore = zscore.replace([np.inf, -np.inf], np.nan)
+    return zscore
+
+
+def _distance_pct(series: pd.Series, reference: pd.Series) -> pd.Series:
+    denominator = reference.replace(0.0, np.nan)
+    distance = (series - reference) / denominator
+    return distance.replace([np.inf, -np.inf], np.nan)
+
+
+def compute_close_to_hhv_pct(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute distance of price to rolling highest high."""
+    length = int(params.get("length", 20))
+    price = _price_series(df, source)
+    hhv_series = hhv(df["high"], length)
+    return _distance_pct(price, hhv_series)
+
+
+def compute_close_to_llv_pct(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute distance of price to rolling lowest low."""
+    length = int(params.get("length", 20))
+    price = _price_series(df, source)
+    llv_series = llv(df["low"], length)
+    return _distance_pct(price, llv_series)
+
+
+def compute_hhv_slope(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "high",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute slope of rolling highest high."""
+    length = int(params.get("length", 20))
+    slope_period = int(params.get("slope_period", 1))
+    hhv_series = hhv(_price_series(df, source), length)
+    return hhv_series.diff(slope_period)
+
+
+def compute_llv_slope(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "low",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute slope of rolling lowest low."""
+    length = int(params.get("length", 20))
+    slope_period = int(params.get("slope_period", 1))
+    llv_series = llv(_price_series(df, source), length)
+    return llv_series.diff(slope_period)
+
+
+def compute_volume_sma_ratio(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "volume",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute ratio of volume to its SMA."""
+    length = int(params.get("length", 20))
+    volume = _price_series(df, source)
+    sma_values = compute_sma(df, {"length": length}, source, source_ref)
+    denominator = sma_values.replace(0.0, np.nan)
+    ratio = volume / denominator
+    ratio = ratio.replace([np.inf, -np.inf], np.nan)
+    return ratio
+
+
+def compute_prior_return(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute price return over previous N bars."""
+    window = int(params.get("window", 1))
+    price = _price_series(df, source)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        returns = price.pct_change(periods=window)
+    return returns.replace([np.inf, -np.inf], np.nan)
+
+
+def compute_calendar_sessions(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> dict[str, pd.Series]:
+    """Encode trading sessions (Asia/London/New York) based on entry_time."""
+    index = df.index
+    if not isinstance(index, pd.DatetimeIndex):
+        empty = _empty_series(df)
+        return {
+            "session_asia": empty,
+            "session_london": empty,
+            "session_newyork": empty,
+        }
+
+    hours = index.hour
+    asia = ((hours >= 0) & (hours < 8)).astype(float)
+    london = ((hours >= 8) & (hours < 16)).astype(float)
+    newyork = ((hours >= 13) & (hours < 21)).astype(float)
+
+    return {
+        "session_asia": pd.Series(asia, index=index, dtype="float64"),
+        "session_london": pd.Series(london, index=index, dtype="float64"),
+        "session_newyork": pd.Series(newyork, index=index, dtype="float64"),
+    }
+
+
+def compute_day_of_week_onehot(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> dict[str, pd.Series]:
+    """One-hot encode day of week."""
+    index = df.index
+    if not isinstance(index, pd.DatetimeIndex):
+        empty = _empty_series(df)
+        return {f"dow_{day}": empty for day in range(7)}
+
+    day = index.dayofweek
+    columns: dict[str, pd.Series] = {}
+    for dow in range(7):
+        columns[f"dow_{dow}"] = pd.Series((day == dow).astype(float), index=index)
+    return columns
 
 
 def compute_bb_width(

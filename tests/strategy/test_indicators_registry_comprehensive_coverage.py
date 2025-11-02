@@ -51,6 +51,7 @@ def test_indicator_categories():
         "price",
         "levels",
         "pattern",
+        "time",
     }
 
     for indicator_name, indicator_config in INDICATORS.items():
