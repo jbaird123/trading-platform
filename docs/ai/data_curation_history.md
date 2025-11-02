@@ -475,3 +475,82 @@
 - **Trades Added**: 97132
 - **Checksum**: e849ecdec2e0e4a50ce19a0da990dda9821af4b20475c136dc78b0a27901ee00
 - **Actor**: campaign-runner
+
+## 2025-11-01T22:57:53.792257+00:00
+
+- **Campaign ID**: trend_following_model_generation_baseline_no_risk_15min
+- **Trades Added**: 18032
+- **Checksum**: 37e7aa78db62981704beebaaca04560f5f5a8a01462a33e9601ca50eedabb890
+- **Actor**: campaign-runner
+
+
+## 2025-11-01T22:58:05.811073+00:00
+
+- **Campaign ID**: trend_following_model_generation_baseline_no_risk_1H
+- **Trades Added**: 4392
+- **Checksum**: 56740ec9b9cd6da01e45e710a19795fa29012a4f100cdc4d1598a2c6384efee1
+- **Actor**: campaign-runner
+
+
+## 2025-11-01T22:58:17.898697+00:00
+
+- **Campaign ID**: trend_following_model_generation_baseline_no_risk_4H
+- **Trades Added**: 1088
+- **Checksum**: e86ab88233f89b4d001daae951042352d361ce1a3dc02d6fa9910d0770de9295
+- **Actor**: campaign-runner
+
+
+## 2025-11-01T22:58:29.889671+00:00
+
+- **Campaign ID**: trend_following_model_generation_baseline_no_risk_1D
+- **Trades Added**: 208
+- **Checksum**: a9e8ccae635116e7df9f511afc34a0b8da584d4018c035a2dc45166a263e52cc
+- **Actor**: campaign-runner
+
+
+## 2025-11-01T22:58:43.030406+00:00
+
+- **Campaign ID**: trend_following_model_generation_baseline_no_risk_5min
+- **Trades Added**: 55320
+- **Checksum**: 042905846abdc2371a7d8d90df9ca6a919e89282839afefec7ad18fd95eed3f3
+- **Actor**: campaign-runner
+
+
+## 2025-11-01T22:58:56.374254+00:00
+
+- **Campaign ID**: trend_following_model_generation_trend_with_risk_15min
+- **Trades Added**: 31556
+- **Checksum**: 0646ba61d3aff6c93e6f3aab76193463281aafeef3c30dbc4a640dd8810a650d
+- **Actor**: campaign-runner
+
+
+## 2025-11-01T22:59:09.586539+00:00
+
+- **Campaign ID**: trend_following_model_generation_trend_with_risk_1H
+- **Trades Added**: 7686
+- **Checksum**: cc57ccbd929a351ac2f84b938aaa07c55bad55433959852a0ce73a1a6d1edd13
+- **Actor**: campaign-runner
+
+
+## 2025-11-01T22:59:21.709000+00:00
+
+- **Campaign ID**: trend_following_model_generation_trend_with_risk_4H
+- **Trades Added**: 1904
+- **Checksum**: ec16a9e426249d686c5c9b211be8ed0997e8f26cefb17e545c7960911cc36415
+- **Actor**: campaign-runner
+
+
+## 2025-11-01T22:59:34.906713+00:00
+
+- **Campaign ID**: trend_following_model_generation_trend_with_risk_1D
+- **Trades Added**: 364
+- **Checksum**: b7284e220b8b63f0e186e8ef471f076d2ae1e378ef5c4aff0ca932f7a47a0816
+- **Actor**: campaign-runner
+
+
+## 2025-11-01T22:59:47.915159+00:00
+
+- **Campaign ID**: trend_following_model_generation_trend_with_risk_5min
+- **Trades Added**: 96810
+- **Checksum**: 15e849c52deb62694ee0076c7d0aebaff18f463e3b7f734e675b33bb09701707
+- **Actor**: campaign-runner
