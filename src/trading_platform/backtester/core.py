@@ -286,11 +286,24 @@ def _run_backtest_simulation(
                 f"{[f['name'] for f in global_features_list]}"
             )
 
-            global_names = [
-                str(feature["name"])
-                for feature in global_features_list
-                if isinstance(feature.get("name"), str)
-            ]
+            global_names: list[str] = []
+            for feature in global_features_list:
+                raw_name = feature.get("name")
+                if not isinstance(raw_name, str):
+                    continue
+                global_names.append(raw_name)
+
+                derived_columns = [
+                    column
+                    for column in data_with_global_features.columns
+                    if column == raw_name or column.startswith(f"{raw_name}_")
+                ]
+
+                minutes = global_feature_timeframes.get(raw_name)
+                for column in derived_columns:
+                    if column not in global_feature_timeframes and minutes is not None:
+                        global_feature_timeframes[column] = minutes
+
             global_valid_start = _first_valid_timestamp(
                 data_with_global_features, global_names
             )
@@ -363,9 +376,18 @@ def _run_backtest_simulation(
             data_with_global_features = _trim_indexed(data_with_global_features)
     warmup_threshold = 0
 
-    global_feature_names: set[str] = {
-        str(f["name"]) for f in global_features_list if isinstance(f.get("name"), str)
-    }
+    global_feature_names: set[str] = set()
+    if data_with_global_features is not market_data:
+        for feature in global_features_list:
+            raw_name = feature.get("name")
+            if not isinstance(raw_name, str):
+                continue
+            derived_columns = [
+                column
+                for column in data_with_global_features.columns
+                if column == raw_name or column.startswith(f"{raw_name}_")
+            ]
+            global_feature_names.update(derived_columns)
 
     # Use the complete instrument definition from config
     # (RunConfig validator ensures it has all required fields)
