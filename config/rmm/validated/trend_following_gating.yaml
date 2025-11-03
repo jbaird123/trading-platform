@@ -1,0 +1,64 @@
+profile:
+  name: "trend_following_rmm_validated"
+  description: "Validated profitability gating thresholds derived from sweeps completed on 2025-10-31."
+  source_analysis:
+    threshold_recommendations: "analysis/rmm/featureset_trial/selected_combos/threshold_recommendations.csv"
+    threshold_sweep: "analysis/rmm/featureset_trial/higher_timeframe_threshold_sweep.csv"
+    classifier_comparison: "analysis/rmm/featureset_trial/higher_tf_classifier_compare.csv"
+  notes: "Classifier model corresponds to the probability gate; underlying profitability regressor remains RandomForest per context."
+
+contexts:
+  - timeframe: "5min"
+    archetype: "trend_following"
+    classifier_model: "gb_weighted"
+    feature_group: "structure+momentum"
+    probability_threshold: 0.53
+    gating_expression: "alignment_full"
+    expected_coverage: 0.3595   # ≈ 35.9% of trades kept
+    expected_mean_r: 0.02999    # from replay summary
+    expected_sum_r: 545.96
+    commentary: "Gradient boosting classifier with alignment_full gate; prioritises quality and keeps ~36% of trades."
+
+  - timeframe: "15min"
+    archetype: "trend_following"
+    classifier_model: "gb_weighted"
+    feature_group: "structure+momentum"
+    probability_threshold: 0.53
+    gating_expression: "alignment_full"
+    expected_coverage: 0.1460   # ≈ 14.6% trades kept
+    expected_mean_r: 0.0734
+    expected_sum_r: 131.58
+    commentary: "Applying the same GB + alignment gate delivers higher win-rate and cumulative R than logistic."
+
+  - timeframe: "1H"
+    archetype: "trend_following"
+    classifier_model: "logistic"
+    feature_group: "volatility"
+    probability_threshold: 0.60
+    gating_expression: "true"
+    expected_coverage: 0.2154   # ≈ 21.5% trades kept
+    expected_mean_r: 0.1421
+    expected_sum_r: 94.49
+    commentary: "Logistic classifier remains superior to GB; raising threshold to 0.60 balances precision and trade count (~8/week)."
+
+  - timeframe: "4H"
+    archetype: "trend_following"
+    classifier_model: "logistic"
+    feature_group: "structure+momentum"
+    probability_threshold: 0.40
+    gating_expression: "true"
+    expected_coverage: 0.4732   # ≈ 47.3% trades kept
+    expected_mean_r: 0.2155
+    expected_sum_r: 79.94
+    commentary: "Existing logistic gate still offers the best uplift; GB variants underperform."
+
+  - timeframe: "1D"
+    archetype: "trend_following"
+    classifier_model: "logistic"
+    feature_group: "calendar"
+    probability_threshold: 0.60
+    gating_expression: "true"
+    expected_coverage: 0.2857   # ≈ 28.6% trades kept
+    expected_mean_r: 1.4605
+    expected_sum_r: 61.34
+    commentary: "Calendar-based logistic gate at 0.60 maximises precision (~0.67) with manageable trade cadence (~2/month)."
