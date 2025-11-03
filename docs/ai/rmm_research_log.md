@@ -44,6 +44,38 @@
   - Updated `tp train-profitability-models` to train classifiers for contexts
     in `CLASSIFIER_CONTEXTS` (currently `("5min", "trend_following")`).
   - Stage 10 script now reports classifier counts once artifacts exist.
+  - 2025-10-30: Ran `tp train-profitability-models`; saved 5 regression models
+    and `data/dvc/ml/models/profitability_classifier/5min_trend_following.pkl`.
+  - 2025-10-30: Calibrated 5 min gating with
+    `portfolio_threshold_replay.py`. Logistic threshold 0.5 retains 56 % of
+    trades (mean R ≈ 0.0136, win rate ≈ 0.333, sum R ≈ 286). Gradient boosting
+    with threshold 0.53 retains 36 % (mean R ≈ 0.0300, win rate ≈ 0.339, sum
+    R ≈ 405). Higher thresholds ≥ 0.55 sharply reduce coverage and turn the sum
+    negative; sweet spot appears in the 0.52–0.54 band.
+  - 2025-10-30: Extended `threshold_profitability_analysis.py` to accept
+    per-context model overrides (`--context-model`). Regenerated
+    `threshold_profitability.csv` with 5 min using `gb_weighted` and explicit
+    τ grid including 0.53. Refreshing `threshold_recommendations.csv` now
+    outputs `structure+momentum` @ τ = 0.53 automatically.
+  - 2025-10-30: Added `generate_threshold_recommendations.py` helper so the
+    pipeline can recompute profitability thresholds + recommendations in one
+    command (`--context-model 5min_trend_following=gb_weighted` baked in the
+    workflow).
+  - 2025-10-30: Ran `two_stage_threshold_analysis.py` (gb model) exploring
+    alignment/ATR gating. Best candidate so far: `alignment_full` gate with
+    τ_high = 0.70 / τ_mid = 0.55 (coverage ≈ 17 %, mean R ≈ 0.066, sum R ≈ 428).
+  - 2025-10-30: Replay with `alignment_full` gating yields filtered fraction
+    ≈ 21.9 %, mean R ≈ 0.066, win rate ≈ 0.345, cumulative R ≈ 546 (vs baseline
+    0.013 / 0.314 / 483), confirming two-stage lift.
+  - 2025-10-30: Adopted alignment_full gate (τ = 0.53, GB classifier) as the
+    default for the 5 min context; Stage 10 now regenerates recommendations with
+    `model` + `gating_expression` columns via the new helper script.
+  - 2025-10-30: Adopted the same alignment_full gate for 15 min at τ = 0.53 with
+    `gb_weighted` (≈ 14.6 % coverage, mean R ≈ 0.073, win rate ≈ 0.375, sum R
+    ≈ 132 vs baseline −240).
+  - 1H/4H/1D: alignment_full features are null in the current dataset; gates
+    exclude all trades. Need upstream feature engineering before attempting
+    alignment gating on those timeframes.
 - **Model variant sweep for 5min**: Compared RF, GradientBoosting, Logistic
   Regression in `analysis/rmm/featureset_trial/selected_combos/5min_model_variants.csv`;
   gradient boosting shows higher precision at moderate recall, guiding the
@@ -61,9 +93,13 @@
 
 ## Outstanding Tasks Before Production
 1. **Classifier Pipeline Completion**
-   - Rerun Stage 10 after the next publish to emit classifier pkl artifacts.
    - Extend `ModelRegistry` tests to cover classifier serialization paths.
    - Document artifact naming and update deployment instructions.
+   - Automate Stage 10 rerun post-publish (guard against append regressions).
+   - Encode the 5 min GB threshold (0.53) into pipeline configs so Stage 10
+     exports the correct recommendations without manual overrides.
+   - Monitor alignment_full gate effectiveness in post-run audits; evaluate
+     analogous rules for 15 min/1H/4H/1D once additional sweeps are ready.
 2. **Threshold Calibration**
    - Use `threshold_recommendations.csv` and replay harness to choose per
      timeframe probability cutoffs.

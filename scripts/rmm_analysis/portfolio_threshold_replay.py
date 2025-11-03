@@ -116,8 +116,10 @@ def _load_threshold_config(path: Path) -> pd.DataFrame:
     return df
 
 
-def _model_for_context(context: str, overrides: dict[str, str]) -> str:
-    return overrides.get(context, DEFAULT_MODEL)
+def _model_for_context(
+    context: str, overrides: dict[str, str], default_model: str
+) -> str:
+    return overrides.get(context, default_model)
 
 
 def _gating_for_context(context: str, overrides: dict[str, str]) -> str:
@@ -171,27 +173,75 @@ def _train_classifier(
     raise ValueError(f"Unsupported model: {model_name}")
 
 
+def _resolve_higher_tf_prefix(timeframe: str) -> str:
+    mapping = {
+        "5min": "m15",
+        "15min": "m15",
+        "1h": "h1",
+        "4h": "h4",
+        "1d": "d1",
+    }
+    return mapping.get(timeframe.lower(), "m15")
+
+
+def _series_or_default(
+    df: pd.DataFrame, column: str, default_value: float | int = 0.0
+) -> pd.Series:
+    if column in df.columns:
+        return df[column]
+    return pd.Series(default_value, index=df.index, dtype="float64")
+
+
 def _gating_frame(df: pd.DataFrame) -> pd.DataFrame:
-    columns = {}
-    columns["atr_percentile"] = df[
-        "context_at_entry_global_features_m15_atr_percentile_100"
-    ]
-    columns["volume_ratio"] = df[
-        "context_at_entry_global_features_m15_volume_sma_ratio_20"
-    ]
-    columns["prior_return"] = df["context_at_entry_global_features_m15_prior_return_1"]
-    columns["alignment_score"] = df[
-        "context_at_entry_global_features_m15_trend_alignment_stack_score"
-    ]
-    columns["alignment_full"] = (
-        df["context_at_entry_global_features_m15_trend_alignment_full_alignment"] > 0.0
+    if df.empty:
+        return pd.DataFrame(
+            {
+                "atr_percentile": [],
+                "volume_ratio": [],
+                "prior_return": [],
+                "alignment_score": [],
+                "alignment_full": [],
+                "session_london": [],
+                "session_newyork": [],
+            }
+        )
+
+    timeframe = str(df["execution_timeframe"].iloc[0]).lower()
+    prefix = _resolve_higher_tf_prefix(timeframe)
+
+    atr_col = f"context_at_entry_global_features_{prefix}_atr_percentile_100"
+    vol_col = f"context_at_entry_global_features_{prefix}_volume_sma_ratio_20"
+    prior_col = f"context_at_entry_global_features_{prefix}_prior_return_1"
+    align_score_col = (
+        f"context_at_entry_global_features_{prefix}_trend_alignment_stack_score"
     )
-    columns["session_london"] = (
-        df["context_at_entry_global_features_m15_calendar_session_london"] > 0.0
+    align_full_col = (
+        f"context_at_entry_global_features_{prefix}_trend_alignment_full_alignment"
     )
-    columns["session_newyork"] = (
-        df["context_at_entry_global_features_m15_calendar_session_newyork"] > 0.0
+    session_london_col = (
+        f"context_at_entry_global_features_{prefix}_calendar_session_london"
     )
+    session_newyork_col = (
+        f"context_at_entry_global_features_{prefix}_calendar_session_newyork"
+    )
+
+    atr_series = _series_or_default(df, atr_col, default_value=np.nan)
+    volume_series = _series_or_default(df, vol_col, default_value=np.nan)
+    prior_series = _series_or_default(df, prior_col, default_value=np.nan)
+    align_score_series = _series_or_default(df, align_score_col, default_value=np.nan)
+    align_full_series = _series_or_default(df, align_full_col, default_value=0.0)
+    london_series = _series_or_default(df, session_london_col, default_value=0.0)
+    newyork_series = _series_or_default(df, session_newyork_col, default_value=0.0)
+
+    columns = {
+        "atr_percentile": atr_series,
+        "volume_ratio": volume_series,
+        "prior_return": prior_series,
+        "alignment_score": align_score_series,
+        "alignment_full": (align_full_series > 0.0),
+        "session_london": (london_series > 0.0),
+        "session_newyork": (newyork_series > 0.0),
+    }
     return pd.DataFrame(columns, index=df.index)
 
 
@@ -255,8 +305,10 @@ def main(argv: Sequence[str] | None = None) -> None:
         context = row["context"]
         group_combo = row["group_combo"]
         threshold = float(row["threshold"])
-        model_name = _model_for_context(context, model_override)
-        gating_expr = _gating_for_context(context, gating_override)
+        row_model = str(row.get("model", DEFAULT_MODEL))
+        row_gating_expr = str(row.get("gating_expression", "true"))
+        model_name = _model_for_context(context, model_override, row_model)
+        gating_expr = gating_override.get(context, row_gating_expr)
 
         train_ctx = _extract_context(train_df, context)
         test_ctx = _extract_context(test_df, context)

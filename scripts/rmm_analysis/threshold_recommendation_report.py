@@ -57,16 +57,19 @@ def main() -> None:
         .head(1)
     )
 
-    output_cols = [
-        "context",
-        "group_combo",
-        "threshold",
-        "selected_fraction",
-        "mean_r_multiple_selected",
-        "win_rate_selected",
-        "lift_mean_r_multiple",
-        "lift_win_rate",
-    ]
+    output_cols = ["context", "group_combo"]
+    if "model" in ranked.columns:
+        output_cols.append("model")
+    output_cols.extend(
+        [
+            "threshold",
+            "selected_fraction",
+            "mean_r_multiple_selected",
+            "win_rate_selected",
+            "lift_mean_r_multiple",
+            "lift_win_rate",
+        ]
+    )
     ranked = ranked[output_cols]
     args.output_csv.parent.mkdir(parents=True, exist_ok=True)
     ranked.to_csv(args.output_csv, index=False)

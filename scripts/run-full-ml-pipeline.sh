@@ -347,6 +347,28 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
         PROF_CMD+=(--train-end "$TRAIN_PROFITABILITY_END")
     fi
     "${PROF_CMD[@]}"
+    echo "  → Generating threshold recommendations..."
+    THRESH_CMD=(
+        poetry
+        run
+        python
+        scripts/rmm_analysis/generate_threshold_recommendations.py
+        --enriched-data
+        data/dvc/processed/training_sets/master_trade_log.parquet
+        --output-dir
+        analysis/rmm/featureset_trial/selected_combos
+        --context-model
+        5min_trend_following=gb_weighted
+        --context-model
+        15min_trend_following=gb_weighted
+        --context-gate
+        5min_trend_following=alignment_full
+        --context-gate
+        15min_trend_following=alignment_full
+        --context-output
+        15min_trend_following=structure+momentum:gb_weighted:0.53
+    )
+    "${THRESH_CMD[@]}"
     PROFITABILITY_COUNT=$(
         find data/dvc/ml/models/profitability -name "*.pkl" 2>/dev/null \
             | wc -l | xargs
