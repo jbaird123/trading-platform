@@ -1,14 +1,31 @@
 # Validates: [SYS-1.10.3]
 from __future__ import annotations
 
+import warnings
 from datetime import datetime
 
 import pandas as pd
 from pytest_bdd import given, parsers, when
+from sklearn.exceptions import UndefinedMetricWarning
 
 from tests.backtester.dummy_objects import (
     _dummy_strategy_cfg,
     _dummy_strategy_with_sl_tp,
+)
+
+warnings.filterwarnings(
+    "ignore",
+    message="DataFrame is highly fragmented",
+    category=pd.errors.PerformanceWarning,
+)
+warnings.filterwarnings(
+    "ignore",
+    message="Resampling to .* produced entirely NaN data",
+    category=UserWarning,
+)
+warnings.filterwarnings(
+    "ignore",
+    category=UndefinedMetricWarning,
 )
 
 

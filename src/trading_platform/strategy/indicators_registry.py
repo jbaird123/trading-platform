@@ -308,7 +308,7 @@ INDICATORS: dict[str, dict] = {
             "providing spread, ratio, and alignment metrics."
         ),
         "params": [
-            {"name": "base_timeframe", "type": "string", "default": "current"},
+            {"name": "base_timeframe", "type": "str", "default": "current"},
             {"name": "compare_timeframes", "type": "list", "default": []},
             {"name": "length", "type": "int", "default": 50},
             {"name": "slope_period", "type": "int", "default": 1},

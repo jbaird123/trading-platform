@@ -88,7 +88,7 @@ def test_e2e_run_with_contextual_features(tmp_path):
     rem = RiskExitManager(
         config={"stop_loss": {"type": "offset", "price_offset": 0.0010}}
     )
-    global_features_path = Path("config/features/global.yaml")
+    global_features_path = Path("tests/fixtures/global_smoke.yaml")
 
     result = _run_backtest_simulation(
         market_data=market_data,

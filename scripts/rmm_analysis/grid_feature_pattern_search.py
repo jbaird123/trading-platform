@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import argparse
 import itertools
+import warnings
 from pathlib import Path
 from typing import Iterable, Sequence
 
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.exceptions import UndefinedMetricWarning
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
@@ -193,10 +195,12 @@ def evaluate_context(
         if (log_precision + log_recall) > 0
         else 0.0
     )
-    try:
-        log_auc = roc_auc_score(y_test_sign, sign_proba)
-    except ValueError:
-        log_auc = float("nan")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=UndefinedMetricWarning)
+        try:
+            log_auc = roc_auc_score(y_test_sign, sign_proba)
+        except ValueError:
+            log_auc = float("nan")
     tn, fp, fn, tp = confusion_matrix(
         y_test_sign,
         sign_pred,

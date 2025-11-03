@@ -152,6 +152,16 @@ class ProfitabilityModel:
         # Extract features (ONLY entry-time features - NO lookahead)
         X = self._extract_features(df)
 
+        # Drop columns that are entirely NaN to avoid sklearn warnings.
+        all_nan_columns = [col for col in X.columns if X[col].isnull().all()]
+        if all_nan_columns:
+            X = X.drop(columns=all_nan_columns)
+
+        if X.empty:
+            raise ValueError(
+                f"No usable features available for {self.timeframe}_{self.archetype}."
+            )
+
         # Create target: R-multiple regression
         y = df["r_multiple"].values
 
