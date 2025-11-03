@@ -73,9 +73,12 @@
   - 2025-10-30: Adopted the same alignment_full gate for 15 min at τ = 0.53 with
     `gb_weighted` (≈ 14.6 % coverage, mean R ≈ 0.073, win rate ≈ 0.375, sum R
     ≈ 132 vs baseline −240).
-  - 1H/4H/1D: alignment_full features are null in the current dataset; gates
-    exclude all trades. Need upstream feature engineering before attempting
-    alignment gating on those timeframes.
+  - 2025-10-31: Ran higher-timeframe threshold sweep. Adopted logistic
+    `volatility` @ τ = 0.60 for 1H (≈ 21 % coverage, mean R ≈ 0.14, win rate
+    ≈ 0.35, sum R ≈ 94). Adopted logistic `calendar` @ τ = 0.60 for 1D (≈ 29 %
+    coverage, mean R ≈ 1.46, win rate ≈ 0.67, sum R ≈ 61). 4H retains
+    `structure+momentum` @ τ = 0.40; alignment gates deferred until richer
+    features are available.
 - **Model variant sweep for 5min**: Compared RF, GradientBoosting, Logistic
   Regression in `analysis/rmm/featureset_trial/selected_combos/5min_model_variants.csv`;
   gradient boosting shows higher precision at moderate recall, guiding the
