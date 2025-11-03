@@ -38,6 +38,25 @@ TRADE_VALIDATION_TOLERANCES: dict[str, Any] = {
     "trade_count": 0,  # Must match exactly
 }
 
+HASH_VALIDATION_CASES: list[tuple[str, str]] = [
+    ("ema_crossover/baseline", "platform_trades_baseline"),
+    ("ema_crossover/20pip_stop", "platform_trades_20pip_stop"),
+    (
+        "ema_crossover/20pip_stop_40pip_tp",
+        "platform_trades_20pip_stop_40pip_tp",
+    ),
+    (
+        "ema_crossover/20pip_trailing_stop",
+        "platform_trades_20pip_trailing_stop",
+    ),
+    (
+        "ema_crossover/20pip_trailing_stop_15pip_tp",
+        "platform_trades_20pip_trailing_stop_15pip_tp",
+    ),
+    ("ema_crossover/2atr_stop", "platform_trades_2atr_stop"),
+    ("ema_crossover/bb_stop", "platform_trades_bb_stop"),
+]
+
 # === KNOWN EDGE CASES ===
 #
 # KNOWN_EDGE_CASES - Kept for historical reference but no longer used
@@ -1111,6 +1130,20 @@ pytestmark = pytest.mark.validation
 # === TEST CASES ===
 
 
+@pytest.mark.parametrize(
+    ("strategy_name", "platform_fixture"),
+    HASH_VALIDATION_CASES,
+)
+def test_ema_crossover_platform_trades_match_golden(
+    strategy_name: str,
+    platform_fixture: str,
+    request: pytest.FixtureRequest,
+):
+    """Ensure platform trade snapshots still match the frozen golden files."""
+    platform_trades = request.getfixturevalue(platform_fixture)
+    verify_golden_trades_hash(strategy_name, platform_trades)
+
+
 def test_ema_crossover_trade_count_matches_tradingview(
     tradingview_trades,
     golden_metadata,
@@ -1122,10 +1155,6 @@ def test_ema_crossover_trade_count_matches_tradingview(
     """
     # Load platform trades
     platform_trades = platform_trades_baseline
-
-    # Verify platform trades hash matches golden reference
-    # This catches ANY changes in platform output (MFE/MAE, exit_reason, etc.)
-    verify_golden_trades_hash("ema_crossover/baseline", platform_trades)
 
     # Compare counts
     # Use align_trades to parse TradingView trades with validation range filtering
@@ -1412,9 +1441,6 @@ def test_ema_crossover_20pip_stop_trade_count_matches_tradingview(
     # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
     """
     platform_trades = platform_trades_20pip_stop
-
-    # Verify platform trades hash matches golden reference
-    verify_golden_trades_hash("ema_crossover/20pip_stop", platform_trades)
 
     if "Signal" in tradingview_trades.columns:
         closed_trades = tradingview_trades[tradingview_trades["Signal"] != "Open"]
@@ -1741,9 +1767,6 @@ def test_ema_crossover_20pip_stop_40pip_tp_trade_count_matches_tradingview(
     # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
     """
     platform_trades = platform_trades_20pip_stop_40pip_tp
-
-    # Verify platform trades hash matches golden reference
-    verify_golden_trades_hash("ema_crossover/20pip_stop_40pip_tp", platform_trades)
 
     if "Signal" in tradingview_trades.columns:
         closed_trades = tradingview_trades[tradingview_trades["Signal"] != "Open"]
@@ -2125,9 +2148,6 @@ def test_ema_crossover_20pip_trailing_stop_trade_count_matches_tradingview(
 
     # Load platform trades
     platform_trades = platform_trades_20pip_trailing_stop
-
-    # Verify platform trades hash matches golden reference
-    verify_golden_trades_hash("ema_crossover/20pip_trailing_stop", platform_trades)
 
     # Align trades
     platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
@@ -2519,11 +2539,6 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_trade_count_matches_tradingv
 
     # Load platform trades
     platform_trades = platform_trades_20pip_trailing_stop_15pip_tp
-
-    # Verify platform trades hash matches golden reference
-    verify_golden_trades_hash(
-        "ema_crossover/20pip_trailing_stop_15pip_tp", platform_trades
-    )
 
     # Align trades
     platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
@@ -2920,9 +2935,6 @@ def test_ema_crossover_2atr_stop_trade_count_matches_tradingview(
     # Load platform trades
     platform_trades = platform_trades_2atr_stop
 
-    # Verify platform trades hash matches golden reference
-    verify_golden_trades_hash("ema_crossover/2atr_stop", platform_trades)
-
     # Align trades
     platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
 
@@ -3217,11 +3229,6 @@ def test_ema_crossover_bb_stop_trade_count_matches_tradingview(
     date_range = golden_metadata.get("date_range")
     platform_trades = platform_trades_bb_stop
 
-    try:
-        verify_golden_trades_hash("ema_crossover/bb_stop", platform_trades)
-    except FileNotFoundError as exc:
-        pytest.skip(str(exc))
-
     platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
 
     assert len(platform_df) == len(tv_df), (
@@ -3243,11 +3250,6 @@ def test_ema_crossover_bb_stop_exit_times_match_tradingview(
 
     date_range = golden_metadata.get("date_range")
     platform_trades = platform_trades_bb_stop
-
-    try:
-        verify_golden_trades_hash("ema_crossover/bb_stop", platform_trades)
-    except FileNotFoundError as exc:
-        pytest.skip(str(exc))
 
     platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
 
@@ -3275,11 +3277,6 @@ def test_ema_crossover_bb_stop_exit_prices_match_tradingview(
 
     date_range = golden_metadata.get("date_range")
     platform_trades = platform_trades_bb_stop
-
-    try:
-        verify_golden_trades_hash("ema_crossover/bb_stop", platform_trades)
-    except FileNotFoundError as exc:
-        pytest.skip(str(exc))
 
     platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
 
