@@ -347,8 +347,16 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
         PROF_CMD+=(--train-end "$TRAIN_PROFITABILITY_END")
     fi
     "${PROF_CMD[@]}"
-    PROFITABILITY_COUNT=$(find data/dvc/ml/models/profitability -name "*.pkl" 2>/dev/null | wc -l | xargs)
+    PROFITABILITY_COUNT=$(
+        find data/dvc/ml/models/profitability -name "*.pkl" 2>/dev/null \
+            | wc -l | xargs
+    )
+    CLASSIFIER_COUNT=$(
+        find data/dvc/ml/models/profitability_classifier -name "*.pkl" 2>/dev/null \
+            | wc -l | xargs
+    )
     echo -e "${GREEN}✓ Trained ${PROFITABILITY_COUNT} profitability models${NC}"
+    echo -e "${GREEN}✓ Trained ${CLASSIFIER_COUNT} profitability classifiers${NC}"
     echo ""
 fi
 ((CURRENT_STAGE++))
@@ -365,14 +373,18 @@ echo -e "  Candidates approved:     ${GREEN}${APPROVED_COUNT:-0}${NC}"
 echo -e "  Total trades enriched:   ${GREEN}${TOTAL_TRADES:-0}${NC}"
 echo -e "  Diagnostic models:       ${GREEN}${DIAGNOSTIC_COUNT:-0}${NC}"
 echo -e "  Profitability models:    ${GREEN}${PROFITABILITY_COUNT:-0}${NC}"
+echo -e "  Profitability classifiers: ${GREEN}${CLASSIFIER_COUNT:-0}${NC}"
 echo ""
 echo -e "${CYAN}Generated Artifacts:${NC}"
 echo "  - Campaign plans:       data/candidates/*/plan.json"
 echo "  - Campaign briefs:      data/candidates/*/runs/*/brief.json"
 echo "  - Enriched data:        data/enriched/*/rich_trades.parquet"
-echo "  - Master trade log:     data/dvc/processed/training_sets/master_trade_log.parquet"
+echo "  - Master trade log:"
+echo "      data/dvc/processed/training_sets/master_trade_log.parquet"
 echo "  - Diagnostic models:    data/dvc/ml/models/diagnostic/"
 echo "  - Profitability models: data/dvc/ml/models/profitability/"
+echo "  - Profitability classifiers:"
+echo "      data/dvc/ml/models/profitability_classifier/"
 echo ""
 echo -e "${CYAN}Next Steps:${NC}"
 echo "  - Review audit log:     docs/ai/logs/campaign_audit.md"

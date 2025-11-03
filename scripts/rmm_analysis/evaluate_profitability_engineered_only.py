@@ -163,7 +163,7 @@ def evaluate_context(
     *,
     random_state: int,
     n_estimators: int,
-) -> dict[str, float] | None:
+) -> tuple[dict[str, float], pd.DataFrame | None] | None:
     if len(context_df_train) < 50 or len(context_df_test) < 30:
         return None
 
@@ -216,6 +216,15 @@ def evaluate_context(
 
     tn, fp, fn, tp = confusion_matrix(y_test_sign, sign_pred).ravel()
 
+    importance_df: pd.DataFrame | None = None
+    if getattr(rf, "feature_importances_", None) is not None:
+        importance_df = pd.DataFrame(
+            {
+                "feature": feature_names,
+                "importance": rf.feature_importances_,
+            }
+        ).sort_values("importance", ascending=False)
+
     return {
         "rf_mae": float(rf_mae),
         "rf_rmse": float(rf_rmse),
@@ -233,7 +242,7 @@ def evaluate_context(
         "n_train": float(len(context_df_train)),
         "n_test": float(len(context_df_test)),
         "n_features": float(len(feature_names)),
-    }
+    }, importance_df
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -246,6 +255,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     summary_rows: list[dict[str, object]] = []
 
+    output_dir = args.output_dir
     contexts = (
         df[["execution_timeframe", "strategy_archetype"]]
         .drop_duplicates()
@@ -266,7 +276,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             & (test_df["strategy_archetype"] == archetype)
         ]
 
-        metrics = evaluate_context(
+        result = evaluate_context(
             train_subset,
             test_subset,
             patterns,
@@ -274,14 +284,19 @@ def main(argv: Sequence[str] | None = None) -> None:
             n_estimators=args.n_estimators,
         )
 
-        if metrics is None:
+        if result is None:
             continue
+        metrics, importance_df = result
 
         row: dict[str, object] = {"context": key}
         row.update(metrics)
         summary_rows.append(row)
 
-    output_dir = args.output_dir
+        if importance_df is not None:
+            output_dir.mkdir(parents=True, exist_ok=True)
+            importance_path = output_dir / f"{key}_feature_importance.csv"
+            importance_df.to_csv(importance_path, index=False)
+
     output_dir.mkdir(parents=True, exist_ok=True)
 
     if summary_rows:

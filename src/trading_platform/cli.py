@@ -15,6 +15,7 @@ from typing import Any, cast
 import pandas as pd
 
 from trading_platform.ai.data_curation import run_curation_pipeline
+from trading_platform.ai.models import ModelRegistry
 from trading_platform.backtester import run_backtest
 from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
@@ -57,6 +58,8 @@ from trading_platform.validation.walk_forward import (
 )
 
 logger = logging.getLogger(__name__)
+
+CLASSIFIER_CONTEXTS = {("5min", "trend_following")}
 
 
 def _get_git_commit() -> str | None:
@@ -979,8 +982,6 @@ def cmd_clear_cache(args: argparse.Namespace) -> int:
 
 def cmd_train_profitability_models(args: argparse.Namespace) -> int:
     """Train profitability models from enriched trade data."""
-    from trading_platform.ai.models import ModelRegistry
-
     # Load enriched data
     enriched_path = Path(args.enriched_data)
     if not enriched_path.exists():
@@ -1053,6 +1054,7 @@ def cmd_train_profitability_models(args: argparse.Namespace) -> int:
     ].drop_duplicates()
 
     trained_models: dict[str, Any] = {}
+    trained_classifiers: dict[str, Any] = {}
 
     for _, row in contexts.iterrows():
         timeframe = row["execution_timeframe"]
@@ -1069,12 +1071,26 @@ def cmd_train_profitability_models(args: argparse.Namespace) -> int:
         trained_models[key] = model
         print(f"  ✓ Finished {key}")
 
-    if not trained_models:
+        if (timeframe, archetype) in CLASSIFIER_CONTEXTS:
+            print(f"  → Training classifier for {key}...")
+            clf_model = registry.get_or_create_profitability_classifier(
+                timeframe=timeframe,
+                archetype=archetype,
+                random_state=args.random_state,
+            )
+            clf_model.fit(trades_with_risk)
+            trained_classifiers[key] = clf_model
+            print(f"  ✓ Finished classifier {key}")
+
+    if not trained_models and not trained_classifiers:
         print("\nNo models trained (insufficient data for all contexts)")
         return 1
 
     # Save models
-    print(f"\nSaving {len(trained_models)} models...")
+    print(
+        f"\nSaving {len(trained_models)} regression models"
+        f" and {len(trained_classifiers)} classifier models..."
+    )
     registry.save()
 
     print("\nProfitability models trained successfully:")
@@ -1082,12 +1098,18 @@ def cmd_train_profitability_models(args: argparse.Namespace) -> int:
         model_path = registry.get_model_path("profitability", key)
         print(f"  - {key}: {model_path}")
 
+    if trained_classifiers:
+        print("\nProfitability classifier models trained:")
+        for key in trained_classifiers.keys():
+            model_path = registry.get_model_path("profitability_classifier", key)
+            print(f"  - {key}: {model_path}")
+
     return 0
 
 
 def cmd_train_diagnostic_models(args: argparse.Namespace) -> int:
     """Train diagnostic models from enriched trade data."""
-    from trading_platform.ai.models import ModelRegistry, PerformanceDiagnosticModel
+    from trading_platform.ai.models import PerformanceDiagnosticModel
 
     # Load enriched data
     enriched_path = Path(args.enriched_data)
@@ -1149,8 +1171,6 @@ def cmd_train_diagnostic_models(args: argparse.Namespace) -> int:
 
 def cmd_predict_profitability(args: argparse.Namespace) -> int:
     """Predict profitability for new trades using trained models."""
-    from trading_platform.ai.models import ModelRegistry
-
     # Load models
     model_dir = Path(args.model_dir) if args.model_dir else Path("models")
     registry = ModelRegistry(model_dir=model_dir)
@@ -1221,8 +1241,6 @@ def cmd_predict_profitability(args: argparse.Namespace) -> int:
 
 def cmd_analyze_regime(args: argparse.Namespace) -> int:
     """Analyze regime performance using trained diagnostic models."""
-    from trading_platform.ai.models import ModelRegistry
-
     # Load models
     model_dir = Path(args.model_dir) if args.model_dir else Path("models")
     registry = ModelRegistry(model_dir=model_dir)
@@ -1307,7 +1325,6 @@ def cmd_analyze_regime(args: argparse.Namespace) -> int:
 def cmd_ai_generate_rmm_candidates(args: argparse.Namespace) -> int:
     """Generate RMM candidate configurations from diagnostic summaries."""
 
-    from trading_platform.ai.models import ModelRegistry
     from trading_platform.ai.pipeline.candidate_generator import generate_rmm_candidates
     from trading_platform.ai.pipeline.diagnostic_collector import (
         collect_diagnostic_contexts,
