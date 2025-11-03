@@ -8,7 +8,6 @@ at multiple timeframes (e.g., 15m strategy with 1H contextual features).
 from __future__ import annotations
 
 import re
-import warnings
 
 import pandas as pd
 
@@ -36,9 +35,6 @@ def resample_data(data: pd.DataFrame, rule: str) -> pd.DataFrame:
     Raises:
         TypeError: If data.index is not a DatetimeIndex
         ValueError: If rule is not a valid pandas frequency string
-
-    Warns:
-        UserWarning: If resampling produces entirely NaN data
     """
     # Validate index type
     if not isinstance(data.index, pd.DatetimeIndex):
@@ -102,13 +98,8 @@ def resample_data(data: pd.DataFrame, rule: str) -> pd.DataFrame:
         else False
     )
     if all_nan:
-        warnings.warn(
-            f"Resampling to {rule} produced entirely NaN data. "
-            "This may indicate the source timeframe is too coarse for the "
-            "target timeframe, leading to NaN propagation when forward-filling.",
-            UserWarning,
-            stacklevel=2,
-        )
+        # If all OHLC values are NaN, treat as empty result to avoid noisy warnings.
+        return resampled.iloc[0:0]
 
     # Drop rows with any NaN values
     result = resampled.dropna()

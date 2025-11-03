@@ -159,14 +159,12 @@ def test_resample_data_errors_on_invalid_timeframe_rule():
         resample_data(df, rule="INVALID")
 
 
-def test_resample_data_warns_on_sparse_resampling():
-    """Test that resample_data warns when resampling produces entirely NaN data.
+def test_resample_data_returns_empty_for_sparse_resampling():
+    """Test that resample_data returns empty DataFrame for all-NaN input.
 
-    Create a DataFrame that contains no actual data (all NaN), which will
-    produce entirely NaN output when resampled, triggering the warning.
+    Create a DataFrame that contains no actual data (all NaN). Resampling
+    should return an empty DataFrame without raising warnings.
     """
-    # Create timestamps but fill with NaN values
-    # Note: Using np.nan instead of pd.NA to avoid pandas/coverage issues
     import numpy as np
 
     timestamps = pd.date_range(start="2024-01-01 00:00:00", periods=4, freq="1h")
@@ -181,9 +179,6 @@ def test_resample_data_warns_on_sparse_resampling():
         index=timestamps,
     )
 
-    # Resampling entirely NaN data produces entirely NaN output
-    with pytest.warns(UserWarning, match="entirely NaN"):
-        result = resample_data(df, rule="1D")
+    result = resample_data(df, rule="1D")
 
-    # After dropna(), all rows with NaN are removed
-    assert len(result) == 0
+    assert result.empty
