@@ -467,6 +467,80 @@ def compute_ema_trend_alignment(
     }
 
 
+def compute_ema_slope_confluence(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> dict[str, pd.Series]:
+    """Compare EMA slope between a base timeframe and higher timeframes."""
+
+    length = int(params.get("length", 50))
+    slope_period = int(params.get("slope_period", 1))
+
+    base_timeframe = str(params.get("base_timeframe", "current") or "current")
+    compare_param = params.get("compare_timeframes")
+    if compare_param is None:
+        compare_param = params.get("compare_timeframe")
+
+    if isinstance(compare_param, str):
+        compare_timeframes = [compare_param]
+    else:
+        compare_timeframes = list(compare_param or [])
+
+    if not compare_timeframes:
+        empty = pd.Series(np.nan, index=df.index, dtype="float64")
+        return {
+            "spread": empty,
+            "ratio": empty,
+            "alignment": empty,
+        }
+
+    def slope_for_timeframe(timeframe: str) -> pd.Series:
+        if timeframe.lower() in {"", "current", "none"}:
+            slope_source = df
+            needs_align = False
+        else:
+            try:
+                slope_source = resample_data(df, rule=str(timeframe))
+            except Exception:
+                return pd.Series(np.nan, index=df.index, dtype="float64")
+            needs_align = True
+
+        slope_values = compute_ema_slope_pct(
+            slope_source,
+            {"length": length, "slope_period": slope_period},
+            source,
+            source_ref,
+        )
+        if needs_align:
+            slope_values = slope_values.reindex(df.index, method="ffill")
+        return slope_values
+
+    base_slope = slope_for_timeframe(base_timeframe)
+    outputs: dict[str, pd.Series] = {}
+
+    for compare_tf in compare_timeframes:
+        compare_slope = slope_for_timeframe(str(compare_tf))
+        spread = base_slope - compare_slope
+
+        with np.errstate(divide="ignore", invalid="ignore"):
+            ratio = base_slope / compare_slope
+        ratio = ratio.replace([np.inf, -np.inf], np.nan)
+
+        alignment = np.sign(base_slope) * np.sign(compare_slope)
+        alignment = alignment.where(
+            ~(base_slope.isna() | compare_slope.isna()),
+            np.nan,
+        )
+
+        outputs[f"spread_{compare_tf}"] = spread
+        outputs[f"ratio_{compare_tf}"] = ratio
+        outputs[f"alignment_{compare_tf}"] = alignment
+
+    return outputs
+
+
 def compute_ema_distance_pct(
     df: pd.DataFrame,
     params: dict[str, Any],

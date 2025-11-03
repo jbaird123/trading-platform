@@ -715,6 +715,49 @@ def test_ema_trend_alignment_in_compute_features():
     assert all((stack_values >= -1.0) & (stack_values <= 1.0))
 
 
+def test_ema_slope_confluence_in_compute_features():
+    """Verify EMASlopeConfluence emits spread/ratio/alignment columns."""
+
+    df = pd.DataFrame(
+        {
+            "open": [10, 11, 12, 13, 14, 15, 16, 17],
+            "high": [10.5, 11.5, 12.5, 13.5, 14.5, 15.5, 16.5, 17.5],
+            "low": [9.5, 10.5, 11.5, 12.5, 13.5, 14.5, 15.5, 16.5],
+            "close": [10, 11, 12, 13, 14, 15, 16, 17],
+            "volume": [100] * 8,
+        },
+        index=pd.date_range("2024-01-01", periods=8, freq="1h"),
+    )
+
+    specs = [
+        {
+            "name": "slope_confluence",
+            "type": "EMASlopeConfluence",
+            "params": {
+                "base_timeframe": "1H",
+                "compare_timeframes": ["4H"],
+                "length": 3,
+                "slope_period": 1,
+            },
+            "source": "close",
+        }
+    ]
+
+    result = compute_features(df, specs)
+
+    spread_col = "slope_confluence_spread_4H"
+    ratio_col = "slope_confluence_ratio_4H"
+    align_col = "slope_confluence_alignment_4H"
+
+    for column in (spread_col, ratio_col, align_col):
+        assert column in result.columns
+        assert result[column].dtype == "float64"
+
+    # Alignment should only take values in [-1, 1]
+    alignment_values = result[align_col].dropna()
+    assert all((alignment_values >= -1.0) & (alignment_values <= 1.0))
+
+
 def test_rsi_in_compute_features():
     """Task 3: Test RSI indicator (already exists, verify it works).
 

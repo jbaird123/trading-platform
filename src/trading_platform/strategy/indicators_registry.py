@@ -300,6 +300,23 @@ INDICATORS: dict[str, dict] = {
         "implementation": impl.compute_ema_trend_alignment,
         "ta": {"module": "", "class": ""},  # custom implementation
     },
+    "EMASlopeConfluence": {
+        "display": "EMA Slope Confluence",
+        "category": "trend",
+        "description": (
+            "Compares EMA slope on a base timeframe against higher timeframes, "
+            "providing spread, ratio, and alignment metrics."
+        ),
+        "params": [
+            {"name": "base_timeframe", "type": "string", "default": "current"},
+            {"name": "compare_timeframes", "type": "list", "default": []},
+            {"name": "length", "type": "int", "default": 50},
+            {"name": "slope_period", "type": "int", "default": 1},
+        ],
+        "safety": "validated",
+        "implementation": impl.compute_ema_slope_confluence,
+        "ta": {"module": "", "class": ""},
+    },
     "EMADistancePercent": {
         "display": "EMA Distance Percent",
         "category": "trend",

@@ -5,6 +5,112 @@
 # Feature names MUST have a timeframe prefix (m15_, h1_, h4_, d1_).
 
 features:
+  # --- Micro Trend Indicators (5min) ---
+  # Provide faster context for intraday strategies.
+  - name: "m5_ema_50"
+    type: "EMA"
+    params: { "length": 50 }
+    timeframe: "5min"
+  - name: "m5_ema_50_slope_pct"
+    type: "EMASlopePct"
+    params: { "length": 50, "slope_period": 1 }
+    timeframe: "5min"
+  - name: "m5_ema_20"
+    type: "EMA"
+    params: { "length": 20 }
+    timeframe: "5min"
+  - name: "m5_ema_20_slope_pct"
+    type: "EMASlopePct"
+    params: { "length": 20, "slope_period": 1 }
+    timeframe: "5min"
+  - name: "m5_ema_100"
+    type: "EMA"
+    params: { "length": 100 }
+    timeframe: "5min"
+  - name: "m5_ema_100_slope_pct"
+    type: "EMASlopePct"
+    params: { "length": 100, "slope_period": 1 }
+    timeframe: "5min"
+  - name: "m5_ema_50_distance_pct"
+    type: "EMADistancePercent"
+    params: { "length": 50 }
+    timeframe: "5min"
+  - name: "m5_trend_alignment"
+    type: "EMATrendAlignment"
+    params:
+      {
+        "timeframes": ["5min", "15min", "1H"],
+        "length": 50,
+        "slope_period": 1,
+      }
+    timeframe: "5min"
+
+  # --- Micro Volatility & Structure (5min) ---
+  - name: "m5_atr_percentile_100"
+    type: "ATRPercentile"
+    params: { "atr_length": 14, "lookback": 100 }
+    timeframe: "5min"
+  - name: "m5_atr_slope_pct"
+    type: "ATRSlopePercent"
+    params: { "length": 14, "slope_period": 1 }
+    timeframe: "5min"
+  - name: "m5_true_range_zscore_50"
+    type: "TrueRangeZScore"
+    params: { "window": 50 }
+    timeframe: "5min"
+  - name: "m5_close_to_hhv_20_pct"
+    type: "CloseToHHVPercent"
+    params: { "length": 20 }
+    timeframe: "5min"
+  - name: "m5_close_to_llv_20_pct"
+    type: "CloseToLLVPercent"
+    params: { "length": 20 }
+    timeframe: "5min"
+  - name: "m5_hhv_20_slope"
+    type: "HHVSlope"
+    params: { "length": 20, "slope_period": 1 }
+    timeframe: "5min"
+  - name: "m5_llv_20_slope"
+    type: "LLVSlope"
+    params: { "length": 20, "slope_period": 1 }
+    timeframe: "5min"
+  - name: "m5_volume_sma_ratio_20"
+    type: "VolumeSMARatio"
+    params: { "length": 20 }
+    timeframe: "5min"
+  - name: "m5_prior_return_1"
+    type: "PriorReturn"
+    params: { "window": 1 }
+    timeframe: "5min"
+  - name: "m5_prior_return_5"
+    type: "PriorReturn"
+    params: { "window": 5 }
+    timeframe: "5min"
+  - name: "m5_rsi_14"
+    type: "RSI"
+    params: { "length": 14 }
+    timeframe: "5min"
+  - name: "m5_rsi_bias"
+    type: "RSIBias"
+    params: { "length": 14 }
+    timeframe: "5min"
+  - name: "m5_adx_14"
+    type: "ADX"
+    params: { "length": 14 }
+    timeframe: "5min"
+  - name: "m5_adx_strength"
+    type: "ADXStrength"
+    params: { "length": 14 }
+    timeframe: "5min"
+  - name: "m5_calendar"
+    type: "CalendarSessions"
+    params: {}
+    timeframe: "5min"
+  - name: "m5_day_of_week"
+    type: "DayOfWeekOneHot"
+    params: {}
+    timeframe: "5min"
+
   # --- Trend Indicators ---
   # Provide a view of the trend across major timeframes.
   - name: "m15_ema_50"
@@ -242,6 +348,16 @@ features:
     params:
       {
         "timeframes": ["4H", "1D", "1W"],
+        "length": 50,
+        "slope_period": 1,
+      }
+    timeframe: "4H"
+  - name: "h4_ema_slope_confluence"
+    type: "EMASlopeConfluence"
+    params:
+      {
+        "base_timeframe": "4H",
+        "compare_timeframes": ["1D", "1W"],
         "length": 50,
         "slope_period": 1,
       }

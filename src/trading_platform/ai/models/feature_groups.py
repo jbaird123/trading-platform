@@ -12,6 +12,7 @@ ENGINEERED_GROUP_PATTERNS: dict[str, list[str]] = {
         "trend_alignment",
         "ema_50_slope_pct",
         "ema_50_distance_pct",
+        "slope_confluence",
     ],
     "volatility": [
         "atr_percentile",
