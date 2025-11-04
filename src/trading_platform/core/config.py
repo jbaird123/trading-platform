@@ -188,6 +188,10 @@ class RunConfig(BaseModel):
     rmm_config: dict[str, Any] | None = Field(
         default=None, description="Regime Market Manager configuration, if any."
     )
+    rmm_gating_profile: dict[str, Any] | None = Field(
+        default=None,
+        description="Profitability gating profile configuration (classifier-based).",
+    )
     entry_window_bars: int = Field(
         default=0,
         description=(

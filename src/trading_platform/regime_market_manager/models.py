@@ -209,4 +209,99 @@ __all__ = [
     "RMMPredicate",
     "RMMOperand",
     "RMMIndicatorRef",
+    "RMMGatingProfile",
+    "RMMGatingContext",
+    "parse_rmm_resource",
 ]
+
+
+class RMMGatingContext(BaseModel):
+    """Context-specific profitability gating configuration."""
+
+    model_config = {"extra": "forbid"}
+
+    timeframe: str = Field(description="Execution timeframe (e.g., '5min').")
+    archetype: str = Field(
+        description="Strategy archetype (e.g., 'trend_following', 'mean_reversion')."
+    )
+    classifier_model: str = Field(
+        description="Classifier alias (e.g., gb_weighted, logistic)."
+    )
+    feature_group: str | None = Field(
+        default=None,
+        description="Feature group used during analysis (for documentation only).",
+    )
+    probability_threshold: Annotated[
+        float,
+        Field(
+            ge=0.0,
+            le=1.0,
+            description="Probability threshold required to enable trades.",
+        ),
+    ]
+    gating_expression: str = Field(
+        default="true",
+        description="Boolean expression that must evaluate to True for gating.",
+    )
+    expected_coverage: float | None = Field(
+        default=None, description="Documented coverage fraction from analysis."
+    )
+    expected_mean_r: float | None = Field(
+        default=None, description="Documented mean R from analysis."
+    )
+    expected_sum_r: float | None = Field(
+        default=None, description="Documented sum R from analysis."
+    )
+    commentary: str | None = Field(
+        default=None, description="Free-form notes about this gating context."
+    )
+
+
+class RMMGatingProfileMeta(BaseModel):
+    """Metadata describing a profitability gating profile."""
+
+    model_config = {"extra": "allow"}  # allow future metadata fields
+
+    name: str = Field(description="Human-friendly profile name.")
+    description: str | None = Field(default=None, description="Profile summary.")
+    source_analysis: dict[str, Any] | None = Field(
+        default=None, description="Pointers to analysis artifacts."
+    )
+    notes: str | None = Field(default=None, description="Additional notes.")
+
+
+class RMMGatingProfile(BaseModel):
+    """Top-level profitability gating profile."""
+
+    model_config = {"extra": "forbid"}
+
+    profile: RMMGatingProfileMeta | None = Field(
+        default=None, description="Profile metadata."
+    )
+    contexts: list[RMMGatingContext] = Field(
+        description="List of gating contexts (timeframe/archetype pairs).",
+        min_length=1,
+    )
+
+    def context_map(self) -> dict[tuple[str, str], RMMGatingContext]:
+        """Return mapping keyed by (timeframe_lower, archetype)."""
+        return {(ctx.timeframe.lower(), ctx.archetype): ctx for ctx in self.contexts}
+
+
+def parse_rmm_resource(
+    config_dict: dict[str, Any],
+) -> tuple[dict[str, Any] | None, RMMGatingProfile | None]:
+    """Determine whether a YAML blob is a classic RMMConfig or gating profile.
+
+    Returns:
+        Tuple of (legacy_rmm_dict, gating_profile). Only one element will be non-null.
+    """
+    if "regimes" in config_dict:
+        # Legacy rule-based RMM config
+        return config_dict, None
+
+    if "contexts" in config_dict:
+        profile = RMMGatingProfile.model_validate(config_dict)
+        return None, profile
+
+    return config_dict, None

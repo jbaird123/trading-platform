@@ -15,6 +15,10 @@ from trading_platform.core.types import SignalCommand
 from trading_platform.core.utils import normalize_symbol
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
+from trading_platform.regime_market_manager.gating import (
+    GatingDecision,
+    ProfitabilityGatingEngine,
+)
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
@@ -142,6 +146,8 @@ def _run_backtest_simulation(
     return_skips: bool = False,
     data_handler: Any = None,
     global_features_config_path: Path | str | None = None,
+    gating_engine: ProfitabilityGatingEngine | None = None,
+    gating_metadata: dict[str, Any] | None = None,
 ) -> SimulationReturn:
     """INTERNAL: Bar-by-bar backtest simulation engine.
 
@@ -196,6 +202,16 @@ def _run_backtest_simulation(
         raise ValueError(f"market_data.close has NaNs; first at index: {first_bad}")
 
     symbol = resolve_instrument_symbol(config.instrument)
+    strategy_archetype = (gating_metadata or {}).get(
+        "strategy_archetype"
+    ) or "trend_following"
+    instrument_timeframe = (gating_metadata or {}).get("instrument_timeframe")
+    if instrument_timeframe is None:
+        instrument = config.instrument
+        if isinstance(instrument, dict):
+            instrument_timeframe = instrument.get("timeframe")
+        else:
+            instrument_timeframe = getattr(instrument, "timeframe", None)
 
     def _timeframe_to_minutes(timeframe: str) -> int:
         """Convert timeframe string (e.g., '1H', '15min') to minutes."""
@@ -595,13 +611,47 @@ def _run_backtest_simulation(
             rmm_ctx = rmm_context.get(cast(datetime, current_bar.name))
             regime_data = _build_regime_data(rmm_ctx)
 
-        context = {
+        context: dict[str, Any] = {
             "strategy_features": strategy_feature_context,
             "global_features": global_features,
         }
         if regime_data is not None:
             context["regime"] = regime_data
         last_context_at_exit = context
+
+        gating_decision: GatingDecision | None = None
+        if gating_engine and command in ["enter_long", "enter_short"]:
+            side = "long" if command == "enter_long" else "short"
+            tf_value = instrument_timeframe
+            if tf_value is None and isinstance(config.instrument, dict):
+                tf_value = config.instrument.get("timeframe")
+            gating_decision = gating_engine.should_allow(
+                timeframe=str(tf_value or "1H"),
+                archetype=strategy_archetype,
+                side=side,
+                symbol=symbol,
+                entry_time=cast(datetime, current_bar.name),
+                context=context,
+            )
+            context["gating"] = gating_decision.as_dict()
+            if not gating_decision.allowed:
+                if return_skips:
+                    skipped.append(
+                        {
+                            "entry_time": _fmt_ts(current_bar.name),
+                            "symbol": symbol,
+                            "side": side,
+                            "size": float(config.position_size),
+                            "skip_reason": "profitability_gate",
+                            "entry_index": i,
+                            "entry_price": float(current_bar["close"]),
+                            "notes": gating_decision.reason,
+                            "gating": gating_decision.as_dict(),
+                        }
+                    )
+                continue
+        elif gating_engine:
+            context["gating"] = None
 
         # === REM EXIT PHASE: Check risk-based exits ===
         # REM exits (stop-loss, take-profit) are ALWAYS executed immediately

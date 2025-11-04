@@ -38,7 +38,10 @@ from trading_platform.execution.oanda_stub import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
 from trading_platform.regime_market_manager.engine import RMMEngine
-from trading_platform.regime_market_manager.models import RMMConfig
+from trading_platform.regime_market_manager.models import (
+    RMMConfig,
+    parse_rmm_resource,
+)
 from trading_platform.reporting.brief import compute_data_quality
 from trading_platform.reporting.chart_export import (
     save_chart_from_brief,
@@ -59,7 +62,10 @@ from trading_platform.validation.walk_forward import (
 
 logger = logging.getLogger(__name__)
 
-CLASSIFIER_CONTEXTS = {("5min", "trend_following")}
+CLASSIFIER_CONTEXTS = {
+    ("5min", "trend_following"),
+    ("15min", "trend_following"),
+}
 
 
 def _get_git_commit() -> str | None:
@@ -122,7 +128,11 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     rmm_path = cfg_raw.get("rmm_path")
     if rmm_path:
         loaded_rmm_cfg = _load_config(Path(str(rmm_path)))
-        cfg_raw["rmm_config"] = loaded_rmm_cfg
+        legacy_rmm, gating_profile = parse_rmm_resource(loaded_rmm_cfg)
+        if legacy_rmm:
+            cfg_raw["rmm_config"] = legacy_rmm
+        if gating_profile:
+            cfg_raw["rmm_gating_profile"] = gating_profile.model_dump()
         # Remove the path key after loading since it's not part of the schema
         cfg_raw.pop("rmm_path", None)
 

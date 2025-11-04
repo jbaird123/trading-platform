@@ -5,12 +5,13 @@ import math
 import random
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Sequence, cast
 
 import pandas as pd
 from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.core.config import RunConfig
 from trading_platform.core.robustness import walk_forward_splits
+from trading_platform.core.signal import Signal
 from trading_platform.portfolio.trade import Trade
 from trading_platform.regime_market_manager.engine import RMMEngine
 from trading_platform.regime_market_manager.models import RMMConfig
@@ -18,6 +19,44 @@ from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
 
 logger = logging.getLogger(__name__)
+
+
+def _signal_commands(sig: Sequence[Any] | pd.Series | Any) -> list[str] | None:
+    """
+    Normalize signal collections for logging/debug output.
+
+    Returns a list of command strings when the strategy emits Signal objects.
+    Otherwise returns stringified versions of the original values. Falls back
+    to None if the collection cannot be iterated safely.
+    """
+
+    def _to_list(obj: Any) -> list[Any]:
+        if isinstance(obj, pd.Series):
+            return obj.tolist()
+        if isinstance(obj, Sequence):
+            return list(obj)
+        if hasattr(obj, "tolist"):
+            try:
+                return list(obj.tolist())
+            except Exception:  # pragma: no cover
+                return list(obj)
+        try:
+            return list(obj)
+        except TypeError:  # pragma: no cover
+            return []
+
+    try:
+        values = _to_list(sig)
+    except Exception:  # pragma: no cover
+        return None
+    if not values:
+        return []
+    if isinstance(values[0], Signal):
+        return [
+            getattr(s, "command", str(s)) if isinstance(s, Signal) else str(s)
+            for s in values
+        ]
+    return [str(v) for v in values]
 
 
 def _rmm_context(
@@ -94,9 +133,7 @@ def _rmm_context(
     proj = eng.project_to_index(regimes, _cast(pd.DatetimeIndex, df.index), policy=pol)
 
     # Extract regime feature names from config
-    feature_names = [
-        f.name for f in rmm_model.features or [] if f.name
-    ]
+    feature_names = [f.name for f in rmm_model.features or [] if f.name]
 
     def _safe_float(val: Any, default: float = 0.0) -> float:
         if isinstance(val, (int, float)):
@@ -155,9 +192,7 @@ def _rmm_context(
             and df.index[0] == full_data.index[0]
             and df.index[-1] == full_data.index[-1]
         ):
-            data_handler.set_rmm_context(
-                rmm_cfg_clean, regime_timeframe, rmm_context
-            )
+            data_handler.set_rmm_context(rmm_cfg_clean, regime_timeframe, rmm_context)
 
     return rmm_context
 
@@ -304,6 +339,7 @@ def run_parameter_sweep(
                     f.write(f"  COMPILE LOG ERROR: {e}\n")
 
         sig = strat.generate_signals(df)
+        sig_cmds = _signal_commands(sig)
 
         # DEBUG: Log detailed info
         if log_file is not None:
@@ -314,9 +350,14 @@ def run_parameter_sweep(
                         f"  df.shape={df.shape}, df.index[0]={df.index[0]}, "
                         f"df.index[-1]={df.index[-1]}\n"
                     )
-                    f.write(f"  sig.shape={sig.shape}\n")
-                    vc = sig.value_counts()
-                    f.write(f"  sig.value_counts()={dict(vc)}\n")
+                    shape = getattr(sig, "shape", None)
+                    f.write(f"  sig.shape={shape}\n")
+                    if sig_cmds is not None:
+                        sig_series = pd.Series(sig_cmds)
+                        vc = sig_series.value_counts(dropna=False)
+                        f.write(f"  sig.value_counts()={dict(vc)}\n")
+                    else:
+                        f.write("  sig.value_counts()=<unavailable>\n")
                     f.write(f"  rmm_ctx keys count={len(rmm_ctx) if rmm_ctx else 0}\n")
                     # Log feature dataframe if available
                     feat_df = getattr(strat, "_feature_df", None)
@@ -332,10 +373,8 @@ def run_parameter_sweep(
                             f.write(f"  ema_fast non-NaN count={non_nan_fast}\n")
                             f.write(f"  ema_slow non-NaN count={non_nan_slow}\n")
                     # Save signals and features for analysis
-                    if debug_path is not None:
-                        import pandas as pd
-
-                        sig_df = pd.DataFrame({"signal": sig})
+                    if debug_path is not None and sig_cmds is not None:
+                        sig_df = pd.DataFrame({"signal": sig_cmds})
                         sig_path = (
                             debug_path / f"sweep_signals_{cand['ema_fast_length']}_"
                             f"{cand['ema_slow_length']}.parquet"

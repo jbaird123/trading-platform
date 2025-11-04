@@ -20,6 +20,8 @@ from trading_platform.backtester.core import (
 )
 from trading_platform.core.config import RunConfig
 from trading_platform.portfolio.trade import Trade
+from trading_platform.regime_market_manager.gating import ProfitabilityGatingEngine
+from trading_platform.regime_market_manager.models import RMMGatingProfile
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
 
@@ -121,6 +123,11 @@ def run_backtest(
                         params.update(feat_over[name])
                         f["params"] = params
 
+    strategy_metadata = strategy_config.get("metadata") or {}
+    strategy_archetype = str(
+        strategy_metadata.get("strategy_archetype", "trend_following")
+    )
+
     # Compile strategy and generate signals
     strat = compile_strategy(strategy_config)
     signals = strat.generate_signals(df)
@@ -156,6 +163,22 @@ def run_backtest(
         exit_tie_break=exit_tie_break,
     )
 
+    gating_engine: ProfitabilityGatingEngine | None = None
+    gating_metadata: dict[str, Any] | None = None
+    if config.rmm_gating_profile:
+        profile = RMMGatingProfile.model_validate(config.rmm_gating_profile)
+        gating_engine = ProfitabilityGatingEngine(profile)
+        instrument_timeframe = None
+        instrument_symbol = None
+        if instrument_dict:
+            instrument_timeframe = instrument_dict.get("timeframe")
+            instrument_symbol = instrument_dict.get("symbol")
+        gating_metadata = {
+            "strategy_archetype": strategy_archetype,
+            "instrument_timeframe": instrument_timeframe,
+            "instrument_symbol": instrument_symbol,
+        }
+
     # Run backtest simulation
     res: SimulationReturn = _run_backtest_simulation(
         market_data=feature_enriched_df,
@@ -168,6 +191,8 @@ def run_backtest(
         return_skips=return_skips,
         data_handler=data_handler,
         global_features_config_path=global_features_config_path,
+        gating_engine=gating_engine,
+        gating_metadata=gating_metadata,
     )
 
     # Handle return value based on return_exposure and return_skips flags

@@ -7,7 +7,7 @@ indicator registry to calculate technical indicators on OHLCV data.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 
@@ -106,6 +106,30 @@ def _resample_to_higher_timeframe(df: pd.DataFrame, timeframe: str) -> pd.DataFr
     return resampled
 
 
+def _to_series(value: Any, index: pd.Index) -> pd.Series:
+    """Ensure a value is a Series aligned to the provided index."""
+    if isinstance(value, pd.Series):
+        return cast(pd.Series, value.reindex(index))
+    if isinstance(value, pd.DataFrame):
+        if value.shape[1] != 1:
+            raise ValueError(
+                "Indicator output DataFrame must have exactly one column "
+                "when assigning to a single feature."
+            )
+        return cast(pd.Series, value.iloc[:, 0].reindex(index))
+    if hasattr(value, "__len__") and len(value) == len(index):
+        return cast(pd.Series, pd.Series(value, index=index))
+    return cast(pd.Series, pd.Series([value] * len(index), index=index))
+
+
+def _append_columns(base: pd.DataFrame, columns: dict[str, Any]) -> pd.DataFrame:
+    """Assign multiple columns at once to avoid fragmentation and duplicates."""
+    if not columns:
+        return base
+    aligned = {name: _to_series(val, base.index) for name, val in columns.items()}
+    return base.assign(**aligned)
+
+
 def compute_features(
     df: pd.DataFrame, specs: list[dict], strategy_parameters: dict | None = None
 ) -> pd.DataFrame:
@@ -149,7 +173,7 @@ def compute_features(
 
     # Process base timeframe features first
     for spec in base_specs:
-        _process_single_feature(spec, df, out, strategy_parameters)
+        out = _process_single_feature(spec, out, strategy_parameters)
 
     # Process higher timeframe features grouped by timeframe
     for timeframe, group_specs in timeframe_groups.items():
@@ -209,10 +233,12 @@ def compute_features(
                 htf_cols = [name]
 
             # Reindex and forward-fill all columns for this feature
+            new_cols: dict[str, pd.Series] = {}
             for col in htf_cols:
                 if col in df_htf.columns:
                     htf_series = df_htf[col].reindex(df.index, method="ffill")
-                    out[col] = htf_series
+                    new_cols[col] = htf_series
+            out = _append_columns(out, new_cols)
 
     # Return with natural NaN values - consuming code handles them
     return out
@@ -220,10 +246,9 @@ def compute_features(
 
 def _process_single_feature(
     spec: dict,
-    df: pd.DataFrame,
-    out: pd.DataFrame,
+    data: pd.DataFrame,
     strategy_parameters: dict,
-) -> None:
+) -> pd.DataFrame:
     """Process a single feature specification and add to output DataFrame.
 
     Args:
@@ -252,7 +277,7 @@ def _process_single_feature(
         source_ref = str(ref_val) if ref_val is not None else None
 
     if not name:
-        return
+        return data
 
     # Resolve parameter substitutions (${param_name})
     resolved_params = {
@@ -266,22 +291,25 @@ def _process_single_feature(
         # instead of raising an error
         import numpy as np
 
-        out[name] = np.nan
-        return
+        fallback_columns = {name: pd.Series(np.nan, index=data.index)}
+        return _append_columns(data, fallback_columns)
 
     # Call implementation with standard interface
     impl_fn = indicator["implementation"]
-    result = impl_fn(df, resolved_params, source, source_ref)
+    result = impl_fn(data, resolved_params, source, source_ref)
 
     # Handle output based on return type
+    new_columns: dict[str, pd.Series] = {}
     if isinstance(result, dict):
         # Multi-column output (BB, MACD, ADX, etc.)
         for col_name, col_data in result.items():
             if col_name == "":
                 # Empty string means no suffix (e.g., PSAR, STOCH main value)
-                out[name] = col_data
+                new_columns[name] = col_data
             else:
-                out[f"{name}_{col_name}"] = col_data
+                new_columns[f"{name}_{col_name}"] = col_data
     else:
         # Single-column output (EMA, RSI, ATR, etc.)
-        out[name] = result
+        new_columns[name] = result
+
+    return _append_columns(data, new_columns)

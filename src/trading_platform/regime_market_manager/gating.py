@@ -1,0 +1,181 @@
+"""Classifier-based profitability gating engine."""
+
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+import pandas as pd
+
+from trading_platform.ai.models import ModelRegistry
+from trading_platform.core import paths
+from trading_platform.regime_market_manager.models import (
+    RMMGatingContext,
+    RMMGatingProfile,
+)
+
+ALIGNMENT_COLUMN_MAP = {
+    "5min": "context_at_entry_global_features_m15_trend_alignment_full_alignment",
+    "15min": "context_at_entry_global_features_h1_trend_alignment_full_alignment",
+}
+
+
+@dataclass
+class GatingDecision:
+    allowed: bool
+    probability: float | None
+    threshold: float
+    expression_passed: bool
+    reason: str | None = None
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "allowed": self.allowed,
+            "probability": self.probability,
+            "threshold": self.threshold,
+            "expression_passed": self.expression_passed,
+            "reason": self.reason,
+        }
+
+
+class ProfitabilityGatingEngine:
+    """Evaluate classifier-based gating rules for trade entries."""
+
+    def __init__(
+        self,
+        profile: RMMGatingProfile,
+        model_dir: Path | None = None,
+        registry: ModelRegistry | None = None,
+    ) -> None:
+        self.profile = profile
+        self._logger = logging.getLogger(__name__)
+        self._context_map = profile.context_map()
+        self._missing_models: set[str] = set()
+        self.registry = registry or ModelRegistry(
+            model_dir=model_dir or paths.PROJECT_ROOT / "data" / "dvc" / "ml" / "models"
+        )
+        # Ensure models are loaded so get_model works immediately
+        self.registry.load()
+
+    def should_allow(
+        self,
+        timeframe: str,
+        archetype: str,
+        side: str,
+        symbol: str,
+        entry_time: datetime,
+        context: dict[str, Any] | None,
+    ) -> GatingDecision:
+        ctx_key = (str(timeframe).lower(), archetype)
+        ctx_cfg = self._context_map.get(ctx_key)
+        if ctx_cfg is None:
+            return GatingDecision(
+                allowed=True,
+                probability=None,
+                threshold=0.0,
+                expression_passed=True,
+                reason="no_gating_context",
+            )
+
+        classifier = self._get_classifier(ctx_cfg)
+        if classifier is None:
+            return GatingDecision(
+                allowed=True,
+                probability=None,
+                threshold=ctx_cfg.probability_threshold,
+                expression_passed=True,
+                reason="missing_classifier",
+            )
+
+        row = self._build_feature_row(context or {}, side, symbol, entry_time)
+        proba = classifier.predict_proba(row)
+        if isinstance(proba, pd.Series):
+            probability = float(proba.iloc[0])
+        else:
+            try:
+                probability = float(proba[0][-1])
+            except Exception:
+                probability = float(proba[0])
+        expression_passed = self._evaluate_expression(ctx_cfg, row)
+        allowed = probability >= ctx_cfg.probability_threshold and expression_passed
+        reason = None
+        if not allowed:
+            if probability < ctx_cfg.probability_threshold:
+                reason = "probability_below_threshold"
+            elif not expression_passed:
+                reason = "gating_expression_failed"
+        return GatingDecision(
+            allowed=allowed,
+            probability=probability,
+            threshold=ctx_cfg.probability_threshold,
+            expression_passed=expression_passed,
+            reason=reason,
+        )
+
+    def _get_classifier(self, ctx_cfg: RMMGatingContext):
+        key = f"{ctx_cfg.timeframe}_{ctx_cfg.archetype}"
+        model = self.registry.get_model("profitability_classifier", key)
+        if model is None:
+            if key not in self._missing_models:
+                self._missing_models.add(key)
+            msg = (
+                f"Profitability classifier '{key}' not found. "
+                "Train the classifier before enabling gating."
+            )
+            self._logger.error(msg)
+            raise RuntimeError(msg)
+        return model
+
+    def _build_feature_row(
+        self,
+        context: dict[str, Any],
+        side: str,
+        symbol: str,
+        entry_time: datetime,
+    ) -> pd.DataFrame:
+        flat: dict[str, Any] = {}
+        for section_name, payload in context.items():
+            if not isinstance(payload, dict):
+                continue
+            prefix = f"context_at_entry_{section_name}_"
+            for key, value in payload.items():
+                if isinstance(value, dict):
+                    for sub_key, sub_val in value.items():
+                        flat[f"{prefix}{key}_{sub_key}"] = sub_val
+                else:
+                    flat[f"{prefix}{key}"] = value
+        flat["side"] = side
+        flat["symbol"] = symbol
+        ts = pd.Timestamp(entry_time)
+        if ts.tzinfo is None:
+            ts = ts.tz_localize("UTC")
+        flat["entry_time"] = ts
+        return pd.DataFrame([flat])
+
+    def _evaluate_expression(
+        self, ctx_cfg: RMMGatingContext, row: pd.DataFrame
+    ) -> bool:
+        expr = ctx_cfg.gating_expression.strip().lower()
+        if not expr or expr == "true":
+            return True
+        if expr == "alignment_full":
+            column = ALIGNMENT_COLUMN_MAP.get(ctx_cfg.timeframe)
+            if not column:
+                return False
+            value = row.iloc[0].get(column)
+            if value is None:
+                return False
+            try:
+                return float(value) > 0.0
+            except (TypeError, ValueError):
+                return False
+        # Unsupported expressions default to False to avoid false positives
+        self._logger.warning(
+            "Unsupported gating_expression '%s' for timeframe %s",
+            ctx_cfg.gating_expression,
+            ctx_cfg.timeframe,
+        )
+        return False

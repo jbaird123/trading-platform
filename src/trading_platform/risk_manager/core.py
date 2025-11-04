@@ -111,6 +111,7 @@ class RiskExitManager:
         rule: IndicatorRule,
         position: Position,
         current_bar: pd.Series,
+        signal_context: dict[str, Any],
         prior_bar: pd.Series | None = None,
     ) -> float:
         """Compute price level using an indicator-driven stop calculator.
@@ -134,7 +135,17 @@ class RiskExitManager:
                 "no prior_bar was provided."
             )
 
-        calculation_bar = prior_bar if prior_bar is not None else current_bar
+        base_bar = prior_bar if prior_bar is not None else current_bar
+        calculation_bar = base_bar.copy()
+        sections = ("strategy_features", "global_features")
+        for section in sections:
+            payload = signal_context.get(section)
+            if not isinstance(payload, dict):
+                continue
+            for key, value in payload.items():
+                if key in calculation_bar:
+                    continue
+                calculation_bar.loc[key] = value
         params = dict(rule.params)
         price = float(
             spec.stop_calculator(
@@ -187,7 +198,9 @@ class RiskExitManager:
         elif isinstance(rule, FixedPipsRule):
             distance = self._distance_value(rule)
         elif isinstance(rule, IndicatorRule):
-            return self._indicator_price(rule, position, current_bar, prior_bar)
+            return self._indicator_price(
+                rule, position, current_bar, signal_context, prior_bar
+            )
         elif isinstance(rule, ReferenceRule):
             base_price = self._context_value(rule.reference_point, signal_context)
             if base_price is None:
