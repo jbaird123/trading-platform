@@ -119,15 +119,28 @@ def _to_series(value: Any, index: pd.Index) -> pd.Series:
         return cast(pd.Series, value.iloc[:, 0].reindex(index))
     if hasattr(value, "__len__") and len(value) == len(index):
         return cast(pd.Series, pd.Series(value, index=index))
-    return cast(pd.Series, pd.Series([value] * len(index), index=index))
+    repeated = pd.Series([value] * len(index), index=index)
+    return cast(pd.Series, repeated)
 
 
-def _append_columns(base: pd.DataFrame, columns: dict[str, Any]) -> pd.DataFrame:
-    """Assign multiple columns at once to avoid fragmentation and duplicates."""
+def _append_columns(
+    base: pd.DataFrame,
+    columns: dict[str, Any],
+    assign_state: dict[str, int],
+) -> pd.DataFrame:
+    """Assign columns in-place, consolidating periodically to avoid fragmentation."""
     if not columns:
         return base
-    aligned = {name: _to_series(val, base.index) for name, val in columns.items()}
-    return base.assign(**aligned)
+    for name, value in columns.items():
+        series = _to_series(value, base.index)
+        base[name] = series
+    assign_state["pending"] = assign_state.get("pending", 0) + len(columns)
+    if assign_state["pending"] >= 32:
+        consolidate = getattr(base, "_consolidate_inplace", None)
+        if callable(consolidate):
+            consolidate()
+        assign_state["pending"] = 0
+    return base
 
 
 def compute_features(
@@ -172,8 +185,12 @@ def compute_features(
             base_specs.append(spec)
 
     # Process base timeframe features first
+    assign_state: dict[str, int] = {"pending": 0}
+
     for spec in base_specs:
-        out = _process_single_feature(spec, out, strategy_parameters)
+        out = _process_single_feature(
+            spec, out, strategy_parameters, assign_state=assign_state
+        )
 
     # Process higher timeframe features grouped by timeframe
     for timeframe, group_specs in timeframe_groups.items():
@@ -238,7 +255,7 @@ def compute_features(
                 if col in df_htf.columns:
                     htf_series = df_htf[col].reindex(df.index, method="ffill")
                     new_cols[col] = htf_series
-            out = _append_columns(out, new_cols)
+            out = _append_columns(out, new_cols, assign_state)
 
     # Return with natural NaN values - consuming code handles them
     return out
@@ -248,6 +265,8 @@ def _process_single_feature(
     spec: dict,
     data: pd.DataFrame,
     strategy_parameters: dict,
+    *,
+    assign_state: dict[str, int],
 ) -> pd.DataFrame:
     """Process a single feature specification and add to output DataFrame.
 
@@ -292,7 +311,7 @@ def _process_single_feature(
         import numpy as np
 
         fallback_columns = {name: pd.Series(np.nan, index=data.index)}
-        return _append_columns(data, fallback_columns)
+        return _append_columns(data, fallback_columns, assign_state)
 
     # Call implementation with standard interface
     impl_fn = indicator["implementation"]
@@ -312,4 +331,4 @@ def _process_single_feature(
         # Single-column output (EMA, RSI, ATR, etc.)
         new_columns[name] = result
 
-    return _append_columns(data, new_columns)
+    return _append_columns(data, new_columns, assign_state)

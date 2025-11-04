@@ -101,7 +101,7 @@ def _calculate_atr_stop(
 def _calculate_chandelier_stop(
     entry_price: float,
     side: str,
-    current_bar: pd.Series,
+    current_bar: pd.Series | dict[str, Any],
     params: dict,
 ) -> float:
     """Calculate Chandelier Stop price.
@@ -152,11 +152,18 @@ def _calculate_chandelier_stop(
 
     # Get ATR value - try specific length column first, then generic
     atr_col = f"atr_{atr_length}"
-    if atr_col in current_bar:
-        atr_value = current_bar[atr_col]
-    elif "atr" in current_bar:
-        atr_value = current_bar["atr"]
+    if isinstance(current_bar, dict):
+        atr_value = current_bar.get(atr_col)
+        if atr_value is None:
+            atr_value = current_bar.get("atr")
     else:
+        if atr_col in current_bar:
+            atr_value = current_bar[atr_col]
+        elif "atr" in current_bar:
+            atr_value = current_bar["atr"]
+        else:
+            atr_value = None
+    if atr_value is None:
         raise KeyError(
             f"ATR indicator not found. Expected column '{atr_col}' or "
             "'atr'. Add ATR feature to strategy with matching length."
@@ -172,13 +179,18 @@ def _calculate_chandelier_stop(
             "HHV",
             f"highest_high_{length}",
         ]
-        hhv_col = None
+        hhv_value = None
         for candidate in hhv_candidates:
-            if candidate in current_bar:
-                hhv_col = candidate
-                break
+            if isinstance(current_bar, dict):
+                if candidate in current_bar:
+                    hhv_value = current_bar[candidate]
+                    break
+            else:
+                if candidate in current_bar:
+                    hhv_value = current_bar[candidate]
+                    break
 
-        if hhv_col is None:
+        if hhv_value is None:
             tried = ", ".join(hhv_candidates)
             raise KeyError(
                 f"HHV indicator not found. Tried columns: {tried}. "
@@ -187,7 +199,7 @@ def _calculate_chandelier_stop(
                 f"params: {{length: {length}}}, source: high}}"
             )
 
-        highest_high = float(current_bar[hhv_col])
+        highest_high = float(hhv_value)
         distance = float(atr_value) * float(multiplier)
         return highest_high - distance
 
@@ -200,13 +212,18 @@ def _calculate_chandelier_stop(
             "LLV",
             f"lowest_low_{length}",
         ]
-        llv_col = None
+        llv_value = None
         for candidate in llv_candidates:
-            if candidate in current_bar:
-                llv_col = candidate
-                break
+            if isinstance(current_bar, dict):
+                if candidate in current_bar:
+                    llv_value = current_bar[candidate]
+                    break
+            else:
+                if candidate in current_bar:
+                    llv_value = current_bar[candidate]
+                    break
 
-        if llv_col is None:
+        if llv_value is None:
             tried = ", ".join(llv_candidates)
             raise KeyError(
                 f"LLV indicator not found. Tried columns: {tried}. "
@@ -215,7 +232,7 @@ def _calculate_chandelier_stop(
                 f"params: {{length: {length}}}, source: low}}"
             )
 
-        lowest_low = float(current_bar[llv_col])
+        lowest_low = float(llv_value)
         distance = float(atr_value) * float(multiplier)
         return lowest_low + distance
 

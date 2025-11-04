@@ -28,6 +28,43 @@ from trading_platform.risk_manager.trailing_stop_utils import (
 logger = logging.getLogger(__name__)
 
 
+class _ContextBarView:
+    def __init__(self, base: pd.Series, context: dict[str, Any]) -> None:
+        self._base = base
+        sections: list[dict[str, Any]] = []
+        for key in ("strategy_features", "global_features"):
+            payload = context.get(key)
+            if isinstance(payload, dict):
+                sections.append(payload)
+        self._sections = sections
+
+    @property
+    def name(self) -> Any:
+        return getattr(self._base, "name", None)
+
+    def __contains__(self, key: str) -> bool:
+        if key in self._base:
+            return True
+        for section in self._sections:
+            if key in section:
+                return True
+        return False
+
+    def __getitem__(self, key: str) -> Any:
+        if key in self._base:
+            return self._base[key]
+        for section in self._sections:
+            if key in section:
+                return section[key]
+        raise KeyError(key)
+
+    def get(self, key: str, default: Any = None) -> Any:
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+
 class RiskExitManager:
     """
     Manages risk and exit conditions for open positions.
@@ -136,22 +173,23 @@ class RiskExitManager:
             )
 
         base_bar = prior_bar if prior_bar is not None else current_bar
-        calculation_bar = base_bar.copy()
-        sections = ("strategy_features", "global_features")
-        for section in sections:
-            payload = signal_context.get(section)
-            if not isinstance(payload, dict):
-                continue
-            for key, value in payload.items():
-                if key in calculation_bar:
-                    continue
-                calculation_bar.loc[key] = value
+        needs_overlay = any(
+            isinstance(signal_context.get(key), dict) and signal_context.get(key)
+            for key in ("strategy_features", "global_features")
+        )
+        calculation_bar: pd.Series | _ContextBarView
+        if needs_overlay:
+            calculation_bar = _ContextBarView(base_bar, signal_context)
+        else:
+            calculation_bar = base_bar
+
         params = dict(rule.params)
+        calc_input: Any = calculation_bar
         price = float(
             spec.stop_calculator(
                 float(position.entry_price),
                 position.side,
-                calculation_bar,
+                calc_input,
                 params,
             )
         )
@@ -323,6 +361,8 @@ class RiskExitManager:
         signal: Any = None,
         data_handler: Any = None,
         prior_bar: pd.Series | None = None,
+        *,
+        bar_minutes: int | None = None,
     ) -> dict[str, Any] | None:
         """
         Checks if any exit conditions are met for the given position.
@@ -421,14 +461,14 @@ class RiskExitManager:
                     ambiguous = False
 
                 if trail_price is not None and ambiguous and data_handler is not None:
-                    # Zoom to 1-minute resolution to resolve ambiguity
                     bar_timestamp = cast(pd.Timestamp, current_bar.name)
-                    hour_start = bar_timestamp.floor("h")
-                    hour_end = (
-                        hour_start + pd.Timedelta(hours=1) - pd.Timedelta(1, unit="ns")
+                    window_minutes = max(1, int(bar_minutes or 60))
+                    start = bar_timestamp
+                    end = bar_timestamp + pd.Timedelta(
+                        minutes=max(0, window_minutes - 1)
                     )
                     bars_1min = data_handler.get_data(
-                        timeframe="1min", start=hour_start, end=hour_end
+                        timeframe="1min", start=start, end=end
                     )
 
                     # Process 1-minute bars
@@ -474,13 +514,11 @@ class RiskExitManager:
                 )
 
             # data_handler is available - zoom to 1-minute resolution
-            # Zoom to 1-minute resolution
             bar_timestamp = cast(pd.Timestamp, current_bar.name)
-            hour_start = bar_timestamp.floor("h")
-            hour_end = hour_start + pd.Timedelta(hours=1) - pd.Timedelta(1, unit="ns")
-            bars_1min = data_handler.get_data(
-                timeframe="1min", start=hour_start, end=hour_end
-            )
+            window_minutes = max(1, int(bar_minutes or 60))
+            start = bar_timestamp
+            end = bar_timestamp + pd.Timedelta(minutes=max(0, window_minutes - 1))
+            bars_1min = data_handler.get_data(timeframe="1min", start=start, end=end)
 
             # Process 1-minute bars
             result = process_1min_bars_for_fixed_stops(
@@ -565,6 +603,8 @@ class RiskExitManager:
         current_bar: pd.Series,
         data_handler: Any = None,
         prior_bar: pd.Series | None = None,
+        *,
+        bar_minutes: int | None = None,
     ) -> dict[str, Any] | None:
         """
         Check if position should exit based on intrabar price action.
@@ -587,6 +627,7 @@ class RiskExitManager:
             current_bar,
             data_handler=data_handler,
             prior_bar=prior_bar,
+            bar_minutes=bar_minutes,
         )
 
         if exit_details is None:

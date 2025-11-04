@@ -252,6 +252,8 @@ def _run_backtest_simulation(
     global_valid_start: pd.Timestamp | None = None
     global_validation_error: str | None = None
     global_feature_timeframes: dict[str, int] = {}
+    guard_feature_names: set[str] = set()
+    guard_feature_valid_start: dict[str, pd.Timestamp | None] = {}
     execution_tf_minutes: int | None = None
     try:
         from trading_platform.core.feature_resolver import resolve_global_features
@@ -405,6 +407,40 @@ def _run_backtest_simulation(
             ]
             global_feature_names.update(derived_columns)
 
+            if execution_tf_minutes is not None:
+                for column in derived_columns:
+                    feature_minutes = global_feature_timeframes.get(column)
+                    if (
+                        feature_minutes is not None
+                        and feature_minutes >= execution_tf_minutes
+                        and column in data_with_global_features.columns
+                    ):
+                        guard_feature_names.add(column)
+                        guard_feature_valid_start[column] = cast(
+                            pd.Timestamp | None,
+                            data_with_global_features[column].first_valid_index(),
+                        )
+
+    if guard_feature_names and data_with_global_features is not None:
+        for feature_name in guard_feature_names:
+            if feature_name not in data_with_global_features.columns:
+                continue
+            series = data_with_global_features.loc[market_data.index, feature_name]
+            valid_start = guard_feature_valid_start.get(feature_name)
+            if valid_start is not None:
+                series = series.loc[series.index >= valid_start]
+            if not series.empty and series.index[0] == market_data.index[0]:
+                series = series.iloc[1:]
+            bad = series[series.isna()]
+            if not bad.empty:
+                first_bad = bad.index[0]
+                raise ValueError(
+                    "Global feature "
+                    f"{feature_name!r} is NaN at {first_bad}. "
+                    "Features at or above the execution timeframe "
+                    "must be fully populated."
+                )
+
     # Use the complete instrument definition from config
     # (RunConfig validator ensures it has all required fields)
     instrument_dict: dict[str, Any] = config.instrument or {}
@@ -492,6 +528,12 @@ def _run_backtest_simulation(
         signal = signals.iloc[i]
         current_bar = market_data.iloc[i]
         prior_bar = market_data.iloc[i - 1] if i > 0 else None
+        if data_with_global_features is market_data:
+            feature_bar = current_bar
+            feature_prior_bar = prior_bar
+        else:
+            feature_bar = data_with_global_features.iloc[i]
+            feature_prior_bar = data_with_global_features.iloc[i - 1] if i > 0 else None
 
         # === EXECUTION PHASE: Execute pending actions ===
         # Execute pending exit from previous bar (next_bar_open model)
@@ -530,16 +572,16 @@ def _run_backtest_simulation(
                 stop_price = rem.calculate_initial_stop_price(
                     entry_price=entry_price,
                     side=pending_entry["side"],
-                    entry_bar=current_bar,
-                    signal_context=pending_entry.get("context", {}),
-                    prior_bar=prior_bar,
+                    entry_bar=feature_bar,
+                    signal_context=pending_entry.get("context") or {},
+                    prior_bar=feature_prior_bar,
                 )
                 tp_price = rem.calculate_initial_take_profit_price(
                     entry_price=entry_price,
                     side=pending_entry["side"],
-                    entry_bar=current_bar,
-                    signal_context=pending_entry.get("context", {}),
-                    prior_bar=prior_bar,
+                    entry_bar=feature_bar,
+                    signal_context=pending_entry.get("context") or {},
+                    prior_bar=feature_prior_bar,
                 )
                 if stop_price is not None:
                     # initial_risk_ccy = distance * size
@@ -568,8 +610,9 @@ def _run_backtest_simulation(
 
         # Extract command and context from Signal object (or use legacy format)
         strategy_context = strategy.get_context(i)
+        command: SignalCommand | None
         if isinstance(signal, Signal):
-            command = signal.command
+            command = cast(SignalCommand | None, signal.command)
             # Merge signal context with strategy context
             strategy_feature_context = {
                 **strategy_context,
@@ -577,47 +620,59 @@ def _run_backtest_simulation(
             }
         else:
             # Legacy format: signal is just a command string
-            command = signal
+            command = cast(SignalCommand | None, signal)
             strategy_feature_context = strategy_context
 
-        # Build global features dict separately from strategy features
-        global_features: dict[str, Any] = {}
-        if global_feature_names and data_with_global_features is not market_data:
-            for feature_name in global_feature_names:
-                if feature_name in data_with_global_features.columns:
-                    val = data_with_global_features[feature_name].iloc[i]
-                    feature_minutes = global_feature_timeframes.get(feature_name)
-                    # Convert NaN to None for JSON serialization
-                    if isinstance(val, float) and math.isnan(val):
-                        if (
-                            execution_tf_minutes is not None
-                            and feature_minutes is not None
-                            and feature_minutes >= execution_tf_minutes
-                        ):
-                            raise ValueError(
-                                "Global feature "
-                                f"{feature_name!r} is NaN at {current_bar.name}. "
-                                "Features at or above the execution timeframe "
-                                "must be fully populated."
-                            )
-                        global_features[feature_name] = None
-                    else:
-                        global_features[feature_name] = val
+        is_no_command = False
+        if command is None:
+            is_no_command = True
+        elif isinstance(command, str):
+            lowered = command.lower()
+            if lowered in {"none", "nan"}:
+                command = None
+                is_no_command = True
 
-        # Build consistent nested context structure
-        # Separate strategy_features and global_features for semantic clarity
-        regime_data = None
-        if rmm_context is not None:
-            rmm_ctx = rmm_context.get(cast(datetime, current_bar.name))
-            regime_data = _build_regime_data(rmm_ctx)
+        need_context = bool(portfolio.current_position) or not is_no_command
+        context: dict[str, Any] | None = None
+        if need_context:
+            # Build global features dict separately from strategy features
+            global_features: dict[str, Any] = {}
+            if global_feature_names and data_with_global_features is not market_data:
+                for feature_name in global_feature_names:
+                    if feature_name in data_with_global_features.columns:
+                        val = data_with_global_features[feature_name].iloc[i]
+                        feature_minutes = global_feature_timeframes.get(feature_name)
+                        # Convert NaN to None for JSON serialization
+                        if isinstance(val, float) and math.isnan(val):
+                            if (
+                                execution_tf_minutes is not None
+                                and feature_minutes is not None
+                                and feature_minutes >= execution_tf_minutes
+                            ):
+                                raise ValueError(
+                                    "Global feature "
+                                    f"{feature_name!r} is NaN at {current_bar.name}. "
+                                    "Features at or above the execution timeframe "
+                                    "must be fully populated."
+                                )
+                            global_features[feature_name] = None
+                        else:
+                            global_features[feature_name] = val
 
-        context: dict[str, Any] = {
-            "strategy_features": strategy_feature_context,
-            "global_features": global_features,
-        }
-        if regime_data is not None:
-            context["regime"] = regime_data
-        last_context_at_exit = context
+            # Build consistent nested context structure
+            # Separate strategy_features and global_features for clarity
+            regime_data = None
+            if rmm_context is not None:
+                rmm_ctx = rmm_context.get(cast(datetime, current_bar.name))
+                regime_data = _build_regime_data(rmm_ctx)
+
+            context = {
+                "strategy_features": strategy_feature_context,
+                "global_features": global_features,
+            }
+            if regime_data is not None:
+                context["regime"] = regime_data
+            last_context_at_exit = context
 
         gating_decision: GatingDecision | None = None
         if gating_engine and command in ["enter_long", "enter_short"]:
@@ -625,6 +680,11 @@ def _run_backtest_simulation(
             tf_value = instrument_timeframe
             if tf_value is None and isinstance(config.instrument, dict):
                 tf_value = config.instrument.get("timeframe")
+            if context is None:
+                context = {
+                    "strategy_features": strategy_feature_context,
+                    "global_features": {},
+                }
             gating_decision = gating_engine.should_allow(
                 timeframe=str(tf_value or "1H"),
                 archetype=strategy_archetype,
@@ -650,7 +710,7 @@ def _run_backtest_simulation(
                         }
                     )
                 continue
-        elif gating_engine:
+        elif gating_engine and context is not None:
             context["gating"] = None
 
         # === REM EXIT PHASE: Check risk-based exits ===
@@ -659,12 +719,24 @@ def _run_backtest_simulation(
         # This is realistic behavior - protective orders execute intra-bar.
         # The execution_model setting only applies to signal-based entries/exits.
         if portfolio.current_position and rem is not None:
-            rem_result = rem.check_exits_intrabar(
-                portfolio.current_position,
-                current_bar,
-                data_handler=data_handler,
-                prior_bar=prior_bar,
-            )
+            rem_kwargs = {}
+            if execution_tf_minutes is not None:
+                rem_kwargs["bar_minutes"] = execution_tf_minutes
+            try:
+                rem_result = rem.check_exits_intrabar(
+                    portfolio.current_position,
+                    feature_bar,
+                    data_handler=data_handler,
+                    prior_bar=feature_prior_bar,
+                    **rem_kwargs,
+                )
+            except TypeError:
+                rem_result = rem.check_exits_intrabar(
+                    portfolio.current_position,
+                    feature_bar,
+                    data_handler=data_handler,
+                    prior_bar=feature_prior_bar,
+                )
 
             if rem_result is not None and rem_result["action"] == "should_close":
                 # ALWAYS execute REM exits immediately at intra-bar price
@@ -844,16 +916,16 @@ def _run_backtest_simulation(
                             stop_price = rem.calculate_initial_stop_price(
                                 entry_price=entry_price,
                                 side=side,
-                                entry_bar=current_bar,
-                                signal_context=context,
-                                prior_bar=prior_bar,
+                                entry_bar=feature_bar,
+                                signal_context=context or {},
+                                prior_bar=feature_prior_bar,
                             )
                             tp_price = rem.calculate_initial_take_profit_price(
                                 entry_price=entry_price,
                                 side=side,
-                                entry_bar=current_bar,
-                                signal_context=context,
-                                prior_bar=prior_bar,
+                                entry_bar=feature_bar,
+                                signal_context=context or {},
+                                prior_bar=feature_prior_bar,
                             )
                             if stop_price is not None:
                                 # initial_risk_ccy = distance * size
@@ -983,6 +1055,7 @@ def _run_backtest_simulation(
                     rem=rem,
                     symbol=symbol,
                     data_handler=data_handler,
+                    bar_minutes=execution_tf_minutes,
                 )
             s.update(cf)
 
@@ -1083,6 +1156,7 @@ def _simulate_counterfactual_exact(
     rem: RiskExitManager,
     symbol: str,
     data_handler: Any = None,
+    bar_minutes: int | None = None,
 ) -> dict[str, Any]:
     """Exact counterfactual: bar-by-bar re-simulation with REM."""
     if start_index < 0 or start_index >= len(market_data):
@@ -1143,9 +1217,22 @@ def _simulate_counterfactual_exact(
             # Get prior bar for indicator-based stop calculations
             # Stops are set when a bar closes, so use prior bar's data
             prior_bar = market_data.iloc[i - 1] if i > 0 else None
-            exit_details = rem.check_exits(
-                pm.current_position, cb, data_handler=data_handler, prior_bar=prior_bar
-            )
+            rem_kwargs = {"data_handler": data_handler, "prior_bar": prior_bar}
+            if bar_minutes is not None:
+                rem_kwargs["bar_minutes"] = bar_minutes
+            try:
+                exit_details = rem.check_exits(
+                    pm.current_position,
+                    cb,
+                    **rem_kwargs,
+                )
+            except TypeError:
+                rem_kwargs.pop("bar_minutes", None)
+                exit_details = rem.check_exits(
+                    pm.current_position,
+                    cb,
+                    **rem_kwargs,
+                )
             if exit_details:
                 pm.close_position(
                     exit_price=exit_details["exit_price"],
