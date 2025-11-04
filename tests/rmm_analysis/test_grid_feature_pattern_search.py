@@ -7,8 +7,7 @@ from typing import cast
 import numpy as np
 import pandas as pd
 from trading_platform.ai.models.feature_groups import add_normalized_risk_features
-
-from scripts.rmm_analysis.grid_feature_pattern_search import (
+from trading_platform.rmm_analysis.grid_feature_pattern_search import (
     DEFAULT_GROUPS,
     _collect_features,
     collect_patterns,
@@ -16,7 +15,7 @@ from scripts.rmm_analysis.grid_feature_pattern_search import (
     generate_group_combinations,
     split_data,
 )
-from scripts.rmm_analysis.train_profitability_selected_groups import (
+from trading_platform.rmm_analysis.train_profitability_selected_groups import (
     DEFAULT_COMBOS,
     _parse_combos,
     _resolve_contexts,

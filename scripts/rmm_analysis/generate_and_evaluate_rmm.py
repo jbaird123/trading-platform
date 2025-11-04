@@ -98,9 +98,7 @@ def build_candidate(summary: dict[str, object], top_n: int) -> dict[str, object]
 
     raw_top = summary.get("top_features", [])
     if isinstance(raw_top, list):
-        top_features = [
-            str(name) for name in raw_top if isinstance(name, str)
-        ][:top_n]
+        top_features = [str(name) for name in raw_top if isinstance(name, str)][:top_n]
     else:
         top_features = []
 

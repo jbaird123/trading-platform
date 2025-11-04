@@ -121,45 +121,25 @@ def main(argv: Sequence[str] | None = None) -> None:
         rows.append(
             {
                 "context": key,
-                "train_samples": (
-                    train_metrics["samples"] if train_metrics else 0
-                ),
-                "train_mae": (
-                    train_metrics["mae"] if train_metrics else None
-                ),
-                "train_rmse": (
-                    train_metrics["rmse"] if train_metrics else None
-                ),
-                "train_r2": (
-                    train_metrics["r2"] if train_metrics else None
-                ),
+                "train_samples": (train_metrics["samples"] if train_metrics else 0),
+                "train_mae": (train_metrics["mae"] if train_metrics else None),
+                "train_rmse": (train_metrics["rmse"] if train_metrics else None),
+                "train_r2": (train_metrics["r2"] if train_metrics else None),
                 "train_sign_accuracy": (
                     train_metrics["sign_accuracy"] if train_metrics else None
                 ),
                 "train_sign_confusion_matrix": (
-                    train_metrics["sign_confusion_matrix"]
-                    if train_metrics
-                    else None
+                    train_metrics["sign_confusion_matrix"] if train_metrics else None
                 ),
-                "test_samples": (
-                    test_metrics["samples"] if test_metrics else 0
-                ),
-                "test_mae": (
-                    test_metrics["mae"] if test_metrics else None
-                ),
-                "test_rmse": (
-                    test_metrics["rmse"] if test_metrics else None
-                ),
-                "test_r2": (
-                    test_metrics["r2"] if test_metrics else None
-                ),
+                "test_samples": (test_metrics["samples"] if test_metrics else 0),
+                "test_mae": (test_metrics["mae"] if test_metrics else None),
+                "test_rmse": (test_metrics["rmse"] if test_metrics else None),
+                "test_r2": (test_metrics["r2"] if test_metrics else None),
                 "test_sign_accuracy": (
                     test_metrics["sign_accuracy"] if test_metrics else None
                 ),
                 "test_sign_confusion_matrix": (
-                    test_metrics["sign_confusion_matrix"]
-                    if test_metrics
-                    else None
+                    test_metrics["sign_confusion_matrix"] if test_metrics else None
                 ),
             }
         )

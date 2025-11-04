@@ -33,6 +33,7 @@ class REMIndicatorSpec:
     optional_params: dict[str, tuple[type, Any]]
     stop_calculator: Callable[[float, str, pd.Series, dict], float]
     requires_prior_bar: bool = False
+    requires_intrabar_zoom: bool = False
 
 
 def _calculate_atr_stop(
@@ -335,6 +336,7 @@ REM_INDICATORS_REGISTRY: dict[str, REMIndicatorSpec] = {
         optional_params={"length": (int, 14)},
         stop_calculator=_calculate_atr_stop,
         requires_prior_bar=True,
+        requires_intrabar_zoom=False,
     ),
     "bollinger": REMIndicatorSpec(
         name="bollinger",
@@ -349,6 +351,7 @@ REM_INDICATORS_REGISTRY: dict[str, REMIndicatorSpec] = {
         },
         stop_calculator=_calculate_bollinger_stop,
         requires_prior_bar=True,
+        requires_intrabar_zoom=False,
     ),
     "chandelier": REMIndicatorSpec(
         name="chandelier",
@@ -361,6 +364,7 @@ REM_INDICATORS_REGISTRY: dict[str, REMIndicatorSpec] = {
         },
         stop_calculator=_calculate_chandelier_stop,
         requires_prior_bar=True,
+        requires_intrabar_zoom=False,
     ),
 }
 

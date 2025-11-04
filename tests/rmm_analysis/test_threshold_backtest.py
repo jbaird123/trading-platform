@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
-
-from scripts.rmm_analysis.threshold_backtest import _compute_metrics
+from trading_platform.rmm_analysis.threshold_backtest import _compute_metrics
 
 
 def test_compute_metrics_with_values() -> None:

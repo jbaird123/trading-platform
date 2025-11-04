@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
-
-from scripts.rmm_analysis.threshold_profitability_analysis import (
+from trading_platform.rmm_analysis.threshold_profitability_analysis import (
     compute_profitability_metrics,
 )
 

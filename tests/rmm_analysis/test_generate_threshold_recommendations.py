@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import pandas as pd
-
-from scripts.rmm_analysis import generate_threshold_recommendations as gen
-from scripts.rmm_analysis.generate_threshold_recommendations import (
+from trading_platform.rmm_analysis import generate_threshold_recommendations as gen
+from trading_platform.rmm_analysis.generate_threshold_recommendations import (
     _parse_output_spec,
 )
 

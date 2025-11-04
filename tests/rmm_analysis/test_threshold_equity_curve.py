@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
-
-from scripts.rmm_analysis.threshold_equity_curve import equity_curve
+from trading_platform.rmm_analysis.threshold_equity_curve import equity_curve
 
 
 def test_equity_curve_masks_and_cumsum() -> None:

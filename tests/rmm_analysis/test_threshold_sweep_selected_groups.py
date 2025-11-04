@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
-
-from scripts.rmm_analysis.threshold_sweep_selected_groups import (
+from trading_platform.rmm_analysis.threshold_sweep_selected_groups import (
     evaluate_thresholds,
 )
 

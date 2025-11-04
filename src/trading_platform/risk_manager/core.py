@@ -19,6 +19,7 @@ from trading_platform.risk_manager.models import (
     PriceOffsetRule,
     ReferenceRule,
     REMConfig,
+    TrailingStopRule,
 )
 from trading_platform.risk_manager.trailing_stop_utils import (
     process_1min_bars_for_fixed_stops,
@@ -264,6 +265,16 @@ class RiskExitManager:
             return entry - distance if is_stop else entry + distance
         return entry + distance if is_stop else entry - distance
 
+    @staticmethod
+    def _trailing_stop_updates_intrabar(
+        trailing_rule: TrailingStopRule | None,
+    ) -> bool:
+        """Return True when trailing stop needs intrabar sequencing."""
+        if trailing_rule is None:
+            return False
+        update_mode = trailing_rule.update or "tick"
+        return update_mode == "tick"
+
     def calculate_initial_stop_price(
         self,
         entry_price: float,
@@ -388,6 +399,7 @@ class RiskExitManager:
         stop_rule = self.config.stop_loss
         take_profit_rule = self.config.take_profit
         trailing_rule = self.config.trailing_stop
+        trailing_updates_intrabar = self._trailing_stop_updates_intrabar(trailing_rule)
 
         # Extract signal context if available
         # Prefer position's entry context (persisted), fallback to current signal
@@ -452,15 +464,19 @@ class RiskExitManager:
                 # Check for trailing stop ambiguity, zoom to 1-min if needed
                 # Check BOTH trail_price (prior) AND potential_trail_price
                 # (current bar) to detect intra-bar ambiguity
-                if trail_price is not None and data_handler is not None:
+                ambiguous = False
+                if trailing_updates_intrabar and trail_price is not None:
                     ambiguous = is_trailing_stop_ambiguous(current_bar, trail_price)
                     ambiguous = ambiguous or is_trailing_stop_ambiguous(
                         current_bar, potential_trail_price
                     )
-                else:
-                    ambiguous = False
 
-                if trail_price is not None and ambiguous and data_handler is not None:
+                if (
+                    trailing_updates_intrabar
+                    and trail_price is not None
+                    and ambiguous
+                    and data_handler is not None
+                ):
                     bar_timestamp = cast(pd.Timestamp, current_bar.name)
                     window_minutes = max(1, int(bar_minutes or 60))
                     start = bar_timestamp
