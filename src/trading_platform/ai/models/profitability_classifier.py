@@ -93,7 +93,9 @@ class ProfitabilityClassifierModel:
         if self.model is None:
             raise ValueError("Classifier not fitted")
         features = self._extract_features(X)
+        self._assert_required_features(features)
         aligned = self._align_features(features)
+        aligned = aligned.replace([np.inf, -np.inf], np.nan).fillna(0.0)
         probabilities = cast(NDArray[np.float64], self.model.predict_proba(aligned))
         class_probs: NDArray[np.float64] = probabilities[:, 1]
         return class_probs
@@ -196,3 +198,13 @@ class ProfitabilityClassifierModel:
                 X[feature] = 0
 
         return X[self.feature_names_]
+
+    def _assert_required_features(self, X: pd.DataFrame) -> None:
+        if not self.feature_names_:
+            return
+        missing = [name for name in self.feature_names_ if name not in X.columns]
+        if missing:
+            raise ValueError(
+                "Missing required features: "
+                f"{missing}. Ensure enrichment pipeline supplies these columns."
+            )

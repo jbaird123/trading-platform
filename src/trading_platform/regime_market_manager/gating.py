@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from trading_platform.ai.models import ModelRegistry
@@ -91,7 +92,13 @@ class ProfitabilityGatingEngine:
             )
 
         row = self._build_feature_row(context or {}, side, symbol, entry_time)
-        proba = classifier.predict_proba(row)
+        try:
+            proba = classifier.predict_proba(row)
+        except ValueError as exc:
+            raise ValueError(
+                "Profitability classifier is missing required features for "
+                f"{ctx_cfg.timeframe}_{ctx_cfg.archetype}: {exc}"
+            ) from exc
         if isinstance(proba, pd.Series):
             probability = float(proba.iloc[0])
         else:
@@ -153,7 +160,17 @@ class ProfitabilityGatingEngine:
         if ts.tzinfo is None:
             ts = ts.tz_localize("UTC")
         flat["entry_time"] = ts
-        return pd.DataFrame([flat])
+
+        risk_ctx = context.get("risk")
+        if isinstance(risk_ctx, dict):
+            for key, value in risk_ctx.items():
+                flat[str(key)] = value
+
+        row = pd.DataFrame([flat])
+        # Replace NaN/inf with 0.0 before passing to classifiers
+        row = row.replace([np.inf, -np.inf], np.nan)
+        row = row.fillna(0.0)
+        return row
 
     def _evaluate_expression(
         self, ctx_cfg: RMMGatingContext, row: pd.DataFrame

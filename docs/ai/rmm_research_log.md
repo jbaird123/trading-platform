@@ -79,6 +79,52 @@
     coverage, mean R ≈ 1.46, win rate ≈ 0.67, sum R ≈ 61). 4H retains
     `structure+momentum` @ τ = 0.40; alignment gates deferred until richer
     features are available.
+  - **2025-11-04 coverage sanity check (EUR/USD 5 min, 2022–2023 holdout)**:
+    - Replayed the validated thresholds against the exact price series used in
+      the current backtest to confirm the classifier still produces the
+      expected trade coverage **before** wiring it into the live engine.
+    - Steps (for quick reference):
+      1. Extract the filtered trades from the master log:
+         ```bash
+         poetry run python - <<'PY'
+         import pandas as pd
+         from pathlib import Path
+         source = Path("data/dvc/processed/training_sets/master_trade_log.parquet")
+         df = pd.read_parquet(source)
+         mask = (
+             (df["symbol"] == "EUR_USD")
+             & (df["execution_timeframe"] == "5min")
+             & (df["entry_time"] >= "2022-01-01")
+             & (df["entry_time"] <= "2023-12-31")
+         )
+         filtered = df.loc[mask].copy()
+         out = Path("workspace/research/rmm_replay/eurusd_5min_2022_2023.parquet")
+         out.parent.mkdir(parents=True, exist_ok=True)
+         filtered.to_parquet(out)
+         print(f"Saved {len(filtered)} trades to {out}")
+         PY
+         ```
+      2. Prepare a one-line threshold config (values lifted from
+         `config/rmm/validated/trend_following_gating.yaml`):
+         ```csv
+         context,group_combo,threshold,model,gating_expression
+         5min_trend_following,structure+momentum,0.53,gb_weighted,alignment_full
+         ```
+      3. Run the replay CLI:
+         ```bash
+         poetry run python scripts/rmm_analysis/portfolio_threshold_replay.py \\
+           --enriched-data workspace/research/rmm_replay/eurusd_5min_2022_2023.parquet \\
+           --threshold-config workspace/research/rmm_replay/thresholds.csv \\
+           --context-model 5min_trend_following=gb_weighted \\
+           --context-gate 5min_trend_following=alignment_full \\
+           --output-dir workspace/research/rmm_replay/2022_2023_holdout
+         ```
+      4. Inspect `workspace/research/rmm_replay/2022_2023_holdout/portfolio_threshold_replay_summary.csv`
+         for `filtered_fraction`. This run consistently showed ≈ 36 % coverage on
+         the enriched holdout set, reconciling the research numbers. When the same
+         gate was applied inside the live backtest (without enriched risk features)
+         coverage collapsed to < 1 %, confirming the need to include REM-derived
+         stop distance features in `_build_feature_row`.
 - **Model variant sweep for 5min**: Compared RF, GradientBoosting, Logistic
   Regression in `analysis/rmm/featureset_trial/selected_combos/5min_model_variants.csv`;
   gradient boosting shows higher precision at moderate recall, guiding the

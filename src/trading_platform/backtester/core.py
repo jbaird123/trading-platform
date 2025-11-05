@@ -537,6 +537,9 @@ def _run_backtest_simulation(
         # Fallback to Pandas rows if conversion fails (e.g., sparse frames)
         use_fast_rows = False
 
+    gating_total = 0
+    gating_allowed = 0
+
     for i in range(len(market_data)):
         signal = signals.iat[i] if hasattr(signals, "iat") else signals.iloc[i]
         current_bar: BarData
@@ -715,6 +718,31 @@ def _run_backtest_simulation(
                     "strategy_features": strategy_feature_context,
                     "global_features": {},
                 }
+            entry_price_gate = float(current_bar["close"])
+            risk_ctx = context.setdefault("risk", {})
+            risk_ctx["entry_price"] = entry_price_gate
+            stop_price_gate = None
+            tp_price_gate = None
+            if rem is not None:
+                stop_price_gate = rem.calculate_initial_stop_price(
+                    entry_price=entry_price_gate,
+                    side=side,
+                    entry_bar=feature_bar,
+                    signal_context=context.get("strategy_features", {}),
+                    prior_bar=feature_prior_bar or feature_bar,
+                )
+                tp_price_gate = rem.calculate_initial_take_profit_price(
+                    entry_price=entry_price_gate,
+                    side=side,
+                    entry_bar=feature_bar,
+                    signal_context=context.get("strategy_features", {}),
+                    prior_bar=feature_prior_bar or feature_bar,
+                )
+            risk_ctx["initial_stop_loss_price"] = stop_price_gate
+            if tp_price_gate is not None:
+                risk_ctx["initial_take_profit_price"] = tp_price_gate
+
+            gating_total += 1
             gating_decision = gating_engine.should_allow(
                 timeframe=str(tf_value or "1H"),
                 archetype=strategy_archetype,
@@ -740,6 +768,7 @@ def _run_backtest_simulation(
                         }
                     )
                 continue
+            gating_allowed += 1
         elif gating_engine and context is not None:
             context["gating"] = None
 
@@ -1094,6 +1123,15 @@ def _run_backtest_simulation(
     if post_exit_cfg and post_exit_cfg.get("enabled"):
         _enrich_trades_with_post_exit_analysis(
             portfolio.trades, market_data, post_exit_cfg.get("horizons", [10, 20, 50])
+        )
+
+    if gating_engine and gating_total:
+        coverage = gating_allowed / gating_total if gating_total else 0.0
+        logger.info(
+            "Gating coverage: allowed %s/%s (%.2f%%)",
+            gating_allowed,
+            gating_total,
+            coverage * 100.0,
         )
 
     if return_exposure and return_skips:
