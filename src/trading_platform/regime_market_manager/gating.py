@@ -6,7 +6,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, SupportsFloat, cast
 
 import numpy as np
 import pandas as pd
@@ -143,6 +143,28 @@ class ProfitabilityGatingEngine:
         symbol: str,
         entry_time: datetime,
     ) -> pd.DataFrame:
+        strategy_section = context.get("strategy_features") or {}
+        risk_section = context.get("risk") or {}
+
+        # Derive risk distances if stop + entry are available
+        entry_price = risk_section.get("entry_price")
+        stop_price = risk_section.get("initial_stop_loss_price")
+        if entry_price is not None and stop_price is not None:
+            entry_val = float(cast(SupportsFloat, entry_price))
+            stop_val = float(cast(SupportsFloat, stop_price))
+            risk_distance = abs(entry_val - stop_val)
+            risk_section.setdefault("risk_distance_abs", risk_distance)
+            entry_abs = abs(entry_val) or 1.0
+            risk_section.setdefault(
+                "risk_distance_pct_entry", risk_distance / entry_abs
+            )
+            atr_val = strategy_section.get("atr_14")
+            if atr_val not in (None, 0, 0.0):
+                atr_float = float(cast(SupportsFloat, atr_val))
+                risk_section.setdefault(
+                    "risk_distance_atr_ratio", risk_distance / atr_float
+                )
+
         flat: dict[str, Any] = {}
         for section_name, payload in context.items():
             if not isinstance(payload, dict):
@@ -156,10 +178,20 @@ class ProfitabilityGatingEngine:
                     flat[f"{prefix}{key}"] = value
         flat["side"] = side
         flat["symbol"] = symbol
+        side_values = {"side_long": 0.0, "side_short": 0.0}
+        side_values[f"side_{side}"] = 1.0
+        flat.update(side_values)
+
+        symbol_key = "".join(ch for ch in str(symbol) if ch.isalnum()).upper()
+        if symbol_key:
+            flat[f"symbol_{symbol_key}"] = 1.0
+
         ts = pd.Timestamp(entry_time)
         if ts.tzinfo is None:
             ts = ts.tz_localize("UTC")
         flat["entry_time"] = ts
+        flat["hour_of_day"] = ts.tz_convert("UTC").hour
+        flat["day_of_week"] = ts.tz_convert("UTC").dayofweek
 
         risk_ctx = context.get("risk")
         if isinstance(risk_ctx, dict):

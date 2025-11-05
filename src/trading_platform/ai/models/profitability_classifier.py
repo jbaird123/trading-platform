@@ -190,21 +190,38 @@ class ProfitabilityClassifierModel:
         return df[features].copy()
 
     def _align_features(self, X: pd.DataFrame) -> pd.DataFrame:
-        if self.feature_names_ is None:
+        names = self._required_feature_names()
+        if not names:
             raise ValueError("Classifier not fitted")
 
-        for feature in self.feature_names_:
+        for feature in names:
             if feature not in X.columns:
                 X[feature] = 0
 
-        return X[self.feature_names_]
+        return X[names]
 
     def _assert_required_features(self, X: pd.DataFrame) -> None:
-        if not self.feature_names_:
+        names = self._required_feature_names()
+        if not names:
             return
-        missing = [name for name in self.feature_names_ if name not in X.columns]
+        optional_prefixes = ("side_", "symbol_")
+        optional_columns = {"hour_of_day", "day_of_week"}
+        missing = []
+        for name in names:
+            if name in X.columns:
+                continue
+            if any(name.startswith(prefix) for prefix in optional_prefixes):
+                continue
+            if name in optional_columns:
+                continue
+            missing.append(name)
         if missing:
             raise ValueError(
                 "Missing required features: "
                 f"{missing}. Ensure enrichment pipeline supplies these columns."
             )
+
+    def _required_feature_names(self) -> list[str]:
+        if self.model is not None and hasattr(self.model, "feature_names_in_"):
+            return list(self.model.feature_names_in_)
+        return self.feature_names_ or []
