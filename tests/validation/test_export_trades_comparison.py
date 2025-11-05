@@ -42,9 +42,7 @@ def test_export_all_trades_comparison(
     )
 
     strategy_edge_cases = KNOWN_EDGE_CASES.get(strategy_name, {})
-    known_exit_time_edge_cases = strategy_edge_cases.get(
-        "exit_time_mismatches", []
-    )
+    known_exit_time_edge_cases = strategy_edge_cases.get("exit_time_mismatches", [])
 
     workspace = Path("workspace")
     workspace.mkdir(parents=True, exist_ok=True)

@@ -234,9 +234,9 @@ trailing_stop_price = trailing_stop_pips * 0.0001  // Convert pips to price
             multiplier = stop_multiplier or 2.0
             pinescript += (
                 "// Exit: ATR-based Stop\n"
-                f"atr_length = input.int({length}, \"ATR Length\")\n"
+                f'atr_length = input.int({length}, "ATR Length")\n'
                 f"atr_multiplier = input.float({multiplier}, "
-                "\"ATR Multiplier\")\n"
+                '"ATR Multiplier")\n'
                 "atr = ta.atr(atr_length)\n\n"
             )
         elif indicator_type == "bollinger":
@@ -245,9 +245,9 @@ trailing_stop_price = trailing_stop_pips * 0.0001  // Convert pips to price
             offset = float(indicator_args.get("offset", 0.0))
             pinescript += (
                 "// Exit: Bollinger Band Stop\n"
-                f"bb_length = input.int({length}, \"BB Length\")\n"
-                f"bb_std = input.float({std_dev}, \"BB Std Dev\")\n"
-                f"bb_offset = input.float({offset}, \"BB Offset\")\n"
+                f'bb_length = input.int({length}, "BB Length")\n'
+                f'bb_std = input.float({std_dev}, "BB Std Dev")\n'
+                f'bb_offset = input.float({offset}, "BB Offset")\n'
                 "[bb_upper, bb_middle, bb_lower] = "
                 "ta.bb(close, bb_length, bb_std)\n\n"
             )
@@ -392,6 +392,7 @@ def create_config_files(
         indicator_params: Indicator parameters (if applicable)
         stop_multiplier: Stop multiplier (if applicable)
     """
+
     def _format_value(value: Any) -> str:
         if isinstance(value, str):
             return f'"{value}"'
@@ -402,7 +403,7 @@ def create_config_files(
     # strategy.yaml
     strategy_yaml = (
         "strategy:\n"
-        "  name: \"ema_crossover\"\n\n"
+        '  name: "ema_crossover"\n\n'
         "  params:\n"
         "    fast_length: 10\n"
         "    slow_length: 20\n"
@@ -415,9 +416,7 @@ def create_config_files(
             strategy_yaml += f"    {indicator_type}_{key}: {value}\n"
         if stop_multiplier is not None:
             value = _format_value(stop_multiplier)
-            strategy_yaml += (
-                f"    {indicator_type}_multiplier: {value}\n"
-            )
+            strategy_yaml += f"    {indicator_type}_multiplier: {value}\n"
 
     strategy_path = config_dir / "strategy.yaml"
     with open(strategy_path, "w") as f:
@@ -450,9 +449,7 @@ def create_config_files(
 
         if params:
             for key in sorted(params):
-                rem_lines.append(
-                    f"      {key}: {_format_value(params[key])}"
-                )
+                rem_lines.append(f"      {key}: {_format_value(params[key])}")
         else:
             rem_lines.append("      {}")
 
