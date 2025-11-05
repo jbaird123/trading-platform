@@ -2,16 +2,18 @@ from __future__ import annotations
 
 import logging
 import math
+from collections.abc import Mapping as MappingABC
 from datetime import datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Callable, Iterator, cast
 
+import numpy as np
 import pandas as pd
 
 from trading_platform.core.config import RunConfig
 from trading_platform.core.policy import TradingWindowPolicy
 from trading_platform.core.signal import Signal
-from trading_platform.core.types import SignalCommand
+from trading_platform.core.types import BarData, SignalCommand
 from trading_platform.core.utils import normalize_symbol
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
@@ -524,16 +526,44 @@ def _run_backtest_simulation(
     pending_entry: dict[str, Any] | None = None
     last_context_at_exit: dict[str, Any] | None = None
 
-    for i in range(len(market_data)):
-        signal = signals.iloc[i]
-        current_bar = market_data.iloc[i]
-        prior_bar = market_data.iloc[i - 1] if i > 0 else None
+    use_fast_rows = True
+    try:
+        market_bar_factory = _make_bar_factory(market_data)
         if data_with_global_features is market_data:
-            feature_bar = current_bar
-            feature_prior_bar = prior_bar
+            feature_bar_factory = market_bar_factory
         else:
-            feature_bar = data_with_global_features.iloc[i]
-            feature_prior_bar = data_with_global_features.iloc[i - 1] if i > 0 else None
+            feature_bar_factory = _make_bar_factory(data_with_global_features)
+    except Exception:
+        # Fallback to Pandas rows if conversion fails (e.g., sparse frames)
+        use_fast_rows = False
+
+    for i in range(len(market_data)):
+        signal = signals.iat[i] if hasattr(signals, "iat") else signals.iloc[i]
+        current_bar: BarData
+        prior_bar: BarData | None
+        feature_bar: BarData
+        feature_prior_bar: BarData | None
+
+        if use_fast_rows:
+            current_bar = market_bar_factory(i)
+            prior_bar = market_bar_factory(i - 1) if i > 0 else None
+            if feature_bar_factory is market_bar_factory:
+                feature_bar = current_bar
+                feature_prior_bar = prior_bar
+            else:
+                feature_bar = feature_bar_factory(i)
+                feature_prior_bar = feature_bar_factory(i - 1) if i > 0 else None
+        else:
+            current_bar = market_data.iloc[i]
+            prior_bar = market_data.iloc[i - 1] if i > 0 else None
+            if data_with_global_features is market_data:
+                feature_bar = current_bar
+                feature_prior_bar = prior_bar
+            else:
+                feature_bar = data_with_global_features.iloc[i]
+                feature_prior_bar = (
+                    data_with_global_features.iloc[i - 1] if i > 0 else None
+                )
 
         # === EXECUTION PHASE: Execute pending actions ===
         # Execute pending exit from previous bar (next_bar_open model)
@@ -1281,3 +1311,55 @@ def _simulate_counterfactual_exact(
         "cf_exit_kind": exit_kind,
         "cf_mode": "exact",
     }
+
+
+class _BarView(MappingABC[str, Any]):
+    """Lightweight mapping view over a DataFrame row backed by NumPy memory."""
+
+    __slots__ = ("_values", "_col_map", "_index", "_row", "name")
+
+    def __init__(
+        self,
+        values: np.ndarray,
+        col_map: dict[str, int],
+        index: pd.Index,
+        row: int,
+    ) -> None:
+        self._values = values
+        self._col_map = col_map
+        self._index = index
+        self._row = row
+        self.name = index[row]
+
+    def __contains__(self, key: object) -> bool:
+        return isinstance(key, str) and key in self._col_map
+
+    def __getitem__(self, key: str) -> Any:
+        pos = self._col_map.get(key)
+        if pos is None:
+            raise KeyError(key)
+        return self._values[self._row, pos]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._col_map)
+
+    def __len__(self) -> int:
+        return len(self._col_map)
+
+    def get(self, key: str, default: Any = None) -> Any:
+        pos = self._col_map.get(key)
+        if pos is None:
+            return default
+        return self._values[self._row, pos]
+
+
+def _make_bar_factory(df: pd.DataFrame) -> Callable[[int], _BarView]:
+    """Return a callable that builds fast row views for the given DataFrame."""
+    values = df.to_numpy(copy=False)
+    col_map = {col: idx for idx, col in enumerate(df.columns)}
+    index = df.index
+
+    def _factory(row: int) -> _BarView:
+        return _BarView(values, col_map, index, row)
+
+    return _factory

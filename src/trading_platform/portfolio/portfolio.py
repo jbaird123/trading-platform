@@ -7,7 +7,7 @@ import pandas as pd
 
 from trading_platform.core.costs import CostModel
 from trading_platform.core.precision import FloatEngine, PrecisionEngine
-from trading_platform.core.types import SignalCommand
+from trading_platform.core.types import BarData, SignalCommand
 from trading_platform.portfolio.position import Position
 from trading_platform.portfolio.trade import Trade
 
@@ -126,7 +126,7 @@ class PortfolioManager:
         warmup_threshold: int,
         entry_window_bars: int,
         allow_flip: bool,
-        current_bar: pd.Series,
+        current_bar: BarData,
         context: dict | None = None,
         min_hold_bars: int = 0,
     ) -> dict[str, Any]:
@@ -189,7 +189,7 @@ class PortfolioManager:
         bar_index: int,
         entry_window_bars: int,
         allow_flip: bool,
-        current_bar: pd.Series,
+        current_bar: BarData,
         context: dict | None,
         min_hold_bars: int = 0,
     ) -> dict[str, Any]:
@@ -238,7 +238,7 @@ class PortfolioManager:
     def _handle_exit_command(
         self,
         side: str,
-        current_bar: pd.Series,
+        current_bar: BarData,
         context: dict | None,
         min_hold_bars: int = 0,
     ) -> dict[str, Any]:
@@ -273,7 +273,7 @@ class PortfolioManager:
         self,
         bar_index: int,
         entry_window_bars: int,
-        current_bar: pd.Series,
+        current_bar: BarData,
         context: dict | None,
     ) -> dict[str, Any]:
         """Check if we have active entry windows to maintain (for None commands)."""
@@ -423,7 +423,7 @@ class PortfolioManager:
         if self.current_position and current_signal != self.current_position.side:
             self._handle_signal_change(current_bar, allow_flip_on_bar, context)
 
-    def check_stop_loss(self, current_bar: pd.Series, stop_price: float) -> bool:
+    def check_stop_loss(self, current_bar: BarData, stop_price: float) -> bool:
         position = self._open_position
         if position is None or stop_price <= 0:
             return False
@@ -432,7 +432,7 @@ class PortfolioManager:
         else:  # short
             return bool(current_bar["high"] >= stop_price)
 
-    def check_take_profit(self, current_bar: pd.Series, profit_price: float) -> bool:
+    def check_take_profit(self, current_bar: BarData, profit_price: float) -> bool:
         position = self._open_position
         if position is None or profit_price <= 0:
             return False
@@ -442,7 +442,7 @@ class PortfolioManager:
             return bool(current_bar["low"] <= profit_price)
 
     def _handle_signal_change(
-        self, current_bar: pd.Series, allow_flip_on_bar: bool, context: dict | None
+        self, current_bar: BarData, allow_flip_on_bar: bool, context: dict | None
     ) -> None:
         self.close_position(
             exit_price=current_bar["close"],
@@ -453,7 +453,7 @@ class PortfolioManager:
         if not allow_flip_on_bar:
             return  # pragma: no cover
 
-    def _update_position_metrics(self, current_bar: pd.Series) -> None:
+    def _update_position_metrics(self, current_bar: BarData) -> None:
         """
         Increment bars_held and update MFE/MAE using bar extremes.
         Also calculate unrealized PnL using realistic exit price.

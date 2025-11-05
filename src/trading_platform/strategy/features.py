@@ -127,6 +127,7 @@ def _append_columns(
     base: pd.DataFrame,
     columns: dict[str, Any],
     assign_state: dict[str, int],
+    added_columns: list[str] | None = None,
 ) -> pd.DataFrame:
     """Assign columns in-place, consolidating periodically to avoid fragmentation."""
     if not columns:
@@ -134,6 +135,8 @@ def _append_columns(
     for name, value in columns.items():
         series = _to_series(value, base.index)
         base[name] = series
+        if added_columns is not None:
+            added_columns.append(name)
     assign_state["pending"] = assign_state.get("pending", 0) + len(columns)
     if assign_state["pending"] >= 32:
         consolidate = getattr(base, "_consolidate_inplace", None)
@@ -189,8 +192,11 @@ def compute_features(
     assign_state: dict[str, int] = {"pending": 0}
 
     for spec in base_specs:
-        out = _process_single_feature(
-            spec, out, strategy_parameters, assign_state=assign_state
+        out, _ = _process_single_feature(
+            spec,
+            out,
+            strategy_parameters,
+            assign_state=assign_state,
         )
 
     # Process higher timeframe features grouped by timeframe
@@ -236,26 +242,24 @@ def compute_features(
             if source_ref:
                 temp_spec["source_ref"] = {"ref": source_ref}
 
-            before_cols = set(df_resampled.columns)
-            df_resampled = _process_single_feature(
+            df_resampled, new_column_names = _process_single_feature(
                 temp_spec,
                 df_resampled,
                 strategy_parameters,
                 assign_state=assign_state_htf,
             )
             resampled_frames[timeframe] = df_resampled
-            new_column_names = [
-                col for col in df_resampled.columns if col not in before_cols
-            ]
+            if not new_column_names:
+                continue
 
-            # Handle multi-output indicators (e.g., ADX returns name_ADX,
-            # name_DI+, name_DI-). Find columns that start with feature name.
-            # Reindex and forward-fill all columns for this feature
-            new_cols: dict[str, pd.Series] = {}
-            for col in new_column_names:
-                if col in df_resampled.columns:
-                    htf_series = df_resampled[col].reindex(df.index, method="ffill")
-                    new_cols[col] = htf_series
+            htf_values = df_resampled[new_column_names].reindex(
+                df.index,
+                method="ffill",
+            )
+
+            new_cols: dict[str, pd.Series] = {
+                col: htf_values[col] for col in new_column_names
+            }
             out = _append_columns(out, new_cols, assign_state)
 
     # Return with natural NaN values - consuming code handles them
@@ -268,8 +272,8 @@ def _process_single_feature(
     strategy_parameters: dict,
     *,
     assign_state: dict[str, int],
-) -> pd.DataFrame:
-    """Process a single feature specification and add to output DataFrame.
+) -> tuple[pd.DataFrame, list[str]]:
+    """Process a single feature specification and append new columns.
 
     Args:
         spec: Feature specification dict
@@ -297,7 +301,7 @@ def _process_single_feature(
         source_ref = str(ref_val) if ref_val is not None else None
 
     if not name:
-        return data
+        return data, []
 
     # Resolve parameter substitutions (${param_name})
     resolved_params = {
@@ -312,7 +316,14 @@ def _process_single_feature(
         import numpy as np
 
         fallback_columns = {name: pd.Series(np.nan, index=data.index)}
-        return _append_columns(data, fallback_columns, assign_state)
+        added: list[str] = []
+        data = _append_columns(
+            data,
+            fallback_columns,
+            assign_state,
+            added_columns=added,
+        )
+        return data, added
 
     # Call implementation with standard interface
     impl_fn = indicator["implementation"]
@@ -332,4 +343,11 @@ def _process_single_feature(
         # Single-column output (EMA, RSI, ATR, etc.)
         new_columns[name] = result
 
-    return _append_columns(data, new_columns, assign_state)
+    added_columns: list[str] = []
+    data = _append_columns(
+        data,
+        new_columns,
+        assign_state,
+        added_columns=added_columns,
+    )
+    return data, added_columns

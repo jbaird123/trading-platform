@@ -19,7 +19,7 @@ Returns:
 from __future__ import annotations
 
 import weakref
-from typing import Any, cast
+from typing import Any, Callable, cast
 
 import numpy as np
 import pandas as pd
@@ -55,6 +55,8 @@ from trading_platform.strategy.indicator_helpers import find_swing_points
 
 _PRICE_SERIES_CACHE: dict[int, dict[str, pd.Series]] = {}
 _PRICE_CACHE_FINALIZERS: dict[int, weakref.finalize] = {}
+_INDICATOR_SERIES_CACHE: dict[int, dict[str, pd.Series]] = {}
+_INDICATOR_CACHE_FINALIZERS: dict[int, weakref.finalize] = {}
 
 
 def _get_price_cache(df: pd.DataFrame) -> dict[str, pd.Series]:
@@ -108,6 +110,37 @@ def _price_series(df: pd.DataFrame, source: str) -> pd.Series:
 
     cache[source] = series
     return series
+
+
+def _get_indicator_cache(df: pd.DataFrame) -> dict[str, pd.Series]:
+    """Return per-DataFrame cache for expensive derived indicator series."""
+    key = id(df)
+    cache = _INDICATOR_SERIES_CACHE.get(key)
+    if cache is None:
+        cache = {}
+        _INDICATOR_SERIES_CACHE[key] = cache
+
+        def _cleanup(ref_key: int = key) -> None:
+            _INDICATOR_SERIES_CACHE.pop(ref_key, None)
+            _INDICATOR_CACHE_FINALIZERS.pop(ref_key, None)
+
+        _INDICATOR_CACHE_FINALIZERS[key] = weakref.finalize(df, _cleanup)
+    return cache
+
+
+def _cache_indicator_series(
+    df: pd.DataFrame,
+    cache_key: str,
+    builder: Callable[[], pd.Series],
+) -> pd.Series:
+    """Return cached indicator series or build/store it on demand."""
+    cache = _get_indicator_cache(df)
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    result = builder()
+    cache[cache_key] = result
+    return result
 
 
 def _volume_series(df: pd.DataFrame) -> pd.Series:
@@ -613,14 +646,21 @@ def compute_rsi_slope(
 def _rolling_percentile(series: pd.Series, lookback: int) -> pd.Series:
     """Return rolling percentile (0-1) of current value within lookback."""
 
-    def _percentile(values: pd.Series) -> float:
-        if len(values) == 0:
-            return float("nan")
-        current = values.iloc[-1]
-        count = (values <= current).sum()
-        return float(count) / float(len(values))
+    window = max(1, int(lookback))
 
-    return series.rolling(window=lookback, min_periods=1).apply(_percentile, raw=False)
+    def _percentile(values: np.ndarray) -> float:
+        if values.size == 0:
+            return float("nan")
+        current = values[-1]
+        if np.isnan(current):
+            return float("nan")
+        valid = values[~np.isnan(values)]
+        if valid.size == 0:
+            return float("nan")
+        count = np.count_nonzero(valid <= current)
+        return float(count) / float(valid.size)
+
+    return series.rolling(window=window, min_periods=1).apply(_percentile, raw=True)
 
 
 def compute_bb_width_percentile(
@@ -633,8 +673,20 @@ def compute_bb_width_percentile(
     length = int(params.get("length", 20))
     ndev = float(params.get("ndev", 2.0))
     lookback = int(params.get("lookback", 100))
-    width = compute_bb_width(df, {"length": length, "ndev": ndev}, source, source_ref)
-    return _rolling_percentile(width, lookback)
+    cache_key = f"bb_width_pct::{length}:{ndev}:{lookback}:{source}:{source_ref or ''}"
+    return _cache_indicator_series(
+        df,
+        cache_key,
+        lambda: _rolling_percentile(
+            compute_bb_width(
+                df,
+                {"length": length, "ndev": ndev},
+                source,
+                source_ref,
+            ),
+            lookback,
+        ),
+    )
 
 
 def compute_range_atr_ratio(
@@ -1571,28 +1623,33 @@ def compute_atr_percentile(
     """
     atr_len = int(params.get("atr_length", 14))
     lookback = int(params.get("lookback", 20))
-    atr_values = atr(df, atr_len)
+    cache_key = f"atr_pct::{atr_len}:{lookback}"
 
-    # TradingView's ta.percentrank() formula:
-    # Compares current value against previous N bars (excluding current)
-    # Formula: count(previous N values < current) / N * 100
-    # Then rounds to nearest 5% for zone-based display
-    def percentrank_tv(x):
-        if len(x) <= 1:
-            return 0.0
-        current = x.iloc[-1]
-        # Compare against previous values only (exclude current)
-        previous = x.iloc[:-1]
-        count_below = (previous < current).sum()
-        # Calculate precise percentile, then round to nearest 5%
-        precise = count_below / len(previous) * 100
-        return round(precise / 5) * 5
+    def _build_series() -> pd.Series:
+        atr_values = atr(df, atr_len)
+        window = max(2, lookback + 1)
+        return atr_values.rolling(
+            window=window,
+            min_periods=2,
+        ).apply(_percentrank_tv, raw=True)
 
-    # Use lookback+1 window to get current + previous N bars
-    percentile = atr_values.rolling(window=lookback + 1, min_periods=2).apply(
-        percentrank_tv, raw=False
-    )
-    return percentile
+    return _cache_indicator_series(df, cache_key, _build_series)
+
+
+def _percentrank_tv(values: np.ndarray) -> float:
+    """TradingView-style percentile rank rounded to nearest 5%."""
+    if values.size <= 1:
+        return 0.0
+    current = values[-1]
+    if np.isnan(current):
+        return float("nan")
+    previous = values[:-1]
+    previous = previous[~np.isnan(previous)]
+    if previous.size == 0:
+        return float("nan")
+    count_below = np.count_nonzero(previous < current)
+    precise = count_below / float(previous.size) * 100.0
+    return round(precise / 5.0) * 5.0
 
 
 def compute_realized_volatility(

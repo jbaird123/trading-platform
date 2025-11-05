@@ -7,6 +7,7 @@ import pandas as pd
 
 import trading_platform.risk_manager.rem_indicators as rem_indicators
 from trading_platform.core.signal import Signal
+from trading_platform.core.types import BarData
 from trading_platform.portfolio.position import Position
 from trading_platform.risk_manager.exit_utils import (
     is_fixed_stops_ambiguous,
@@ -30,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 
 class _ContextBarView:
-    def __init__(self, base: pd.Series, context: dict[str, Any]) -> None:
+    def __init__(self, base: BarData, context: dict[str, Any]) -> None:
         self._base = base
         sections: list[dict[str, Any]] = []
         for key in ("strategy_features", "global_features"):
@@ -148,9 +149,9 @@ class RiskExitManager:
         self,
         rule: IndicatorRule,
         position: Position,
-        current_bar: pd.Series,
+        current_bar: BarData,
         signal_context: dict[str, Any],
-        prior_bar: pd.Series | None = None,
+        prior_bar: BarData | None = None,
     ) -> float:
         """Compute price level using an indicator-driven stop calculator.
 
@@ -178,7 +179,7 @@ class RiskExitManager:
             isinstance(signal_context.get(key), dict) and signal_context.get(key)
             for key in ("strategy_features", "global_features")
         )
-        calculation_bar: pd.Series | _ContextBarView
+        calculation_bar: BarData | _ContextBarView
         if needs_overlay:
             calculation_bar = _ContextBarView(base_bar, signal_context)
         else:
@@ -219,11 +220,11 @@ class RiskExitManager:
             | ReferenceRule
         ),
         position: Position,
-        current_bar: pd.Series,
+        current_bar: BarData,
         signal_context: dict[str, Any],
         *,
         is_stop: bool,
-        prior_bar: pd.Series | None = None,
+        prior_bar: BarData | None = None,
     ) -> float | None:
         """Convert a stop rule into a concrete price level."""
         entry = float(position.entry_price)
@@ -279,9 +280,9 @@ class RiskExitManager:
         self,
         entry_price: float,
         side: str,
-        entry_bar: pd.Series,
+        entry_bar: BarData,
         signal_context: dict[str, Any],
-        prior_bar: pd.Series | None = None,
+        prior_bar: BarData | None = None,
     ) -> float | None:
         """
         Calculate the initial stop loss price at position entry time.
@@ -326,9 +327,9 @@ class RiskExitManager:
         self,
         entry_price: float,
         side: str,
-        entry_bar: pd.Series,
+        entry_bar: BarData,
         signal_context: dict[str, Any],
-        prior_bar: pd.Series | None = None,
+        prior_bar: BarData | None = None,
     ) -> float | None:
         """
         Calculate the initial take profit price at position entry time.
@@ -368,10 +369,10 @@ class RiskExitManager:
     def check_exits(
         self,
         position: Position,
-        current_bar: pd.Series,
+        current_bar: BarData,
         signal: Any = None,
         data_handler: Any = None,
-        prior_bar: pd.Series | None = None,
+        prior_bar: BarData | None = None,
         *,
         bar_minutes: int | None = None,
     ) -> dict[str, Any] | None:
@@ -616,9 +617,9 @@ class RiskExitManager:
     def check_exits_intrabar(
         self,
         position: Position,
-        current_bar: pd.Series,
+        current_bar: BarData,
         data_handler: Any = None,
-        prior_bar: pd.Series | None = None,
+        prior_bar: BarData | None = None,
         *,
         bar_minutes: int | None = None,
     ) -> dict[str, Any] | None:
