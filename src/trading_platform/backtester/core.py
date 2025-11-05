@@ -604,14 +604,14 @@ def _run_backtest_simulation(
                     side=pending_entry["side"],
                     entry_bar=feature_bar,
                     signal_context=pending_entry.get("context") or {},
-                    prior_bar=feature_prior_bar,
+                    prior_bar=feature_prior_bar or feature_bar,
                 )
                 tp_price = rem.calculate_initial_take_profit_price(
                     entry_price=entry_price,
                     side=pending_entry["side"],
                     entry_bar=feature_bar,
                     signal_context=pending_entry.get("context") or {},
-                    prior_bar=feature_prior_bar,
+                    prior_bar=feature_prior_bar or feature_bar,
                 )
                 if stop_price is not None:
                     # initial_risk_ccy = distance * size
@@ -757,7 +757,7 @@ def _run_backtest_simulation(
                     portfolio.current_position,
                     feature_bar,
                     data_handler=data_handler,
-                    prior_bar=feature_prior_bar,
+                    prior_bar=feature_prior_bar or feature_bar,
                     **rem_kwargs,
                 )
             except TypeError:
@@ -765,7 +765,7 @@ def _run_backtest_simulation(
                     portfolio.current_position,
                     feature_bar,
                     data_handler=data_handler,
-                    prior_bar=feature_prior_bar,
+                    prior_bar=feature_prior_bar or feature_bar,
                 )
 
             if rem_result is not None and rem_result["action"] == "should_close":
@@ -948,14 +948,14 @@ def _run_backtest_simulation(
                                 side=side,
                                 entry_bar=feature_bar,
                                 signal_context=context or {},
-                                prior_bar=feature_prior_bar,
+                                prior_bar=feature_prior_bar or feature_bar,
                             )
                             tp_price = rem.calculate_initial_take_profit_price(
                                 entry_price=entry_price,
                                 side=side,
                                 entry_bar=feature_bar,
                                 signal_context=context or {},
-                                prior_bar=feature_prior_bar,
+                                prior_bar=feature_prior_bar or feature_bar,
                             )
                             if stop_price is not None:
                                 # initial_risk_ccy = distance * size
