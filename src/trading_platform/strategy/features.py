@@ -170,6 +170,7 @@ def compute_features(
 
     # Cache for resampled DataFrames - scoped to this single call
     resampled_frames: dict[str, pd.DataFrame] = {}
+    resampled_assign_states: dict[str, dict[str, int]] = {}
 
     # Group specs by timeframe for efficient resampling
     base_specs = []
@@ -200,9 +201,10 @@ def compute_features(
 
         df_resampled = resampled_frames[timeframe]
 
+        assign_state_htf = resampled_assign_states.setdefault(timeframe, {"pending": 0})
+
         # Compute all features for this timeframe on the resampled data
         for spec in group_specs:
-            # Build temp spec without timeframe to avoid recursion
             name = str(spec.get("name"))
             typ = str(spec.get("type"))
             params = spec.get("params") or {}
@@ -225,7 +227,7 @@ def compute_features(
             if not name:
                 continue
 
-            temp_spec = {
+            temp_spec: dict[str, Any] = {
                 "name": name,
                 "type": typ,
                 "params": params,
@@ -234,26 +236,25 @@ def compute_features(
             if source_ref:
                 temp_spec["source_ref"] = {"ref": source_ref}
 
-            # Compute feature on resampled data
-            df_htf = compute_features(df_resampled, [temp_spec], strategy_parameters)
+            before_cols = set(df_resampled.columns)
+            df_resampled = _process_single_feature(
+                temp_spec,
+                df_resampled,
+                strategy_parameters,
+                assign_state=assign_state_htf,
+            )
+            resampled_frames[timeframe] = df_resampled
+            new_column_names = [
+                col for col in df_resampled.columns if col not in before_cols
+            ]
 
             # Handle multi-output indicators (e.g., ADX returns name_ADX,
             # name_DI+, name_DI-). Find columns that start with feature name.
-            htf_cols = [
-                col
-                for col in df_htf.columns
-                if col == name or col.startswith(f"{name}_")
-            ]
-
-            if not htf_cols:
-                # Fallback: try the exact name (shouldn't happen but be safe)
-                htf_cols = [name]
-
             # Reindex and forward-fill all columns for this feature
             new_cols: dict[str, pd.Series] = {}
-            for col in htf_cols:
-                if col in df_htf.columns:
-                    htf_series = df_htf[col].reindex(df.index, method="ffill")
+            for col in new_column_names:
+                if col in df_resampled.columns:
+                    htf_series = df_resampled[col].reindex(df.index, method="ffill")
                     new_cols[col] = htf_series
             out = _append_columns(out, new_cols, assign_state)
 
