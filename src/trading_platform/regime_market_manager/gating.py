@@ -165,6 +165,11 @@ class ProfitabilityGatingEngine:
                     "risk_distance_atr_ratio", risk_distance / atr_float
                 )
 
+        def _prefixed_key(base: str, name: str) -> str:
+            if name.startswith("context_at_entry_"):
+                return name
+            return f"{base}{name}"
+
         flat: dict[str, Any] = {}
         for section_name, payload in context.items():
             if not isinstance(payload, dict):
@@ -173,18 +178,14 @@ class ProfitabilityGatingEngine:
             for key, value in payload.items():
                 if isinstance(value, dict):
                     for sub_key, sub_val in value.items():
-                        flat[f"{prefix}{key}_{sub_key}"] = sub_val
+                        target = _prefixed_key(prefix, f"{key}_{sub_key}")
+                        flat[target] = sub_val
                 else:
-                    flat[f"{prefix}{key}"] = value
-        flat["side"] = side
-        flat["symbol"] = symbol
-        side_values = {"side_long": 0.0, "side_short": 0.0}
-        side_values[f"side_{side}"] = 1.0
-        flat.update(side_values)
-
+                    target = _prefixed_key(prefix, key)
+                    flat[target] = value
+        flat["side"] = str(side).lower()
         symbol_key = "".join(ch for ch in str(symbol) if ch.isalnum()).upper()
-        if symbol_key:
-            flat[f"symbol_{symbol_key}"] = 1.0
+        flat["symbol"] = symbol_key or str(symbol)
 
         ts = pd.Timestamp(entry_time)
         if ts.tzinfo is None:

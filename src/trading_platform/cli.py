@@ -125,6 +125,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         # Remove the path key after loading since it's not part of the schema
         cfg_raw.pop("rem_path", None)
 
+    has_gating_profile = False
     rmm_path = cfg_raw.get("rmm_path")
     if rmm_path:
         loaded_rmm_cfg = _load_config(Path(str(rmm_path)))
@@ -133,6 +134,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
             cfg_raw["rmm_config"] = legacy_rmm
         if gating_profile:
             cfg_raw["rmm_gating_profile"] = gating_profile.model_dump()
+            has_gating_profile = True
         # Remove the path key after loading since it's not part of the schema
         cfg_raw.pop("rmm_path", None)
 
@@ -153,6 +155,16 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                     global_features_config_path = candidate_path
         else:
             global_features_config_path = gf_path
+    if global_features_config_path is None and has_gating_profile:
+        default_global = paths.PROJECT_ROOT / "config" / "features" / "global.yaml"
+        if default_global.exists():
+            global_features_config_path = default_global
+        else:
+            logger.warning(
+                "RMM gating profile present but no global features "
+                "config provided; default path %s does not exist",
+                default_global,
+            )
 
     cfg_raw.pop("fast_mode", None)  # Removed - not needed
     cfg_raw.pop("rmm", None)  # Legacy field - not part of schema

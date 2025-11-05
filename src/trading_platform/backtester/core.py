@@ -38,6 +38,15 @@ SimulationReturn = (
     | tuple[list[Trade], list[tuple[datetime, float]], list[dict[str, Any]]]
 )
 
+GLOBAL_FEATURE_PREFIX = "context_at_entry_global_features_"
+
+
+def _normalize_global_feature_key(name: str) -> str:
+    """Strip canonical prefix so gating can reapply it consistently."""
+    if name.startswith(GLOBAL_FEATURE_PREFIX):
+        return name[len(GLOBAL_FEATURE_PREFIX) :]
+    return name
+
 
 def _enrich_trades_with_post_exit_analysis(
     trades: list[Trade],
@@ -670,27 +679,31 @@ def _run_backtest_simulation(
         if need_context:
             # Build global features dict separately from strategy features
             global_features: dict[str, Any] = {}
-            if global_feature_names and data_with_global_features is not market_data:
+            if global_feature_names and data_with_global_features is not None:
+                feature_row = data_with_global_features.iloc[i]
                 for feature_name in global_feature_names:
-                    if feature_name in data_with_global_features.columns:
-                        val = data_with_global_features[feature_name].iloc[i]
-                        feature_minutes = global_feature_timeframes.get(feature_name)
-                        # Convert NaN to None for JSON serialization
-                        if isinstance(val, float) and math.isnan(val):
-                            if (
-                                execution_tf_minutes is not None
-                                and feature_minutes is not None
-                                and feature_minutes >= execution_tf_minutes
-                            ):
-                                raise ValueError(
-                                    "Global feature "
-                                    f"{feature_name!r} is NaN at {current_bar.name}. "
-                                    "Features at or above the execution timeframe "
-                                    "must be fully populated."
-                                )
-                            global_features[feature_name] = None
-                        else:
-                            global_features[feature_name] = val
+                    if feature_name not in feature_row.index:
+                        continue
+                    val = feature_row[feature_name]
+                    feature_minutes = global_feature_timeframes.get(feature_name)
+                    is_missing = pd.isna(val)
+                    if is_missing:
+                        if (
+                            execution_tf_minutes is not None
+                            and feature_minutes is not None
+                            and feature_minutes >= execution_tf_minutes
+                        ):
+                            raise ValueError(
+                                "Global feature "
+                                f"{feature_name!r} is NaN at {current_bar.name}. "
+                                "Features at or above the execution timeframe "
+                                "must be fully populated."
+                            )
+                        normalized_val: Any = None
+                    else:
+                        normalized_val = val
+                    key = _normalize_global_feature_key(feature_name)
+                    global_features[key] = normalized_val
 
             # Build consistent nested context structure
             # Separate strategy_features and global_features for clarity
