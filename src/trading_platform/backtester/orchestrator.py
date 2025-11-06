@@ -106,17 +106,19 @@ def _resolve_global_feature_defs(
 
 def _parse_data_request_bounds(
     data_request: dict[str, Any] | None, market_data: pd.DataFrame
-) -> tuple[pd.Timestamp, pd.Timestamp]:
+) -> tuple[pd.Timestamp, pd.Timestamp, bool]:
     if data_request is None:
         data_request = {}
 
     target_start = cast(pd.Timestamp, market_data.index.min())
     target_end = cast(pd.Timestamp, market_data.index.max())
+    start_explicit = False
 
     start_val = data_request.get("start")
     if start_val is not None:
         try:
             target_start = pd.to_datetime(start_val, utc=True)
+            start_explicit = True
         except Exception:
             pass
 
@@ -130,7 +132,7 @@ def _parse_data_request_bounds(
         except Exception:
             pass
 
-    return target_start, target_end
+    return target_start, target_end, start_explicit
 
 
 def _resolve_strategy_features_for_warmup(
@@ -164,7 +166,9 @@ def ensure_market_data_with_warmup(
     if market_data.empty:
         return market_data
 
-    target_start, target_end = _parse_data_request_bounds(data_request, market_data)
+    target_start, target_end, start_explicit = _parse_data_request_bounds(
+        data_request, market_data
+    )
 
     if not strategy_features and not global_features:
         return market_data.loc[target_start:target_end].copy()
@@ -205,16 +209,12 @@ def ensure_market_data_with_warmup(
         )
         return cast(pd.DataFrame, market_data.loc[target_start:target_end].copy())
 
-    pending_error: ValueError | None = None
     try:
         warmup_ts, _ = _calculate(full_data)
     except ValueError as exc:
-        if data_handler is None:
-            pending_error = exc
-        else:
+        if not start_explicit or data_handler is None:
             return _fallback(str(exc))
-    if pending_error is not None:
-        raise ValueError(str(pending_error)) from pending_error  # noqa: TRY301
+        raise
     try:
         idx = full_data.index.get_indexer([warmup_ts], method="bfill")[0]
         if idx == -1:

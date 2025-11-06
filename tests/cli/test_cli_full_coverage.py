@@ -38,12 +38,13 @@ def cli_stubs(monkeypatch, tmp_path):
     class MockDataHandler:
         def __init__(self, symbol, data_root, instrument):
             self.data_quality_flags = ["mock_dq_flag"]
+            self._df = pd.DataFrame(
+                {"close": list(range(200))},
+                index=pd.date_range("2023-12-01", periods=200, freq="h", tz="UTC"),
+            )
 
         def get_data(self, timeframe, start, end):
-            df = pd.DataFrame(
-                {"close": [1.0, 2.0, 3.0]},
-                index=pd.date_range("2024-01-01", periods=3, freq="h"),
-            )
+            df = self._df
             df_any = cast(Any, df)
             df_any.to_parquet = lambda *args, **kwargs: None
             return df_any
@@ -84,7 +85,7 @@ def cli_stubs(monkeypatch, tmp_path):
 
         def generate_signals(self, df: pd.DataFrame):
             calls["signals_input"] = df
-            return pd.Series([1, 0, -1], index=df.index)
+            return pd.Series([1] * len(df), index=df.index)
 
     monkeypatch.setattr(cli, "compile_strategy", lambda cfg: DummyStrategy())
 

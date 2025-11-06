@@ -199,31 +199,48 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         raise ValueError("Strategy configuration must be a dict.")
     strat_cfg = cast(dict[str, Any], strat_cfg)
 
+    def _ensure_dict(value: Any) -> dict[str, Any]:
+        return value if isinstance(value, dict) else {}
+
     def _prepare_strategy_for_warmup(
         strategy_cfg: dict[str, Any],
         params: dict[str, Any] | None,
         overrides: dict[str, Any] | None,
     ) -> dict[str, Any]:
         cfg_copy = copy.deepcopy(strategy_cfg)
+
+        base_params = _ensure_dict(cfg_copy.get("parameters"))
+        cfg_copy["parameters"] = base_params
+
         if isinstance(params, dict):
-            base_params = cfg_copy.get("parameters") or {}
             base_params.update(params)
-            cfg_copy["parameters"] = base_params
+
         if isinstance(overrides, dict):
-            param_over = overrides.get("parameters") or {}
-            if param_over:
-                base_params = cfg_copy.get("parameters") or {}
+            param_over = overrides.get("parameters")
+            if isinstance(param_over, dict):
                 base_params.update(param_over)
-                cfg_copy["parameters"] = base_params
-            feat_over = overrides.get("features") or {}
-            if feat_over and isinstance(cfg_copy.get("features"), list):
+
+            feat_over = overrides.get("features")
+            if isinstance(feat_over, dict) and isinstance(
+                cfg_copy.get("features"), list
+            ):
                 for feature in cfg_copy["features"]:
+                    if not isinstance(feature, dict):
+                        continue
                     name = str(feature.get("name", ""))
                     override_params = feat_over.get(name)
-                    if not override_params:
+                    if not isinstance(override_params, dict):
                         continue
-                    if isinstance(feature.get("params"), dict):
-                        feature["params"].update(override_params)
+                    feature_params = feature.get("params")
+                    if not isinstance(feature_params, dict):
+                        feature_params = {}
+                        feature["params"] = feature_params
+                    feature_params.update(override_params)
+
+        features_list = cfg_copy.get("features")
+        if not isinstance(features_list, list):
+            cfg_copy["features"] = []
+
         return cfg_copy
 
     warmup_strategy_config = _prepare_strategy_for_warmup(

@@ -56,6 +56,7 @@ def test_ensure_market_data_with_warmup_raises_without_history():
     idx = pd.date_range("2021-01-30", periods=10, freq="h", tz="UTC")
     df_trimmed = pd.DataFrame({"open": range(10)}, index=idx)
     strategy_features = [{"name": "ema_fast", "type": "EMA", "params": {"length": 20}}]
+    handler = DummyHandler(df_trimmed)
     with pytest.raises(ValueError, match="Insufficient data for strategy feature"):
         ensure_market_data_with_warmup(
             market_data=df_trimmed,
@@ -63,5 +64,5 @@ def test_ensure_market_data_with_warmup_raises_without_history():
             strategy_features=strategy_features,
             global_features=[],
             data_request={"start": "2021-01-30 00:00:00"},
-            data_handler=None,
+            data_handler=handler,
         )
