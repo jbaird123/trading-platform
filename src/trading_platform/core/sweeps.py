@@ -9,12 +9,17 @@ from typing import Any, Sequence, cast
 
 import pandas as pd
 from trading_platform.backtester.core import _run_backtest_simulation
+from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
 from trading_platform.core.robustness import walk_forward_splits
 from trading_platform.core.signal import Signal
 from trading_platform.portfolio.trade import Trade
 from trading_platform.regime_market_manager.engine import RMMEngine
-from trading_platform.regime_market_manager.models import RMMConfig
+from trading_platform.regime_market_manager.gating import ProfitabilityGatingEngine
+from trading_platform.regime_market_manager.models import (
+    RMMConfig,
+    RMMGatingProfile,
+)
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
 
@@ -211,6 +216,7 @@ def run_parameter_sweep(
     data_handler: Any | None = None,
     vol_penalty: float | None = None,
     debug_dir: str | Path | None = None,
+    global_features_config_path: Path | str | None = None,
 ) -> dict[str, Any]:
     # BUGFIX: Reload strategy from file to avoid mutations from baseline compile
     # If strategy_path is specified, reload it fresh
@@ -270,6 +276,40 @@ def run_parameter_sweep(
         )
     # Pass dict directly - RiskExitManager will validate new-format configs
     rem = RiskExitManager(config=rem_cfg if rem_cfg else None)
+    if isinstance(global_features_config_path, str):
+        global_features_config_path = Path(global_features_config_path)
+    instrument_dict = cfg.instrument or {}
+    instrument_timeframe = None
+    instrument_symbol = None
+    if isinstance(instrument_dict, dict):
+        instrument_timeframe = instrument_dict.get("timeframe")
+        instrument_symbol = instrument_dict.get("symbol")
+    else:  # pragma: no cover - legacy instrument objects
+        instrument_timeframe = getattr(instrument_dict, "timeframe", None)
+        instrument_symbol = getattr(instrument_dict, "symbol", None)
+    strategy_meta = strategy_cfg.get("metadata") or {}
+    strategy_archetype = str(strategy_meta.get("strategy_archetype", "trend_following"))
+    gating_engine: ProfitabilityGatingEngine | None = None
+    gating_metadata: dict[str, Any] | None = None
+    gating_profile_dict = base_cfg.get("rmm_gating_profile")
+    if gating_profile_dict:
+        profile = RMMGatingProfile.model_validate(gating_profile_dict)
+        gating_engine = ProfitabilityGatingEngine(profile)
+        gating_metadata = {
+            "strategy_archetype": strategy_archetype,
+            "instrument_timeframe": instrument_timeframe,
+            "instrument_symbol": instrument_symbol,
+        }
+        if global_features_config_path is None:
+            default_global = paths.PROJECT_ROOT / "config" / "features" / "global.yaml"
+            if default_global.exists():
+                global_features_config_path = default_global
+            else:
+                logger.warning(
+                    "Gating profile provided but no global features config available "
+                    "(expected %s)",
+                    default_global,
+                )
 
     results: list[dict[str, Any]] = []
     log_file: Path | None = None
@@ -339,6 +379,10 @@ def run_parameter_sweep(
                     f.write(f"  COMPILE LOG ERROR: {e}\n")
 
         sig = strat.generate_signals(df)
+        if getattr(strat, "_feature_df", None) is not None:
+            feature_enriched_df = cast(pd.DataFrame, strat._feature_df)
+        else:
+            feature_enriched_df = df
         sig_cmds = _signal_commands(sig)
 
         # DEBUG: Log detailed info
@@ -393,12 +437,15 @@ def run_parameter_sweep(
                     f.write(f"  DEBUG ERROR: {e}\n")
 
         _res = _run_backtest_simulation(
-            market_data=df,
+            market_data=feature_enriched_df,
             signals=sig,
             strategy=strat,
             config=cfg,
             rem=rem,
             rmm_context=rmm_ctx,
+            global_features_config_path=global_features_config_path,
+            gating_engine=gating_engine,
+            gating_metadata=gating_metadata,
         )
         trades: list[Trade]
         if isinstance(_res, tuple):
@@ -468,6 +515,7 @@ def walk_forward_optimize_and_test(
     dd_penalty: float | None = None,
     data_handler: Any | None = None,
     vol_penalty: float | None = None,
+    global_features_config_path: Path | str | None = None,
 ) -> dict[str, Any]:
     splits = walk_forward_splits(df.index, window=window, step=step)
     if seed is not None:
@@ -485,6 +533,7 @@ def walk_forward_optimize_and_test(
             objective=objective,
             dd_penalty=dd_penalty,
             vol_penalty=vol_penalty,
+            global_features_config_path=global_features_config_path,
         )
         best = ps.get("top", {}).get("params", {})
         scfg = deepcopy(strategy_cfg)

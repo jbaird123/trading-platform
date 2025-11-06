@@ -587,6 +587,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
             vol_penalty=ps_cfg.get("vol_penalty"),
             debug_dir=run_path / "debug",
             data_handler=data_handler,
+            global_features_config_path=global_features_config_path,
         )
 
     # Optional walk-forward analysis (bar-based)
@@ -615,6 +616,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                     dd_penalty=ps_cfg.get("dd_penalty"),
                     vol_penalty=ps_cfg.get("vol_penalty"),
                     data_handler=data_handler,
+                    global_features_config_path=global_features_config_path,
                 )
 
                 # NEW: Add per-candidate WFE summaries

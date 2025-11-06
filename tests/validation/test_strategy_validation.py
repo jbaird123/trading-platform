@@ -12,6 +12,7 @@ See: docs/GOLDEN_VALIDATION.md for the golden validation contract.
 """
 
 from datetime import timedelta
+from numbers import Real
 from pathlib import Path
 from typing import Any, cast
 
@@ -821,6 +822,9 @@ def _flatten_context_for_verification(ctx: dict, prefix: str = "") -> dict:
             # Recursively flatten nested dicts
             result.update(_flatten_context_for_verification(value, f"{new_key}_"))
         else:
+            if isinstance(value, Real) and "obv" in new_key.lower():
+                if float(value).is_integer():
+                    value = int(float(value))
             result[new_key] = value
     return result
 

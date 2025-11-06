@@ -14,10 +14,10 @@ contexts:
     feature_group: "structure+momentum"
     probability_threshold: 0.53
     gating_expression: "alignment_full"
-    expected_coverage: 0.3595   # ≈ 35.9% of trades kept
-    expected_mean_r: 0.02999    # from replay summary
-    expected_sum_r: 545.96
-    commentary: "Gradient boosting classifier with alignment_full gate; prioritises quality and keeps ~36% of trades."
+    expected_coverage: 0.2142   # ≈ 21.4% after probability + alignment gate
+    expected_mean_r: 0.0383     # replayed on 2022-2023 trades
+    expected_sum_r: 44.07
+    commentary: "Gradient boosting classifier with alignment_full gate; combined gate keeps ~21% of trades with improved mean R."
 
   - timeframe: "15min"
     archetype: "trend_following"
