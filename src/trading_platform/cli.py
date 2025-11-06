@@ -511,6 +511,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
             strat = result_dict["compiled_strategy"]
             feature_enriched_df = result_dict["feature_enriched_df"]
             strategy_name = result_dict["strategy_name"]
+            skips = result_dict.get("skipped", []) or []
 
     # For tuple format, we need strategy object for features/signals saving
     # Recompile if needed (orchestrator already did this, but didn't return

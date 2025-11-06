@@ -419,6 +419,30 @@ def test_cmd_run_backtest_tuple_variants(cli_stubs, tmp_path, monkeypatch):
     assert cli.cmd_run_backtest(ns) == 0
     assert calls["finalize"]["exposure_curve"] == []
 
+    class DictStrat(SimpleNamespace):
+        def __init__(self):
+            super().__init__(name="dict_strat", features=[], _feature_df=None)
+
+        def generate_signals(self, df: pd.DataFrame):
+            return pd.Series([0] * len(df), index=df.index)
+
+    def dict_with_skips(**kwargs):
+        return {
+            "trades": [SimpleNamespace(entry=datetime(2024, 1, 1))],
+            "equity_curve": [],
+            "compiled_strategy": DictStrat(),
+            "feature_enriched_df": pd.DataFrame(
+                {"close": [1.0]},
+                index=pd.DatetimeIndex([datetime(2024, 1, 1)]),
+            ),
+            "strategy_name": "dict_strat",
+            "skipped": [{"reason": "dict_skip"}],
+        }
+
+    monkeypatch.setattr(cli, "run_backtest", dict_with_skips)
+    assert cli.cmd_run_backtest(ns) == 0
+    assert calls["finalize"]["skipped_trades"] == [{"reason": "dict_skip"}]
+
 
 def test_cmd_run_backtest_fast_mode_not_dict(cli_stubs, tmp_path, monkeypatch):
     """Test basic backtest - fast_mode removed."""

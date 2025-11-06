@@ -22,6 +22,30 @@ from trading_platform.ai.campaigns.models import (
 from trading_platform.cli import _run_backtest_logic
 
 
+def _normalize_param_overrides(
+    strategy_data: dict[str, Any], overrides: dict[str, Any]
+) -> dict[str, Any]:
+    """Map legacy parameter aliases onto concrete strategy parameters."""
+
+    if not overrides:
+        return {}
+
+    params = strategy_data.get("parameters") or {}
+    normalized = dict(overrides)
+    alias_map = {
+        "fast_length": "ema_fast_length",
+        "slow_length": "ema_slow_length",
+    }
+
+    for alias, canonical in alias_map.items():
+        if alias in normalized and (
+            canonical in params or alias in params  # detect expected schema
+        ):
+            normalized[canonical] = normalized.pop(alias)
+
+    return normalized
+
+
 def execute_campaign_runs(
     plan: CampaignPlan,
     runs_dir: Path,
@@ -91,7 +115,10 @@ def execute_campaign_runs(
             if run.param_overrides:
                 if "parameters" not in strategy_data:
                     strategy_data["parameters"] = {}
-                strategy_data["parameters"].update(run.param_overrides)
+                normalized_overrides = _normalize_param_overrides(
+                    strategy_data, run.param_overrides
+                )
+                strategy_data["parameters"].update(normalized_overrides)
 
             # Build RunConfig data structure
             run_config_data: dict[str, Any] = {

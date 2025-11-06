@@ -36,7 +36,7 @@ def single_run_plan(sample_provenance, tmp_path):
     strategy_path = tmp_path / "strategy.yaml"
     strategy_data = {
         "strategy_name": "TestStrategy",
-        "parameters": {"param1": 10},
+        "parameters": {"ema_fast_length": 12, "ema_slow_length": 26},
         "features": [],
         "long_entry_rules": [],
         "long_exit_rules": [],
@@ -71,7 +71,7 @@ def multi_run_plan(sample_provenance, tmp_path):
     strategy_path = tmp_path / "strategy.yaml"
     strategy_data = {
         "strategy_name": "TestStrategy",
-        "parameters": {"param1": 10},
+        "parameters": {"ema_fast_length": 12, "ema_slow_length": 26},
         "features": [],
         "long_entry_rules": [],
         "long_exit_rules": [],
@@ -124,6 +124,33 @@ def test_execute_campaign_single_run(single_run_plan, tmp_path):
         assert results.failed == 0
         assert results.campaign_id == "test_campaign_001"
         assert "success output" in results.run_results[0].stdout
+
+
+def test_execute_campaign_translates_fast_slow_alias(single_run_plan, tmp_path):
+    """Ensure legacy fast/slow overrides map onto EMA params."""
+    runs_dir = tmp_path / "runs"
+    campaign_dir = tmp_path / "campaign"
+    single_run_plan.runs[0].param_overrides = {
+        "fast_length": 5,
+        "slow_length": 20,
+    }
+
+    with patch(
+        "trading_platform.ai.campaigns.runner._run_backtest_logic"
+    ) as mock_runner:
+        mock_runner.return_value = 0
+        execute_campaign_runs(
+            single_run_plan, runs_dir=runs_dir, campaign_dir=campaign_dir
+        )
+
+    config_path = runs_dir / single_run_plan.runs[0].run_id / "run_config.yaml"
+    with open(config_path) as f:
+        cfg = yaml.safe_load(f)
+    params = cfg["strategy"]["parameters"]
+    assert params["ema_fast_length"] == 5
+    assert params["ema_slow_length"] == 20
+    assert "fast_length" not in params
+    assert "slow_length" not in params
 
 
 def test_execute_campaign_multiple_runs(multi_run_plan, tmp_path):
