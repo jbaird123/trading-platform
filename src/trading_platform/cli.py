@@ -2,6 +2,7 @@ from __future__ import annotations
 
 #! ruff: noqa: I001
 import argparse
+import copy
 import json
 import logging
 import math
@@ -16,10 +17,16 @@ import pandas as pd
 
 from trading_platform.ai.data_curation import run_curation_pipeline
 from trading_platform.ai.models import ModelRegistry
-from trading_platform.backtester import run_backtest
+from trading_platform.backtester.orchestrator import (
+    _infer_execution_timeframe,
+    _resolve_strategy_features_for_warmup,
+    ensure_market_data_with_warmup,
+    run_backtest,
+)
 from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
 from trading_platform.core.demo import generate_demo_run
+from trading_platform.core.feature_resolver import resolve_global_features
 from trading_platform.core.meta_campaign_config import MetaCampaignConfig
 from trading_platform.core.meta_campaign_generator import (
     calculate_cartesian_product,
@@ -178,6 +185,55 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     cfg = RunConfig.model_validate(cfg_raw)
     run_path = initialize_run(cfg)
 
+    # Get strategy config (can be embedded or in a separate file)
+    strat_cfg = cfg_raw.get("strategy")
+    if not strat_cfg and strategy_path:
+        strat_cfg = _load_config(Path(strategy_path))
+
+    # Resolve file_path if strategy references another file
+    if isinstance(strat_cfg, dict) and "file_path" in strat_cfg:
+        p = Path(cfg_path.parent, strat_cfg["file_path"])
+        strat_cfg = _load_config(p)
+
+    if not isinstance(strat_cfg, dict):
+        raise ValueError("Strategy configuration must be a dict.")
+    strat_cfg = cast(dict[str, Any], strat_cfg)
+
+    def _prepare_strategy_for_warmup(
+        strategy_cfg: dict[str, Any],
+        params: dict[str, Any] | None,
+        overrides: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        cfg_copy = copy.deepcopy(strategy_cfg)
+        if isinstance(params, dict):
+            base_params = cfg_copy.get("parameters") or {}
+            base_params.update(params)
+            cfg_copy["parameters"] = base_params
+        if isinstance(overrides, dict):
+            param_over = overrides.get("parameters") or {}
+            if param_over:
+                base_params = cfg_copy.get("parameters") or {}
+                base_params.update(param_over)
+                cfg_copy["parameters"] = base_params
+            feat_over = overrides.get("features") or {}
+            if feat_over and isinstance(cfg_copy.get("features"), list):
+                for feature in cfg_copy["features"]:
+                    name = str(feature.get("name", ""))
+                    override_params = feat_over.get(name)
+                    if not override_params:
+                        continue
+                    if isinstance(feature.get("params"), dict):
+                        feature["params"].update(override_params)
+        return cfg_copy
+
+    warmup_strategy_config = _prepare_strategy_for_warmup(
+        strat_cfg, strategy_params, strategy_overrides
+    )
+    warmup_strategy = compile_strategy(warmup_strategy_config)
+    warmup_strategy_features = _resolve_strategy_features_for_warmup(warmup_strategy)
+
+    exec_timeframe: str | None = None
+
     # Initialize DataHandler for centralized data access with caching
     data_handler: DataHandler | None = None
     df: pd.DataFrame
@@ -195,7 +251,6 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         dq_flags = data_handler.data_quality_flags
 
         # Get data for requested timeframe and date range
-        # Will calculate warmup requirements dynamically based on indicators
         df = data_handler.get_data(
             timeframe=data_req.get("timeframe"),
             start=data_req.get("start"),
@@ -215,6 +270,34 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
             index=idx,
         )
 
+    if exec_timeframe is None:
+        exec_timeframe = _infer_execution_timeframe(cfg, df)
+
+    global_feature_defs = []
+    if global_features_config_path:
+        resolved = resolve_global_features(
+            exec_timeframe, config_path=global_features_config_path
+        )
+        for feature in resolved:
+            global_feature_defs.append(
+                {
+                    "name": feature.name,
+                    "type": feature.type,
+                    "params": feature.params,
+                    "source": feature.source,
+                    "timeframe": feature.timeframe,
+                }
+            )
+
+    df = ensure_market_data_with_warmup(
+        market_data=df,
+        execution_timeframe=exec_timeframe,
+        strategy_features=warmup_strategy_features,
+        global_features=global_feature_defs,
+        data_request=getattr(cfg, "data_request", None),
+        data_handler=data_handler,
+    )
+
     # Persist processed market data for AI Lab analysis
     processed_data_path: Path | None = None
     try:
@@ -225,20 +308,6 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         # Not required for backtest results
         logger.warning(f"Failed to save processed data parquet: {e}")
         processed_data_path = None
-
-    # Get strategy config (can be embedded or in a separate file)
-    strat_cfg = cfg_raw.get("strategy")
-    if not strat_cfg and strategy_path:
-        strat_cfg = _load_config(Path(strategy_path))
-
-    # Resolve file_path if strategy references another file
-    if isinstance(strat_cfg, dict) and "file_path" in strat_cfg:
-        p = Path(cfg_path.parent, strat_cfg["file_path"])
-        strat_cfg = _load_config(p)
-
-    if not isinstance(strat_cfg, dict):
-        raise ValueError("Strategy configuration must be a dict.")
-    strat_cfg = cast(dict[str, Any], strat_cfg)
 
     # RMM optional for legacy configs; if present, build per-bar context
     rmm_context: dict[datetime, dict[str, Any]] | None = None
