@@ -90,20 +90,8 @@ def _resolve_parameter(param_value: Any, strategy_parameters: dict) -> Any:
 
 
 def _resample_to_higher_timeframe(df: pd.DataFrame, timeframe: str) -> pd.DataFrame:
-    """Resample OHLCV data to a higher timeframe.
-
-    Args:
-        df: DataFrame with OHLCV data
-        timeframe: Target timeframe (e.g., '1h', '4h', '1D')
-
-    Returns:
-        Resampled DataFrame
-    """
-    # Use pandas resample with OHLC aggregation
-    resampled = df.resample(timeframe).agg(
-        {"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"}
-    )
-    return resampled
+    """Resample OHLCV data to a higher timeframe using canonical rules."""
+    return resample_data(df, timeframe)
 
 
 def _to_series(value: Any, index: pd.Index) -> pd.Series:
