@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pandas as pd
-import pytest
 from trading_platform.backtester.orchestrator import ensure_market_data_with_warmup
 
 
@@ -52,17 +51,18 @@ def test_ensure_market_data_with_warmup_extends_history():
     assert result.index.max() == pd.Timestamp("2021-01-31 00:00:00+00:00")
 
 
-def test_ensure_market_data_with_warmup_raises_without_history():
+def test_ensure_market_data_with_warmup_falls_back_when_history_missing():
     idx = pd.date_range("2021-01-30", periods=10, freq="h", tz="UTC")
     df_trimmed = pd.DataFrame({"open": range(10)}, index=idx)
     strategy_features = [{"name": "ema_fast", "type": "EMA", "params": {"length": 20}}]
     handler = DummyHandler(df_trimmed)
-    with pytest.raises(ValueError, match="Insufficient data for strategy feature"):
-        ensure_market_data_with_warmup(
-            market_data=df_trimmed,
-            execution_timeframe="1H",
-            strategy_features=strategy_features,
-            global_features=[],
-            data_request={"start": "2021-01-30 00:00:00"},
-            data_handler=handler,
-        )
+    result = ensure_market_data_with_warmup(
+        market_data=df_trimmed,
+        execution_timeframe="1H",
+        strategy_features=strategy_features,
+        global_features=[],
+        data_request={"start": "2021-01-30 00:00:00", "end": "2021-01-30 09:00:00"},
+        data_handler=handler,
+    )
+    assert result.index.min() == pd.Timestamp("2021-01-30 00:00:00+00:00")
+    assert result.index.max() == pd.Timestamp("2021-01-30 09:00:00+00:00")
