@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Sequence, cast
 
 import pandas as pd
+from trading_platform.backtester import run_backtest
 from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
@@ -15,15 +16,86 @@ from trading_platform.core.robustness import walk_forward_splits
 from trading_platform.core.signal import Signal
 from trading_platform.portfolio.trade import Trade
 from trading_platform.regime_market_manager.engine import RMMEngine
-from trading_platform.regime_market_manager.gating import ProfitabilityGatingEngine
-from trading_platform.regime_market_manager.models import (
-    RMMConfig,
-    RMMGatingProfile,
-)
+from trading_platform.regime_market_manager.models import RMMConfig
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
 
 logger = logging.getLogger(__name__)
+
+
+DEFAULT_WF_BUFFER_DAYS = 800
+
+
+def _to_utc_timestamp(value: Any) -> pd.Timestamp:
+    """Normalize timestamps (datetime, str, pandas) to UTC."""
+    ts = pd.Timestamp(value)
+    if ts.tzinfo is None:
+        return ts.tz_localize("UTC")
+    return ts.tz_convert("UTC")
+
+
+def _extract_trades(backtest_result: Any) -> list[Trade]:
+    """Normalize backtest return payloads into a list of trades."""
+    if isinstance(backtest_result, dict):
+        trades = backtest_result.get("trades") or []
+        return cast(list[Trade], trades)
+    if isinstance(backtest_result, tuple) and backtest_result:
+        return cast(list[Trade], backtest_result[0])
+    if isinstance(backtest_result, list):
+        return cast(list[Trade], backtest_result)
+    raise ValueError(f"Unsupported backtest result format: {type(backtest_result)}")
+
+
+def _prepare_split_market_data(
+    df: pd.DataFrame,
+    *,
+    test_start: Any,
+    test_end: Any,
+    buffer_days: int = DEFAULT_WF_BUFFER_DAYS,
+) -> tuple[pd.DataFrame, pd.Timestamp, pd.Timestamp]:
+    """Slice market data for a split while including a warmup buffer."""
+    if df.empty:
+        raise ValueError("Market data is empty while preparing walk-forward split.")
+    start_ts = _align_timestamp_to_index(pd.Timestamp(test_start), df.index)
+    end_ts = _align_timestamp_to_index(pd.Timestamp(test_end), df.index)
+    buffer_start = start_ts - pd.Timedelta(days=buffer_days)
+    if isinstance(df.index, pd.DatetimeIndex):
+        earliest = cast(pd.Timestamp, df.index.min())
+        if buffer_start < earliest:
+            buffer_start = earliest
+    buffer_start = _align_timestamp_to_index(buffer_start, df.index)
+    sliced = df.loc[buffer_start:end_ts].copy()
+    if sliced.empty:
+        raise ValueError(
+            "No market data available for walk-forward split "
+            f"{start_ts} -> {end_ts}. Provide broader history."
+        )
+    return sliced, start_ts, end_ts
+
+
+def _filter_trades_to_window(
+    trades: list[Trade],
+    *,
+    window_start: Any,
+    window_end: Any,
+) -> list[Trade]:
+    """Restrict trades to those whose entries fall inside the window."""
+    if not trades:
+        return []
+    start_ts = _to_utc_timestamp(window_start)
+    end_ts = _to_utc_timestamp(window_end)
+    filtered: list[Trade] = []
+    for trade in trades:
+        entry_time = getattr(trade, "entry_time", None)
+        if entry_time is None:
+            continue
+        try:
+            entry_ts = _to_utc_timestamp(entry_time)
+        except Exception:
+            continue
+        if start_ts <= entry_ts <= end_ts:
+            filtered.append(trade)
+    return filtered
 
 
 def _signal_commands(sig: Sequence[Any] | pd.Series | Any) -> list[str] | None:
@@ -260,56 +332,34 @@ def run_parameter_sweep(
     rem_path = base_cfg.pop("rem_path", None)
     base_cfg.pop("strategy_path", None)
 
-    cfg = RunConfig.model_validate(base_cfg)
-    rmm_ctx = _rmm_context(df, base_cfg, data_handler)
-    rem_cfg = base_cfg.get("rem_config") or {}
     if rem_path:
         import json
 
         import yaml
 
         txt = open(str(rem_path)).read()
-        rem_cfg = (
+        base_cfg["rem_config"] = (
             yaml.safe_load(txt)
             if str(rem_path).endswith((".yaml", ".yml"))
             else json.loads(txt)
         )
-    # Pass dict directly - RiskExitManager will validate new-format configs
+    cfg = RunConfig.model_validate(base_cfg)
+    rem_cfg = base_cfg.get("rem_config") or {}
     rem = RiskExitManager(config=rem_cfg if rem_cfg else None)
+    rmm_ctx = _rmm_context(df, base_cfg, data_handler)
     if isinstance(global_features_config_path, str):
         global_features_config_path = Path(global_features_config_path)
-    instrument_dict = cfg.instrument or {}
-    instrument_timeframe = None
-    instrument_symbol = None
-    if isinstance(instrument_dict, dict):
-        instrument_timeframe = instrument_dict.get("timeframe")
-        instrument_symbol = instrument_dict.get("symbol")
-    else:  # pragma: no cover - legacy instrument objects
-        instrument_timeframe = getattr(instrument_dict, "timeframe", None)
-        instrument_symbol = getattr(instrument_dict, "symbol", None)
-    strategy_meta = strategy_cfg.get("metadata") or {}
-    strategy_archetype = str(strategy_meta.get("strategy_archetype", "trend_following"))
-    gating_engine: ProfitabilityGatingEngine | None = None
-    gating_metadata: dict[str, Any] | None = None
     gating_profile_dict = base_cfg.get("rmm_gating_profile")
-    if gating_profile_dict:
-        profile = RMMGatingProfile.model_validate(gating_profile_dict)
-        gating_engine = ProfitabilityGatingEngine(profile)
-        gating_metadata = {
-            "strategy_archetype": strategy_archetype,
-            "instrument_timeframe": instrument_timeframe,
-            "instrument_symbol": instrument_symbol,
-        }
-        if global_features_config_path is None:
-            default_global = paths.PROJECT_ROOT / "config" / "features" / "global.yaml"
-            if default_global.exists():
-                global_features_config_path = default_global
-            else:
-                logger.warning(
-                    "Gating profile provided but no global features config available "
-                    "(expected %s)",
-                    default_global,
-                )
+    if gating_profile_dict and global_features_config_path is None:
+        default_global = paths.PROJECT_ROOT / "config" / "features" / "global.yaml"
+        if default_global.exists():
+            global_features_config_path = default_global
+        else:
+            logger.warning(
+                "RMM gating profile provided but no global features config available "
+                "(expected %s)",
+                default_global,
+            )
 
     results: list[dict[str, Any]] = []
     log_file: Path | None = None
@@ -348,110 +398,96 @@ def run_parameter_sweep(
                     f"Failed to write sweep debug log: {e}"
                 )  # pragma: no cover
 
-        strat = compile_strategy(scfg)
+        compiled_strategy: Any | None = None
+        feature_enriched_df: pd.DataFrame = df
+        run_result: Any
+        try:
+            run_result = run_backtest(
+                config=cfg,
+                market_data=df,
+                strategy_config=scfg,
+                data_handler=data_handler,
+                global_features_config_path=global_features_config_path,
+                rmm_context=rmm_ctx,
+            )
+            trades = _extract_trades(run_result)
+            if isinstance(run_result, dict):
+                compiled_strategy = cast(Any, run_result.get("compiled_strategy"))
+                feature_enriched_df = cast(
+                    pd.DataFrame, run_result.get("feature_enriched_df", df)
+                )
+        except ValueError as exc:
+            if "Strategy validation error" not in str(exc):
+                raise
+            strat = compile_strategy(scfg)
+            sig = strat.generate_signals(df)
+            feature_enriched_df = (
+                cast(pd.DataFrame, strat._feature_df)
+                if getattr(strat, "_feature_df", None) is not None
+                else df
+            )
+            _res = _run_backtest_simulation(
+                market_data=feature_enriched_df,
+                signals=sig,
+                strategy=strat,
+                config=cfg,
+                rem=rem,
+                rmm_context=rmm_ctx,
+                global_features_config_path=global_features_config_path,
+            )
+            if isinstance(_res, tuple):
+                trades = cast(list[Trade], _res[0])
+            else:
+                trades = cast(list[Trade], _res)
+            compiled_strategy = strat
 
-        # DEBUG: Log compiled feature params
+        # DEBUG: Log high-level context
         if log_file is not None:
             try:
                 with log_file.open("a") as f:
+                    f.write(f"COMPILE params={cand}\n")
+                    f.write(f"  scfg['parameters']={scfg.get('parameters')}\n")
                     f.write("COMPILED strategy:\n")
-                    f.write(f"  strat.features type={type(strat.features)}\n")
-                    features_len = (
-                        len(strat.features)
-                        if hasattr(strat.features, "__len__")
-                        else "N/A"
-                    )
-                    f.write(f"  strat.features len={features_len}\n")
-                    if hasattr(strat, "features") and strat.features:
-                        for i, feat in enumerate(strat.features):
-                            f.write(f"  feature[{i}]: {feat}\n")
-                    feature_cols = (
-                        list(strat._feature_df.columns)
-                        if (
-                            hasattr(strat, "_feature_df")
-                            and strat._feature_df is not None
-                        )
-                        else "N/A"
-                    )
-                    f.write(f"  strat._feature_df cols={feature_cols}\n")
-            except Exception as e:
-                with log_file.open("a") as f:
-                    f.write(f"  COMPILE LOG ERROR: {e}\n")
-
-        sig = strat.generate_signals(df)
-        if getattr(strat, "_feature_df", None) is not None:
-            feature_enriched_df = cast(pd.DataFrame, strat._feature_df)
-        else:
-            feature_enriched_df = df
-        sig_cmds = _signal_commands(sig)
-
-        # DEBUG: Log detailed info
-        if log_file is not None:
-            try:
-                with log_file.open("a") as f:
+                    strat_feats: list[Any] = []
+                    if compiled_strategy is not None:
+                        strat_feats = getattr(compiled_strategy, "features", []) or []
+                        f.write(f"  strat.features type={type(strat_feats)}\n")
+                        f.write(f"  strat.features len={len(strat_feats)}\n")
+                    else:
+                        f.write("  strat.features type=<unknown>\n")
+                        f.write("  strat.features len=0\n")
+                    if isinstance(feature_enriched_df, pd.DataFrame):
+                        feat_cols = list(feature_enriched_df.columns)
+                    else:
+                        feat_cols = []
+                    f.write(f"  strat._feature_df cols={feat_cols}\n")
+                    if isinstance(feature_enriched_df, pd.DataFrame):
+                        feat_shape = feature_enriched_df.shape
+                        f.write(f"  feat_df.shape={feat_shape}\n")
+                        if "ema_fast" in feature_enriched_df.columns:
+                            fast_count = feature_enriched_df["ema_fast"].notna().sum()
+                            f.write(f"  ema_fast non-NaN count={fast_count}\n")
+                        if "ema_slow" in feature_enriched_df.columns:
+                            slow_count = feature_enriched_df["ema_slow"].notna().sum()
+                            f.write(f"  ema_slow non-NaN count={slow_count}\n")
                     f.write(f"DEBUG params={cand}\n")
                     f.write(
                         f"  df.shape={df.shape}, df.index[0]={df.index[0]}, "
                         f"df.index[-1]={df.index[-1]}\n"
                     )
-                    shape = getattr(sig, "shape", None)
-                    f.write(f"  sig.shape={shape}\n")
-                    if sig_cmds is not None:
-                        sig_series = pd.Series(sig_cmds)
-                        vc = sig_series.value_counts(dropna=False)
-                        f.write(f"  sig.value_counts()={dict(vc)}\n")
-                    else:
-                        f.write("  sig.value_counts()=<unavailable>\n")
-                    f.write(f"  rmm_ctx keys count={len(rmm_ctx) if rmm_ctx else 0}\n")
-                    # Log feature dataframe if available
-                    feat_df = getattr(strat, "_feature_df", None)
-                    if feat_df is not None:
-                        f.write(f"  feat_df.shape={feat_df.shape}\n")
-                        # Check EMA values
-                        if (
-                            "ema_fast" in feat_df.columns
-                            and "ema_slow" in feat_df.columns
-                        ):
-                            non_nan_fast = feat_df["ema_fast"].notna().sum()
-                            non_nan_slow = feat_df["ema_slow"].notna().sum()
-                            f.write(f"  ema_fast non-NaN count={non_nan_fast}\n")
-                            f.write(f"  ema_slow non-NaN count={non_nan_slow}\n")
-                    # Save signals and features for analysis
-                    if debug_path is not None and sig_cmds is not None:
-                        sig_df = pd.DataFrame({"signal": sig_cmds})
-                        sig_path = (
-                            debug_path / f"sweep_signals_{cand['ema_fast_length']}_"
-                            f"{cand['ema_slow_length']}.parquet"
-                        )
-                        sig_df.to_parquet(str(sig_path))
-                        # Save feature dataframe
-                        if feat_df is not None:
-                            feat_path = (
-                                debug_path
-                                / f"sweep_features_{cand['ema_fast_length']}_"
-                                f"{cand['ema_slow_length']}.parquet"
-                            )
-                            feat_df.to_parquet(str(feat_path))
             except Exception as e:
                 with log_file.open("a") as f:
                     f.write(f"  DEBUG ERROR: {e}\n")
 
-        _res = _run_backtest_simulation(
-            market_data=feature_enriched_df,
-            signals=sig,
-            strategy=strat,
-            config=cfg,
-            rem=rem,
-            rmm_context=rmm_ctx,
-            global_features_config_path=global_features_config_path,
-            gating_engine=gating_engine,
-            gating_metadata=gating_metadata,
-        )
-        trades: list[Trade]
-        if isinstance(_res, tuple):
-            trades = cast(list[Trade], _res[0])
-        else:
-            trades = cast(list[Trade], _res)
+        if debug_path is not None:
+            try:
+                feat_path = (
+                    debug_path / f"sweep_features_{cand.get('ema_fast_length', 'x')}_"
+                    f"{cand.get('ema_slow_length', 'y')}.parquet"
+                )
+                feature_enriched_df.to_parquet(str(feat_path))
+            except Exception:  # pragma: no cover
+                pass
         total_pnl = float(sum(t.pnl for t in trades))
         if objective == "total_pnl":
             score = total_pnl
@@ -483,20 +519,12 @@ def run_parameter_sweep(
         else:
             score = total_pnl
         results.append({"params": cand, "score": score})
-        # Debug logging per candidate
-        try:
-            if log_file is not None:
-                vc = sig.value_counts()
-                long_ct = int(vc.get("long", 0)) if hasattr(vc, "get") else 0
-                short_ct = int(vc.get("short", 0)) if hasattr(vc, "get") else 0
+        if log_file is not None:
+            try:
                 with log_file.open("a") as f:
-                    f.write(
-                        f"params={cand} long={long_ct} short={short_ct} "
-                        f"trades={len(trades)} score={score}\n"
-                    )
-        except Exception as e:
-            # Safe to continue: debug logging is optional
-            logger.debug(f"Failed to write sweep results to debug log: {e}")
+                    f.write(f"params={cand} trades={len(trades)} score={score}\n")
+            except Exception as e:
+                logger.debug(f"Failed to write sweep results to debug log: {e}")
     results.sort(key=lambda r: float(r["score"]), reverse=True)
     top = results[0] if results else {"params": {}, "score": 0.0}
     return {"top": top, "results": results}
@@ -516,15 +544,47 @@ def walk_forward_optimize_and_test(
     data_handler: Any | None = None,
     vol_penalty: float | None = None,
     global_features_config_path: Path | str | None = None,
+    visible_start: pd.Timestamp | None = None,
+    visible_end: pd.Timestamp | None = None,
 ) -> dict[str, Any]:
-    splits = walk_forward_splits(df.index, window=window, step=step)
+    df_visible = _maybe_localize_utc(df)
+    execution_timeframe = _execution_timeframe_from_cfg(base_cfg)
+    if data_handler is not None:
+        df_for_warmup = _maybe_localize_utc(
+            data_handler.get_data(
+                timeframe=execution_timeframe,
+                start=None,
+                end=None,
+            )
+        )
+    else:
+        df_for_warmup = df_visible
+    splits = walk_forward_splits(df_visible.index, window=window, step=step)
+    if visible_start is not None:
+        splits = [s for s in splits if s.test_start >= visible_start]
+    if visible_end is not None:
+        splits = [s for s in splits if s.test_end <= visible_end]
     if seed is not None:
         random.seed(seed)
+    effective_global_features_path = global_features_config_path or base_cfg.get(
+        "global_features_config_path"
+    )
     per_split: list[dict[str, Any]] = []
     oos_scores: list[float] = []
-    for s in splits:
-        train = df.loc[s.train_start : s.train_end]
-        test = df.loc[s.test_start : s.test_end]
+
+    for split_idx, s in enumerate(splits):
+        train_start = _align_timestamp_to_index(
+            pd.Timestamp(s.train_start), df_visible.index
+        )
+        train_end = _align_timestamp_to_index(
+            pd.Timestamp(s.train_end), df_visible.index
+        )
+        train = df_visible.loc[train_start:train_end]
+        test_start = _align_timestamp_to_index(
+            pd.Timestamp(s.test_start), df_visible.index
+        )
+        test_end = _align_timestamp_to_index(pd.Timestamp(s.test_end), df_visible.index)
+        test = df_visible.loc[test_start:test_end]
         ps = run_parameter_sweep(
             train,
             base_cfg,
@@ -536,36 +596,58 @@ def walk_forward_optimize_and_test(
             global_features_config_path=global_features_config_path,
         )
         best = ps.get("top", {}).get("params", {})
+        if test.empty:
+            continue
         scfg = deepcopy(strategy_cfg)
         p = dict(scfg.get("parameters") or {})
         p.update(best)
         scfg["parameters"] = p
-        cfg = RunConfig.model_validate(base_cfg)
-        rem_cfg = base_cfg.get("rem_config") or {}
-        rem = RiskExitManager(config=rem_cfg if rem_cfg else None)
-        strat = compile_strategy(scfg)
-        sig = strat.generate_signals(test)
-        _res2 = _run_backtest_simulation(
-            market_data=test,
-            signals=sig,
-            strategy=strat,
-            config=cfg,
-            rem=rem,
-            rmm_context=_rmm_context(test, base_cfg, data_handler),
+        test_actual_end = cast(pd.Timestamp, test.index[-1])
+        aligned_start = _align_timestamp_to_index(
+            pd.Timestamp(test_start), df_for_warmup.index
         )
-        trades2: list[Trade]
-        if isinstance(_res2, tuple):
-            trades2 = cast(list[Trade], _res2[0])
-        else:  # pragma: no cover
-            trades2 = cast(list[Trade], _res2)
-        score = float(sum(t.pnl for t in trades2))
+        aligned_end = _align_timestamp_to_index(
+            pd.Timestamp(test_actual_end), df_for_warmup.index
+        )
+        if data_handler is not None:
+            split_market_data = df_for_warmup
+        else:
+            split_market_data, aligned_start, aligned_end = _prepare_split_market_data(
+                df_for_warmup,
+                test_start=test_start,
+                test_end=test_actual_end,
+            )
+        split_cfg = _build_split_run_config(
+            base_cfg,
+            aligned_start.isoformat(),
+            aligned_end.isoformat(),
+            split_idx,
+        )
+        try:
+            backtest_result = run_backtest(
+                config=split_cfg,
+                market_data=split_market_data,
+                strategy_config=scfg,
+                data_handler=data_handler,
+                global_features_config_path=effective_global_features_path,
+                rmm_context=_rmm_context(split_market_data, base_cfg, data_handler),
+            )
+        except ValueError as exc:
+            raise ValueError(
+                f"{exc} (walk-forward split starting {aligned_start})"
+            ) from exc
+        trades2 = _extract_trades(backtest_result)
+        filtered_trades = _filter_trades_to_window(
+            trades2, window_start=aligned_start, window_end=test_actual_end
+        )
+        score = float(sum(t.pnl for t in filtered_trades))
         oos_scores.append(score)
         per_split.append(
             {
-                "train_start": s.train_start,
-                "train_end": s.train_end,
-                "test_start": s.test_start,
-                "test_end": s.test_end,
+                "train_start": train_start,
+                "train_end": train_end,
+                "test_start": aligned_start,
+                "test_end": test_actual_end,
                 "best_params": best,
                 "oos_score": score,
             }
@@ -600,6 +682,9 @@ def walk_forward_analysis(
     test_bars: int,
     step_bars: int,
     data_handler: Any | None = None,
+    global_features_config_path: Path | str | None = None,
+    visible_start: pd.Timestamp | None = None,
+    visible_end: pd.Timestamp | None = None,
 ) -> dict[str, Any]:
     """
     Bar-based walk-forward analysis without re-optimization.
@@ -623,7 +708,23 @@ def walk_forward_analysis(
     from statistics import mean, median
 
     # Create bar-based splits
-    splits = walk_forward_splits(df.index, window=train_bars, step=step_bars)
+    df_visible = _maybe_localize_utc(df)
+    execution_timeframe = _execution_timeframe_from_cfg(base_cfg)
+    if data_handler is not None:
+        df_for_warmup = _maybe_localize_utc(
+            data_handler.get_data(
+                timeframe=execution_timeframe,
+                start=None,
+                end=None,
+            )
+        )
+    else:
+        df_for_warmup = df_visible
+    splits = walk_forward_splits(df_visible.index, window=train_bars, step=step_bars)
+    if visible_start is not None:
+        splits = [s for s in splits if s.test_start >= visible_start]
+    if visible_end is not None:
+        splits = [s for s in splits if s.test_end <= visible_end]
 
     if not splits:
         return {
@@ -636,70 +737,75 @@ def walk_forward_analysis(
             },
         }
 
-    cfg = RunConfig.model_validate(base_cfg)
-
-    # Get instrument definition for REM (needed for pip-based calculations)
-    from trading_platform.data.instrument import get_instrument_definition
-
-    symbol = base_cfg.get("data_request", {}).get("symbol", "")
-    instrument_def = get_instrument_definition(symbol) if symbol else None
-    instrument_dict = instrument_def.model_dump() if instrument_def else None
-
-    rem_cfg = base_cfg.get("rem_config") or {}
-    rem = RiskExitManager(
-        config=rem_cfg if rem_cfg else None, instrument=instrument_dict
+    effective_global_features_path = global_features_config_path or base_cfg.get(
+        "global_features_config_path"
     )
-    strat = compile_strategy(strategy_cfg)
-
     per_split: list[dict[str, Any]] = []
     oos_scores: list[float] = []
 
-    for s in splits:
-        # Use test_bars to slice the test window from the split
-        # The split already gives us train_end, so test starts after that
-        loc_result = df.index.get_loc(s.test_start)
-        # get_loc can return int, slice, or boolean array
-        if isinstance(loc_result, int):
-            test_start_idx = loc_result
-        elif isinstance(loc_result, slice):
-            test_start_idx = loc_result.start or 0
-        else:  # boolean array
-            test_start_idx = int(loc_result.argmax())
-        test_end_idx = min(test_start_idx + test_bars, len(df))
-        test = df.iloc[test_start_idx:test_end_idx]
-
-        if len(test) == 0:
-            continue
-
-        # Run backtest on test window
-        sig = strat.generate_signals(test)
-        _res = _run_backtest_simulation(
-            market_data=test,
-            signals=sig,
-            strategy=strat,
-            config=cfg,
-            rem=rem,
-            rmm_context=_rmm_context(test, base_cfg, data_handler),
+    for split_idx, s in enumerate(splits):
+        train_start = _align_timestamp_to_index(
+            pd.Timestamp(s.train_start), df_visible.index
         )
+        train_end = _align_timestamp_to_index(
+            pd.Timestamp(s.train_end), df_visible.index
+        )
+        test_start = _align_timestamp_to_index(
+            pd.Timestamp(s.test_start), df_visible.index
+        )
+        test_end = _align_timestamp_to_index(pd.Timestamp(s.test_end), df_visible.index)
+        test_view = df_visible.loc[test_start:test_end]
+        if len(test_view) == 0:
+            continue
+        test_actual_end = cast(pd.Timestamp, test_view.index[-1])
+        aligned_start = _align_timestamp_to_index(
+            pd.Timestamp(test_start), df_for_warmup.index
+        )
+        aligned_end = _align_timestamp_to_index(
+            pd.Timestamp(test_actual_end), df_for_warmup.index
+        )
+        if data_handler is not None:
+            split_market_data = df_for_warmup
+        else:
+            split_market_data, aligned_start, aligned_end = _prepare_split_market_data(
+                df_for_warmup,
+                test_start=test_start,
+                test_end=test_actual_end,
+            )
+        split_cfg = _build_split_run_config(
+            base_cfg,
+            aligned_start.isoformat(),
+            aligned_end.isoformat(),
+            split_idx,
+        )
+        try:
+            backtest_result = run_backtest(
+                config=split_cfg,
+                market_data=split_market_data,
+                strategy_config=deepcopy(strategy_cfg),
+                data_handler=data_handler,
+                global_features_config_path=effective_global_features_path,
+                rmm_context=_rmm_context(split_market_data, base_cfg, data_handler),
+            )
+        except ValueError as exc:
+            raise ValueError(
+                f"{exc} (walk-forward split starting {aligned_start})"
+            ) from exc
 
-        trades: list[Trade]
-        if isinstance(_res, tuple):
-            trades = cast(list[Trade], _res[0])
-        else:  # pragma: no cover
-            trades = cast(list[Trade], _res)
-
+        trades = _extract_trades(backtest_result)
+        trades = _filter_trades_to_window(
+            trades, window_start=aligned_start, window_end=test_actual_end
+        )
         score = float(sum(t.pnl for t in trades))
         oos_scores.append(score)
 
-        test_actual_end = test.index[-1] if len(test) > 0 else s.test_start
-
         per_split.append(
             {
-                "train_start": s.train_start,
-                "train_end": s.train_end,
-                "test_start": s.test_start,
+                "train_start": train_start,
+                "train_end": train_end,
+                "test_start": aligned_start,
                 "test_end": test_actual_end,
-                "test_bars": len(test),
+                "test_bars": len(test_view),
                 "n_trades": len(trades),
                 "oos_pnl": score,
             }
@@ -984,3 +1090,60 @@ def monte_carlo_resimulation(
         "time_under_water_mean": (float(mean(tuw_ratios)) if tuw_ratios else 0.0),
         "exemplars": exemplars,
     }
+
+
+def _execution_timeframe_from_cfg(cfg: dict[str, Any]) -> str:
+    instrument = cfg.get("instrument") or {}
+    timeframe = instrument.get("timeframe")
+    if timeframe:
+        return str(timeframe)
+    data_request = cfg.get("data_request") or {}
+    timeframe = data_request.get("timeframe")
+    if timeframe:
+        return str(timeframe)
+    return "1H"
+
+
+def _align_timestamp_to_index(timestamp: pd.Timestamp, index: pd.Index) -> pd.Timestamp:
+    if not isinstance(index, pd.DatetimeIndex):
+        return timestamp
+    if index.tz is None:
+        if timestamp.tzinfo is None:
+            return timestamp
+        return timestamp.tz_convert("UTC").tz_localize(None)
+    if timestamp.tzinfo is None:
+        return timestamp.tz_localize(index.tz)
+    return timestamp.tz_convert(index.tz)
+
+
+def _maybe_localize_utc(df: pd.DataFrame) -> pd.DataFrame:
+    if isinstance(df.index, pd.DatetimeIndex) and df.index.tz is None:
+        return df.tz_localize("UTC")
+    return df
+
+
+def _build_split_run_config(
+    base_cfg: dict[str, Any],
+    start_iso: str,
+    end_iso: str,
+    split_index: int,
+) -> RunConfig:
+    cfg_copy = deepcopy(base_cfg)
+    data_request = dict(cfg_copy.get("data_request") or {})
+    data_request["start"] = start_iso
+    data_request["end"] = end_iso
+    cfg_copy["data_request"] = data_request
+    run_id_base = str(cfg_copy.get("run_id", "walk_forward"))
+    cfg_copy["run_id"] = f"{run_id_base}_wf_{split_index:04d}"
+    filtered = {
+        k: v
+        for k, v in cfg_copy.items()
+        if k
+        not in {
+            "strategy_path",
+            "global_features_config_path",
+            "rem_path",
+            "rmm_path",
+        }
+    }
+    return RunConfig.model_validate(filtered)

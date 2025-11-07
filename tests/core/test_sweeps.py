@@ -11,6 +11,7 @@ import json
 import tempfile
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import Mock, patch
 
@@ -119,31 +120,30 @@ class TestParameterSweepCoverage:
             mock_trade = Mock()
             mock_trade.pnl = 100.0
 
-            with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-                mock_strat = Mock()
-                mock_compile.return_value = mock_strat
+            fake_result = {
+                "trades": [mock_trade],
+                "feature_enriched_df": df.copy(),
+                "compiled_strategy": Mock(features=[]),
+            }
 
-                # Mock signals that will cause an exception in value_counts
-                mock_sig = Mock()
-                mock_sig.value_counts.side_effect = Exception("Test exception")
-                mock_strat.generate_signals.return_value = mock_sig
+            with patch(
+                "trading_platform.core.sweeps.run_backtest",
+                return_value=fake_result,
+            ), patch(
+                "pandas.DataFrame.to_parquet",
+                side_effect=Exception("Test exception"),
+            ):
+                grid = {"param1": [1]}
+                result = run_parameter_sweep(
+                    df=df,
+                    base_cfg=base_cfg,
+                    strategy_cfg=strategy_cfg,
+                    grid=grid,
+                    debug_dir=temp_dir,
+                )
 
-                with patch(
-                    "trading_platform.core.sweeps._run_backtest_simulation"
-                ) as mock_backtest:
-                    mock_backtest.return_value = [mock_trade]  # Returns trades directly
-
-                    grid = {"param1": [1]}
-                    result = run_parameter_sweep(
-                        df=df,
-                        base_cfg=base_cfg,
-                        strategy_cfg=strategy_cfg,
-                        grid=grid,
-                        debug_dir=temp_dir,
-                    )
-
-                    # Should handle exception gracefully and continue
-                    assert isinstance(result, dict)
+                # Should handle exception gracefully and continue
+                assert isinstance(result, dict)
 
     def test_objective_pnl_minus_dd_branch(self):
         """Test pnl_minus_dd objective branch line 147."""
@@ -167,30 +167,28 @@ class TestParameterSweepCoverage:
         mock_trade2 = Mock()
         mock_trade2.pnl = 200.0  # Profit
 
-        with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-            mock_strat = Mock()
-            mock_compile.return_value = mock_strat
-            mock_strat.generate_signals.return_value = pd.Series(["long", "short"])
+        fake_result = {
+            "trades": [mock_trade1, mock_trade2],
+            "feature_enriched_df": df.copy(),
+            "compiled_strategy": Mock(features=[]),
+        }
 
-            with patch(
-                "trading_platform.core.sweeps._run_backtest_simulation"
-            ) as mock_backtest:
-                mock_backtest.return_value = [mock_trade1, mock_trade2]
+        with patch(
+            "trading_platform.core.sweeps.run_backtest", return_value=fake_result
+        ):
+            grid = {"param1": [1]}
+            result = run_parameter_sweep(
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
+                grid=grid,
+                objective="pnl_minus_dd",
+                dd_penalty=2.0,
+            )
 
-                grid = {"param1": [1]}
-                result = run_parameter_sweep(
-                    df=df,
-                    base_cfg=base_cfg,
-                    strategy_cfg=strategy_cfg,
-                    grid=grid,
-                    objective="pnl_minus_dd",
-                    dd_penalty=2.0,
-                )
-
-                assert isinstance(result, dict)
-                # Score should be total_pnl - penalty * max_dd
-                expected_score = -300.0 - 2.0 * 500.0  # Loss minus drawdown penalty
-                assert result["top"]["score"] == expected_score
+            assert isinstance(result, dict)
+            expected_score = -300.0 - 2.0 * 500.0
+            assert result["top"]["score"] == expected_score
 
     def test_objective_pnl_dd_vol_with_empty_trades(self):
         """Test pnl_dd_vol objective with empty trades list lines 161, 165."""
@@ -202,29 +200,27 @@ class TestParameterSweepCoverage:
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
-        with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-            mock_strat = Mock()
-            mock_compile.return_value = mock_strat
-            mock_strat.generate_signals.return_value = pd.Series(["flat"])
+        fake_result = {
+            "trades": [],
+            "feature_enriched_df": df.copy(),
+            "compiled_strategy": Mock(features=[]),
+        }
 
-            with patch(
-                "trading_platform.core.sweeps._run_backtest_simulation"
-            ) as mock_backtest:
-                mock_backtest.return_value = []  # Empty trades list
+        with patch(
+            "trading_platform.core.sweeps.run_backtest", return_value=fake_result
+        ):
+            grid = {"param1": [1]}
+            result = run_parameter_sweep(
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
+                grid=grid,
+                objective="pnl_dd_vol",
+                vol_penalty=0.5,
+            )
 
-                grid = {"param1": [1]}
-                result = run_parameter_sweep(
-                    df=df,
-                    base_cfg=base_cfg,
-                    strategy_cfg=strategy_cfg,
-                    grid=grid,
-                    objective="pnl_dd_vol",
-                    vol_penalty=0.5,
-                )
-
-                assert isinstance(result, dict)
-                # With empty trades, std should be 0.0
-                assert result["top"]["score"] == 0.0
+            assert isinstance(result, dict)
+            assert result["top"]["score"] == 0.0
 
     def test_objective_pnl_dd_vol_with_trades(self):
         """Test pnl_dd_vol objective with trades lines 172-174."""
@@ -244,33 +240,29 @@ class TestParameterSweepCoverage:
         mock_trade3 = Mock()
         mock_trade3.pnl = 150.0
 
-        with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-            mock_strat = Mock()
-            mock_compile.return_value = mock_strat
-            mock_strat.generate_signals.return_value = pd.Series(["long"])
+        fake_result = {
+            "trades": [mock_trade1, mock_trade2, mock_trade3],
+            "feature_enriched_df": df.copy(),
+            "compiled_strategy": Mock(features=[]),
+        }
 
-            with patch(
-                "trading_platform.core.sweeps._run_backtest_simulation"
-            ) as mock_backtest:
-                mock_backtest.return_value = [mock_trade1, mock_trade2, mock_trade3]
+        with patch(
+            "trading_platform.core.sweeps.run_backtest", return_value=fake_result
+        ):
+            grid = {"param1": [1]}
+            result = run_parameter_sweep(
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
+                grid=grid,
+                objective="pnl_dd_vol",
+                vol_penalty=0.1,
+            )
 
-                grid = {"param1": [1]}
-                result = run_parameter_sweep(
-                    df=df,
-                    base_cfg=base_cfg,
-                    strategy_cfg=strategy_cfg,
-                    grid=grid,
-                    objective="pnl_dd_vol",
-                    vol_penalty=0.1,
-                )
-
-                assert isinstance(result, dict)
-                # Should calculate volatility and apply penalty
-                # The exact calculation depends on the drawdown penalty too
-                assert "top" in result
-                assert "score" in result["top"]
-                # Just verify the score is reasonable (accounts for volatility penalty)
-                assert result["top"]["score"] < 200.0  # Less than pure total PnL
+            assert isinstance(result, dict)
+            assert "top" in result
+            assert "score" in result["top"]
+            assert result["top"]["score"] < 200.0
 
 
 class TestWalkForwardOptimizeCoverage:
@@ -288,9 +280,12 @@ class TestWalkForwardOptimizeCoverage:
             "trading_platform.core.sweeps.compile_strategy"
         ) as mock_compile, patch(
             "trading_platform.core.sweeps._run_backtest_simulation"
-        ) as mock_backtest, patch("random.seed") as mock_seed:
+        ) as mock_sim, patch(
+            "trading_platform.core.sweeps.run_backtest"
+        ) as mock_run_backtest, patch("random.seed") as mock_seed:
             mock_compile.return_value = Mock()
-            mock_backtest.return_value = ([], 100.0)
+            mock_sim.return_value = ([], 100.0)
+            mock_run_backtest.return_value = {"trades": []}
 
             # Call with seed to hit line 200
             result = walk_forward_optimize_and_test(
@@ -330,6 +325,9 @@ class TestWalkForwardOptimizeCoverage:
 
         mock_trade = Mock()
         mock_trade.pnl = 50.0
+        mock_trade.entry_time = df.index[2]
+        mock_trade.entry_time = df.index[2]
+        mock_trade.entry_time = df.index[2]
 
         with patch("trading_platform.core.sweeps.walk_forward_splits") as mock_splits:
             # Create a split
@@ -354,9 +352,12 @@ class TestWalkForwardOptimizeCoverage:
 
                     with patch(
                         "trading_platform.core.sweeps._run_backtest_simulation"
-                    ) as mock_backtest:
+                    ) as mock_sim, patch(
+                        "trading_platform.core.sweeps.run_backtest"
+                    ) as mock_run_backtest:
                         # Return tuple instead of list to test line 200
-                        mock_backtest.return_value = ([mock_trade], [], [])
+                        mock_sim.return_value = ([mock_trade], [], [])
+                        mock_run_backtest.return_value = ([mock_trade], [], [])
 
                         result = walk_forward_optimize_and_test(
                             df=df,
@@ -671,30 +672,25 @@ class TestEdgeCasesAndHelperFunctions:
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
-        with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-            mock_strat = Mock()
-            mock_compile.return_value = mock_strat
-            mock_strat.generate_signals.return_value = pd.Series(["long"])
+        fake_result = {
+            "trades": [],
+            "feature_enriched_df": df.copy(),
+            "compiled_strategy": Mock(features=[]),
+        }
 
-            with patch(
-                "trading_platform.core.sweeps._run_backtest_simulation"
-            ) as mock_backtest:
-                mock_backtest.return_value = []
+        with patch(
+            "trading_platform.core.sweeps.run_backtest", return_value=fake_result
+        ), patch("pathlib.Path.mkdir", side_effect=Exception("Permission denied")):
+            grid = {"param1": [1]}
+            result = run_parameter_sweep(
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
+                grid=grid,
+                debug_dir="/invalid/path",
+            )
 
-                # Mock Path.mkdir to raise an exception
-                with patch(
-                    "pathlib.Path.mkdir", side_effect=Exception("Permission denied")
-                ):
-                    grid = {"param1": [1]}
-                    result = run_parameter_sweep(
-                        df=df,
-                        base_cfg=base_cfg,
-                        strategy_cfg=strategy_cfg,
-                        grid=grid,
-                        debug_dir="/invalid/path",  # This should trigger exception
-                    )
-
-                    assert isinstance(result, dict)
+            assert isinstance(result, dict)
 
     def test_objective_else_branch_line_165(self):
         """Test the else branch for unknown objective line 165."""
@@ -708,28 +704,26 @@ class TestEdgeCasesAndHelperFunctions:
         mock_trade = Mock()
         mock_trade.pnl = 50.0
 
-        with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-            mock_strat = Mock()
-            mock_compile.return_value = mock_strat
-            mock_strat.generate_signals.return_value = pd.Series(["long"])
+        fake_result = {
+            "trades": [mock_trade],
+            "feature_enriched_df": df.copy(),
+            "compiled_strategy": Mock(features=[]),
+        }
 
-            with patch(
-                "trading_platform.core.sweeps._run_backtest_simulation"
-            ) as mock_backtest:
-                mock_backtest.return_value = [mock_trade]
+        with patch(
+            "trading_platform.core.sweeps.run_backtest", return_value=fake_result
+        ):
+            grid = {"param1": [1]}
+            result = run_parameter_sweep(
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
+                grid=grid,
+                objective="unknown_objective",
+            )
 
-                grid = {"param1": [1]}
-                result = run_parameter_sweep(
-                    df=df,
-                    base_cfg=base_cfg,
-                    strategy_cfg=strategy_cfg,
-                    grid=grid,
-                    objective="unknown_objective",  # This should trigger else branch
-                )
-
-                assert isinstance(result, dict)
-                # Should fall back to total_pnl
-                assert result["top"]["score"] == 50.0
+            assert isinstance(result, dict)
+            assert result["top"]["score"] == 50.0
 
     def test_debug_logging_with_hasattr_false_lines_172_174(self):
         """Test debug logging when signals don't have get method lines 172-174."""
@@ -744,33 +738,25 @@ class TestEdgeCasesAndHelperFunctions:
             mock_trade = Mock()
             mock_trade.pnl = 50.0
 
-            with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-                mock_strat = Mock()
-                mock_compile.return_value = mock_strat
+            fake_result = {
+                "trades": [mock_trade],
+                "feature_enriched_df": df.copy(),
+                "compiled_strategy": SimpleNamespace(features=None),
+            }
 
-                # Create a mock signal that doesn't have proper value_counts behavior
-                mock_sig = Mock()
-                # Mock value_counts to return something that doesn't have get method
-                mock_vc = Mock()
-                del mock_vc.get  # Remove get method to test hasattr check
-                mock_sig.value_counts.return_value = mock_vc
-                mock_strat.generate_signals.return_value = mock_sig
+            with patch(
+                "trading_platform.core.sweeps.run_backtest", return_value=fake_result
+            ):
+                grid = {"param1": [1]}
+                result = run_parameter_sweep(
+                    df=df,
+                    base_cfg=base_cfg,
+                    strategy_cfg=strategy_cfg,
+                    grid=grid,
+                    debug_dir=temp_dir,
+                )
 
-                with patch(
-                    "trading_platform.core.sweeps._run_backtest_simulation"
-                ) as mock_backtest:
-                    mock_backtest.return_value = [mock_trade]
-
-                    grid = {"param1": [1]}
-                    result = run_parameter_sweep(
-                        df=df,
-                        base_cfg=base_cfg,
-                        strategy_cfg=strategy_cfg,
-                        grid=grid,
-                        debug_dir=temp_dir,
-                    )
-
-                    assert isinstance(result, dict)
+                assert isinstance(result, dict)
 
     def test_parameter_sweep_empty_grid_and_random_space(self):
         """Test parameter sweep with empty grid and random_space."""
@@ -781,24 +767,21 @@ class TestEdgeCasesAndHelperFunctions:
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
         strategy_cfg = {"entry_signals": ["long"]}
 
-        with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-            mock_strat = Mock()
-            mock_compile.return_value = mock_strat
-            mock_strat.generate_signals.return_value = pd.Series(["flat"])
+        fake_result = {
+            "trades": [],
+            "feature_enriched_df": df.copy(),
+            "compiled_strategy": Mock(features=[]),
+        }
 
-            with patch(
-                "trading_platform.core.sweeps._run_backtest_simulation"
-            ) as mock_backtest:
-                mock_backtest.return_value = []
+        with patch(
+            "trading_platform.core.sweeps.run_backtest", return_value=fake_result
+        ):
+            result = run_parameter_sweep(
+                df=df, base_cfg=base_cfg, strategy_cfg=strategy_cfg
+            )
 
-                # No grid or random_space provided
-                result = run_parameter_sweep(
-                    df=df, base_cfg=base_cfg, strategy_cfg=strategy_cfg
-                )
-
-                assert isinstance(result, dict)
-                # Should return default values for empty results
-                assert result["top"]["score"] == 0.0
+            assert isinstance(result, dict)
+            assert result["top"]["score"] == 0.0
 
     def test_monte_carlo_with_empty_equity_vals(self):
         """Test Monte Carlo with empty equity values."""
@@ -878,9 +861,12 @@ class TestEdgeCasesAndHelperFunctions:
 
                     with patch(
                         "trading_platform.core.sweeps._run_backtest_simulation"
-                    ) as mock_backtest:
+                    ) as mock_sim, patch(
+                        "trading_platform.core.sweeps.run_backtest"
+                    ) as mock_run_backtest:
                         # Return tuple to test line 200
-                        mock_backtest.return_value = ([mock_trade], [], [])
+                        mock_sim.return_value = ([mock_trade], [], [])
+                        mock_run_backtest.return_value = ([mock_trade], [], [])
 
                         result = walk_forward_optimize_and_test(
                             df=df,
@@ -1167,9 +1153,12 @@ class TestEdgeCasesAndHelperFunctions:
 
                     with patch(
                         "trading_platform.core.sweeps._run_backtest_simulation"
-                    ) as mock_backtest:
+                    ) as mock_sim, patch(
+                        "trading_platform.core.sweeps.run_backtest"
+                    ) as mock_run_backtest:
                         # Return list directly (not tuple) to test else branch line 200
-                        mock_backtest.return_value = [mock_trade]
+                        mock_sim.return_value = [mock_trade]
+                        mock_run_backtest.return_value = {"trades": [mock_trade]}
 
                         result = walk_forward_optimize_and_test(
                             df=df,
@@ -1391,6 +1380,7 @@ class TestEdgeCasesAndHelperFunctions:
 
         mock_trade = Mock()
         mock_trade.pnl = 75.0
+        mock_trade.entry_time = df.index[2]
 
         with patch("trading_platform.core.sweeps.walk_forward_splits") as mock_splits:
             mock_split = Mock()
@@ -1414,9 +1404,12 @@ class TestEdgeCasesAndHelperFunctions:
 
                     with patch(
                         "trading_platform.core.sweeps._run_backtest_simulation"
-                    ) as mock_backtest:
+                    ) as mock_sim, patch(
+                        "trading_platform.core.sweeps.run_backtest"
+                    ) as mock_run_backtest:
                         # Return trades list (not tuple) to hit else on line 242
-                        mock_backtest.return_value = [mock_trade]
+                        mock_sim.return_value = [mock_trade]
+                        mock_run_backtest.return_value = [mock_trade]
 
                         result = walk_forward_optimize_and_test(
                             df=df,

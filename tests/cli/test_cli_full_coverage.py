@@ -43,7 +43,7 @@ def cli_stubs(monkeypatch, tmp_path):
                 index=pd.date_range("2023-12-01", periods=200, freq="h", tz="UTC"),
             )
 
-        def get_data(self, timeframe, start, end):
+        def get_data(self, timeframe=None, start=None, end=None):
             df = self._df
             df_any = cast(Any, df)
             df_any.to_parquet = lambda *args, **kwargs: None
@@ -217,7 +217,7 @@ def test_cmd_run_backtest_fast_mode_last_days_and_overrides(
         def __init__(self, symbol, data_root, instrument):
             self.data_quality_flags = []
 
-        def get_data(self, timeframe, start, end):
+        def get_data(self, timeframe=None, start=None, end=None):
             idx = pd.date_range("2024-01-01", periods=4, freq="h")
             return pd.DataFrame({"close": [1.0, 2.0, 3.0, 4.0]}, index=idx)
 
@@ -337,7 +337,7 @@ def test_cmd_run_backtest_fast_mode_limit_and_exception(
         def __init__(self, symbol, data_root, instrument):
             self.data_quality_flags = []
 
-        def get_data(self, timeframe, start, end):
+        def get_data(self, timeframe=None, start=None, end=None):
             return pd.DataFrame({"close": list(range(6))})
 
     monkeypatch.setattr("trading_platform.cli.DataHandler", MockDataHandler)
@@ -622,7 +622,7 @@ def test_cmd_run_backtest_with_paths_and_failures(tmp_path, monkeypatch):
         def __init__(self, symbol, data_root, instrument):
             self.data_quality_flags = []
 
-        def get_data(self, timeframe, start, end):
+        def get_data(self, timeframe=None, start=None, end=None):
             idx = pd.date_range("2024-01-01", periods=6, freq="h")
             return pd.DataFrame({"close": range(6)}, index=idx)
 

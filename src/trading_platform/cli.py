@@ -273,6 +273,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
             start=data_req.get("start"),
             end=data_req.get("end"),
         )
+        walk_forward_df = data_handler.get_data(timeframe=data_req.get("timeframe"))
     else:
         idx = pd.date_range("2024-01-01", periods=5, freq="h")
         vals = [1.0, 2.0, 3.0, 2.0, 1.0]
@@ -286,6 +287,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
             },
             index=idx,
         )
+        walk_forward_df = df
 
     if exec_timeframe is None:
         exec_timeframe = _infer_execution_timeframe(cfg, df)
@@ -314,6 +316,39 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         data_request=getattr(cfg, "data_request", None),
         data_handler=data_handler,
     )
+
+    df_full = walk_forward_df
+    analysis_df = df
+    visible_start = None
+    visible_end = None
+    if isinstance(cfg_raw.get("data_request"), dict):
+        req = cfg_raw["data_request"]
+        start_val = req.get("start")
+        end_val = req.get("end")
+        if start_val:
+            try:
+                visible_start = pd.to_datetime(start_val, utc=True)
+            except Exception:
+                visible_start = None
+        if end_val:
+            try:
+                visible_end = pd.to_datetime(end_val, utc=True)
+                if isinstance(end_val, str) and len(end_val) == 10:
+                    visible_end = (
+                        visible_end + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+                    )
+            except Exception:
+                visible_end = None
+        if visible_start is not None or visible_end is not None:
+            analysis_df = df
+            if visible_start is not None:
+                analysis_df = analysis_df.loc[analysis_df.index >= visible_start]
+            if visible_end is not None:
+                analysis_df = analysis_df.loc[analysis_df.index <= visible_end]
+            if analysis_df.empty:
+                raise ValueError(
+                    "No data remains within requested date range after warmup."
+                )
 
     # Persist processed market data for AI Lab analysis
     processed_data_path: Path | None = None
@@ -575,7 +610,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     ps_results = None
     if isinstance(ps_cfg, dict) and (ps_cfg.get("grid") or ps_cfg.get("random_space")):
         ps_results = run_parameter_sweep(
-            df,
+            analysis_df,
             cfg_raw,
             strat_cfg,
             grid=ps_cfg.get("grid"),
@@ -605,7 +640,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                 grid_cfg = ps_cfg.get("grid")
                 grid_typed = cast(dict[str, list[Any]], grid_cfg)
                 wf_results = walk_forward_optimize_and_test(
-                    df,
+                    df_full,
                     cfg_raw,
                     strat_cfg,
                     window=train_bars,
@@ -617,6 +652,8 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                     vol_penalty=ps_cfg.get("vol_penalty"),
                     data_handler=data_handler,
                     global_features_config_path=global_features_config_path,
+                    visible_start=visible_start,
+                    visible_end=visible_end,
                 )
 
                 # NEW: Add per-candidate WFE summaries
@@ -641,13 +678,16 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
 
                         # Run WFE for this candidate
                         wfe = walk_forward_analysis(
-                            df,
+                            df_full,
                             cfg_raw,
                             cand_strat_cfg,
                             train_bars=train_bars,
                             test_bars=test_bars,
                             step_bars=step_bars,
                             data_handler=data_handler,
+                            global_features_config_path=global_features_config_path,
+                            visible_start=visible_start,
+                            visible_end=visible_end,
                         )
                         per_candidate_wfe.append(
                             {
@@ -664,13 +704,16 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                 from trading_platform.core.sweeps import walk_forward_analysis
 
                 wf_results = walk_forward_analysis(
-                    df,
+                    df_full,
                     cfg_raw,
                     strat_cfg,
                     train_bars=train_bars,
                     test_bars=test_bars,
                     step_bars=step_bars,
                     data_handler=data_handler,
+                    global_features_config_path=global_features_config_path,
+                    visible_start=visible_start,
+                    visible_end=visible_end,
                 )
         else:
             logger.warning(
@@ -688,7 +731,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         from trading_platform.core.sweeps import monte_carlo_resimulation
 
         mc_results = monte_carlo_resimulation(
-            df,
+            analysis_df,
             cfg_raw,
             strat_cfg,
             trials=int(mc_cfg.get("trials", 100)),
