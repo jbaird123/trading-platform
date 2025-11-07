@@ -644,6 +644,17 @@ def load_platform_trades(
     if rem_config:
         config_dict["rem_config"] = rem_config
 
+    data_request: dict[str, Any] = config_dict.get("data_request", {}).copy()
+    if date_range:
+        start_val = date_range.get("start")
+        end_val = date_range.get("end")
+        if start_val and "start" not in data_request:
+            data_request["start"] = start_val
+        if end_val and "end" not in data_request:
+            data_request["end"] = end_val
+    if data_request:
+        config_dict["data_request"] = data_request
+
     # Create RunConfig (trim handled by warmup guards)
     config = RunConfig.model_validate(config_dict)
 

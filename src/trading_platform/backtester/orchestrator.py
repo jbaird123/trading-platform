@@ -173,18 +173,7 @@ def ensure_market_data_with_warmup(
     if not strategy_features and not global_features:
         return market_data.loc[target_start:target_end].copy()
 
-    # If we have a data handler, use full cached data for warmup math.
-    if data_handler is not None:
-        full_data = cast(
-            pd.DataFrame,
-            data_handler.get_data(
-                timeframe=execution_timeframe,
-                start=None,
-                end=None,
-            ),
-        )
-    else:
-        full_data = market_data
+    working_data = market_data
 
     def _calculate(start_data: pd.DataFrame) -> tuple[pd.Timestamp, dict[str, Any]]:
         warmup_start_date, info = calculate_warmup_start_date(
@@ -210,28 +199,42 @@ def ensure_market_data_with_warmup(
         return cast(pd.DataFrame, market_data.loc[target_start:target_end].copy())
 
     try:
-        warmup_ts, _ = _calculate(full_data)
+        warmup_ts, _ = _calculate(working_data)
     except ValueError as exc:
         if not start_explicit or data_handler is None:
             return _fallback(str(exc))
-        raise
+        logger.debug(
+            "Warmup calculation failed (%s); requesting additional history.",
+            exc,
+        )
+        working_data = cast(
+            pd.DataFrame,
+            data_handler.get_data(
+                timeframe=execution_timeframe,
+                start=None,
+                end=None,
+            ),
+        )
+        try:
+            warmup_ts, _ = _calculate(working_data)
+        except ValueError as inner_exc:
+            return _fallback(str(inner_exc))
     try:
-        idx = full_data.index.get_indexer([warmup_ts], method="bfill")[0]
+        idx = working_data.index.get_indexer([warmup_ts], method="bfill")[0]
         if idx == -1:
             raise KeyError
-        warmup_ts = cast(pd.Timestamp, full_data.index[idx])
+        warmup_ts = cast(pd.Timestamp, working_data.index[idx])
     except Exception:
-        # Fallback to earliest available bar
-        warmup_ts = cast(pd.Timestamp, full_data.index.min())
+        warmup_ts = cast(pd.Timestamp, working_data.index.min())
 
-    if warmup_ts < full_data.index.min():
+    if warmup_ts < working_data.index.min():
         raise ValueError(
             "Insufficient historical data to satisfy indicator warmup. "
             f"Warmup requires data before {warmup_ts}, but market data "
-            f"starts at {full_data.index.min()}."
+            f"starts at {working_data.index.min()}."
         )
 
-    trimmed = full_data.loc[warmup_ts:target_end].copy()
+    trimmed = working_data.loc[warmup_ts:target_end].copy()
     if trimmed.empty:
         raise ValueError(
             "Warmup trimming removed all market data. "
