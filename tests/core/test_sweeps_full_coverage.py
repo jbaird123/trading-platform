@@ -4,14 +4,138 @@ from __future__ import annotations
 
 import json
 import tempfile
+from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pandas as pd
+import pytest
 import yaml
 from trading_platform.core.sweeps import _rmm_context, run_parameter_sweep
 from trading_platform.regime_market_manager.models import RMMConfig
+
+
+def _basic_strategy_cfg() -> dict[str, Any]:
+    rule_above = {
+        "condition": "is_above",
+        "left": {"ref": "ema_fast"},
+        "right": {"value": 0},
+    }
+    rule_below = {
+        "condition": "is_below",
+        "left": {"ref": "ema_fast"},
+        "right": {"value": 0},
+    }
+    base_rules = [{"any_of": [rule_above]}]
+    short_rules = [{"any_of": [rule_below]}]
+    features = [
+        {
+            "name": "ema_fast",
+            "type": "EMA",
+            "params": {"length": 5},
+            "source": "close",
+        },
+        {
+            "name": "ema_slow",
+            "type": "EMA",
+            "params": {"length": 10},
+            "source": "close",
+        },
+    ]
+    return {
+        "strategy_name": "TestStrategy",
+        "features": features,
+        "long_entry_rules": base_rules,
+        "long_exit_rules": short_rules,
+        "short_entry_rules": short_rules,
+        "short_exit_rules": base_rules,
+        "parameters": {},
+    }
+
+
+def _mock_run_result(
+    trades: list[Any],
+    df: pd.DataFrame,
+    *,
+    compiled_strategy: Any | None = None,
+    feature_df: pd.DataFrame | None = None,
+) -> dict[str, Any]:
+    return {
+        "trades": trades,
+        "feature_enriched_df": feature_df.copy()
+        if feature_df is not None
+        else df.copy(),
+        "compiled_strategy": compiled_strategy or SimpleNamespace(features=[]),
+    }
+
+
+def _strategy_cfg_clone() -> dict[str, Any]:
+    return deepcopy(_basic_strategy_cfg())
+
+
+def _volume_strategy_cfg() -> dict[str, Any]:
+    return {
+        "strategy_name": "VolumeStrategy",
+        "features": [],
+        "long_entry_rules": [
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "volume"},
+                        "right": {"value": 0},
+                    }
+                ]
+            }
+        ],
+        "long_exit_rules": [
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "volume"},
+                        "right": {"value": 0},
+                    }
+                ]
+            }
+        ],
+        "short_entry_rules": [
+            {
+                "any_of": [
+                    {
+                        "condition": "is_below",
+                        "left": {"field": "volume"},
+                        "right": {"value": 0},
+                    }
+                ]
+            }
+        ],
+        "short_exit_rules": [
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "volume"},
+                        "right": {"value": 0},
+                    }
+                ]
+            }
+        ],
+    }
+
+
+@pytest.fixture(autouse=True)
+def _stub_run_backtest(monkeypatch):
+    def _stub(**kwargs):
+        df = kwargs.get("market_data")
+        if df is None:
+            df = pd.DataFrame()
+        return _mock_run_result([], df)
+
+    monkeypatch.setattr("trading_platform.core.sweeps.run_backtest", _stub)
 
 
 def test_rmm_context_with_data_handler_cache_hit():
@@ -176,9 +300,12 @@ def test_run_parameter_sweep_with_strategy_path():
 
     # Create temp strategy file (YAML)
     strategy_cfg_yaml = {
-        "name": "test_strategy",
-        "entry_signals": ["long"],
-        "exit_signals": ["exit_long"],
+        "strategy_name": "test_strategy",
+        "features": [],
+        "long_entry_rules": [],
+        "long_exit_rules": [],
+        "short_entry_rules": [],
+        "short_exit_rules": [],
         "parameters": {"original": "value"},
     }
 
@@ -199,37 +326,27 @@ def test_run_parameter_sweep_with_strategy_path():
 
         # Original strategy config (should be overridden)
         strategy_cfg_original = {
-            "name": "old_strategy",
+            "strategy_name": "old_strategy",
+            "features": [],
+            "long_entry_rules": [],
+            "long_exit_rules": [],
+            "short_entry_rules": [],
+            "short_exit_rules": [],
             "parameters": {"should": "be_replaced"},
         }
 
         grid = {"param1": [1, 2]}
 
-        with patch(
-            "trading_platform.core.sweeps.compile_strategy"
-        ) as mock_compile, patch(
-            "trading_platform.core.sweeps._run_backtest_simulation"
-        ) as mock_backtest:
-            mock_strategy = Mock()
-            mock_strategy.generate_signals.return_value = pd.Series(
-                [None, "long", "exit_long"], index=df.index
-            )
-            mock_compile.return_value = mock_strategy
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run:
 
-            mock_trade = Mock()
-            mock_trade.pnl = 100.0
-            mock_backtest.return_value = [mock_trade]
+            def _assert_strategy(**kwargs):
+                scfg = kwargs.get("strategy_config") or {}
+                assert scfg.get("strategy_name") == "test_strategy"
+                return _mock_run_result([], df)
+
+            mock_run.side_effect = _assert_strategy
 
             run_parameter_sweep(df, base_cfg, strategy_cfg_original, grid=grid)
-
-            # Strategy should have been reloaded from YAML file, not using original
-            assert mock_compile.called
-            # Check that compiled strategy used reloaded config
-            # (name should be test_strategy)
-            call_args = mock_compile.call_args_list
-            for call in call_args:
-                scfg = call[0][0]
-                assert scfg["name"] == "test_strategy"  # From YAML file
 
     finally:
         Path(yaml_path).unlink(missing_ok=True)
@@ -250,8 +367,12 @@ def test_run_parameter_sweep_with_strategy_path_json():
     )
 
     strategy_cfg_json = {
-        "name": "json_strategy",
-        "entry_signals": ["long"],
+        "strategy_name": "json_strategy",
+        "features": [],
+        "long_entry_rules": [],
+        "long_exit_rules": [],
+        "short_entry_rules": [],
+        "short_exit_rules": [],
         "parameters": {},
     }
 
@@ -270,31 +391,26 @@ def test_run_parameter_sweep_with_strategy_path_json():
             "strategy_path": json_path,  # JSON file
         }
 
-        strategy_cfg_original = {"name": "should_be_ignored"}
+        strategy_cfg_original = {
+            "strategy_name": "should_be_ignored",
+            "features": [],
+            "long_entry_rules": [],
+            "long_exit_rules": [],
+            "short_entry_rules": [],
+            "short_exit_rules": [],
+        }
         grid = {"param1": [1]}
 
-        with patch(
-            "trading_platform.core.sweeps.compile_strategy"
-        ) as mock_compile, patch(
-            "trading_platform.core.sweeps._run_backtest_simulation"
-        ) as mock_backtest:
-            mock_strategy = Mock()
-            mock_strategy.generate_signals.return_value = pd.Series(
-                [None, "long"], index=df.index
-            )
-            mock_compile.return_value = mock_strategy
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run:
 
-            mock_trade = Mock()
-            mock_trade.pnl = 50.0
-            mock_backtest.return_value = [mock_trade]
+            def _assert_strategy(**kwargs):
+                scfg = kwargs.get("strategy_config") or {}
+                assert scfg.get("strategy_name") == "json_strategy"
+                return _mock_run_result([], df)
+
+            mock_run.side_effect = _assert_strategy
 
             run_parameter_sweep(df, base_cfg, strategy_cfg_original, grid=grid)
-
-            # Check JSON file was used
-            call_args = mock_compile.call_args_list
-            for call in call_args:
-                scfg = call[0][0]
-                assert scfg["name"] == "json_strategy"
 
     finally:
         Path(json_path).unlink(missing_ok=True)
@@ -324,48 +440,26 @@ def test_run_parameter_sweep_with_debug_dir():
             "instrument": {"symbol": "EURUSD"},
         }
 
-        strategy_cfg = {
-            "name": "test",
-            "entry_signals": ["long"],
-            "features": [
-                {"name": "ema_fast", "params": {"period": 5}},
-                {"name": "ema_slow", "params": {"period": 10}},
-            ],
-            "parameters": {},
-        }
+        strategy_cfg = _basic_strategy_cfg()
 
         grid = {
             "ema_fast_length": [5, 10],
             "ema_slow_length": [20, 30],
         }
 
-        with patch(
-            "trading_platform.core.sweeps.compile_strategy"
-        ) as mock_compile, patch(
-            "trading_platform.core.sweeps._run_backtest_simulation"
-        ) as mock_backtest:
-            # Create mock strategy with features
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run_backtest:
             mock_strategy = Mock()
-            mock_strategy.name = "test"
             mock_strategy.features = [Mock(), Mock()]
-
-            # Create mock feature dataframe with EMA columns
             feature_df = pd.DataFrame(
-                {
-                    "ema_fast": [1.0, 1.1],
-                    "ema_slow": [1.01, 1.11],
-                },
-                index=df.index,
+                {"ema_fast": [1.0, 1.1], "ema_slow": [1.01, 1.11]}, index=df.index
             )
-            mock_strategy._feature_df = feature_df
-
-            mock_signals = pd.Series([None, "long"], index=df.index)
-            mock_strategy.generate_signals.return_value = mock_signals
-            mock_compile.return_value = mock_strategy
-
             mock_trade = Mock()
             mock_trade.pnl = 100.0
-            mock_backtest.return_value = [mock_trade]
+            mock_run_backtest.return_value = {
+                "trades": [mock_trade],
+                "feature_enriched_df": feature_df,
+                "compiled_strategy": mock_strategy,
+            }
 
             run_parameter_sweep(
                 df,
@@ -418,44 +512,27 @@ def test_run_parameter_sweep_debug_dir_exception_handling():
             "instrument": {"symbol": "EURUSD"},
         }
 
-        strategy_cfg = {"name": "test", "entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
         grid = {"param1": [1]}
 
         with patch(
-            "trading_platform.core.sweeps.compile_strategy"
-        ) as mock_compile, patch(
-            "trading_platform.core.sweeps._run_backtest_simulation"
-        ) as mock_backtest:
-            # Strategy that raises exception during feature access
-            mock_strategy = Mock()
-            mock_strategy.features = Mock(side_effect=Exception("Feature error"))
-            mock_strategy.generate_signals.return_value = pd.Series(
-                [None], index=df.index
-            )
-            mock_compile.return_value = mock_strategy
+            "trading_platform.core.sweeps.run_backtest"
+        ) as mock_run_backtest, patch(
+            "pathlib.Path.mkdir",
+            side_effect=Exception("Permission denied"),
+        ):
+            mock_run_backtest.return_value = _mock_run_result([], df)
 
-            mock_trade = Mock()
-            mock_trade.pnl = 50.0
-            mock_backtest.return_value = [mock_trade]
-
-            # Should not raise exception despite feature access error
             result = run_parameter_sweep(
-                df,
-                base_cfg,
-                strategy_cfg,
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
                 grid=grid,
                 debug_dir=debug_path,
             )
 
-            # Should still complete successfully
             assert result is not None
             assert "top" in result
-
-            # Log should contain error message
-            log_file = debug_path / "sweep_debug.log"
-            if log_file.exists():
-                log_content = log_file.read_text()
-                assert "ERROR" in log_content or "error" in log_content.lower()
 
 
 def test_run_parameter_sweep_debug_no_features():
@@ -482,43 +559,26 @@ def test_run_parameter_sweep_debug_no_features():
             "instrument": {"symbol": "EURUSD"},
         }
 
-        strategy_cfg = {"name": "test", "entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
         grid = {"param1": [1]}
 
-        with patch(
-            "trading_platform.core.sweeps.compile_strategy"
-        ) as mock_compile, patch(
-            "trading_platform.core.sweeps._run_backtest_simulation"
-        ) as mock_backtest:
-            # Strategy with NO features (or empty features list)
-            mock_strategy = Mock()
-            mock_strategy.name = "test"
-            mock_strategy.features = []  # Empty features - triggers false branch
-            mock_strategy._feature_df = None  # No feature dataframe
-
-            mock_signals = pd.Series([None, "long"], index=df.index)
-            mock_strategy.generate_signals.return_value = mock_signals
-            mock_compile.return_value = mock_strategy
-
-            mock_trade = Mock()
-            mock_trade.pnl = 100.0
-            mock_backtest.return_value = [mock_trade]
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run_backtest:
+            compiled_strategy = SimpleNamespace(features=[])
+            mock_run_backtest.return_value = _mock_run_result(
+                [], df, compiled_strategy=compiled_strategy, feature_df=None
+            )
 
             result = run_parameter_sweep(
-                df,
-                base_cfg,
-                strategy_cfg,
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
                 grid=grid,
                 debug_dir=debug_path,
             )
 
-            # Should complete successfully
             assert result is not None
             assert "top" in result
-
-            # Log should still be created
-            log_file = debug_path / "sweep_debug.log"
-            assert log_file.exists()
+            assert (debug_path / "sweep_debug.log").exists()
 
 
 def test_run_parameter_sweep_debug_no_feature_dataframe():
@@ -545,45 +605,27 @@ def test_run_parameter_sweep_debug_no_feature_dataframe():
             "instrument": {"symbol": "EURUSD"},
         }
 
-        strategy_cfg = {"name": "test", "entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
         grid = {
             "ema_fast_length": [5],
             "ema_slow_length": [20],
         }
 
-        with patch(
-            "trading_platform.core.sweeps.compile_strategy"
-        ) as mock_compile, patch(
-            "trading_platform.core.sweeps._run_backtest_simulation"
-        ) as mock_backtest:
-            # Strategy with features but NO _feature_df
-            mock_strategy = Mock()
-            mock_strategy.name = "test"
-            mock_strategy.features = [Mock(), Mock()]  # Has features
-            mock_strategy._feature_df = (
-                None  # But no feature dataframe - triggers false branches
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run_backtest:
+            compiled_strategy = SimpleNamespace(features=[Mock(), Mock()])
+            mock_run_backtest.return_value = _mock_run_result(
+                [], df, compiled_strategy=compiled_strategy, feature_df=None
             )
 
-            mock_signals = pd.Series([None, "long"], index=df.index)
-            mock_strategy.generate_signals.return_value = mock_signals
-            mock_compile.return_value = mock_strategy
-
-            mock_trade = Mock()
-            mock_trade.pnl = 100.0
-            mock_backtest.return_value = [mock_trade]
-
             result = run_parameter_sweep(
-                df,
-                base_cfg,
-                strategy_cfg,
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
                 grid=grid,
                 debug_dir=debug_path,
             )
 
-            # Should complete successfully
             assert result is not None
-
-            # Log should be created but not contain feature df info
             log_file = debug_path / "sweep_debug.log"
             assert log_file.exists()
             log_content = log_file.read_text()
@@ -614,57 +656,32 @@ def test_run_parameter_sweep_debug_no_ema_columns():
             "instrument": {"symbol": "EURUSD"},
         }
 
-        strategy_cfg = {"name": "test", "entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
         grid = {
             "ema_fast_length": [5],
             "ema_slow_length": [20],
         }
 
-        with patch(
-            "trading_platform.core.sweeps.compile_strategy"
-        ) as mock_compile, patch(
-            "trading_platform.core.sweeps._run_backtest_simulation"
-        ) as mock_backtest:
-            # Strategy with feature_df but NO ema columns
-            mock_strategy = Mock()
-            mock_strategy.name = "test"
-            mock_strategy.features = [Mock()]
-
-            # Feature dataframe with different columns (not ema_fast/ema_slow)
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run_backtest:
             feature_df = pd.DataFrame(
-                {
-                    "rsi": [50.0, 55.0],
-                    "macd": [0.1, 0.2],
-                },
-                index=df.index,
+                {"rsi": [50.0, 55.0], "macd": [0.1, 0.2]}, index=df.index
             )
-            mock_strategy._feature_df = feature_df  # Has df but no EMA columns
-
-            mock_signals = pd.Series([None, "long"], index=df.index)
-            mock_strategy.generate_signals.return_value = mock_signals
-            mock_compile.return_value = mock_strategy
-
-            mock_trade = Mock()
-            mock_trade.pnl = 100.0
-            mock_backtest.return_value = [mock_trade]
+            compiled_strategy = SimpleNamespace(features=[{"name": "rsi"}])
+            mock_run_backtest.return_value = _mock_run_result(
+                [], df, compiled_strategy=compiled_strategy, feature_df=feature_df
+            )
 
             result = run_parameter_sweep(
-                df,
-                base_cfg,
-                strategy_cfg,
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
                 grid=grid,
                 debug_dir=debug_path,
             )
 
-            # Should complete successfully
             assert result is not None
-
-            # Log should show feat_df.shape but not ema counts
-            log_file = debug_path / "sweep_debug.log"
-            assert log_file.exists()
-            log_content = log_file.read_text()
+            log_content = (debug_path / "sweep_debug.log").read_text()
             assert "feat_df.shape=" in log_content
-            # Should NOT have ema count lines since columns don't exist
             assert "ema_fast non-NaN count=" not in log_content
 
 
@@ -689,7 +706,7 @@ def test_monte_carlo_resimulation_no_ohlc_columns():
         "instrument": {"symbol": "EURUSD"},
     }
 
-    strategy_cfg = {"name": "test", "entry_signals": ["long"]}
+    strategy_cfg = _basic_strategy_cfg()
 
     perturbation = {
         "mode": "block",
@@ -697,20 +714,14 @@ def test_monte_carlo_resimulation_no_ohlc_columns():
         "block_len": 5,
     }
 
-    with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile, patch(
-        "trading_platform.core.sweeps._run_backtest_simulation"
-    ) as mock_backtest:
-        mock_strategy = Mock()
-        mock_strategy.generate_signals.return_value = pd.Series(
-            [None, "long", "exit_long"], index=df.index
-        )
-        mock_compile.return_value = mock_strategy
+    mock_trade = Mock()
+    mock_trade.pnl = 50.0
+    mock_trade.cost_currency = 0.0
 
-        mock_trade = Mock()
-        mock_trade.pnl = 50.0
-        mock_backtest.return_value = [mock_trade]
-
-        # Should not crash even though there are no OHLC columns to perturb
+    with patch(
+        "trading_platform.core.sweeps.run_backtest",
+        return_value=_mock_run_result([mock_trade], df),
+    ) as mock_run:
         result = monte_carlo_resimulation(
             df,
             base_cfg,
@@ -721,9 +732,9 @@ def test_monte_carlo_resimulation_no_ohlc_columns():
             perturbation=perturbation,
         )
 
-        # Should complete successfully
         assert result is not None
         assert "final_equity" in result
+        assert mock_run.call_count == 2
 
 
 def test_monte_carlo_resimulation_gaussian_mode_no_ohlc():
@@ -747,7 +758,7 @@ def test_monte_carlo_resimulation_gaussian_mode_no_ohlc():
         "instrument": {"symbol": "EURUSD"},
     }
 
-    strategy_cfg = {"name": "test", "entry_signals": ["long"]}
+    strategy_cfg = _basic_strategy_cfg()
 
     # Use gaussian mode (not block) with perturbation
     perturbation = {
@@ -755,20 +766,14 @@ def test_monte_carlo_resimulation_gaussian_mode_no_ohlc():
         "std_pct": 0.05,
     }
 
-    with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile, patch(
-        "trading_platform.core.sweeps._run_backtest_simulation"
-    ) as mock_backtest:
-        mock_strategy = Mock()
-        mock_strategy.generate_signals.return_value = pd.Series(
-            [None, "long", "exit_long"], index=df.index
-        )
-        mock_compile.return_value = mock_strategy
+    mock_trade = Mock()
+    mock_trade.pnl = 50.0
+    mock_trade.cost_currency = 0.0
 
-        mock_trade = Mock()
-        mock_trade.pnl = 50.0
-        mock_backtest.return_value = [mock_trade]
-
-        # Should not crash even though there are no OHLC columns to perturb
+    with patch(
+        "trading_platform.core.sweeps.run_backtest",
+        return_value=_mock_run_result([mock_trade], df),
+    ) as mock_run:
         result = monte_carlo_resimulation(
             df,
             base_cfg,
@@ -779,6 +784,6 @@ def test_monte_carlo_resimulation_gaussian_mode_no_ohlc():
             perturbation=perturbation,
         )
 
-        # Should complete successfully
         assert result is not None
         assert "final_equity" in result
+        assert mock_run.call_count == 2

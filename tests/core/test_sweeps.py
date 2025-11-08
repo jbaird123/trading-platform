@@ -29,6 +29,53 @@ from tests.test_helpers import (
     create_market_data_with_warmup,
 )
 
+
+def _mock_run_result(trades: list[Any], df: pd.DataFrame) -> dict[str, Any]:
+    return {
+        "trades": trades,
+        "feature_enriched_df": df.copy(),
+        "compiled_strategy": SimpleNamespace(features=[]),
+    }
+
+
+def _basic_strategy_cfg() -> dict[str, Any]:
+    rule_above = {
+        "condition": "is_above",
+        "left": {"ref": "ema_fast"},
+        "right": {"value": 0},
+    }
+    rule_below = {
+        "condition": "is_below",
+        "left": {"ref": "ema_fast"},
+        "right": {"value": 0},
+    }
+    base_rules = [{"any_of": [rule_above]}]
+    short_rules = [{"any_of": [rule_below]}]
+    base_features = [
+        {
+            "name": "ema_fast",
+            "type": "EMA",
+            "params": {"length": 5},
+            "source": "close",
+        },
+        {
+            "name": "ema_slow",
+            "type": "EMA",
+            "params": {"length": 10},
+            "source": "close",
+        },
+    ]
+    return {
+        "strategy_name": "TestStrategy",
+        "features": base_features,
+        "long_entry_rules": base_rules,
+        "long_exit_rules": short_rules,
+        "short_entry_rules": short_rules,
+        "short_exit_rules": base_rules,
+        "parameters": {},
+    }
+
+
 # --- test_sweeps_100_coverage.py ---
 
 """
@@ -114,7 +161,7 @@ class TestParameterSweepCoverage:
                 "position_size": 100.0,
                 "instrument": {"symbol": "EURUSD"},
             }
-            strategy_cfg = {"entry_signals": ["long"]}
+            strategy_cfg = _basic_strategy_cfg()
 
             # Create a mock trade with pnl
             mock_trade = Mock()
@@ -159,7 +206,7 @@ class TestParameterSweepCoverage:
         )
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         # Create mock trades that cause drawdown
         mock_trade1 = Mock()
@@ -198,7 +245,7 @@ class TestParameterSweepCoverage:
         )
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         fake_result = {
             "trades": [],
@@ -230,7 +277,7 @@ class TestParameterSweepCoverage:
         )
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         # Create mock trades with varying PnL for volatility calculation
         mock_trade1 = Mock()
@@ -277,21 +324,15 @@ class TestWalkForwardOptimizeCoverage:
 
         # Mock strategy compilation and backtesting
         with patch(
-            "trading_platform.core.sweeps.compile_strategy"
-        ) as mock_compile, patch(
-            "trading_platform.core.sweeps._run_backtest_simulation"
-        ) as mock_sim, patch(
             "trading_platform.core.sweeps.run_backtest"
         ) as mock_run_backtest, patch("random.seed") as mock_seed:
-            mock_compile.return_value = Mock()
-            mock_sim.return_value = ([], 100.0)
             mock_run_backtest.return_value = {"trades": []}
 
             # Call with seed to hit line 200
             result = walk_forward_optimize_and_test(
                 df=df,
                 base_cfg={"instrument": {"symbol": "EURUSD"}},
-                strategy_cfg={"name": "test"},
+                strategy_cfg=_basic_strategy_cfg(),
                 grid={"test_param": [1]},
                 window=2,
                 step=1,
@@ -320,7 +361,7 @@ class TestWalkForwardOptimizeCoverage:
             "user_id": "test",
             "instrument": {"symbol": "EURUSD"},
         }
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
         grid = {"param1": [1, 2]}
 
         mock_trade = Mock()
@@ -344,32 +385,21 @@ class TestWalkForwardOptimizeCoverage:
                 mock_sweep.return_value = {"top": {"params": {"param1": 2}}}
 
                 with patch(
-                    "trading_platform.core.sweeps.compile_strategy"
-                ) as mock_compile:
-                    mock_strat = Mock()
-                    mock_compile.return_value = mock_strat
-                    mock_strat.generate_signals.return_value = pd.Series(["long"])
+                    "trading_platform.core.sweeps.run_backtest"
+                ) as mock_run_backtest:
+                    mock_run_backtest.return_value = ([mock_trade], [], [])
 
-                    with patch(
-                        "trading_platform.core.sweeps._run_backtest_simulation"
-                    ) as mock_sim, patch(
-                        "trading_platform.core.sweeps.run_backtest"
-                    ) as mock_run_backtest:
-                        # Return tuple instead of list to test line 200
-                        mock_sim.return_value = ([mock_trade], [], [])
-                        mock_run_backtest.return_value = ([mock_trade], [], [])
+                    result = walk_forward_optimize_and_test(
+                        df=df,
+                        base_cfg=base_cfg,
+                        strategy_cfg=strategy_cfg,
+                        window=2,
+                        step=1,
+                        grid=grid,
+                    )
 
-                        result = walk_forward_optimize_and_test(
-                            df=df,
-                            base_cfg=base_cfg,
-                            strategy_cfg=strategy_cfg,
-                            window=2,
-                            step=1,
-                            grid=grid,
-                        )
-
-                        assert isinstance(result, dict)
-                        assert "splits" in result
+                    assert isinstance(result, dict)
+                    assert "splits" in result
 
 
 class TestMonteCarloResimulationCoverage:
@@ -389,7 +419,7 @@ class TestMonteCarloResimulationCoverage:
         )
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         # Configure Gaussian perturbation
         perturbation = {"mode": "gaussian", "std_pct": 0.01}
@@ -399,27 +429,20 @@ class TestMonteCarloResimulationCoverage:
         # Add cost_currency attribute for cost jitter testing
         mock_trade.cost_currency = 5.0
 
-        with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-            mock_strat = Mock()
-            mock_compile.return_value = mock_strat
-            mock_strat.generate_signals.return_value = pd.Series(["long"])
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run:
+            mock_run.return_value = _mock_run_result([mock_trade], df)
 
-            with patch(
-                "trading_platform.core.sweeps._run_backtest_simulation"
-            ) as mock_backtest:
-                mock_backtest.return_value = [mock_trade]
+            result = monte_carlo_resimulation(
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
+                trials=1,
+                seed=42,
+                perturbation=perturbation,
+            )
 
-                result = monte_carlo_resimulation(
-                    df=df,
-                    base_cfg=base_cfg,
-                    strategy_cfg=strategy_cfg,
-                    trials=1,
-                    seed=42,
-                    perturbation=perturbation,
-                )
-
-                assert isinstance(result, dict)
-                assert result["trials"] == 1
+            assert isinstance(result, dict)
+            assert result["trials"] == 1
 
     def test_monte_carlo_lines_286_289_302(self):
         """Test lines 286->289 and 302 in Monte Carlo."""
@@ -435,7 +458,7 @@ class TestMonteCarloResimulationCoverage:
         )
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         # Configure cost jitter to test lines 286-289
         cost_jitter = {
@@ -446,42 +469,34 @@ class TestMonteCarloResimulationCoverage:
 
         mock_trade = Mock()
         mock_trade.pnl = 100.0
-        mock_trade.cost_currency = 10.0  # For cost jitter calculation
+        mock_trade.cost_currency = 10.0
 
-        with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-            mock_strat = Mock()
-            mock_compile.return_value = mock_strat
-            mock_strat.generate_signals.return_value = pd.Series(["long"])
+        mock_cfg = Mock()
+        mock_cfg.initial_cash = 10000.0
+        mock_cfg.cost_model = {
+            "spread_per_unit": 0.001,
+            "slippage_per_unit": 0.001,
+        }
+        mock_cfg.model_copy.return_value = mock_cfg
 
-            with patch(
-                "trading_platform.core.sweeps._run_backtest_simulation"
-            ) as mock_backtest:
-                mock_backtest.return_value = [mock_trade]
+        with patch(
+            "trading_platform.core.sweeps.RunConfig.model_validate"
+        ) as mock_validate, patch(
+            "trading_platform.core.sweeps.run_backtest"
+        ) as mock_run:
+            mock_validate.return_value = mock_cfg
+            mock_run.return_value = _mock_run_result([mock_trade], df)
 
-                # Mock cfg.model_copy to test line 302
-                mock_cfg = Mock()
-                mock_cfg.initial_cash = 10000.0
-                mock_cfg.cost_model = {
-                    "spread_per_unit": 0.001,
-                    "slippage_per_unit": 0.001,
-                }
-                mock_cfg.model_copy.return_value = mock_cfg
+            result = monte_carlo_resimulation(
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
+                trials=1,
+                seed=42,
+                cost_jitter=cost_jitter,
+            )
 
-                with patch(
-                    "trading_platform.core.sweeps.RunConfig.model_validate"
-                ) as mock_validate:
-                    mock_validate.return_value = mock_cfg
-
-                    result = monte_carlo_resimulation(
-                        df=df,
-                        base_cfg=base_cfg,
-                        strategy_cfg=strategy_cfg,
-                        trials=1,
-                        seed=42,
-                        cost_jitter=cost_jitter,
-                    )
-
-                    assert isinstance(result, dict)
+            assert isinstance(result, dict)
 
     def test_monte_carlo_lines_324_325_331_337(self):
         """Test equity curve calculation lines 324-325, 331, 337."""
@@ -491,7 +506,7 @@ class TestMonteCarloResimulationCoverage:
         )
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         # Create trades with losses to test drawdown calculation
         mock_trade1 = Mock()
@@ -502,27 +517,19 @@ class TestMonteCarloResimulationCoverage:
         mock_trade2.pnl = -300.0  # Bigger loss
         mock_trade2.cost_currency = 0.0
 
-        with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-            mock_strat = Mock()
-            mock_compile.return_value = mock_strat
-            mock_strat.generate_signals.return_value = pd.Series(["long"])
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run:
+            mock_run.return_value = _mock_run_result([mock_trade1, mock_trade2], df)
 
-            with patch(
-                "trading_platform.core.sweeps._run_backtest_simulation"
-            ) as mock_backtest:
-                mock_backtest.return_value = [mock_trade1, mock_trade2]
+            result = monte_carlo_resimulation(
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
+                trials=1,
+                seed=42,
+            )
 
-                result = monte_carlo_resimulation(
-                    df=df,
-                    base_cfg=base_cfg,
-                    strategy_cfg=strategy_cfg,
-                    trials=1,
-                    seed=42,
-                )
-
-                assert isinstance(result, dict)
-                # Should have negative equity due to losses
-                assert result["final_equity"]["mean"] < 10000.0
+            assert isinstance(result, dict)
+            assert result["final_equity"]["mean"] < 10000.0
 
     def test_monte_carlo_line_364_win_rate_calculation(self):
         """Test win rate calculation line 364."""
@@ -532,7 +539,7 @@ class TestMonteCarloResimulationCoverage:
         )
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         # Mix of winning and losing trades
         winning_trade = Mock()
@@ -543,27 +550,19 @@ class TestMonteCarloResimulationCoverage:
         losing_trade.pnl = -50.0
         losing_trade.cost_currency = 0.0
 
-        with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-            mock_strat = Mock()
-            mock_compile.return_value = mock_strat
-            mock_strat.generate_signals.return_value = pd.Series(["long"])
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run:
+            mock_run.return_value = _mock_run_result([winning_trade, losing_trade], df)
 
-            with patch(
-                "trading_platform.core.sweeps._run_backtest_simulation"
-            ) as mock_backtest:
-                mock_backtest.return_value = [winning_trade, losing_trade]
+            result = monte_carlo_resimulation(
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
+                trials=1,
+                seed=42,
+            )
 
-                result = monte_carlo_resimulation(
-                    df=df,
-                    base_cfg=base_cfg,
-                    strategy_cfg=strategy_cfg,
-                    trials=1,
-                    seed=42,
-                )
-
-                assert isinstance(result, dict)
-                # Win rate should be 0.5 (1 win out of 2 trades)
-                assert result["win_rate"]["mean"] == 0.5
+            assert isinstance(result, dict)
+            assert result["win_rate"]["mean"] == 0.5
 
     def test_monte_carlo_line_387_exemplars_handling(self):
         """Test exemplars handling line 387."""
@@ -573,35 +572,28 @@ class TestMonteCarloResimulationCoverage:
         )
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         mock_trade = Mock()
         mock_trade.pnl = 50.0
         mock_trade.cost_currency = 0.0
 
-        with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-            mock_strat = Mock()
-            mock_compile.return_value = mock_strat
-            mock_strat.generate_signals.return_value = pd.Series(["long"])
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run:
+            mock_run.return_value = _mock_run_result([mock_trade], df)
 
-            with patch(
-                "trading_platform.core.sweeps._run_backtest_simulation"
-            ) as mock_backtest:
-                mock_backtest.return_value = [mock_trade]
+            result = monte_carlo_resimulation(
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
+                trials=3,
+                seed=42,
+            )
 
-                result = monte_carlo_resimulation(
-                    df=df,
-                    base_cfg=base_cfg,
-                    strategy_cfg=strategy_cfg,
-                    trials=3,  # Multiple trials for exemplar sorting
-                    seed=42,
-                )
-
-                assert isinstance(result, dict)
-                assert "exemplars" in result
-                assert "worst" in result["exemplars"]
-                assert "median" in result["exemplars"]
-                assert "best" in result["exemplars"]
+            assert isinstance(result, dict)
+            assert "exemplars" in result
+            assert "worst" in result["exemplars"]
+            assert "median" in result["exemplars"]
+            assert "best" in result["exemplars"]
 
     def test_monte_carlo_lines_432_442_467(self):
         """Test various percentile and aggregation lines 432, 442, 467."""
@@ -611,37 +603,28 @@ class TestMonteCarloResimulationCoverage:
         )
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         # Create trades that will result in ruin (final equity <= 0)
         ruinous_trade = Mock()
         ruinous_trade.pnl = -11000.0  # More loss than initial cash
         ruinous_trade.cost_currency = 0.0
 
-        with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-            mock_strat = Mock()
-            mock_compile.return_value = mock_strat
-            mock_strat.generate_signals.return_value = pd.Series(["long"])
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run:
+            mock_run.return_value = _mock_run_result([ruinous_trade], df)
 
-            with patch(
-                "trading_platform.core.sweeps._run_backtest_simulation"
-            ) as mock_backtest:
-                mock_backtest.return_value = [ruinous_trade]
+            result = monte_carlo_resimulation(
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
+                trials=2,
+                seed=42,
+            )
 
-                result = monte_carlo_resimulation(
-                    df=df,
-                    base_cfg=base_cfg,
-                    strategy_cfg=strategy_cfg,
-                    trials=2,
-                    seed=42,
-                )
-
-                assert isinstance(result, dict)
-                # Should have non-zero ruin probability (line 432)
-                assert result["ruin_prob"] > 0.0
-                # Should have calculated CVaR (line 442)
-                assert "risk" in result
-                assert "cvar_95" in result["risk"]
+            assert isinstance(result, dict)
+            assert result["ruin_prob"] > 0.0
+            assert "risk" in result
+            assert "cvar_95" in result["risk"]
 
 
 class TestEdgeCasesAndHelperFunctions:
@@ -670,7 +653,7 @@ class TestEdgeCasesAndHelperFunctions:
         )
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         fake_result = {
             "trades": [],
@@ -699,7 +682,7 @@ class TestEdgeCasesAndHelperFunctions:
         )
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         mock_trade = Mock()
         mock_trade.pnl = 50.0
@@ -733,7 +716,7 @@ class TestEdgeCasesAndHelperFunctions:
 
         with tempfile.TemporaryDirectory() as temp_dir:
             base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-            strategy_cfg = {"entry_signals": ["long"]}
+            strategy_cfg = _basic_strategy_cfg()
 
             mock_trade = Mock()
             mock_trade.pnl = 50.0
@@ -765,7 +748,7 @@ class TestEdgeCasesAndHelperFunctions:
         )
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         fake_result = {
             "trades": [],
@@ -790,30 +773,21 @@ class TestEdgeCasesAndHelperFunctions:
         )
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
-        with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-            mock_strat = Mock()
-            mock_compile.return_value = mock_strat
-            mock_strat.generate_signals.return_value = pd.Series(["flat"])
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run:
+            mock_run.return_value = _mock_run_result([], df)
 
-            with patch(
-                "trading_platform.core.sweeps._run_backtest_simulation"
-            ) as mock_backtest:
-                # Return empty trades list
-                mock_backtest.return_value = []
+            result = monte_carlo_resimulation(
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
+                trials=1,
+                seed=42,
+            )
 
-                result = monte_carlo_resimulation(
-                    df=df,
-                    base_cfg=base_cfg,
-                    strategy_cfg=strategy_cfg,
-                    trials=1,
-                    seed=42,
-                )
-
-                assert isinstance(result, dict)
-                # Should handle empty curves gracefully
-                assert result["time_under_water_mean"] == 0.0
+            assert isinstance(result, dict)
+            assert result["time_under_water_mean"] == 0.0
 
     def test_walk_forward_tuple_return_line_200(self):
         """Test walk_forward when run_backtest returns tuple line 200."""
@@ -833,7 +807,7 @@ class TestEdgeCasesAndHelperFunctions:
             "user_id": "test",
             "instrument": {"symbol": "EURUSD"},
         }
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
         grid = {"param1": [1]}
 
         mock_trade = Mock()
@@ -853,31 +827,20 @@ class TestEdgeCasesAndHelperFunctions:
                 mock_sweep.return_value = {"top": {"params": {"param1": 1}}}
 
                 with patch(
-                    "trading_platform.core.sweeps.compile_strategy"
-                ) as mock_compile:
-                    mock_strat = Mock()
-                    mock_compile.return_value = mock_strat
-                    mock_strat.generate_signals.return_value = pd.Series(["long"])
+                    "trading_platform.core.sweeps.run_backtest"
+                ) as mock_run_backtest:
+                    mock_run_backtest.return_value = ([mock_trade], [], [])
 
-                    with patch(
-                        "trading_platform.core.sweeps._run_backtest_simulation"
-                    ) as mock_sim, patch(
-                        "trading_platform.core.sweeps.run_backtest"
-                    ) as mock_run_backtest:
-                        # Return tuple to test line 200
-                        mock_sim.return_value = ([mock_trade], [], [])
-                        mock_run_backtest.return_value = ([mock_trade], [], [])
+                    result = walk_forward_optimize_and_test(
+                        df=df,
+                        base_cfg=base_cfg,
+                        strategy_cfg=strategy_cfg,
+                        window=2,
+                        step=1,
+                        grid=grid,
+                    )
 
-                        result = walk_forward_optimize_and_test(
-                            df=df,
-                            base_cfg=base_cfg,
-                            strategy_cfg=strategy_cfg,
-                            window=2,
-                            step=1,
-                            grid=grid,
-                        )
-
-                        assert isinstance(result, dict)
+                    assert isinstance(result, dict)
 
     def test_monte_carlo_cost_model_handling_lines_286_289_302(self):
         """Test Monte Carlo cost model handling lines 286->289, 302."""
@@ -901,7 +864,7 @@ class TestEdgeCasesAndHelperFunctions:
         mock_cfg.model_copy.return_value = mock_cfg_copy
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         cost_jitter = {
             "spread_jitter_pct": 0.1,
@@ -917,28 +880,20 @@ class TestEdgeCasesAndHelperFunctions:
         ) as mock_validate:
             mock_validate.return_value = mock_cfg
 
-            with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-                mock_strat = Mock()
-                mock_compile.return_value = mock_strat
-                mock_strat.generate_signals.return_value = pd.Series(["long"])
+            with patch("trading_platform.core.sweeps.run_backtest") as mock_run:
+                mock_run.return_value = _mock_run_result([mock_trade], df)
 
-                with patch(
-                    "trading_platform.core.sweeps._run_backtest_simulation"
-                ) as mock_backtest:
-                    mock_backtest.return_value = [mock_trade]
+                result = monte_carlo_resimulation(
+                    df=df,
+                    base_cfg=base_cfg,
+                    strategy_cfg=strategy_cfg,
+                    trials=1,
+                    seed=42,
+                    cost_jitter=cost_jitter,
+                )
 
-                    result = monte_carlo_resimulation(
-                        df=df,
-                        base_cfg=base_cfg,
-                        strategy_cfg=strategy_cfg,
-                        trials=1,
-                        seed=42,
-                        cost_jitter=cost_jitter,
-                    )
-
-                    assert isinstance(result, dict)
-                    # Verify model_copy was called for cost jitter
-                    mock_cfg.model_copy.assert_called_once()
+                assert isinstance(result, dict)
+                mock_cfg.model_copy.assert_called_once()
 
     def test_monte_carlo_equity_curve_branches_lines_324_325_331(self):
         """Test Monte Carlo equity curve calculation branches lines 324-325, 331."""
@@ -948,7 +903,7 @@ class TestEdgeCasesAndHelperFunctions:
         )
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         # Create trades that will trigger various equity curve conditions
         profitable_trade = Mock()
@@ -959,27 +914,21 @@ class TestEdgeCasesAndHelperFunctions:
         losing_trade.pnl = -200.0  # Creates drawdown
         losing_trade.cost_currency = 0.0
 
-        with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-            mock_strat = Mock()
-            mock_compile.return_value = mock_strat
-            mock_strat.generate_signals.return_value = pd.Series(["long"])
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run:
+            mock_run.return_value = _mock_run_result(
+                [profitable_trade, losing_trade], df
+            )
 
-            with patch(
-                "trading_platform.core.sweeps._run_backtest_simulation"
-            ) as mock_backtest:
-                mock_backtest.return_value = [profitable_trade, losing_trade]
+            result = monte_carlo_resimulation(
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
+                trials=1,
+                seed=42,
+            )
 
-                result = monte_carlo_resimulation(
-                    df=df,
-                    base_cfg=base_cfg,
-                    strategy_cfg=strategy_cfg,
-                    trials=1,
-                    seed=42,
-                )
-
-                assert isinstance(result, dict)
-                # Should have calculated drawdown from peak
-                assert result["max_drawdown"]["mean"] >= 0
+            assert isinstance(result, dict)
+            assert result["max_drawdown"]["mean"] >= 0
 
     def test_monte_carlo_tuw_and_win_rate_lines_364(self):
         """Test time under water and win rate calculation line 364."""
@@ -989,35 +938,26 @@ class TestEdgeCasesAndHelperFunctions:
         )
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         losing_trade = Mock()
         losing_trade.pnl = -100.0
         losing_trade.cost_currency = 0.0
 
-        with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-            mock_strat = Mock()
-            mock_compile.return_value = mock_strat
-            mock_strat.generate_signals.return_value = pd.Series(["long"])
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run:
+            mock_run.return_value = _mock_run_result([losing_trade], df)
 
-            with patch(
-                "trading_platform.core.sweeps._run_backtest_simulation"
-            ) as mock_backtest:
-                mock_backtest.return_value = [losing_trade]
+            result = monte_carlo_resimulation(
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
+                trials=1,
+                seed=42,
+            )
 
-                result = monte_carlo_resimulation(
-                    df=df,
-                    base_cfg=base_cfg,
-                    strategy_cfg=strategy_cfg,
-                    trials=1,
-                    seed=42,
-                )
-
-                assert isinstance(result, dict)
-                # With losing trade, win rate should be 0
-                assert result["win_rate"]["mean"] == 0.0
-                # Time under water should be > 0 due to loss
-                assert result["time_under_water_mean"] >= 0
+            assert isinstance(result, dict)
+            assert result["win_rate"]["mean"] == 0.0
+            assert result["time_under_water_mean"] >= 0
 
     def test_monte_carlo_exemplars_empty_curves_line_387(self):
         """Test Monte Carlo with empty curves for exemplars line 387."""
@@ -1026,31 +966,23 @@ class TestEdgeCasesAndHelperFunctions:
         )
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
-        with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-            mock_strat = Mock()
-            mock_compile.return_value = mock_strat
-            mock_strat.generate_signals.return_value = pd.Series(["flat"])
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run:
+            mock_run.return_value = _mock_run_result([], df)
 
-            with patch(
-                "trading_platform.core.sweeps._run_backtest_simulation"
-            ) as mock_backtest:
-                mock_backtest.return_value = []  # No trades
+            result = monte_carlo_resimulation(
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
+                trials=1,
+                seed=42,
+            )
 
-                result = monte_carlo_resimulation(
-                    df=df,
-                    base_cfg=base_cfg,
-                    strategy_cfg=strategy_cfg,
-                    trials=1,
-                    seed=42,
-                )
-
-                assert isinstance(result, dict)
-                # Should have exemplars with initial equity only
-                assert "exemplars" in result
-                assert "worst" in result["exemplars"]
-                assert result["exemplars"]["worst"]["final_equity"] == 10000.0
+            assert isinstance(result, dict)
+            assert "exemplars" in result
+            assert "worst" in result["exemplars"]
+            assert result["exemplars"]["worst"]["final_equity"] == 10000.0
 
     def test_monte_carlo_risk_calculations_lines_432_442_467(self):
         """Test risk calculations including VaR, CVaR, ruin prob lines 432, 442, 467."""
@@ -1060,7 +992,7 @@ class TestEdgeCasesAndHelperFunctions:
         )
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         # Create multiple trials with varied outcomes for risk calculation
         profitable_trade = Mock()
@@ -1075,37 +1007,27 @@ class TestEdgeCasesAndHelperFunctions:
         ruinous_trade.pnl = -12000.0  # Causes ruin
         ruinous_trade.cost_currency = 0.0
 
-        with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-            mock_strat = Mock()
-            mock_compile.return_value = mock_strat
-            mock_strat.generate_signals.return_value = pd.Series(["long"])
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run:
+            mock_run.side_effect = [
+                _mock_run_result([profitable_trade], df),
+                _mock_run_result([losing_trade], df),
+                _mock_run_result([ruinous_trade], df),
+            ]
 
-            with patch(
-                "trading_platform.core.sweeps._run_backtest_simulation"
-            ) as mock_backtest:
-                # Simulate different outcomes across trials
-                mock_backtest.side_effect = [
-                    [profitable_trade],
-                    [losing_trade],
-                    [ruinous_trade],
-                ]
+            result = monte_carlo_resimulation(
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
+                trials=3,
+                seed=42,
+            )
 
-                result = monte_carlo_resimulation(
-                    df=df,
-                    base_cfg=base_cfg,
-                    strategy_cfg=strategy_cfg,
-                    trials=3,
-                    seed=42,
-                )
-
-                assert isinstance(result, dict)
-                # Should have calculated risk metrics
-                assert "risk" in result
-                assert "var_95" in result["risk"]
-                assert "cvar_95" in result["risk"]
-                assert "ruin_prob" in result
-                # Should have some ruin probability due to ruinous trade
-                assert result["ruin_prob"] > 0
+            assert isinstance(result, dict)
+            assert "risk" in result
+            assert "var_95" in result["risk"]
+            assert "cvar_95" in result["risk"]
+            assert "ruin_prob" in result
+            assert result["ruin_prob"] > 0
 
     def test_walk_forward_else_branch_line_200(self):
         """Test walk_forward when run_backtest returns non-tuple line 200."""
@@ -1125,7 +1047,7 @@ class TestEdgeCasesAndHelperFunctions:
             "user_id": "test",
             "instrument": {"symbol": "EURUSD"},
         }
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
         grid = {"param1": [1]}
 
         mock_trade = Mock()
@@ -1145,31 +1067,20 @@ class TestEdgeCasesAndHelperFunctions:
                 mock_sweep.return_value = {"top": {"params": {"param1": 1}}}
 
                 with patch(
-                    "trading_platform.core.sweeps.compile_strategy"
-                ) as mock_compile:
-                    mock_strat = Mock()
-                    mock_compile.return_value = mock_strat
-                    mock_strat.generate_signals.return_value = pd.Series(["long"])
+                    "trading_platform.core.sweeps.run_backtest"
+                ) as mock_run_backtest:
+                    mock_run_backtest.return_value = {"trades": [mock_trade]}
 
-                    with patch(
-                        "trading_platform.core.sweeps._run_backtest_simulation"
-                    ) as mock_sim, patch(
-                        "trading_platform.core.sweeps.run_backtest"
-                    ) as mock_run_backtest:
-                        # Return list directly (not tuple) to test else branch line 200
-                        mock_sim.return_value = [mock_trade]
-                        mock_run_backtest.return_value = {"trades": [mock_trade]}
+                    result = walk_forward_optimize_and_test(
+                        df=df,
+                        base_cfg=base_cfg,
+                        strategy_cfg=strategy_cfg,
+                        window=2,
+                        step=1,
+                        grid=grid,
+                    )
 
-                        result = walk_forward_optimize_and_test(
-                            df=df,
-                            base_cfg=base_cfg,
-                            strategy_cfg=strategy_cfg,
-                            window=2,
-                            step=1,
-                            grid=grid,
-                        )
-
-                        assert isinstance(result, dict)
+                    assert isinstance(result, dict)
 
     def test_monte_carlo_seed_line_286_289(self):
         """Test Monte Carlo seed handling and cost model branches lines 286->289."""
@@ -1179,7 +1090,7 @@ class TestEdgeCasesAndHelperFunctions:
         )
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         # Test with None cost_model to trigger getattr default
         mock_cfg = Mock()
@@ -1196,29 +1107,21 @@ class TestEdgeCasesAndHelperFunctions:
         ) as mock_validate:
             mock_validate.return_value = mock_cfg
 
-            with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-                mock_strat = Mock()
-                mock_compile.return_value = mock_strat
-                mock_strat.generate_signals.return_value = pd.Series(["long"])
+            with patch("trading_platform.core.sweeps.run_backtest") as mock_run:
+                mock_run.return_value = _mock_run_result([mock_trade], df)
 
-                with patch(
-                    "trading_platform.core.sweeps._run_backtest_simulation"
-                ) as mock_backtest:
-                    mock_backtest.return_value = [mock_trade]
+                cost_jitter = {"spread_jitter_pct": 0.1}
 
-                    # Test seeding and cost jitter branches
-                    cost_jitter = {"spread_jitter_pct": 0.1}
+                result = monte_carlo_resimulation(
+                    df=df,
+                    base_cfg=base_cfg,
+                    strategy_cfg=strategy_cfg,
+                    trials=1,
+                    seed=123,
+                    cost_jitter=cost_jitter,
+                )
 
-                    result = monte_carlo_resimulation(
-                        df=df,
-                        base_cfg=base_cfg,
-                        strategy_cfg=strategy_cfg,
-                        trials=1,
-                        seed=123,  # This should hit line 286
-                        cost_jitter=cost_jitter,
-                    )
-
-                    assert isinstance(result, dict)
+                assert isinstance(result, dict)
 
     def test_monte_carlo_cost_jitter_line_302(self):
         """Test Monte Carlo cost jitter model_copy line 302."""
@@ -1242,7 +1145,7 @@ class TestEdgeCasesAndHelperFunctions:
         mock_cfg.model_copy.return_value = mock_updated_cfg
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         mock_trade = Mock()
         mock_trade.pnl = 100.0
@@ -1253,30 +1156,21 @@ class TestEdgeCasesAndHelperFunctions:
         ) as mock_validate:
             mock_validate.return_value = mock_cfg
 
-            with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-                mock_strat = Mock()
-                mock_compile.return_value = mock_strat
-                mock_strat.generate_signals.return_value = pd.Series(["long"])
+            with patch("trading_platform.core.sweeps.run_backtest") as mock_run:
+                mock_run.return_value = _mock_run_result([mock_trade], df)
 
-                with patch(
-                    "trading_platform.core.sweeps._run_backtest_simulation"
-                ) as mock_backtest:
-                    mock_backtest.return_value = [mock_trade]
+                cost_jitter = {"spread_jitter_pct": 0.1, "slippage_jitter_pct": 0.1}
 
-                    # Use cost_jitter to trigger line 302
-                    cost_jitter = {"spread_jitter_pct": 0.1, "slippage_jitter_pct": 0.1}
+                result = monte_carlo_resimulation(
+                    df=df,
+                    base_cfg=base_cfg,
+                    strategy_cfg=strategy_cfg,
+                    trials=1,
+                    cost_jitter=cost_jitter,
+                )
 
-                    result = monte_carlo_resimulation(
-                        df=df,
-                        base_cfg=base_cfg,
-                        strategy_cfg=strategy_cfg,
-                        trials=1,
-                        cost_jitter=cost_jitter,
-                    )
-
-                    assert isinstance(result, dict)
-                    # Verify model_copy was called (the exact update dict may vary)
-                    mock_cfg.model_copy.assert_called_once()
+                assert isinstance(result, dict)
+                mock_cfg.model_copy.assert_called_once()
 
     def test_monte_carlo_tuple_return_line_387(self):
         """Test monte_carlo when run_backtest returns tuple to hit line 387."""
@@ -1290,25 +1184,16 @@ class TestEdgeCasesAndHelperFunctions:
             index=pd.date_range("2024-01-01", periods=3, freq="D"),
         )
 
-        # Mock everything needed for monte_carlo_resimulation
-        with patch(
-            "trading_platform.core.sweeps.compile_strategy"
-        ) as mock_compile, patch(
-            "trading_platform.core.sweeps._run_backtest_simulation"
-        ) as mock_backtest:
-            # Set up mocks
-            mock_compile.return_value = Mock()
-            # Create a mock trade
-            mock_trade = Mock()
-            mock_trade.pnl = 100.0
+        mock_trade = Mock()
+        mock_trade.pnl = 100.0
 
-            # Return tuple from run_backtest to hit line 387
-            mock_backtest.return_value = ([mock_trade], {"final_equity": 1100.0})
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run:
+            mock_run.return_value = ([mock_trade], {"final_equity": 1100.0})
 
             result = monte_carlo_resimulation(
                 df=df,
                 base_cfg={"instrument": {"symbol": "EURUSD"}},
-                strategy_cfg={"name": "test"},
+                strategy_cfg=_basic_strategy_cfg(),
                 trials=1,
                 perturbation={"mode": "gaussian", "std_pct": 0.1},
                 seed=42,
@@ -1327,39 +1212,31 @@ class TestEdgeCasesAndHelperFunctions:
             "initial_cash": 0.0,
             "instrument": {"symbol": "EURUSD"},
         }  # Zero initial cash to test edge cases
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         # Create trades with different outcomes
         zero_trade = Mock()
         zero_trade.pnl = 0.0
         zero_trade.cost_currency = 0.0
 
-        with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-            mock_strat = Mock()
-            mock_compile.return_value = mock_strat
-            mock_strat.generate_signals.return_value = pd.Series(["long"])
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run:
+            mock_run.return_value = _mock_run_result([zero_trade], df)
 
-            with patch(
-                "trading_platform.core.sweeps._run_backtest_simulation"
-            ) as mock_backtest:
-                mock_backtest.return_value = [zero_trade]
+            result = monte_carlo_resimulation(
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
+                trials=1,
+            )
 
-                result = monte_carlo_resimulation(
-                    df=df,
-                    base_cfg=base_cfg,
-                    strategy_cfg=strategy_cfg,
-                    trials=1,
-                )
-
-                assert isinstance(result, dict)
-                # Test that all metrics are calculated properly even with zero values
-                assert "final_equity" in result
-                assert "max_drawdown" in result
-                assert "win_rate" in result
-                assert "time_under_water_mean" in result
-                assert "exemplars" in result
-                assert "risk" in result
-                assert "ruin_prob" in result
+            assert isinstance(result, dict)
+            assert "final_equity" in result
+            assert "max_drawdown" in result
+            assert "win_rate" in result
+            assert "time_under_water_mean" in result
+            assert "exemplars" in result
+            assert "risk" in result
+            assert "ruin_prob" in result
 
     def test_walk_forward_direct_trades_return_line_200(self):
         """Test walk_forward when run_backtest returns trades directly line 200."""
@@ -1375,7 +1252,7 @@ class TestEdgeCasesAndHelperFunctions:
         )
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
         grid = {"param1": [1]}
 
         mock_trade = Mock()
@@ -1396,34 +1273,23 @@ class TestEdgeCasesAndHelperFunctions:
                 mock_sweep.return_value = {"top": {"params": {"param1": 1}}}
 
                 with patch(
-                    "trading_platform.core.sweeps.compile_strategy"
-                ) as mock_compile:
-                    mock_strat = Mock()
-                    mock_compile.return_value = mock_strat
-                    mock_strat.generate_signals.return_value = pd.Series(["long"])
+                    "trading_platform.core.sweeps.run_backtest"
+                ) as mock_run_backtest:
+                    mock_run_backtest.return_value = [mock_trade]
 
-                    with patch(
-                        "trading_platform.core.sweeps._run_backtest_simulation"
-                    ) as mock_sim, patch(
-                        "trading_platform.core.sweeps.run_backtest"
-                    ) as mock_run_backtest:
-                        # Return trades list (not tuple) to hit else on line 242
-                        mock_sim.return_value = [mock_trade]
-                        mock_run_backtest.return_value = [mock_trade]
+                    result = walk_forward_optimize_and_test(
+                        df=df,
+                        base_cfg=base_cfg,
+                        strategy_cfg=strategy_cfg,
+                        window=2,
+                        step=1,
+                        grid=grid,
+                    )
 
-                        result = walk_forward_optimize_and_test(
-                            df=df,
-                            base_cfg=base_cfg,
-                            strategy_cfg=strategy_cfg,
-                            window=2,
-                            step=1,
-                            grid=grid,
-                        )
-
-                        assert isinstance(result, dict)
-                        assert "splits" in result
-                        assert len(result["splits"]) == 1
-                        assert result["splits"][0]["oos_score"] == 75.0
+                    assert isinstance(result, dict)
+                    assert "splits" in result
+                    assert len(result["splits"]) == 1
+                    assert result["splits"][0]["oos_score"] == 75.0
 
     def test_monte_carlo_perturbation_std_zero_line_302(self):
         """Test Monte Carlo perturbation with std_pct <= 0 line 302."""
@@ -1433,7 +1299,7 @@ class TestEdgeCasesAndHelperFunctions:
         )
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         # Perturbation with std_pct = 0 should trigger line 302 return
         perturbation = {"mode": "gaussian", "std_pct": 0.0}
@@ -1442,25 +1308,18 @@ class TestEdgeCasesAndHelperFunctions:
         mock_trade.pnl = 100.0
         mock_trade.cost_currency = 0.0
 
-        with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-            mock_strat = Mock()
-            mock_compile.return_value = mock_strat
-            mock_strat.generate_signals.return_value = pd.Series(["long"])
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run:
+            mock_run.return_value = _mock_run_result([mock_trade], df)
 
-            with patch(
-                "trading_platform.core.sweeps._run_backtest_simulation"
-            ) as mock_backtest:
-                mock_backtest.return_value = [mock_trade]
+            result = monte_carlo_resimulation(
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
+                trials=1,
+                perturbation=perturbation,
+            )
 
-                result = monte_carlo_resimulation(
-                    df=df,
-                    base_cfg=base_cfg,
-                    strategy_cfg=strategy_cfg,
-                    trials=1,
-                    perturbation=perturbation,
-                )
-
-                assert isinstance(result, dict)
+            assert isinstance(result, dict)
 
     def test_monte_carlo_gaussian_perturbation_basic_coverage(self):
         """Test Monte Carlo Gaussian perturbation basic coverage."""
@@ -1470,7 +1329,7 @@ class TestEdgeCasesAndHelperFunctions:
         )
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         # Use perturbation to trigger the float conversion paths
         perturbation = {"mode": "gaussian", "std_pct": 0.01}
@@ -1479,25 +1338,18 @@ class TestEdgeCasesAndHelperFunctions:
         mock_trade.pnl = 100.0
         mock_trade.cost_currency = 0.0
 
-        with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-            mock_strat = Mock()
-            mock_compile.return_value = mock_strat
-            mock_strat.generate_signals.return_value = pd.Series(["long"])
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run:
+            mock_run.return_value = _mock_run_result([mock_trade], df)
 
-            with patch(
-                "trading_platform.core.sweeps._run_backtest_simulation"
-            ) as mock_backtest:
-                mock_backtest.return_value = [mock_trade]
+            result = monte_carlo_resimulation(
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
+                trials=1,
+                perturbation=perturbation,
+            )
 
-                result = monte_carlo_resimulation(
-                    df=df,
-                    base_cfg=base_cfg,
-                    strategy_cfg=strategy_cfg,
-                    trials=1,
-                    perturbation=perturbation,
-                )
-
-                assert isinstance(result, dict)
+            assert isinstance(result, dict)
 
     def test_monte_carlo_new_peak_and_drawdown_lines_331(self):
         """Test Monte Carlo new peak detection line 331."""
@@ -1509,33 +1361,25 @@ class TestEdgeCasesAndHelperFunctions:
             "initial_cash": 5000.0,
             "instrument": {"symbol": "EURUSD"},
         }  # Lower initial cash
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         # Create a very profitable trade to create new peak
         profitable_trade = Mock()
         profitable_trade.pnl = 7000.0  # Creates new equity peak
         profitable_trade.cost_currency = 0.0
 
-        with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-            mock_strat = Mock()
-            mock_compile.return_value = mock_strat
-            mock_strat.generate_signals.return_value = pd.Series(["long"])
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run:
+            mock_run.return_value = _mock_run_result([profitable_trade], df)
 
-            with patch(
-                "trading_platform.core.sweeps._run_backtest_simulation"
-            ) as mock_backtest:
-                mock_backtest.return_value = [profitable_trade]
+            result = monte_carlo_resimulation(
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
+                trials=1,
+            )
 
-                result = monte_carlo_resimulation(
-                    df=df,
-                    base_cfg=base_cfg,
-                    strategy_cfg=strategy_cfg,
-                    trials=1,
-                )
-
-                assert isinstance(result, dict)
-                # Final equity should be higher than initial
-                assert result["final_equity"]["mean"] > 5000.0
+            assert isinstance(result, dict)
+            assert result["final_equity"]["mean"] > 5000.0
 
     def test_monte_carlo_basic_empty_trades_lines_387(self):
         """Test Monte Carlo with empty trades - simpler approach line 387."""
@@ -1544,28 +1388,20 @@ class TestEdgeCasesAndHelperFunctions:
         )
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
-        with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-            mock_strat = Mock()
-            mock_compile.return_value = mock_strat
-            mock_strat.generate_signals.return_value = pd.Series(["flat"])
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run:
+            mock_run.return_value = _mock_run_result([], df)
 
-            with patch(
-                "trading_platform.core.sweeps._run_backtest_simulation"
-            ) as mock_backtest:
-                mock_backtest.return_value = []
+            result = monte_carlo_resimulation(
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
+                trials=1,
+            )
 
-                result = monte_carlo_resimulation(
-                    df=df,
-                    base_cfg=base_cfg,
-                    strategy_cfg=strategy_cfg,
-                    trials=1,
-                )
-
-                assert isinstance(result, dict)
-                # With no trades, should still have exemplars
-                assert "exemplars" in result
+            assert isinstance(result, dict)
+            assert "exemplars" in result
 
     def test_monte_carlo_var_cvar_calculation_lines_432_442_467(self):
         """Test VaR, CVaR calculations lines 432, 442, 467."""
@@ -1574,7 +1410,7 @@ class TestEdgeCasesAndHelperFunctions:
         )
 
         base_cfg = {"initial_cash": 10000.0, "instrument": {"symbol": "EURUSD"}}
-        strategy_cfg = {"entry_signals": ["long"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         # Create losing trades to trigger CVaR calculation (tail <= var_95)
         losing_trade1 = Mock()
@@ -1589,34 +1425,25 @@ class TestEdgeCasesAndHelperFunctions:
         losing_trade3.pnl = -500.0
         losing_trade3.cost_currency = 0.0
 
-        with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile:
-            mock_strat = Mock()
-            mock_compile.return_value = mock_strat
-            mock_strat.generate_signals.return_value = pd.Series(["long"])
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run:
+            mock_run.side_effect = [
+                _mock_run_result([losing_trade1], df),
+                _mock_run_result([losing_trade2], df),
+                _mock_run_result([losing_trade3], df),
+            ]
 
-            with patch(
-                "trading_platform.core.sweeps._run_backtest_simulation"
-            ) as mock_backtest:
-                # Different outcomes to create distribution for VaR/CVaR
-                mock_backtest.side_effect = [
-                    [losing_trade1],
-                    [losing_trade2],
-                    [losing_trade3],
-                ]
+            result = monte_carlo_resimulation(
+                df=df,
+                base_cfg=base_cfg,
+                strategy_cfg=strategy_cfg,
+                trials=3,
+            )
 
-                result = monte_carlo_resimulation(
-                    df=df,
-                    base_cfg=base_cfg,
-                    strategy_cfg=strategy_cfg,
-                    trials=3,
-                )
-
-                assert isinstance(result, dict)
-                assert "risk" in result
-                assert "var_95" in result["risk"]
-                assert "cvar_95" in result["risk"]
-                # CVaR should be calculated from tail values
-                assert result["risk"]["cvar_95"] < 0  # Should be negative for losses
+            assert isinstance(result, dict)
+            assert "risk" in result
+            assert "var_95" in result["risk"]
+            assert "cvar_95" in result["risk"]
+            assert result["risk"]["cvar_95"] < 0
 
 
 # --- test_sweeps_coverage_gaps.py ---
@@ -1847,18 +1674,15 @@ def test_parameter_sweep_with_rem_path():
             "instrument": {"symbol": "EURUSD"},
         }
 
-        strategy_cfg = {"entry_signals": ["long"], "exit_signals": ["short"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         # Mock dependencies to avoid complex setup
         with patch(
-            "trading_platform.core.sweeps.compile_strategy"
-        ) as mock_compile, patch(
-            "trading_platform.core.sweeps._run_backtest_simulation"
-        ) as mock_backtest, patch(
+            "trading_platform.core.sweeps.run_backtest"
+        ) as mock_run_backtest, patch(
             "trading_platform.core.sweeps.RiskExitManager"
         ) as mock_rem_class:
-            mock_compile.return_value = Mock()
-            mock_backtest.return_value = ([], [], [])  # trades, exposure, skipped
+            mock_run_backtest.return_value = _mock_run_result([], df)
             mock_rem = Mock()
             mock_rem_class.return_value = mock_rem
 
@@ -1901,18 +1725,15 @@ def test_parameter_sweep_with_debug_dir():
             "instrument": {"symbol": "EURUSD"},
         }
 
-        strategy_cfg = {"entry_signals": ["long"], "exit_signals": ["short"]}
+        strategy_cfg = _basic_strategy_cfg()
 
         # Mock dependencies to avoid complex setup
         with patch(
-            "trading_platform.core.sweeps.compile_strategy"
-        ) as mock_compile, patch(
-            "trading_platform.core.sweeps._run_backtest_simulation"
-        ) as mock_backtest, patch(
+            "trading_platform.core.sweeps.run_backtest"
+        ) as mock_run_backtest, patch(
             "trading_platform.core.sweeps.RiskExitManager"
         ) as mock_rem_class:
-            mock_compile.return_value = Mock()
-            mock_backtest.return_value = ([], [], [])  # trades, exposure, skipped
+            mock_run_backtest.return_value = _mock_run_result([], df)
             mock_rem_class.return_value = Mock()
 
             # Simple grid to avoid empty candidates
@@ -1954,16 +1775,13 @@ def test_parameter_sweep_random_space():
         "instrument": {"symbol": "EURUSD"},
     }
 
-    strategy_cfg = {"entry_signals": ["long"], "exit_signals": ["short"]}
+    strategy_cfg = _basic_strategy_cfg()
 
     # Mock dependencies to avoid complex setup
-    with patch("trading_platform.core.sweeps.compile_strategy") as mock_compile, patch(
-        "trading_platform.core.sweeps._run_backtest_simulation"
-    ) as mock_backtest, patch(
+    with patch("trading_platform.core.sweeps.run_backtest") as mock_run_backtest, patch(
         "trading_platform.core.sweeps.RiskExitManager"
     ) as mock_rem_class:
-        mock_compile.return_value = Mock()
-        mock_backtest.return_value = ([], [], [])  # trades, exposure, skipped
+        mock_run_backtest.return_value = _mock_run_result([], df)
         mock_rem_class.return_value = Mock()
 
         # Use random_space instead of grid - this should trigger lines 84-86
@@ -1980,8 +1798,7 @@ def test_parameter_sweep_random_space():
         )
 
         assert isinstance(result, dict)
-        # Should have run exactly n_samples candidates
-        assert mock_backtest.call_count == n_samples
+        assert mock_run_backtest.call_count == n_samples
 
 
 # --- test_parameter_sweep_full.py ---

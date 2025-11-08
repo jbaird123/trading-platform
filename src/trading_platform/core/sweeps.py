@@ -9,7 +9,6 @@ from typing import Any, Sequence, cast
 
 import pandas as pd
 from trading_platform.backtester import run_backtest
-from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
 from trading_platform.core.robustness import walk_forward_splits
@@ -17,8 +16,6 @@ from trading_platform.core.signal import Signal
 from trading_platform.portfolio.trade import Trade
 from trading_platform.regime_market_manager.engine import RMMEngine
 from trading_platform.regime_market_manager.models import RMMConfig
-from trading_platform.risk_manager.core import RiskExitManager
-from trading_platform.strategy.yaml_strategy import compile_strategy
 
 logger = logging.getLogger(__name__)
 
@@ -344,8 +341,6 @@ def run_parameter_sweep(
             else json.loads(txt)
         )
     cfg = RunConfig.model_validate(base_cfg)
-    rem_cfg = base_cfg.get("rem_config") or {}
-    rem = RiskExitManager(config=rem_cfg if rem_cfg else None)
     rmm_ctx = _rmm_context(df, base_cfg, data_handler)
     if isinstance(global_features_config_path, str):
         global_features_config_path = Path(global_features_config_path)
@@ -400,46 +395,20 @@ def run_parameter_sweep(
 
         compiled_strategy: Any | None = None
         feature_enriched_df: pd.DataFrame = df
-        run_result: Any
-        try:
-            run_result = run_backtest(
-                config=cfg,
-                market_data=df,
-                strategy_config=scfg,
-                data_handler=data_handler,
-                global_features_config_path=global_features_config_path,
-                rmm_context=rmm_ctx,
+        run_result = run_backtest(
+            config=cfg,
+            market_data=df,
+            strategy_config=scfg,
+            data_handler=data_handler,
+            global_features_config_path=global_features_config_path,
+            rmm_context=rmm_ctx,
+        )
+        trades = _extract_trades(run_result)
+        if isinstance(run_result, dict):
+            compiled_strategy = cast(Any, run_result.get("compiled_strategy"))
+            feature_enriched_df = cast(
+                pd.DataFrame, run_result.get("feature_enriched_df", df)
             )
-            trades = _extract_trades(run_result)
-            if isinstance(run_result, dict):
-                compiled_strategy = cast(Any, run_result.get("compiled_strategy"))
-                feature_enriched_df = cast(
-                    pd.DataFrame, run_result.get("feature_enriched_df", df)
-                )
-        except ValueError as exc:
-            if "Strategy validation error" not in str(exc):
-                raise
-            strat = compile_strategy(scfg)
-            sig = strat.generate_signals(df)
-            feature_enriched_df = (
-                cast(pd.DataFrame, strat._feature_df)
-                if getattr(strat, "_feature_df", None) is not None
-                else df
-            )
-            _res = _run_backtest_simulation(
-                market_data=feature_enriched_df,
-                signals=sig,
-                strategy=strat,
-                config=cfg,
-                rem=rem,
-                rmm_context=rmm_ctx,
-                global_features_config_path=global_features_config_path,
-            )
-            if isinstance(_res, tuple):
-                trades = cast(list[Trade], _res[0])
-            else:
-                trades = cast(list[Trade], _res)
-            compiled_strategy = strat
 
         # DEBUG: Log high-level context
         if log_file is not None:
@@ -919,20 +888,12 @@ def monte_carlo_resimulation(
         return float(d0 + d1)
 
     cfg = RunConfig.model_validate(base_cfg)
-    rem_cfg = base_cfg.get("rem_config") or {}
-    rem = RiskExitManager(config=rem_cfg if rem_cfg else None)
 
     # PERFORMANCE FIX: Compute RMM context once before loop instead of
     # per trial. For bar_resimulation mode, the index doesn't change, so we
     # can reuse the same RMM context. For bar_bootstrap mode, the index is
     # preserved (line 441), so RMM context is still valid
     rmm_ctx = _rmm_context(df, base_cfg, data_handler)
-
-    # PERFORMANCE FIX: Compile strategy once outside loop
-    # (doesn't change between trials)
-    strat = compile_strategy(
-        {**strategy_cfg, "parameters": strategy_cfg.get("parameters", {})}
-    )
 
     finals: list[float] = []
     finals_pnl: list[float] = []
@@ -962,21 +923,15 @@ def monte_carlo_resimulation(
             cm["spread_per_unit"] = _j(base_sp, sp)
             cm["slippage_per_unit"] = _j(base_sl, sl)
             cfg_trial = cfg.model_copy(update={"cost_model": cm})
-        # Generate signals on perturbed data (must be per-trial since prices changed)
-        sig = strat.generate_signals(sim_df)
-        _res3 = _run_backtest_simulation(
-            market_data=sim_df,
-            signals=sig,
-            strategy=strat,
+        run_result = run_backtest(
             config=cfg_trial,
-            rem=rem,
+            market_data=sim_df,
+            strategy_config=deepcopy(strategy_cfg),
+            data_handler=None,
+            global_features_config_path=base_cfg.get("global_features_config_path"),
             rmm_context=rmm_ctx,
         )
-        trades3: list[Trade]
-        if isinstance(_res3, tuple):
-            trades3 = cast(list[Trade], _res3[0])
-        else:  # pragma: no cover
-            trades3 = cast(list[Trade], _res3)  # pragma: no cover
+        trades3 = _extract_trades(run_result)
         # Build adjusted PnLs with optional per-trade cost jitter
         adj_pnls: list[float] = []
         pct = 0.0
