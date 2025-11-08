@@ -148,7 +148,6 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
         rm -rf workspace/runs/campaign_runner
         rm -rf data/dvc/ml
         rm -f data/dvc/processed/training_sets/master_trade_log.parquet
-        rm -f data/dvc/processed/training_sets/master_trade_log.parquet.dvc
         echo -e "${GREEN}✓ Cleanup complete${NC}"
         echo ""
     else
