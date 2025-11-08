@@ -172,6 +172,10 @@ def ensure_market_data_with_warmup(
         data_request, market_data
     )
 
+    if not isinstance(market_data.index, pd.DatetimeIndex):
+        logger.warning("Market data index is not datetime; skipping warmup extension.")
+        return cast(pd.DataFrame, market_data.loc[target_start:target_end].copy())
+
     if not strategy_features and not global_features:
         return market_data.loc[target_start:target_end].copy()
 
@@ -254,6 +258,7 @@ def run_backtest(
     strategy_overrides: dict[str, Any] | None = None,
     data_handler: Any = None,
     global_features_config_path: Path | str | None = None,
+    global_feature_defs: list[dict[str, Any]] | None = None,
     rmm_context: dict[datetime, dict[str, Any]] | None = None,
     return_exposure: bool = False,
     return_skips: bool = False,
@@ -374,16 +379,21 @@ def run_backtest(
         )
 
     execution_timeframe = _infer_execution_timeframe(config, df)
-    global_feature_defs = _resolve_global_feature_defs(
-        execution_timeframe, global_features_config_path
-    )
+
+    resolved_global_features: list[dict[str, Any]]
+    if global_feature_defs is not None:
+        resolved_global_features = list(global_feature_defs)
+    else:
+        resolved_global_features = _resolve_global_feature_defs(
+            execution_timeframe, global_features_config_path
+        )
     strategy_feature_defs = _resolve_strategy_features_for_warmup(strat)
 
     df = ensure_market_data_with_warmup(
         market_data=df,
         execution_timeframe=execution_timeframe,
         strategy_features=strategy_feature_defs,
-        global_features=global_feature_defs,
+        global_features=resolved_global_features,
         data_request=config.data_request,
         data_handler=data_handler,
     )
@@ -464,6 +474,7 @@ def run_backtest(
         return_skips=return_skips,
         data_handler=data_handler,
         global_features_config_path=global_features_config_path,
+        global_feature_defs=resolved_global_features,
         gating_engine=gating_engine,
         gating_metadata=gating_metadata,
     )

@@ -157,6 +157,7 @@ def _execute_backtest_loop(
     return_skips: bool = False,
     data_handler: Any = None,
     global_features_config_path: Path | str | None = None,
+    global_feature_defs: list[dict[str, Any]] | None = None,
     gating_engine: ProfitabilityGatingEngine | None = None,
     gating_metadata: dict[str, Any] | None = None,
 ) -> SimulationReturn:
@@ -267,7 +268,6 @@ def _execute_backtest_loop(
     guard_feature_valid_start: dict[str, pd.Timestamp | None] = {}
     execution_tf_minutes: int | None = None
     try:
-        from trading_platform.core.feature_resolver import resolve_global_features
         from trading_platform.strategy.features import compute_features
 
         instrument_cfg = config.instrument or {}
@@ -280,22 +280,31 @@ def _execute_backtest_loop(
                 f"{execution_timeframe!r}"
             ) from exc
 
-        resolved_features = resolve_global_features(
-            execution_timeframe, config_path=global_features_config_path
-        )
+        if global_feature_defs is not None:
+            global_features_list.extend(global_feature_defs)
+        elif global_features_config_path is not None:
+            from trading_platform.core.feature_resolver import resolve_global_features
 
-        for resolved in resolved_features:
-            feature_dict: dict[str, Any] = {
-                "name": resolved.name,
-                "type": resolved.type,
-                "params": resolved.params,
-                "source": resolved.source,
-            }
-            feature_tf = resolved.timeframe or execution_timeframe
-            if resolved.timeframe and resolved.timeframe != execution_timeframe:
-                feature_dict["timeframe"] = resolved.timeframe
+            resolved_features = resolve_global_features(
+                execution_timeframe, config_path=global_features_config_path
+            )
+            for resolved in resolved_features:
+                feature_dict: dict[str, Any] = {
+                    "name": resolved.name,
+                    "type": resolved.type,
+                    "params": resolved.params,
+                    "source": resolved.source,
+                }
+                feature_tf = resolved.timeframe or execution_timeframe
+                if resolved.timeframe and resolved.timeframe != execution_timeframe:
+                    feature_dict["timeframe"] = resolved.timeframe
+                global_features_list.append(feature_dict)
 
-            name_str = str(resolved.name)
+        for feature_dict in list(global_features_list):
+            name_str = str(feature_dict.get("name"))
+            if not name_str:
+                continue
+            feature_tf = feature_dict.get("timeframe") or execution_timeframe
             try:
                 global_feature_timeframes[name_str] = _timeframe_to_minutes(feature_tf)
             except ValueError as exc:
@@ -303,8 +312,6 @@ def _execute_backtest_loop(
                     "Unsupported timeframe for global feature "
                     f"{name_str!r}: {feature_tf!r}"
                 ) from exc
-
-            global_features_list.append(feature_dict)
 
         if global_features_list:
             data_with_global_features = compute_features(

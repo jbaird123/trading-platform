@@ -10,8 +10,10 @@ import subprocess
 import sys
 from copy import deepcopy
 from datetime import datetime
+from os import fspath
 from pathlib import Path
 from typing import Any, cast
+from unittest.mock import Mock
 
 import pandas as pd
 
@@ -26,7 +28,11 @@ from trading_platform.backtester.orchestrator import (
 from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
 from trading_platform.core.demo import generate_demo_run
-from trading_platform.core.feature_resolver import resolve_global_features
+from trading_platform.core.global_features import (
+    feature_to_dict,
+    resolve_global_feature_manifest,
+    select_minimal_global_features,
+)
 from trading_platform.core.meta_campaign_config import MetaCampaignConfig
 from trading_platform.core.meta_campaign_generator import (
     calculate_cartesian_product,
@@ -47,6 +53,7 @@ from trading_platform.portfolio.trade import Trade
 from trading_platform.regime_market_manager.engine import RMMEngine
 from trading_platform.regime_market_manager.models import (
     RMMConfig,
+    RMMGatingProfile,
     parse_rmm_resource,
 )
 from trading_platform.reporting.brief import compute_data_quality
@@ -133,6 +140,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         cfg_raw.pop("rem_path", None)
 
     has_gating_profile = False
+    gating_profile_obj: RMMGatingProfile | None = None
     rmm_path = cfg_raw.get("rmm_path")
     if rmm_path:
         loaded_rmm_cfg = _load_config(Path(str(rmm_path)))
@@ -142,12 +150,13 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         if gating_profile:
             cfg_raw["rmm_gating_profile"] = gating_profile.model_dump()
             has_gating_profile = True
+            gating_profile_obj = gating_profile
         # Remove the path key after loading since it's not part of the schema
         cfg_raw.pop("rmm_path", None)
 
     # Remove CLI-only fields that aren't part of RunConfig schema
     global_features_config_path: Path | None = None
-    global_feat_val = cfg_raw.pop("global_features_config_path", None)
+    global_feat_val = cfg_raw.get("global_features_config_path")
     if global_feat_val:
         gf_path = Path(str(global_feat_val))
         if not gf_path.is_absolute():
@@ -173,6 +182,11 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                 default_global,
             )
 
+    if global_features_config_path is not None:
+        cfg_raw["global_features_config_path"] = global_features_config_path
+    else:
+        cfg_raw["global_features_config_path"] = None
+
     cfg_raw.pop("fast_mode", None)  # Removed - not needed
     cfg_raw.pop("rmm", None)  # Legacy field - not part of schema
     cfg_raw.pop("data", None)  # Legacy - use data_request instead
@@ -183,7 +197,44 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     strategy_params = cfg_raw.pop("strategy_params", None)  # Extract for later use
 
     cfg = RunConfig.model_validate(cfg_raw)
-    run_path = initialize_run(cfg)
+
+    def _normalize_optional_path(value: Any) -> Path | None:
+        if value in (None, "", False):
+            return None
+        try:
+            return Path(fspath(value))
+        except Exception:
+            return None
+
+    cfg_global_features_path = _normalize_optional_path(
+        getattr(cfg, "global_features_config_path", None)
+    )
+
+    if (
+        not hasattr(cfg, "global_features_config_path")
+        or cfg_global_features_path is None
+    ):
+        cfg_global_features_path = _normalize_optional_path(
+            cfg_raw.get("global_features_config_path")
+        )
+        setattr(cfg, "global_features_config_path", cfg_global_features_path)
+    if not hasattr(cfg, "global_features_mode"):
+        setattr(cfg, "global_features_mode", "full")
+    if not hasattr(cfg, "minimal_global_features_include"):
+        setattr(cfg, "minimal_global_features_include", [])
+    current_instrument = getattr(cfg, "instrument", None)
+    if current_instrument is None or isinstance(current_instrument, Mock):
+        setattr(cfg, "instrument", cfg_raw.get("instrument"))
+    current_data_request = getattr(cfg, "data_request", None)
+    if current_data_request is None or isinstance(current_data_request, Mock):
+        setattr(cfg, "data_request", cfg_raw.get("data_request"))
+
+    def _update_cfg(obj: Any, **updates: Any) -> Any:
+        if hasattr(obj, "model_copy"):
+            return obj.model_copy(update=updates)
+        for key, value in updates.items():
+            setattr(obj, key, value)
+        return obj
 
     # Get strategy config (can be embedded or in a separate file)
     strat_cfg = cfg_raw.get("strategy")
@@ -256,8 +307,10 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     df: pd.DataFrame
     dq_flags: list[str] = []
     instrument_def = None  # Will be set if data_request present
-    data_req = cfg_raw.get("data_request")
-    if isinstance(data_req, dict):
+    data_req_raw = cfg_raw.get("data_request")
+    has_real_data_request = isinstance(data_req_raw, dict)
+    data_req: dict[str, Any] | None = data_req_raw if has_real_data_request else None
+    if has_real_data_request and data_req is not None:
         # Create DataHandler - loads raw data once, handles all resampling/caching
         instrument_def = get_instrument_definition(data_req["symbol"])
         data_handler = DataHandler(
@@ -292,21 +345,37 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     if exec_timeframe is None:
         exec_timeframe = _infer_execution_timeframe(cfg, df)
 
-    global_feature_defs = []
-    if global_features_config_path:
-        resolved = resolve_global_features(
-            exec_timeframe, config_path=global_features_config_path
+    if has_real_data_request:
+        global_features_mode = getattr(cfg, "global_features_mode", "full")
+        minimal_include = getattr(cfg, "minimal_global_features_include", [])
+
+        manifest_path, resolved_features = resolve_global_feature_manifest(
+            exec_timeframe,
+            cfg_global_features_path,
+            warn_on_default=(cfg_global_features_path is None),
         )
-        for feature in resolved:
-            global_feature_defs.append(
-                {
-                    "name": feature.name,
-                    "type": feature.type,
-                    "params": feature.params,
-                    "source": feature.source,
-                    "timeframe": feature.timeframe,
-                }
-            )
+
+        minimal_features = select_minimal_global_features(
+            resolved_features,
+            mode=global_features_mode,
+            include=minimal_include,
+            gating_profile=gating_profile_obj,
+        )
+
+        global_feature_defs = [feature_to_dict(feature) for feature in minimal_features]
+
+        if cfg_global_features_path != manifest_path:
+            cfg = _update_cfg(cfg, global_features_config_path=manifest_path)
+            cfg_global_features_path = manifest_path
+        cfg_raw["global_features_config_path"] = str(manifest_path)
+    else:
+        manifest_path = None
+        global_feature_defs = []
+        cfg = _update_cfg(cfg, global_features_config_path=None)
+        cfg_global_features_path = None
+        cfg_raw["global_features_config_path"] = None
+
+    run_path = initialize_run(cfg)
 
     df = ensure_market_data_with_warmup(
         market_data=df,
@@ -321,10 +390,9 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     analysis_df = df
     visible_start = None
     visible_end = None
-    if isinstance(cfg_raw.get("data_request"), dict):
-        req = cfg_raw["data_request"]
-        start_val = req.get("start")
-        end_val = req.get("end")
+    if has_real_data_request and data_req is not None:
+        start_val = data_req.get("start")
+        end_val = data_req.get("end")
         if start_val:
             try:
                 visible_start = pd.to_datetime(start_val, utc=True)
@@ -341,13 +409,28 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                 visible_end = None
         if visible_start is not None or visible_end is not None:
             analysis_df = df
-            if visible_start is not None:
-                analysis_df = analysis_df.loc[analysis_df.index >= visible_start]
-            if visible_end is not None:
-                analysis_df = analysis_df.loc[analysis_df.index <= visible_end]
-            if analysis_df.empty:
-                raise ValueError(
-                    "No data remains within requested date range after warmup."
+            if isinstance(analysis_df.index, pd.DatetimeIndex):
+                try:
+                    if visible_start is not None:
+                        analysis_df = analysis_df.loc[
+                            analysis_df.index >= visible_start
+                        ]
+                    if visible_end is not None:
+                        analysis_df = analysis_df.loc[analysis_df.index <= visible_end]
+                except TypeError:
+                    logger.warning(
+                        "Requested start/end filters but index comparison failed; "
+                        "skipping visible window filtering.",
+                    )
+                else:
+                    if analysis_df.empty:
+                        raise ValueError(
+                            "No data remains within requested date range after warmup."
+                        )
+            else:
+                logger.warning(
+                    "Requested start/end filters but index is not datetime; "
+                    "skipping visible window filtering."
                 )
 
     # Persist processed market data for AI Lab analysis
@@ -507,7 +590,8 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         strategy_params=strategy_params,
         strategy_overrides=strategy_overrides,
         data_handler=data_handler,
-        global_features_config_path=global_features_config_path,
+        global_features_config_path=cfg_global_features_path,
+        global_feature_defs=global_feature_defs,
         rmm_context=rmm_context,
         return_exposure=ret_exp,
         return_skips=ret_skips,
@@ -622,7 +706,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
             vol_penalty=ps_cfg.get("vol_penalty"),
             debug_dir=run_path / "debug",
             data_handler=data_handler,
-            global_features_config_path=global_features_config_path,
+            global_features_config_path=cfg_global_features_path,
         )
 
     # Optional walk-forward analysis (bar-based)
@@ -651,7 +735,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                     dd_penalty=ps_cfg.get("dd_penalty"),
                     vol_penalty=ps_cfg.get("vol_penalty"),
                     data_handler=data_handler,
-                    global_features_config_path=global_features_config_path,
+                    global_features_config_path=cfg_global_features_path,
                     visible_start=visible_start,
                     visible_end=visible_end,
                 )
@@ -685,7 +769,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                             test_bars=test_bars,
                             step_bars=step_bars,
                             data_handler=data_handler,
-                            global_features_config_path=global_features_config_path,
+                            global_features_config_path=cfg_global_features_path,
                             visible_start=visible_start,
                             visible_end=visible_end,
                         )
@@ -711,7 +795,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                     test_bars=test_bars,
                     step_bars=step_bars,
                     data_handler=data_handler,
-                    global_features_config_path=global_features_config_path,
+                    global_features_config_path=cfg_global_features_path,
                     visible_start=visible_start,
                     visible_end=visible_end,
                 )

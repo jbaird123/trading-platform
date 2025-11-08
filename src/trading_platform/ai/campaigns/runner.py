@@ -139,6 +139,11 @@ def execute_campaign_runs(
                 },
             }
 
+            if plan.global_features_config_path is not None:
+                run_config_data["global_features_config_path"] = str(
+                    plan.global_features_config_path
+                )
+
             # Add contextual features if specified
             if plan.contextual_features:
                 features_list: list[dict[str, Any]] = [

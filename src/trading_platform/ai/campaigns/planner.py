@@ -8,6 +8,7 @@ from trading_platform.ai.campaigns.models import (
     SingleRun,
 )
 from trading_platform.ai.campaigns.provenance import ProvenanceCollector
+from trading_platform.core import paths
 
 
 class CampaignPlanner:
@@ -51,6 +52,12 @@ class CampaignPlanner:
             runs.append(single_run)
 
         # Create campaign plan
+        global_features_path = config.global_features_config_path
+        if global_features_path is None:
+            default_global = paths.PROJECT_ROOT / "config" / "features" / "global.yaml"
+            if default_global.exists():
+                global_features_path = default_global
+
         plan = CampaignPlan(
             campaign_id=config.campaign_id,
             strategy_path=config.strategy_path,
@@ -61,6 +68,7 @@ class CampaignPlanner:
             provenance=provenance,
             rem_path=config.rem_path,
             rmm_path=config.rmm_path,
+            global_features_config_path=global_features_path,
         )
 
         return plan
