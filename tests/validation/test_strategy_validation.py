@@ -18,6 +18,7 @@ from typing import Any, cast
 
 import pandas as pd
 import pytest
+from trading_platform.core.global_features_cache import cache_covers_features
 from trading_platform.portfolio.trade import Trade
 
 # Golden validation utilities (ALWAYS use these for golden tests)
@@ -694,6 +695,25 @@ def load_platform_trades(
             }
             for f in resolved_global
         ]
+        feature_names = [
+            cast(str, feature["name"])
+            for feature in global_features_list
+            if isinstance(feature.get("name"), str)
+        ]
+
+        use_cached_global = False
+        if feature_names and hasattr(data_handler, "data_root"):
+            symbol_for_cache = instrument_cfg.get("symbol") or data_request.get(
+                "symbol"
+            )
+            if symbol_for_cache:
+                use_cached_global = cache_covers_features(
+                    symbol=symbol_for_cache,
+                    data_root=data_handler.data_root,
+                    config_path=golden_features_path,
+                    timeframe=execution_timeframe,
+                    feature_names=feature_names,
+                )
 
         # Compile strategy to get parameters
         from trading_platform.strategy.features import _resolve_parameter
@@ -717,7 +737,7 @@ def load_platform_trades(
         # Calculate warmup start date
         warmup_start_date, warmup_info = calculate_warmup_start_date(
             strategy_features=resolved_strategy_features,
-            global_features=global_features_list,
+            global_features=[] if use_cached_global else global_features_list,
             execution_timeframe=execution_timeframe,
             market_data=ohlcv_1h,
             backtest_start_date=backtest_start_date,

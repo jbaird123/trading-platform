@@ -29,9 +29,15 @@ from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
 from trading_platform.core.demo import generate_demo_run
 from trading_platform.core.global_features import (
+    DEFAULT_GLOBAL_FEATURES_PATH,
     feature_to_dict,
     resolve_global_feature_manifest,
     select_minimal_global_features,
+)
+from trading_platform.core.global_features_cache import (
+    build_global_feature_caches,
+    cache_covers_features,
+    derive_execution_timeframes,
 )
 from trading_platform.core.meta_campaign_config import MetaCampaignConfig
 from trading_platform.core.meta_campaign_generator import (
@@ -377,11 +383,48 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
 
     run_path = initialize_run(cfg)
 
+    skip_global_warmup = False
+    warmup_global_defs = global_feature_defs
+    if (
+        has_real_data_request
+        and global_feature_defs
+        and data_handler is not None
+        and cfg_global_features_path is not None
+    ):
+        symbol_candidate = None
+        if data_req is not None:
+            symbol_candidate = data_req.get("symbol")
+        if symbol_candidate is None:
+            instrument_cfg = getattr(cfg, "instrument", None)
+            if isinstance(instrument_cfg, dict):
+                symbol_candidate = instrument_cfg.get("symbol")
+            elif instrument_cfg is not None:
+                symbol_candidate = getattr(instrument_cfg, "symbol", None)
+
+        if symbol_candidate and hasattr(data_handler, "data_root"):
+            config_path = Path(cfg_global_features_path)
+            try:
+                skip_global_warmup = cache_covers_features(
+                    symbol=symbol_candidate,
+                    data_root=data_handler.data_root,
+                    config_path=config_path,
+                    timeframe=exec_timeframe,
+                    feature_names=[
+                        cast(str, feature.get("name"))
+                        for feature in global_feature_defs
+                        if isinstance(feature.get("name"), str)
+                    ],
+                )
+            except Exception:  # pragma: no cover - defensive
+                skip_global_warmup = False
+        if skip_global_warmup:
+            warmup_global_defs = []
+
     df = ensure_market_data_with_warmup(
         market_data=df,
         execution_timeframe=exec_timeframe,
         strategy_features=warmup_strategy_features,
-        global_features=global_feature_defs,
+        global_features=warmup_global_defs,
         data_request=getattr(cfg, "data_request", None),
         data_handler=data_handler,
     )
@@ -1959,6 +2002,69 @@ def _validate_data_logic(args: argparse.Namespace) -> int:
     return 1 if results["total_issues"] > 0 else 0
 
 
+def _precompute_global_features_logic(args: argparse.Namespace) -> int:
+    """Precompute global feature caches for the requested symbol."""
+
+    symbol = args.symbol or "EUR_USD"
+    data_root = Path(args.data_root or paths.RAW_DATA_DIR).expanduser().resolve()
+
+    config_arg = args.config
+    if config_arg is None:
+        config_path = DEFAULT_GLOBAL_FEATURES_PATH
+    else:
+        config_candidate = Path(config_arg)
+        if not config_candidate.is_absolute():
+            if config_candidate.exists():
+                config_path = config_candidate.resolve()
+            else:
+                config_path = (paths.PROJECT_ROOT / config_candidate).resolve()
+        else:
+            config_path = config_candidate
+
+    if not config_path.exists():
+        print(f"Global features config not found at {config_path}", file=sys.stderr)
+        return 2
+
+    tf_list = None
+    if args.timeframes:
+        tf_list = [tf.strip() for tf in args.timeframes if tf and tf.strip()]
+        if not tf_list:
+            tf_list = None
+
+    if tf_list is None:
+        tf_list = derive_execution_timeframes(config_path)
+
+    descriptor = build_global_feature_caches(
+        symbol=symbol,
+        data_root=data_root,
+        config_path=config_path,
+        timeframes=tf_list,
+        overwrite=args.overwrite,
+    )
+
+    metadata_path = descriptor.metadata_path()
+    if not metadata_path.exists():
+        print(
+            "Cache metadata missing after build; rerun with --overwrite.",
+            file=sys.stderr,
+        )
+        return 1
+
+    metadata = json.loads(metadata_path.read_text())
+    cached_timeframes = list(metadata.get("timeframes", {}))
+    cached_timeframes.sort(
+        key=lambda tf: (pd.to_timedelta(tf).total_seconds(), tf.lower())
+    )
+
+    print(f"Global feature cache directory: {descriptor.base_dir()}")
+    print(f"Config hash: {metadata.get('config_hash')}")
+    if cached_timeframes:
+        print(f"Cached timeframes: {', '.join(cached_timeframes)}")
+    else:
+        print("Cached timeframes: (none recorded)")
+    return 0
+
+
 def _walk_forward_validate_logic(args: argparse.Namespace) -> int:
     """Perform walk-forward validation on a strategy."""
     # Validate arguments
@@ -2355,6 +2461,33 @@ def main() -> int:
         help="Specific instruments to check (default: all in directory)",
     )
     pvd.set_defaults(func=_validate_data_logic)
+
+    pgfc = sub.add_parser(
+        "precompute-global-features",
+        help="Precompute cached global feature matrices for a symbol",
+    )
+    pgfc.add_argument("--symbol", default="EUR_USD", help="Instrument symbol")
+    pgfc.add_argument(
+        "--data-root",
+        default=str(paths.RAW_DATA_DIR),
+        help="Root directory containing raw data (default: data/dvc/raw)",
+    )
+    pgfc.add_argument(
+        "--config",
+        default=None,
+        help="Path to global features YAML (default: config/features/global.yaml)",
+    )
+    pgfc.add_argument(
+        "--timeframes",
+        nargs="+",
+        help="Execution timeframes to cache (default: inferred from config)",
+    )
+    pgfc.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Rebuild cache even if it already exists",
+    )
+    pgfc.set_defaults(func=_precompute_global_features_logic)
 
     # Walk-Forward Validation command
     pwfv = sub.add_parser(

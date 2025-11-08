@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from trading_platform.core.config import RunConfig
+from trading_platform.core.global_features_cache import load_cached_global_features
 from trading_platform.core.policy import TradingWindowPolicy
 from trading_platform.core.signal import Signal
 from trading_platform.core.types import BarData, SignalCommand
@@ -258,6 +259,22 @@ def _execute_backtest_loop(
             return None
         return pd.Timestamp(valid_index[0])
 
+    def _resolve_symbol_from_config() -> str | None:
+        instrument_cfg = getattr(config, "instrument", None)
+        symbol_val = None
+        if isinstance(instrument_cfg, dict):
+            symbol_val = instrument_cfg.get("symbol")
+        elif instrument_cfg is not None:
+            symbol_val = getattr(instrument_cfg, "symbol", None)
+        if symbol_val:
+            return str(symbol_val)
+
+        data_req_cfg = getattr(config, "data_request", None) or {}
+        symbol_val = data_req_cfg.get("symbol")
+        if symbol_val:
+            return str(symbol_val)
+        return None
+
     # Compute global features from config/features/global.yaml
     data_with_global_features = market_data
     global_features_list: list[dict[str, Any]] = []
@@ -313,16 +330,56 @@ def _execute_backtest_loop(
                     f"{name_str!r}: {feature_tf!r}"
                 ) from exc
 
+        global_names: list[str] = []
         if global_features_list:
-            data_with_global_features = compute_features(
-                market_data, global_features_list, strategy_parameters={}
-            )
-            logger.info(
-                f"Computed {len(global_features_list)} global features: "
-                f"{[f['name'] for f in global_features_list]}"
-            )
+            requested_names = [
+                str(feature.get("name"))
+                for feature in global_features_list
+                if isinstance(feature.get("name"), str)
+            ]
+            cache_loaded = False
+            if (
+                requested_names
+                and data_handler is not None
+                and hasattr(data_handler, "data_root")
+                and global_features_config_path is not None
+            ):
+                symbol_for_cache = _resolve_symbol_from_config()
+                data_root_path = getattr(data_handler, "data_root", None)
+                config_path = Path(global_features_config_path)
+                if symbol_for_cache and data_root_path:
+                    cache_result = load_cached_global_features(
+                        symbol=symbol_for_cache,
+                        data_root=data_root_path,
+                        config_path=config_path,
+                        timeframe=execution_timeframe,
+                        feature_names=requested_names,
+                    )
+                    if cache_result is not None:
+                        cache_frame, mapping = cache_result
+                        required = set(requested_names)
+                        if required.issubset(mapping.keys()):
+                            cache_frame = cache_frame.reindex(
+                                market_data.index, method="ffill"
+                            )
+                            data_with_global_features = market_data.join(
+                                cache_frame, how="left"
+                            )
+                            cache_loaded = True
+                            logger.info(
+                                "Loaded %s cached global feature columns (%s).",
+                                len(cache_frame.columns),
+                                execution_timeframe,
+                            )
+            if not cache_loaded:
+                data_with_global_features = compute_features(
+                    market_data, global_features_list, strategy_parameters={}
+                )
+                logger.info(
+                    f"Computed {len(global_features_list)} global features: "
+                    f"{[f['name'] for f in global_features_list]}"
+                )
 
-            global_names: list[str] = []
             for feature in global_features_list:
                 raw_name = feature.get("name")
                 if not isinstance(raw_name, str):

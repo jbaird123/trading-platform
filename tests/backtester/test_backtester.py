@@ -6,12 +6,15 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import MagicMock, Mock, patch
 
 import pandas as pd
 import pytest
 from trading_platform.backtester.core import (
+    _execute_backtest_loop,
     _simulate_counterfactual_exact,
     _simulate_counterfactual_fast,
 )
@@ -56,6 +59,77 @@ def _dummy_strategy_cfg() -> CompiledStrategy:
         short_exit_blocks=[],
         parameters={},
     )
+
+
+def test_run_backtest_uses_cached_global_features(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    idx = [datetime(2024, 1, 1, h) for h in range(4)]
+    market_data = pd.DataFrame(
+        {
+            "open": [1.0] * 4,
+            "high": [1.1] * 4,
+            "low": [0.9] * 4,
+            "close": [1.0] * 4,
+            "volume": [100] * 4,
+        },
+        index=idx,
+    )
+    strategy = _dummy_strategy_cfg()
+    strategy.generate_signals(market_data)
+    signals = pd.Series(["enter_long"] + [None] * 3, index=market_data.index)
+    config = RunConfig(
+        user_id="cache-test",
+        run_seed=7,
+        log_level="INFO",
+        initial_cash=10000.0,
+        position_size=1.0,
+        instrument={"symbol": "EURUSD", "timeframe": "1H"},
+        allow_flip_on_bar=True,
+        execution_model="next_bar_open",
+        exit_tie_break="stop_then_tp",
+    )
+    cache_df = pd.DataFrame(
+        {"h1_cached_rsi": [50.0] * len(idx)},
+        index=market_data.index,
+    )
+
+    def fake_load_cached(**_: Any) -> tuple[pd.DataFrame, dict[str, list[str]]]:
+        return cache_df, {"h1_cached_rsi": ["h1_cached_rsi"]}
+
+    def fake_compute_features(*_: Any, **__: Any) -> pd.DataFrame:
+        raise AssertionError("compute_features should not run when cache is present")
+
+    monkeypatch.setattr(
+        "trading_platform.backtester.core.load_cached_global_features",
+        fake_load_cached,
+    )
+    monkeypatch.setattr(
+        "trading_platform.strategy.features.compute_features",
+        fake_compute_features,
+    )
+
+    feature_spec = {
+        "name": "h1_cached_rsi",
+        "type": "RSI",
+        "params": {"length": 2},
+        "timeframe": "1H",
+    }
+
+    rem = RiskExitManager(config=None)
+    result = _execute_backtest_loop(
+        market_data=market_data,
+        signals=signals,
+        strategy=strategy,
+        config=config,
+        rem=rem,
+        data_handler=SimpleNamespace(data_root=tmp_path),
+        global_features_config_path=tmp_path / "global.yaml",
+        global_feature_defs=[feature_spec],
+    )
+
+    trades = result["trades"] if isinstance(result, dict) else result
+    assert isinstance(trades, list)
 
 
 def test_rmm_blocks_signal_not_in_allowed_sides():
