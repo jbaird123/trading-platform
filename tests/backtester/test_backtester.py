@@ -12,7 +12,6 @@ from unittest.mock import MagicMock, Mock, patch
 import pandas as pd
 import pytest
 from trading_platform.backtester.core import (
-    _run_backtest_simulation,
     _simulate_counterfactual_exact,
     _simulate_counterfactual_fast,
 )
@@ -20,7 +19,10 @@ from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
-from tests.test_helpers import get_empty_global_features_path
+from tests.test_helpers import (
+    get_empty_global_features_path,
+    run_backtest_simulation,
+)
 
 BacktestTriple = tuple[
     list[Any],
@@ -97,7 +99,7 @@ def test_rmm_blocks_signal_not_in_allowed_sides():
 
     trades_list, _, skipped_list = cast(
         BacktestTriple,
-        _run_backtest_simulation(
+        run_backtest_simulation(
             market_data=df,
             signals=signals,
             strategy=strategy,
@@ -153,7 +155,7 @@ def test_rmm_allows_signal_opens_position() -> None:
     )
     rem = RiskExitManager(config=None)
 
-    trades = _run_backtest_simulation(
+    trades = run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -196,7 +198,7 @@ def test_return_skips_only():
     )
     rem = RiskExitManager(config=None)
 
-    result = _run_backtest_simulation(
+    result = run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -463,7 +465,7 @@ def test_backtester_with_rem_pips_stop_loss():
     strategy.generate_signals(market_data)  # Populate _feature_df for context lookups
     signals = pd.Series(["enter_long", None], index=market_data.index)
 
-    trades = _run_backtest_simulation(
+    trades = run_backtest_simulation(
         market_data=market_data,
         signals=signals,
         strategy=strategy,
@@ -521,6 +523,7 @@ class TestBacktesterCoreCoverage:
         strategy.get_context.return_value = {"test": "context"}
         strategy.features = []
         strategy._feature_df = None
+        strategy.name = "mock_strategy"
         return strategy
 
     @pytest.fixture
@@ -541,7 +544,7 @@ class TestBacktesterCoreCoverage:
                 "policy": {"min_confidence": 0.7},
             }
         }
-        result = _run_backtest_simulation(
+        result = run_backtest_simulation(
             market_data=sample_data,
             signals=sample_signals,
             strategy=mock_strategy,
@@ -564,7 +567,7 @@ class TestBacktesterCoreCoverage:
         ):
             _, _, skipped = cast(
                 BacktestTriple,
-                _run_backtest_simulation(
+                run_backtest_simulation(
                     market_data=sample_data,
                     signals=sample_signals,
                     strategy=mock_strategy,
@@ -696,7 +699,7 @@ def test_rmm_context_enrichment_in_trades_and_skips():
     # Run backtest with RMM context - signals are passed directly to run_backtest
     trades_list, _, skipped_list = cast(
         BacktestTriple,
-        _run_backtest_simulation(
+        run_backtest_simulation(
             market_data=df,
             signals=signals,
             strategy=strategy,
@@ -889,7 +892,7 @@ def test_entry_window_allows_delayed_entry():
 
     trades_list, _, skipped_list = cast(
         BacktestTriple,
-        _run_backtest_simulation(
+        run_backtest_simulation(
             market_data=df,
             signals=signals,
             strategy=strategy,
@@ -984,7 +987,7 @@ def test_entry_window_expires():
 
     trades_list, _, skipped_list = cast(
         BacktestTriple,
-        _run_backtest_simulation(
+        run_backtest_simulation(
             market_data=df,
             signals=signals,
             strategy=strategy,
@@ -1055,7 +1058,7 @@ def test_entry_window_prevents_reentry_after_rem_exit():
     )
     rem = RiskExitManager(config=None)
 
-    result = _run_backtest_simulation(
+    result = run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -1132,7 +1135,7 @@ def test_backtester_executes_pending_exit_at_next_bar_open():
     rem = RiskExitManager(config=None, instrument=TEST_INSTRUMENT)
 
     # Run backtest
-    result = _run_backtest_simulation(
+    result = run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -1211,7 +1214,7 @@ def test_backtester_handles_flip_with_next_bar_open():
     rem = RiskExitManager(config=None, instrument=TEST_INSTRUMENT)
 
     # Run backtest
-    result = _run_backtest_simulation(
+    result = run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,

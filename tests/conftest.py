@@ -12,6 +12,7 @@ from tests.backtester.dummy_objects import (
     _dummy_strategy_cfg,
     _dummy_strategy_with_sl_tp,
 )
+from tests.test_helpers import run_backtest_simulation
 
 warnings.filterwarnings(
     "ignore",
@@ -55,7 +56,6 @@ def market_data(columns: str) -> dict:
 @when("the backtest is run")
 def when_backtest_is_run(shared_context: dict) -> None:
     """Calls the backtester logic and stores the resulting trades."""
-    from trading_platform.backtester.core import _run_backtest_simulation
     from trading_platform.core.config import RunConfig
     from trading_platform.risk_manager.core import RiskExitManager
 
@@ -96,7 +96,7 @@ def when_backtest_is_run(shared_context: dict) -> None:
 
     test_global_config = Path(__file__).parent / "fixtures" / "global_empty.yaml"
 
-    trades = _run_backtest_simulation(
+    trades = run_backtest_simulation(
         market_data=shared_context["market_data"],
         signals=shared_context["signals"],
         strategy=strategy,

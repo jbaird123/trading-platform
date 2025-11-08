@@ -7,9 +7,64 @@ warmup periods for indicators to initialize properly.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from pathlib import Path
+from typing import Any, TypeAlias, cast
 
 import pandas as pd
+from trading_platform.backtester import run_backtest
+from trading_platform.core.config import RunConfig
+from trading_platform.risk_manager.core import RiskExitManager
+from trading_platform.strategy.yaml_strategy import CompiledStrategy
+
+BacktestResult: TypeAlias = Any
+
+
+def run_backtest_simulation(
+    market_data: pd.DataFrame,
+    signals: pd.Series,
+    strategy: CompiledStrategy,
+    config: RunConfig,
+    rem: RiskExitManager | None = None,
+    *,
+    rmm_context: dict[datetime, dict[str, Any]] | None = None,
+    return_exposure: bool = False,
+    return_skips: bool = False,
+    data_handler: Any | None = None,
+    global_features_config_path: Path | str | None = None,
+) -> BacktestResult:
+    """Backtest helper that mirrors the legacy core simulation semantics."""
+
+    result = cast(
+        BacktestResult,
+        run_backtest(
+            config=config,
+            market_data=market_data,
+            compiled_strategy=strategy,
+            precomputed_signals=signals,
+            feature_enriched_df=getattr(strategy, "_feature_df", None),
+            data_handler=data_handler,
+            global_features_config_path=global_features_config_path,
+            rmm_context=rmm_context,
+            return_exposure=return_exposure,
+            return_skips=return_skips,
+            rem_instance=rem,
+        ),
+    )
+
+    if return_exposure:
+        return result
+    if return_skips:
+        if isinstance(result, dict):
+            trades_out = cast(list[Any], result.get("trades", []))
+            skipped = cast(list[dict[str, Any]], result.get("skipped", []))
+        else:
+            trades_out = cast(list[Any], result)
+            skipped = []
+        empty_curve: list[tuple[datetime, float]] = []
+        return (trades_out, empty_curve, skipped)
+    if isinstance(result, dict):
+        return cast(list[Any], result.get("trades", []))
+    return result
 
 
 def create_market_data_with_warmup(

@@ -10,18 +10,19 @@ Tests for:
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any, cast
 
 import pandas as pd
-from trading_platform.backtester.core import (
-    _enrich_trades_with_post_exit_analysis,
-    _run_backtest_simulation,
-)
+from trading_platform.backtester.core import _enrich_trades_with_post_exit_analysis
 from trading_platform.core.config import RunConfig
 from trading_platform.portfolio.trade import Trade
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
-from tests.test_helpers import get_empty_global_features_path
+from tests.test_helpers import (
+    get_empty_global_features_path,
+    run_backtest_simulation,
+)
 
 
 def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
@@ -312,7 +313,7 @@ def test_post_exit_analysis_integration():
     )
     rem = RiskExitManager(config=None)
 
-    trades = _run_backtest_simulation(
+    trades = run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -392,7 +393,7 @@ def test_rmm_context_feature_rounding():
     )
     rem = RiskExitManager(config=None)
 
-    trades = _run_backtest_simulation(
+    trades = run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -466,7 +467,7 @@ def test_rmm_context_feature_rounding_edge_cases():
     rem = RiskExitManager(config=None)
 
     # Should not raise error, should handle invalid values gracefully
-    trades = _run_backtest_simulation(
+    trades = run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -523,7 +524,7 @@ def test_skipped_entry_index_conversion_error():
     )
     rem = RiskExitManager(config=None)
 
-    result = _run_backtest_simulation(
+    result = run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -534,7 +535,9 @@ def test_skipped_entry_index_conversion_error():
         return_skips=True,
         global_features_config_path=get_empty_global_features_path(),
     )
-    trades, _, skipped = result  # type: ignore[misc]
+    trades, _, skipped = cast(
+        tuple[list[Any], list[tuple[datetime, float]], list[dict[str, Any]]], result
+    )
     # Should have skipped trade with counterfactual analysis
     assert isinstance(skipped, list), "skipped should be a list"
     assert len(skipped) == 1
@@ -578,7 +581,7 @@ def test_post_exit_analysis_disabled():
     )
     rem = RiskExitManager(config=None)
 
-    trades = _run_backtest_simulation(
+    trades = run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -631,7 +634,7 @@ def test_post_exit_analysis_enabled_false():
     )
     rem = RiskExitManager(config=None)
 
-    trades = _run_backtest_simulation(
+    trades = run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -732,7 +735,7 @@ def test_skipped_entry_index_invalid_conversion():
     )
     rem = RiskExitManager(config=None)
 
-    result = _run_backtest_simulation(
+    result = run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -743,7 +746,9 @@ def test_skipped_entry_index_invalid_conversion():
         return_skips=True,
         global_features_config_path=get_empty_global_features_path(),
     )
-    trades, _, skipped = result  # type: ignore[misc]
+    trades, _, skipped = cast(
+        tuple[list[Any], list[tuple[datetime, float]], list[dict[str, Any]]], result
+    )
     # Should have skipped trade with counterfactual analysis
     assert isinstance(skipped, list), "skipped should be a list"
     assert len(skipped) == 1
@@ -824,7 +829,7 @@ def test_rmm_context_feature_rounding_with_strategy_features():
     )
     rem = RiskExitManager(config=None)
 
-    trades = _run_backtest_simulation(
+    trades = run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -844,8 +849,6 @@ def test_rmm_context_feature_rounding_with_strategy_features():
 def test_counterfactual_with_manual_invalid_entry_index():
     """Test counterfactual simulation with manually created invalid entry_index."""
     # Validates: [REQ-BT-CF-001] Handle invalid entry_index in counterfactual
-    from unittest.mock import patch
-
     idx = [datetime(2024, 1, 1, h) for h in range(10)]
     df = pd.DataFrame(
         {
@@ -887,30 +890,20 @@ def test_counterfactual_with_manual_invalid_entry_index():
     )
     rem = RiskExitManager(config=None)
 
-    # Patch the skipped list to inject invalid entry_index
-    (
-        _run_backtest_simulation.__wrapped__
-        if hasattr(_run_backtest_simulation, "__wrapped__")
-        else _run_backtest_simulation
-    )
-
-    with patch(
-        "trading_platform.backtester.core._run_backtest_simulation",
-        wraps=_run_backtest_simulation,
+    result = run_backtest_simulation(
+        market_data=df,
+        signals=signals,
+        strategy=strategy,
+        config=config,
+        rem=rem,
+        rmm_context=rmm_context,
+        return_exposure=False,
+        return_skips=True,
         global_features_config_path=get_empty_global_features_path(),
-    ):
-        result = _run_backtest_simulation(
-            market_data=df,
-            signals=signals,
-            strategy=strategy,
-            config=config,
-            rem=rem,
-            rmm_context=rmm_context,
-            return_exposure=False,
-            return_skips=True,
-            global_features_config_path=get_empty_global_features_path(),
-        )
-        trades, _, skipped = result  # type: ignore[misc]
+    )
+    trades, _, skipped = cast(
+        tuple[list[Any], list[tuple[datetime, float]], list[dict[str, Any]]], result
+    )
     # Should have skipped trades
     assert isinstance(skipped, list), "skipped should be a list"
     assert len(skipped) >= 1

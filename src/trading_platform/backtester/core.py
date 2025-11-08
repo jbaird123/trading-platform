@@ -146,7 +146,7 @@ def resolve_instrument_symbol(instrument: Any) -> str:
     return result
 
 
-def _run_backtest_simulation(
+def _execute_backtest_loop(
     market_data: pd.DataFrame,
     signals: pd.Series,
     strategy: CompiledStrategy,

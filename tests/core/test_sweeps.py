@@ -1677,14 +1677,8 @@ def test_parameter_sweep_with_rem_path():
         strategy_cfg = _basic_strategy_cfg()
 
         # Mock dependencies to avoid complex setup
-        with patch(
-            "trading_platform.core.sweeps.run_backtest"
-        ) as mock_run_backtest, patch(
-            "trading_platform.core.sweeps.RiskExitManager"
-        ) as mock_rem_class:
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run_backtest:
             mock_run_backtest.return_value = _mock_run_result([], df)
-            mock_rem = Mock()
-            mock_rem_class.return_value = mock_rem
 
             # Simple grid to avoid empty candidates
             grid = {"param1": [1, 2]}
@@ -1693,9 +1687,9 @@ def test_parameter_sweep_with_rem_path():
                 df=df, base_cfg=base_cfg, strategy_cfg=strategy_cfg, grid=grid
             )
 
-            # Verify REM was created with loaded config
-            mock_rem_class.assert_called_with(config=rem_config)
             assert isinstance(result, dict)
+            passed_cfg = mock_run_backtest.call_args.kwargs["config"]
+            assert passed_cfg.rem_config == rem_config
 
     finally:
         # Clean up temp file
@@ -1728,13 +1722,8 @@ def test_parameter_sweep_with_debug_dir():
         strategy_cfg = _basic_strategy_cfg()
 
         # Mock dependencies to avoid complex setup
-        with patch(
-            "trading_platform.core.sweeps.run_backtest"
-        ) as mock_run_backtest, patch(
-            "trading_platform.core.sweeps.RiskExitManager"
-        ) as mock_rem_class:
+        with patch("trading_platform.core.sweeps.run_backtest") as mock_run_backtest:
             mock_run_backtest.return_value = _mock_run_result([], df)
-            mock_rem_class.return_value = Mock()
 
             # Simple grid to avoid empty candidates
             grid = {"param1": [1, 2]}
@@ -1778,11 +1767,8 @@ def test_parameter_sweep_random_space():
     strategy_cfg = _basic_strategy_cfg()
 
     # Mock dependencies to avoid complex setup
-    with patch("trading_platform.core.sweeps.run_backtest") as mock_run_backtest, patch(
-        "trading_platform.core.sweeps.RiskExitManager"
-    ) as mock_rem_class:
+    with patch("trading_platform.core.sweeps.run_backtest") as mock_run_backtest:
         mock_run_backtest.return_value = _mock_run_result([], df)
-        mock_rem_class.return_value = Mock()
 
         # Use random_space instead of grid - this should trigger lines 84-86
         random_space = {"param1": [1, 2, 3, 4]}

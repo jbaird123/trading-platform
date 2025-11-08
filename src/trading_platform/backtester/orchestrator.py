@@ -19,7 +19,7 @@ import yaml
 
 from trading_platform.backtester.core import (
     SimulationReturn,
-    _run_backtest_simulation,
+    _execute_backtest_loop,
 )
 from trading_platform.backtester.warmup import calculate_warmup_start_date
 from trading_platform.core.config import RunConfig
@@ -29,9 +29,11 @@ from trading_platform.regime_market_manager.gating import ProfitabilityGatingEng
 from trading_platform.regime_market_manager.models import RMMGatingProfile
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.features import _resolve_parameter
-from trading_platform.strategy.yaml_strategy import compile_strategy
+from trading_platform.strategy.yaml_strategy import CompiledStrategy, compile_strategy
 
 logger = logging.getLogger(__name__)
+
+SignalInput = pd.Series | list[Any] | tuple[Any, ...]
 
 
 def _infer_execution_timeframe(config: RunConfig, market_data: pd.DataFrame) -> str:
@@ -255,6 +257,10 @@ def run_backtest(
     rmm_context: dict[datetime, dict[str, Any]] | None = None,
     return_exposure: bool = False,
     return_skips: bool = False,
+    compiled_strategy: CompiledStrategy | None = None,
+    precomputed_signals: SignalInput | None = None,
+    feature_enriched_df: pd.DataFrame | None = None,
+    rem_instance: RiskExitManager | None = None,
 ) -> (
     dict[str, Any]
     | tuple[list[Trade], list[tuple[datetime, float]]]
@@ -278,6 +284,12 @@ def run_backtest(
         rmm_context: Optional RMM context for risk mode management
         return_exposure: If True, return exposure curve as second element of tuple
         return_skips: If True, return skip records as third element of tuple
+        compiled_strategy: Precompiled strategy instance (skips YAML loading).
+        precomputed_signals: Optional Series/sequence of commands to use instead
+            of calling `strategy.generate_signals`.
+        feature_enriched_df: Optional feature-enriched dataframe to use when
+            precomputed signals are supplied.
+        rem_instance: Optional RiskExitManager to reuse (primarily for tests).
 
     Returns:
         If return_exposure=False and return_skips=False:
@@ -291,62 +303,75 @@ def run_backtest(
         ValueError: If warmup validation fails or strategy config is missing
     """
     df = market_data
+    strategy_metadata: dict[str, Any] = {}
+    strategy_archetype = "trend_following"
 
-    # Load strategy configuration
-    if strategy_config is None:
-        if strategy_path:
-            # Load strategy from YAML/JSON file
-            path = Path(strategy_path)
-            with open(path) as f:
-                if path.suffix in [".yaml", ".yml"]:
-                    strategy_config = yaml.safe_load(f)
-                else:  # .json
-                    import json
+    if compiled_strategy is None:
+        # Load strategy configuration
+        if strategy_config is None:
+            if strategy_path:
+                # Load strategy from YAML/JSON file
+                path = Path(strategy_path)
+                with open(path) as f:
+                    if path.suffix in [".yaml", ".yml"]:
+                        strategy_config = yaml.safe_load(f)
+                    else:  # .json
+                        import json
 
-                    strategy_config = json.load(f)
-        elif config.strategy:
-            strategy_config = config.strategy
-        else:
-            raise ValueError(
-                "No strategy configuration provided. "
-                "Provide strategy_config, strategy_path, or config.strategy"
-            )
+                        strategy_config = json.load(f)
+            elif config.strategy:
+                strategy_config = config.strategy
+            else:
+                raise ValueError(
+                    "No strategy configuration provided. "
+                    "Provide strategy_config, strategy_path, or config.strategy"
+                )
 
-    # Apply strategy_params from config (used for parameter sweeps)
-    # This allows the config to override strategy defaults
-    if strategy_params:
-        base_params = strategy_config.get("parameters") or {}
-        if isinstance(base_params, dict):
-            base_params.update(strategy_params)
-            strategy_config["parameters"] = base_params
-
-    # Apply optional per-run overrides for strategy tunables
-    if strategy_overrides:
-        # 1) Parameter-level overrides
-        param_over = strategy_overrides.get("parameters") or {}
-        if param_over:
+        # Apply strategy_params from config (used for parameter sweeps)
+        # This allows the config to override strategy defaults
+        if strategy_params:
             base_params = strategy_config.get("parameters") or {}
             if isinstance(base_params, dict):
-                base_params.update(param_over)
+                base_params.update(strategy_params)
                 strategy_config["parameters"] = base_params
-        # 2) Feature-level overrides
-        feat_over = strategy_overrides.get("features") or {}
-        if feat_over and isinstance(strategy_config.get("features"), list):
-            for f in strategy_config["features"]:
-                name = str(f.get("name", ""))
-                if name and name in feat_over and isinstance(feat_over[name], dict):
-                    params = f.get("params") or {}
-                    if isinstance(params, dict):
-                        params.update(feat_over[name])
-                        f["params"] = params
 
-    strategy_metadata = strategy_config.get("metadata") or {}
-    strategy_archetype = str(
-        strategy_metadata.get("strategy_archetype", "trend_following")
-    )
+        # Apply optional per-run overrides for strategy tunables
+        if strategy_overrides:
+            # 1) Parameter-level overrides
+            param_over = strategy_overrides.get("parameters") or {}
+            if param_over:
+                base_params = strategy_config.get("parameters") or {}
+                if isinstance(base_params, dict):
+                    base_params.update(param_over)
+                    strategy_config["parameters"] = base_params
+            # 2) Feature-level overrides
+            feat_over = strategy_overrides.get("features") or {}
+            if feat_over and isinstance(strategy_config.get("features"), list):
+                for f in strategy_config["features"]:
+                    name = str(f.get("name", ""))
+                    if name and name in feat_over and isinstance(feat_over[name], dict):
+                        params = f.get("params") or {}
+                        if isinstance(params, dict):
+                            params.update(feat_over[name])
+                            f["params"] = params
 
-    # Compile strategy and generate signals
-    strat = compile_strategy(strategy_config)
+        strategy_metadata = strategy_config.get("metadata") or {}
+        strategy_archetype = str(
+            strategy_metadata.get("strategy_archetype", "trend_following")
+        )
+        strat = compile_strategy(strategy_config)
+    else:
+        strat = compiled_strategy
+        strategy_config = strategy_config or {}
+        metadata = getattr(strat, "metadata", None)
+        if isinstance(metadata, dict):
+            strategy_metadata = metadata
+        strategy_archetype = str(
+            strategy_metadata.get(
+                "strategy_archetype",
+                getattr(strat, "name", "trend_following"),
+            )
+        )
 
     execution_timeframe = _infer_execution_timeframe(config, df)
     global_feature_defs = _resolve_global_feature_defs(
@@ -363,20 +388,35 @@ def run_backtest(
         data_handler=data_handler,
     )
 
-    signals = strat.generate_signals(df)
-
-    # Note: Warmup validation is handled in _run_backtest_simulation()
-    # which validates ALL features (strategy + global) in one place
-
-    # Get feature-enriched dataframe for REM (includes ATR, etc.)
-    feature_enriched_df = strat._feature_df if strat._feature_df is not None else df
-    if feature_enriched_df is not None:
-        # Defensive checks: feature_df must match input df's length and index type
-        if len(feature_enriched_df) != len(df) or not isinstance(
-            feature_enriched_df.index, type(df.index)
+    if precomputed_signals is not None:
+        if isinstance(precomputed_signals, pd.Series):
+            signals = precomputed_signals
+        else:
+            signals = pd.Series(list(precomputed_signals), index=df.index)
+        if len(signals) != len(df):
+            raise ValueError(
+                "precomputed_signals length must equal market_data length "
+                f"({len(signals)} != {len(df)})"
+            )
+        if isinstance(precomputed_signals, pd.Series) and not signals.index.equals(
+            df.index
         ):
-            # Fall back to raw df if mismatched (can happen in tests with mocks)
-            feature_enriched_df = df
+            raise ValueError("precomputed_signals index must match market_data index")
+        if feature_enriched_df is None:
+            cached_features = getattr(strat, "_feature_df", None)
+            feature_enriched_df = cached_features if cached_features is not None else df
+    else:
+        signals = strat.generate_signals(df)
+        feature_enriched_df = strat._feature_df if strat._feature_df is not None else df
+
+    # Note: Warmup validation is handled in _execute_backtest_loop(), which
+    # validates strategy and global features together.
+
+    # Defensive checks: feature_df must match input df's length and index type
+    if len(feature_enriched_df) != len(df) or not isinstance(
+        feature_enriched_df.index, type(df.index)
+    ):
+        feature_enriched_df = df
 
     # Create REM (Risk Exit Manager)
     if config.instrument:
@@ -390,7 +430,7 @@ def run_backtest(
 
     rem_cfg = config.rem_config or {}
     exit_tie_break = getattr(config, "exit_tie_break", "stop_then_tp")
-    rem = RiskExitManager(
+    rem = rem_instance or RiskExitManager(
         config=rem_cfg if rem_cfg else None,
         instrument=instrument_dict,
         exit_tie_break=exit_tie_break,
@@ -413,7 +453,7 @@ def run_backtest(
         }
 
     # Run backtest simulation
-    res: SimulationReturn = _run_backtest_simulation(
+    res: SimulationReturn = _execute_backtest_loop(
         market_data=feature_enriched_df,
         signals=signals,
         strategy=strat,

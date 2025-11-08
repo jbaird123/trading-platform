@@ -11,11 +11,12 @@ from typing import cast
 import pandas as pd
 import pytest
 import yaml
-from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.core.config import RunConfig
 from trading_platform.portfolio.trade import Trade
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
+
+from tests.test_helpers import run_backtest_simulation
 
 
 def test_backtester_adds_contextual_features_to_trade_context() -> None:
@@ -90,7 +91,7 @@ def test_backtester_adds_contextual_features_to_trade_context() -> None:
             rem = RiskExitManager(config={})
 
             # Run backtest with explicit global features config path
-            trades_result = _run_backtest_simulation(
+            trades_result = run_backtest_simulation(
                 market_data=df,
                 signals=signals,
                 strategy=strategy,
@@ -196,7 +197,7 @@ def test_end_of_data_exit_preserves_context() -> None:
                 }
             )
             rem = RiskExitManager(config={})
-            trades = _run_backtest_simulation(
+            trades = run_backtest_simulation(
                 market_data=market,
                 signals=signals,
                 strategy=strategy,
@@ -300,7 +301,7 @@ def test_required_global_feature_missing_raises(
             )
 
             with pytest.raises(ValueError, match="Global feature 'h1_atr_14' is NaN"):
-                _run_backtest_simulation(
+                run_backtest_simulation(
                     market_data=market,
                     signals=signals,
                     strategy=strategy,
@@ -399,7 +400,7 @@ def test_backtester_trade_context_with_multi_timeframe_at_entry_and_exit() -> No
             )
 
             # Run backtest with explicit global features path
-            trades_result = _run_backtest_simulation(
+            trades_result = run_backtest_simulation(
                 market_data=df,
                 signals=signals,
                 strategy=strategy,
