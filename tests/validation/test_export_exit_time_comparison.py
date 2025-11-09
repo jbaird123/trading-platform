@@ -33,6 +33,11 @@ EXIT_TIME_CATEGORIES = [
 _EXIT_TIME_CACHE: Dict[str, Dict[str, Any]] = {}
 
 
+def _comparison_path(strategy_name: str, comparison_type: str) -> Path:
+    slug = strategy_name.replace("/", "_")
+    return Path("workspace") / "comparison_exports" / f"{slug}_{comparison_type}.csv"
+
+
 def _run_exit_time_export(
     strategy_name,
     golden_strategy_config,
@@ -98,7 +103,7 @@ def _run_exit_time_export(
         categories
     )
 
-    output_path = Path("workspace/exit_time_comparison.csv")
+    output_path = _comparison_path(strategy_name, "exit_time")
     export_comparison_csv(
         platform_df,
         tv_df,

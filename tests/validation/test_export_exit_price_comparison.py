@@ -22,6 +22,11 @@ from tests.validation.test_strategy_validation import (
 _EXIT_PRICE_CACHE: Dict[str, Dict[str, Any]] = {}
 
 
+def _comparison_path(strategy_name: str, comparison_type: str) -> Path:
+    slug = strategy_name.replace("/", "_")
+    return Path("workspace") / "comparison_exports" / f"{slug}_{comparison_type}.csv"
+
+
 def _run_exit_price_export(
     strategy_name,
     golden_strategy_config,
@@ -76,7 +81,7 @@ def _run_exit_price_export(
         categories
     )
 
-    output_path = Path("workspace/exit_price_comparison.csv")
+    output_path = _comparison_path(strategy_name, "exit_price")
     export_comparison_csv(
         platform_df,
         tv_df,
