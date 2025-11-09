@@ -1,0 +1,10 @@
+//@version=5
+indicator("Global Feature Pack – 4H", overlay=false, timeframe="240", timeframe_gaps=true)
+
+h4_ema_50 = ta.ema(close, 50)
+h4_rsi_14 = ta.rsi(close, 14)
+h4_atr_14 = ta.atr(14)
+
+plot(h4_ema_50, "h4_ema_50", display=display.data_window)
+plot(h4_rsi_14, "h4_rsi_14", display=display.data_window)
+plot(h4_atr_14, "h4_atr_14", display=display.data_window)
