@@ -6,7 +6,9 @@ parametrization to eliminate code duplication.
 """
 
 from pathlib import Path
+from typing import Any, Dict
 
+import pandas as pd
 import pytest
 
 from tests.validation.analyzers import create_analyzer_for_strategy
@@ -27,6 +29,93 @@ EXIT_TIME_CATEGORIES = [
     "PLATFORM_ZOOM_INTRABAR_TP",
     "BOLLINGER_BAND_SHIFT",
 ]
+
+_EXIT_TIME_CACHE: Dict[str, Dict[str, Any]] = {}
+
+
+def _run_exit_time_export(
+    strategy_name,
+    golden_strategy_config,
+    tradingview_trades,
+    tradingview_ohlcv,
+    tradingview_ohlcv_1min,
+    golden_metadata,
+    shared_data_handler,
+    request,
+):
+    cached = _EXIT_TIME_CACHE.get(strategy_name)
+    if cached:
+        return cached
+
+    request.node.add_marker(pytest.mark.strategy_name(strategy_name))
+
+    fixture_map = {
+        "ema_crossover/20pip_stop": request.getfixturevalue(
+            "platform_trades_20pip_stop"
+        ),
+        "ema_crossover/20pip_stop_40pip_tp": request.getfixturevalue(
+            "platform_trades_20pip_stop_40pip_tp"
+        ),
+        "ema_crossover/20pip_trailing_stop": request.getfixturevalue(
+            "platform_trades_20pip_trailing_stop"
+        ),
+        "ema_crossover/20pip_trailing_stop_15pip_tp": request.getfixturevalue(
+            "platform_trades_20pip_trailing_stop_15pip_tp"
+        ),
+        "ema_crossover/2atr_stop": request.getfixturevalue("platform_trades_2atr_stop"),
+        "ema_crossover/bb_stop": request.getfixturevalue("platform_trades_bb_stop"),
+    }
+    platform_trades = fixture_map[strategy_name]
+
+    platform_df, tv_df = load_and_prepare_trade_data(
+        strategy_name, platform_trades, golden_metadata
+    )
+
+    print(f"\nPlatform trades: {len(platform_df)}")
+    print(f"TradingView trades: {len(tv_df)}")
+    print(f"Total trades to compare: {min(len(platform_df), len(tv_df))}\n")
+
+    strategy_edge_cases = KNOWN_EDGE_CASES.get(strategy_name, {})
+    known_exit_time_edge_cases = strategy_edge_cases.get("exit_time_mismatches", [])
+
+    print(f"Known exit time edge cases: {len(known_exit_time_edge_cases)}")
+    if known_exit_time_edge_cases:
+        print(
+            "  Trade indices:",
+            sorted([ec["trade_index"] + 1 for ec in known_exit_time_edge_cases]),
+        )
+    print()
+
+    analyzer = create_analyzer_for_strategy(golden_metadata)
+    categories = analyzer.analyze_discrepancies(
+        platform_df=platform_df,
+        tv_df=tv_df,
+        ohlcv_data=tradingview_ohlcv,
+        ohlcv_1min=tradingview_ohlcv_1min,
+    )
+
+    category_lookup, explanation_lookup, mfe_data_lookup = build_category_lookup(
+        categories
+    )
+
+    output_path = Path("workspace/exit_time_comparison.csv")
+    export_comparison_csv(
+        platform_df,
+        tv_df,
+        output_path,
+        "exit_time",
+        category_lookup,
+        explanation_lookup,
+        mfe_data_lookup,
+        known_edge_cases=known_exit_time_edge_cases,
+        allowed_time_categories=EXIT_TIME_CATEGORIES,
+    )
+
+    comparison_df = pd.read_csv(output_path)
+
+    result = {"path": output_path, "comparison_df": comparison_df}
+    _EXIT_TIME_CACHE[strategy_name] = result
+    return result
 
 
 @pytest.mark.parametrize(
@@ -64,90 +153,18 @@ def test_export_exit_time_comparison(
         golden_metadata: Golden metadata fixture
         request: Pytest request object for marker access
     """
-    # Mark this test with the strategy name for fixture selection
-    request.node.add_marker(pytest.mark.strategy_name(strategy_name))
-
-    # Get platform trades from session-scoped fixture based on strategy
-    fixture_map = {
-        "ema_crossover/20pip_stop": request.getfixturevalue(
-            "platform_trades_20pip_stop"
-        ),
-        "ema_crossover/20pip_stop_40pip_tp": request.getfixturevalue(
-            "platform_trades_20pip_stop_40pip_tp"
-        ),
-        "ema_crossover/20pip_trailing_stop": request.getfixturevalue(
-            "platform_trades_20pip_trailing_stop"
-        ),
-        "ema_crossover/20pip_trailing_stop_15pip_tp": request.getfixturevalue(
-            "platform_trades_20pip_trailing_stop_15pip_tp"
-        ),
-        "ema_crossover/2atr_stop": request.getfixturevalue("platform_trades_2atr_stop"),
-        "ema_crossover/bb_stop": request.getfixturevalue("platform_trades_bb_stop"),
-    }
-    platform_trades = fixture_map[strategy_name]
-
-    # Load and prepare trade data using utility function
-    platform_df, tv_df = load_and_prepare_trade_data(
-        strategy_name, platform_trades, golden_metadata
-    )
-
-    print(f"\nPlatform trades: {len(platform_df)}")
-    print(f"TradingView trades: {len(tv_df)}")
-    print(f"Total trades to compare: {min(len(platform_df), len(tv_df))}\n")
-
-    # Get known edge cases for exit time mismatches
-    strategy_edge_cases = KNOWN_EDGE_CASES.get(strategy_name, {})
-    known_exit_time_edge_cases = strategy_edge_cases.get("exit_time_mismatches", [])
-
-    print(f"Known exit time edge cases: {len(known_exit_time_edge_cases)}")
-    if known_exit_time_edge_cases:
-        print(
-            "  Trade indices:",
-            sorted([ec["trade_index"] + 1 for ec in known_exit_time_edge_cases]),
-        )
-    print()
-
-    # Create analyzer using factory (auto-configured from metadata)
-    analyzer = create_analyzer_for_strategy(golden_metadata)
-
-    # Analyze discrepancies
-    categories = analyzer.analyze_discrepancies(
-        platform_df=platform_df,
-        tv_df=tv_df,
-        ohlcv_data=tradingview_ohlcv,
-        ohlcv_1min=tradingview_ohlcv_1min,
-    )
-
-    # Build lookup dictionaries using utility function
-    category_lookup, explanation_lookup, mfe_data_lookup = build_category_lookup(
-        categories
-    )
-
-    # Export comparison CSV using utility function
-    output_path = Path("workspace/exit_time_comparison.csv")
-    export_comparison_csv(
-        platform_df,
-        tv_df,
-        output_path,
-        "exit_time",
-        category_lookup,
-        explanation_lookup,
-        mfe_data_lookup,
-        known_edge_cases=known_exit_time_edge_cases,
-        allowed_time_categories=EXIT_TIME_CATEGORIES,
-    )
-
-    # Verify comparison file hash matches golden reference
-    verify_golden_comparison_hash(
+    result = _run_exit_time_export(
         strategy_name,
-        output_path,
-        golden_filename="exit_time_comparison_golden.csv",
+        golden_strategy_config,
+        tradingview_trades,
+        tradingview_ohlcv,
+        tradingview_ohlcv_1min,
+        golden_metadata,
+        shared_data_handler,
+        request,
     )
 
-    # Print summary statistics
-    import pandas as pd
-
-    comparison_df = pd.read_csv(output_path)
+    comparison_df = result["comparison_df"]
     total_trades = len(comparison_df)
     time_matches = comparison_df["exit_time_match"].sum()
     time_mismatches = total_trades - time_matches
@@ -177,5 +194,44 @@ def test_export_exit_time_comparison(
     assert len(unexplained) == 0, (
         f"Found {len(unexplained)} UNEXPLAINED exit time mismatches!\n"
         f"All time discrepancies must be categorized and explained.\n"
-        f"See {output_path} for details."
+        f"See {result['path']} for details."
+    )
+
+
+@pytest.mark.parametrize(
+    "strategy_name",
+    [
+        "ema_crossover/20pip_stop",
+        "ema_crossover/20pip_stop_40pip_tp",
+        "ema_crossover/20pip_trailing_stop",
+        "ema_crossover/20pip_trailing_stop_15pip_tp",
+        "ema_crossover/2atr_stop",
+        "ema_crossover/bb_stop",
+    ],
+)
+def test_exit_time_comparison_matches_golden(
+    strategy_name,
+    golden_strategy_config,
+    tradingview_trades,
+    tradingview_ohlcv,
+    tradingview_ohlcv_1min,
+    golden_metadata,
+    shared_data_handler,
+    request,
+):
+    """Ensure exit time comparison CSV still matches the frozen golden file."""
+    result = _run_exit_time_export(
+        strategy_name,
+        golden_strategy_config,
+        tradingview_trades,
+        tradingview_ohlcv,
+        tradingview_ohlcv_1min,
+        golden_metadata,
+        shared_data_handler,
+        request,
+    )
+    verify_golden_comparison_hash(
+        strategy_name,
+        result["path"],
+        golden_filename="exit_time_comparison_golden.csv",
     )

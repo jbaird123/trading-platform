@@ -8,8 +8,42 @@ at multiple timeframes (e.g., 15m strategy with 1H contextual features).
 from __future__ import annotations
 
 import re
+import warnings
 
 import pandas as pd
+from pandas.tseries.frequencies import to_offset
+
+
+def _timeframe_to_offset(rule: str) -> pd.tseries.offsets.BaseOffset:
+    """Convert timeframe string to pandas offset."""
+    normalized = str(rule).strip()
+    match = re.fullmatch(r"(\d+)\s*([A-Za-z]+)", normalized)
+    if match:
+        value, unit = match.groups()
+        unit_lower = unit.lower()
+        if unit_lower in {"min", "t"}:
+            normalized = f"{value}min"
+        elif unit_lower == "h":
+            normalized = f"{value}h"
+        elif unit_lower == "d":
+            normalized = f"{value}d"
+        elif unit_lower == "w":
+            normalized = f"{value}w"
+    return to_offset(normalized)
+
+
+def timeframe_to_timedelta(rule: str) -> pd.Timedelta:
+    """Return the duration represented by a timeframe string."""
+    offset = _timeframe_to_offset(rule)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", FutureWarning)
+        delta = getattr(offset, "delta", None)
+    if isinstance(delta, pd.Timedelta):
+        return delta
+    nanos = getattr(offset, "nanos", None)
+    if nanos is not None:
+        return pd.Timedelta(nanos, unit="ns")
+    return pd.to_timedelta(offset.freqstr)
 
 
 def resample_data(data: pd.DataFrame, rule: str) -> pd.DataFrame:
@@ -49,41 +83,19 @@ def resample_data(data: pd.DataFrame, rule: str) -> pd.DataFrame:
         "volume": "sum",
     }
 
-    # Normalize rule casing:
-    # - minute-based rules should remain lower (e.g., 1min)
-    # - all other rules should use uppercase suffix (e.g., 1H, 1D, 1W)
-    raw_rule = str(rule).strip()
-    normalized_rule = raw_rule
-
-    match = re.fullmatch(r"(\d+)\s*([A-Za-z]+)", raw_rule)
-    if match:
-        value, unit = match.groups()
-        unit_lower = unit.lower()
-        if unit_lower in {"min", "t"}:
-            unit_token = "min"
-        elif unit_lower == "h":
-            unit_token = "h"
-        elif unit_lower == "d":
-            unit_token = "d"
-        elif unit_lower == "w":
-            unit_token = "W"  # pandas prefers uppercase W for weeks
-        else:
-            unit_token = unit
-        normalized_rule = f"{value}{unit_token}"
-
-    # Validate and obtain canonical frequency via pandas offset
+    # Validate and obtain canonical frequency
     try:
-        offset = pd.tseries.frequencies.to_offset(normalized_rule)
+        offset = _timeframe_to_offset(rule)
     except ValueError as e:
-        raise ValueError(f"Invalid frequency rule: {raw_rule}") from e
+        raise ValueError(f"Invalid frequency rule: {rule}") from e
 
-    rule = offset.freqstr
+    freqstr = offset.freqstr
 
     # Perform resampling with closed="left", label="right" to align
     # with TradingView-style bar labeling convention:
     # - closed="left": bar includes start time, excludes end time
     # - label="right": bar is labeled at the close (end of period)
-    resampled = data.resample(rule, closed="left", label="right").agg(
+    resampled = data.resample(freqstr, closed="left", label="left").agg(
         agg_logic  # type: ignore[arg-type]
     )
 
@@ -104,19 +116,15 @@ def resample_data(data: pd.DataFrame, rule: str) -> pd.DataFrame:
     # Drop rows with any NaN values
     result = resampled.dropna()
 
-    # Drop the last row if it represents a partial/incomplete bucket
-    # A bucket is incomplete if the last source bar doesn't reach the
-    # expected end of the bucket. With closed='left', a bucket labeled
-    # at time T contains data from T-period to T (exclusive), so the
-    # last bar in a complete bucket should be at T - source_freq.
+    # Drop the last row if it represents a partial/incomplete bucket.
+    # With label='left', a bucket labeled at time T covers [T, T+period),
+    # so we need source data up to bucket_end - base_freq to keep it.
     if len(result) > 0 and len(data) > 1:
         # Infer source frequency from the first two bars
         source_freq = data.index[1] - data.index[0]
-        last_bucket_label = result.index[-1]
-        # For a complete bucket, the last source bar should be one
-        # source period before the bucket label
-        expected_last_bar = last_bucket_label - source_freq
-        # If our actual last bar is before the expected, drop the bucket
+        bucket_duration = timeframe_to_timedelta(freqstr)
+        last_bucket_start = result.index[-1]
+        expected_last_bar = last_bucket_start + bucket_duration - source_freq
         if data.index[-1] < expected_last_bar:
             result = result.iloc[:-1]
 

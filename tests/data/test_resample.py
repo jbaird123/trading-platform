@@ -35,6 +35,7 @@ def test_resample_data_correctly_aggregates_ohlc():
 
     # Should produce a single row
     assert len(result) == 1
+    assert result.index[0] == timestamps[0]
 
     # Verify aggregations
     row = result.iloc[0]
@@ -69,6 +70,8 @@ def test_resample_data_handles_multiple_bins_and_partial_tail():
 
     # Should have 2 rows: 2 complete hours, partial hour dropped
     assert len(result) == 2
+    assert result.index[0] == timestamps[0]
+    assert result.index[1] == timestamps[4]
 
     # First hour (bars 0-3)
     row0 = result.iloc[0]

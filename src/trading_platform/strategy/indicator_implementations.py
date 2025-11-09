@@ -50,7 +50,7 @@ from ta.volume import (
     OnBalanceVolumeIndicator,
 )
 
-from trading_platform.data.resample import resample_data
+from trading_platform.data.resample import resample_data, timeframe_to_timedelta
 from trading_platform.strategy.indicator_helpers import find_swing_points
 
 _PRICE_SERIES_CACHE: dict[int, dict[str, pd.Series]] = {}
@@ -503,12 +503,20 @@ def compute_ema_trend_alignment(
             slope_pct_values[tf] = pd.Series(np.nan, index=df.index, dtype="float64")
             continue
 
+        shift_needed = not resampled.index.equals(df.index)
+        timeframe_delta = (
+            timeframe_to_timedelta(tf) if shift_needed else pd.Timedelta(0)
+        )
+
         pct = compute_ema_slope_pct(
             resampled,
             {"length": length, "slope_period": slope_period},
             source,
             source_ref,
         )
+        pct = pct.copy()
+        if shift_needed:
+            pct.index = pct.index + timeframe_delta
         pct = pct.reindex(df.index, method="ffill")
         slope_pct_values[tf] = pct
 
@@ -580,13 +588,22 @@ def compute_ema_slope_confluence(
                 return pd.Series(np.nan, index=df.index, dtype="float64")
             needs_align = True
 
+        delta = (
+            timeframe_to_timedelta(str(timeframe))
+            if needs_align and not slope_source.index.equals(df.index)
+            else pd.Timedelta(0)
+        )
+        shift_needed = delta != pd.Timedelta(0)
+
         slope_values = compute_ema_slope_pct(
             slope_source,
             {"length": length, "slope_period": slope_period},
             source,
             source_ref,
         )
-        if needs_align:
+        if needs_align and shift_needed:
+            slope_values = slope_values.copy()
+            slope_values.index = slope_values.index + delta
             slope_values = slope_values.reindex(df.index, method="ffill")
         return slope_values
 

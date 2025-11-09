@@ -11,7 +11,7 @@ from typing import Any, cast
 
 import pandas as pd
 
-from trading_platform.data.resample import resample_data
+from trading_platform.data.resample import resample_data, timeframe_to_timedelta
 
 # ema_slope is now compute_ema_slope, create wrapper
 from trading_platform.strategy import indicator_implementations as _impl
@@ -194,6 +194,10 @@ def compute_features(
             resampled_frames[timeframe] = resample_data(df, rule=timeframe)
 
         df_resampled = resampled_frames[timeframe]
+        shift_needed = not df_resampled.index.equals(df.index)
+        timeframe_delta = (
+            timeframe_to_timedelta(timeframe) if shift_needed else pd.Timedelta(0)
+        )
 
         assign_state_htf = resampled_assign_states.setdefault(timeframe, {"pending": 0})
 
@@ -240,10 +244,10 @@ def compute_features(
             if not new_column_names:
                 continue
 
-            htf_values = df_resampled[new_column_names].reindex(
-                df.index,
-                method="ffill",
-            )
+            htf_values = df_resampled[new_column_names].copy()
+            if shift_needed:
+                htf_values.index = htf_values.index + timeframe_delta
+            htf_values = htf_values.reindex(df.index, method="ffill")
 
             new_cols: dict[str, pd.Series] = {
                 col: htf_values[col] for col in new_column_names
