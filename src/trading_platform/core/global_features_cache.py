@@ -20,9 +20,9 @@ from trading_platform.core.global_features import (
     resolve_global_feature_manifest,
 )
 from trading_platform.core.utils import normalize_symbol
+from trading_platform.data.bar_windows import compute_bar_window_columns
 from trading_platform.data.handler import DataHandler
 from trading_platform.data.instrument import InstrumentDefinition, SessionDefinition
-from trading_platform.data.resample import timeframe_to_timedelta
 from trading_platform.data.session_metadata import ALIGNED_TO_CLOSE_ATTR, SESSION_ATTR
 from trading_platform.strategy.features import compute_features
 
@@ -84,34 +84,12 @@ def _align_available_index(
 
 def _compute_bar_windows_for_cache(
     raw_index: pd.Index,
-    available_index: pd.DatetimeIndex,
     timeframe: str,
+    session: SessionDefinition | None,
 ) -> tuple[pd.DatetimeIndex, pd.DatetimeIndex, pd.DatetimeIndex]:
-    """Return bar open/close timestamps for each available_at row."""
+    """Return bar open/close timestamps for cached rows."""
 
-    tf_lower = timeframe.lower()
-    open_index = pd.DatetimeIndex(raw_index)
-    if open_index.tz is None:
-        open_index = open_index.tz_localize("UTC")
-
-    available_index = pd.DatetimeIndex(available_index)
-    if available_index.tz is None:
-        available_index = available_index.tz_localize("UTC")
-
-    delta = timeframe_to_timedelta(timeframe)
-    close_index = available_index
-
-    if len(open_index) != len(available_index):
-        raise ValueError("Bar window indices must be equal length.")
-
-    true_open = (close_index - delta).tz_convert("UTC")
-    bar_close = close_index.tz_convert("UTC")
-    if tf_lower.endswith("d"):
-        lookup_index = close_index.normalize().tz_convert("UTC")
-    else:
-        lookup_index = open_index.tz_convert("UTC")
-
-    return true_open, bar_close, lookup_index
+    return compute_bar_window_columns(raw_index, timeframe, session)
 
 
 def derive_execution_timeframes(config_path: Path) -> list[str]:
@@ -280,8 +258,8 @@ def build_global_feature_caches(
         if include_bar_windows:
             bar_open, bar_close, bar_lookup = _compute_bar_windows_for_cache(
                 raw_index,
-                aligned_index,
                 timeframe,
+                session,
             )
             open_col = f"{tf_slug}_bar_open"
             close_col = f"{tf_slug}_bar_close"

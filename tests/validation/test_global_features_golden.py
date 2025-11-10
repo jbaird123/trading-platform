@@ -10,6 +10,7 @@ import pytest
 import yaml
 from pandas.testing import assert_series_equal
 from trading_platform.core.global_features_cache import build_global_feature_caches
+from trading_platform.data.bar_windows import compute_bar_window_columns
 from trading_platform.data.instrument import get_instrument_definition
 from trading_platform.data.resample import resample_data, timeframe_to_timedelta
 from trading_platform.data.session_metadata import annotate_session
@@ -69,18 +70,7 @@ COLUMN_RENAMES = {
 }
 SKIP_COLUMNS = {"h1_volume_sma_20", "d1_volume_sma_20"}
 OHLC_COLUMNS = {"open", "high", "low", "close", "volume"}
-TV_ONLY_COLUMNS = {
-    "h4_atr_14",
-    "1h_bar_open",
-    "1h_bar_close",
-    "1h_bar_lookup_key",
-    "4h_bar_open",
-    "4h_bar_close",
-    "4h_bar_lookup_key",
-    "1d_bar_open",
-    "1d_bar_close",
-    "1d_bar_lookup_key",
-}
+TV_ONLY_COLUMNS = {"h4_atr_14"}
 COLUMN_TOLERANCE_OVERRIDES = {
     "h4_ema_50": {"rtol": 2e-3, "atol": 2e-4},
     "d1_ema_24": {"rtol": 5e-3, "atol": 5e-4},
@@ -137,24 +127,36 @@ def _load_export(csv_name: str) -> pd.DataFrame:
     return df
 
 
-def _align_available_index_for_test(
-    index: pd.Index,
-    timeframe: str,
-) -> pd.DatetimeIndex:
-    dt_index = pd.DatetimeIndex(index)
-    if SESSION and timeframe.upper().endswith("D"):
-        localized = dt_index.tz_convert(SESSION.close_timezone)
-        shifted = localized + pd.DateOffset(days=1)
-        normalized = shifted.normalize()
-        offset = pd.Timedelta(
-            hours=SESSION.close_time.hour,
-            minutes=SESSION.close_time.minute,
-            seconds=SESSION.close_time.second,
-        )
-        close_aligned = normalized + offset
-        return close_aligned.tz_convert("UTC")
+def _build_timeframe_dependencies(timeframes: list[str]) -> dict[str, list[str]]:
+    minutes = {tf: timeframe_to_timedelta(tf).total_seconds() / 60 for tf in timeframes}
+    ordered = sorted(timeframes, key=lambda tf: minutes[tf])
+    dependencies: dict[str, list[str]] = {}
 
-    return dt_index.tz_convert("UTC")
+    for base_tf in ordered:
+        deps = [tf for tf in ordered if minutes[tf] >= minutes[base_tf]]
+        dependencies[base_tf] = deps
+    return dependencies
+
+
+TIMEFRAME_DEPENDENCIES = _build_timeframe_dependencies(list(TIMEFRAME_EXPORTS.keys()))
+
+
+def _annotate_raw_frame(
+    timeframe: str,
+    raw_exports: dict[str, pd.DataFrame],
+) -> pd.DataFrame:
+    df = raw_exports[timeframe].rename(columns=COLUMN_RENAMES).copy()
+    df = df.drop(columns=OHLC_COLUMNS.union({"timestamp"}), errors="ignore")
+    bar_open, bar_close, bar_lookup = compute_bar_window_columns(
+        raw_exports[timeframe].index,
+        timeframe,
+        SESSION,
+    )
+    df["bar_open"] = bar_open
+    df["bar_close"] = bar_close
+    df["bar_lookup"] = bar_lookup
+    df = df.sort_values("bar_close").reset_index(drop=True)
+    return df
 
 
 def _golden_cache_dir() -> Path:
@@ -360,38 +362,45 @@ def _build_expected_parquet(
     timeframe: str,
     raw_exports: dict[str, pd.DataFrame],
 ) -> pd.DataFrame:
-    ordered_timeframes = [tf for tf in TIMEFRAME_ORDER if tf in raw_exports]
-    base_open_index = raw_exports[timeframe].index
-    base_available_index = _align_available_index_for_test(
-        base_open_index,
-        timeframe,
-    )
-    base_df = _strip_price_columns(raw_exports[timeframe]).reindex(base_open_index)
-    base_df.index = base_available_index
-    base_minutes = timeframe_to_timedelta(timeframe).total_seconds()
-    base_df = base_df.rename(columns=COLUMN_RENAMES)
+    dependencies = TIMEFRAME_DEPENDENCIES.get(timeframe, [timeframe])
+    annotated = {tf: _annotate_raw_frame(tf, raw_exports) for tf in dependencies}
+    base_frame = annotated[timeframe]
 
-    for higher_tf in ordered_timeframes:
-        higher_minutes = timeframe_to_timedelta(higher_tf).total_seconds()
-        if higher_minutes <= base_minutes:
-            continue
-        higher_df = _strip_price_columns(raw_exports[higher_tf]).copy()
-        higher_df = higher_df.rename(columns=COLUMN_RENAMES)
-        higher_df.index = _align_available_index_for_test(
-            higher_df.index,
-            higher_tf,
+    result = pd.DataFrame({"available_at": base_frame["bar_open"]})
+    result = result.sort_values("available_at").reset_index(drop=True)
+
+    for tf in dependencies:
+        frame = annotated[tf]
+        merged = pd.merge_asof(
+            result[[CACHE_TIMESTAMP_COLUMN]],
+            frame,
+            left_on=CACHE_TIMESTAMP_COLUMN,
+            right_on="bar_close",
+            direction="backward",
+            allow_exact_matches=True,
         )
-        aligned = higher_df.reindex(base_available_index, method="ffill")
-        base_df = pd.concat([base_df, aligned], axis=1)
+        feature_cols = [
+            col
+            for col in frame.columns
+            if col not in {"bar_open", "bar_close", "bar_lookup"}
+        ]
+        for col in feature_cols:
+            result[col] = merged[col]
 
-    final_df = base_df.reset_index()
-    index_name = base_df.index.name or "index"
-    final_df = final_df.rename(columns={index_name: CACHE_TIMESTAMP_COLUMN})
-    cols = final_df.columns.tolist()
+        slug = tf.lower()
+        result[f"{slug}_bar_open"] = merged["bar_open"]
+        result[f"{slug}_bar_close"] = merged["bar_close"]
+        result[f"{slug}_bar_lookup_key"] = merged["bar_lookup"]
+
+    result[CACHE_TIMESTAMP_COLUMN] = pd.to_datetime(
+        result[CACHE_TIMESTAMP_COLUMN],
+        utc=True,
+    )
+    cols = result.columns.tolist()
     ordered_cols = [CACHE_TIMESTAMP_COLUMN] + [
-        c for c in cols if c != CACHE_TIMESTAMP_COLUMN
+        col for col in cols if col != CACHE_TIMESTAMP_COLUMN
     ]
-    return final_df[ordered_cols]
+    return result[ordered_cols]
 
 
 @pytest.mark.validation
@@ -536,6 +545,7 @@ def test_cache_builder_produces_available_after_close(
         config_path=GLOBAL_FEATURES_CONFIG,
         timeframes=list(TIMEFRAME_EXPORTS.keys()),
         overwrite=True,
+        include_bar_windows=True,
     )
 
     builder_exports: dict[str, pd.DataFrame] = {}

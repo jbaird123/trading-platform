@@ -17,9 +17,9 @@ import shutil
 from collections import OrderedDict
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 from trading_platform.core.global_features_cache import build_global_feature_caches
+from trading_platform.data.bar_windows import compute_bar_window_columns
 from trading_platform.data.instrument import get_instrument_definition
 from trading_platform.data.resample import timeframe_to_timedelta
 
@@ -62,6 +62,14 @@ TIMEFRAME_EXPORTS = OrderedDict(
     ]
 )
 PARQUET_FILENAMES = {"1H": "1h.parquet", "4H": "4h.parquet", "1D": "1d.parquet"}
+COLUMN_RENAMES = {
+    "h1_adx_14_DI+": "h1_adx_14_DIplus",
+    "h1_adx_14_DI-": "h1_adx_14_DIminus",
+    "h4_adx_14_DI+": "h4_adx_14_DIplus",
+    "h4_adx_14_DI-": "h4_adx_14_DIminus",
+    "d1_adx_14_DI+": "d1_adx_14_DIplus",
+    "d1_adx_14_DI-": "d1_adx_14_DIminus",
+}
 
 
 def _config_hash() -> str:
@@ -72,76 +80,19 @@ def _load_export(csv_name: str) -> pd.DataFrame:
     path = RAW_DIR / csv_name
     if not path.exists():
         raise FileNotFoundError(f"TradingView export not found: {path}")
-    df = pd.read_csv(path, parse_dates=["time"])
-    if "time" not in df.columns:
+    raw = pd.read_csv(path)
+    if "time" not in raw.columns:
         raise ValueError(f"'time' column missing from {path}")
-    idx = pd.DatetimeIndex(pd.to_datetime(df["time"], utc=True), name="time")
+    raw_times = raw["time"].astype(str)
+    idx = pd.DatetimeIndex(pd.to_datetime(raw_times, utc=True), name="time")
+    raw["_lookup_key"] = raw_times
     df = (
-        df.drop(columns=["time"])
+        raw.drop(columns=["time"])
         .set_index(idx)
         .sort_index()
         .drop(columns=OHLC_COLUMNS + ["timestamp"], errors="ignore")
     )
     return df
-
-
-def _align_available_index(
-    index: pd.DatetimeIndex,
-    timeframe: str,
-) -> pd.DatetimeIndex:
-    """Return timestamps representing when the bar finishes forming."""
-
-    tf_upper = timeframe.upper()
-    if SESSION and tf_upper.endswith("D"):
-        localized = index.tz_convert(SESSION.close_timezone)
-        shifted = localized + pd.DateOffset(days=1)
-        normalized = shifted.normalize()
-        offset = pd.Timedelta(
-            hours=SESSION.close_time.hour,
-            minutes=SESSION.close_time.minute,
-            seconds=SESSION.close_time.second,
-        )
-        close_aligned = normalized + offset
-        return close_aligned.tz_convert("UTC")
-
-    return index.tz_convert("UTC")
-
-
-def _compute_bar_windows(
-    open_index: pd.DatetimeIndex,
-    aligned_index: pd.DatetimeIndex,
-    timeframe: str,
-) -> pd.DataFrame:
-    """Return per-bar open/close times keyed by available timestamp."""
-
-    open_index = pd.DatetimeIndex(open_index)
-    aligned_index = pd.DatetimeIndex(aligned_index)
-    if open_index.tz is None:
-        open_index = open_index.tz_localize("UTC")
-    if aligned_index.tz is None:
-        aligned_index = aligned_index.tz_localize("UTC")
-
-    if len(open_index) != len(aligned_index):
-        raise ValueError("Open/close indices must have matching lengths.")
-
-    delta = timeframe_to_timedelta(timeframe)
-    true_close = aligned_index
-    true_open = true_close - delta
-
-    tf_lower = timeframe.lower()
-    if tf_lower.endswith("d"):
-        lookup_index = aligned_index.normalize().tz_convert("UTC")
-    else:
-        lookup_index = open_index.tz_convert("UTC")
-
-    return pd.DataFrame(
-        {
-            "bar_open": true_open.tz_convert("UTC"),
-            "bar_close": true_close.tz_convert("UTC"),
-            "bar_lookup": lookup_index,
-        },
-        index=aligned_index,
-    )
 
 
 def _parse_args() -> argparse.Namespace:
@@ -165,99 +116,113 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _build_embedded_frames(
-    target_timeframes: list[str],
-) -> tuple[
-    dict[str, pd.DataFrame],
-    dict[str, list[str]],
-    dict[str, pd.DataFrame],
-]:
-    feature_frames: dict[str, pd.DataFrame] = {}
-    bar_windows: dict[str, pd.DataFrame] = {}
-    for tf in target_timeframes:
-        df = _load_export(TIMEFRAME_EXPORTS[tf][0])
-        open_index = pd.DatetimeIndex(df.index)
-        close_index = _align_available_index(open_index, tf)
-        df.index = close_index
-        feature_frames[tf] = df
-        bar_windows[tf] = _compute_bar_windows(open_index, close_index, tf)
+def _load_timeframe_frame(timeframe: str) -> pd.DataFrame:
+    """Load raw timeframe data and annotate open/close/lookup metadata."""
+
+    raw_df = _load_export(TIMEFRAME_EXPORTS[timeframe][0]).rename(
+        columns=COLUMN_RENAMES
+    )
+    raw_df = raw_df.sort_index()
+    lookup_strings = raw_df.pop("_lookup_key").astype(str)
+    bar_open, bar_close, _ = compute_bar_window_columns(
+        raw_df.index,
+        timeframe,
+        SESSION,
+    )
+
+    frame = raw_df.copy()
+    frame["bar_open"] = bar_open
+    frame["bar_close"] = bar_close
+    frame["bar_lookup"] = lookup_strings
+    frame = frame.sort_values("bar_close").reset_index(drop=True)
+    return frame
+
+
+def _build_dependencies(timeframes: list[str]) -> dict[str, list[str]]:
+    """Map each base timeframe to the list of timeframes it depends on."""
 
     td_minutes = {
-        tf: timeframe_to_timedelta(tf).total_seconds() / 60 for tf in feature_frames
+        tf: timeframe_to_timedelta(tf).total_seconds() / 60 for tf in timeframes
     }
-
-    embedded: dict[str, pd.DataFrame] = {}
+    ordered = sorted(timeframes, key=lambda tf: td_minutes[tf])
     dependencies: dict[str, list[str]] = {}
-    ordered_targets = sorted(target_timeframes, key=lambda tf: td_minutes[tf])
 
-    for base_tf in ordered_targets:
-        base_index = feature_frames[base_tf].index
-        base_df = feature_frames[base_tf].reindex(base_index)
-        dependencies[base_tf] = [base_tf]
+    for base_tf in ordered:
+        deps = [tf for tf in ordered if td_minutes[tf] >= td_minutes[base_tf]]
+        dependencies[base_tf] = deps
 
-        for higher_tf in ordered_targets:
-            if td_minutes[higher_tf] <= td_minutes[base_tf]:
-                continue
-            higher_df = feature_frames[higher_tf]
-            aligned = higher_df.reindex(base_index, method="ffill")
-            base_df = pd.concat([base_df, aligned], axis=1)
-            dependencies[base_tf].append(higher_tf)
-
-        embedded[base_tf] = base_df
-
-    return embedded, dependencies, bar_windows
+    return dependencies
 
 
-def _finalize_frame(
-    df: pd.DataFrame,
-    timeframes: list[str],
-    include_windows: bool,
-    bar_windows: dict[str, pd.DataFrame],
+def _merge_features_for_timeframe(
+    available_times: pd.Series,
+    raw_frame: pd.DataFrame,
 ) -> pd.DataFrame:
-    final_df = df.reset_index()
-    index_name = df.index.name or TIMESTAMP_COLUMN
-    final_df = final_df.rename(columns={index_name: TIMESTAMP_COLUMN})
-    final_df[TIMESTAMP_COLUMN] = pd.to_datetime(
-        final_df[TIMESTAMP_COLUMN],
-        utc=True,
+    """Return the latest raw bar whose close is <= available_at."""
+
+    merged = pd.merge_asof(
+        available_times.to_frame(name="available_at"),
+        raw_frame,
+        left_on="available_at",
+        right_on="bar_close",
+        direction="backward",
+        allow_exact_matches=True,
     )
-    cols = final_df.columns.tolist()
-    ordered_cols = [TIMESTAMP_COLUMN] + [c for c in cols if c != TIMESTAMP_COLUMN]
-    final_df = final_df[ordered_cols]
-
-    if include_windows:
-        final_df = _append_bar_windows(final_df, timeframes, bar_windows)
-    return final_df
+    return merged
 
 
-def _append_bar_windows(
-    frame: pd.DataFrame,
-    timeframes: list[str],
-    bar_windows: dict[str, pd.DataFrame],
+def _build_target_frame(
+    base_timeframe: str,
+    dependencies: list[str],
+    raw_frames: dict[str, pd.DataFrame],
 ) -> pd.DataFrame:
-    available_idx = pd.DatetimeIndex(frame[TIMESTAMP_COLUMN])
+    """Construct the golden rows for a single target timeframe."""
 
+    base_raw = raw_frames[base_timeframe]
+    result = pd.DataFrame({"available_at": base_raw["bar_open"]})
+    result = result.sort_values("available_at").reset_index(drop=True)
+
+    for tf in dependencies:
+        raw_frame = raw_frames[tf]
+        merged = _merge_features_for_timeframe(result["available_at"], raw_frame)
+        slug = tf.lower()
+
+        feature_cols = [
+            col
+            for col in raw_frame.columns
+            if col not in {"bar_open", "bar_close", "bar_lookup"}
+        ]
+        for col in feature_cols:
+            result[col] = merged[col]
+
+        result[f"{slug}_bar_open"] = merged["bar_open"]
+        result[f"{slug}_bar_close"] = merged["bar_close"]
+        result[f"{slug}_bar_lookup_key"] = merged["bar_lookup"]
+
+    return result
+
+
+def _validate_bar_windows(frame: pd.DataFrame, timeframes: list[str]) -> None:
+    available = pd.to_datetime(frame[TIMESTAMP_COLUMN], utc=True)
     for tf in timeframes:
-        windows = bar_windows[tf].reindex(available_idx, method="ffill")
         slug = tf.lower()
         open_col = f"{slug}_bar_open"
         close_col = f"{slug}_bar_close"
-        lookup_col = f"{slug}_bar_lookup_key"
-        open_values = windows["bar_open"].to_numpy()
-        close_values = windows["bar_close"].to_numpy()
-        lookup_values = windows["bar_lookup"].to_numpy()
-        frame[open_col] = open_values
-        frame[close_col] = close_values
-        frame[lookup_col] = lookup_values
-
-        mask = (~pd.isna(open_values)) & (~pd.isna(close_values))
-        if mask.any() and np.any(close_values[mask] < open_values[mask]):
+        if open_col not in frame or close_col not in frame:
+            continue
+        opens = pd.to_datetime(frame[open_col], utc=True, errors="coerce")
+        closes = pd.to_datetime(frame[close_col], utc=True, errors="coerce")
+        mask = opens.notna() & closes.notna()
+        if not mask.any():
+            continue
+        if (closes[mask] <= opens[mask]).any():
             raise ValueError(
-                f"Look-ahead risk detected for timeframe {tf}; "
-                "bar close precedes bar open."
+                f"{tf} bar_close must be greater than bar_open for all rows."
             )
-
-    return frame
+        if (closes[mask] > available[mask]).any():
+            raise ValueError(
+                f"{tf} bar_close exceeds available_at, indicating look-ahead bias."
+            )
 
 
 def _prepare_output_dir() -> Path:
@@ -305,29 +270,50 @@ def _write_metadata(
 def main() -> None:
     args = _parse_args()
     targets = args.timeframes or list(TIMEFRAME_EXPORTS.keys())
-    embedded, dependencies, bar_windows = _build_embedded_frames(targets)
+    raw_frames = {tf: _load_timeframe_frame(tf) for tf in TIMEFRAME_EXPORTS}
+    dependencies = _build_dependencies(list(TIMEFRAME_EXPORTS.keys()))
+    built_frames: dict[str, pd.DataFrame] = {}
     cache_dir = _prepare_output_dir()
     written_paths: dict[str, Path] = {}
 
     for timeframe in targets:
         _, parquet_name = TIMEFRAME_EXPORTS[timeframe]
-        df = embedded[timeframe]
-        final_df = _finalize_frame(
-            df,
-            [timeframe],
-            args.include_bar_windows,
-            bar_windows,
+        frame = _build_target_frame(
+            timeframe,
+            dependencies[timeframe],
+            raw_frames,
         )
+        frame["available_at"] = pd.to_datetime(
+            frame["available_at"],
+            utc=True,
+        )
+        _validate_bar_windows(frame, dependencies[timeframe])
+
+        if not args.include_bar_windows:
+            drop_cols = [
+                col
+                for col in frame.columns
+                if col.endswith("_bar_open")
+                or col.endswith("_bar_close")
+                or col.endswith("_bar_lookup_key")
+            ]
+            frame = frame.drop(columns=drop_cols)
+
+        cols = frame.columns.tolist()
+        ordered_cols = [TIMESTAMP_COLUMN] + [c for c in cols if c != TIMESTAMP_COLUMN]
+        frame = frame[ordered_cols]
+        built_frames[timeframe] = frame
+
         filename = PARQUET_FILENAMES[timeframe]
         dest = cache_dir / filename
-        final_df.to_parquet(dest, index=False)
+        frame.to_parquet(dest, index=False)
         written_paths[timeframe] = dest
         print(
             f"Wrote {dest.relative_to(PROJECT_ROOT)} "
-            f"({len(final_df)} rows, {len(final_df.columns)} columns)"
+            f"({len(frame)} rows, {len(frame.columns)} columns)"
         )
 
-    _write_metadata(cache_dir, embedded, written_paths)
+    _write_metadata(cache_dir, built_frames, written_paths)
 
     descriptor = build_global_feature_caches(
         symbol=SYMBOL,

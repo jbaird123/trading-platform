@@ -160,7 +160,8 @@ def test_build_global_feature_caches_includes_bar_windows(tmp_path) -> None:
         bar_close,
         check_names=False,
     )
-    assert_series_equal(bar_close, available, check_names=False)
+    assert (bar_open < bar_close).all()
+    assert (bar_close <= available).all()
     lookup = pd.to_datetime(five_min_df["5min_bar_lookup_key"], utc=True)
     assert (lookup <= available).all()
 
