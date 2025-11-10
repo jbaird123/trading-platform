@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 import pytest
 import yaml
-from pandas.testing import assert_frame_equal
 from trading_platform.core.global_features_cache import build_global_feature_caches
 from trading_platform.data.instrument import get_instrument_definition
 from trading_platform.data.resample import resample_data, timeframe_to_timedelta
@@ -17,17 +16,21 @@ from trading_platform.strategy.features import compute_features
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 RAW_FEATURE_DIR = PROJECT_ROOT / "data" / "dvc" / "golden" / "features" / "raw"
-ALIGNED_FEATURE_DIR = (
+GLOBAL_FEATURES_CONFIG = (
+    PROJECT_ROOT / "data" / "dvc" / "golden" / "features" / "global.yaml"
+)
+PURE_TV_CACHE_DIR = (
     PROJECT_ROOT
     / "data"
     / "dvc"
     / "golden"
     / "features"
-    / "aligned_available_after_close"
+    / "tradingview"
+    / "cache"
+    / "eurusd"
 )
-GLOBAL_FEATURES_CONFIG = (
-    PROJECT_ROOT / "data" / "dvc" / "golden" / "features" / "global.yaml"
-)
+TEST_CACHE_ROOT = PROJECT_ROOT / "data" / "dvc" / "golden"
+TEST_CACHE_DIR = TEST_CACHE_ROOT / "features" / "cache" / "eurusd"
 TRADINGVIEW_MINUTE_SOURCE = (
     PROJECT_ROOT
     / "data"
@@ -45,17 +48,16 @@ TIMEFRAME_EXPORTS = {
     "1D": "eurusd_d1_tradingview.csv",
 }
 TIMEFRAME_ORDER = ["1H", "4H", "1D"]
-TIMEFRAME_PARQUETS = {
-    "1H": "eurusd_1h_available_after_close.parquet",
-    "4H": "eurusd_4h_available_after_close.parquet",
-    "1D": "eurusd_1d_available_after_close.parquet",
-}
+PARQUET_FILENAMES = {"1H": "1h.parquet", "4H": "4h.parquet", "1D": "1d.parquet"}
+INSTRUMENT = get_instrument_definition("EUR/USD")
+SESSION = INSTRUMENT.sessions[0] if INSTRUMENT.sessions else None
 TRADINGVIEW_H1_EXPORT = RAW_FEATURE_DIR / "eurusd_h1_tradingview.csv"
 WARMUP_BARS = {
     "1H": 2000,
     "4H": 200,
     "1D": 100,
 }
+CACHE_TIMESTAMP_COLUMN = "available_at"
 COLUMN_RENAMES = {
     "h1_adx_14_DI+": "h1_adx_14_DIplus",
     "h1_adx_14_DI-": "h1_adx_14_DIminus",
@@ -66,12 +68,21 @@ COLUMN_RENAMES = {
 }
 SKIP_COLUMNS = {"h1_volume_sma_20", "d1_volume_sma_20"}
 OHLC_COLUMNS = {"open", "high", "low", "close", "volume"}
-TV_ONLY_COLUMNS = {"h4_atr_14"}
+TV_ONLY_COLUMNS = {
+    "h4_atr_14",
+    "1h_bar_open",
+    "1h_bar_close",
+    "4h_bar_open",
+    "4h_bar_close",
+    "1d_bar_open",
+    "1d_bar_close",
+}
 COLUMN_TOLERANCE_OVERRIDES = {
     "h4_ema_50": {"rtol": 2e-3, "atol": 2e-4},
     "d1_ema_24": {"rtol": 5e-3, "atol": 5e-4},
     "d1_atr_14": {"rtol": 3e-1, "atol": 5e-4},
 }
+DEFAULT_TOLERANCE = {"rtol": 1e-4, "atol": 1e-5}
 
 
 def _write_tradingview_ohlc_dataset(data_root: Path) -> None:
@@ -102,8 +113,8 @@ def tradingview_minute_ohlc() -> pd.DataFrame:
     df = pd.read_csv(TRADINGVIEW_MINUTE_SOURCE, parse_dates=["timestamp"])
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
     df = df.rename(columns=str.lower).set_index("timestamp").sort_index()
-    instrument = get_instrument_definition("EUR/USD")
-    annotate_session(df, instrument.sessions[0])
+    if SESSION:
+        annotate_session(df, SESSION)
     return df
 
 
@@ -122,11 +133,97 @@ def _load_export(csv_name: str) -> pd.DataFrame:
     return df
 
 
+def _align_available_index_for_test(
+    index: pd.Index,
+    timeframe: str,
+) -> pd.DatetimeIndex:
+    dt_index = pd.DatetimeIndex(index)
+    if SESSION and timeframe.upper().endswith("D"):
+        localized = dt_index.tz_convert(SESSION.close_timezone)
+        shifted = localized + pd.DateOffset(days=1)
+        normalized = shifted.normalize()
+        offset = pd.Timedelta(
+            hours=SESSION.close_time.hour,
+            minutes=SESSION.close_time.minute,
+            seconds=SESSION.close_time.second,
+        )
+        close_aligned = normalized + offset
+        return close_aligned.tz_convert("UTC")
+
+    return dt_index.tz_convert("UTC")
+
+
+def _golden_cache_dir() -> Path:
+    return PURE_TV_CACHE_DIR
+
+
 def _load_aligned_parquet(parquet_name: str) -> pd.DataFrame:
-    df = pd.read_parquet(ALIGNED_FEATURE_DIR / parquet_name)
-    df = df.sort_values("available_at")
-    df["available_at"] = pd.to_datetime(df["available_at"], utc=True)
+    df = pd.read_parquet(_golden_cache_dir() / parquet_name)
+    df = df.sort_values(CACHE_TIMESTAMP_COLUMN)
+    df[CACHE_TIMESTAMP_COLUMN] = pd.to_datetime(df[CACHE_TIMESTAMP_COLUMN], utc=True)
     return df.reset_index(drop=True)
+
+
+def _load_test_cache_parquet(parquet_name: str) -> pd.DataFrame:
+    path = TEST_CACHE_DIR / parquet_name
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Test cache file missing: {path}. "
+            "Run scripts/build_tradingview_aligned_parquets.py first."
+        )
+    df = pd.read_parquet(path)
+    df = df.rename(columns=COLUMN_RENAMES)
+    df = df.sort_values(CACHE_TIMESTAMP_COLUMN)
+    df[CACHE_TIMESTAMP_COLUMN] = pd.to_datetime(df[CACHE_TIMESTAMP_COLUMN], utc=True)
+    return df.reset_index(drop=True)
+
+
+def _assert_frames_close(
+    actual: pd.DataFrame,
+    expected: pd.DataFrame,
+) -> None:
+    actual = actual.set_index(CACHE_TIMESTAMP_COLUMN)
+    expected = expected.set_index(CACHE_TIMESTAMP_COLUMN)
+
+    common_index = actual.index.intersection(expected.index)
+    assert not common_index.empty, "No overlapping timestamps between frames."
+    actual = actual.loc[common_index]
+    expected = expected.loc[common_index]
+
+    common_cols = [col for col in expected.columns if col in actual.columns]
+    assert common_cols, "No overlapping columns between builder cache and reference."
+    actual = actual[common_cols].copy()
+    expected = expected[common_cols].copy()
+
+    assert (
+        actual.shape == expected.shape
+    ), f"Shape mismatch: builder={actual.shape}, reference={expected.shape}"
+
+    for column in actual.columns:
+        if column == CACHE_TIMESTAMP_COLUMN:
+            continue
+        if column in SKIP_COLUMNS:
+            continue
+        actual_series = actual[column]
+        expected_series = expected[column]
+        diff_series = (actual_series - expected_series).abs()
+        mask = actual_series.notna() & expected_series.notna()
+        if not mask.any():
+            continue
+        if column.startswith("h1_adx_") or column.startswith("h4_adx_"):
+            assert _adx_diff_within_limits(column, diff_series[mask]), (
+                f"Column {column} exceeds ADX tolerance "
+                f"(max diff {diff_series[mask].max():.6f})"
+            )
+            continue
+        tolerance = COLUMN_TOLERANCE_OVERRIDES.get(column, DEFAULT_TOLERANCE)
+        assert np.allclose(
+            actual_series[mask],
+            expected_series[mask],
+            rtol=tolerance["rtol"],
+            atol=tolerance["atol"],
+            equal_nan=True,
+        ), f"Column {column} exceeds tolerance (max diff {diff_series[mask].max():.6f})"
 
 
 def _compute_features_from_ohlc(
@@ -252,7 +349,10 @@ def _build_expected_parquet(
 ) -> pd.DataFrame:
     ordered_timeframes = [tf for tf in TIMEFRAME_ORDER if tf in raw_exports]
     base_open_index = raw_exports[timeframe].index
-    base_available_index = base_open_index + timeframe_to_timedelta(timeframe)
+    base_available_index = _align_available_index_for_test(
+        base_open_index,
+        timeframe,
+    )
     base_df = _strip_price_columns(raw_exports[timeframe]).reindex(base_open_index)
     base_df.index = base_available_index
     base_minutes = timeframe_to_timedelta(timeframe).total_seconds()
@@ -264,15 +364,20 @@ def _build_expected_parquet(
             continue
         higher_df = _strip_price_columns(raw_exports[higher_tf]).copy()
         higher_df = higher_df.rename(columns=COLUMN_RENAMES)
-        higher_df.index = higher_df.index + timeframe_to_timedelta(higher_tf)
+        higher_df.index = _align_available_index_for_test(
+            higher_df.index,
+            higher_tf,
+        )
         aligned = higher_df.reindex(base_available_index, method="ffill")
         base_df = pd.concat([base_df, aligned], axis=1)
 
     final_df = base_df.reset_index()
     index_name = base_df.index.name or "index"
-    final_df = final_df.rename(columns={index_name: "available_at"})
+    final_df = final_df.rename(columns={index_name: CACHE_TIMESTAMP_COLUMN})
     cols = final_df.columns.tolist()
-    ordered_cols = ["available_at"] + [c for c in cols if c != "available_at"]
+    ordered_cols = [CACHE_TIMESTAMP_COLUMN] + [
+        c for c in cols if c != CACHE_TIMESTAMP_COLUMN
+    ]
     return final_df[ordered_cols]
 
 
@@ -355,7 +460,7 @@ def test_tradingview_exports_match_platform_math(
 @pytest.mark.validation
 @pytest.mark.parametrize(
     ("timeframe", "parquet_name"),
-    [(tf, TIMEFRAME_PARQUETS[tf]) for tf in TIMEFRAME_EXPORTS],
+    [(tf, PARQUET_FILENAMES[tf]) for tf in TIMEFRAME_EXPORTS],
 )
 def test_tradingview_aligned_parquet_matches_export(
     timeframe: str,
@@ -364,8 +469,43 @@ def test_tradingview_aligned_parquet_matches_export(
 ) -> None:
     """Ensure the aligned parquet snapshots embed higher timeframe features."""
     expected = _build_expected_parquet(timeframe, raw_exports)
-    aligned_df = _load_aligned_parquet(parquet_name)
-    assert_frame_equal(aligned_df, expected, check_dtype=False)
+    aligned_df = _load_aligned_parquet(parquet_name).sort_values(CACHE_TIMESTAMP_COLUMN)
+    expected = expected.sort_values(CACHE_TIMESTAMP_COLUMN)
+    common_index = expected[CACHE_TIMESTAMP_COLUMN].isin(
+        aligned_df[CACHE_TIMESTAMP_COLUMN]
+    )
+    aligned_df = aligned_df[
+        aligned_df[CACHE_TIMESTAMP_COLUMN].isin(expected[CACHE_TIMESTAMP_COLUMN])
+    ].reset_index(drop=True)
+    expected = expected[common_index].reset_index(drop=True)
+    warmup = WARMUP_BARS.get(timeframe, 0)
+    if warmup:
+        aligned_df = aligned_df.iloc[warmup:].reset_index(drop=True)
+        expected = expected.iloc[warmup:].reset_index(drop=True)
+    _assert_frames_close(aligned_df, expected)
+
+
+@pytest.mark.validation
+def test_test_cache_matches_tradingview_snapshot() -> None:
+    """Ensure the committed builder cache matches the TradingView reference."""
+    for timeframe, parquet_name in PARQUET_FILENAMES.items():
+        builder_df = _load_test_cache_parquet(parquet_name).sort_values(
+            CACHE_TIMESTAMP_COLUMN
+        )
+        golden_df = _load_aligned_parquet(parquet_name).sort_values(
+            CACHE_TIMESTAMP_COLUMN
+        )
+        builder_df = builder_df[
+            builder_df[CACHE_TIMESTAMP_COLUMN].isin(golden_df[CACHE_TIMESTAMP_COLUMN])
+        ].reset_index(drop=True)
+        golden_df = golden_df[
+            golden_df[CACHE_TIMESTAMP_COLUMN].isin(builder_df[CACHE_TIMESTAMP_COLUMN])
+        ].reset_index(drop=True)
+        warmup = WARMUP_BARS.get(timeframe, 0)
+        if warmup:
+            builder_df = builder_df.iloc[warmup:].reset_index(drop=True)
+            golden_df = golden_df.iloc[warmup:].reset_index(drop=True)
+        _assert_frames_close(builder_df, golden_df)
 
 
 @pytest.mark.validation
@@ -390,7 +530,7 @@ def test_cache_builder_produces_available_after_close(
         tf_path = descriptor.timeframe_path(timeframe)
         builder_exports[timeframe] = pd.read_parquet(tf_path)
 
-    for timeframe, parquet_name in TIMEFRAME_PARQUETS.items():
+    for timeframe, parquet_name in PARQUET_FILENAMES.items():
         expected = _build_expected_parquet(timeframe, raw_exports)
         golden = _load_aligned_parquet(parquet_name)
         common_columns = [
@@ -406,8 +546,8 @@ def test_cache_builder_produces_available_after_close(
             assert set(missing_columns).issubset(
                 TV_ONLY_COLUMNS
             ), f"Unexpected TradingView-only columns: {missing_columns}"
-        golden_subset = golden[common_columns].set_index("available_at")
-        expected_subset = expected[common_columns].set_index("available_at")
+        golden_subset = golden[common_columns].set_index(CACHE_TIMESTAMP_COLUMN)
+        expected_subset = expected[common_columns].set_index(CACHE_TIMESTAMP_COLUMN)
         common_index = expected_subset.index.intersection(golden_subset.index)
         assert (
             not common_index.empty

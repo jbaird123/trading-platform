@@ -13,6 +13,7 @@ from typing import Mapping, cast
 
 import pandas as pd
 from pandas.tseries.frequencies import to_offset
+from pandas.tseries.offsets import Week
 
 from trading_platform.data.instrument import SessionDefinition
 from trading_platform.data.session_metadata import (
@@ -48,9 +49,14 @@ def timeframe_to_timedelta(rule: str) -> pd.Timedelta:
         delta = getattr(offset, "delta", None)
     if isinstance(delta, pd.Timedelta):
         return delta
-    nanos = getattr(offset, "nanos", None)
-    if nanos is not None:
+    try:
+        nanos = getattr(offset, "nanos", None)
+    except ValueError:
+        nanos = None
+    if nanos is not None and nanos != 0:
         return pd.Timedelta(nanos, unit="ns")
+    if isinstance(offset, Week):
+        return pd.Timedelta(days=7 * offset.n)
     return pd.to_timedelta(offset.freqstr)
 
 

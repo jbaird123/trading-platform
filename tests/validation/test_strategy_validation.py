@@ -21,6 +21,9 @@ import pytest
 from trading_platform.core.global_features_cache import cache_covers_features
 from trading_platform.portfolio.trade import Trade
 
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+GOLDEN_FEATURE_CACHE_ROOT = PROJECT_ROOT / "data" / "dvc" / "golden"
+
 # Golden validation utilities (ALWAYS use these for golden tests)
 
 # Note: Backtester imports will be added when implementing
@@ -709,7 +712,7 @@ def load_platform_trades(
             if symbol_for_cache:
                 use_cached_global = cache_covers_features(
                     symbol=symbol_for_cache,
-                    data_root=data_handler.data_root,
+                    cache_root=GOLDEN_FEATURE_CACHE_ROOT,
                     config_path=golden_features_path,
                     timeframe=execution_timeframe,
                     feature_names=feature_names,

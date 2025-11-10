@@ -21,13 +21,13 @@ from trading_platform.core.global_features import (
 )
 from trading_platform.core.utils import normalize_symbol
 from trading_platform.data.handler import DataHandler
-from trading_platform.data.instrument import InstrumentDefinition
-from trading_platform.data.session_metadata import SESSION_ATTR
+from trading_platform.data.instrument import InstrumentDefinition, SessionDefinition
+from trading_platform.data.session_metadata import ALIGNED_TO_CLOSE_ATTR, SESSION_ATTR
 from trading_platform.strategy.features import compute_features
 
 logger = logging.getLogger(__name__)
 
-_CACHE_SUBDIR = "features/global"
+_CACHE_SUBDIR = "features/cache"
 _DEFAULT_TIMEFRAMES: tuple[str, ...] = ("5min", "15min", "1H", "4H", "1D")
 
 
@@ -50,6 +50,35 @@ def _timeframe_sort_key(timeframe: str) -> tuple[int, str]:
     except Exception:  # pragma: no cover - relies on pandas parsing
         minutes = 0
     return (minutes, timeframe.lower())
+
+
+def _align_available_index(
+    index: pd.Index,
+    timeframe: str,
+    session: SessionDefinition | None,
+    aligned_to_close: bool,
+) -> pd.DatetimeIndex:
+    """Return timestamps that reflect when bar-level data is usable."""
+
+    if not isinstance(index, pd.DatetimeIndex):
+        index = pd.DatetimeIndex(index)
+
+    tf_lower = timeframe.lower()
+    if session and tf_lower.endswith("d"):
+        localized = index.tz_convert(session.close_timezone)
+        normalized = localized.normalize()
+        offset = pd.Timedelta(
+            hours=session.close_time.hour,
+            minutes=session.close_time.minute,
+            seconds=session.close_time.second,
+        )
+        close_aligned = normalized + offset
+        return close_aligned.tz_convert("UTC")
+
+    if aligned_to_close:
+        return index.tz_convert("UTC")
+
+    return index.tz_convert("UTC")
 
 
 def derive_execution_timeframes(config_path: Path) -> list[str]:
@@ -84,7 +113,7 @@ class GlobalFeatureCacheDescriptor:
 
     def base_dir(self) -> Path:
         slug = normalize_symbol(self.symbol).lower()
-        return (self.data_root / _CACHE_SUBDIR / slug / self.config_hash[:12]).resolve()
+        return (self.data_root / _CACHE_SUBDIR / slug).resolve()
 
     def timeframe_path(self, timeframe: str) -> Path:
         tf_slug = timeframe.lower().replace("/", "_")
@@ -113,6 +142,7 @@ def build_global_feature_caches(
     timeframes: Sequence[str] | None = None,
     overwrite: bool = False,
     instrument: InstrumentDefinition | None = None,
+    cache_root: Path | None = None,
 ) -> GlobalFeatureCacheDescriptor:
     """
     Precompute global features for each execution timeframe.
@@ -121,7 +151,9 @@ def build_global_feature_caches(
         GlobalFeatureCacheDescriptor describing the cache location.
     """
 
-    descriptor = _resolve_descriptor(symbol, data_root, config_path)
+    source_data_root = Path(data_root).resolve()
+    storage_root = Path(cache_root).resolve() if cache_root else source_data_root
+    descriptor = _resolve_descriptor(symbol, storage_root, config_path)
     cache_dir = descriptor.base_dir()
 
     if cache_dir.exists():
@@ -145,15 +177,20 @@ def build_global_feature_caches(
 
     handler = DataHandler(
         symbol=symbol,
-        data_root=descriptor.data_root,
+        data_root=source_data_root,
         instrument=instrument,
     )
+    resolved_instrument = instrument or getattr(handler, "instrument", None)
+    default_session: SessionDefinition | None = None
+    if resolved_instrument and resolved_instrument.sessions:
+        default_session = resolved_instrument.sessions[0]
 
     timeframes_meta: dict[str, dict[str, object]] = {}
     metadata: dict[str, object] = {
         "symbol": symbol,
         "normalized_symbol": normalize_symbol(symbol),
-        "data_root": fspath(descriptor.data_root),
+        "data_root": fspath(source_data_root),
+        "cache_root": fspath(descriptor.data_root),
         "config_path": fspath(descriptor.config_path),
         "config_hash": descriptor.config_hash,
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -173,6 +210,8 @@ def build_global_feature_caches(
             continue
 
         df = handler.get_data(timeframe=timeframe)
+        session = df.attrs.get(SESSION_ATTR) or default_session
+        aligned_flag = bool(df.attrs.get(ALIGNED_TO_CLOSE_ATTR, False))
         base_columns = list(df.columns)
         specs = [feature_to_dict(feature) for feature in resolved_features]
         enriched = compute_features(df, specs, strategy_parameters={})
@@ -186,11 +225,26 @@ def build_global_feature_caches(
 
         feature_df = enriched[feature_columns].copy()
         feature_df.attrs.pop(SESSION_ATTR, None)
-        tf_file = descriptor.timeframe_path(timeframe)
-        feature_df.to_parquet(tf_file)
 
+        aligned_index = _align_available_index(
+            feature_df.index,
+            timeframe,
+            session,
+            aligned_flag,
+        )
+        timestamp_col = pd.Series(aligned_index, name="available_at")
+        storage_df = feature_df.copy()
+        storage_df.insert(0, "available_at", timestamp_col.to_numpy())
+        storage_df["available_at"] = pd.to_datetime(
+            storage_df["available_at"], utc=True
+        )
+
+        tf_file = descriptor.timeframe_path(timeframe)
+        storage_df.to_parquet(tf_file, index=False)
+
+        stored_columns = ["available_at"] + feature_columns
         frame_meta: dict[str, object] = {
-            "columns": feature_columns,
+            "columns": stored_columns,
             "rows": int(len(feature_df)),
             "start": feature_df.index[0].isoformat() if len(feature_df) else None,
             "end": feature_df.index[-1].isoformat() if len(feature_df) else None,
@@ -278,21 +332,29 @@ def load_cached_global_features(
     if not columns:
         return None
 
-    df = pd.read_parquet(tf_path, columns=columns)
+    timestamp_col = "available_at"
+    read_columns = columns.copy()
+    if timestamp_col not in read_columns and timestamp_col in all_columns:
+        read_columns = [timestamp_col] + read_columns
+
+    df = pd.read_parquet(tf_path, columns=read_columns)
+    if timestamp_col in df.columns:
+        timestamps = pd.to_datetime(df[timestamp_col], utc=True)
+        df = df.drop(columns=[timestamp_col]).set_index(timestamps)
     return df, mapping
 
 
 def cache_covers_features(
     *,
     symbol: str,
-    data_root: Path,
+    cache_root: Path,
     config_path: Path,
     timeframe: str,
     feature_names: Sequence[str],
 ) -> bool:
     """Return True if the cache contains all requested feature columns."""
 
-    descriptor = _resolve_descriptor(symbol, data_root, config_path)
+    descriptor = _resolve_descriptor(symbol, cache_root, config_path)
     tf_path = descriptor.timeframe_path(timeframe)
     if not tf_path.exists():
         return False

@@ -404,9 +404,10 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         if symbol_candidate and hasattr(data_handler, "data_root"):
             config_path = Path(cfg_global_features_path)
             try:
+                cache_root = getattr(data_handler, "cache_root", data_handler.data_root)
                 skip_global_warmup = cache_covers_features(
                     symbol=symbol_candidate,
-                    data_root=data_handler.data_root,
+                    cache_root=cache_root,
                     config_path=config_path,
                     timeframe=exec_timeframe,
                     feature_names=[
@@ -2034,12 +2035,19 @@ def _precompute_global_features_logic(args: argparse.Namespace) -> int:
     if tf_list is None:
         tf_list = derive_execution_timeframes(config_path)
 
+    cache_root = (
+        Path(args.cache_root).expanduser().resolve()
+        if getattr(args, "cache_root", None)
+        else None
+    )
+
     descriptor = build_global_feature_caches(
         symbol=symbol,
         data_root=data_root,
         config_path=config_path,
         timeframes=tf_list,
         overwrite=args.overwrite,
+        cache_root=cache_root,
     )
 
     metadata_path = descriptor.metadata_path()
@@ -2486,6 +2494,12 @@ def main() -> int:
         "--overwrite",
         action="store_true",
         help="Rebuild cache even if it already exists",
+    )
+    pgfc.add_argument(
+        "--cache-root",
+        default=None,
+        help="Root directory to store cached features "
+        "(default: same as --data-root)",
     )
     pgfc.set_defaults(func=_precompute_global_features_logic)
 

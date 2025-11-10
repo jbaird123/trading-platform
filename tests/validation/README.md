@@ -673,6 +673,23 @@ poetry run python tests/validation/validate_golden_data.py \
    - Understand why comparison changed
    - Likely indicates a regression
 
+#### Quick diff helper
+
+Instead of manually running each comparison, use the helper script to run the
+hash-based pytest modules and auto-generate diffs for every failing strategy:
+
+```bash
+poetry run python scripts/run_golden_hash_checks.py
+```
+
+The script prints the pytest output, collects any `hash mismatch` failures and
+immediately feeds the corresponding workspace/golden files into
+`scripts/golden_compare.py`. Use `--strategies foo/bar baz/qux` to focus the
+diffs on a subset of strategies (tests still run for all of them).
+
+Need the raw pytest logs? Add `--show-pytest-output` to stream the underlying
+stdout/stderr while the script runs.
+
 ### Platform Trades Don't Match TradingView
 
 **Cause**: Strategy logic differs between platform and TradingView.

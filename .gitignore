@@ -210,6 +210,8 @@ data/incremental/**
 !data/incremental/**/.dvc
 data/dvc/raw/**
 !data/dvc/raw/**/*.dvc
+data/dvc/golden/**
+!data/dvc/golden/**/*.dvc
 data/dvc/processed/**
 !data/dvc/processed/**/*.dvc
 

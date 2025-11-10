@@ -20,11 +20,14 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Sequence
 
+import numpy as np
 import pandas as pd
 
 NUM_SAMPLE_ROWS = 10
+COL_WIDTH = 24
+INDENT = "      "
 
 
 def load_frame(path: Path) -> pd.DataFrame:
@@ -48,44 +51,93 @@ def ensure_index(df: pd.DataFrame, index_cols: list[str] | None) -> pd.DataFrame
 
 
 def summarize_numeric(
-    column: str, new_series: pd.Series, golden_series: pd.Series
+    column: str,
+    new_series: pd.Series,
+    golden_series: pd.Series,
+    row_ids: pd.Series | None,
+    entry_times: pd.Series | None,
+    entry_label: str | None,
 ) -> str:
+    new_isna = new_series.isna()
+    golden_isna = golden_series.isna()
+    nan_mismatch = new_isna ^ golden_isna
+
     abs_diff = (new_series - golden_series).abs()
-    summary_lines = [
-        (
-            f"  ⋅ {column}: max_diff={abs_diff.max():.6g}, "
-            f"mean_diff={abs_diff.mean():.6g}, rows={abs_diff.count()}"
-        ),
+    value_mismatch = (~new_isna & ~golden_isna) & (abs_diff > 0)
+    diff_mask = nan_mismatch | value_mismatch
+    diff_count = int(diff_mask.sum())
+    if diff_count == 0:
+        return f"  ⋅ {column}: no differences"
+
+    max_diff = abs_diff[value_mismatch].max() if value_mismatch.any() else float("nan")
+    mean_diff = (
+        abs_diff[value_mismatch].mean() if value_mismatch.any() else float("nan")
+    )
+    samples = (
+        pd.DataFrame(
+            {
+                "new": new_series,
+                "golden": golden_series,
+                "abs_diff": abs_diff,
+                "is_nan_mismatch": nan_mismatch,
+            }
+        )
+        .loc[diff_mask]
+        .sort_values(
+            ["is_nan_mismatch", "abs_diff"],
+            ascending=[True, False],
+        )
+        .head(NUM_SAMPLE_ROWS)
+    )
+
+    header_cols = ["trade#"]
+    include_entry = entry_times is not None
+    if include_entry:
+        header_cols.append(entry_label or "entry_time")
+    header_cols += ["new", "golden", "Δ"]
+
+    lines = [
+        f"  ⋅ {column}: {diff_count} differing row(s)",
+        _format_table_header(header_cols),
     ]
-    if not abs_diff.dropna().empty:
-        samples = (
-            pd.DataFrame(
-                {
-                    "new": new_series,
-                    "golden": golden_series,
-                    "abs_diff": abs_diff,
-                }
+    for idx, row in samples.iterrows():
+        trade_no = row_ids.loc[idx] if row_ids is not None else ""
+        entry_val = _normalize_value(entry_times.loc[idx]) if include_entry else ""
+        new_val = _normalize_value(row["new"])
+        golden_val = _normalize_value(row["golden"])
+        diff_val = row["abs_diff"] if not row["is_nan_mismatch"] else np.nan
+        display_diff = (
+            "nan" if row["is_nan_mismatch"] else f"{_normalize_value(diff_val):.6g}"
+        )
+        if include_entry:
+            lines.append(
+                _format_row(trade_no, entry_val, new_val, golden_val, display_diff)
             )
-            .sort_values("abs_diff", ascending=False)
-            .head(NUM_SAMPLE_ROWS)
+        else:
+            lines.append(_format_row(trade_no, new_val, golden_val, display_diff))
+
+    if value_mismatch.any():
+        lines.append(
+            f"{INDENT}Δ stats (excluding NaN mismatches): "
+            f"max={max_diff:.6g}, mean={mean_diff:.6g}"
         )
-        summary_lines.append("    top discrepancies:")
-        summary_lines.extend(
-            [
-                (
-                    f"      {idx}: new={row['new']!r} golden={row['golden']!r} "
-                    f"diff={row['abs_diff']:.6g}"
-                )
-                for idx, row in samples.iterrows()
-            ]
-        )
-    return "\n".join(summary_lines)
+    return "\n".join(lines)
 
 
 def summarize_non_numeric(
-    column: str, new_series: pd.Series, golden_series: pd.Series
+    column: str,
+    new_series: pd.Series,
+    golden_series: pd.Series,
+    row_ids: pd.Series | None,
+    entry_times: pd.Series | None,
+    entry_label: str | None,
 ) -> str:
-    diff_mask = new_series != golden_series
+    new_isna = new_series.isna()
+    golden_isna = golden_series.isna()
+    both_na = new_isna & golden_isna
+    nan_mismatch = new_isna ^ golden_isna
+    value_diff = (~both_na) & (new_series != golden_series)
+    diff_mask = nan_mismatch | value_diff
     count = int(diff_mask.sum())
     if count == 0:
         return f"  ⋅ {column}: no differences"
@@ -94,15 +146,34 @@ def summarize_non_numeric(
         .loc[diff_mask]
         .head(NUM_SAMPLE_ROWS)
     )
-    lines = [f"  ⋅ {column}: {count} differing row(s)"]
-    lines.append("    sample discrepancies:")
-    lines.extend(
-        [
-            f"      {idx}: new={row['new']!r} golden={row['golden']!r}"
-            for idx, row in samples.iterrows()
-        ]
-    )
+    header_cols = ["trade#"]
+    include_entry = entry_times is not None
+    if include_entry:
+        header_cols.append(entry_label or "entry_time")
+    header_cols += ["new", "golden"]
+
+    lines = [
+        f"  ⋅ {column}: {count} differing row(s)",
+        _format_table_header(header_cols),
+    ]
+    for idx, row in samples.iterrows():
+        trade_no = row_ids.loc[idx] if row_ids is not None else ""
+        entry_val = _normalize_value(entry_times.loc[idx]) if include_entry else ""
+        new_val = _normalize_value(row["new"])
+        golden_val = _normalize_value(row["golden"])
+        if include_entry:
+            lines.append(_format_row(trade_no, entry_val, new_val, golden_val))
+        else:
+            lines.append(_format_row(trade_no, new_val, golden_val))
     return "\n".join(lines)
+
+
+def _normalize_value(value):
+    if isinstance(value, (np.generic,)):
+        return value.item()
+    if isinstance(value, pd.Timestamp):
+        return value.isoformat()
+    return value
 
 
 def compare_frames(new_df: pd.DataFrame, golden_df: pd.DataFrame) -> None:
@@ -140,23 +211,98 @@ def compare_frames(new_df: pd.DataFrame, golden_df: pd.DataFrame) -> None:
         return
 
     if new_cols != golden_cols:
-        print("Column order differs. First few common columns in each:")
-        print(f"  new:    {new_cols[:NUM_SAMPLE_ROWS]}")
-        print(f"  golden: {golden_cols[:NUM_SAMPLE_ROWS]}")
+        print("Column order differs. First mismatched positions:")
+        max_len = max(len(new_cols), len(golden_cols))
+        mismatch_rows: list[tuple[int, str | None, str | None]] = []
+        for idx in range(max_len):
+            new_col = new_cols[idx] if idx < len(new_cols) else None
+            golden_col = golden_cols[idx] if idx < len(golden_cols) else None
+            if new_col != golden_col:
+                mismatch_rows.append((idx, new_col, golden_col))
+            if len(mismatch_rows) >= NUM_SAMPLE_ROWS:
+                break
+        if mismatch_rows:
+            for idx, new_col, golden_col in mismatch_rows:
+                print(f"  idx {idx}: new={new_col!r} " f"golden={golden_col!r}")
+        else:
+            print("  (No mismatch within preview window.)")
 
-    aligned_new = new_df.loc[new_idx.intersection(golden_idx), common_cols]
-    aligned_golden = golden_df.loc[new_idx.intersection(golden_idx), common_cols]
+    aligned_index = new_idx.intersection(golden_idx)
+    aligned_new = new_df.loc[aligned_index, common_cols]
+    aligned_golden = golden_df.loc[aligned_index, common_cols]
+
+    row_id_series: pd.Series | None = None
+    if not aligned_new.empty:
+        row_id_series = pd.Series(
+            range(1, len(aligned_new) + 1), index=aligned_new.index
+        )
+    entry_col, entry_time_series = _detect_entry_series(aligned_new)
 
     print("\nPer-column discrepancies:")
     for col in common_cols:
         new_series = aligned_new[col]
         golden_series = aligned_golden[col]
-        if pd.api.types.is_numeric_dtype(new_series) and pd.api.types.is_numeric_dtype(
-            golden_series
+        if (
+            pd.api.types.is_numeric_dtype(new_series)
+            and pd.api.types.is_numeric_dtype(golden_series)
+            and not (
+                pd.api.types.is_bool_dtype(new_series)
+                or pd.api.types.is_bool_dtype(golden_series)
+            )
         ):
-            print(summarize_numeric(col, new_series, golden_series))
+            print(
+                summarize_numeric(
+                    col,
+                    new_series,
+                    golden_series,
+                    row_id_series,
+                    entry_time_series,
+                    entry_col,
+                )
+            )
         else:
-            print(summarize_non_numeric(col, new_series, golden_series))
+            print(
+                summarize_non_numeric(
+                    col,
+                    new_series,
+                    golden_series,
+                    row_id_series,
+                    entry_time_series,
+                    entry_col,
+                )
+            )
+
+
+def _detect_entry_series(
+    df: pd.DataFrame,
+) -> tuple[str | None, pd.Series | None]:
+    candidates = ["entry_time", "platform_entry_time"]
+    for name in candidates:
+        if name in df.columns:
+            return name, df[name]
+    idx = df.index
+    if isinstance(idx, pd.MultiIndex):
+        for name in candidates:
+            if name in idx.names:
+                return name, pd.Series(idx.get_level_values(name), index=idx)
+    else:
+        for name in candidates:
+            if idx.name == name:
+                return name, pd.Series(idx, index=idx)
+    return None, None
+
+
+def _format_table_header(columns: Sequence[str]) -> str:
+    header = _format_row(*columns)
+    divider = _format_row(*["-" * (COL_WIDTH - 2) for _ in columns])
+    return "\n".join([header, divider])
+
+
+def _format_row(*values) -> str:
+    def render(value: object) -> str:
+        return f"{str(value):<{COL_WIDTH}}"
+
+    return INDENT + " ".join(render(v) for v in values)
 
 
 def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
@@ -175,8 +321,14 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
 
 def main(argv: Iterable[str] | None = None) -> None:
     args = parse_args(argv)
-    new_df = ensure_index(load_frame(args.new), args.index)
-    golden_df = ensure_index(load_frame(args.golden), args.index)
+    compare_paths(args.new, args.golden, args.index)
+
+
+def compare_paths(
+    new_path: Path, golden_path: Path, index_cols: list[str] | None = None
+) -> None:
+    new_df = ensure_index(load_frame(new_path), index_cols)
+    golden_df = ensure_index(load_frame(golden_path), index_cols)
     compare_frames(new_df, golden_df)
 
 

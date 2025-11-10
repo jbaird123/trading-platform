@@ -101,6 +101,33 @@ def test_build_global_feature_caches_is_idempotent(tmp_path) -> None:
     assert first_metadata == second_metadata
 
 
+def test_available_at_matches_bar_close(tmp_path) -> None:
+    data_root = tmp_path / "data_root"
+    csv_dir = data_root / "full" / "eurusd"
+    csv_dir.mkdir(parents=True)
+    csv_path = csv_dir / "eurusd_1min.csv"
+    _write_sample_csv(csv_path)
+    global_yaml = tmp_path / "global.yaml"
+    _write_sample_global_yaml(global_yaml)
+
+    descriptor = build_global_feature_caches(
+        symbol="EUR_USD",
+        data_root=data_root,
+        config_path=global_yaml,
+        timeframes=["5min"],
+        overwrite=True,
+    )
+
+    cache_df = pd.read_parquet(descriptor.timeframe_path("5min"))
+    assert "available_at" in cache_df.columns
+
+    available = pd.to_datetime(cache_df["available_at"], utc=True)
+    assert available.is_monotonic_increasing
+    diffs = available.diff().dropna()
+    assert not diffs.empty
+    assert (diffs == pd.Timedelta(minutes=5)).all()
+
+
 def test_cache_covers_features_detects_available_columns(tmp_path) -> None:
     data_root = tmp_path / "data_root"
     csv_dir = data_root / "full" / "eurusd"
@@ -120,14 +147,14 @@ def test_cache_covers_features_detects_available_columns(tmp_path) -> None:
 
     assert cache_covers_features(
         symbol="EUR_USD",
-        data_root=data_root,
+        cache_root=data_root,
         config_path=global_yaml,
         timeframe="5min",
         feature_names=["m5_test_ema"],
     )
     assert not cache_covers_features(
         symbol="EUR_USD",
-        data_root=data_root,
+        cache_root=data_root,
         config_path=global_yaml,
         timeframe="5min",
         feature_names=["missing_feature"],
