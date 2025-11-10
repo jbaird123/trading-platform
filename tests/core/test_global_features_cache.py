@@ -150,15 +150,19 @@ def test_build_global_feature_caches_includes_bar_windows(tmp_path) -> None:
     five_min_df = pd.read_parquet(descriptor.timeframe_path("5min"))
     assert "5min_bar_open" in five_min_df.columns
     assert "5min_bar_close" in five_min_df.columns
+    assert "5min_bar_lookup_key" in five_min_df.columns
     available = pd.to_datetime(five_min_df["available_at"], utc=True)
     bar_open = pd.to_datetime(five_min_df["5min_bar_open"], utc=True)
     bar_close = pd.to_datetime(five_min_df["5min_bar_close"], utc=True)
-    assert_series_equal(bar_open, available, check_names=False)
+    delta = pd.Timedelta(minutes=5)
     assert_series_equal(
+        bar_open + delta,
         bar_close,
-        available + pd.Timedelta(minutes=5),
         check_names=False,
     )
+    assert_series_equal(bar_close, available, check_names=False)
+    lookup = pd.to_datetime(five_min_df["5min_bar_lookup_key"], utc=True)
+    assert (lookup <= available).all()
 
 
 def test_cache_covers_features_detects_available_columns(tmp_path) -> None:

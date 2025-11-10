@@ -73,10 +73,13 @@ TV_ONLY_COLUMNS = {
     "h4_atr_14",
     "1h_bar_open",
     "1h_bar_close",
+    "1h_bar_lookup_key",
     "4h_bar_open",
     "4h_bar_close",
+    "4h_bar_lookup_key",
     "1d_bar_open",
     "1d_bar_close",
+    "1d_bar_lookup_key",
 }
 COLUMN_TOLERANCE_OVERRIDES = {
     "h4_ema_50": {"rtol": 2e-3, "atol": 2e-4},

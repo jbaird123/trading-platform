@@ -86,25 +86,32 @@ def _compute_bar_windows_for_cache(
     raw_index: pd.Index,
     available_index: pd.DatetimeIndex,
     timeframe: str,
-    session: SessionDefinition | None,
-) -> tuple[pd.DatetimeIndex, pd.DatetimeIndex]:
+) -> tuple[pd.DatetimeIndex, pd.DatetimeIndex, pd.DatetimeIndex]:
     """Return bar open/close timestamps for each available_at row."""
 
     tf_lower = timeframe.lower()
-    if tf_lower.endswith("d"):
-        open_index = available_index.tz_convert("UTC").normalize()
-        close_index = available_index
-    else:
-        open_index = pd.DatetimeIndex(raw_index)
-        if open_index.tz is None:
-            open_index = open_index.tz_localize("UTC")
-        delta = timeframe_to_timedelta(timeframe)
-        close_index = open_index + delta
+    open_index = pd.DatetimeIndex(raw_index)
+    if open_index.tz is None:
+        open_index = open_index.tz_localize("UTC")
+
+    available_index = pd.DatetimeIndex(available_index)
+    if available_index.tz is None:
+        available_index = available_index.tz_localize("UTC")
+
+    delta = timeframe_to_timedelta(timeframe)
+    close_index = available_index
 
     if len(open_index) != len(available_index):
         raise ValueError("Bar window indices must be equal length.")
 
-    return open_index.tz_convert("UTC"), close_index.tz_convert("UTC")
+    true_open = (close_index - delta).tz_convert("UTC")
+    bar_close = close_index.tz_convert("UTC")
+    if tf_lower.endswith("d"):
+        lookup_index = close_index.normalize().tz_convert("UTC")
+    else:
+        lookup_index = open_index.tz_convert("UTC")
+
+    return true_open, bar_close, lookup_index
 
 
 def derive_execution_timeframes(config_path: Path) -> list[str]:
@@ -271,17 +278,18 @@ def build_global_feature_caches(
         tf_slug = timeframe.lower()
         extra_columns: list[str] = []
         if include_bar_windows:
-            bar_open, bar_close = _compute_bar_windows_for_cache(
+            bar_open, bar_close, bar_lookup = _compute_bar_windows_for_cache(
                 raw_index,
                 aligned_index,
                 timeframe,
-                session,
             )
             open_col = f"{tf_slug}_bar_open"
             close_col = f"{tf_slug}_bar_close"
+            lookup_col = f"{tf_slug}_bar_lookup_key"
             storage_df[open_col] = bar_open.to_numpy()
             storage_df[close_col] = bar_close.to_numpy()
-            extra_columns.extend([open_col, close_col])
+            storage_df[lookup_col] = bar_lookup.to_numpy()
+            extra_columns.extend([open_col, close_col, lookup_col])
 
         tf_file = descriptor.timeframe_path(timeframe)
         storage_df.to_parquet(tf_file, index=False)

@@ -124,17 +124,21 @@ def _compute_bar_windows(
     if len(open_index) != len(aligned_index):
         raise ValueError("Open/close indices must have matching lengths.")
 
+    delta = timeframe_to_timedelta(timeframe)
+    true_close = aligned_index
+    true_open = true_close - delta
+
     tf_lower = timeframe.lower()
     if tf_lower.endswith("d"):
-        close_index = aligned_index
+        lookup_index = aligned_index.normalize().tz_convert("UTC")
     else:
-        delta = timeframe_to_timedelta(timeframe)
-        close_index = open_index + delta
+        lookup_index = open_index.tz_convert("UTC")
 
     return pd.DataFrame(
         {
-            "bar_open": open_index.tz_convert("UTC"),
-            "bar_close": close_index.tz_convert("UTC"),
+            "bar_open": true_open.tz_convert("UTC"),
+            "bar_close": true_close.tz_convert("UTC"),
+            "bar_lookup": lookup_index,
         },
         index=aligned_index,
     )
@@ -170,14 +174,12 @@ def _build_embedded_frames(
 ]:
     feature_frames: dict[str, pd.DataFrame] = {}
     bar_windows: dict[str, pd.DataFrame] = {}
-    open_indices: dict[str, pd.DatetimeIndex] = {}
     for tf in target_timeframes:
         df = _load_export(TIMEFRAME_EXPORTS[tf][0])
         open_index = pd.DatetimeIndex(df.index)
         close_index = _align_available_index(open_index, tf)
         df.index = close_index
         feature_frames[tf] = df
-        open_indices[tf] = open_index
         bar_windows[tf] = _compute_bar_windows(open_index, close_index, tf)
 
     td_minutes = {
@@ -240,10 +242,13 @@ def _append_bar_windows(
         slug = tf.lower()
         open_col = f"{slug}_bar_open"
         close_col = f"{slug}_bar_close"
+        lookup_col = f"{slug}_bar_lookup_key"
         open_values = windows["bar_open"].to_numpy()
         close_values = windows["bar_close"].to_numpy()
+        lookup_values = windows["bar_lookup"].to_numpy()
         frame[open_col] = open_values
         frame[close_col] = close_values
+        frame[lookup_col] = lookup_values
 
         mask = (~pd.isna(open_values)) & (~pd.isna(close_values))
         if mask.any() and np.any(close_values[mask] < open_values[mask]):
@@ -309,7 +314,7 @@ def main() -> None:
         df = embedded[timeframe]
         final_df = _finalize_frame(
             df,
-            dependencies[timeframe],
+            [timeframe],
             args.include_bar_windows,
             bar_windows,
         )
