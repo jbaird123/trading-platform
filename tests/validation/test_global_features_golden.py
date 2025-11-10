@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import yaml
+from pandas.testing import assert_series_equal
 from trading_platform.core.global_features_cache import build_global_feature_caches
 from trading_platform.data.instrument import get_instrument_definition
 from trading_platform.data.resample import resample_data, timeframe_to_timedelta
@@ -206,6 +207,15 @@ def _assert_frames_close(
             continue
         actual_series = actual[column]
         expected_series = expected[column]
+        if pd.api.types.is_datetime64_any_dtype(
+            actual_series
+        ) and pd.api.types.is_datetime64_any_dtype(expected_series):
+            assert_series_equal(
+                pd.to_datetime(actual_series, utc=True),
+                pd.to_datetime(expected_series, utc=True),
+                check_names=False,
+            )
+            continue
         diff_series = (actual_series - expected_series).abs()
         mask = actual_series.notna() & expected_series.notna()
         if not mask.any():

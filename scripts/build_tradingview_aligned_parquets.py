@@ -108,17 +108,25 @@ def _align_available_index(
 
 
 def _compute_bar_windows(
+    open_index: pd.DatetimeIndex,
     close_index: pd.DatetimeIndex,
-    timeframe: str,
 ) -> pd.DataFrame:
     """Return per-bar open/close times keyed by available timestamp."""
 
-    delta = timeframe_to_timedelta(timeframe)
-    open_index = close_index - delta
+    open_index = pd.DatetimeIndex(open_index)
+    close_index = pd.DatetimeIndex(close_index)
+    if open_index.tz is None:
+        open_index = open_index.tz_localize("UTC")
+    if close_index.tz is None:
+        close_index = close_index.tz_localize("UTC")
+
+    if len(open_index) != len(close_index):
+        raise ValueError("Open/close indices must have matching lengths.")
+
     return pd.DataFrame(
         {
-            "bar_open": open_index,
-            "bar_close": close_index,
+            "bar_open": open_index.tz_convert("UTC"),
+            "bar_close": close_index.tz_convert("UTC"),
         },
         index=close_index,
     )
@@ -154,12 +162,15 @@ def _build_embedded_frames(
 ]:
     feature_frames: dict[str, pd.DataFrame] = {}
     bar_windows: dict[str, pd.DataFrame] = {}
+    open_indices: dict[str, pd.DatetimeIndex] = {}
     for tf in target_timeframes:
         df = _load_export(TIMEFRAME_EXPORTS[tf][0])
-        close_index = _align_available_index(df.index, tf)
+        open_index = pd.DatetimeIndex(df.index)
+        close_index = _align_available_index(open_index, tf)
         df.index = close_index
         feature_frames[tf] = df
-        bar_windows[tf] = _compute_bar_windows(close_index, tf)
+        open_indices[tf] = open_index
+        bar_windows[tf] = _compute_bar_windows(open_index, close_index)
 
     td_minutes = {
         tf: timeframe_to_timedelta(tf).total_seconds() / 60 for tf in feature_frames

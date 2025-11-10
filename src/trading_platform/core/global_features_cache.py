@@ -22,7 +22,6 @@ from trading_platform.core.global_features import (
 from trading_platform.core.utils import normalize_symbol
 from trading_platform.data.handler import DataHandler
 from trading_platform.data.instrument import InstrumentDefinition, SessionDefinition
-from trading_platform.data.resample import timeframe_to_timedelta
 from trading_platform.data.session_metadata import ALIGNED_TO_CLOSE_ATTR, SESSION_ATTR
 from trading_platform.strategy.features import compute_features
 
@@ -83,6 +82,7 @@ def _align_available_index(
 
 
 def _compute_bar_windows_for_cache(
+    raw_index: pd.Index,
     available_index: pd.DatetimeIndex,
     timeframe: str,
     session: SessionDefinition | None,
@@ -90,15 +90,17 @@ def _compute_bar_windows_for_cache(
     """Return bar open/close timestamps for each available_at row."""
 
     tf_lower = timeframe.lower()
-    if session and tf_lower.endswith("d"):
-        localized_close = available_index.tz_convert(session.close_timezone)
-        open_local = localized_close - pd.DateOffset(days=1)
-        open_index = open_local.tz_convert("UTC")
-        return open_index, available_index
+    if tf_lower.endswith("d"):
+        open_index = available_index.tz_convert("UTC").normalize()
+    else:
+        open_index = pd.DatetimeIndex(raw_index)
+        if open_index.tz is None:
+            open_index = open_index.tz_localize("UTC")
 
-    delta = timeframe_to_timedelta(timeframe)
-    open_index = available_index - delta
-    return open_index, available_index
+    if len(open_index) != len(available_index):
+        raise ValueError("Bar window indices must be equal length.")
+
+    return open_index.tz_convert("UTC"), available_index
 
 
 def derive_execution_timeframes(config_path: Path) -> list[str]:
@@ -231,6 +233,7 @@ def build_global_feature_caches(
             continue
 
         df = handler.get_data(timeframe=timeframe)
+        raw_index = pd.DatetimeIndex(df.index)
         session = df.attrs.get(SESSION_ATTR) or default_session
         aligned_flag = bool(df.attrs.get(ALIGNED_TO_CLOSE_ATTR, False))
         base_columns = list(df.columns)
@@ -265,6 +268,7 @@ def build_global_feature_caches(
         extra_columns: list[str] = []
         if include_bar_windows:
             bar_open, bar_close = _compute_bar_windows_for_cache(
+                raw_index,
                 aligned_index,
                 timeframe,
                 session,
