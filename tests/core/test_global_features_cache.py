@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+from pandas.testing import assert_series_equal
 from trading_platform.core.global_features_cache import (
     build_global_feature_caches,
     cache_covers_features,
@@ -126,6 +127,38 @@ def test_available_at_matches_bar_close(tmp_path) -> None:
     diffs = available.diff().dropna()
     assert not diffs.empty
     assert (diffs == pd.Timedelta(minutes=5)).all()
+
+
+def test_build_global_feature_caches_includes_bar_windows(tmp_path) -> None:
+    data_root = tmp_path / "data_root"
+    csv_dir = data_root / "full" / "eurusd"
+    csv_dir.mkdir(parents=True)
+    csv_path = csv_dir / "eurusd_1min.csv"
+    _write_sample_csv(csv_path)
+    global_yaml = tmp_path / "global.yaml"
+    _write_sample_global_yaml(global_yaml)
+
+    descriptor = build_global_feature_caches(
+        symbol="EUR_USD",
+        data_root=data_root,
+        config_path=global_yaml,
+        timeframes=["5min"],
+        overwrite=True,
+        include_bar_windows=True,
+    )
+
+    five_min_df = pd.read_parquet(descriptor.timeframe_path("5min"))
+    assert "5min_bar_open" in five_min_df.columns
+    assert "5min_bar_close" in five_min_df.columns
+    available = pd.to_datetime(five_min_df["available_at"], utc=True)
+    bar_open = pd.to_datetime(five_min_df["5min_bar_open"], utc=True)
+    bar_close = pd.to_datetime(five_min_df["5min_bar_close"], utc=True)
+    assert_series_equal(bar_close, available, check_names=False)
+    assert_series_equal(
+        bar_open + pd.Timedelta(minutes=5),
+        available,
+        check_names=False,
+    )
 
 
 def test_cache_covers_features_detects_available_columns(tmp_path) -> None:

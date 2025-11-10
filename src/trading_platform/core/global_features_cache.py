@@ -22,6 +22,7 @@ from trading_platform.core.global_features import (
 from trading_platform.core.utils import normalize_symbol
 from trading_platform.data.handler import DataHandler
 from trading_platform.data.instrument import InstrumentDefinition, SessionDefinition
+from trading_platform.data.resample import timeframe_to_timedelta
 from trading_platform.data.session_metadata import ALIGNED_TO_CLOSE_ATTR, SESSION_ATTR
 from trading_platform.strategy.features import compute_features
 
@@ -79,6 +80,25 @@ def _align_available_index(
         return index.tz_convert("UTC")
 
     return index.tz_convert("UTC")
+
+
+def _compute_bar_windows_for_cache(
+    available_index: pd.DatetimeIndex,
+    timeframe: str,
+    session: SessionDefinition | None,
+) -> tuple[pd.DatetimeIndex, pd.DatetimeIndex]:
+    """Return bar open/close timestamps for each available_at row."""
+
+    tf_lower = timeframe.lower()
+    if session and tf_lower.endswith("d"):
+        localized_close = available_index.tz_convert(session.close_timezone)
+        open_local = localized_close - pd.DateOffset(days=1)
+        open_index = open_local.tz_convert("UTC")
+        return open_index, available_index
+
+    delta = timeframe_to_timedelta(timeframe)
+    open_index = available_index - delta
+    return open_index, available_index
 
 
 def derive_execution_timeframes(config_path: Path) -> list[str]:
@@ -143,6 +163,7 @@ def build_global_feature_caches(
     overwrite: bool = False,
     instrument: InstrumentDefinition | None = None,
     cache_root: Path | None = None,
+    include_bar_windows: bool = False,
 ) -> GlobalFeatureCacheDescriptor:
     """
     Precompute global features for each execution timeframe.
@@ -236,13 +257,28 @@ def build_global_feature_caches(
         storage_df = feature_df.copy()
         storage_df.insert(0, "available_at", timestamp_col.to_numpy())
         storage_df["available_at"] = pd.to_datetime(
-            storage_df["available_at"], utc=True
+            storage_df["available_at"],
+            utc=True,
         )
+
+        tf_slug = timeframe.lower()
+        extra_columns: list[str] = []
+        if include_bar_windows:
+            bar_open, bar_close = _compute_bar_windows_for_cache(
+                aligned_index,
+                timeframe,
+                session,
+            )
+            open_col = f"{tf_slug}_bar_open"
+            close_col = f"{tf_slug}_bar_close"
+            storage_df[open_col] = bar_open.to_numpy()
+            storage_df[close_col] = bar_close.to_numpy()
+            extra_columns.extend([open_col, close_col])
 
         tf_file = descriptor.timeframe_path(timeframe)
         storage_df.to_parquet(tf_file, index=False)
 
-        stored_columns = ["available_at"] + feature_columns
+        stored_columns = ["available_at"] + feature_columns + extra_columns
         frame_meta: dict[str, object] = {
             "columns": stored_columns,
             "rows": int(len(feature_df)),

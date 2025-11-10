@@ -2048,6 +2048,7 @@ def _precompute_global_features_logic(args: argparse.Namespace) -> int:
         timeframes=tf_list,
         overwrite=args.overwrite,
         cache_root=cache_root,
+        include_bar_windows=args.include_bar_windows,
     )
 
     metadata_path = descriptor.metadata_path()
@@ -2500,6 +2501,12 @@ def main() -> int:
         default=None,
         help="Root directory to store cached features "
         "(default: same as --data-root)",
+    )
+    pgfc.add_argument(
+        "--include-bar-windows",
+        action="store_true",
+        help="Include *_bar_open/_bar_close columns in cache outputs "
+        "(default: disabled)",
     )
     pgfc.set_defaults(func=_precompute_global_features_logic)
 

@@ -134,10 +134,12 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--include-bar-windows",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=True,
         help=(
             "Include *_bar_open and *_bar_close columns for each "
-            "timeframe represented in the parquet."
+            "timeframe represented in the parquet. Use "
+            "--no-include-bar-windows to disable."
         ),
     )
     return parser.parse_args()
@@ -310,6 +312,7 @@ def main() -> None:
         config_path=CONFIG_PATH,
         timeframes=targets,
         overwrite=True,
+        include_bar_windows=True,
     )
     print(
         "Built builder cache at " f"{descriptor.base_dir().relative_to(PROJECT_ROOT)}"
