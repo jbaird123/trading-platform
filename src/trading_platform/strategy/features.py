@@ -12,6 +12,7 @@ from typing import Any, cast
 import pandas as pd
 
 from trading_platform.data.resample import resample_data, timeframe_to_timedelta
+from trading_platform.data.session_metadata import ALIGNED_TO_CLOSE_ATTR, SESSION_ATTR
 
 # ema_slope is now compute_ema_slope, create wrapper
 from trading_platform.strategy import indicator_implementations as _impl
@@ -191,12 +192,18 @@ def compute_features(
     for timeframe, group_specs in timeframe_groups.items():
         # Resample once per timeframe (cached)
         if timeframe not in resampled_frames:
-            resampled_frames[timeframe] = resample_data(df, rule=timeframe)
+            session = df.attrs.get(SESSION_ATTR)
+            resampled_frames[timeframe] = resample_data(
+                df, rule=timeframe, session=session
+            )
 
         df_resampled = resampled_frames[timeframe]
         shift_needed = not df_resampled.index.equals(df.index)
+        aligned_to_close = df_resampled.attrs.get(ALIGNED_TO_CLOSE_ATTR, False)
         timeframe_delta = (
-            timeframe_to_timedelta(timeframe) if shift_needed else pd.Timedelta(0)
+            timeframe_to_timedelta(timeframe)
+            if shift_needed and not aligned_to_close
+            else pd.Timedelta(0)
         )
 
         assign_state_htf = resampled_assign_states.setdefault(timeframe, {"pending": 0})

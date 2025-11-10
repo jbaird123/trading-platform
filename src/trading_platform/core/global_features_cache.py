@@ -22,6 +22,7 @@ from trading_platform.core.global_features import (
 from trading_platform.core.utils import normalize_symbol
 from trading_platform.data.handler import DataHandler
 from trading_platform.data.instrument import InstrumentDefinition
+from trading_platform.data.session_metadata import SESSION_ATTR
 from trading_platform.strategy.features import compute_features
 
 logger = logging.getLogger(__name__)
@@ -184,6 +185,7 @@ def build_global_feature_caches(
             continue
 
         feature_df = enriched[feature_columns].copy()
+        feature_df.attrs.pop(SESSION_ATTR, None)
         tf_file = descriptor.timeframe_path(timeframe)
         feature_df.to_parquet(tf_file)
 

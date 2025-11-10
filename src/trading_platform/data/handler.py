@@ -16,6 +16,12 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
+from trading_platform.data.instrument import (
+    InstrumentDefinition,
+    get_instrument_definition,
+)
+from trading_platform.data.session_metadata import annotate_session
+
 from .loader import load_instrument_data
 from .schema import resample_ohlc
 
@@ -111,13 +117,30 @@ class DataHandler:
         resolved_root = Path(data_root).resolve()
         self.symbol = symbol
         self.data_root = resolved_root
+
+        if instrument is None:
+            try:
+                instrument = get_instrument_definition(symbol)
+            except ValueError:
+                instrument = InstrumentDefinition(
+                    asset_class="Synthetic",
+                    point_value=1.0,
+                    tick_size=0.00001,
+                    pip_location=None,
+                    commission_model={"type": "synthetic"},
+                    sessions=[],
+                    symbol=symbol,
+                )
+
         self.instrument = instrument
+        self._session = instrument.sessions[0] if instrument.sessions else None
 
         cache_key = (symbol, resolved_root)
         cached = _GLOBAL_INSTRUMENT_CACHE.get(cache_key)
 
         if cached is None:
             raw_data, dq_flags = load_instrument_data(symbol, resolved_root)
+            annotate_session(raw_data, self._session)
             base_timeframe, base_minutes = self._detect_base_timeframe_from_df(raw_data)
             cache: dict[str, pd.DataFrame] = {base_timeframe: raw_data}
             cached = _CachedInstrumentData(
@@ -128,6 +151,8 @@ class DataHandler:
                 base_minutes=base_minutes,
             )
             _GLOBAL_INSTRUMENT_CACHE[cache_key] = cached
+        else:
+            annotate_session(cached.raw_data, self._session)
 
         # Load raw data once (shared across handler instances)
         self._raw_data = cached.raw_data
@@ -174,11 +199,14 @@ class DataHandler:
 
             # Check if already cached
             if timeframe not in self._cache:
-                # Need to resample - find best source
                 df_source = self._find_best_resample_source(timeframe)
+                df_resampled = resample_ohlc(
+                    df_source, timeframe, session=self._session
+                )
+                if df_resampled.empty:
+                    df_resampled = df_source.copy()
 
-                # Resample complete dataset and cache it
-                df_resampled = resample_ohlc(df_source, timeframe, self.instrument)
+                annotate_session(df_resampled, self._session)
                 self._cache[timeframe] = df_resampled
 
             df = self._cache[timeframe]
@@ -192,6 +220,7 @@ class DataHandler:
             end_ts = pd.to_datetime(end, utc=True)
             df = df.loc[:end_ts]
 
+        annotate_session(df, self._session)
         return df
 
     @staticmethod
