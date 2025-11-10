@@ -109,26 +109,34 @@ def _align_available_index(
 
 def _compute_bar_windows(
     open_index: pd.DatetimeIndex,
-    close_index: pd.DatetimeIndex,
+    aligned_index: pd.DatetimeIndex,
+    timeframe: str,
 ) -> pd.DataFrame:
     """Return per-bar open/close times keyed by available timestamp."""
 
     open_index = pd.DatetimeIndex(open_index)
-    close_index = pd.DatetimeIndex(close_index)
+    aligned_index = pd.DatetimeIndex(aligned_index)
     if open_index.tz is None:
         open_index = open_index.tz_localize("UTC")
-    if close_index.tz is None:
-        close_index = close_index.tz_localize("UTC")
+    if aligned_index.tz is None:
+        aligned_index = aligned_index.tz_localize("UTC")
 
-    if len(open_index) != len(close_index):
+    if len(open_index) != len(aligned_index):
         raise ValueError("Open/close indices must have matching lengths.")
+
+    tf_lower = timeframe.lower()
+    if tf_lower.endswith("d"):
+        close_index = aligned_index
+    else:
+        delta = timeframe_to_timedelta(timeframe)
+        close_index = open_index + delta
 
     return pd.DataFrame(
         {
             "bar_open": open_index.tz_convert("UTC"),
             "bar_close": close_index.tz_convert("UTC"),
         },
-        index=close_index,
+        index=aligned_index,
     )
 
 
@@ -170,7 +178,7 @@ def _build_embedded_frames(
         df.index = close_index
         feature_frames[tf] = df
         open_indices[tf] = open_index
-        bar_windows[tf] = _compute_bar_windows(open_index, close_index)
+        bar_windows[tf] = _compute_bar_windows(open_index, close_index, tf)
 
     td_minutes = {
         tf: timeframe_to_timedelta(tf).total_seconds() / 60 for tf in feature_frames
@@ -226,22 +234,22 @@ def _append_bar_windows(
     bar_windows: dict[str, pd.DataFrame],
 ) -> pd.DataFrame:
     available_idx = pd.DatetimeIndex(frame[TIMESTAMP_COLUMN])
-    available_values = available_idx.to_numpy()
 
     for tf in timeframes:
         windows = bar_windows[tf].reindex(available_idx, method="ffill")
         slug = tf.lower()
         open_col = f"{slug}_bar_open"
         close_col = f"{slug}_bar_close"
-        frame[open_col] = windows["bar_open"].to_numpy()
+        open_values = windows["bar_open"].to_numpy()
         close_values = windows["bar_close"].to_numpy()
+        frame[open_col] = open_values
         frame[close_col] = close_values
 
-        mask = ~pd.isna(close_values)
-        if mask.any() and np.any(close_values[mask] > available_values[mask]):
+        mask = (~pd.isna(open_values)) & (~pd.isna(close_values))
+        if mask.any() and np.any(close_values[mask] < open_values[mask]):
             raise ValueError(
                 f"Look-ahead risk detected for timeframe {tf}; "
-                "bar close exceeds available_at."
+                "bar close precedes bar open."
             )
 
     return frame

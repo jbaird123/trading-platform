@@ -22,6 +22,7 @@ from trading_platform.core.global_features import (
 from trading_platform.core.utils import normalize_symbol
 from trading_platform.data.handler import DataHandler
 from trading_platform.data.instrument import InstrumentDefinition, SessionDefinition
+from trading_platform.data.resample import timeframe_to_timedelta
 from trading_platform.data.session_metadata import ALIGNED_TO_CLOSE_ATTR, SESSION_ATTR
 from trading_platform.strategy.features import compute_features
 
@@ -92,15 +93,18 @@ def _compute_bar_windows_for_cache(
     tf_lower = timeframe.lower()
     if tf_lower.endswith("d"):
         open_index = available_index.tz_convert("UTC").normalize()
+        close_index = available_index
     else:
         open_index = pd.DatetimeIndex(raw_index)
         if open_index.tz is None:
             open_index = open_index.tz_localize("UTC")
+        delta = timeframe_to_timedelta(timeframe)
+        close_index = open_index + delta
 
     if len(open_index) != len(available_index):
         raise ValueError("Bar window indices must be equal length.")
 
-    return open_index.tz_convert("UTC"), available_index
+    return open_index.tz_convert("UTC"), close_index.tz_convert("UTC")
 
 
 def derive_execution_timeframes(config_path: Path) -> list[str]:
