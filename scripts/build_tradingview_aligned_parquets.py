@@ -18,7 +18,6 @@ from collections import OrderedDict
 from pathlib import Path
 
 import pandas as pd
-from trading_platform.core.global_features_cache import build_global_feature_caches
 from trading_platform.data.bar_windows import compute_bar_window_columns
 from trading_platform.data.instrument import get_instrument_definition
 from trading_platform.data.resample import timeframe_to_timedelta
@@ -27,7 +26,6 @@ from trading_platform.data.timeframe_aliases import normalize_timeframe_columns
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 RAW_DIR = PROJECT_ROOT / "data" / "dvc" / "golden" / "features" / "raw"
 CONFIG_PATH = PROJECT_ROOT / "data" / "dvc" / "golden" / "features" / "global.yaml"
-DATA_ROOT = PROJECT_ROOT / "data" / "dvc" / "golden" / "ohlcv" / "tradingview"
 SYMBOL = "EUR/USD"
 SYMBOL_SLUG = "eurusd"
 PURE_GOLDEN_DIR = (
@@ -246,7 +244,6 @@ def _write_metadata(
     metadata: dict[str, object] = {
         "symbol": SYMBOL,
         "normalized_symbol": SYMBOL.replace("/", ""),
-        "data_root": str(DATA_ROOT.resolve()),
         "config_path": str(CONFIG_PATH.resolve()),
         "config_hash": _config_hash(),
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -318,19 +315,7 @@ def main() -> None:
 
     _write_metadata(cache_dir, built_frames, written_paths)
 
-    descriptor = build_global_feature_caches(
-        symbol=SYMBOL,
-        data_root=DATA_ROOT,
-        cache_root=TEST_CACHE_ROOT,
-        config_path=CONFIG_PATH,
-        timeframes=targets,
-        overwrite=True,
-        include_bar_windows=True,
-        normalize_timeframe_labels=True,
-    )
-    print(
-        "Built builder cache at " f"{descriptor.base_dir().relative_to(PROJECT_ROOT)}"
-    )
+    print("Golden TradingView cache rebuilt.")
 
 
 if __name__ == "__main__":

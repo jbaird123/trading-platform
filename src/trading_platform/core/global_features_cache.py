@@ -23,7 +23,8 @@ from trading_platform.core.utils import normalize_symbol
 from trading_platform.data.bar_windows import compute_bar_window_columns
 from trading_platform.data.handler import DataHandler
 from trading_platform.data.instrument import InstrumentDefinition, SessionDefinition
-from trading_platform.data.session_metadata import ALIGNED_TO_CLOSE_ATTR, SESSION_ATTR
+from trading_platform.data.resample import timeframe_to_timedelta
+from trading_platform.data.session_metadata import SESSION_ATTR
 from trading_platform.data.timeframe_aliases import (
     normalize_name_sequence,
     normalize_timeframe_columns,
@@ -96,6 +97,66 @@ def _compute_bar_windows_for_cache(
     return compute_bar_window_columns(raw_index, timeframe, session)
 
 
+def _build_timeframe_dependencies(timeframes: Sequence[str]) -> dict[str, list[str]]:
+    minutes = {tf: timeframe_to_timedelta(tf).total_seconds() / 60 for tf in timeframes}
+    ordered = sorted(timeframes, key=lambda tf: minutes[tf])
+    dependencies: dict[str, list[str]] = {}
+    for base_tf in ordered:
+        deps = [tf for tf in ordered if minutes[tf] >= minutes[base_tf]]
+        dependencies[base_tf] = deps
+    return dependencies
+
+
+def _merge_timeframes_for_output(
+    base_timeframe: str,
+    dependencies: dict[str, list[str]],
+    raw_frames: dict[str, pd.DataFrame],
+    include_bar_windows: bool,
+) -> pd.DataFrame:
+    base_raw = raw_frames[base_timeframe]
+    result = pd.DataFrame(
+        {"available_at": pd.to_datetime(base_raw["bar_open"], utc=True)}
+    )
+    result = result.sort_values("available_at").reset_index(drop=True)
+
+    for timeframe in dependencies.get(base_timeframe, []):
+        frame = raw_frames[timeframe]
+        merged = pd.merge_asof(
+            result[["available_at"]],
+            frame,
+            left_on="available_at",
+            right_on="bar_close",
+            direction="backward",
+            allow_exact_matches=True,
+        )
+        slug = timeframe.lower()
+        feature_cols = [
+            col
+            for col in frame.columns
+            if col not in {"bar_open", "bar_close", "bar_lookup"}
+        ]
+        for col in feature_cols:
+            result[col] = merged[col]
+
+        result[f"{slug}_bar_open"] = merged["bar_open"]
+        result[f"{slug}_bar_close"] = merged["bar_close"]
+        result[f"{slug}_bar_lookup_key"] = merged["bar_lookup"]
+
+    if not include_bar_windows:
+        drop_cols = [
+            col
+            for col in result.columns
+            if col.endswith("_bar_open")
+            or col.endswith("_bar_close")
+            or col.endswith("_bar_lookup_key")
+        ]
+        result = result.drop(columns=drop_cols)
+
+    cols = result.columns.tolist()
+    ordered_cols = ["available_at"] + [c for c in cols if c != "available_at"]
+    return result[ordered_cols]
+
+
 def derive_execution_timeframes(config_path: Path) -> list[str]:
     """
     Inspect a global features manifest and return sorted execution timeframes.
@@ -159,7 +220,6 @@ def build_global_feature_caches(
     instrument: InstrumentDefinition | None = None,
     cache_root: Path | None = None,
     include_bar_windows: bool = False,
-    normalize_timeframe_labels: bool = False,
 ) -> GlobalFeatureCacheDescriptor:
     """
     Precompute global features for each execution timeframe.
@@ -192,16 +252,6 @@ def build_global_feature_caches(
     if not tf_list:
         tf_list = list(_DEFAULT_TIMEFRAMES)
 
-    handler = DataHandler(
-        symbol=symbol,
-        data_root=source_data_root,
-        instrument=instrument,
-    )
-    resolved_instrument = instrument or getattr(handler, "instrument", None)
-    default_session: SessionDefinition | None = None
-    if resolved_instrument and resolved_instrument.sessions:
-        default_session = resolved_instrument.sessions[0]
-
     timeframes_meta: dict[str, dict[str, object]] = {}
     metadata: dict[str, object] = {
         "symbol": symbol,
@@ -213,6 +263,18 @@ def build_global_feature_caches(
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "timeframes": timeframes_meta,
     }
+
+    handler = DataHandler(
+        symbol=symbol,
+        data_root=source_data_root,
+        instrument=instrument,
+    )
+    resolved_instrument = instrument or getattr(handler, "instrument", None)
+    default_session: SessionDefinition | None = None
+    if resolved_instrument and resolved_instrument.sessions:
+        default_session = resolved_instrument.sessions[0]
+
+    raw_frames: dict[str, pd.DataFrame] = {}
 
     for timeframe in tf_list:
         resolved_path, resolved_features = resolve_global_feature_manifest(
@@ -229,7 +291,6 @@ def build_global_feature_caches(
         df = handler.get_data(timeframe=timeframe)
         raw_index = pd.DatetimeIndex(df.index)
         session = df.attrs.get(SESSION_ATTR) or default_session
-        aligned_flag = bool(df.attrs.get(ALIGNED_TO_CLOSE_ATTR, False))
         base_columns = list(df.columns)
         specs = [feature_to_dict(feature) for feature in resolved_features]
         enriched = compute_features(df, specs, strategy_parameters={})
@@ -243,30 +304,17 @@ def build_global_feature_caches(
 
         feature_df = enriched[feature_columns].copy()
         feature_df.attrs.pop(SESSION_ATTR, None)
-        need_bar_windows = include_bar_windows or normalize_timeframe_labels
-        bar_open: pd.DatetimeIndex | None = None
-        bar_close: pd.DatetimeIndex | None = None
-        bar_lookup: pd.DatetimeIndex | None = None
-        if need_bar_windows:
-            bar_open, bar_close, bar_lookup = _compute_bar_windows_for_cache(
-                raw_index,
-                timeframe,
-                session,
-            )
-
-        if normalize_timeframe_labels:
-            feature_df = normalize_timeframe_columns(feature_df)
-            feature_columns = normalize_name_sequence(feature_columns)
-            feature_df = feature_df.shift(1)
-
-        aligned_index = _align_available_index(
-            feature_df.index,
+        bar_open, bar_close, bar_lookup = _compute_bar_windows_for_cache(
+            raw_index,
             timeframe,
             session,
-            aligned_flag,
         )
-        if normalize_timeframe_labels and bar_open is not None:
-            aligned_index = bar_open
+
+        feature_df = normalize_timeframe_columns(feature_df)
+        feature_columns = normalize_name_sequence(feature_columns)
+        feature_df = feature_df.shift(1)
+
+        aligned_index = bar_open
 
         timestamp_col = pd.Series(aligned_index, name="available_at")
         storage_df = feature_df.copy()
@@ -276,31 +324,39 @@ def build_global_feature_caches(
             utc=True,
         )
 
-        tf_slug = timeframe.lower()
-        extra_columns: list[str] = []
-        if (
-            include_bar_windows
-            and bar_open is not None
-            and bar_close is not None
-            and bar_lookup is not None
-        ):
-            open_col = f"{tf_slug}_bar_open"
-            close_col = f"{tf_slug}_bar_close"
-            lookup_col = f"{tf_slug}_bar_lookup_key"
-            storage_df[open_col] = bar_open.to_numpy()
-            storage_df[close_col] = bar_close.to_numpy()
-            storage_df[lookup_col] = bar_lookup.to_numpy()
-            extra_columns.extend([open_col, close_col, lookup_col])
+        raw_frame = feature_df.copy()
+        raw_frame["bar_open"] = bar_open
+        raw_frame["bar_close"] = bar_close
+        raw_frame["bar_lookup"] = bar_lookup
+        raw_frame = raw_frame.sort_values("bar_close").reset_index(drop=True)
+        raw_frames[timeframe] = raw_frame
+
+    if not raw_frames:
+        raise RuntimeError("No valid frames were produced; check config inputs.")
+
+    dependencies = _build_timeframe_dependencies(tf_list)
+
+    for timeframe in tf_list:
+        output_frame = _merge_timeframes_for_output(
+            timeframe,
+            dependencies,
+            raw_frames,
+            include_bar_windows=include_bar_windows,
+        )
 
         tf_file = descriptor.timeframe_path(timeframe)
-        storage_df.to_parquet(tf_file, index=False)
+        output_frame.to_parquet(tf_file, index=False)
 
-        stored_columns = ["available_at"] + feature_columns + extra_columns
+        timestamp_series = pd.to_datetime(output_frame["available_at"], utc=True)
         frame_meta: dict[str, object] = {
-            "columns": stored_columns,
-            "rows": int(len(feature_df)),
-            "start": feature_df.index[0].isoformat() if len(feature_df) else None,
-            "end": feature_df.index[-1].isoformat() if len(feature_df) else None,
+            "columns": output_frame.columns.tolist(),
+            "rows": int(len(output_frame)),
+            "start": (
+                timestamp_series.iloc[0].isoformat() if len(output_frame) else None
+            ),
+            "end": (
+                timestamp_series.iloc[-1].isoformat() if len(output_frame) else None
+            ),
         }
         timeframes_meta[timeframe] = frame_meta
         logger.info("Cached %s global features at %s", timeframe, tf_file)

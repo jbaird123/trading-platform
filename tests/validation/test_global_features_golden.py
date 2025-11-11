@@ -14,8 +14,13 @@ from trading_platform.data.bar_windows import compute_bar_window_columns
 from trading_platform.data.instrument import get_instrument_definition
 from trading_platform.data.resample import resample_data, timeframe_to_timedelta
 from trading_platform.data.session_metadata import annotate_session
-from trading_platform.data.timeframe_aliases import normalize_timeframe_columns
+from trading_platform.data.timeframe_aliases import (
+    normalize_timeframe_columns,
+    normalize_timeframe_prefix,
+)
 from trading_platform.strategy.features import compute_features
+
+from tests.validation.test_indicator_validation import INDICATOR_TOLERANCES
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 RAW_FEATURE_DIR = PROJECT_ROOT / "data" / "dvc" / "golden" / "features" / "raw"
@@ -69,7 +74,7 @@ COLUMN_RENAMES = {
     "d1_adx_14_DI+": "d1_adx_14_DIplus",
     "d1_adx_14_DI-": "d1_adx_14_DIminus",
 }
-SKIP_COLUMNS = {"1h_volume_sma_20", "1d_volume_sma_20"}
+EXPORT_SKIP_COLUMNS = {"1h_volume_sma_20", "1d_volume_sma_20"}
 OHLC_COLUMNS = {"open", "high", "low", "close", "volume"}
 TV_ONLY_COLUMNS = {
     "4h_atr_14",
@@ -83,12 +88,36 @@ TV_ONLY_COLUMNS = {
     "1d_bar_close",
     "1d_bar_lookup_key",
 }
-COLUMN_TOLERANCE_OVERRIDES = {
-    "4h_ema_50": {"rtol": 2e-3, "atol": 2e-4},
-    "1d_ema_24": {"rtol": 5e-3, "atol": 5e-4},
-    "1d_atr_14": {"rtol": 3e-1, "atol": 5e-4},
-}
-DEFAULT_TOLERANCE = {"rtol": 1e-4, "atol": 1e-5}
+DEFAULT_INDICATOR_TOLERANCE = {"rtol": 1e-5, "atol": 1e-8}
+
+
+def _build_column_tolerance_map() -> dict[str, dict[str, float]]:
+    config = yaml.safe_load(GLOBAL_FEATURES_CONFIG.read_text())
+    mapping: dict[str, dict[str, float]] = {}
+    for feature in config.get("features", []):
+        name = feature.get("name")
+        indicator_type = str(feature.get("type", "")).upper()
+        if not name or not indicator_type:
+            continue
+        canonical = normalize_timeframe_prefix(str(name))
+        tolerance = INDICATOR_TOLERANCES.get(
+            indicator_type, DEFAULT_INDICATOR_TOLERANCE
+        )
+        mapping[canonical] = tolerance
+    return mapping
+
+
+COLUMN_TOLERANCE_MAP = _build_column_tolerance_map()
+
+
+def _tolerance_for_column(column: str) -> dict[str, float]:
+    tolerance = COLUMN_TOLERANCE_MAP.get(column)
+    if tolerance:
+        return tolerance
+    for base, tol in COLUMN_TOLERANCE_MAP.items():
+        if column.startswith(f"{base}_"):
+            return tol
+    return DEFAULT_INDICATOR_TOLERANCE
 
 
 def _write_tradingview_ohlc_dataset(data_root: Path) -> None:
@@ -206,7 +235,10 @@ def _load_test_cache_parquet(parquet_name: str) -> pd.DataFrame:
 def _assert_frames_close(
     actual: pd.DataFrame,
     expected: pd.DataFrame,
+    skip_columns: set[str] | None = None,
 ) -> None:
+    if skip_columns is None:
+        skip_columns = set()
     actual = actual.set_index(CACHE_TIMESTAMP_COLUMN)
     expected = expected.set_index(CACHE_TIMESTAMP_COLUMN)
 
@@ -225,9 +257,7 @@ def _assert_frames_close(
     ), f"Shape mismatch: builder={actual.shape}, reference={expected.shape}"
 
     for column in actual.columns:
-        if column == CACHE_TIMESTAMP_COLUMN:
-            continue
-        if column in SKIP_COLUMNS:
+        if column == CACHE_TIMESTAMP_COLUMN or column in skip_columns:
             continue
         actual_series = actual[column]
         expected_series = expected[column]
@@ -254,13 +284,7 @@ def _assert_frames_close(
         mask = actual_series.notna() & expected_series.notna()
         if not mask.any():
             continue
-        if column.startswith("1h_adx_") or column.startswith("4h_adx_"):
-            assert _adx_diff_within_limits(column, diff_series[mask]), (
-                f"Column {column} exceeds ADX tolerance "
-                f"(max diff {diff_series[mask].max():.6f})"
-            )
-            continue
-        tolerance = COLUMN_TOLERANCE_OVERRIDES.get(column, DEFAULT_TOLERANCE)
+        tolerance = _tolerance_for_column(column)
         assert np.allclose(
             actual_series[mask],
             expected_series[mask],
@@ -295,27 +319,6 @@ def _compute_features_from_ohlc(
     return computed
 
 
-def _adx_diff_within_limits(column: str, diff: pd.Series) -> bool:
-    diff = diff.dropna()
-    if diff.empty:
-        return True
-    if column == "1h_adx_14_ADX":
-        p92 = diff.quantile(0.92)
-        p99 = diff.quantile(0.99)
-        max_diff = diff.max()
-        return p92 <= 0.2 and p99 <= 1.5 and max_diff <= 2.0
-    thresholds = {
-        "default": {"p96": 5e-4, "p99": 0.09, "p999": 1.5},
-        # DI- shows higher dispersion because trading venues truncate more aggressively.
-        "1h_adx_14_DIminus": {"p96": 0.5, "p99": 1.5, "p999": 2.5},
-    }
-    bounds = thresholds.get(column, thresholds["default"])
-    p96 = diff.quantile(0.96)
-    p99 = diff.quantile(0.99)
-    p999 = diff.quantile(0.999)
-    return p96 <= bounds["p96"] and p99 <= bounds["p99"] and p999 <= bounds["p999"]
-
-
 def _strip_price_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df.drop(columns=OHLC_COLUMNS.union({"timestamp"}), errors="ignore")
 
@@ -340,27 +343,14 @@ def _assert_feature_frames_match(
             continue
         left_series = golden_df[column].loc[diff_series.index]
         right_series = expected_df[column].loc[diff_series.index]
-        tolerances = COLUMN_TOLERANCE_OVERRIDES.get(
-            column,
-            {"rtol": 1e-4, "atol": 1e-5},
-        )
+        tolerance = _tolerance_for_column(column)
         if np.allclose(
             left_series,
             right_series,
-            rtol=tolerances["rtol"],
-            atol=tolerances["atol"],
+            rtol=tolerance["rtol"],
+            atol=tolerance["atol"],
             equal_nan=True,
         ):
-            continue
-        if column in {
-            "1h_adx_14_ADX",
-            "1h_adx_14_DIplus",
-            "1h_adx_14_DIminus",
-        }:
-            assert _adx_diff_within_limits(column, diff_series), (
-                f"{timeframe} column {column} exceeds ADX tolerance "
-                f"(max diff {diff_series.max():.4f})"
-            )
             continue
         raise AssertionError(
             f"{timeframe} column {column} diverged "
@@ -456,7 +446,7 @@ def test_tradingview_exports_match_platform_math(
         column
         for column in export_df.columns
         if column not in {"open", "high", "low", "close"}
-        and column not in SKIP_COLUMNS
+        and column not in EXPORT_SKIP_COLUMNS
         and column in computed_df.columns
     ]
     assert comparable_columns, "No comparable columns detected."
@@ -483,24 +473,14 @@ def test_tradingview_exports_match_platform_math(
         comp_series = computed_subset[column].loc[diff_series.index]
         exp_series = export_subset[column].loc[diff_series.index]
 
+        tolerance = _tolerance_for_column(column)
         if np.allclose(
             comp_series,
             exp_series,
-            rtol=1e-4,
-            atol=1e-5,
+            rtol=tolerance["rtol"],
+            atol=tolerance["atol"],
             equal_nan=True,
         ):
-            continue
-
-        if column in {
-            "1h_adx_14_ADX",
-            "1h_adx_14_DIplus",
-            "1h_adx_14_DIminus",
-        }:
-            assert _adx_diff_within_limits(column, diff_series), (
-                f"{timeframe} column {column} exceeds ADX tolerance "
-                f"(max diff {diff_series.max():.4f})"
-            )
             continue
 
         raise AssertionError(
@@ -534,7 +514,7 @@ def test_tradingview_aligned_parquet_matches_export(
     if warmup:
         aligned_df = aligned_df.iloc[warmup:].reset_index(drop=True)
         expected = expected.iloc[warmup:].reset_index(drop=True)
-    _assert_frames_close(aligned_df, expected)
+    _assert_frames_close(aligned_df, expected, skip_columns=EXPORT_SKIP_COLUMNS)
 
 
 @pytest.mark.validation
@@ -576,7 +556,6 @@ def test_cache_builder_produces_available_after_close(
         timeframes=list(TIMEFRAME_EXPORTS.keys()),
         overwrite=True,
         include_bar_windows=True,
-        normalize_timeframe_labels=True,
     )
 
     builder_exports: dict[str, pd.DataFrame] = {}
@@ -590,7 +569,7 @@ def test_cache_builder_produces_available_after_close(
         common_columns = [
             col
             for col in golden.columns
-            if col in expected.columns and col not in SKIP_COLUMNS
+            if col in expected.columns and col not in EXPORT_SKIP_COLUMNS
         ]
         missing_columns = [col for col in golden.columns if col not in expected.columns]
         assert (
