@@ -22,6 +22,7 @@ from trading_platform.core.global_features_cache import build_global_feature_cac
 from trading_platform.data.bar_windows import compute_bar_window_columns
 from trading_platform.data.instrument import get_instrument_definition
 from trading_platform.data.resample import timeframe_to_timedelta
+from trading_platform.data.timeframe_aliases import normalize_timeframe_columns
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 RAW_DIR = PROJECT_ROOT / "data" / "dvc" / "golden" / "features" / "raw"
@@ -49,15 +50,15 @@ TIMEFRAME_EXPORTS = OrderedDict(
     [
         (
             "1H",
-            ("eurusd_h1_tradingview.csv", "eurusd_1h_available_after_close.parquet"),
+            ("eurusd_1h_tradingview.csv", "eurusd_1h_available_after_close.parquet"),
         ),
         (
             "4H",
-            ("eurusd_h4_tradingview.csv", "eurusd_4h_available_after_close.parquet"),
+            ("eurusd_4h_tradingview.csv", "eurusd_4h_available_after_close.parquet"),
         ),
         (
             "1D",
-            ("eurusd_d1_tradingview.csv", "eurusd_1d_available_after_close.parquet"),
+            ("eurusd_1d_tradingview.csv", "eurusd_1d_available_after_close.parquet"),
         ),
     ]
 )
@@ -92,6 +93,8 @@ def _load_export(csv_name: str) -> pd.DataFrame:
         .sort_index()
         .drop(columns=OHLC_COLUMNS + ["timestamp"], errors="ignore")
     )
+    df = df.rename(columns=COLUMN_RENAMES)
+    df = normalize_timeframe_columns(df)
     return df
 
 
@@ -323,6 +326,7 @@ def main() -> None:
         timeframes=targets,
         overwrite=True,
         include_bar_windows=True,
+        normalize_timeframe_labels=True,
     )
     print(
         "Built builder cache at " f"{descriptor.base_dir().relative_to(PROJECT_ROOT)}"

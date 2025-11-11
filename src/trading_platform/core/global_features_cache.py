@@ -24,6 +24,10 @@ from trading_platform.data.bar_windows import compute_bar_window_columns
 from trading_platform.data.handler import DataHandler
 from trading_platform.data.instrument import InstrumentDefinition, SessionDefinition
 from trading_platform.data.session_metadata import ALIGNED_TO_CLOSE_ATTR, SESSION_ATTR
+from trading_platform.data.timeframe_aliases import (
+    normalize_name_sequence,
+    normalize_timeframe_columns,
+)
 from trading_platform.strategy.features import compute_features
 
 logger = logging.getLogger(__name__)
@@ -155,6 +159,7 @@ def build_global_feature_caches(
     instrument: InstrumentDefinition | None = None,
     cache_root: Path | None = None,
     include_bar_windows: bool = False,
+    normalize_timeframe_labels: bool = False,
 ) -> GlobalFeatureCacheDescriptor:
     """
     Precompute global features for each execution timeframe.
@@ -238,6 +243,21 @@ def build_global_feature_caches(
 
         feature_df = enriched[feature_columns].copy()
         feature_df.attrs.pop(SESSION_ATTR, None)
+        need_bar_windows = include_bar_windows or normalize_timeframe_labels
+        bar_open: pd.DatetimeIndex | None = None
+        bar_close: pd.DatetimeIndex | None = None
+        bar_lookup: pd.DatetimeIndex | None = None
+        if need_bar_windows:
+            bar_open, bar_close, bar_lookup = _compute_bar_windows_for_cache(
+                raw_index,
+                timeframe,
+                session,
+            )
+
+        if normalize_timeframe_labels:
+            feature_df = normalize_timeframe_columns(feature_df)
+            feature_columns = normalize_name_sequence(feature_columns)
+            feature_df = feature_df.shift(1)
 
         aligned_index = _align_available_index(
             feature_df.index,
@@ -245,6 +265,9 @@ def build_global_feature_caches(
             session,
             aligned_flag,
         )
+        if normalize_timeframe_labels and bar_open is not None:
+            aligned_index = bar_open
+
         timestamp_col = pd.Series(aligned_index, name="available_at")
         storage_df = feature_df.copy()
         storage_df.insert(0, "available_at", timestamp_col.to_numpy())
@@ -255,12 +278,12 @@ def build_global_feature_caches(
 
         tf_slug = timeframe.lower()
         extra_columns: list[str] = []
-        if include_bar_windows:
-            bar_open, bar_close, bar_lookup = _compute_bar_windows_for_cache(
-                raw_index,
-                timeframe,
-                session,
-            )
+        if (
+            include_bar_windows
+            and bar_open is not None
+            and bar_close is not None
+            and bar_lookup is not None
+        ):
             open_col = f"{tf_slug}_bar_open"
             close_col = f"{tf_slug}_bar_close"
             lookup_col = f"{tf_slug}_bar_lookup_key"

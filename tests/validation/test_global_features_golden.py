@@ -14,6 +14,7 @@ from trading_platform.data.bar_windows import compute_bar_window_columns
 from trading_platform.data.instrument import get_instrument_definition
 from trading_platform.data.resample import resample_data, timeframe_to_timedelta
 from trading_platform.data.session_metadata import annotate_session
+from trading_platform.data.timeframe_aliases import normalize_timeframe_columns
 from trading_platform.strategy.features import compute_features
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -45,15 +46,15 @@ TRADINGVIEW_MINUTE_SOURCE = (
     / "eurusd_1min.csv"
 )
 TIMEFRAME_EXPORTS = {
-    "1H": "eurusd_h1_tradingview.csv",
-    "4H": "eurusd_h4_tradingview.csv",
-    "1D": "eurusd_d1_tradingview.csv",
+    "1H": "eurusd_1h_tradingview.csv",
+    "4H": "eurusd_4h_tradingview.csv",
+    "1D": "eurusd_1d_tradingview.csv",
 }
 TIMEFRAME_ORDER = ["1H", "4H", "1D"]
 PARQUET_FILENAMES = {"1H": "1h.parquet", "4H": "4h.parquet", "1D": "1d.parquet"}
 INSTRUMENT = get_instrument_definition("EUR/USD")
 SESSION = INSTRUMENT.sessions[0] if INSTRUMENT.sessions else None
-TRADINGVIEW_H1_EXPORT = RAW_FEATURE_DIR / "eurusd_h1_tradingview.csv"
+TRADINGVIEW_H1_EXPORT = RAW_FEATURE_DIR / "eurusd_1h_tradingview.csv"
 WARMUP_BARS = {
     "1H": 2000,
     "4H": 200,
@@ -68,13 +69,24 @@ COLUMN_RENAMES = {
     "d1_adx_14_DI+": "d1_adx_14_DIplus",
     "d1_adx_14_DI-": "d1_adx_14_DIminus",
 }
-SKIP_COLUMNS = {"h1_volume_sma_20", "d1_volume_sma_20"}
+SKIP_COLUMNS = {"1h_volume_sma_20", "1d_volume_sma_20"}
 OHLC_COLUMNS = {"open", "high", "low", "close", "volume"}
-TV_ONLY_COLUMNS = {"h4_atr_14"}
+TV_ONLY_COLUMNS = {
+    "4h_atr_14",
+    "1h_bar_open",
+    "1h_bar_close",
+    "1h_bar_lookup_key",
+    "4h_bar_open",
+    "4h_bar_close",
+    "4h_bar_lookup_key",
+    "1d_bar_open",
+    "1d_bar_close",
+    "1d_bar_lookup_key",
+}
 COLUMN_TOLERANCE_OVERRIDES = {
-    "h4_ema_50": {"rtol": 2e-3, "atol": 2e-4},
-    "d1_ema_24": {"rtol": 5e-3, "atol": 5e-4},
-    "d1_atr_14": {"rtol": 3e-1, "atol": 5e-4},
+    "4h_ema_50": {"rtol": 2e-3, "atol": 2e-4},
+    "1d_ema_24": {"rtol": 5e-3, "atol": 5e-4},
+    "1d_atr_14": {"rtol": 3e-1, "atol": 5e-4},
 }
 DEFAULT_TOLERANCE = {"rtol": 1e-4, "atol": 1e-5}
 
@@ -123,7 +135,14 @@ def raw_exports() -> dict[str, pd.DataFrame]:
 def _load_export(csv_name: str) -> pd.DataFrame:
     df = pd.read_csv(RAW_FEATURE_DIR / csv_name, parse_dates=["time"])
     idx = pd.DatetimeIndex(pd.to_datetime(df["time"], utc=True))
-    df = df.set_index(idx).drop(columns=["time"]).sort_index()
+    df = (
+        df.set_index(idx)
+        .drop(columns=["time"])
+        .sort_index()
+        .drop(columns=OHLC_COLUMNS.union({"timestamp"}), errors="ignore")
+    )
+    df = df.rename(columns=COLUMN_RENAMES)
+    df = normalize_timeframe_columns(df)
     return df
 
 
@@ -212,12 +231,22 @@ def _assert_frames_close(
             continue
         actual_series = actual[column]
         expected_series = expected[column]
-        if pd.api.types.is_datetime64_any_dtype(
-            actual_series
-        ) and pd.api.types.is_datetime64_any_dtype(expected_series):
+        if (
+            pd.api.types.is_datetime64_any_dtype(actual_series)
+            or pd.api.types.is_datetime64_any_dtype(expected_series)
+            or column.endswith("_bar_open")
+            or column.endswith("_bar_close")
+        ):
             assert_series_equal(
-                pd.to_datetime(actual_series, utc=True),
-                pd.to_datetime(expected_series, utc=True),
+                pd.to_datetime(actual_series, utc=True, errors="coerce"),
+                pd.to_datetime(expected_series, utc=True, errors="coerce"),
+                check_names=False,
+            )
+            continue
+        if actual_series.dtype == object and expected_series.dtype == object:
+            assert_series_equal(
+                actual_series.astype(str),
+                expected_series.astype(str),
                 check_names=False,
             )
             continue
@@ -225,7 +254,7 @@ def _assert_frames_close(
         mask = actual_series.notna() & expected_series.notna()
         if not mask.any():
             continue
-        if column.startswith("h1_adx_") or column.startswith("h4_adx_"):
+        if column.startswith("1h_adx_") or column.startswith("4h_adx_"):
             assert _adx_diff_within_limits(column, diff_series[mask]), (
                 f"Column {column} exceeds ADX tolerance "
                 f"(max diff {diff_series[mask].max():.6f})"
@@ -261,7 +290,8 @@ def _compute_features_from_ohlc(
     computed = computed.drop(
         columns=["open", "high", "low", "close", "volume"], errors="ignore"
     )
-    computed = computed.rename(columns=COLUMN_RENAMES).sort_index()
+    computed = computed.rename(columns=COLUMN_RENAMES)
+    computed = normalize_timeframe_columns(computed).sort_index()
     return computed
 
 
@@ -269,7 +299,7 @@ def _adx_diff_within_limits(column: str, diff: pd.Series) -> bool:
     diff = diff.dropna()
     if diff.empty:
         return True
-    if column == "h1_adx_14_ADX":
+    if column == "1h_adx_14_ADX":
         p92 = diff.quantile(0.92)
         p99 = diff.quantile(0.99)
         max_diff = diff.max()
@@ -277,7 +307,7 @@ def _adx_diff_within_limits(column: str, diff: pd.Series) -> bool:
     thresholds = {
         "default": {"p96": 5e-4, "p99": 0.09, "p999": 1.5},
         # DI- shows higher dispersion because trading venues truncate more aggressively.
-        "h1_adx_14_DIminus": {"p96": 0.5, "p99": 1.5, "p999": 2.5},
+        "1h_adx_14_DIminus": {"p96": 0.5, "p99": 1.5, "p999": 2.5},
     }
     bounds = thresholds.get(column, thresholds["default"])
     p96 = diff.quantile(0.96)
@@ -323,9 +353,9 @@ def _assert_feature_frames_match(
         ):
             continue
         if column in {
-            "h1_adx_14_ADX",
-            "h1_adx_14_DIplus",
-            "h1_adx_14_DIminus",
+            "1h_adx_14_ADX",
+            "1h_adx_14_DIplus",
+            "1h_adx_14_DIminus",
         }:
             assert _adx_diff_within_limits(column, diff_series), (
                 f"{timeframe} column {column} exceeds ADX tolerance "
@@ -343,9 +373,9 @@ def _normalize_builder_exports(
 ) -> dict[str, pd.DataFrame]:
     normalized: dict[str, pd.DataFrame] = {}
     prefix_map = {
-        "1H": "h1_",
-        "4H": "h4_",
-        "1D": "d1_",
+        "1H": "1h_",
+        "4H": "4h_",
+        "1D": "1d_",
     }
     for timeframe, df in builder_exports.items():
         prefix = prefix_map.get(timeframe)
@@ -463,9 +493,9 @@ def test_tradingview_exports_match_platform_math(
             continue
 
         if column in {
-            "h1_adx_14_ADX",
-            "h1_adx_14_DIplus",
-            "h1_adx_14_DIminus",
+            "1h_adx_14_ADX",
+            "1h_adx_14_DIplus",
+            "1h_adx_14_DIminus",
         }:
             assert _adx_diff_within_limits(column, diff_series), (
                 f"{timeframe} column {column} exceeds ADX tolerance "
@@ -546,6 +576,7 @@ def test_cache_builder_produces_available_after_close(
         timeframes=list(TIMEFRAME_EXPORTS.keys()),
         overwrite=True,
         include_bar_windows=True,
+        normalize_timeframe_labels=True,
     )
 
     builder_exports: dict[str, pd.DataFrame] = {}

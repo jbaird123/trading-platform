@@ -15,6 +15,9 @@ what keep the snapshots free of look‑ahead bias.
   actual open of the 4‑hour bar that closed before `available_at`.
 - **bar_lookup_key** – the exact timestamp stored in the TradingView CSV. This
   lets us look up the original row without having to reverse the timezone math.
+- **feature columns** – all indicator columns start with lowercase Pandas-
+  style timeframe aliases (`1h_`, `4h_`, `1d_`, `5min_`, …). This ensures the
+  parquet schema always reflects canonical timeframe labels.
 
 ### How rows are produced
 
