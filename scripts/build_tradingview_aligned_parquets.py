@@ -43,6 +43,12 @@ TIMESTAMP_COLUMN = "available_at"
 INSTRUMENT = get_instrument_definition(SYMBOL)
 SESSION = INSTRUMENT.sessions[0] if INSTRUMENT.sessions else None
 
+# INTENTIONAL: Filter golden cache to start at this date to limit test data size
+# while keeping the full CSV files for indicator validation tests that need
+# historical warm-up data. This date was chosen to align with the builder cache
+# test data range. See test_golden_cache_matches_source_csv for alignment verification.
+GOLDEN_CACHE_START_DATE = pd.Timestamp("2021-12-30 02:00:00", tz="UTC")
+
 OHLC_COLUMNS = ["open", "high", "low", "close", "volume"]
 TIMEFRAME_EXPORTS = OrderedDict(
     [
@@ -93,6 +99,10 @@ def _load_export(csv_name: str) -> pd.DataFrame:
     )
     df = df.rename(columns=COLUMN_RENAMES)
     df = normalize_timeframe_columns(df)
+
+    # Filter to start at configured date
+    df = df[df.index >= GOLDEN_CACHE_START_DATE]
+
     return df
 
 
