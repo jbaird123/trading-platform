@@ -312,7 +312,14 @@ def build_global_feature_caches(
 
         feature_df = normalize_timeframe_columns(feature_df)
         feature_columns = normalize_name_sequence(feature_columns)
-        feature_df = feature_df.shift(1)
+
+        # Convert bar_lookup to ISO string format (matching TradingView golden cache)
+        bar_lookup_strings = pd.Series(
+            [
+                ts.isoformat().replace("+00:00", "Z") if pd.notna(ts) else None
+                for ts in bar_lookup
+            ]
+        )
 
         aligned_index = bar_open
 
@@ -325,9 +332,9 @@ def build_global_feature_caches(
         )
 
         raw_frame = feature_df.copy()
-        raw_frame["bar_open"] = bar_open
-        raw_frame["bar_close"] = bar_close
-        raw_frame["bar_lookup"] = bar_lookup
+        raw_frame["bar_open"] = bar_open.to_numpy()
+        raw_frame["bar_close"] = bar_close.to_numpy()
+        raw_frame["bar_lookup"] = bar_lookup_strings.to_numpy()
         raw_frame = raw_frame.sort_values("bar_close").reset_index(drop=True)
         raw_frames[timeframe] = raw_frame
 
