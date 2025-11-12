@@ -836,3 +836,356 @@ def test_cache_builder_produces_available_after_close(
             golden_subset = golden_subset.iloc[warmup:]
             expected_subset = expected_subset.iloc[warmup:]
         _assert_feature_frames_match(golden_subset, expected_subset, timeframe)
+
+
+@pytest.mark.validation
+def test_golden_cache_matches_source_csv() -> None:
+    """Verify golden (TradingView) cache parquet files match their source CSV files.
+
+    This test ensures that the golden cache parquet files are correctly built
+    from their source CSV files by verifying that all indicator values match
+    exactly when aligned by bar_lookup_key.
+    """
+    # Column name mapping from parquet to CSV
+    # Parquet uses "1h_" prefix, CSV uses "h1_" prefix
+    column_mapping = {
+        "1h_ema_50": "h1_ema_50",
+        "1h_adx_14_ADX": "h1_adx_14_ADX",
+        "1h_adx_14_DIplus": "h1_adx_14_DIplus",
+        "1h_adx_14_DIminus": "h1_adx_14_DIminus",
+        "1h_rsi_14": "h1_rsi_14",
+        "1h_macd_macd": "h1_macd_macd",
+        "1h_macd_signal": "h1_macd_signal",
+        "1h_macd_diff": "h1_macd_diff",
+        "1h_atr_14": "h1_atr_14",
+        "1h_bb_width_20": "h1_bb_width_20",
+        "1h_volume_sma_20": "h1_volume_sma_20",
+        "4h_ema_50": "h4_ema_50",
+        "4h_rsi_14": "h4_rsi_14",
+        "4h_atr_14": "h4_atr_14",
+        "1d_ema_24": "d1_ema_24",
+        "1d_atr_14": "d1_atr_14",
+        "1d_volume_sma_20": "d1_volume_sma_20",
+    }
+
+    # Timeframe configurations
+    timeframe_configs = {
+        "1H": {
+            "parquet": PURE_TV_CACHE_DIR / "1h.parquet",
+            "csv": RAW_FEATURE_DIR / "eurusd_1h_tradingview.csv",
+            "bar_lookup_key": "1h_bar_lookup_key",
+            "indicators": [
+                "1h_ema_50",
+                "1h_adx_14_ADX",
+                "1h_adx_14_DIplus",
+                "1h_adx_14_DIminus",
+                "1h_rsi_14",
+                "1h_macd_macd",
+                "1h_macd_signal",
+                "1h_macd_diff",
+                "1h_atr_14",
+                "1h_bb_width_20",
+                "1h_volume_sma_20",
+            ],
+        },
+        "4H": {
+            "parquet": PURE_TV_CACHE_DIR / "4h.parquet",
+            "csv": RAW_FEATURE_DIR / "eurusd_4h_tradingview.csv",
+            "bar_lookup_key": "4h_bar_lookup_key",
+            "indicators": ["4h_ema_50", "4h_rsi_14", "4h_atr_14"],
+        },
+        "1D": {
+            "parquet": PURE_TV_CACHE_DIR / "1d.parquet",
+            "csv": RAW_FEATURE_DIR / "eurusd_1d_tradingview.csv",
+            "bar_lookup_key": "1d_bar_lookup_key",
+            "indicators": ["1d_ema_24", "1d_atr_14", "1d_volume_sma_20"],
+        },
+    }
+
+    def parse_lookup_key(lookup_key: str, timeframe: str) -> pd.Timestamp | None:
+        """Parse bar_lookup_key to timestamp."""
+        if pd.isna(lookup_key) or lookup_key is None or lookup_key == "None":
+            return None
+
+        # 1D uses date-only format like "2021-12-30"
+        # 1H/4H use ISO format like "2021-12-30T02:00:00Z"
+        if timeframe == "1D":
+            return pd.Timestamp(lookup_key, tz="UTC")
+        else:
+            return pd.Timestamp(lookup_key)
+
+    for tf_name, config in timeframe_configs.items():
+        # Load parquet
+        parquet_df = pd.read_parquet(str(config["parquet"])).sort_values("available_at")
+
+        # Load CSV
+        csv_df = pd.read_csv(str(config["csv"]), parse_dates=["time"])
+        csv_df = csv_df.set_index("time").sort_index()
+        csv_df.index = pd.to_datetime(csv_df.index, utc=True)
+
+        indicators: list[str] = config["indicators"]  # type: ignore[assignment]
+        bar_lookup_key: str = config["bar_lookup_key"]  # type: ignore[assignment]
+
+        # Check all indicators across all rows
+        for indicator in indicators:
+            matches = 0
+            mismatches = 0
+            skipped = 0
+            first_mismatch = None
+
+            for idx, row in parquet_df.iterrows():
+                lookup_key = row[bar_lookup_key]
+
+                if pd.isna(lookup_key) or lookup_key is None or lookup_key == "None":
+                    skipped += 1
+                    continue
+
+                lookup_ts = parse_lookup_key(lookup_key, tf_name)
+
+                if lookup_ts not in csv_df.index:
+                    skipped += 1
+                    continue
+
+                csv_row = csv_df.loc[lookup_ts]
+
+                parquet_val = row[indicator]
+                # Map parquet column name to CSV column name
+                csv_indicator = column_mapping.get(indicator, indicator)
+                csv_val = csv_row[csv_indicator]
+
+                # Both NaN = match
+                if pd.isna(parquet_val) and pd.isna(csv_val):
+                    matches += 1
+                    continue
+
+                # One NaN = mismatch
+                if pd.isna(parquet_val) or pd.isna(csv_val):
+                    mismatches += 1
+                    if first_mismatch is None:
+                        first_mismatch = {
+                            "idx": idx,
+                            "available_at": row["available_at"],
+                            "lookup_key": lookup_key,
+                            "parquet_val": parquet_val,
+                            "csv_val": csv_val,
+                        }
+                    continue
+
+                # Both have values - compare
+                if abs(parquet_val - csv_val) < 1e-10:
+                    matches += 1
+                else:
+                    mismatches += 1
+                    if first_mismatch is None:
+                        first_mismatch = {
+                            "idx": idx,
+                            "available_at": row["available_at"],
+                            "lookup_key": lookup_key,
+                            "parquet_val": parquet_val,
+                            "csv_val": csv_val,
+                        }
+
+            total = matches + mismatches
+
+            if mismatches > 0 and first_mismatch:
+                raise AssertionError(
+                    f"{tf_name} {indicator}: Golden cache mismatch with source CSV\n"
+                    f"  Matches: {matches}/{total}\n"
+                    f"  Mismatches: {mismatches}/{total}\n"
+                    f"  First mismatch at row {first_mismatch['idx']}:\n"
+                    f"    available_at: {first_mismatch['available_at']}\n"
+                    f"    lookup_key: {first_mismatch['lookup_key']}\n"
+                    f"    Parquet: {first_mismatch['parquet_val']}\n"
+                    f"    CSV: {first_mismatch['csv_val']}"
+                )
+
+
+@pytest.mark.validation
+def test_builder_cache_matches_calculated_indicators(tmp_path: Path) -> None:
+    """Verify builder cache indicator values match calculated values from 1min data.
+
+    This test ensures that the cache builder is calculating indicators correctly
+    by resampling 1min data and computing indicators using the platform's indicator
+    registry, then comparing with the builder cache output.
+    """
+    # Build caches using the cache builder
+    data_root = tmp_path / "tv_data"
+    _write_tradingview_ohlc_dataset(data_root)
+
+    descriptor = build_global_feature_caches(
+        symbol="EUR/USD",
+        data_root=data_root,
+        config_path=GLOBAL_FEATURES_CONFIG,
+        timeframes=["1H", "4H", "1D"],
+        overwrite=True,
+        include_bar_windows=True,
+    )
+
+    # Load 1min data
+    df_1min = pd.read_csv(TRADINGVIEW_MINUTE_SOURCE, parse_dates=["timestamp"])
+    df_1min = df_1min.set_index("timestamp").sort_index()
+    df_1min.index = pd.to_datetime(df_1min.index, utc=True)
+    if SESSION:
+        annotate_session(df_1min, SESSION)
+
+    # Load global features config
+    config = yaml.safe_load(GLOBAL_FEATURES_CONFIG.read_text())
+
+    # Group features by timeframe
+    features_by_timeframe: dict[str, list[dict]] = {}
+    for feature in config["features"]:
+        tf = feature["timeframe"]
+        features_by_timeframe.setdefault(tf, []).append(feature)
+
+    # Column name mapping from builder cache to calculated
+    # Builder uses "1h_" prefix, calculated uses "h1_" prefix
+    # Also ADX columns have different naming conventions
+    column_mapping = {
+        "1h_ema_50": "h1_ema_50",
+        "1h_adx_14_ADX": "h1_adx_14_ADX",
+        "1h_adx_14_DIplus": "h1_adx_14_DI+",
+        "1h_adx_14_DIminus": "h1_adx_14_DI-",
+        "1h_rsi_14": "h1_rsi_14",
+        "1h_macd_macd": "h1_macd_macd",
+        "1h_macd_signal": "h1_macd_signal",
+        "1h_macd_diff": "h1_macd_diff",
+        "1h_atr_14": "h1_atr_14",
+        "1h_bb_width_20": "h1_bb_width_20",
+        "1h_volume_sma_20": "h1_volume_sma_20",
+        "4h_ema_50": "h4_ema_50",
+        "4h_rsi_14": "h4_rsi_14",
+        "4h_atr_14": "h4_atr_14",
+        "1d_ema_24": "d1_ema_24",
+        "1d_atr_14": "d1_atr_14",
+        "1d_volume_sma_20": "d1_volume_sma_20",
+    }
+
+    # Test configurations
+    test_configs = {
+        "1H": {
+            "bar_lookup_key": "1h_bar_lookup_key",
+            "indicators": [
+                "1h_ema_50",
+                "1h_adx_14_ADX",
+                "1h_adx_14_DIplus",
+                "1h_adx_14_DIminus",
+                "1h_rsi_14",
+                "1h_macd_macd",
+                "1h_macd_signal",
+                "1h_macd_diff",
+                "1h_atr_14",
+                "1h_bb_width_20",
+                "1h_volume_sma_20",
+            ],
+        },
+        "4H": {
+            "bar_lookup_key": "4h_bar_lookup_key",
+            "indicators": ["4h_ema_50", "4h_rsi_14", "4h_atr_14"],
+        },
+        "1D": {
+            "bar_lookup_key": "1d_bar_lookup_key",
+            "indicators": ["1d_ema_24", "1d_atr_14", "1d_volume_sma_20"],
+        },
+    }
+
+    for timeframe in ["1H", "4H", "1D"]:
+        # Load builder cache
+        tf_path = descriptor.timeframe_path(timeframe)
+        builder_cache = pd.read_parquet(tf_path).sort_values("available_at")
+
+        # Resample 1min data to target timeframe
+        df_resampled = resample_data(df_1min, timeframe)
+        if SESSION:
+            annotate_session(df_resampled, SESSION)
+
+        # Get features for this timeframe
+        features = features_by_timeframe.get(timeframe, [])
+        if not features:
+            continue
+
+        # Calculate indicators
+        df_with_features = compute_features(
+            df_resampled, features, strategy_parameters={}
+        )
+
+        test_config = test_configs[timeframe]
+        bar_lookup_key: str = test_config["bar_lookup_key"]  # type: ignore[assignment]
+        indicators: list[str] = test_config["indicators"]  # type: ignore[assignment]
+
+        # Check all indicators (skip volume indicators that use hardcoded values)
+        for indicator in indicators:
+            # Skip volume indicators that are known to have hardcoded values in builder
+            if indicator in EXPORT_SKIP_COLUMNS:
+                continue
+            matches = 0
+            mismatches = 0
+            skipped = 0
+            first_mismatch = None
+
+            for idx, row in builder_cache.iterrows():
+                lookup_key = row[bar_lookup_key]
+
+                if pd.isna(lookup_key) or lookup_key is None or lookup_key == "None":
+                    skipped += 1
+                    continue
+
+                # Parse lookup key (format: "2021-12-30T02:00:00Z")
+                lookup_ts = pd.Timestamp(lookup_key)
+
+                if lookup_ts not in df_with_features.index:
+                    skipped += 1
+                    continue
+
+                calc_row = df_with_features.loc[lookup_ts]
+
+                builder_val = row[indicator]
+                # Map builder column name to calculated column name
+                calc_indicator = column_mapping.get(indicator, indicator)
+                calc_val = calc_row[calc_indicator]
+
+                # Both NaN = match
+                if pd.isna(builder_val) and pd.isna(calc_val):
+                    matches += 1
+                    continue
+
+                # One NaN = mismatch
+                if pd.isna(builder_val) or pd.isna(calc_val):
+                    mismatches += 1
+                    if first_mismatch is None:
+                        first_mismatch = {
+                            "idx": idx,
+                            "available_at": row["available_at"],
+                            "lookup_key": lookup_key,
+                            "builder_val": builder_val,
+                            "calc_val": calc_val,
+                        }
+                    continue
+
+                # Both have values - compare
+                if abs(builder_val - calc_val) < 1e-10:
+                    matches += 1
+                else:
+                    mismatches += 1
+                    if first_mismatch is None:
+                        first_mismatch = {
+                            "idx": idx,
+                            "available_at": row["available_at"],
+                            "lookup_key": lookup_key,
+                            "builder_val": builder_val,
+                            "calc_val": calc_val,
+                        }
+
+            total = matches + mismatches
+
+            if mismatches > 0 and first_mismatch:
+                raise AssertionError(
+                    f"{timeframe} {indicator}: "
+                    f"Builder cache mismatch with calculated values\n"
+                    f"  Matches: {matches}/{total}\n"
+                    f"  Mismatches: {mismatches}/{total}\n"
+                    f"  First mismatch at row {first_mismatch['idx']}:\n"
+                    f"    available_at: {first_mismatch['available_at']}\n"
+                    f"    lookup_key: {first_mismatch['lookup_key']}\n"
+                    f"    Builder: {first_mismatch['builder_val']}\n"
+                    f"    Calculated: {first_mismatch['calc_val']}"
+                )
