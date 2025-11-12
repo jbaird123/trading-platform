@@ -416,13 +416,38 @@ def _assert_feature_frames_match(
     assert golden_df.shape == expected_df.shape, (
         f"Shape mismatch for {timeframe}: " f"{golden_df.shape} vs {expected_df.shape}"
     )
-    diffs = (golden_df - expected_df).abs()
     for column in golden_df.columns:
-        diff_series = diffs[column].dropna()
+        left_series = golden_df[column]
+        right_series = expected_df[column]
+
+        # Handle datetime columns separately (like _assert_frames_close does)
+        if (
+            pd.api.types.is_datetime64_any_dtype(left_series)
+            or pd.api.types.is_datetime64_any_dtype(right_series)
+            or column.endswith("_bar_open")
+            or column.endswith("_bar_close")
+        ):
+            assert_series_equal(
+                pd.to_datetime(left_series, utc=True, errors="coerce"),
+                pd.to_datetime(right_series, utc=True, errors="coerce"),
+                check_names=False,
+            )
+            continue
+
+        # Handle object columns separately
+        if left_series.dtype == object and right_series.dtype == object:
+            assert_series_equal(
+                left_series.astype(str),
+                right_series.astype(str),
+                check_names=False,
+            )
+            continue
+
+        # Compute differences for numeric columns only
+        diff_series = (left_series - right_series).abs().dropna()
         if diff_series.empty:
             continue
-        left_series = golden_df[column].loc[diff_series.index]
-        right_series = expected_df[column].loc[diff_series.index]
+
         tolerance = _tolerance_for_column(column)
 
         # Use three-tier validation for ADX/DI columns
