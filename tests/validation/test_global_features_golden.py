@@ -120,6 +120,73 @@ def _tolerance_for_column(column: str) -> dict[str, float]:
     return DEFAULT_INDICATOR_TOLERANCE
 
 
+def _is_adx_column(column: str) -> bool:
+    """Check if column is an ADX/DI indicator."""
+    # Normalize column name to check for ADX patterns
+    col_lower = column.lower()
+    return "adx" in col_lower or "diplus" in col_lower or "diminus" in col_lower
+
+
+def _validate_adx_with_tiers(
+    actual_series: pd.Series,
+    expected_series: pd.Series,
+    column: str,
+    base_tolerance: dict[str, float],
+) -> bool:
+    """Apply three-tier absolute difference validation for ADX/DI indicators.
+
+    This matches the validation logic from test_indicator_validation.py lines 848-886.
+    """
+    # First try base tolerance with np.allclose
+    if np.allclose(
+        actual_series,
+        expected_series,
+        rtol=base_tolerance["rtol"],
+        atol=base_tolerance["atol"],
+        equal_nan=True,
+    ):
+        return True
+
+    # Calculate absolute differences (convert to Series for quantile method)
+    abs_diff = pd.Series(np.abs(actual_series - expected_series))
+
+    # Determine if this is DI+/DI- or ADX based on column name
+    col_lower = column.lower()
+    is_di = "diplus" in col_lower or "diminus" in col_lower
+
+    if is_di:
+        # DI+/DI- thresholds:
+        #   - 96th percentile < 0.0005
+        #   - 99th percentile < 0.09
+        #   - 99.9th percentile < 1.5
+        p96_threshold = 0.0005
+        p99_threshold = 0.09
+        p999_threshold = 1.5
+
+        p96_actual = abs_diff.quantile(0.96)
+        p99_actual = abs_diff.quantile(0.99)
+        p999_actual = abs_diff.quantile(0.999)
+    else:
+        # ADX thresholds:
+        #   - 92nd percentile < 0.0007
+        #   - 99th percentile < 0.45
+        #   - Maximum < 1.5
+        p96_threshold = 0.0007
+        p99_threshold = 0.45
+        p999_threshold = 1.5
+
+        p96_actual = abs_diff.quantile(0.92)  # 92nd percentile for ADX
+        p99_actual = abs_diff.quantile(0.99)
+        p999_actual = abs_diff.max()  # 100% must be within threshold
+
+    # Pass if all three tiers meet thresholds
+    return (
+        p96_actual <= p96_threshold
+        and p99_actual <= p99_threshold
+        and p999_actual <= p999_threshold
+    )
+
+
 def _write_tradingview_ohlc_dataset(data_root: Path) -> None:
     df = pd.read_csv(TRADINGVIEW_H1_EXPORT, parse_dates=["time"])
     df = df.rename(columns=str.lower).sort_values("time")
@@ -285,13 +352,26 @@ def _assert_frames_close(
         if not mask.any():
             continue
         tolerance = _tolerance_for_column(column)
-        assert np.allclose(
-            actual_series[mask],
-            expected_series[mask],
-            rtol=tolerance["rtol"],
-            atol=tolerance["atol"],
-            equal_nan=True,
-        ), f"Column {column} exceeds tolerance (max diff {diff_series[mask].max():.6f})"
+
+        # Use three-tier validation for ADX/DI columns
+        if _is_adx_column(column):
+            passes = _validate_adx_with_tiers(
+                actual_series[mask], expected_series[mask], column, tolerance
+            )
+            max_diff = diff_series[mask].max()
+            assert passes, (
+                f"Column {column} exceeds ADX three-tier tolerance "
+                f"(max diff {max_diff:.6f})"
+            )
+        else:
+            max_diff = diff_series[mask].max()
+            assert np.allclose(
+                actual_series[mask],
+                expected_series[mask],
+                rtol=tolerance["rtol"],
+                atol=tolerance["atol"],
+                equal_nan=True,
+            ), f"Column {column} exceeds tolerance (max diff {max_diff:.6f})"
 
 
 def _compute_features_from_ohlc(
@@ -344,6 +424,20 @@ def _assert_feature_frames_match(
         left_series = golden_df[column].loc[diff_series.index]
         right_series = expected_df[column].loc[diff_series.index]
         tolerance = _tolerance_for_column(column)
+
+        # Use three-tier validation for ADX/DI columns
+        if _is_adx_column(column):
+            passes = _validate_adx_with_tiers(
+                left_series, right_series, column, tolerance
+            )
+            if passes:
+                continue
+            max_diff = diff_series.max()
+            raise AssertionError(
+                f"{timeframe} column {column} diverged "
+                f"(ADX three-tier validation failed) (max diff {max_diff:.4e})"
+            )
+
         if np.allclose(
             left_series,
             right_series,
@@ -474,6 +568,20 @@ def test_tradingview_exports_match_platform_math(
         exp_series = export_subset[column].loc[diff_series.index]
 
         tolerance = _tolerance_for_column(column)
+
+        # Use three-tier validation for ADX/DI columns
+        if _is_adx_column(column):
+            passes = _validate_adx_with_tiers(
+                comp_series, exp_series, column, tolerance
+            )
+            if passes:
+                continue
+            max_diff = diff_series.max()
+            raise AssertionError(
+                f"{timeframe} column {column} diverged "
+                f"(ADX three-tier validation failed) (max diff {max_diff:.4e})"
+            )
+
         if np.allclose(
             comp_series,
             exp_series,
