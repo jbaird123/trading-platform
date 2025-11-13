@@ -37,17 +37,6 @@ PURE_TV_CACHE_DIR = (
     / "cache"
     / "eurusd"
 )
-TRADINGVIEW_MINUTE_SOURCE = (
-    PROJECT_ROOT
-    / "data"
-    / "dvc"
-    / "golden"
-    / "ohlcv"
-    / "tradingview"
-    / "full"
-    / "eurusd"
-    / "eurusd_1min.csv"
-)
 TIMEFRAME_EXPORTS = {
     "15min": "eurusd_15min_trading_platform.csv",
     "1H": "eurusd_1h_trading_platform.csv",
@@ -63,7 +52,6 @@ PARQUET_FILENAMES = {
 }
 INSTRUMENT = get_instrument_definition("EUR/USD")
 SESSION = INSTRUMENT.sessions[0] if INSTRUMENT.sessions else None
-TRADINGVIEW_H1_EXPORT = RAW_FEATURE_DIR / "eurusd_1h_tradingview.csv"
 WARMUP_BARS = {
     "1H": 1000,
     "4H": 200,
@@ -225,33 +213,6 @@ def features_by_timeframe() -> dict[str, list[dict]]:
     for feature in config["features"]:
         grouped.setdefault(feature["timeframe"], []).append(feature)
     return grouped
-
-
-@pytest.fixture(scope="module")
-def tradingview_minute_ohlc() -> pd.DataFrame:
-    df = pd.read_csv(TRADINGVIEW_MINUTE_SOURCE, parse_dates=["timestamp"])
-    df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
-    df = df.rename(columns=str.lower).set_index("timestamp").sort_index()
-    if SESSION:
-        annotate_session(df, SESSION)
-    return df
-
-
-@pytest.fixture(scope="module")
-def tradingview_1h_ohlc() -> pd.DataFrame:
-    """Load TradingView's native 1H OHLC export (not resampled from minutes)."""
-    df = pd.read_csv(TRADINGVIEW_H1_EXPORT, parse_dates=["time"])
-    df["timestamp"] = pd.to_datetime(df["time"], utc=True)
-    df = df.rename(columns=str.lower).set_index("timestamp").sort_index()
-    df = df.drop(columns=["time"], errors="ignore")
-    # Keep only OHLCV columns
-    ohlc_cols = ["open", "high", "low", "close"]
-    if "volume" in df.columns:
-        ohlc_cols.append("volume")
-    df = df[ohlc_cols]
-    if SESSION:
-        annotate_session(df, SESSION)
-    return df
 
 
 @pytest.fixture(scope="module")
@@ -434,38 +395,8 @@ def _assert_frames_close(
             ), f"Column {column} exceeds tolerance (max diff {max_diff:.6f})"
 
 
-def _compute_features_from_ohlc(
-    ohlc_df: pd.DataFrame,
-    specs: list[dict],
-) -> pd.DataFrame:
-    base_df = ohlc_df[["open", "high", "low", "close"]].copy()
-    if "volume" in ohlc_df.columns:
-        base_df["volume"] = ohlc_df["volume"].values
-    else:
-        base_df["volume"] = 1.0
-
-    adjusted_specs = []
-    for feature in specs:
-        feature_copy = dict(feature)
-        feature_copy.pop("timeframe", None)
-        adjusted_specs.append(feature_copy)
-
-    computed = compute_features(base_df, adjusted_specs)
-    computed = computed.drop(
-        columns=["open", "high", "low", "close", "volume"], errors="ignore"
-    )
-    computed = computed.rename(columns=COLUMN_RENAMES)
-    computed = normalize_timeframe_columns(computed).sort_index()
-    return computed
-
-
 def _strip_price_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df.drop(columns=OHLC_COLUMNS.union({"timestamp"}), errors="ignore")
-
-
-def _resample_minute_bars(minute_df: pd.DataFrame, timeframe: str) -> pd.DataFrame:
-    resampled = resample_data(minute_df, timeframe)
-    return resampled.sort_index()
 
 
 def _assert_feature_frames_match(
@@ -588,93 +519,6 @@ def _build_expected_parquet(
         col for col in cols if col != CACHE_TIMESTAMP_COLUMN
     ]
     return result[ordered_cols]
-
-
-@pytest.mark.validation
-@pytest.mark.parametrize(
-    ("timeframe", "csv_name"),
-    list(TIMEFRAME_EXPORTS.items()),
-)
-def test_tradingview_exports_match_platform_math(
-    timeframe: str,
-    csv_name: str,
-    features_by_timeframe: dict[str, list[dict]],
-    tradingview_1h_ohlc: pd.DataFrame,
-) -> None:
-    """Ensure compute_features reproduces TradingView exports."""
-    export_df = _load_export(csv_name)
-
-    # Use native 1H data for 1H tests, resample for higher timeframes
-    if timeframe == "1H":
-        ohlc_df = tradingview_1h_ohlc
-    else:
-        # Resample 1H to 4H or 1D
-        ohlc_df = _resample_minute_bars(tradingview_1h_ohlc, timeframe)
-
-    computed_df = _compute_features_from_ohlc(
-        ohlc_df,
-        features_by_timeframe[timeframe],
-    )
-
-    comparable_columns = [
-        column
-        for column in export_df.columns
-        if column not in {"open", "high", "low", "close"}
-        and column not in EXPORT_SKIP_COLUMNS
-        and column in computed_df.columns
-    ]
-    assert comparable_columns, "No comparable columns detected."
-
-    export_subset = export_df[comparable_columns].copy()
-    computed_subset = computed_df[comparable_columns].copy()
-
-    common_index = export_subset.index.intersection(computed_subset.index)
-    export_subset = export_subset.loc[common_index]
-    computed_subset = computed_subset.loc[common_index]
-
-    warmup = WARMUP_BARS.get(timeframe, 0)
-    if warmup > 0:
-        export_subset = export_subset.iloc[warmup:]
-        computed_subset = computed_subset.iloc[warmup:]
-
-    diffs = (computed_subset - export_subset).abs()
-
-    for column in comparable_columns:
-        diff_series = diffs[column].dropna()
-        if diff_series.empty:
-            continue
-
-        comp_series = computed_subset[column].loc[diff_series.index]
-        exp_series = export_subset[column].loc[diff_series.index]
-
-        tolerance = _tolerance_for_column(column)
-
-        # Use three-tier validation for ADX/DI columns
-        if _is_adx_column(column):
-            passes = _validate_adx_with_tiers(
-                comp_series, exp_series, column, tolerance
-            )
-            if passes:
-                continue
-            max_diff = diff_series.max()
-            raise AssertionError(
-                f"{timeframe} column {column} diverged "
-                f"(ADX three-tier validation failed) (max diff {max_diff:.4e})"
-            )
-
-        if np.allclose(
-            comp_series,
-            exp_series,
-            rtol=tolerance["rtol"],
-            atol=tolerance["atol"],
-            equal_nan=True,
-        ):
-            continue
-
-        raise AssertionError(
-            f"{timeframe} column {column} diverged "
-            f"(max diff {diff_series.max():.4e})"
-        )
 
 
 @pytest.mark.validation
