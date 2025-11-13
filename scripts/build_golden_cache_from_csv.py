@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Build TradingView multi-timeframe feature caches for golden tests.
+Build multi-timeframe golden feature caches directly from CSV exports.
 
 Each parquet embeds higher timeframe features into the base timeframe while
 explicitly labeling that the values become available only after their source
@@ -29,37 +29,18 @@ CONFIG_PATH = PROJECT_ROOT / "data" / "dvc" / "golden" / "features" / "global.ya
 SYMBOL = "EUR/USD"
 SYMBOL_SLUG = "eurusd"
 
-# INTENTIONAL: Support both TradingView and Trading Platform cache generation
-# TradingView cache: Uses TradingView CSV exports, filtered to 2021-12-30 start
-# Trading Platform cache: Uses platform-generated CSVs, covers 2020-2024
-CACHE_TYPE = "trading_platform"  # or "tradingview"
-
-if CACHE_TYPE == "tradingview":
-    PURE_GOLDEN_DIR = (
-        PROJECT_ROOT
-        / "data"
-        / "dvc"
-        / "golden"
-        / "features"
-        / "tradingview"
-        / "cache"
-        / SYMBOL_SLUG
-    )
-    # Filter golden cache to start at this date to limit test data size
-    GOLDEN_CACHE_START_DATE = pd.Timestamp("2021-12-30 02:00:00", tz="UTC")
-else:
-    PURE_GOLDEN_DIR = (
-        PROJECT_ROOT
-        / "data"
-        / "dvc"
-        / "golden"
-        / "features"
-        / "trading_platform"
-        / "cache"
-        / SYMBOL_SLUG
-    )
-    # Filter trading platform cache to start at this date
-    GOLDEN_CACHE_START_DATE = pd.Timestamp("2020-03-01 22:00:00", tz="UTC")
+PURE_GOLDEN_DIR = (
+    PROJECT_ROOT
+    / "data"
+    / "dvc"
+    / "golden"
+    / "features"
+    / "trading_platform"
+    / "cache"
+    / SYMBOL_SLUG
+)
+# Filter trading platform cache to start at this date to limit downstream data size
+GOLDEN_CACHE_START_DATE = pd.Timestamp("2020-03-01 22:00:00", tz="UTC")
 
 TEST_CACHE_ROOT = PROJECT_ROOT / "data" / "dvc" / "golden"
 TIMESTAMP_COLUMN = "available_at"
@@ -68,76 +49,44 @@ SESSION = INSTRUMENT.sessions[0] if INSTRUMENT.sessions else None
 
 OHLC_COLUMNS = ["open", "high", "low", "close", "volume"]
 
-if CACHE_TYPE == "tradingview":
-    TIMEFRAME_EXPORTS = OrderedDict(
-        [
+TIMEFRAME_EXPORTS = OrderedDict(
+    [
+        (
+            "15min",
             (
-                "1H",
-                (
-                    "eurusd_1h_tradingview.csv",
-                    "eurusd_1h_available_after_close.parquet",
-                ),
+                "eurusd_15min_trading_platform.csv",
+                "eurusd_15min_available_after_close.parquet",
             ),
+        ),
+        (
+            "1H",
             (
-                "4H",
-                (
-                    "eurusd_4h_tradingview.csv",
-                    "eurusd_4h_available_after_close.parquet",
-                ),
+                "eurusd_1h_trading_platform.csv",
+                "eurusd_1h_available_after_close.parquet",
             ),
+        ),
+        (
+            "4H",
             (
-                "1D",
-                (
-                    "eurusd_1d_tradingview.csv",
-                    "eurusd_1d_available_after_close.parquet",
-                ),
+                "eurusd_4h_trading_platform.csv",
+                "eurusd_4h_available_after_close.parquet",
             ),
-        ]
-    )
-    PARQUET_FILENAMES = {
-        "1H": "1h.parquet",
-        "4H": "4h.parquet",
-        "1D": "1d.parquet",
-    }
-else:
-    TIMEFRAME_EXPORTS = OrderedDict(
-        [
+        ),
+        (
+            "1D",
             (
-                "15min",
-                (
-                    "eurusd_15min_trading_platform.csv",
-                    "eurusd_15min_available_after_close.parquet",
-                ),
+                "eurusd_1d_trading_platform.csv",
+                "eurusd_1d_available_after_close.parquet",
             ),
-            (
-                "1H",
-                (
-                    "eurusd_1h_trading_platform.csv",
-                    "eurusd_1h_available_after_close.parquet",
-                ),
-            ),
-            (
-                "4H",
-                (
-                    "eurusd_4h_trading_platform.csv",
-                    "eurusd_4h_available_after_close.parquet",
-                ),
-            ),
-            (
-                "1D",
-                (
-                    "eurusd_1d_trading_platform.csv",
-                    "eurusd_1d_available_after_close.parquet",
-                ),
-            ),
-        ]
-    )
-    PARQUET_FILENAMES = {
-        "15min": "15min.parquet",
-        "1H": "1h.parquet",
-        "4H": "4h.parquet",
-        "1D": "1d.parquet",
-    }
+        ),
+    ]
+)
+PARQUET_FILENAMES = {
+    "15min": "15min.parquet",
+    "1H": "1h.parquet",
+    "4H": "4h.parquet",
+    "1D": "1d.parquet",
+}
 COLUMN_RENAMES = {
     "m15_adx_14_DI+": "m15_adx_14_DIplus",
     "m15_adx_14_DI-": "m15_adx_14_DIminus",
@@ -172,7 +121,7 @@ def _load_export(csv_name: str) -> pd.DataFrame:
         raise FileNotFoundError(f"Export not found: {path}")
     raw = pd.read_csv(path)
 
-    # Handle both 'time' column (TradingView) and 'timestamp' column (Trading Platform)
+    # Handle either 'time' or 'timestamp' columns from legacy exports
     time_col = "time" if "time" in raw.columns else "timestamp"
     if time_col not in raw.columns:
         raise ValueError(f"Neither 'time' nor 'timestamp' column found in {path}")
@@ -188,7 +137,7 @@ def _load_export(csv_name: str) -> pd.DataFrame:
     df = df.rename(columns=COLUMN_RENAMES)
     df = normalize_timeframe_columns(df)
 
-    # Filter to start at configured date (only for TradingView cache)
+    # Filter to start at configured date
     if GOLDEN_CACHE_START_DATE is not None:
         df = df[df.index >= GOLDEN_CACHE_START_DATE]
 
@@ -414,7 +363,7 @@ def main() -> None:
 
     _write_metadata(cache_dir, built_frames, written_paths)
 
-    print("Golden TradingView cache rebuilt.")
+    print("Golden cache rebuilt.")
 
 
 if __name__ == "__main__":

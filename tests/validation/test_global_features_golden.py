@@ -1,4 +1,4 @@
-"""Golden regression tests for TradingView global feature exports."""
+"""Golden regression tests for platform global feature exports."""
 
 from __future__ import annotations
 
@@ -69,7 +69,7 @@ COLUMN_RENAMES = {
 EXPORT_SKIP_COLUMNS = {"1h_volume_sma_20", "1d_volume_sma_20"}
 OHLC_COLUMNS = {"open", "high", "low", "close", "volume"}
 # Golden cache validation start date (matches
-# scripts/build_tradingview_aligned_parquets.py)
+# scripts/build_golden_cache_from_csv.py)
 GOLDEN_CACHE_START_DATE = pd.Timestamp("2020-03-01 22:00:00", tz="UTC")
 # Earliest timestamp where all higher timeframe metadata exists in the
 # trading_platform cache (15min base + 1H/4H/1D dependencies)
@@ -185,7 +185,7 @@ def _validate_adx_with_tiers(
     )
 
 
-def _write_tradingview_ohlc_dataset(data_root: Path) -> None:
+def _write_platform_ohlc_dataset(data_root: Path) -> None:
     """Write 15min OHLC dataset from trading_platform OHLCV file to data_root."""
     # Use the 15min OHLCV file as source
     source_csv = (
@@ -231,7 +231,7 @@ def rebuilt_test_cache(
 
     tmp_dir = tmp_path_factory.mktemp("rebuilt_cache")
     data_root = tmp_dir / "tv_data"
-    _write_tradingview_ohlc_dataset(data_root)
+    _write_platform_ohlc_dataset(data_root)
 
     descriptor = build_global_feature_caches(
         symbol="EUR/USD",
@@ -526,7 +526,7 @@ def _build_expected_parquet(
     ("timeframe", "parquet_name"),
     [(tf, PARQUET_FILENAMES[tf]) for tf in TIMEFRAME_EXPORTS],
 )
-def test_tradingview_aligned_parquet_matches_export(
+def test_golden_parquet_matches_export(
     timeframe: str,
     parquet_name: str,
     raw_exports: dict[str, pd.DataFrame],
@@ -570,10 +570,10 @@ def test_tradingview_aligned_parquet_matches_export(
 
 
 @pytest.mark.validation
-def test_test_cache_matches_tradingview_snapshot(
+def test_test_cache_matches_golden_snapshot(
     rebuilt_test_cache: dict[str, pd.DataFrame],
 ) -> None:
-    """Rebuild the feature cache and ensure it matches the TradingView reference."""
+    """Rebuild the feature cache and ensure it matches the golden reference."""
     for timeframe, parquet_name in PARQUET_FILENAMES.items():
         builder_df = rebuilt_test_cache[timeframe].copy()
         golden_df = _load_aligned_parquet(parquet_name).sort_values(
@@ -721,7 +721,7 @@ def test_bar_metadata_alignment(
 
 @pytest.mark.validation
 def test_golden_cache_matches_source_csv() -> None:
-    """Verify golden (TradingView) cache parquet files match their source CSV files.
+    """Verify golden cache parquet files match their source CSV files.
 
     This test ensures the golden cache parquet files stay in sync with their source
     CSV files by verifying that all indicator values match exactly when aligned by
@@ -892,7 +892,7 @@ def test_builder_cache_matches_calculated_indicators(tmp_path: Path) -> None:
     """
     # Build caches using the cache builder
     data_root = tmp_path / "tv_data"
-    _write_tradingview_ohlc_dataset(data_root)
+    _write_platform_ohlc_dataset(data_root)
 
     descriptor = build_global_feature_caches(
         symbol="EUR/USD",
