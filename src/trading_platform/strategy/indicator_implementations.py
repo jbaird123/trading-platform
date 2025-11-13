@@ -1371,72 +1371,64 @@ def compute_supertrend(
         return {"": empty, "direction": empty, "long": empty, "short": empty}
 
     try:
-        # Calculate ATR
         atr_values = atr(df, length)
+        first_valid_ts = atr_values.first_valid_index()
+        if first_valid_ts is None:
+            empty = _empty_series(df)
+            return {"": empty, "direction": empty, "long": empty, "short": empty}
 
-        # Calculate HL2 (average of high and low)
+        start_pos = atr_values.index.get_loc(first_valid_ts)
+
         hl2 = (_price_series(df, "high") + _price_series(df, "low")) / 2
-
-        # Calculate basic bands
         basic_upper = hl2 + (multiplier * atr_values)
         basic_lower = hl2 - (multiplier * atr_values)
 
-        # Initialize final bands
-        final_upper = pd.Series(index=df.index, dtype="float64")
-        final_lower = pd.Series(index=df.index, dtype="float64")
-        supertrend = pd.Series(index=df.index, dtype="float64")
-        direction = pd.Series(index=df.index, dtype="float64")
+        final_upper = pd.Series(np.nan, index=df.index, dtype="float64")
+        final_lower = pd.Series(np.nan, index=df.index, dtype="float64")
+        supertrend = pd.Series(np.nan, index=df.index, dtype="float64")
+        direction = pd.Series(np.nan, index=df.index, dtype="float64")
 
         close = _price_series(df, "close")
 
-        # Calculate final bands with persistence logic
-        for i in range(n):
-            if i == 0:
+        for i in range(start_pos, n):
+            if i == start_pos:
                 final_upper.iloc[i] = basic_upper.iloc[i]
                 final_lower.iloc[i] = basic_lower.iloc[i]
+                continue
+
+            if (
+                basic_upper.iloc[i] < final_upper.iloc[i - 1]
+                or close.iloc[i - 1] > final_upper.iloc[i - 1]
+            ):
+                final_upper.iloc[i] = basic_upper.iloc[i]
             else:
-                # Upper band: use basic_upper unless it's greater than previous
-                # and close was above previous upper band
-                if (
-                    basic_upper.iloc[i] < final_upper.iloc[i - 1]
-                    or close.iloc[i - 1] > final_upper.iloc[i - 1]
-                ):
-                    final_upper.iloc[i] = basic_upper.iloc[i]
-                else:
-                    final_upper.iloc[i] = final_upper.iloc[i - 1]
+                final_upper.iloc[i] = final_upper.iloc[i - 1]
 
-                # Lower band: use basic_lower unless it's less than previous
-                # and close was below previous lower band
-                if (
-                    basic_lower.iloc[i] > final_lower.iloc[i - 1]
-                    or close.iloc[i - 1] < final_lower.iloc[i - 1]
-                ):
-                    final_lower.iloc[i] = basic_lower.iloc[i]
-                else:
-                    final_lower.iloc[i] = final_lower.iloc[i - 1]
+            if (
+                basic_lower.iloc[i] > final_lower.iloc[i - 1]
+                or close.iloc[i - 1] < final_lower.iloc[i - 1]
+            ):
+                final_lower.iloc[i] = basic_lower.iloc[i]
+            else:
+                final_lower.iloc[i] = final_lower.iloc[i - 1]
 
-        # Determine trend direction and supertrend value
-        for i in range(n):
-            if i == 0:
-                # Start with uptrend
+        for i in range(start_pos, n):
+            if i == start_pos:
                 direction.iloc[i] = 1
                 supertrend.iloc[i] = final_lower.iloc[i]
-            else:
-                # If close crosses above upper band, switch to uptrend
-                if close.iloc[i] > final_upper.iloc[i - 1]:
-                    direction.iloc[i] = 1
-                # If close crosses below lower band, switch to downtrend
-                elif close.iloc[i] < final_lower.iloc[i - 1]:
-                    direction.iloc[i] = -1
-                # Otherwise maintain previous direction
-                else:
-                    direction.iloc[i] = direction.iloc[i - 1]
+                continue
 
-                # SuperTrend follows the appropriate band
-                if direction.iloc[i] == 1:
-                    supertrend.iloc[i] = final_lower.iloc[i]
-                else:
-                    supertrend.iloc[i] = final_upper.iloc[i]
+            if close.iloc[i] > final_upper.iloc[i - 1]:
+                direction.iloc[i] = 1
+            elif close.iloc[i] < final_lower.iloc[i - 1]:
+                direction.iloc[i] = -1
+            else:
+                direction.iloc[i] = direction.iloc[i - 1]
+
+            if direction.iloc[i] == 1:
+                supertrend.iloc[i] = final_lower.iloc[i]
+            else:
+                supertrend.iloc[i] = final_upper.iloc[i]
 
         return {
             "": supertrend,  # Main value
