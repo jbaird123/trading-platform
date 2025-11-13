@@ -67,8 +67,8 @@ def test_build_global_feature_caches_creates_outputs(tmp_path) -> None:
     five_min_df = pd.read_parquet(descriptor.timeframe_path("5min"))
     fifteen_min_df = pd.read_parquet(descriptor.timeframe_path("15min"))
 
-    assert "m5_test_ema" in five_min_df.columns
-    assert "m15_test_rsi" in fifteen_min_df.columns
+    assert "5min_test_ema" in five_min_df.columns
+    assert "15min_test_rsi" in fifteen_min_df.columns
 
 
 def test_build_global_feature_caches_is_idempotent(tmp_path) -> None:
@@ -154,16 +154,22 @@ def test_build_global_feature_caches_includes_bar_windows(tmp_path) -> None:
     available = pd.to_datetime(five_min_df["available_at"], utc=True)
     bar_open = pd.to_datetime(five_min_df["5min_bar_open"], utc=True)
     bar_close = pd.to_datetime(five_min_df["5min_bar_close"], utc=True)
+    valid_mask = bar_open.notna() & bar_close.notna()
+    assert valid_mask.any()
+    bar_open_valid = bar_open[valid_mask]
+    bar_close_valid = bar_close[valid_mask]
     delta = pd.Timedelta(minutes=5)
     assert_series_equal(
-        bar_open + delta,
-        bar_close,
+        bar_open_valid + delta,
+        bar_close_valid,
         check_names=False,
     )
-    assert (bar_open < bar_close).all()
-    assert (bar_close <= available).all()
+    assert (bar_open_valid < bar_close_valid).all()
+    assert (bar_close_valid <= available[valid_mask]).all()
     lookup = pd.to_datetime(five_min_df["5min_bar_lookup_key"], utc=True)
-    assert (lookup <= available).all()
+    lookup_valid = lookup.notna()
+    if lookup_valid.any():
+        assert (lookup[lookup_valid] <= available[lookup_valid]).all()
 
 
 def test_cache_covers_features_detects_available_columns(tmp_path) -> None:

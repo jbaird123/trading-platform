@@ -28,6 +28,7 @@ from trading_platform.data.session_metadata import SESSION_ATTR
 from trading_platform.data.timeframe_aliases import (
     normalize_name_sequence,
     normalize_timeframe_columns,
+    normalize_timeframe_prefix,
 )
 from trading_platform.strategy.features import compute_features
 
@@ -398,10 +399,13 @@ def _columns_for_features(
     selected: list[str] = []
     mapping: dict[str, list[str]] = {}
     for feature_name in feature_names:
+        if not feature_name:
+            continue
+        canonical_name = normalize_timeframe_prefix(feature_name)
         derived = [
             column
             for column in all_columns
-            if column == feature_name or column.startswith(f"{feature_name}_")
+            if column == canonical_name or column.startswith(f"{canonical_name}_")
         ]
         if derived:
             mapping[feature_name] = derived

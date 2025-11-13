@@ -52,12 +52,13 @@ def test_precompute_global_features_cli_builds_cache(tmp_path) -> None:
         config=str(global_yaml),
         timeframes=["5min"],
         overwrite=True,
+        include_bar_windows=False,
     )
 
     result = _precompute_global_features_logic(args)
     assert result == 0
 
-    metadata_files = list((data_root / "features" / "global").rglob("metadata.json"))
+    metadata_files = list((data_root / "features" / "cache").rglob("metadata.json"))
     assert len(metadata_files) == 1
     metadata = json.loads(metadata_files[0].read_text())
     assert "5min" in metadata.get("timeframes", {})
