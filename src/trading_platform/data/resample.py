@@ -37,7 +37,7 @@ def _timeframe_to_offset(rule: str) -> pd.tseries.offsets.BaseOffset:
         elif unit_lower == "d":
             normalized = f"{value}d"
         elif unit_lower == "w":
-            normalized = f"{value}w"
+            normalized = f"{value}W"
     return to_offset(normalized)
 
 
