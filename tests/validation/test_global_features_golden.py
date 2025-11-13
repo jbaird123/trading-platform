@@ -61,9 +61,9 @@ INSTRUMENT = get_instrument_definition("EUR/USD")
 SESSION = INSTRUMENT.sessions[0] if INSTRUMENT.sessions else None
 TRADINGVIEW_H1_EXPORT = RAW_FEATURE_DIR / "eurusd_1h_tradingview.csv"
 WARMUP_BARS = {
-    "1H": 2000,
+    "1H": 1000,
     "4H": 200,
-    "1D": 100,
+    "1D": 20,
 }
 CACHE_TIMESTAMP_COLUMN = "available_at"
 COLUMN_RENAMES = {
