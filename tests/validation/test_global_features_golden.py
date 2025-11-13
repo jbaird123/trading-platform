@@ -485,9 +485,6 @@ def _assert_feature_frames_match(
             )
             continue
 
-        # Compute differences for numeric columns only
-        diff_series = (left_series - right_series).abs().dropna()
-
         # Check that both series have NaN in the same positions
         left_nan_mask = left_series.isna()
         right_nan_mask = right_series.isna()
@@ -498,35 +495,15 @@ def _assert_feature_frames_match(
                 f"({nan_mismatch_count} rows differ)"
             )
 
-        if diff_series.empty:
-            continue
-
-        tolerance = _tolerance_for_column(column)
-
-        # Use three-tier validation for ADX/DI columns
-        if _is_adx_column(column):
-            passes = _validate_adx_with_tiers(
-                left_series, right_series, column, tolerance
-            )
-            if passes:
-                continue
-            max_diff = diff_series.max()
-            raise AssertionError(
-                f"{timeframe} column {column} diverged "
-                f"(ADX three-tier validation failed) (max diff {max_diff:.4e})"
-            )
-
-        if np.allclose(
+        # For numeric columns, require exact equality now that both caches come
+        # from the same data source.
+        pd.testing.assert_series_equal(
             left_series,
             right_series,
-            rtol=tolerance["rtol"],
-            atol=tolerance["atol"],
-            equal_nan=True,
-        ):
-            continue
-        raise AssertionError(
-            f"{timeframe} column {column} diverged "
-            f"(max diff {diff_series.max():.4e})"
+            check_names=False,
+            check_dtype=False,
+            check_exact=True,
+            obj=f"{timeframe} column {column}",
         )
 
 
