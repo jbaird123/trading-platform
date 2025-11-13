@@ -194,7 +194,11 @@ def atr(df: pd.DataFrame, length: int) -> pd.Series:
             window=length,
             fillna=False,
         )
-        return indicator.average_true_range()  # type: ignore[no-any-return]
+        result = indicator.average_true_range()
+        # Replace 0.0 values with NaN where insufficient data
+        # ATR needs at least 'length' bars to be valid
+        result = result.replace(0.0, np.nan)
+        return result  # type: ignore[no-any-return]
     except (IndexError, ValueError, TypeError):
         return pd.Series([np.nan] * n, index=df.index, dtype="float64")
 
@@ -217,11 +221,17 @@ def adx(df: pd.DataFrame, length: int) -> pd.DataFrame:
             window=length,
             fillna=False,
         )
+        # Replace 0.0 values with NaN where insufficient data
+        # ADX indicators need warm-up period
+        adx_series = indicator.adx().replace(0.0, np.nan)
+        di_plus = indicator.adx_pos().replace(0.0, np.nan)
+        di_minus = indicator.adx_neg().replace(0.0, np.nan)
+
         renamed = pd.DataFrame(
             {
-                "ADX": indicator.adx(),
-                "DI+": indicator.adx_pos(),
-                "DI-": indicator.adx_neg(),
+                "ADX": adx_series,
+                "DI+": di_plus,
+                "DI-": di_minus,
             },
             index=df.index,
         )

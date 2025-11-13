@@ -118,32 +118,19 @@ def resample_ohlc(
         else resample_data(df, rule)
     )
 
-    if resolved_session is not None and str(rule).lower() in {"1d", "d"}:
-        localized = result.tz_convert(resolved_session.close_timezone)
-        localized_index = pd.DatetimeIndex(localized.index)
-        normalized = _calendarize_session_close_index(
-            localized_index, session_hour=resolved_session.close_time.hour
-        )
-        normalized = normalized.tz_convert("UTC").normalize()
-        result.index = normalized
-
     return result
 
 
 def _calendarize_session_close_index(
-    index: pd.DatetimeIndex, session_hour: int
+    index: pd.DatetimeIndex,
+    session_hour: int,
 ) -> pd.DatetimeIndex:
-    """Convert timestamps labeled at session-close to the following calendar date.
-
-    Some reporting paths expect daily bars to be indexed by the date whose session
-    ended at the close. When a timestamp already equals the session close, shift
-    it forward one calendar day; otherwise keep its calendar date.
-    """
+    """Convert timestamps labeled at session-close to the following calendar date."""
 
     if not isinstance(index, pd.DatetimeIndex):
         raise TypeError("index must be a DatetimeIndex")
 
-    new_index = []
+    new_index: list[pd.Timestamp] = []
     for ts in index:
         if ts.hour == session_hour:
             calendar_date = (ts + pd.Timedelta(days=1)).date()
@@ -151,3 +138,9 @@ def _calendarize_session_close_index(
             calendar_date = ts.date()
         new_index.append(pd.Timestamp(calendar_date, tz=ts.tz))
     return pd.DatetimeIndex(new_index, name=index.name)
+
+
+__all__ = [
+    "load_and_normalize_data",
+    "resample_ohlc",
+]

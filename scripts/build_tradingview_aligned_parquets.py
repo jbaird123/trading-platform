@@ -28,46 +28,119 @@ RAW_DIR = PROJECT_ROOT / "data" / "dvc" / "golden" / "features" / "raw"
 CONFIG_PATH = PROJECT_ROOT / "data" / "dvc" / "golden" / "features" / "global.yaml"
 SYMBOL = "EUR/USD"
 SYMBOL_SLUG = "eurusd"
-PURE_GOLDEN_DIR = (
-    PROJECT_ROOT
-    / "data"
-    / "dvc"
-    / "golden"
-    / "features"
-    / "tradingview"
-    / "cache"
-    / SYMBOL_SLUG
-)
+
+# INTENTIONAL: Support both TradingView and Trading Platform cache generation
+# TradingView cache: Uses TradingView CSV exports, filtered to 2021-12-30 start
+# Trading Platform cache: Uses platform-generated CSVs, covers 2020-2024
+CACHE_TYPE = "trading_platform"  # or "tradingview"
+
+if CACHE_TYPE == "tradingview":
+    PURE_GOLDEN_DIR = (
+        PROJECT_ROOT
+        / "data"
+        / "dvc"
+        / "golden"
+        / "features"
+        / "tradingview"
+        / "cache"
+        / SYMBOL_SLUG
+    )
+    # Filter golden cache to start at this date to limit test data size
+    GOLDEN_CACHE_START_DATE = pd.Timestamp("2021-12-30 02:00:00", tz="UTC")
+else:
+    PURE_GOLDEN_DIR = (
+        PROJECT_ROOT
+        / "data"
+        / "dvc"
+        / "golden"
+        / "features"
+        / "trading_platform"
+        / "cache"
+        / SYMBOL_SLUG
+    )
+    # Filter trading platform cache to start at this date
+    GOLDEN_CACHE_START_DATE = pd.Timestamp("2020-03-01 22:00:00", tz="UTC")
+
 TEST_CACHE_ROOT = PROJECT_ROOT / "data" / "dvc" / "golden"
 TIMESTAMP_COLUMN = "available_at"
 INSTRUMENT = get_instrument_definition(SYMBOL)
 SESSION = INSTRUMENT.sessions[0] if INSTRUMENT.sessions else None
 
-# INTENTIONAL: Filter golden cache to start at this date to limit test data size
-# while keeping the full CSV files for indicator validation tests that need
-# historical warm-up data. This date was chosen to align with the builder cache
-# test data range. See test_golden_cache_matches_source_csv for alignment verification.
-GOLDEN_CACHE_START_DATE = pd.Timestamp("2021-12-30 02:00:00", tz="UTC")
-
 OHLC_COLUMNS = ["open", "high", "low", "close", "volume"]
-TIMEFRAME_EXPORTS = OrderedDict(
-    [
-        (
-            "1H",
-            ("eurusd_1h_tradingview.csv", "eurusd_1h_available_after_close.parquet"),
-        ),
-        (
-            "4H",
-            ("eurusd_4h_tradingview.csv", "eurusd_4h_available_after_close.parquet"),
-        ),
-        (
-            "1D",
-            ("eurusd_1d_tradingview.csv", "eurusd_1d_available_after_close.parquet"),
-        ),
-    ]
-)
-PARQUET_FILENAMES = {"1H": "1h.parquet", "4H": "4h.parquet", "1D": "1d.parquet"}
+
+if CACHE_TYPE == "tradingview":
+    TIMEFRAME_EXPORTS = OrderedDict(
+        [
+            (
+                "1H",
+                (
+                    "eurusd_1h_tradingview.csv",
+                    "eurusd_1h_available_after_close.parquet",
+                ),
+            ),
+            (
+                "4H",
+                (
+                    "eurusd_4h_tradingview.csv",
+                    "eurusd_4h_available_after_close.parquet",
+                ),
+            ),
+            (
+                "1D",
+                (
+                    "eurusd_1d_tradingview.csv",
+                    "eurusd_1d_available_after_close.parquet",
+                ),
+            ),
+        ]
+    )
+    PARQUET_FILENAMES = {
+        "1H": "1h.parquet",
+        "4H": "4h.parquet",
+        "1D": "1d.parquet",
+    }
+else:
+    TIMEFRAME_EXPORTS = OrderedDict(
+        [
+            (
+                "15min",
+                (
+                    "eurusd_15min_trading_platform.csv",
+                    "eurusd_15min_available_after_close.parquet",
+                ),
+            ),
+            (
+                "1H",
+                (
+                    "eurusd_1h_trading_platform.csv",
+                    "eurusd_1h_available_after_close.parquet",
+                ),
+            ),
+            (
+                "4H",
+                (
+                    "eurusd_4h_trading_platform.csv",
+                    "eurusd_4h_available_after_close.parquet",
+                ),
+            ),
+            (
+                "1D",
+                (
+                    "eurusd_1d_trading_platform.csv",
+                    "eurusd_1d_available_after_close.parquet",
+                ),
+            ),
+        ]
+    )
+    PARQUET_FILENAMES = {
+        "15min": "15min.parquet",
+        "1H": "1h.parquet",
+        "4H": "4h.parquet",
+        "1D": "1d.parquet",
+    }
 COLUMN_RENAMES = {
+    "m15_adx_14_DI+": "m15_adx_14_DIplus",
+    "m15_adx_14_DI-": "m15_adx_14_DIminus",
     "h1_adx_14_DI+": "h1_adx_14_DIplus",
     "h1_adx_14_DI-": "h1_adx_14_DIminus",
     "h4_adx_14_DI+": "h4_adx_14_DIplus",
@@ -81,18 +154,33 @@ def _config_hash() -> str:
     return hashlib.sha256(CONFIG_PATH.read_bytes()).hexdigest()
 
 
+def _format_lookup_strings(index: pd.DatetimeIndex) -> pd.Series:
+    """Return ISO-8601 strings with Z suffix for each timestamp (or None)."""
+    return pd.Series(
+        [
+            ts.isoformat().replace("+00:00", "Z") if pd.notna(ts) else None
+            for ts in index
+        ],
+        index=index,
+        dtype="object",
+    )
+
+
 def _load_export(csv_name: str) -> pd.DataFrame:
     path = RAW_DIR / csv_name
     if not path.exists():
-        raise FileNotFoundError(f"TradingView export not found: {path}")
+        raise FileNotFoundError(f"Export not found: {path}")
     raw = pd.read_csv(path)
-    if "time" not in raw.columns:
-        raise ValueError(f"'time' column missing from {path}")
-    raw_times = raw["time"].astype(str)
-    idx = pd.DatetimeIndex(pd.to_datetime(raw_times, utc=True), name="time")
-    raw["_lookup_key"] = raw_times
+
+    # Handle both 'time' column (TradingView) and 'timestamp' column (Trading Platform)
+    time_col = "time" if "time" in raw.columns else "timestamp"
+    if time_col not in raw.columns:
+        raise ValueError(f"Neither 'time' nor 'timestamp' column found in {path}")
+
+    idx = pd.DatetimeIndex(pd.to_datetime(raw[time_col], utc=True), name="time")
+    raw["_lookup_key"] = _format_lookup_strings(idx).to_numpy()
     df = (
-        raw.drop(columns=["time"])
+        raw.drop(columns=[time_col])
         .set_index(idx)
         .sort_index()
         .drop(columns=OHLC_COLUMNS + ["timestamp"], errors="ignore")
@@ -100,8 +188,9 @@ def _load_export(csv_name: str) -> pd.DataFrame:
     df = df.rename(columns=COLUMN_RENAMES)
     df = normalize_timeframe_columns(df)
 
-    # Filter to start at configured date
-    df = df[df.index >= GOLDEN_CACHE_START_DATE]
+    # Filter to start at configured date (only for TradingView cache)
+    if GOLDEN_CACHE_START_DATE is not None:
+        df = df[df.index >= GOLDEN_CACHE_START_DATE]
 
     return df
 
@@ -134,7 +223,7 @@ def _load_timeframe_frame(timeframe: str) -> pd.DataFrame:
         columns=COLUMN_RENAMES
     )
     raw_df = raw_df.sort_index()
-    lookup_strings = raw_df.pop("_lookup_key").astype(str)
+    lookup_strings = raw_df.pop("_lookup_key")
     bar_open, bar_close, _ = compute_bar_window_columns(
         raw_df.index,
         timeframe,
