@@ -37,8 +37,6 @@ PURE_TV_CACHE_DIR = (
     / "cache"
     / "eurusd"
 )
-TEST_CACHE_ROOT = PROJECT_ROOT / "data" / "dvc" / "golden"
-TEST_CACHE_DIR = TEST_CACHE_ROOT / "features" / "cache" / "eurusd"
 TRADINGVIEW_MINUTE_SOURCE = (
     PROJECT_ROOT
     / "data"
@@ -264,6 +262,40 @@ def raw_exports() -> dict[str, pd.DataFrame]:
     }
 
 
+@pytest.fixture(scope="module")
+def rebuilt_test_cache(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> dict[str, pd.DataFrame]:
+    """Build a fresh feature cache for comparing against golden snapshots."""
+
+    tmp_dir = tmp_path_factory.mktemp("rebuilt_cache")
+    data_root = tmp_dir / "tv_data"
+    _write_tradingview_ohlc_dataset(data_root)
+
+    descriptor = build_global_feature_caches(
+        symbol="EUR/USD",
+        data_root=data_root,
+        config_path=GLOBAL_FEATURES_CONFIG,
+        timeframes=list(PARQUET_FILENAMES.keys()),
+        overwrite=True,
+        include_bar_windows=True,
+        cache_root=tmp_dir / "cache",
+    )
+
+    exports: dict[str, pd.DataFrame] = {}
+    for timeframe in PARQUET_FILENAMES:
+        tf_path = descriptor.timeframe_path(timeframe)
+        df = pd.read_parquet(tf_path)
+        df = df.rename(columns=COLUMN_RENAMES)
+        df = df.sort_values(CACHE_TIMESTAMP_COLUMN).reset_index(drop=True)
+        df[CACHE_TIMESTAMP_COLUMN] = pd.to_datetime(
+            df[CACHE_TIMESTAMP_COLUMN],
+            utc=True,
+        )
+        exports[timeframe] = df
+    return exports
+
+
 def _load_export(csv_name: str) -> pd.DataFrame:
     """Load export CSV with support for both 'time' and 'timestamp' columns."""
     # First read without parsing dates to detect column name
@@ -322,20 +354,6 @@ def _golden_cache_dir() -> Path:
 
 def _load_aligned_parquet(parquet_name: str) -> pd.DataFrame:
     df = pd.read_parquet(_golden_cache_dir() / parquet_name)
-    df = df.sort_values(CACHE_TIMESTAMP_COLUMN)
-    df[CACHE_TIMESTAMP_COLUMN] = pd.to_datetime(df[CACHE_TIMESTAMP_COLUMN], utc=True)
-    return df.reset_index(drop=True)
-
-
-def _load_test_cache_parquet(parquet_name: str) -> pd.DataFrame:
-    path = TEST_CACHE_DIR / parquet_name
-    if not path.exists():
-        raise FileNotFoundError(
-            f"Test cache file missing: {path}. "
-            "Run scripts/build_tradingview_aligned_parquets.py first."
-        )
-    df = pd.read_parquet(path)
-    df = df.rename(columns=COLUMN_RENAMES)
     df = df.sort_values(CACHE_TIMESTAMP_COLUMN)
     df[CACHE_TIMESTAMP_COLUMN] = pd.to_datetime(df[CACHE_TIMESTAMP_COLUMN], utc=True)
     return df.reset_index(drop=True)
@@ -708,16 +726,12 @@ def test_tradingview_aligned_parquet_matches_export(
 
 
 @pytest.mark.validation
-def test_test_cache_matches_tradingview_snapshot() -> None:
-    """Ensure the committed builder cache matches the TradingView reference.
-
-    The test cache may contain data before GOLDEN_CACHE_START_DATE, but we only
-    validate data from GOLDEN_CACHE_START_DATE onwards to match the golden cache.
-    """
+def test_test_cache_matches_tradingview_snapshot(
+    rebuilt_test_cache: dict[str, pd.DataFrame],
+) -> None:
+    """Rebuild the feature cache and ensure it matches the TradingView reference."""
     for timeframe, parquet_name in PARQUET_FILENAMES.items():
-        builder_df = _load_test_cache_parquet(parquet_name).sort_values(
-            CACHE_TIMESTAMP_COLUMN
-        )
+        builder_df = rebuilt_test_cache[timeframe].copy()
         golden_df = _load_aligned_parquet(parquet_name).sort_values(
             CACHE_TIMESTAMP_COLUMN
         )
@@ -756,7 +770,9 @@ def test_test_cache_matches_tradingview_snapshot() -> None:
 
 
 @pytest.mark.validation
-def test_bar_metadata_alignment() -> None:
+def test_bar_metadata_alignment(
+    rebuilt_test_cache: dict[str, pd.DataFrame],
+) -> None:
     """Verify 100% alignment of bar metadata between builder and golden caches.
 
     This test ensures that bar window metadata (*_bar_open, *_bar_close,
@@ -772,9 +788,7 @@ def test_bar_metadata_alignment() -> None:
     TEST_END_DATE = pd.Timestamp("2024-12-30 22:00:00", tz="UTC")
 
     for timeframe, parquet_name in PARQUET_FILENAMES.items():
-        builder_df = _load_test_cache_parquet(parquet_name).sort_values(
-            CACHE_TIMESTAMP_COLUMN
-        )
+        builder_df = rebuilt_test_cache[timeframe].copy()
         golden_df = _load_aligned_parquet(parquet_name).sort_values(
             CACHE_TIMESTAMP_COLUMN
         )
@@ -859,63 +873,6 @@ def test_bar_metadata_alignment() -> None:
                         f"  Builder: {builder_series.iloc[first_mismatch_idx]}\n"
                         f"  Golden:  {golden_series.iloc[first_mismatch_idx]}"
                     )
-
-
-@pytest.mark.validation
-def test_cache_builder_produces_available_after_close(
-    tmp_path: Path,
-    raw_exports: dict[str, pd.DataFrame],
-) -> None:
-    """Round-trip the cache builder against the golden available-after-close parquet."""
-    data_root = tmp_path / "tv_data"
-    _write_tradingview_ohlc_dataset(data_root)
-
-    descriptor = build_global_feature_caches(
-        symbol="EUR/USD",
-        data_root=data_root,
-        config_path=GLOBAL_FEATURES_CONFIG,
-        timeframes=list(TIMEFRAME_EXPORTS.keys()),
-        overwrite=True,
-        include_bar_windows=True,
-    )
-
-    builder_exports: dict[str, pd.DataFrame] = {}
-    for timeframe in TIMEFRAME_EXPORTS:
-        tf_path = descriptor.timeframe_path(timeframe)
-        builder_exports[timeframe] = pd.read_parquet(tf_path)
-
-    for timeframe, parquet_name in PARQUET_FILENAMES.items():
-        expected = _build_expected_parquet(timeframe, raw_exports)
-        golden = _load_aligned_parquet(parquet_name)
-        common_columns = [
-            col
-            for col in golden.columns
-            if col in expected.columns and col not in EXPORT_SKIP_COLUMNS
-        ]
-        missing_columns = [col for col in golden.columns if col not in expected.columns]
-        assert (
-            common_columns
-        ), "No overlapping columns between builder output and golden snapshot."
-        if missing_columns:
-            assert set(missing_columns).issubset(
-                TV_ONLY_COLUMNS
-            ), f"Unexpected TradingView-only columns: {missing_columns}"
-        golden_subset = golden[common_columns].set_index(CACHE_TIMESTAMP_COLUMN)
-        expected_subset = expected[common_columns].set_index(CACHE_TIMESTAMP_COLUMN)
-        common_index = expected_subset.index.intersection(golden_subset.index)
-        assert (
-            not common_index.empty
-        ), "No overlapping timestamps between builder output and golden snapshot."
-        golden_subset = golden_subset.loc[common_index]
-        expected_subset = expected_subset.loc[common_index]
-        warmup = WARMUP_BARS.get(timeframe, 0)
-        if warmup > 0:
-            golden_subset = golden_subset.iloc[warmup:]
-            expected_subset = expected_subset.iloc[warmup:]
-        if not golden_subset.empty:
-            golden_subset = golden_subset.iloc[1:]
-            expected_subset = expected_subset.iloc[1:]
-        _assert_feature_frames_match(golden_subset, expected_subset, timeframe)
 
 
 @pytest.mark.validation

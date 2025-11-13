@@ -1,0 +1,6 @@
+outs:
+- md5: d8603a5e7e7d59148b8371522c8b7e61.dir
+  size: 18987560
+  nfiles: 5
+  hash: md5
+  path: eurusd
