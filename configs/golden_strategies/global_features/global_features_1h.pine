@@ -1,0 +1,38 @@
+//@version=5
+indicator("Global Feature Pack – 1H", overlay=false, timeframe="60", timeframe_gaps=true)
+
+// === Trend ===
+h1_ema_50 = ta.ema(close, 50)
+
+// === Directional movement ===
+[h1_di_plus, h1_di_minus, h1_adx_14] = ta.dmi(14, 14)
+
+// === Momentum ===
+h1_rsi_14 = ta.rsi(close, 14)
+
+// === MACD 12/26/9 ===
+[h1_macd_line, h1_macd_signal, h1_macd_hist] = ta.macd(close, 12, 26, 9)
+
+// === Volatility ===
+h1_atr_14 = ta.atr(14)
+bb_basis = ta.sma(close, 20)
+bb_dev = ta.stdev(close, 20)
+bb_upper = bb_basis + bb_dev * 2.0
+bb_lower = bb_basis - bb_dev * 2.0
+h1_bb_width_20 = (bb_upper - bb_lower) / math.max(math.abs(bb_basis), 1e-10)
+
+// === Volume ===
+h1_volume_sma_20 = ta.sma(volume, 20)
+
+// Publish to data window (for CSV export)
+plot(h1_ema_50,        "h1_ema_50",        display=display.data_window)
+plot(h1_adx_14,        "h1_adx_14_ADX",    display=display.data_window)
+plot(h1_di_plus,       "h1_adx_14_DIplus", display=display.data_window)
+plot(h1_di_minus,      "h1_adx_14_DIminus",display=display.data_window)
+plot(h1_rsi_14,        "h1_rsi_14",        display=display.data_window)
+plot(h1_macd_line,     "h1_macd_macd",     display=display.data_window)
+plot(h1_macd_signal,   "h1_macd_signal",   display=display.data_window)
+plot(h1_macd_hist,     "h1_macd_diff",     display=display.data_window)
+plot(h1_atr_14,        "h1_atr_14",        display=display.data_window)
+plot(h1_bb_width_20,   "h1_bb_width_20",   display=display.data_window)
+plot(h1_volume_sma_20, "h1_volume_sma_20", display=display.data_window)

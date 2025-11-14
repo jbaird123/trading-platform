@@ -2,19 +2,28 @@ from __future__ import annotations
 
 import logging
 import math
+from collections.abc import Mapping as MappingABC
 from datetime import datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Callable, Iterator, cast
 
+import numpy as np
 import pandas as pd
 
+from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
+from trading_platform.core.global_features_cache import load_cached_global_features
 from trading_platform.core.policy import TradingWindowPolicy
 from trading_platform.core.signal import Signal
-from trading_platform.core.types import SignalCommand
+from trading_platform.core.types import BarData, SignalCommand
 from trading_platform.core.utils import normalize_symbol
+from trading_platform.data.timeframe_aliases import normalize_timeframe_prefix
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
+from trading_platform.regime_market_manager.gating import (
+    GatingDecision,
+    ProfitabilityGatingEngine,
+)
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
@@ -31,6 +40,15 @@ SimulationReturn = (
     | tuple[list[Trade], list[tuple[datetime, float]]]
     | tuple[list[Trade], list[tuple[datetime, float]], list[dict[str, Any]]]
 )
+
+GLOBAL_FEATURE_PREFIX = "context_at_entry_global_features_"
+
+
+def _normalize_global_feature_key(name: str) -> str:
+    """Strip canonical prefix so gating can reapply it consistently."""
+    if name.startswith(GLOBAL_FEATURE_PREFIX):
+        return name[len(GLOBAL_FEATURE_PREFIX) :]
+    return name
 
 
 def _enrich_trades_with_post_exit_analysis(
@@ -131,7 +149,7 @@ def resolve_instrument_symbol(instrument: Any) -> str:
     return result
 
 
-def _run_backtest_simulation(
+def _execute_backtest_loop(
     market_data: pd.DataFrame,
     signals: pd.Series,
     strategy: CompiledStrategy,
@@ -142,6 +160,9 @@ def _run_backtest_simulation(
     return_skips: bool = False,
     data_handler: Any = None,
     global_features_config_path: Path | str | None = None,
+    global_feature_defs: list[dict[str, Any]] | None = None,
+    gating_engine: ProfitabilityGatingEngine | None = None,
+    gating_metadata: dict[str, Any] | None = None,
 ) -> SimulationReturn:
     """INTERNAL: Bar-by-bar backtest simulation engine.
 
@@ -196,6 +217,30 @@ def _run_backtest_simulation(
         raise ValueError(f"market_data.close has NaNs; first at index: {first_bad}")
 
     symbol = resolve_instrument_symbol(config.instrument)
+    strategy_archetype = (gating_metadata or {}).get(
+        "strategy_archetype"
+    ) or "trend_following"
+    instrument_timeframe = (gating_metadata or {}).get("instrument_timeframe")
+    if instrument_timeframe is None:
+        instrument = config.instrument
+        if isinstance(instrument, dict):
+            instrument_timeframe = instrument.get("timeframe")
+        else:
+            instrument_timeframe = getattr(instrument, "timeframe", None)
+
+    def _timeframe_to_minutes(timeframe: str) -> int:
+        """Convert timeframe string (e.g., '1H', '15min') to minutes."""
+        normalized = str(timeframe).strip()
+        candidates = (normalized.lower(), normalized)
+        for candidate in candidates:
+            try:
+                delta = pd.to_timedelta(candidate)
+            except ValueError:
+                continue
+            minutes = int(delta.total_seconds() // 60)
+            if minutes > 0:
+                return minutes
+        raise ValueError(f"Unsupported timeframe string: {timeframe!r}")
 
     def _first_valid_timestamp(
         df_obj: pd.DataFrame | None, feature_names: list[str]
@@ -216,51 +261,167 @@ def _run_backtest_simulation(
             return None
         return pd.Timestamp(valid_index[0])
 
+    def _resolve_symbol_from_config() -> str | None:
+        instrument_cfg = getattr(config, "instrument", None)
+        symbol_val = None
+        if isinstance(instrument_cfg, dict):
+            symbol_val = instrument_cfg.get("symbol")
+        elif instrument_cfg is not None:
+            symbol_val = getattr(instrument_cfg, "symbol", None)
+        if symbol_val:
+            return str(symbol_val)
+
+        data_req_cfg = getattr(config, "data_request", None) or {}
+        symbol_val = data_req_cfg.get("symbol")
+        if symbol_val:
+            return str(symbol_val)
+        return None
+
     # Compute global features from config/features/global.yaml
     data_with_global_features = market_data
     global_features_list: list[dict[str, Any]] = []
     global_valid_start: pd.Timestamp | None = None
     global_validation_error: str | None = None
+    global_feature_timeframes: dict[str, int] = {}
+    guard_feature_names: set[str] = set()
+    guard_feature_valid_start: dict[str, pd.Timestamp | None] = {}
+    execution_tf_minutes: int | None = None
     try:
-        from trading_platform.core.feature_resolver import resolve_global_features
         from trading_platform.strategy.features import compute_features
 
         instrument_cfg = config.instrument or {}
         execution_timeframe = instrument_cfg.get("timeframe", "1H")
+        try:
+            execution_tf_minutes = _timeframe_to_minutes(execution_timeframe)
+        except ValueError as exc:  # pragma: no cover - validated upstream
+            raise ValueError(
+                "Unsupported execution timeframe in instrument config: "
+                f"{execution_timeframe!r}"
+            ) from exc
 
-        resolved_features = resolve_global_features(
-            execution_timeframe, config_path=global_features_config_path
-        )
+        if global_feature_defs is not None:
+            global_features_list.extend(global_feature_defs)
+        elif global_features_config_path is not None:
+            from trading_platform.core.feature_resolver import resolve_global_features
 
-        global_features_list = [
-            {
-                "name": f.name,
-                "type": f.type,
-                "params": f.params,
-                "source": f.source,
-                **(
-                    {}
-                    if f.timeframe == execution_timeframe
-                    else {"timeframe": f.timeframe}
-                ),
-            }
-            for f in resolved_features
-        ]
+            resolved_features = resolve_global_features(
+                execution_timeframe, config_path=global_features_config_path
+            )
+            for resolved in resolved_features:
+                feature_dict: dict[str, Any] = {
+                    "name": resolved.name,
+                    "type": resolved.type,
+                    "params": resolved.params,
+                    "source": resolved.source,
+                }
+                feature_tf = resolved.timeframe or execution_timeframe
+                if resolved.timeframe and resolved.timeframe != execution_timeframe:
+                    feature_dict["timeframe"] = resolved.timeframe
+                global_features_list.append(feature_dict)
 
+        for feature_dict in list(global_features_list):
+            name_str = str(feature_dict.get("name"))
+            if not name_str:
+                continue
+            feature_tf = feature_dict.get("timeframe") or execution_timeframe
+            try:
+                global_feature_timeframes[name_str] = _timeframe_to_minutes(feature_tf)
+            except ValueError as exc:
+                raise ValueError(
+                    "Unsupported timeframe for global feature "
+                    f"{name_str!r}: {feature_tf!r}"
+                ) from exc
+
+        global_names: list[str] = []
         if global_features_list:
-            data_with_global_features = compute_features(
-                market_data, global_features_list, strategy_parameters={}
-            )
-            logger.info(
-                f"Computed {len(global_features_list)} global features: "
-                f"{[f['name'] for f in global_features_list]}"
-            )
-
-            global_names = [
-                str(feature["name"])
+            requested_names = [
+                str(feature.get("name"))
                 for feature in global_features_list
                 if isinstance(feature.get("name"), str)
             ]
+            cache_loaded = False
+            if requested_names and global_features_config_path is not None:
+                symbol_for_cache = _resolve_symbol_from_config()
+                config_path = Path(global_features_config_path)
+                cache_root = paths.GLOBAL_FEATURE_CACHE_DIR
+                if symbol_for_cache:
+                    cache_result = load_cached_global_features(
+                        symbol=symbol_for_cache,
+                        cache_root=cache_root,
+                        config_path=config_path,
+                        timeframe=execution_timeframe,
+                        feature_names=requested_names,
+                    )
+                    if cache_result is not None:
+                        cache_frame, mapping = cache_result
+                        required = set(requested_names)
+                        if required.issubset(mapping.keys()):
+                            cache_index = cache_frame.index
+                            market_index = market_data.index
+                            if isinstance(cache_index, pd.DatetimeIndex) and isinstance(
+                                market_index, pd.DatetimeIndex
+                            ):
+                                if (
+                                    cache_index.tz is not None
+                                    and market_index.tz is None
+                                ):
+                                    cache_frame.index = cache_index.tz_convert(
+                                        "UTC"
+                                    ).tz_localize(None)
+                                elif (
+                                    cache_index.tz is None
+                                    and market_index.tz is not None
+                                ):
+                                    cache_frame.index = cache_index.tz_localize(
+                                        market_index.tz
+                                    )
+                            cache_frame = cache_frame.reindex(
+                                market_data.index, method="ffill"
+                            )
+                            data_with_global_features = market_data.join(
+                                cache_frame, how="left"
+                            )
+                            cache_loaded = True
+                            msg = (
+                                f"Global feature cache HIT ("
+                                f"{execution_timeframe} timeframe): "
+                                f"{len(cache_frame.columns)} columns from {cache_root}"
+                            )
+                            logger.info(msg)
+                            print(msg)
+            if not cache_loaded:
+                miss_msg = (
+                    f"Global feature cache MISS ("
+                    f"{execution_timeframe} timeframe): "
+                    f"computing {len(global_features_list)} features"
+                )
+                logger.info(miss_msg)
+                print(miss_msg)
+                data_with_global_features = compute_features(
+                    market_data, global_features_list, strategy_parameters={}
+                )
+                logger.info(
+                    f"Computed {len(global_features_list)} global features: "
+                    f"{[f['name'] for f in global_features_list]}"
+                )
+
+            for feature in global_features_list:
+                raw_name = feature.get("name")
+                if not isinstance(raw_name, str):
+                    continue
+                global_names.append(raw_name)
+
+                derived_columns = [
+                    column
+                    for column in data_with_global_features.columns
+                    if column == raw_name or column.startswith(f"{raw_name}_")
+                ]
+
+                minutes = global_feature_timeframes.get(raw_name)
+                for column in derived_columns:
+                    if column not in global_feature_timeframes and minutes is not None:
+                        global_feature_timeframes[column] = minutes
+
             global_valid_start = _first_valid_timestamp(
                 data_with_global_features, global_names
             )
@@ -333,9 +494,68 @@ def _run_backtest_simulation(
             data_with_global_features = _trim_indexed(data_with_global_features)
     warmup_threshold = 0
 
-    global_feature_names: set[str] = {
-        str(f["name"]) for f in global_features_list if isinstance(f.get("name"), str)
-    }
+    global_feature_columns: list[str] = []
+    if data_with_global_features is not market_data:
+        for feature in global_features_list:
+            raw_name = feature.get("name")
+            if not isinstance(raw_name, str):
+                continue
+            canonical_name = normalize_timeframe_prefix(raw_name)
+            candidate_columns: list[str] = []
+            for column in data_with_global_features.columns:
+                if column == raw_name or column.startswith(f"{raw_name}_"):
+                    candidate_columns.append(column)
+                elif canonical_name != raw_name and (
+                    column == canonical_name or column.startswith(f"{canonical_name}_")
+                ):
+                    candidate_columns.append(column)
+            for column in candidate_columns:
+                if column not in global_feature_columns:
+                    global_feature_columns.append(column)
+                if execution_tf_minutes is not None:
+                    feature_minutes = global_feature_timeframes.get(column)
+                    if (
+                        feature_minutes is not None
+                        and feature_minutes >= execution_tf_minutes
+                    ):
+                        guard_feature_names.add(column)
+                        guard_feature_valid_start[column] = cast(
+                            pd.Timestamp | None,
+                            data_with_global_features[column].first_valid_index(),
+                        )
+
+    if guard_feature_names and data_with_global_features is not None:
+        for feature_name in guard_feature_names:
+            if feature_name not in data_with_global_features.columns:
+                continue
+            series = data_with_global_features.loc[market_data.index, feature_name]
+            valid_start = guard_feature_valid_start.get(feature_name)
+            if valid_start is not None:
+                series = series.loc[series.index >= valid_start]
+            if not series.empty and series.index[0] == market_data.index[0]:
+                series = series.iloc[1:]
+            bad = series[series.isna()]
+            if not bad.empty:
+                first_bad = bad.index[0]
+                raise ValueError(
+                    "Global feature "
+                    f"{feature_name!r} is NaN at {first_bad}. "
+                    "Features at or above the execution timeframe "
+                    "must be fully populated."
+                )
+
+    global_feature_matrix: np.ndarray | None = None
+    global_feature_column_index: dict[str, int] = {}
+    global_feature_normalized_keys: list[str] = []
+    if global_feature_columns and data_with_global_features is not market_data:
+        subset = data_with_global_features.loc[:, global_feature_columns]
+        global_feature_matrix = subset.to_numpy()
+        global_feature_column_index = {
+            column: idx for idx, column in enumerate(global_feature_columns)
+        }
+        global_feature_normalized_keys = [
+            _normalize_global_feature_key(column) for column in global_feature_columns
+        ]
 
     # Use the complete instrument definition from config
     # (RunConfig validator ensures it has all required fields)
@@ -418,11 +638,49 @@ def _run_backtest_simulation(
     # Pending actions for next_bar_open execution model
     pending_exit: dict[str, Any] | None = None
     pending_entry: dict[str, Any] | None = None
+    last_context_at_exit: dict[str, Any] | None = None
+
+    use_fast_rows = True
+    try:
+        market_bar_factory = _make_bar_factory(market_data)
+        if data_with_global_features is market_data:
+            feature_bar_factory = market_bar_factory
+        else:
+            feature_bar_factory = _make_bar_factory(data_with_global_features)
+    except Exception:
+        # Fallback to Pandas rows if conversion fails (e.g., sparse frames)
+        use_fast_rows = False
+
+    gating_total = 0
+    gating_allowed = 0
 
     for i in range(len(market_data)):
-        signal = signals.iloc[i]
-        current_bar = market_data.iloc[i]
-        prior_bar = market_data.iloc[i - 1] if i > 0 else None
+        signal = signals.iat[i] if hasattr(signals, "iat") else signals.iloc[i]
+        current_bar: BarData
+        prior_bar: BarData | None
+        feature_bar: BarData
+        feature_prior_bar: BarData | None
+
+        if use_fast_rows:
+            current_bar = market_bar_factory(i)
+            prior_bar = market_bar_factory(i - 1) if i > 0 else None
+            if feature_bar_factory is market_bar_factory:
+                feature_bar = current_bar
+                feature_prior_bar = prior_bar
+            else:
+                feature_bar = feature_bar_factory(i)
+                feature_prior_bar = feature_bar_factory(i - 1) if i > 0 else None
+        else:
+            current_bar = market_data.iloc[i]
+            prior_bar = market_data.iloc[i - 1] if i > 0 else None
+            if data_with_global_features is market_data:
+                feature_bar = current_bar
+                feature_prior_bar = prior_bar
+            else:
+                feature_bar = data_with_global_features.iloc[i]
+                feature_prior_bar = (
+                    data_with_global_features.iloc[i - 1] if i > 0 else None
+                )
 
         # === EXECUTION PHASE: Execute pending actions ===
         # Execute pending exit from previous bar (next_bar_open model)
@@ -455,13 +713,22 @@ def _run_backtest_simulation(
             # Calculate initial stop loss price for r_multiple calculation
             entry_price = current_bar["open"]
             initial_risk_ccy = None
+            stop_price = None
+            tp_price = None
             if rem is not None:
                 stop_price = rem.calculate_initial_stop_price(
                     entry_price=entry_price,
                     side=pending_entry["side"],
-                    entry_bar=current_bar,
-                    signal_context=pending_entry.get("context", {}),
-                    prior_bar=prior_bar,
+                    entry_bar=feature_bar,
+                    signal_context=pending_entry.get("context") or {},
+                    prior_bar=feature_prior_bar or feature_bar,
+                )
+                tp_price = rem.calculate_initial_take_profit_price(
+                    entry_price=entry_price,
+                    side=pending_entry["side"],
+                    entry_bar=feature_bar,
+                    signal_context=pending_entry.get("context") or {},
+                    prior_bar=feature_prior_bar or feature_bar,
                 )
                 if stop_price is not None:
                     # initial_risk_ccy = distance * size
@@ -478,6 +745,8 @@ def _run_backtest_simulation(
                 instrument=pending_entry["instrument"],
                 context_at_entry=pending_entry.get("context"),
                 initial_risk_ccy=initial_risk_ccy,
+                stop_loss=stop_price,
+                take_profit=tp_price,
             )
             # Mark that we've entered on this entry window
             portfolio._entry_windows[pending_entry["side"]] = (
@@ -488,8 +757,9 @@ def _run_backtest_simulation(
 
         # Extract command and context from Signal object (or use legacy format)
         strategy_context = strategy.get_context(i)
+        command: SignalCommand | None
         if isinstance(signal, Signal):
-            command = signal.command
+            command = cast(SignalCommand | None, signal.command)
             # Merge signal context with strategy context
             strategy_feature_context = {
                 **strategy_context,
@@ -497,37 +767,126 @@ def _run_backtest_simulation(
             }
         else:
             # Legacy format: signal is just a command string
-            command = signal
+            command = cast(SignalCommand | None, signal)
             strategy_feature_context = strategy_context
 
-        # Build global features dict separately from strategy features
-        global_features: dict[str, Any] = {}
-        if global_feature_names and data_with_global_features is not market_data:
-            for feature_name in global_feature_names:
-                if feature_name in data_with_global_features.columns:
-                    val = data_with_global_features[feature_name].iloc[i]
-                    # Convert NaN to None for JSON serialization
-                    if isinstance(val, float) and math.isnan(val):
-                        global_features[feature_name] = None
+        is_no_command = False
+        if command is None:
+            is_no_command = True
+        elif isinstance(command, str):
+            lowered = command.lower()
+            if lowered in {"none", "nan"}:
+                command = None
+                is_no_command = True
+
+        need_context = bool(portfolio.current_position) or not is_no_command
+        context: dict[str, Any] | None = None
+        if need_context:
+            # Build global features dict separately from strategy features
+            global_features: dict[str, Any] = {}
+            if global_feature_matrix is not None:
+                feature_row_values = global_feature_matrix[i]
+                for column, idx in global_feature_column_index.items():
+                    val = feature_row_values[idx]
+                    feature_minutes = global_feature_timeframes.get(column)
+                    is_missing = pd.isna(val)
+                    if is_missing:
+                        if (
+                            execution_tf_minutes is not None
+                            and feature_minutes is not None
+                            and feature_minutes >= execution_tf_minutes
+                        ):
+                            raise ValueError(
+                                "Global feature "
+                                f"{column!r} is NaN at {current_bar.name}. "
+                                "Features at or above the execution timeframe "
+                                "must be fully populated."
+                            )
+                        normalized_val: Any = None
                     else:
-                        global_features[feature_name] = val
+                        normalized_val = val
+                    key = global_feature_normalized_keys[idx]
+                    global_features[key] = normalized_val
 
-        # Always include raw volume in global features (market context)
-        global_features["volume"] = current_bar["volume"]
+            # Build consistent nested context structure
+            # Separate strategy_features and global_features for clarity
+            regime_data = None
+            if rmm_context is not None:
+                rmm_ctx = rmm_context.get(cast(datetime, current_bar.name))
+                regime_data = _build_regime_data(rmm_ctx)
 
-        # Build consistent nested context structure
-        # Separate strategy_features and global_features for semantic clarity
-        regime_data = None
-        if rmm_context is not None:
-            rmm_ctx = rmm_context.get(cast(datetime, current_bar.name))
-            regime_data = _build_regime_data(rmm_ctx)
+            context = {
+                "strategy_features": strategy_feature_context,
+                "global_features": global_features,
+            }
+            if regime_data is not None:
+                context["regime"] = regime_data
+            last_context_at_exit = context
 
-        context = {
-            "strategy_features": strategy_feature_context,
-            "global_features": global_features,
-        }
-        if regime_data is not None:
-            context["regime"] = regime_data
+        gating_decision: GatingDecision | None = None
+        if gating_engine and command in ["enter_long", "enter_short"]:
+            side = "long" if command == "enter_long" else "short"
+            tf_value = instrument_timeframe
+            if tf_value is None and isinstance(config.instrument, dict):
+                tf_value = config.instrument.get("timeframe")
+            if context is None:
+                context = {
+                    "strategy_features": strategy_feature_context,
+                    "global_features": {},
+                }
+            entry_price_gate = float(current_bar["close"])
+            risk_ctx = context.setdefault("risk", {})
+            risk_ctx["entry_price"] = entry_price_gate
+            stop_price_gate = None
+            tp_price_gate = None
+            if rem is not None:
+                stop_price_gate = rem.calculate_initial_stop_price(
+                    entry_price=entry_price_gate,
+                    side=side,
+                    entry_bar=feature_bar,
+                    signal_context=context.get("strategy_features", {}),
+                    prior_bar=feature_prior_bar or feature_bar,
+                )
+                tp_price_gate = rem.calculate_initial_take_profit_price(
+                    entry_price=entry_price_gate,
+                    side=side,
+                    entry_bar=feature_bar,
+                    signal_context=context.get("strategy_features", {}),
+                    prior_bar=feature_prior_bar or feature_bar,
+                )
+            risk_ctx["initial_stop_loss_price"] = stop_price_gate
+            if tp_price_gate is not None:
+                risk_ctx["initial_take_profit_price"] = tp_price_gate
+
+            gating_total += 1
+            gating_decision = gating_engine.should_allow(
+                timeframe=str(tf_value or "1H"),
+                archetype=strategy_archetype,
+                side=side,
+                symbol=symbol,
+                entry_time=cast(datetime, current_bar.name),
+                context=context,
+            )
+            context["gating"] = gating_decision.as_dict()
+            if not gating_decision.allowed:
+                if return_skips:
+                    skipped.append(
+                        {
+                            "entry_time": _fmt_ts(current_bar.name),
+                            "symbol": symbol,
+                            "side": side,
+                            "size": float(config.position_size),
+                            "skip_reason": "profitability_gate",
+                            "entry_index": i,
+                            "entry_price": float(current_bar["close"]),
+                            "notes": gating_decision.reason,
+                            "gating": gating_decision.as_dict(),
+                        }
+                    )
+                continue
+            gating_allowed += 1
+        elif gating_engine and context is not None:
+            context["gating"] = None
 
         # === REM EXIT PHASE: Check risk-based exits ===
         # REM exits (stop-loss, take-profit) are ALWAYS executed immediately
@@ -535,12 +894,24 @@ def _run_backtest_simulation(
         # This is realistic behavior - protective orders execute intra-bar.
         # The execution_model setting only applies to signal-based entries/exits.
         if portfolio.current_position and rem is not None:
-            rem_result = rem.check_exits_intrabar(
-                portfolio.current_position,
-                current_bar,
-                data_handler=data_handler,
-                prior_bar=prior_bar,
-            )
+            rem_kwargs = {}
+            if execution_tf_minutes is not None:
+                rem_kwargs["bar_minutes"] = execution_tf_minutes
+            try:
+                rem_result = rem.check_exits_intrabar(
+                    portfolio.current_position,
+                    feature_bar,
+                    data_handler=data_handler,
+                    prior_bar=feature_prior_bar or feature_bar,
+                    **rem_kwargs,
+                )
+            except TypeError:
+                rem_result = rem.check_exits_intrabar(
+                    portfolio.current_position,
+                    feature_bar,
+                    data_handler=data_handler,
+                    prior_bar=feature_prior_bar or feature_bar,
+                )
 
             if rem_result is not None and rem_result["action"] == "should_close":
                 # ALWAYS execute REM exits immediately at intra-bar price
@@ -714,13 +1085,22 @@ def _run_backtest_simulation(
                         # Calculate initial stop loss price for r_multiple calculation
                         entry_price = current_bar["close"]
                         initial_risk_ccy = None
+                        stop_price = None
+                        tp_price = None
                         if rem is not None:
                             stop_price = rem.calculate_initial_stop_price(
                                 entry_price=entry_price,
                                 side=side,
-                                entry_bar=current_bar,
-                                signal_context=context,
-                                prior_bar=prior_bar,
+                                entry_bar=feature_bar,
+                                signal_context=context or {},
+                                prior_bar=feature_prior_bar or feature_bar,
+                            )
+                            tp_price = rem.calculate_initial_take_profit_price(
+                                entry_price=entry_price,
+                                side=side,
+                                entry_bar=feature_bar,
+                                signal_context=context or {},
+                                prior_bar=feature_prior_bar or feature_bar,
                             )
                             if stop_price is not None:
                                 # initial_risk_ccy = distance * size
@@ -735,6 +1115,8 @@ def _run_backtest_simulation(
                             instrument=instrument_dict,
                             context_at_entry=context,
                             initial_risk_ccy=initial_risk_ccy,
+                            stop_loss=stop_price,
+                            take_profit=tp_price,
                         )
                         # Mark that we've entered on this entry window
                         portfolio._entry_windows[side] = (
@@ -790,11 +1172,16 @@ def _run_backtest_simulation(
     # Force-close any remaining open position at end of backtest
     if portfolio.current_position:
         last_bar = market_data.iloc[-1]
+        if last_context_at_exit is None:
+            raise ValueError(
+                "End-of-data exit detected without recorded context. "
+                "Ensure context is captured before closing open positions."
+            )
         portfolio.close_position(
             exit_price=last_bar["close"],
             exit_time=cast(datetime, market_data.index[-1]),
             exit_reason="end_of_data",
-            context_at_exit=None,
+            context_at_exit=last_context_at_exit,
         )
         # Update the last exposure entry to reflect the closed position
         if return_exposure and exposure_curve:
@@ -843,6 +1230,7 @@ def _run_backtest_simulation(
                     rem=rem,
                     symbol=symbol,
                     data_handler=data_handler,
+                    bar_minutes=execution_tf_minutes,
                 )
             s.update(cf)
 
@@ -851,6 +1239,15 @@ def _run_backtest_simulation(
     if post_exit_cfg and post_exit_cfg.get("enabled"):
         _enrich_trades_with_post_exit_analysis(
             portfolio.trades, market_data, post_exit_cfg.get("horizons", [10, 20, 50])
+        )
+
+    if gating_engine and gating_total:
+        coverage = gating_allowed / gating_total if gating_total else 0.0
+        logger.info(
+            "Gating coverage: allowed %s/%s (%.2f%%)",
+            gating_allowed,
+            gating_total,
+            coverage * 100.0,
         )
 
     if return_exposure and return_skips:
@@ -943,6 +1340,7 @@ def _simulate_counterfactual_exact(
     rem: RiskExitManager,
     symbol: str,
     data_handler: Any = None,
+    bar_minutes: int | None = None,
 ) -> dict[str, Any]:
     """Exact counterfactual: bar-by-bar re-simulation with REM."""
     if start_index < 0 or start_index >= len(market_data):
@@ -960,8 +1358,17 @@ def _simulate_counterfactual_exact(
     entry_bar = market_data.iloc[start_index]
     prior_bar = market_data.iloc[start_index - 1] if start_index > 0 else None
     initial_risk_ccy = None
+    stop_price = None
+    tp_price = None
     if rem is not None:
         stop_price = rem.calculate_initial_stop_price(
+            entry_price=entry_price,
+            side=side,
+            entry_bar=entry_bar,
+            signal_context={},  # Counterfactual uses config-based stops
+            prior_bar=prior_bar,
+        )
+        tp_price = rem.calculate_initial_take_profit_price(
             entry_price=entry_price,
             side=side,
             entry_bar=entry_bar,
@@ -980,6 +1387,8 @@ def _simulate_counterfactual_exact(
         entry_time=entry_time,
         instrument=instrument,
         initial_risk_ccy=initial_risk_ccy,
+        stop_loss=stop_price,
+        take_profit=tp_price,
     )
 
     bars_touched = 0
@@ -992,9 +1401,22 @@ def _simulate_counterfactual_exact(
             # Get prior bar for indicator-based stop calculations
             # Stops are set when a bar closes, so use prior bar's data
             prior_bar = market_data.iloc[i - 1] if i > 0 else None
-            exit_details = rem.check_exits(
-                pm.current_position, cb, data_handler=data_handler, prior_bar=prior_bar
-            )
+            rem_kwargs = {"data_handler": data_handler, "prior_bar": prior_bar}
+            if bar_minutes is not None:
+                rem_kwargs["bar_minutes"] = bar_minutes
+            try:
+                exit_details = rem.check_exits(
+                    pm.current_position,
+                    cb,
+                    **rem_kwargs,
+                )
+            except TypeError:
+                rem_kwargs.pop("bar_minutes", None)
+                exit_details = rem.check_exits(
+                    pm.current_position,
+                    cb,
+                    **rem_kwargs,
+                )
             if exit_details:
                 pm.close_position(
                     exit_price=exit_details["exit_price"],
@@ -1043,3 +1465,55 @@ def _simulate_counterfactual_exact(
         "cf_exit_kind": exit_kind,
         "cf_mode": "exact",
     }
+
+
+class _BarView(MappingABC[str, Any]):
+    """Lightweight mapping view over a DataFrame row backed by NumPy memory."""
+
+    __slots__ = ("_values", "_col_map", "_index", "_row", "name")
+
+    def __init__(
+        self,
+        values: np.ndarray,
+        col_map: dict[str, int],
+        index: pd.Index,
+        row: int,
+    ) -> None:
+        self._values = values
+        self._col_map = col_map
+        self._index = index
+        self._row = row
+        self.name = index[row]
+
+    def __contains__(self, key: object) -> bool:
+        return isinstance(key, str) and key in self._col_map
+
+    def __getitem__(self, key: str) -> Any:
+        pos = self._col_map.get(key)
+        if pos is None:
+            raise KeyError(key)
+        return self._values[self._row, pos]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._col_map)
+
+    def __len__(self) -> int:
+        return len(self._col_map)
+
+    def get(self, key: str, default: Any = None) -> Any:
+        pos = self._col_map.get(key)
+        if pos is None:
+            return default
+        return self._values[self._row, pos]
+
+
+def _make_bar_factory(df: pd.DataFrame) -> Callable[[int], _BarView]:
+    """Return a callable that builds fast row views for the given DataFrame."""
+    values = df.to_numpy(copy=False)
+    col_map = {col: idx for idx, col in enumerate(df.columns)}
+    index = df.index
+
+    def _factory(row: int) -> _BarView:
+        return _BarView(values, col_map, index, row)
+
+    return _factory

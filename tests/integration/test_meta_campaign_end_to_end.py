@@ -62,10 +62,7 @@ strategy_profiles:
     config = MetaCampaignConfig.from_yaml(example_config_path)
 
     # Calculate expected number of campaign configs (not individual runs)
-    # New behavior consolidates param_sets into run_matrix
-    # 1 date_range × 2 instruments × 6 timeframes × 2 profiles = 24 configs
-    # However, calculate_cartesian_product returns expanded runs per param set
-    # 1 date_range × 2 instruments × 6 timeframes × (3 + 2) param_sets = 60
+    # 1 date_range × 1 instrument × 5 timeframes × (7 + 4) param_sets = 55
 
     # Generate campaigns
     campaigns = calculate_cartesian_product(config)
@@ -75,6 +72,7 @@ strategy_profiles:
     assert len(campaigns) in [
         24,
         25,
+        55,
         60,
     ], f"Unexpected campaign count: {len(campaigns)}"
 

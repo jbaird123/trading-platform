@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pandas as pd
 from trading_platform.core.config import FeatureConfig
-from trading_platform.data.resample import resample_data
+from trading_platform.data.resample import resample_data, timeframe_to_timedelta
 from trading_platform.strategy.features import compute_features
 
 
@@ -56,7 +56,10 @@ def test_compute_features_with_higher_timeframe_alignment():
     rsi_1h = rsi_impl(resampled_1h, {"length": 14}, "close", None)
 
     # 3. Forward-fill to the original 15m index
-    expected = rsi_1h.reindex(df.index, method="ffill")
+    close_index = rsi_1h.index + timeframe_to_timedelta("1h")
+    expected = rsi_1h.copy()
+    expected.index = close_index
+    expected = expected.reindex(df.index, method="ffill")
 
     # Now compute using compute_features
     result = compute_features(df, [feature_config.model_dump()])
@@ -120,6 +123,33 @@ def test_compute_features_caches_resampled_data_per_timeframe():
     assert "h1_rsi" in result.columns
     assert "h1_sma" in result.columns
     assert "h1_ema" in result.columns
+
+
+def test_higher_timeframe_features_only_available_after_close():
+    """Ensure higher timeframe indicators appear only after the bar closes."""
+    timestamps = pd.date_range(start="2024-01-01 09:00:00", periods=37, freq="5min")
+    df = pd.DataFrame(
+        {
+            "open": [100 + i for i in range(len(timestamps))],
+            "high": [101 + i for i in range(len(timestamps))],
+            "low": [99 + i for i in range(len(timestamps))],
+            "close": [100 + i for i in range(len(timestamps))],
+            "volume": [1000.0] * len(timestamps),
+        },
+        index=timestamps,
+    )
+
+    feature_configs = [
+        {"name": "h1_sma", "type": "SMA", "params": {"length": 2}, "timeframe": "1H"}
+    ]
+
+    result = compute_features(df, feature_configs)
+
+    before_close = pd.Timestamp("2024-01-01 10:55:00")
+    at_close = pd.Timestamp("2024-01-01 11:00:00")
+
+    assert pd.isna(result.loc[before_close, "h1_sma"])
+    assert not pd.isna(result.loc[at_close, "h1_sma"])
 
 
 def test_compute_features_backwards_compatible_without_timeframe():

@@ -14,26 +14,19 @@ class SimulatedHold(BaseModel):
     for stop-loss and take-profit triggers.
     """
 
-    hold_bars: int = Field(
-        ..., description="The duration of the simulation in bars."
-    )
+    hold_bars: int = Field(..., description="The duration of the simulation in bars.")
     simulated_pnl: float = Field(
         ...,
-        description=(
-            "The realistic PnL achieved during the simulated hold."
-        ),
+        description=("The realistic PnL achieved during the simulated hold."),
     )
     pnl_change_vs_actual: float = Field(
         ...,
         description=(
-            "The difference between simulated_pnl and the trade's "
-            "original PnL."
+            "The difference between simulated_pnl and the trade's " "original PnL."
         ),
     )
-    simulated_exit_reason: Literal[
-        "stop_loss", "take_profit", "held_full_period"
-    ] = Field(
-        ..., description="The reason the simulated hold ended."
+    simulated_exit_reason: Literal["stop_loss", "take_profit", "held_full_period"] = (
+        Field(..., description="The reason the simulated hold ended.")
     )
     simulated_exit_bar_offset: int = Field(
         ...,
@@ -44,18 +37,14 @@ class SimulatedHold(BaseModel):
     )
     mfe_bar_offset: int = Field(
         ...,
-        description=(
-            "Bar offset where the MFE occurred during the hold."
-        ),
+        description=("Bar offset where the MFE occurred during the hold."),
     )
     mae_during_hold: float = Field(
         ..., description="MAE observed during the actual simulated hold."
     )
     mae_bar_offset: int = Field(
         ...,
-        description=(
-            "Bar offset where the MAE occurred during the hold."
-        ),
+        description=("Bar offset where the MAE occurred during the hold."),
     )
 
 
@@ -97,21 +86,17 @@ class SimulatedHoldPeriodAnalysis(BaseModel):
     avg_mfe_unrealistic: float = Field(
         ...,
         description=(
-            "Average MFE during the hold period (for comparison "
-            "with old metrics)."
+            "Average MFE during the hold period (for comparison " "with old metrics)."
         ),
     )
     outcome_distribution: OutcomeDistribution = Field(
         ...,
-        description=(
-            "Breakdown of how simulations ended (stop/tp/full hold)."
-        ),
+        description=("Breakdown of how simulations ended (stop/tp/full hold)."),
     )
     avg_pnl_change_by_original_exit_reason: dict[str, float] = Field(
         default_factory=dict,
         description=(
-            "Average PnL change broken down by the trade's original "
-            "exit reason."
+            "Average PnL change broken down by the trade's original " "exit reason."
         ),
     )
 
@@ -126,7 +111,5 @@ class SimulatedHoldAnalysis(BaseModel):
 
     by_hold_period: dict[str, SimulatedHoldPeriodAnalysis] = Field(
         default_factory=dict,
-        description=(
-            "Analysis keyed by hold period (e.g., '10', '20', '50')."
-        ),
+        description=("Analysis keyed by hold period (e.g., '10', '20', '50')."),
     )

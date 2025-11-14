@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 from pytest_bdd import given, parsers, then, when
-from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 
 from tests.backtester.dummy_objects import _dummy_strategy_with_sl_tp
-from tests.test_helpers import get_empty_global_features_path
+from tests.test_helpers import (
+    get_empty_global_features_path,
+    run_backtest_simulation,
+)
 
 
 @given(
@@ -50,7 +52,7 @@ def when_backtest_is_run(shared_context: dict) -> None:
         instrument=config.instrument,
         exit_tie_break=config.exit_tie_break,
     )
-    trades = _run_backtest_simulation(
+    trades = run_backtest_simulation(
         market_data=shared_context["market_data"],
         signals=shared_context["signals"],
         strategy=strategy,

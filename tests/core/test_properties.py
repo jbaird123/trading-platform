@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from hypothesis import given
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.brief import compute_overall_performance
@@ -39,6 +39,11 @@ def test_equity_and_pnl_are_consistent():
             min_size=0,
             max_size=50,
         ),
+    )
+    @settings(
+        max_examples=200,
+        deadline=None,
+        suppress_health_check=[HealthCheck.too_slow],
     )
     def test_equity_pnl_relationship(initial_equity: float, trade_pnls: list[float]):
         """Test that final equity always equals initial equity plus total PnL."""

@@ -7,7 +7,6 @@ from typing import Any, cast
 import pandas as pd
 import pytest
 from pytest import approx
-from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 
@@ -15,7 +14,10 @@ from tests.backtester.dummy_objects import (
     _dummy_strategy_cfg,
     _dummy_strategy_with_tp,
 )
-from tests.test_helpers import get_empty_global_features_path
+from tests.test_helpers import (
+    get_empty_global_features_path,
+    run_backtest_simulation,
+)
 
 
 def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
@@ -60,7 +62,7 @@ def test_counterfactual_for_blackout_skip_with_tp():
         exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config=None)
-    result = _run_backtest_simulation(
+    result = run_backtest_simulation(
         market_data=df,
         signals=sig,
         strategy=strategy,
@@ -70,10 +72,14 @@ def test_counterfactual_for_blackout_skip_with_tp():
         return_skips=True,
         global_features_config_path=get_empty_global_features_path(),
     )
-    trades, _exp, skips = result  # type: ignore[misc]
-    assert skips and "cf_exit_time" in skips[0]  # type: ignore[index]
+    _, _, skips = cast(
+        tuple[list[Any], list[tuple[datetime, float]], list[dict[str, Any]]], result
+    )
+    assert skips
+    skip0 = skips[0]
+    assert "cf_exit_time" in skip0
     # Entry at 100, TP 2 => pnl ~ 2 * size (size=10000)
-    assert skips[0]["cf_pnl_currency"] == approx(2.0 * 10000)  # type: ignore[index]
+    assert skip0["cf_pnl_currency"] == approx(2.0 * 10000)
 
 
 def test_rmm_skip_records_policy_snapshot() -> None:
@@ -101,7 +107,7 @@ def test_rmm_skip_records_policy_snapshot() -> None:
             "policy": {"min_confidence": 0.6},
         }
     }
-    result = _run_backtest_simulation(
+    result = run_backtest_simulation(
         market_data=df,
         signals=sig,
         strategy=strategy,
@@ -112,8 +118,10 @@ def test_rmm_skip_records_policy_snapshot() -> None:
         return_skips=True,
         global_features_config_path=get_empty_global_features_path(),
     )
-    trades, exposures, skips = cast(tuple[list, list, list], result)
-    skips_typed = cast(list[dict[str, Any]], skips)
+    trades, exposures, skips = cast(
+        tuple[list[Any], list[tuple[datetime, float]], list[dict[str, Any]]], result
+    )
+    skips_typed = skips
     assert not trades
     assert exposures  # exposure logged before skip continue
     assert skips_typed[0]["skip_reason"] == "rmm_block"
@@ -138,7 +146,7 @@ def test_run_backtest_returns_exposure_without_skips() -> None:
         exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config=None)
-    result = _run_backtest_simulation(
+    result = run_backtest_simulation(
         market_data=df,
         signals=sig,
         strategy=strategy,
@@ -159,10 +167,6 @@ def test_corrupted_skipped_entry_raises_error() -> None:
     (which should never happen in normal operation), we raise ValueError
     rather than silently skipping the entry.
     """
-    from unittest.mock import patch
-
-    from trading_platform.backtester.core import _run_backtest_simulation
-
     df = _mk_df()
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)
@@ -181,18 +185,9 @@ def test_corrupted_skipped_entry_raises_error() -> None:
     )
     rem = RiskExitManager(config=None)
 
-    # Patch the skipped list to inject corrupted data
-    with patch("trading_platform.backtester.core._run_backtest_simulation") as mock_run:
-        # Call real function but we'll test the logic directly
-        mock_run.side_effect = lambda *args, **kwargs: (
-            _run_backtest_simulation.__wrapped__(*args, **kwargs)
-            if hasattr(_run_backtest_simulation, "__wrapped__")
-            else ValueError("Test setup error")
-        )
-
     # Instead, let's test this by directly calling the processing logic
     # after getting skipped entries
-    result = _run_backtest_simulation(
+    result = run_backtest_simulation(
         market_data=df,
         signals=sig,
         strategy=strategy,

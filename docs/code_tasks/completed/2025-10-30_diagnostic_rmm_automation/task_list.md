@@ -1,0 +1,19 @@
+# Diagnostic RMM Automation Implementation Plan
+
+### **Developer Mandates**
+
+-   **No Bypassing Checks:** You must **never** bypass `mypy` or `ruff` checks. Using `--no-verify` or similar flags to circumvent pre--commit hooks is strictly forbidden. All code must pass all static analysis and linting checks.
+-   **No Deferrals:** You must **never** mark any task as "deferred" or flag it for "future work." If a task is in the plan, it must be implemented.
+-   **Full Implementation:** All tasks must be **completely implemented** as described. Do not leave placeholders or incomplete logic.
+
+1. [ ] Create a new branch named `feature/diagnostic-rmm-automation` from the latest `dev`.
+2. [ ] Add pytest coverage tests in `tests/ai/pipeline/test_diagnostic_collector.py` validating that `collect_diagnostic_contexts` loads `rich_trades.parquet`, filters by `(execution_timeframe, strategy_archetype)`, computes quintile probabilities with the loaded `PerformanceDiagnosticModel`, and writes a JSON summary with keys `model_hash`, `context_key`, `top_features`, `high_quintile_trades`, and `summary_path`.
+3. [ ] Implement `collect_diagnostic_contexts` in the new module `src/trading_platform/ai/pipeline/diagnostic_collector.py` that accepts `(enriched_path: Path, registry: ModelRegistry, output_dir: Path)` and performs the logic asserted in the preceding tests, including saving `diagnostic_summary.json` under `output_dir/context_key/`.
+4. [ ] Add pytest coverage tests in `tests/ai/pipeline/test_candidate_generator.py` that feed synthetic diagnostic summaries into `generate_rmm_candidates` and assert deterministic creation of YAML fragments containing `all_of` predicates with thresholds derived from the summary statistics, plus metadata saved alongside each YAML.
+5. [ ] Implement `generate_rmm_candidates` in `src/trading_platform/ai/pipeline/candidate_generator.py` that reads summary files, derives thresholds via quantile boundaries, emits candidate `RMMConfig` YAML files under `output_dir/candidate-XXX.yaml`, and writes `metadata.json` with the chosen thresholds and support counts.
+6. [ ] Add pytest coverage tests in `tests/ai/pipeline/test_validation_runner.py` verifying that `validate_rmm_candidate` runs `run_backtest` with the supplied strategy config and candidate YAML, captures metrics (`total_pnl`, `sharpe`, `max_drawdown`, `n_trades`, `n_skipped`), and writes `validation_report.json`.
+7. [ ] Implement `validate_rmm_candidate` and `validate_all_candidates` in `src/trading_platform/ai/pipeline/validation_runner.py` to execute backtests for each candidate, persist the metrics asserted in the tests, and aggregate a CSV summary ranked by `total_pnl` and `sharpe`.
+8. [ ] Add CLI integration tests in `tests/cli/test_rmm_automation_commands.py` that invoke `tp ai-generate-rmm-candidates` and `tp ai-validate-rmm-candidates` via `subprocess.run`, asserting correct argument wiring, output folder creation, and non-zero candidate counts.
+9. [ ] Extend `src/trading_platform/cli.py` to register `ai-generate-rmm-candidates` and `ai-validate-rmm-candidates` commands that call the new pipeline functions, accept parameters (`--enriched-path`, `--model-dir`, `--output-dir`, `--strategy-config`), and log their outputs exactly as required by the tests.
+10. [ ] Consolidate the high-level architecture and next-step guidance currently in `docs/planning/ml_model_integration_plan.md` into `docs/ai/diagnostic_rmm_automation.md`, organizing it under sections “Current State”, “Goals”, “Architecture Overview”, “Future Enhancements”, and “Immediate Next Steps”.
+11. [ ] Create `docs/ai/diagnostic_rmm_automation.md` documenting the new automation end-to-end: include sections "Overview", "Pipeline Components" (collector, generator, validator), "CLI Usage" with concrete command examples, "Output Artifacts" with file layout, and "Extensibility Notes" describing how to adjust thresholds and integrate with AI prompts.

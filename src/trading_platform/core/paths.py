@@ -11,6 +11,10 @@ WORKSPACE_DIR = PROJECT_ROOT / "workspace"
 # The location for raw market data (DVC-tracked).
 RAW_DATA_DIR = PROJECT_ROOT / "data" / "dvc" / "raw"
 
+# Derived caches that should remain outside DVC-controlled trees.
+CACHE_DATA_DIR = PROJECT_ROOT / "data" / "cache"
+GLOBAL_FEATURE_CACHE_DIR = CACHE_DATA_DIR / "global_features"
+
 # Core subdirectories within the workspace.
 ARTIFACTS_DIR = WORKSPACE_DIR / "artifacts"
 CACHE_DIR = WORKSPACE_DIR / "cache"
@@ -46,5 +50,7 @@ def ensure_dirs():
         MLFLOW_DIR,
         TESTING_DIR,
         TEST_RUN_DIR,
+        CACHE_DATA_DIR,
+        GLOBAL_FEATURE_CACHE_DIR,
     ]:
         path.mkdir(parents=True, exist_ok=True)

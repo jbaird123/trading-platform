@@ -366,6 +366,10 @@ def _serialize_trade(t: Trade) -> dict[str, Any]:
         "pnl_movement": float(getattr(t, "pnl_movement", None) or 0.0),
         "exit_reason": t.exit_reason,
         "r_multiple": getattr(t, "r_multiple", None),
+        "initial_stop_loss_price": float(t.stop_loss)
+        if t.stop_loss is not None
+        else None,
+        "take_profit": float(t.take_profit) if t.take_profit is not None else None,
         "mfe_normalized": float(getattr(t, "mfe_currency", None) or 0.0),
         "mae_normalized": float(getattr(t, "mae_currency", None) or 0.0),
         "bars_held": getattr(t, "bars_held", None),
@@ -547,9 +551,7 @@ def compute_equity_stats(trades: list[Trade], initial_cash: float) -> dict[str, 
                 max_dd = drawdown
                 dd_duration = temp_duration
     equity_curve = [[ts.isoformat(), float(float(eq))] for ts, eq in ec]
-    drawdown_curve = [
-        [ts.isoformat(), float(float(dd))] for ts, dd in dd_curve
-    ]
+    drawdown_curve = [[ts.isoformat(), float(float(dd))] for ts, dd in dd_curve]
     return {
         "equity_curve": equity_curve,
         "drawdown_curve": drawdown_curve,
@@ -762,9 +764,7 @@ def generate_brief(
 
                 signal_quality_analysis = {
                     "signal_persistence_pct": float(signal_persistence_pct),
-                    "avg_signal_duration_bars": float(
-                        avg_signal_duration_bars
-                    ),
+                    "avg_signal_duration_bars": float(avg_signal_duration_bars),
                 }
     except (OSError, FileNotFoundError, pd.errors.ParserError, ArrowInvalid):
         # Only catch file I/O and parsing errors, let data validation errors propagate
@@ -1054,9 +1054,7 @@ def generate_brief(
                 if (s.get("skip_reason") or "unknown") == rc
             ]
             st["total_cf_pnl"] = float(float(sum(vals)))
-            st["mean_cf_pnl"] = float(
-                float(sum(vals) / len(vals)) if vals else 0.0
-            )
+            st["mean_cf_pnl"] = float(float(sum(vals) / len(vals)) if vals else 0.0)
             st["median_cf_pnl"] = float(float(_med(vals)) if vals else 0.0)
         placeholders["filter_impact"] = agg
     return placeholders

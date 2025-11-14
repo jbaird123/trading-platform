@@ -227,6 +227,13 @@ class StrategyConfig(BaseModel):
         default=None, description="Optional description of the strategy"
     )
     version: str | None = Field(default=None, description="Strategy version string")
+    metadata: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Optional metadata (e.g., strategy_archetype) passed through to "
+            "run config and downstream artifacts."
+        ),
+    )
 
     parameters: dict[str, Any] = Field(
         default_factory=dict,

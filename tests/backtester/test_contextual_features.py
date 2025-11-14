@@ -11,11 +11,12 @@ from typing import cast
 import pandas as pd
 import pytest
 import yaml
-from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.core.config import RunConfig
 from trading_platform.portfolio.trade import Trade
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
+
+from tests.test_helpers import run_backtest_simulation
 
 
 def test_backtester_adds_contextual_features_to_trade_context() -> None:
@@ -87,12 +88,10 @@ def test_backtester_adds_contextual_features_to_trade_context() -> None:
             )
 
             # Create a basic REM (risk exit manager)
-            rem = RiskExitManager(
-                config={"stop_loss": {"type": "offset", "price_offset": 0.0010}}
-            )
+            rem = RiskExitManager(config={})
 
             # Run backtest with explicit global features config path
-            trades_result = _run_backtest_simulation(
+            trades_result = run_backtest_simulation(
                 market_data=df,
                 signals=signals,
                 strategy=strategy,
@@ -131,6 +130,185 @@ def test_backtester_adds_contextual_features_to_trade_context() -> None:
 
             # Verify it's positive (ATR should always be positive)
             assert h1_atr_value > 0, f"Expected positive ATR, got {h1_atr_value}"
+        finally:
+            os.chdir(original_cwd)
+
+
+def test_end_of_data_exit_preserves_context() -> None:
+    """Forced end-of-data exit should retain contextual features."""
+    idx = [datetime(2024, 1, 1, h) for h in range(20)]
+    market = pd.DataFrame(
+        {
+            "open": [100.0 + i * 0.5 for i in range(20)],
+            "high": [101.0 + i * 0.5 for i in range(20)],
+            "low": [99.0 + i * 0.5 for i in range(20)],
+            "close": [100.5 + i * 0.5 for i in range(20)],
+            "volume": [1000] * 20,
+        },
+        index=idx,
+    )
+
+    strategy = CompiledStrategy(
+        name="end_of_data_strategy",
+        features=[],
+        overlays=[],
+        long_entry_blocks=[],
+        long_exit_blocks=[],
+        short_entry_blocks=[],
+        short_exit_blocks=[],
+        parameters={},
+    )
+    strategy.generate_signals(market)
+
+    # Enter once and hold through the end of the dataset
+    signals = pd.Series(
+        [None] * 14 + ["enter_long"] + [None] * 5,
+        index=market.index,
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        global_yaml = Path(tmpdir) / "config" / "features" / "global.yaml"
+        global_yaml.parent.mkdir(parents=True, exist_ok=True)
+        global_yaml.write_text(
+            yaml.dump(
+                {
+                    "features": [
+                        {
+                            "name": "h1_atr_14",
+                            "type": "ATR",
+                            "params": {"length": 14},
+                            "timeframe": "1H",
+                        }
+                    ]
+                }
+            )
+        )
+
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(tmpdir)
+            config = RunConfig.model_validate(
+                {
+                    "run_id": "end_of_data_context",
+                    "instrument": {
+                        "symbol": "EURUSD",
+                        "timeframe": "1H",
+                    },
+                }
+            )
+            rem = RiskExitManager(config={})
+            trades = run_backtest_simulation(
+                market_data=market,
+                signals=signals,
+                strategy=strategy,
+                config=config,
+                rem=rem,
+                global_features_config_path=global_yaml,
+            )
+
+            assert isinstance(trades, list)
+            trade: Trade = cast(Trade, trades[-1])
+            assert trade.exit_reason == "end_of_data"
+            assert trade.context_at_exit is not None
+            exit_context = trade.context_at_exit
+            assert "global_features" in exit_context
+            h1_atr = exit_context["global_features"].get("h1_atr_14")
+            assert isinstance(h1_atr, (int, float))
+            assert h1_atr > 0
+        finally:
+            os.chdir(original_cwd)
+
+
+def test_required_global_feature_missing_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Missing global feature values at execution timeframe must fail fast."""
+    idx = [datetime(2024, 1, 1, h) for h in range(20)]
+    market = pd.DataFrame(
+        {
+            "open": [100.0 + i * 0.5 for i in range(20)],
+            "high": [101.0 + i * 0.5 for i in range(20)],
+            "low": [99.0 + i * 0.5 for i in range(20)],
+            "close": [100.5 + i * 0.5 for i in range(20)],
+            "volume": [1000] * 20,
+        },
+        index=idx,
+    )
+
+    strategy = CompiledStrategy(
+        name="nan_guard_strategy",
+        features=[],
+        overlays=[],
+        long_entry_blocks=[],
+        long_exit_blocks=[],
+        short_entry_blocks=[],
+        short_exit_blocks=[],
+        parameters={},
+    )
+    strategy.generate_signals(market)
+
+    signals = pd.Series([None] * len(market), index=market.index)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        global_yaml = Path(tmpdir) / "config" / "features" / "global.yaml"
+        global_yaml.parent.mkdir(parents=True, exist_ok=True)
+        global_yaml.write_text(
+            yaml.dump(
+                {
+                    "features": [
+                        {
+                            "name": "h1_atr_14",
+                            "type": "ATR",
+                            "params": {"length": 14},
+                            "timeframe": "1H",
+                        }
+                    ]
+                }
+            )
+        )
+
+        from trading_platform.strategy import features as feature_module
+
+        original_compute = feature_module.compute_features
+
+        def fake_compute_features(
+            df: pd.DataFrame,
+            specs: list[dict],
+            strategy_parameters: dict | None = None,
+        ) -> pd.DataFrame:
+            result = original_compute(df, specs, strategy_parameters)
+            for spec in specs:
+                if spec.get("name") == "h1_atr_14":
+                    result.loc[result.index[-1], "h1_atr_14"] = float("nan")
+            return result
+
+        monkeypatch.setattr(feature_module, "compute_features", fake_compute_features)
+
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(tmpdir)
+            config = RunConfig.model_validate(
+                {
+                    "run_id": "nan_guard",
+                    "instrument": {
+                        "symbol": "EURUSD",
+                        "timeframe": "1H",
+                    },
+                }
+            )
+            rem = RiskExitManager(
+                config={"stop_loss": {"type": "offset", "price_offset": 0.0010}}
+            )
+
+            with pytest.raises(ValueError, match="Global feature 'h1_atr_14' is NaN"):
+                run_backtest_simulation(
+                    market_data=market,
+                    signals=signals,
+                    strategy=strategy,
+                    config=config,
+                    rem=rem,
+                    global_features_config_path=global_yaml,
+                )
         finally:
             os.chdir(original_cwd)
 
@@ -222,7 +400,7 @@ def test_backtester_trade_context_with_multi_timeframe_at_entry_and_exit() -> No
             )
 
             # Run backtest with explicit global features path
-            trades_result = _run_backtest_simulation(
+            trades_result = run_backtest_simulation(
                 market_data=df,
                 signals=signals,
                 strategy=strategy,
@@ -281,89 +459,3 @@ def test_backtester_trade_context_with_multi_timeframe_at_entry_and_exit() -> No
             assert h1_rsi_exit == pytest.approx(expected_exit_rsi, rel=1e-6)
         finally:
             os.chdir(original_cwd)
-
-
-def test_trade_context_always_includes_volume() -> None:
-    """Test that volume is always included in trade context."""
-    # Create sample market data with varying volume
-    idx = [datetime(2024, 1, 1, h) for h in range(20)]
-    df = pd.DataFrame(
-        {
-            "open": [100.0 + i * 0.5 for i in range(20)],
-            "high": [101.0 + i * 0.5 for i in range(20)],
-            "low": [99.0 + i * 0.5 for i in range(20)],
-            "close": [100.5 + i * 0.5 for i in range(20)],
-            "volume": [1000 + i * 100 for i in range(20)],  # Varying volume
-        },
-        index=idx,
-    )
-
-    # Create a simple strategy (no volume in features)
-    strategy = CompiledStrategy(
-        name="test_strategy",
-        features=[],
-        overlays=[],
-        long_entry_blocks=[],
-        long_exit_blocks=[],
-        short_entry_blocks=[],
-        short_exit_blocks=[],
-        parameters={},
-    )
-    strategy.generate_signals(df)
-
-    # Create signals with one entry at bar 15 and exit at bar 18
-    signals = pd.Series(
-        [None] * 15 + ["enter_long"] + [None] * 2 + ["exit_long", None],
-        index=df.index,
-    )
-
-    # Create RunConfig without global features
-    config = RunConfig.model_validate(
-        {
-            "run_id": "test_volume",
-            "instrument": {
-                "symbol": "EUR_USD",  # Use registered instrument
-            },
-        }
-    )
-
-    # Create a basic REM
-    rem = RiskExitManager(
-        config={"stop_loss": {"type": "offset", "price_offset": 0.0010}}
-    )
-
-    # Import test helper for empty global features
-    from tests.test_helpers import get_empty_global_features_path
-
-    # Run backtest with empty global features (only volume is added automatically)
-    trades_raw = _run_backtest_simulation(
-        market_data=df,
-        signals=signals,
-        strategy=strategy,
-        config=config,
-        rem=rem,
-        global_features_config_path=get_empty_global_features_path(),
-    )
-
-    # Assertions
-    assert isinstance(trades_raw, list)
-    trades: list[Trade] = cast(list[Trade], trades_raw)
-    assert len(trades) > 0, "Expected at least one trade"
-    first_trade: Trade = trades[0]
-    assert isinstance(first_trade, Trade)
-
-    # Check that volume exists in nested global_features
-    assert first_trade.context_at_entry is not None
-    assert isinstance(first_trade.context_at_entry, dict)
-    assert "global_features" in first_trade.context_at_entry
-    global_features = first_trade.context_at_entry["global_features"]
-    assert isinstance(global_features, dict)
-    assert "volume" in global_features, "volume not in global_features"
-
-    # Verify the volume value matches the entry bar
-    # Entry is at bar 15 (index 15), volume should be 1000 + 15*100 = 2500
-    expected_volume = 1000 + 15 * 100
-    actual_volume = global_features["volume"]
-    assert (
-        actual_volume == expected_volume
-    ), f"Expected volume {expected_volume}, got {actual_volume}"

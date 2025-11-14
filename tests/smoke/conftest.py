@@ -1,4 +1,5 @@
 """Shared fixtures for smoke tests."""
+
 import pytest
 
 
@@ -16,6 +17,5 @@ def mock_global_features_for_smoke_tests(monkeypatch, request):
         return []
 
     monkeypatch.setattr(
-        "trading_platform.core.feature_resolver.resolve_global_features",
-        mock_resolve
+        "trading_platform.core.feature_resolver.resolve_global_features", mock_resolve
     )

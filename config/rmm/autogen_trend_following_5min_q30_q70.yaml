@@ -1,0 +1,95 @@
+name: auto_5min_trend_following
+version: '1'
+timeframe: 5min
+features:
+- name: d1_obv
+  type: OBV
+  params: {}
+  source: null
+  source_ref: null
+  timeframe: 1D
+- name: d1_rsi_14
+  type: RSI
+  params:
+    length: 14
+  source: null
+  source_ref: null
+  timeframe: 1D
+- name: m15_ema_50
+  type: EMA
+  params:
+    length: 50
+  source: null
+  source_ref: null
+  timeframe: 15min
+- name: w1_obv
+  type: OBV
+  params: {}
+  source: null
+  source_ref: null
+  timeframe: 1W
+- name: d1_volume_sma_20
+  type: SMA
+  params:
+    length: 20
+  source: volume
+  source_ref: null
+  timeframe: 1D
+- name: h4_rsi_14
+  type: RSI
+  params:
+    length: 14
+  source: null
+  source_ref: null
+  timeframe: 4H
+policy:
+  min_confidence: 0.6
+  allow_labels:
+  - high_performance
+regimes:
+- label: high_performance
+  confidence: 0.6
+  conditions:
+    all_of:
+    - condition: is_above
+      left: &id001
+        ref: d1_obv
+      right: -1636639.7100000028
+    - condition: is_below
+      left: *id001
+      right: 1765089.8330999946
+    - condition: is_above
+      left: &id002
+        ref: d1_rsi_14
+      right: 42.96804878591228
+    - condition: is_below
+      left: *id002
+      right: 56.335092248872414
+    - condition: is_above
+      left: &id003
+        ref: m15_ema_50
+      right: 1.088198340448647
+    - condition: is_below
+      left: *id003
+      right: 1.1377164817768155
+    - condition: is_above
+      left: &id004
+        ref: w1_obv
+      right: -4811958.68
+    - condition: is_below
+      left: *id004
+      right: 3320992.1683000014
+    - condition: is_above
+      left: &id005
+        ref: d1_volume_sma_20
+      right: 143341.47160000034
+    - condition: is_below
+      left: *id005
+      right: 283850.0520000014
+    - condition: is_above
+      left: &id006
+        ref: h4_rsi_14
+      right: 42.77403110838651
+    - condition: is_below
+      left: *id006
+      right: 57.36840025502876

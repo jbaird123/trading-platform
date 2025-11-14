@@ -20,4 +20,5 @@ def extract_trades_from_brief(brief_data: dict) -> pd.DataFrame:
 
     # Use pandas.json_normalize to flatten nested structures
     df = pd.json_normalize(trades, sep="_")
+
     return df

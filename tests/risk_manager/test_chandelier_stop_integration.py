@@ -138,15 +138,11 @@ def test_chandelier_stop_used_by_risk_exit_manager(
     atr_col = f"atr_{atr_length}"
 
     df_valid = chandelier_features.dropna(subset=[hhv_col, llv_col, atr_col])
-    df_valid = df_valid.iloc[length + 1 :]  # ensure indicators fully warmed
     assert len(df_valid) >= 2
 
-    # Use the second valid bar so we have a prior bar available
-    current_idx = df_valid.index[1]
-    prior_idx = df_valid.index[0]
-
-    prior_bar = chandelier_features.loc[prior_idx]
-    current_bar = chandelier_features.loc[current_idx].copy()
+    # Use the last two fully valid bars to ensure indicators are warmed up
+    prior_bar = df_valid.iloc[-2]
+    current_bar = df_valid.iloc[-1].copy()
 
     expected_stop = spec.stop_calculator(  # type: ignore[call-arg]
         entry_price=prior_bar["close"],

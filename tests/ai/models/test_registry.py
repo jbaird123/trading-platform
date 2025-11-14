@@ -31,7 +31,7 @@ def sample_trades_df():
             "entry_time": pd.date_range("2024-01-01", periods=200, freq="1h"),
             # Target and risk data
             "pnl": [10.0, -5.0] * 100,  # Alternating profitable/unprofitable
-            "initial_stop_loss_pips": [20.0] * 200,
+            "initial_stop_loss_price": [1.2000] * 200,
             "r_multiple": [0.5, -0.25] * 100,
         }
     )
@@ -203,7 +203,7 @@ class TestModelRegistry:
                 "entry_time": pd.date_range("2024-01-01", periods=10, freq="1h"),
                 "pnl": [10.0] * 10,
                 "r_multiple": [0.5] * 10,
-                "initial_stop_loss_pips": [20.0] * 10,
+                "initial_stop_loss_price": [1.2000] * 10,
             }
         )
 
@@ -236,7 +236,7 @@ class TestModelRegistry:
                 "entry_time": pd.date_range(
                     "2025-01-01", periods=5, freq="1h"
                 ),  # Future data
-                "initial_stop_loss_pips": np.random.uniform(10, 50, 5),
+                "initial_stop_loss_price": np.random.uniform(1.15, 1.25, 5),
             }
         )
 
@@ -360,7 +360,7 @@ class TestModelRegistry:
                 "entry_time": pd.date_range("2024-01-01", periods=100, freq="1h"),
                 "pnl": np.random.uniform(-50, 100, 100),
                 "r_multiple": np.random.uniform(-2, 5, 100),  # Has risk data
-                "initial_stop_loss_pips": np.random.uniform(10, 50, 100),
+                "initial_stop_loss_price": np.random.uniform(1.15, 1.25, 100),
             }
         )
 
@@ -374,7 +374,7 @@ class TestModelRegistry:
                 "entry_time": pd.date_range("2024-05-01", periods=50, freq="1h"),
                 "pnl": np.random.uniform(-50, 100, 50),
                 "r_multiple": np.full(50, np.nan),  # No risk data (explicit float NaN)
-                "initial_stop_loss_pips": np.full(50, np.nan),
+                "initial_stop_loss_price": np.full(50, np.nan),
             }
         )
 
@@ -425,7 +425,7 @@ class TestModelRegistry:
                 "entry_time": pd.date_range("2024-01-01", periods=100, freq="1h"),
                 "pnl": np.random.uniform(-50, 100, 100),
                 "r_multiple": np.random.uniform(-2, 5, 100),
-                "initial_stop_loss_pips": np.random.uniform(10, 50, 100),
+                "initial_stop_loss_price": np.random.uniform(1.15, 1.25, 100),
                 "context_at_exit_rsi": np.random.uniform(30, 70, 100),
                 "bars_held": np.random.randint(1, 50, 100),
                 "mae_currency": np.random.uniform(-50, 0, 100),
@@ -469,7 +469,7 @@ class TestModelRegistry:
                 "entry_time": pd.date_range("2024-01-01", periods=100, freq="1h"),
                 "pnl": np.random.uniform(-50, 100, 100),
                 "r_multiple": np.random.uniform(-2, 5, 100),
-                "initial_stop_loss_pips": np.random.uniform(10, 50, 100),
+                "initial_stop_loss_price": np.random.uniform(1.15, 1.25, 100),
             }
         )
 
@@ -488,7 +488,7 @@ class TestModelRegistry:
                 "entry_time": pd.date_range(
                     "2024-01-03", periods=5, freq="1h"
                 ),  # Overlaps!
-                "initial_stop_loss_pips": np.random.uniform(10, 50, 5),
+                "initial_stop_loss_price": np.random.uniform(1.15, 1.25, 5),
             }
         )
 
@@ -515,7 +515,7 @@ class TestModelRegistry:
                 "entry_time": pd.date_range("2024-01-01", periods=100, freq="1h"),
                 "pnl": np.random.uniform(-50, 100, 100),
                 "r_multiple": np.random.uniform(-2, 5, 100),
-                "initial_stop_loss_pips": np.random.uniform(10, 50, 100),
+                "initial_stop_loss_price": np.random.uniform(1.15, 1.25, 100),
                 "context_at_exit_rsi": np.random.uniform(30, 70, 100),
                 "bars_held": np.random.randint(1, 50, 100),
                 "mae_currency": np.random.uniform(-50, 0, 100),

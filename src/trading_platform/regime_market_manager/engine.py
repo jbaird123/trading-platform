@@ -140,9 +140,7 @@ class RMMEngine:
         df = compute_features(resampled, feats)
 
         # PERFORMANCE: Evaluate regime conditions vectorized (no per-bar loop)
-        raw_labels = pd.Series(
-            ["unknown"] * len(df), index=df.index, dtype="object"
-        )
+        raw_labels = pd.Series(["unknown"] * len(df), index=df.index, dtype="object")
         raw_confs = pd.Series([0.0] * len(df), index=df.index, dtype="float64")
 
         # Evaluate each regime's conditions as vectorized boolean masks
@@ -248,9 +246,7 @@ class RMMEngine:
         labels_series = pd.Series(adj_labels, index=index, dtype="object")
         confs_series = pd.Series(adj_confs, index=index, dtype="float64")
         bars_series = pd.Series(bars_history, index=index, dtype="int64")
-        cooldown_series = pd.Series(
-            cooldown_history, index=index, dtype="int64"
-        )
+        cooldown_series = pd.Series(cooldown_history, index=index, dtype="int64")
 
         return labels_series, confs_series, bars_series, cooldown_series
 
@@ -319,9 +315,7 @@ class RMMEngine:
             df["raw_confidence"] = 0.0
             df["bars_in_state"] = 0
             df["cooldown_remaining"] = 0
-            empty_allowed: list[list[str]] = [
-                [] for _ in range(len(target_index))
-            ]
+            empty_allowed: list[list[str]] = [[] for _ in range(len(target_index))]
             df["allowed_sides"] = empty_allowed  # pyright: ignore
             return df
 
@@ -354,9 +348,7 @@ class RMMEngine:
         aligned["raw_confidence"] = (
             aligned["raw_confidence"].fillna(0.0).astype("float64")
         )
-        aligned["bars_in_state"] = (
-            aligned["bars_in_state"].fillna(0).astype("int64")
-        )
+        aligned["bars_in_state"] = aligned["bars_in_state"].fillna(0).astype("int64")
         aligned["cooldown_remaining"] = (
             aligned["cooldown_remaining"].fillna(0).astype("int64")
         )

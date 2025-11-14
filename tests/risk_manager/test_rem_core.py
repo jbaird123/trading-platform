@@ -211,3 +211,39 @@ def test_bollinger_indicator_stop_uses_band_value() -> None:
     exit_details = rem.check_exits(position, current_bar, prior_bar=prior_bar)
     assert exit_details is not None
     assert exit_details["exit_price"] == pytest.approx(1.1980, abs=1e-9)
+
+
+def test_indicator_stop_reads_strategy_and_global_context() -> None:
+    """Indicator stops may source values from strategy/global feature context."""
+    config = {
+        "stop_loss": {
+            "type": "indicator",
+            "indicator": "chandelier",
+            "params": {"multiplier": 3.0, "length": 22, "atr_length": 14},
+        }
+    }
+    rem = RiskExitManager(config=config)
+
+    position = Position(
+        symbol="EURUSD",
+        entry_time=pd.Timestamp("2024-04-01 12:00:00+00:00"),
+        entry_price=1.2060,
+        entry_mid_price=1.2060,
+        side="long",
+        size=10000,
+        context_at_entry={
+            "strategy_features": {"hhv_22": 1.2100},
+            "global_features": {"atr_14": 0.0025},
+        },
+    )
+
+    prior_bar = _bar({"close": 1.2060}, "2024-04-01 13:00:00+00:00")
+    current_bar = _bar(
+        {"open": 1.2060, "high": 1.2070, "low": 1.2010, "close": 1.2020},
+        "2024-04-01 14:00:00+00:00",
+    )
+
+    exit_details = rem.check_exits(position, current_bar, prior_bar=prior_bar)
+    assert exit_details is not None
+    expected_stop = 1.2100 - (0.0025 * 3.0)
+    assert exit_details["exit_price"] == pytest.approx(expected_stop, abs=1e-9)

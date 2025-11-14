@@ -25,11 +25,14 @@ At the top of the generated task list, you **must** include the following sectio
 1.  **Action-Oriented:** Start each major item with a verb (e.g., "Fix", "Implement", "Refactor", "Create").
 2.  **Explicit:** State the exact file paths, function names, class names, and variable names to be modified or created.
 3.  **Prescriptive:** Provide the specific logic to be implemented. If a calculation is needed, provide the exact formula. If a text summary is needed, provide the template for the text.
-4.  **Atomic:** Break down complex work into the smallest possible, verifiable steps. A single task should not involve more than 1-2 files if possible.
-5.  **Test-First Development:** All new code or modifications must be driven by tests. No implementation task should be created without a preceding task to write the necessary tests. This ensures 100% test coverage and correctness.
-6.  **Strictly Ordered:** The tasks must be presented in a strict, numbered sequence. For any given feature or fix, the task to create/update tests **must** come immediately before the task to implement the code. The developer must follow this order precisely.
-7.  **Formatted as Markdown:** The final output must be a single, well-formatted Markdown document. Each task must be a numbered item with a checkbox (e.g., `1. [ ] Task description`).
-8.  **Coverage-Complete:** A task is only considered complete after the corresponding tests are written and `pytest --cov` confirms that 100% test coverage for the changed code is maintained.
+4.  **Implementation-Level Detail:** Each implementation task must be a micro-design document. It must describe the internal logic of the function in sufficient detail that it can be reviewed for correctness *before* code is written. This includes specifying function signatures with type hints, the exact sequence of logical steps, conditional branches, and error handling. Where complex logic is required, provide pseudo-code or a small, illustrative code snippet. The task must leave zero room for interpretation regarding the implementation.
+5.  **No Placeholders:** All integrations with existing modules must use the actual production functions. Do not implement stubbed functions or placeholder logic. If a real function needs to be called, the task must explicitly state to import and call it, describing how to adapt its signature if necessary.
+6.  **Parameterize Heuristics:** For any logic that relies on a "magic number" (e.g., a threshold, a quantile value, a penalty factor, a list of terms), the task must specify that this value should be exposed as a configurable parameter (e.g., a function argument with a default value, a CLI option) rather than being hardcoded.
+7.  **Atomic:** Break down complex work into the smallest possible, verifiable steps. A single task should not involve more than 1-2 files if possible.
+8.  **Test-First Development:** All new code or modifications must be driven by tests. No implementation task should be created without a preceding task to write the necessary tests. This ensures 100% test coverage and correctness.
+9.  **Strictly Ordered:** The tasks must be presented in a strict, numbered sequence. For any given feature or fix, the task to create/update tests **must** come immediately before the task to implement the code. The developer must follow this order precisely.
+10. **Formatted as Markdown:** The final output must be a single, well-formatted Markdown document. Each task must be a numbered item with a checkbox (e.g., `1. [ ] Task description`).
+11. **Coverage-Complete:** A task is only considered complete after the corresponding tests are written and `pytest --cov` confirms that 100% test coverage for the changed code is maintained.
 
 **Input:**
 

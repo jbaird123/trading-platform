@@ -1,9 +1,12 @@
 """Campaign batch execution engine with failure artifact generation."""
 
+import argparse
+import io
 import json
 import platform
-import subprocess
 import sys
+import traceback
+from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime, timezone
 from pathlib import Path
 from time import time
@@ -16,6 +19,31 @@ from trading_platform.ai.campaigns.models import (
     ExecutionResults,
     RunResult,
 )
+from trading_platform.cli import _run_backtest_logic
+
+
+def _normalize_param_overrides(
+    strategy_data: dict[str, Any], overrides: dict[str, Any]
+) -> dict[str, Any]:
+    """Map legacy parameter aliases onto concrete strategy parameters."""
+
+    if not overrides:
+        return {}
+
+    params = strategy_data.get("parameters") or {}
+    normalized = dict(overrides)
+    alias_map = {
+        "fast_length": "ema_fast_length",
+        "slow_length": "ema_slow_length",
+    }
+
+    for alias, canonical in alias_map.items():
+        if alias in normalized and (
+            canonical in params or alias in params  # detect expected schema
+        ):
+            normalized[canonical] = normalized.pop(alias)
+
+    return normalized
 
 
 def execute_campaign_runs(
@@ -87,7 +115,10 @@ def execute_campaign_runs(
             if run.param_overrides:
                 if "parameters" not in strategy_data:
                     strategy_data["parameters"] = {}
-                strategy_data["parameters"].update(run.param_overrides)
+                normalized_overrides = _normalize_param_overrides(
+                    strategy_data, run.param_overrides
+                )
+                strategy_data["parameters"].update(normalized_overrides)
 
             # Build RunConfig data structure
             run_config_data: dict[str, Any] = {
@@ -108,6 +139,11 @@ def execute_campaign_runs(
                 },
             }
 
+            if plan.global_features_config_path is not None:
+                run_config_data["global_features_config_path"] = str(
+                    plan.global_features_config_path
+                )
+
             # Add contextual features if specified
             if plan.contextual_features:
                 features_list: list[dict[str, Any]] = [
@@ -127,24 +163,56 @@ def execute_campaign_runs(
             with open(run_config_path, "w") as f:
                 yaml.dump(run_config_data, f, default_flow_style=False)
 
-            # Build command to execute backtest
-            cmd = [
-                "poetry",
-                "run",
-                "tp",
-                "run-backtest",
-                "--config",
-                str(run_config_path),
-            ]
+            # Execute the run in-process to leverage shared caches
+            args = argparse.Namespace(
+                config=str(run_config_path),
+                demo=False,
+                user="campaign_runner",
+                output_dir=None,
+                clear_cache=False,
+            )
 
-            # Execute the run
-            result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            stdout_buffer = io.StringIO()
+            stderr_buffer = io.StringIO()
+            exit_code = 0
+            try:
+                with redirect_stdout(stdout_buffer):
+                    with redirect_stderr(stderr_buffer):
+                        exit_code = _run_backtest_logic(args)
+            except SystemExit as exc:  # pragma: no cover - defensive
+                code = exc.code
+                if isinstance(code, int):
+                    exit_code = code
+                else:
+                    exit_code = 1
+                    stderr_buffer.write(f"SystemExit: {code}\n")
+            except Exception:  # pragma: no cover - defensive
+                exit_code = 1
+                stderr_buffer.write(traceback.format_exc())
+
+            stdout_text = stdout_buffer.getvalue()
+            stderr_text = stderr_buffer.getvalue()
+            stdout_buffer.close()
+            stderr_buffer.close()
+
+            stdout_path = run_config_dir / "stdout.log"
+            stderr_path = run_config_dir / "stderr.log"
+            stdout_path.write_text(stdout_text or "")
+            if stderr_text:
+                stderr_path.write_text(stderr_text)
+            log_line = (
+                f"[{datetime.now(timezone.utc).isoformat()}] "
+                f"Captured logs for {run.run_id} -> {stdout_path}"
+            )
+            if stderr_text:
+                log_line += f", {stderr_path}"
+            log_file.write(f"{log_line}\n")
 
             run_end = time()
             execution_time = run_end - run_start
 
             # Process results
-            if result.returncode == 0:
+            if exit_code == 0:
                 status = "success"
                 successful += 1
                 log_file.write(
@@ -179,16 +247,16 @@ def execute_campaign_runs(
                 failed += 1
                 log_file.write(
                     f"[{datetime.now(timezone.utc).isoformat()}] "
-                    f"Failed: {run.run_id} (exit code {result.returncode})\n"
+                    f"Failed: {run.run_id} (exit code {exit_code})\n"
                 )
 
                 # Create failure report
                 failure_report = {
                     "run_id": run.run_id,
                     "failed_at": datetime.now(timezone.utc).isoformat(),
-                    "exit_code": result.returncode,
-                    "stderr": result.stderr,
-                    "stdout": result.stdout,
+                    "exit_code": exit_code,
+                    "stderr": stderr_text,
+                    "stdout": stdout_text,
                     "config_snapshot": {
                         "instrument": run.instrument,
                         "start_date": run.start_date,
@@ -220,9 +288,9 @@ def execute_campaign_runs(
             run_result = RunResult(
                 run_id=run.run_id,
                 status=status,
-                exit_code=result.returncode,
-                stdout=result.stdout,
-                stderr=result.stderr,
+                exit_code=exit_code,
+                stdout=stdout_text,
+                stderr=stderr_text,
                 execution_time_seconds=execution_time,
             )
             run_results.append(run_result)
@@ -238,8 +306,7 @@ def execute_campaign_runs(
                 elif not continue_on_error and not fail_fast:
                     log_file.close()
                     raise RuntimeError(
-                        f"Run {run.run_id} failed with exit code "
-                        f"{result.returncode}"
+                        f"Run {run.run_id} failed with exit code {exit_code}"
                     )
 
     finally:

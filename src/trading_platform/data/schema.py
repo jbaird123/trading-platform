@@ -4,7 +4,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from trading_platform.data.instrument import InstrumentDefinition
+from trading_platform.data.instrument import InstrumentDefinition, SessionDefinition
+from trading_platform.data.resample import resample_data
+from trading_platform.data.session_metadata import extract_session
 
 # Define the schema contract as a constant. This makes it easy to manage and reuse.
 # It maps the raw column names to our desired normalized names.
@@ -91,19 +93,44 @@ def load_and_normalize_data(file_path: Path) -> tuple[pd.DataFrame, list[str]]:
         return pd.DataFrame(), quality_flags
 
 
+def resample_ohlc(
+    df: pd.DataFrame,
+    rule: str,
+    instrument: InstrumentDefinition | None = None,
+    session: SessionDefinition | None = None,
+) -> pd.DataFrame:
+    """Resample an OHLCV DataFrame using canonical aggregation rules."""
+
+    resolved_session = session
+    if resolved_session is None and instrument is not None:
+        if instrument.sessions:
+            resolved_session = instrument.sessions[0]
+
+    if resolved_session is None:
+        try:
+            resolved_session = extract_session(df)
+        except ValueError:
+            resolved_session = None
+
+    result = (
+        resample_data(df, rule, session=resolved_session)
+        if resolved_session
+        else resample_data(df, rule)
+    )
+
+    return result
+
+
 def _calendarize_session_close_index(
-    index: pd.DatetimeIndex, session_hour: int
+    index: pd.DatetimeIndex,
+    session_hour: int,
 ) -> pd.DatetimeIndex:
-    """Convert resampled timestamps to calendar dates.
+    """Convert timestamps labeled at session-close to the following calendar date."""
 
-    pandas uses the session close time as the bin label when we resample with an
-    origin offset. For reporting we want each bar labelled with the calendar date
-    that ended at the session close. If a timestamp does not align with the
-    expected hour (which can happen with malformed data or unexpected resample
-    behaviour) we fall back to the timestamp's own date.
-    """
+    if not isinstance(index, pd.DatetimeIndex):
+        raise TypeError("index must be a DatetimeIndex")
 
-    new_index = []
+    new_index: list[pd.Timestamp] = []
     for ts in index:
         if ts.hour == session_hour:
             calendar_date = (ts + pd.Timedelta(days=1)).date()
@@ -113,54 +140,7 @@ def _calendarize_session_close_index(
     return pd.DatetimeIndex(new_index, name=index.name)
 
 
-def resample_ohlc(
-    df: pd.DataFrame, rule: str, instrument: InstrumentDefinition | None = None
-) -> pd.DataFrame:
-    """Resample an OHLCV DataFrame using canonical aggregation rules.
-
-    - open: first
-    - high: max
-    - low: min
-    - close: last
-    - volume: sum
-
-    For daily resampling ('D' or '1D'), uses the session close time from the
-    instrument definition to group data by trading day.
-    """
-    # Normalize rule to lowercase (avoid pandas deprecation warnings)
-    rule = str(rule).lower()
-
-    # Extract session hour for daily resampling logic
-    session_hour = None
-    if rule.upper() in ("D", "1D") and instrument and instrument.sessions:
-        session_hour = instrument.sessions[0].close_time.hour
-
-    # Set up resampling parameters
-    if session_hour is not None:
-        # Set origin to the session close time on epoch day with UTC timezone
-        origin_ts = pd.Timestamp(f"1970-01-01 {session_hour:02d}:00:00", tz="UTC")
-        out = df.resample(rule, label="left", origin=origin_ts).agg(
-            open=("open", "first"),
-            high=("high", "max"),
-            low=("low", "min"),
-            close=("close", "last"),
-            volume=("volume", "sum"),
-        )
-    else:
-        out = df.resample(rule, label="left").agg(
-            open=("open", "first"),
-            high=("high", "max"),
-            low=("low", "min"),
-            close=("close", "last"),
-            volume=("volume", "sum"),
-        )
-
-    out = out.dropna(how="any")
-
-    # For daily resampling with session offset, normalize timestamps to calendar dates
-    if session_hour is not None:
-        # Type assertion: after resampling, index should be DatetimeIndex
-        datetime_index = pd.DatetimeIndex(out.index)
-        out.index = _calendarize_session_close_index(datetime_index, session_hour)
-
-    return out
+__all__ = [
+    "load_and_normalize_data",
+    "resample_ohlc",
+]

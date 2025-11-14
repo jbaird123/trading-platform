@@ -201,6 +201,11 @@ class TestREMIndicatorsRegistry:
         assert param_type == int
         assert default_value == 14
 
+    def test_indicator_specs_do_not_require_intrabar_zoom_by_default(self):
+        """REM indicators should not demand intrabar zoom unless opted-in."""
+        for spec in REM_INDICATORS_REGISTRY.values():
+            assert spec.requires_intrabar_zoom is False
+
     def test_atr_spec_has_calculator(self):
         """Verify ATR spec has a stop calculator function."""
         atr_spec = REM_INDICATORS_REGISTRY["atr"]

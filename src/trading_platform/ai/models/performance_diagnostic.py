@@ -14,6 +14,8 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
 
+from ._timeframe_utils import drop_lower_timeframe_global_features
+
 
 class PerformanceDiagnosticModel:
     """Context-specific quintile classifier for regime analysis.
@@ -125,6 +127,9 @@ class PerformanceDiagnosticModel:
         # Record training date range (for lookahead bias prevention)
         self.training_start_date_ = pd.to_datetime(df_clean["entry_time"]).min()
         self.training_end_date_ = pd.to_datetime(df_clean["entry_time"]).max()
+
+        # Drop global features that are lower than execution timeframe
+        df_clean = drop_lower_timeframe_global_features(df_clean, self.timeframe)
 
         # Extract features (ALL features including lookahead)
         X = self._extract_features(df_clean)

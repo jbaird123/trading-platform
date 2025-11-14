@@ -7,6 +7,7 @@ import pandas as pd
 
 import trading_platform.risk_manager.rem_indicators as rem_indicators
 from trading_platform.core.signal import Signal
+from trading_platform.core.types import BarData
 from trading_platform.portfolio.position import Position
 from trading_platform.risk_manager.exit_utils import (
     is_fixed_stops_ambiguous,
@@ -19,6 +20,7 @@ from trading_platform.risk_manager.models import (
     PriceOffsetRule,
     ReferenceRule,
     REMConfig,
+    TrailingStopRule,
 )
 from trading_platform.risk_manager.trailing_stop_utils import (
     process_1min_bars_for_fixed_stops,
@@ -26,6 +28,43 @@ from trading_platform.risk_manager.trailing_stop_utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class _ContextBarView:
+    def __init__(self, base: BarData, context: dict[str, Any]) -> None:
+        self._base = base
+        sections: list[dict[str, Any]] = []
+        for key in ("strategy_features", "global_features"):
+            payload = context.get(key)
+            if isinstance(payload, dict):
+                sections.append(payload)
+        self._sections = sections
+
+    @property
+    def name(self) -> Any:
+        return getattr(self._base, "name", None)
+
+    def __contains__(self, key: str) -> bool:
+        if key in self._base:
+            return True
+        for section in self._sections:
+            if key in section:
+                return True
+        return False
+
+    def __getitem__(self, key: str) -> Any:
+        if key in self._base:
+            return self._base[key]
+        for section in self._sections:
+            if key in section:
+                return section[key]
+        raise KeyError(key)
+
+    def get(self, key: str, default: Any = None) -> Any:
+        try:
+            return self[key]
+        except KeyError:
+            return default
 
 
 class RiskExitManager:
@@ -62,7 +101,10 @@ class RiskExitManager:
         elif isinstance(config, REMConfig):
             self.config = config
         elif isinstance(config, dict):
-            self.config = REMConfig(**config)
+            if not config:
+                self.config = None
+            else:
+                self.config = REMConfig(**config)
         else:
             raise TypeError(
                 f"config must be REMConfig, dict, or None, got {type(config)}"
@@ -107,8 +149,9 @@ class RiskExitManager:
         self,
         rule: IndicatorRule,
         position: Position,
-        current_bar: pd.Series,
-        prior_bar: pd.Series | None = None,
+        current_bar: BarData,
+        signal_context: dict[str, Any],
+        prior_bar: BarData | None = None,
     ) -> float:
         """Compute price level using an indicator-driven stop calculator.
 
@@ -131,13 +174,24 @@ class RiskExitManager:
                 "no prior_bar was provided."
             )
 
-        calculation_bar = prior_bar if prior_bar is not None else current_bar
+        base_bar = prior_bar if prior_bar is not None else current_bar
+        needs_overlay = any(
+            isinstance(signal_context.get(key), dict) and signal_context.get(key)
+            for key in ("strategy_features", "global_features")
+        )
+        calculation_bar: BarData | _ContextBarView
+        if needs_overlay:
+            calculation_bar = _ContextBarView(base_bar, signal_context)
+        else:
+            calculation_bar = base_bar
+
         params = dict(rule.params)
+        calc_input: Any = calculation_bar
         price = float(
             spec.stop_calculator(
                 float(position.entry_price),
                 position.side,
-                calculation_bar,
+                calc_input,
                 params,
             )
         )
@@ -166,11 +220,11 @@ class RiskExitManager:
             | ReferenceRule
         ),
         position: Position,
-        current_bar: pd.Series,
+        current_bar: BarData,
         signal_context: dict[str, Any],
         *,
         is_stop: bool,
-        prior_bar: pd.Series | None = None,
+        prior_bar: BarData | None = None,
     ) -> float | None:
         """Convert a stop rule into a concrete price level."""
         entry = float(position.entry_price)
@@ -184,7 +238,9 @@ class RiskExitManager:
         elif isinstance(rule, FixedPipsRule):
             distance = self._distance_value(rule)
         elif isinstance(rule, IndicatorRule):
-            return self._indicator_price(rule, position, current_bar, prior_bar)
+            return self._indicator_price(
+                rule, position, current_bar, signal_context, prior_bar
+            )
         elif isinstance(rule, ReferenceRule):
             base_price = self._context_value(rule.reference_point, signal_context)
             if base_price is None:
@@ -210,13 +266,23 @@ class RiskExitManager:
             return entry - distance if is_stop else entry + distance
         return entry + distance if is_stop else entry - distance
 
+    @staticmethod
+    def _trailing_stop_updates_intrabar(
+        trailing_rule: TrailingStopRule | None,
+    ) -> bool:
+        """Return True when trailing stop needs intrabar sequencing."""
+        if trailing_rule is None:
+            return False
+        update_mode = trailing_rule.update or "tick"
+        return update_mode == "tick"
+
     def calculate_initial_stop_price(
         self,
         entry_price: float,
         side: str,
-        entry_bar: pd.Series,
+        entry_bar: BarData,
         signal_context: dict[str, Any],
-        prior_bar: pd.Series | None = None,
+        prior_bar: BarData | None = None,
     ) -> float | None:
         """
         Calculate the initial stop loss price at position entry time.
@@ -257,13 +323,58 @@ class RiskExitManager:
             prior_bar=prior_bar,
         )
 
+    def calculate_initial_take_profit_price(
+        self,
+        entry_price: float,
+        side: str,
+        entry_bar: BarData,
+        signal_context: dict[str, Any],
+        prior_bar: BarData | None = None,
+    ) -> float | None:
+        """
+        Calculate the initial take profit price at position entry time.
+
+        Args:
+            entry_price: The entry price for the position
+            side: "long" or "short"
+            entry_bar: The bar on which entry occurs
+            signal_context: Signal context dict with strategy_features, etc.
+            prior_bar: The bar immediately before entry_bar (for indicator stops)
+
+        Returns:
+            Initial take profit price, or None if no take profit configured
+        """
+        if self.config is None or self.config.take_profit is None:
+            return None
+
+        # Create a minimal Position-like object for _resolve_stop_rule
+        from types import SimpleNamespace
+
+        temp_position = SimpleNamespace(
+            entry_price=entry_price,
+            side=side,
+            symbol="",  # Not used in _resolve_stop_rule
+            size=1.0,  # Not used in _resolve_stop_rule
+        )
+
+        return self._resolve_stop_rule(
+            self.config.take_profit,
+            temp_position,  # type: ignore[arg-type]
+            entry_bar,
+            signal_context,
+            is_stop=False,
+            prior_bar=prior_bar,
+        )
+
     def check_exits(
         self,
         position: Position,
-        current_bar: pd.Series,
+        current_bar: BarData,
         signal: Any = None,
         data_handler: Any = None,
-        prior_bar: pd.Series | None = None,
+        prior_bar: BarData | None = None,
+        *,
+        bar_minutes: int | None = None,
     ) -> dict[str, Any] | None:
         """
         Checks if any exit conditions are met for the given position.
@@ -289,6 +400,7 @@ class RiskExitManager:
         stop_rule = self.config.stop_loss
         take_profit_rule = self.config.take_profit
         trailing_rule = self.config.trailing_stop
+        trailing_updates_intrabar = self._trailing_stop_updates_intrabar(trailing_rule)
 
         # Extract signal context if available
         # Prefer position's entry context (persisted), fallback to current signal
@@ -353,23 +465,27 @@ class RiskExitManager:
                 # Check for trailing stop ambiguity, zoom to 1-min if needed
                 # Check BOTH trail_price (prior) AND potential_trail_price
                 # (current bar) to detect intra-bar ambiguity
-                if trail_price is not None and data_handler is not None:
+                ambiguous = False
+                if trailing_updates_intrabar and trail_price is not None:
                     ambiguous = is_trailing_stop_ambiguous(current_bar, trail_price)
                     ambiguous = ambiguous or is_trailing_stop_ambiguous(
                         current_bar, potential_trail_price
                     )
-                else:
-                    ambiguous = False
 
-                if trail_price is not None and ambiguous and data_handler is not None:
-                    # Zoom to 1-minute resolution to resolve ambiguity
+                if (
+                    trailing_updates_intrabar
+                    and trail_price is not None
+                    and ambiguous
+                    and data_handler is not None
+                ):
                     bar_timestamp = cast(pd.Timestamp, current_bar.name)
-                    hour_start = bar_timestamp.floor("h")
-                    hour_end = (
-                        hour_start + pd.Timedelta(hours=1) - pd.Timedelta(1, unit="ns")
+                    window_minutes = max(1, int(bar_minutes or 60))
+                    start = bar_timestamp
+                    end = bar_timestamp + pd.Timedelta(
+                        minutes=max(0, window_minutes - 1)
                     )
                     bars_1min = data_handler.get_data(
-                        timeframe="1min", start=hour_start, end=hour_end
+                        timeframe="1min", start=start, end=end
                     )
 
                     # Process 1-minute bars
@@ -415,13 +531,11 @@ class RiskExitManager:
                 )
 
             # data_handler is available - zoom to 1-minute resolution
-            # Zoom to 1-minute resolution
             bar_timestamp = cast(pd.Timestamp, current_bar.name)
-            hour_start = bar_timestamp.floor("h")
-            hour_end = hour_start + pd.Timedelta(hours=1) - pd.Timedelta(1, unit="ns")
-            bars_1min = data_handler.get_data(
-                timeframe="1min", start=hour_start, end=hour_end
-            )
+            window_minutes = max(1, int(bar_minutes or 60))
+            start = bar_timestamp
+            end = bar_timestamp + pd.Timedelta(minutes=max(0, window_minutes - 1))
+            bars_1min = data_handler.get_data(timeframe="1min", start=start, end=end)
 
             # Process 1-minute bars
             result = process_1min_bars_for_fixed_stops(
@@ -503,9 +617,11 @@ class RiskExitManager:
     def check_exits_intrabar(
         self,
         position: Position,
-        current_bar: pd.Series,
+        current_bar: BarData,
         data_handler: Any = None,
-        prior_bar: pd.Series | None = None,
+        prior_bar: BarData | None = None,
+        *,
+        bar_minutes: int | None = None,
     ) -> dict[str, Any] | None:
         """
         Check if position should exit based on intrabar price action.
@@ -528,6 +644,7 @@ class RiskExitManager:
             current_bar,
             data_handler=data_handler,
             prior_bar=prior_bar,
+            bar_minutes=bar_minutes,
         )
 
         if exit_details is None:

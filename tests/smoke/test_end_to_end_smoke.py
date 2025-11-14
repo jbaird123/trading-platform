@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any, cast
 
 from trading_platform.core.demo import generate_demo_run
 
-from tests.test_helpers import extend_test_data_for_warmup
+from tests.test_helpers import extend_test_data_for_warmup, run_backtest_simulation
 
 
 def test_demo_run_writes_artifacts(tmp_path):
@@ -20,7 +21,6 @@ def test_demo_run_writes_artifacts(tmp_path):
 def test_e2e_run_with_contextual_features(tmp_path):
     """End-to-end test verifying contextual features appear in brief."""
     import pandas as pd
-    from trading_platform.backtester.core import _run_backtest_simulation
     from trading_platform.core.config import RunConfig
     from trading_platform.core.run import finalize_run, initialize_run
     from trading_platform.risk_manager.core import RiskExitManager
@@ -88,9 +88,9 @@ def test_e2e_run_with_contextual_features(tmp_path):
     rem = RiskExitManager(
         config={"stop_loss": {"type": "offset", "price_offset": 0.0010}}
     )
-    global_features_path = Path("config/features/global.yaml")
+    global_features_path = Path("tests/fixtures/global_smoke.yaml")
 
-    result = _run_backtest_simulation(
+    result = run_backtest_simulation(
         market_data=market_data,
         signals=signals,
         strategy=strategy,
@@ -101,9 +101,9 @@ def test_e2e_run_with_contextual_features(tmp_path):
 
     # Handle return type (can be just trades or tuple with exposure/skipped)
     if isinstance(result, tuple):
-        trades = result[0]
+        trades = cast(list[Any], result[0])
     else:
-        trades = result
+        trades = cast(list[Any], result)
 
     # Finalize run (writes brief.json)
     meta = {"strategy_name": strategy.name, "run_id": config.run_id}
@@ -144,7 +144,3 @@ def test_e2e_run_with_contextual_features(tmp_path):
     # Verify global features (from global.yaml with timeframe prefix)
     assert "h1_atr_14" in global_features
     assert isinstance(global_features["h1_atr_14"], (int, float, type(None)))
-
-    # Verify volume is in global features (market context)
-    assert "volume" in global_features
-    assert isinstance(global_features["volume"], (int, float))

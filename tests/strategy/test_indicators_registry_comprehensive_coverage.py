@@ -51,6 +51,7 @@ def test_indicator_categories():
         "price",
         "levels",
         "pattern",
+        "time",
     }
 
     for indicator_name, indicator_config in INDICATORS.items():
@@ -61,7 +62,7 @@ def test_indicator_categories():
 
 def test_indicator_params_structure():
     """Test that all indicator params have valid structure."""
-    valid_param_types = {"int", "float", "bool", "str"}
+    valid_param_types = {"int", "float", "bool", "str", "list"}
 
     for indicator_name, indicator_config in INDICATORS.items():
         params = indicator_config["params"]

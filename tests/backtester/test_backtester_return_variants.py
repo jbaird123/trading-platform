@@ -4,15 +4,15 @@ from datetime import datetime
 from typing import Any
 
 import pandas as pd
-from trading_platform.backtester.core import (
-    _run_backtest_simulation,
-    _simulate_counterfactual_exact,
-)
+from trading_platform.backtester.core import _simulate_counterfactual_exact
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 
 from tests.backtester.dummy_objects import _dummy_strategy_cfg
-from tests.test_helpers import get_empty_global_features_path
+from tests.test_helpers import (
+    get_empty_global_features_path,
+    run_backtest_simulation,
+)
 
 # Minimal instrument for testing
 TEST_INSTRUMENT = {
@@ -52,7 +52,7 @@ def test_run_backtest_returns_trades_and_exposure_only() -> None:
     )
     rem = RiskExitManager(config=None)
 
-    result = _run_backtest_simulation(
+    result = run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,
@@ -71,6 +71,16 @@ def test_run_backtest_returns_trades_and_exposure_only() -> None:
 
 class _NeverExitREM:
     def calculate_initial_stop_price(
+        self,
+        entry_price: float,
+        side: str,
+        entry_bar: pd.Series,
+        signal_context: dict[str, Any],
+        prior_bar: pd.Series | None = None,
+    ) -> float | None:
+        return None
+
+    def calculate_initial_take_profit_price(
         self,
         entry_price: float,
         side: str,

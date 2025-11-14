@@ -15,10 +15,10 @@ def mock_global_features_for_core_tests(monkeypatch):
     warmup for global features. These tests focus on core functionality
     like parameter sweeps, monte carlo, etc., not on validating global features.
     """
+
     def mock_resolve(*args, **kwargs):
         return []
 
     monkeypatch.setattr(
-        "trading_platform.core.feature_resolver.resolve_global_features",
-        mock_resolve
+        "trading_platform.core.feature_resolver.resolve_global_features", mock_resolve
     )

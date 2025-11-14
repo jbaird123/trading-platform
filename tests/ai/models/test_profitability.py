@@ -34,10 +34,16 @@ def sample_trades_df():
         "context_at_entry_strategy_features_volume": np.random.uniform(
             1000, 5000, n_trades
         ),
+        "context_at_entry_strategy_features_atr_14": np.random.uniform(
+            0.5,
+            1.5,
+            n_trades,
+        ),
         # Entry metadata
         "side": np.random.choice(["long", "short"], n_trades),
         "symbol": np.random.choice(["EURUSD", "GBPUSD"], n_trades),
         "entry_time": pd.date_range("2024-01-01", periods=n_trades, freq="1h"),
+        "entry_price": np.random.uniform(1.10, 1.30, n_trades),
         # Exit features (lookahead - should NOT be used)
         "context_at_exit_strategy_features_ema_fast": np.random.uniform(
             1.0, 1.5, n_trades
@@ -49,7 +55,7 @@ def sample_trades_df():
             -100, 200, n_trades
         ),  # Mix of profitable and unprofitable
         # Risk data
-        "initial_stop_loss_pips": np.random.uniform(10, 50, n_trades),
+        "initial_stop_loss_price": np.random.uniform(1.15, 1.25, n_trades),
         "r_multiple": np.random.uniform(-2, 5, n_trades),
     }
 
@@ -80,6 +86,7 @@ class TestProfitabilityModel:
         # Should only include context_at_entry_* features plus side, symbol,
         # temporal, and risk parameters
         assert model.feature_names_ is not None
+        assert "initial_stop_loss_price" not in model.feature_names_
         for feature in model.feature_names_:
             # Should NOT include exit features
             assert not feature.startswith("context_at_exit_")
@@ -88,11 +95,11 @@ class TestProfitabilityModel:
             # Should include entry features or metadata
             valid_prefixes = [
                 "context_at_entry_",
-                "initial_stop_loss_pips",  # Risk parameter (known at entry)
                 "side_",  # One-hot encoded
                 "symbol_",  # One-hot encoded
                 "hour_of_day",
                 "day_of_week",
+                "risk_distance_",
             ]
             assert any(
                 feature.startswith(prefix) or feature == prefix
@@ -199,22 +206,15 @@ class TestProfitabilityModel:
             model.fit(df_with_nulls)
 
     def test_fit_raises_error_on_invalid_stop_loss(self, sample_trades_df):
-        """Verify model raises ValueError when initial_stop_loss_pips is invalid."""
+        """Verify model raises ValueError when initial_stop_loss_price is invalid."""
         model = ProfitabilityModel(timeframe="5min", archetype="trend_following")
 
         # Test with null stop_loss
         df_with_null_stop = sample_trades_df.copy()
-        df_with_null_stop.loc[0, "initial_stop_loss_pips"] = np.nan
+        df_with_null_stop.loc[0, "initial_stop_loss_price"] = np.nan
 
-        with pytest.raises(ValueError, match="valid 'initial_stop_loss_pips' > 0"):
+        with pytest.raises(ValueError, match="valid 'initial_stop_loss_price'"):
             model.fit(df_with_null_stop)
-
-        # Test with non-positive stop_loss
-        df_with_invalid_stop = sample_trades_df.copy()
-        df_with_invalid_stop.loc[0, "initial_stop_loss_pips"] = 0
-
-        with pytest.raises(ValueError, match="valid 'initial_stop_loss_pips' > 0"):
-            model.fit(df_with_invalid_stop)
 
     def test_predict_returns_continuous_r_multiple(self, sample_trades_df):
         """Verify predict() returns continuous R-multiple values (not binary 0/1)."""
