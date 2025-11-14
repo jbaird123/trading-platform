@@ -47,7 +47,7 @@ def test_compare_timeframes_unrecognized_timeframe() -> None:
     assert "invalid" in str(exc_info.value)
 
     with pytest.raises(ValueError) as exc_info:
-        compare_timeframes("1H", "30min")
+        compare_timeframes("1H", "2h")
 
     assert "unrecognized timeframe" in str(exc_info.value).lower()
-    assert "30min" in str(exc_info.value)
+    assert "2h" in str(exc_info.value)
