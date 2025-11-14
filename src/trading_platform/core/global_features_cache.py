@@ -14,6 +14,7 @@ from typing import Iterable, Sequence, cast
 
 import pandas as pd
 import yaml
+from trading_platform.core import paths
 from trading_platform.core.config import GlobalFeatureSetConfig
 from trading_platform.core.global_features import (
     feature_to_dict,
@@ -34,7 +35,7 @@ from trading_platform.strategy.features import compute_features
 
 logger = logging.getLogger(__name__)
 
-_CACHE_SUBDIR = "features/cache"
+_CACHE_SUBDIR = ""
 _DEFAULT_TIMEFRAMES: tuple[str, ...] = ("5min", "15min", "1H", "4H", "1D")
 
 
@@ -190,7 +191,10 @@ class GlobalFeatureCacheDescriptor:
 
     def base_dir(self) -> Path:
         slug = normalize_symbol(self.symbol).lower()
-        return (self.data_root / _CACHE_SUBDIR / slug).resolve()
+        base = self.data_root
+        if _CACHE_SUBDIR:
+            base = base / _CACHE_SUBDIR
+        return (base / slug / self.config_hash).resolve()
 
     def timeframe_path(self, timeframe: str) -> Path:
         tf_slug = timeframe.lower().replace("/", "_")
@@ -230,7 +234,11 @@ def build_global_feature_caches(
     """
 
     source_data_root = Path(data_root).resolve()
-    storage_root = Path(cache_root).resolve() if cache_root else source_data_root
+    storage_root = (
+        Path(cache_root).expanduser().resolve()
+        if cache_root
+        else paths.GLOBAL_FEATURE_CACHE_DIR
+    )
     descriptor = _resolve_descriptor(symbol, storage_root, config_path)
     cache_dir = descriptor.base_dir()
 
@@ -418,7 +426,7 @@ def _columns_for_features(
 def load_cached_global_features(
     *,
     symbol: str,
-    data_root: Path,
+    cache_root: Path | None = None,
     config_path: Path,
     timeframe: str,
     feature_names: Sequence[str],
@@ -427,7 +435,12 @@ def load_cached_global_features(
     Load cached global features for the requested execution timeframe.
     """
 
-    descriptor = _resolve_descriptor(symbol, data_root, config_path)
+    storage_root = (
+        Path(cache_root).expanduser().resolve()
+        if cache_root
+        else paths.GLOBAL_FEATURE_CACHE_DIR
+    )
+    descriptor = _resolve_descriptor(symbol, storage_root, config_path)
     metadata = _load_metadata(descriptor)
     frame_meta: dict[str, object] | None = None
     timeframes_obj = metadata.get("timeframes") if metadata else None
@@ -467,14 +480,19 @@ def load_cached_global_features(
 def cache_covers_features(
     *,
     symbol: str,
-    cache_root: Path,
+    cache_root: Path | None = None,
     config_path: Path,
     timeframe: str,
     feature_names: Sequence[str],
 ) -> bool:
     """Return True if the cache contains all requested feature columns."""
 
-    descriptor = _resolve_descriptor(symbol, cache_root, config_path)
+    storage_root = (
+        Path(cache_root).expanduser().resolve()
+        if cache_root
+        else paths.GLOBAL_FEATURE_CACHE_DIR
+    )
+    descriptor = _resolve_descriptor(symbol, storage_root, config_path)
     tf_path = descriptor.timeframe_path(timeframe)
     if not tf_path.exists():
         return False

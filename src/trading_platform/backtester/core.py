@@ -10,6 +10,7 @@ from typing import Any, Callable, Iterator, cast
 import numpy as np
 import pandas as pd
 
+from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
 from trading_platform.core.global_features_cache import load_cached_global_features
 from trading_platform.core.policy import TradingWindowPolicy
@@ -338,19 +339,14 @@ def _execute_backtest_loop(
                 if isinstance(feature.get("name"), str)
             ]
             cache_loaded = False
-            if (
-                requested_names
-                and data_handler is not None
-                and hasattr(data_handler, "data_root")
-                and global_features_config_path is not None
-            ):
+            if requested_names and global_features_config_path is not None:
                 symbol_for_cache = _resolve_symbol_from_config()
-                data_root_path = getattr(data_handler, "data_root", None)
                 config_path = Path(global_features_config_path)
-                if symbol_for_cache and data_root_path:
+                cache_root = paths.GLOBAL_FEATURE_CACHE_DIR
+                if symbol_for_cache:
                     cache_result = load_cached_global_features(
                         symbol=symbol_for_cache,
-                        data_root=data_root_path,
+                        cache_root=cache_root,
                         config_path=config_path,
                         timeframe=execution_timeframe,
                         feature_names=requested_names,
@@ -359,6 +355,25 @@ def _execute_backtest_loop(
                         cache_frame, mapping = cache_result
                         required = set(requested_names)
                         if required.issubset(mapping.keys()):
+                            cache_index = cache_frame.index
+                            market_index = market_data.index
+                            if isinstance(cache_index, pd.DatetimeIndex) and isinstance(
+                                market_index, pd.DatetimeIndex
+                            ):
+                                if (
+                                    cache_index.tz is not None
+                                    and market_index.tz is None
+                                ):
+                                    cache_frame.index = cache_index.tz_convert(
+                                        "UTC"
+                                    ).tz_localize(None)
+                                elif (
+                                    cache_index.tz is None
+                                    and market_index.tz is not None
+                                ):
+                                    cache_frame.index = cache_index.tz_localize(
+                                        market_index.tz
+                                    )
                             cache_frame = cache_frame.reindex(
                                 market_data.index, method="ffill"
                             )
@@ -366,12 +381,21 @@ def _execute_backtest_loop(
                                 cache_frame, how="left"
                             )
                             cache_loaded = True
-                            logger.info(
-                                "Loaded %s cached global feature columns (%s).",
-                                len(cache_frame.columns),
-                                execution_timeframe,
+                            msg = (
+                                f"Global feature cache HIT ("
+                                f"{execution_timeframe} timeframe): "
+                                f"{len(cache_frame.columns)} columns from {cache_root}"
                             )
+                            logger.info(msg)
+                            print(msg)
             if not cache_loaded:
+                miss_msg = (
+                    f"Global feature cache MISS ("
+                    f"{execution_timeframe} timeframe): "
+                    f"computing {len(global_features_list)} features"
+                )
+                logger.info(miss_msg)
+                print(miss_msg)
                 data_with_global_features = compute_features(
                     market_data, global_features_list, strategy_parameters={}
                 )

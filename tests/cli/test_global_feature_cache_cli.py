@@ -46,6 +46,7 @@ def test_precompute_global_features_cli_builds_cache(tmp_path) -> None:
     global_yaml = tmp_path / "global.yaml"
     _write_global_yaml(global_yaml)
 
+    cache_root = tmp_path / "cache"
     args = argparse.Namespace(
         symbol="EUR_USD",
         data_root=str(data_root),
@@ -53,12 +54,13 @@ def test_precompute_global_features_cli_builds_cache(tmp_path) -> None:
         timeframes=["5min"],
         overwrite=True,
         include_bar_windows=False,
+        cache_root=str(cache_root),
     )
 
     result = _precompute_global_features_logic(args)
     assert result == 0
 
-    metadata_files = list((data_root / "features" / "cache").rglob("metadata.json"))
+    metadata_files = list(cache_root.rglob("metadata.json"))
     assert len(metadata_files) == 1
     metadata = json.loads(metadata_files[0].read_text())
     assert "5min" in metadata.get("timeframes", {})

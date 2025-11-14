@@ -214,6 +214,8 @@ data/dvc/golden/**
 !data/dvc/golden/**/*.dvc
 data/dvc/processed/**
 !data/dvc/processed/**/*.dvc
+data/cache/**
+!data/cache/**/.gitkeep
 
 # Allow samples directory
 !data/samples/**

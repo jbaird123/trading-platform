@@ -52,12 +52,14 @@ def test_build_global_feature_caches_creates_outputs(tmp_path) -> None:
     global_yaml = tmp_path / "global.yaml"
     _write_sample_global_yaml(global_yaml)
 
+    cache_root = tmp_path / "cache"
     descriptor = build_global_feature_caches(
         symbol="EUR_USD",
         data_root=data_root,
         config_path=global_yaml,
         timeframes=["5min", "15min"],
         overwrite=True,
+        cache_root=cache_root,
     )
 
     metadata = descriptor.metadata_path().read_text()
@@ -80,12 +82,14 @@ def test_build_global_feature_caches_is_idempotent(tmp_path) -> None:
     global_yaml = tmp_path / "global.yaml"
     _write_sample_global_yaml(global_yaml)
 
+    cache_root = tmp_path / "cache"
     descriptor = build_global_feature_caches(
         symbol="EUR_USD",
         data_root=data_root,
         config_path=global_yaml,
         timeframes=["5min"],
         overwrite=True,
+        cache_root=cache_root,
     )
     first_metadata = descriptor.metadata_path().stat().st_mtime
 
@@ -95,6 +99,7 @@ def test_build_global_feature_caches_is_idempotent(tmp_path) -> None:
         config_path=global_yaml,
         timeframes=["5min"],
         overwrite=False,
+        cache_root=cache_root,
     )
     second_metadata = descriptor_repeat.metadata_path().stat().st_mtime
 
@@ -111,12 +116,14 @@ def test_available_at_matches_bar_close(tmp_path) -> None:
     global_yaml = tmp_path / "global.yaml"
     _write_sample_global_yaml(global_yaml)
 
+    cache_root = tmp_path / "cache"
     descriptor = build_global_feature_caches(
         symbol="EUR_USD",
         data_root=data_root,
         config_path=global_yaml,
         timeframes=["5min"],
         overwrite=True,
+        cache_root=cache_root,
     )
 
     cache_df = pd.read_parquet(descriptor.timeframe_path("5min"))
@@ -138,6 +145,7 @@ def test_build_global_feature_caches_includes_bar_windows(tmp_path) -> None:
     global_yaml = tmp_path / "global.yaml"
     _write_sample_global_yaml(global_yaml)
 
+    cache_root = tmp_path / "cache"
     descriptor = build_global_feature_caches(
         symbol="EUR_USD",
         data_root=data_root,
@@ -145,6 +153,7 @@ def test_build_global_feature_caches_includes_bar_windows(tmp_path) -> None:
         timeframes=["5min"],
         overwrite=True,
         include_bar_windows=True,
+        cache_root=cache_root,
     )
 
     five_min_df = pd.read_parquet(descriptor.timeframe_path("5min"))
@@ -181,24 +190,26 @@ def test_cache_covers_features_detects_available_columns(tmp_path) -> None:
     global_yaml = tmp_path / "global.yaml"
     _write_sample_global_yaml(global_yaml)
 
+    cache_root = tmp_path / "cache"
     build_global_feature_caches(
         symbol="EUR_USD",
         data_root=data_root,
         config_path=global_yaml,
         timeframes=["5min"],
         overwrite=True,
+        cache_root=cache_root,
     )
 
     assert cache_covers_features(
         symbol="EUR_USD",
-        cache_root=data_root,
+        cache_root=cache_root,
         config_path=global_yaml,
         timeframe="5min",
         feature_names=["m5_test_ema"],
     )
     assert not cache_covers_features(
         symbol="EUR_USD",
-        cache_root=data_root,
+        cache_root=cache_root,
         config_path=global_yaml,
         timeframe="5min",
         feature_names=["missing_feature"],

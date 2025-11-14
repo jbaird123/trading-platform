@@ -402,10 +402,15 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
             elif instrument_cfg is not None:
                 symbol_candidate = getattr(instrument_cfg, "symbol", None)
 
-        if symbol_candidate and hasattr(data_handler, "data_root"):
+        if symbol_candidate:
             config_path = Path(cfg_global_features_path)
             try:
-                cache_root = getattr(data_handler, "cache_root", data_handler.data_root)
+                cache_override = cfg_raw.get("global_feature_cache_root")
+                cache_root = (
+                    Path(str(cache_override)).expanduser().resolve()
+                    if cache_override
+                    else paths.GLOBAL_FEATURE_CACHE_DIR
+                )
                 skip_global_warmup = cache_covers_features(
                     symbol=symbol_candidate,
                     cache_root=cache_root,
@@ -421,6 +426,17 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                 skip_global_warmup = False
         if skip_global_warmup:
             warmup_global_defs = []
+            msg = (
+                f"Global feature cache covers {exec_timeframe} timeframe; "
+                "skipping global feature warmup."
+            )
+        else:
+            msg = (
+                f"Global feature cache not ready for {exec_timeframe} timeframe; "
+                "running full global warmup."
+            )
+        logger.info(msg)
+        print(msg)
 
     df = ensure_market_data_with_warmup(
         market_data=df,
@@ -2041,7 +2057,7 @@ def _precompute_global_features_logic(args: argparse.Namespace) -> int:
     cache_root = (
         Path(args.cache_root).expanduser().resolve()
         if getattr(args, "cache_root", None)
-        else None
+        else paths.GLOBAL_FEATURE_CACHE_DIR
     )
 
     descriptor = build_global_feature_caches(
