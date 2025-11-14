@@ -15,8 +15,8 @@ from trading_platform.data.instrument import get_instrument_definition
 from trading_platform.data.resample import resample_data, timeframe_to_timedelta
 from trading_platform.data.session_metadata import annotate_session
 from trading_platform.data.timeframe_aliases import (
+    canonicalize_column_name,
     normalize_timeframe_columns,
-    normalize_timeframe_prefix,
 )
 from trading_platform.strategy.features import compute_features
 
@@ -97,7 +97,7 @@ def _build_column_tolerance_map() -> dict[str, dict[str, float]]:
         indicator_type = str(feature.get("type", "")).upper()
         if not name or not indicator_type:
             continue
-        canonical = normalize_timeframe_prefix(str(name))
+        canonical = canonicalize_column_name(str(name))
         tolerance = INDICATOR_TOLERANCES.get(
             indicator_type, DEFAULT_INDICATOR_TOLERANCE
         )

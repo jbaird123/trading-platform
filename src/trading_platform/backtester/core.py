@@ -17,7 +17,7 @@ from trading_platform.core.policy import TradingWindowPolicy
 from trading_platform.core.signal import Signal
 from trading_platform.core.types import BarData, SignalCommand
 from trading_platform.core.utils import normalize_symbol
-from trading_platform.data.timeframe_aliases import normalize_timeframe_prefix
+from trading_platform.data.timeframe_aliases import canonicalize_column_name
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
 from trading_platform.regime_market_manager.gating import (
@@ -500,7 +500,7 @@ def _execute_backtest_loop(
             raw_name = feature.get("name")
             if not isinstance(raw_name, str):
                 continue
-            canonical_name = normalize_timeframe_prefix(raw_name)
+            canonical_name = canonicalize_column_name(raw_name)
             candidate_columns: list[str] = []
             for column in data_with_global_features.columns:
                 if column == raw_name or column.startswith(f"{raw_name}_"):

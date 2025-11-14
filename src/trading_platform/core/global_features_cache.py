@@ -27,9 +27,9 @@ from trading_platform.data.instrument import InstrumentDefinition, SessionDefini
 from trading_platform.data.resample import timeframe_to_timedelta
 from trading_platform.data.session_metadata import SESSION_ATTR
 from trading_platform.data.timeframe_aliases import (
+    canonicalize_column_name,
     normalize_name_sequence,
     normalize_timeframe_columns,
-    normalize_timeframe_prefix,
 )
 from trading_platform.strategy.features import compute_features
 
@@ -409,7 +409,7 @@ def _columns_for_features(
     for feature_name in feature_names:
         if not feature_name:
             continue
-        canonical_name = normalize_timeframe_prefix(feature_name)
+        canonical_name = canonicalize_column_name(feature_name)
         derived = [
             column
             for column in all_columns
