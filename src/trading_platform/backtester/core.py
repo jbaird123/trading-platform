@@ -494,30 +494,29 @@ def _execute_backtest_loop(
             data_with_global_features = _trim_indexed(data_with_global_features)
     warmup_threshold = 0
 
-    global_feature_names: set[str] = set()
+    global_feature_columns: list[str] = []
     if data_with_global_features is not market_data:
         for feature in global_features_list:
             raw_name = feature.get("name")
             if not isinstance(raw_name, str):
                 continue
             canonical_name = normalize_timeframe_prefix(raw_name)
-            derived_columns = []
+            candidate_columns: list[str] = []
             for column in data_with_global_features.columns:
                 if column == raw_name or column.startswith(f"{raw_name}_"):
-                    derived_columns.append(column)
+                    candidate_columns.append(column)
                 elif canonical_name != raw_name and (
                     column == canonical_name or column.startswith(f"{canonical_name}_")
                 ):
-                    derived_columns.append(column)
-            global_feature_names.update(derived_columns)
-
-            if execution_tf_minutes is not None:
-                for column in derived_columns:
+                    candidate_columns.append(column)
+            for column in candidate_columns:
+                if column not in global_feature_columns:
+                    global_feature_columns.append(column)
+                if execution_tf_minutes is not None:
                     feature_minutes = global_feature_timeframes.get(column)
                     if (
                         feature_minutes is not None
                         and feature_minutes >= execution_tf_minutes
-                        and column in data_with_global_features.columns
                     ):
                         guard_feature_names.add(column)
                         guard_feature_valid_start[column] = cast(
@@ -544,6 +543,19 @@ def _execute_backtest_loop(
                     "Features at or above the execution timeframe "
                     "must be fully populated."
                 )
+
+    global_feature_matrix: np.ndarray | None = None
+    global_feature_column_index: dict[str, int] = {}
+    global_feature_normalized_keys: list[str] = []
+    if global_feature_columns and data_with_global_features is not market_data:
+        subset = data_with_global_features.loc[:, global_feature_columns]
+        global_feature_matrix = subset.to_numpy()
+        global_feature_column_index = {
+            column: idx for idx, column in enumerate(global_feature_columns)
+        }
+        global_feature_normalized_keys = [
+            _normalize_global_feature_key(column) for column in global_feature_columns
+        ]
 
     # Use the complete instrument definition from config
     # (RunConfig validator ensures it has all required fields)
@@ -772,18 +784,11 @@ def _execute_backtest_loop(
         if need_context:
             # Build global features dict separately from strategy features
             global_features: dict[str, Any] = {}
-            if global_feature_names and data_with_global_features is not None:
-                feature_row = data_with_global_features.iloc[i]
-                for feature_name in global_feature_names:
-                    column_name = feature_name
-                    if column_name not in feature_row.index:
-                        canonical = normalize_timeframe_prefix(feature_name)
-                        if canonical in feature_row.index:
-                            column_name = canonical
-                        else:
-                            continue
-                    val = feature_row[column_name]
-                    feature_minutes = global_feature_timeframes.get(feature_name)
+            if global_feature_matrix is not None:
+                feature_row_values = global_feature_matrix[i]
+                for column, idx in global_feature_column_index.items():
+                    val = feature_row_values[idx]
+                    feature_minutes = global_feature_timeframes.get(column)
                     is_missing = pd.isna(val)
                     if is_missing:
                         if (
@@ -793,14 +798,14 @@ def _execute_backtest_loop(
                         ):
                             raise ValueError(
                                 "Global feature "
-                                f"{feature_name!r} is NaN at {current_bar.name}. "
+                                f"{column!r} is NaN at {current_bar.name}. "
                                 "Features at or above the execution timeframe "
                                 "must be fully populated."
                             )
                         normalized_val: Any = None
                     else:
                         normalized_val = val
-                    key = _normalize_global_feature_key(feature_name)
+                    key = global_feature_normalized_keys[idx]
                     global_features[key] = normalized_val
 
             # Build consistent nested context structure
