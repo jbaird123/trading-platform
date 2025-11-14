@@ -17,6 +17,7 @@ from trading_platform.core.policy import TradingWindowPolicy
 from trading_platform.core.signal import Signal
 from trading_platform.core.types import BarData, SignalCommand
 from trading_platform.core.utils import normalize_symbol
+from trading_platform.data.timeframe_aliases import normalize_timeframe_prefix
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
 from trading_platform.regime_market_manager.gating import (
@@ -499,11 +500,15 @@ def _execute_backtest_loop(
             raw_name = feature.get("name")
             if not isinstance(raw_name, str):
                 continue
-            derived_columns = [
-                column
-                for column in data_with_global_features.columns
-                if column == raw_name or column.startswith(f"{raw_name}_")
-            ]
+            canonical_name = normalize_timeframe_prefix(raw_name)
+            derived_columns = []
+            for column in data_with_global_features.columns:
+                if column == raw_name or column.startswith(f"{raw_name}_"):
+                    derived_columns.append(column)
+                elif canonical_name != raw_name and (
+                    column == canonical_name or column.startswith(f"{canonical_name}_")
+                ):
+                    derived_columns.append(column)
             global_feature_names.update(derived_columns)
 
             if execution_tf_minutes is not None:
@@ -770,9 +775,14 @@ def _execute_backtest_loop(
             if global_feature_names and data_with_global_features is not None:
                 feature_row = data_with_global_features.iloc[i]
                 for feature_name in global_feature_names:
-                    if feature_name not in feature_row.index:
-                        continue
-                    val = feature_row[feature_name]
+                    column_name = feature_name
+                    if column_name not in feature_row.index:
+                        canonical = normalize_timeframe_prefix(feature_name)
+                        if canonical in feature_row.index:
+                            column_name = canonical
+                        else:
+                            continue
+                    val = feature_row[column_name]
                     feature_minutes = global_feature_timeframes.get(feature_name)
                     is_missing = pd.isna(val)
                     if is_missing:
