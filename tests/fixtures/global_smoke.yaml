@@ -1,0 +1,12 @@
+# Minimal global features for smoke tests.
+# Focused on 1H indicators to avoid heavy warmup requirements.
+
+features:
+  - name: "h1_atr_14"
+    type: "ATR"
+    params: { "length": 14 }
+    timeframe: "1H"
+  - name: "h1_ema_50"
+    type: "EMA"
+    params: { "length": 50 }
+    timeframe: "1H"

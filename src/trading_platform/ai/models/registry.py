@@ -14,13 +14,16 @@ The registry supports:
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 
 from trading_platform.ai.feature_engineering.unpacking import unpack_simulated_holds
 from trading_platform.ai.models.performance_diagnostic import PerformanceDiagnosticModel
 from trading_platform.ai.models.profitability import ProfitabilityModel
+from trading_platform.ai.models.profitability_classifier import (
+    ProfitabilityClassifierModel,
+)
 
 
 class ModelRegistry:
@@ -50,6 +53,9 @@ class ModelRegistry:
 
         # Separate registries for each model family
         self._profitability_models: dict[str, ProfitabilityModel] = {}
+        self._profitability_classifier_models: dict[
+            str, ProfitabilityClassifierModel
+        ] = {}
         self._diagnostic_models: dict[str, Any] = {}
         self._logger = logging.getLogger(__name__)
 
@@ -57,7 +63,8 @@ class ModelRegistry:
         """Register a model in the specified family.
 
         Args:
-            family: Model family ("profitability" or "diagnostic")
+            family: Model family
+                ("profitability", "profitability_classifier", or "diagnostic")
             key: Unique identifier (e.g., "5min_trend_following")
             model: Model instance to register
 
@@ -69,7 +76,16 @@ class ModelRegistry:
                 raise ValueError(
                     f"Model key '{key}' already registered in profitability family"
                 )
-            self._profitability_models[key] = model
+            prof_model = cast(ProfitabilityModel, model)
+            self._profitability_models[key] = prof_model
+        elif family == "profitability_classifier":
+            if key in self._profitability_classifier_models:
+                raise ValueError(
+                    f"Model key '{key}' already registered in "
+                    "profitability_classifier family"
+                )
+            classifier_model = cast(ProfitabilityClassifierModel, model)
+            self._profitability_classifier_models[key] = classifier_model
         elif family == "diagnostic":
             if key in self._diagnostic_models:
                 raise ValueError(
@@ -78,15 +94,17 @@ class ModelRegistry:
             self._diagnostic_models[key] = model
         else:
             raise ValueError(
-                f"Invalid model family: {family}. "
-                f"Must be 'profitability' or 'diagnostic'"
+                "Invalid model family: "
+                f"{family}. Must be one of 'profitability', "
+                "'profitability_classifier', or 'diagnostic'"
             )
 
     def get_model(self, family: str, key: str) -> Any | None:
         """Retrieve a model by family and key.
 
         Args:
-            family: Model family ("profitability" or "diagnostic")
+            family: Model family
+                ("profitability", "profitability_classifier", or "diagnostic")
             key: Model identifier
 
         Returns:
@@ -94,6 +112,8 @@ class ModelRegistry:
         """
         if family == "profitability":
             return self._profitability_models.get(key)
+        elif family == "profitability_classifier":
+            return self._profitability_classifier_models.get(key)
         elif family == "diagnostic":
             return self._diagnostic_models.get(key)
         else:
@@ -103,13 +123,16 @@ class ModelRegistry:
         """List all registered model keys in a family.
 
         Args:
-            family: Model family ("profitability" or "diagnostic")
+            family: Model family
+                ("profitability", "profitability_classifier", or "diagnostic")
 
         Returns:
             List of model keys
         """
         if family == "profitability":
             return list(self._profitability_models.keys())
+        elif family == "profitability_classifier":
+            return list(self._profitability_classifier_models.keys())
         elif family == "diagnostic":
             return list(self._diagnostic_models.keys())
         else:
@@ -145,6 +168,25 @@ class ModelRegistry:
                 random_state=random_state,
             )
             self.register_model("profitability", key, model)
+
+        return model
+
+    def get_or_create_profitability_classifier(
+        self,
+        timeframe: str,
+        archetype: str,
+        random_state: int = 42,
+    ) -> ProfitabilityClassifierModel:
+        key = f"{timeframe}_{archetype}"
+        model = self.get_model("profitability_classifier", key)
+
+        if model is None:
+            model = ProfitabilityClassifierModel(
+                timeframe=timeframe,
+                archetype=archetype,
+                random_state=random_state,
+            )
+            self.register_model("profitability_classifier", key, model)
 
         return model
 
@@ -473,6 +515,7 @@ class ModelRegistry:
 
         Models are saved in separate directories:
         - {model_dir}/profitability/{key}.pkl
+        - {model_dir}/profitability_classifier/{key}.pkl
         - {model_dir}/diagnostic/{key}.pkl
         """
         # Save profitability models
@@ -483,6 +526,14 @@ class ModelRegistry:
             if model.model is not None:  # Only save fitted models
                 path = prof_dir / f"{key}.pkl"
                 model.save(path)
+
+        clf_dir = self.model_dir / "profitability_classifier"
+        clf_dir.mkdir(parents=True, exist_ok=True)
+
+        for key, classifier in self._profitability_classifier_models.items():
+            if classifier.model is not None:
+                path = clf_dir / f"{key}.pkl"
+                classifier.save(path)
 
         # Save diagnostic models (when implemented)
         diag_dir = self.model_dir / "diagnostic"
@@ -499,6 +550,7 @@ class ModelRegistry:
 
         Discovers and loads models from:
         - {model_dir}/profitability/*.pkl
+        - {model_dir}/profitability_classifier/*.pkl
         - {model_dir}/diagnostic/*.pkl
         """
         # Load profitability models
@@ -508,6 +560,21 @@ class ModelRegistry:
                 key = model_path.stem  # Filename without extension
                 prof_model = ProfitabilityModel.load(model_path)
                 self._profitability_models[key] = prof_model
+
+        clf_dir = self.model_dir / "profitability_classifier"
+        if clf_dir.exists():
+            for model_path in clf_dir.glob("*.pkl"):
+                key = model_path.stem
+                try:
+                    clf_model = ProfitabilityClassifierModel.load(model_path)
+                except Exception as exc:  # pragma: no cover
+                    self._logger.warning(
+                        "Failed to load profitability classifier %s: %s",
+                        model_path,
+                        exc,
+                    )
+                    continue
+                self._profitability_classifier_models[key] = clf_model
 
         # Load diagnostic models
         diag_dir = self.model_dir / "diagnostic"
@@ -527,7 +594,8 @@ class ModelRegistry:
         """Get the filesystem path for a model.
 
         Args:
-            family: Model family ("profitability" or "diagnostic")
+            family: Model family
+                ("profitability", "profitability_classifier", or "diagnostic")
             key: Model identifier
 
         Returns:

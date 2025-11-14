@@ -210,8 +210,12 @@ data/incremental/**
 !data/incremental/**/.dvc
 data/dvc/raw/**
 !data/dvc/raw/**/*.dvc
+data/dvc/golden/**
+!data/dvc/golden/**/*.dvc
 data/dvc/processed/**
 !data/dvc/processed/**/*.dvc
+data/cache/**
+!data/cache/**/.gitkeep
 
 # Allow samples directory
 !data/samples/**
@@ -252,3 +256,6 @@ src/trading_platform/py.typed
 data/enriched
 data/campaigns
 data/candidates
+
+# Analysis equity curve outputs
+analysis/rmm/featureset_trial/selected_combos/equity_curves/

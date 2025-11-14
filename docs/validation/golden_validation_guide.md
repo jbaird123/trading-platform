@@ -84,6 +84,42 @@ trades_to_compare = [t for t in trades if validation_start <= t.entry_time <= va
 - **4-hour**: 1 month warmup (~180 bars)
 - **Daily**: 6 months warmup (~130 bars)
 
+### 2.5 Cached Global Features
+
+Global contextual indicators are now precomputed and cached per data root. This
+keeps warmup windows focused on strategy features while guaranteeing that the
+master trade log, campaign runs, and golden validations see the exact same
+feature values.
+
+**Command overview**
+
+```bash
+# Raw Dukascopy data (used by backtests / campaigns)
+poetry run trading-platform precompute-global-features \
+  --symbol EUR_USD \
+  --data-root data/dvc/raw \
+  --config config/features/global.yaml \
+  --timeframes 5min 15min 1H 4H 1D
+
+# TradingView golden data (used by tests/validation)
+poetry run trading-platform precompute-global-features \
+  --symbol EUR_USD \
+  --data-root data/dvc/golden/ohlcv/tradingview \
+  --config data/dvc/golden/features/global.yaml \
+  --timeframes 1H
+```
+
+Each run writes parquet snapshots under `<data_root>/features/global/`. The
+CLI auto-skips existing caches unless `--overwrite` is provided.
+
+**Warmup impact**
+
+Golden validation now checks whether the cache covers every global feature used
+for the execution timeframe. When present, only strategy features influence the
+warmup calculation; otherwise the code gracefully falls back to the legacy
+behavior and recomputes features on the fly. This guarantees deterministic
+feature values while keeping the validation contract unchanged.
+
 ### 3. OHLCV Data Start vs Warmup Start
 
 **COMMON CONFUSION**: "The OHLCV export starts at 2022-11-24, but you said warmup starts 2022-12-01?"

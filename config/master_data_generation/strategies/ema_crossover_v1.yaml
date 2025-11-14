@@ -1,4 +1,6 @@
 strategy_name: "EMA_Crossover_Generic"
+metadata:
+  strategy_archetype: "trend_following"
 parameters:
   ema_fast_length: 12
   ema_slow_length: 26

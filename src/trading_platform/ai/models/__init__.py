@@ -7,9 +7,14 @@ optimization and analysis. The architecture uses context-specific models
 Components
 ----------
 ProfitabilityModel
-    Binary classifier for real-time signal filtering. Uses only entry-time
-    features (no lookahead) to predict whether a trade will be profitable.
-    Suitable for production use in live trading systems.
+    Regression model for real-time signal filtering. Uses only entry-time
+    features (no lookahead) to predict expected R-multiple. Suitable for
+    production use in live trading systems.
+
+ProfitabilityClassifierModel
+    Gradient boosting classifier for contexts that benefit from probability
+    filtering (e.g., 5min trend following). Produces probabilities rather than
+    continuous R-multiple predictions.
 
 PerformanceDiagnosticModel
     Quintile classifier for offline regime analysis. Uses ALL available
@@ -64,6 +69,14 @@ from trading_platform.ai.models.performance_diagnostic import (
     PerformanceDiagnosticModel,
 )
 from trading_platform.ai.models.profitability import ProfitabilityModel
+from trading_platform.ai.models.profitability_classifier import (
+    ProfitabilityClassifierModel,
+)
 from trading_platform.ai.models.registry import ModelRegistry
 
-__all__ = ["ProfitabilityModel", "PerformanceDiagnosticModel", "ModelRegistry"]
+__all__ = [
+    "ProfitabilityModel",
+    "ProfitabilityClassifierModel",
+    "PerformanceDiagnosticModel",
+    "ModelRegistry",
+]

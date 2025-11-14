@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import pandas as pd
 import pytest
-from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
+
+from tests.test_helpers import run_backtest_simulation
 
 
 def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
@@ -63,7 +64,7 @@ def test_validation_missing_columns():
     )
     rem = RiskExitManager(config=None)
     with pytest.raises(ValueError, match="missing required columns"):
-        _run_backtest_simulation(
+        run_backtest_simulation(
             df, sig, strategy=_dummy_strategy(), config=config, rem=rem
         )
 
@@ -85,7 +86,7 @@ def test_validation_close_has_nans():
     )
     rem = RiskExitManager(config=None)
     with pytest.raises(ValueError, match="close has NaNs"):
-        _run_backtest_simulation(
+        run_backtest_simulation(
             df, sig, strategy=_dummy_strategy(), config=config, rem=rem
         )
 
@@ -106,7 +107,7 @@ def test_validation_length_mismatch():
     )
     rem = RiskExitManager(config=None)
     with pytest.raises(ValueError, match="signals length "):
-        _run_backtest_simulation(
+        run_backtest_simulation(
             df, sig, strategy=_dummy_strategy(), config=config, rem=rem
         )
 
@@ -128,6 +129,6 @@ def test_validation_invalid_signal_value():
     )
     rem = RiskExitManager(config=None)
     with pytest.raises(ValueError, match="invalid command values"):
-        _run_backtest_simulation(
+        run_backtest_simulation(
             df, sig, strategy=_dummy_strategy(), config=config, rem=rem
         )

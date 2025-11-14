@@ -76,9 +76,7 @@ def evaluate_model(
     if context_df.empty:
         return None
 
-    context_df = drop_lower_timeframe_global_features(
-        context_df, model.timeframe
-    )
+    context_df = drop_lower_timeframe_global_features(context_df, model.timeframe)
 
     target_values = context_df[target_metric].to_numpy()
     if target_values.size == 0:
@@ -118,16 +116,12 @@ def main(argv: Sequence[str] | None = None) -> None:
             {
                 "context": context,
                 "train_samples": train_eval["samples"] if train_eval else 0,
-                "train_accuracy": (
-                    train_eval["accuracy"] if train_eval else None
-                ),
+                "train_accuracy": (train_eval["accuracy"] if train_eval else None),
                 "train_balanced_accuracy": (
                     train_eval["balanced_accuracy"] if train_eval else None
                 ),
                 "test_samples": test_eval["samples"] if test_eval else 0,
-                "test_accuracy": (
-                    test_eval["accuracy"] if test_eval else None
-                ),
+                "test_accuracy": (test_eval["accuracy"] if test_eval else None),
                 "test_balanced_accuracy": (
                     test_eval["balanced_accuracy"] if test_eval else None
                 ),

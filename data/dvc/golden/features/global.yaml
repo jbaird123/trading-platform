@@ -53,6 +53,10 @@ features:
     type: "ATR"
     params: { "length": 14 }
     timeframe: "1H"
+  - name: "h4_atr_14"
+    type: "ATR"
+    params: { "length": 14 }
+    timeframe: "4H"
   - name: "d1_atr_14"
     type: "ATR"
     params: { "length": 14 }
@@ -74,7 +78,3 @@ features:
     params: { "length": 20 }
     source: "volume"
     timeframe: "1D"
-  - name: "h1_obv"
-    type: "OBV"
-    params: {} # OBV has no length parameter
-    timeframe: "1H"

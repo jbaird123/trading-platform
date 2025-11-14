@@ -2,15 +2,18 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any, cast
 
 import pandas as pd
 import pytest
-from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
-from tests.test_helpers import get_empty_global_features_path
+from tests.test_helpers import (
+    get_empty_global_features_path,
+    run_backtest_simulation,
+)
 
 
 def _dummy_strategy() -> CompiledStrategy:
@@ -52,7 +55,7 @@ def test_return_skips_without_exposure():
         exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config=None)
-    result = _run_backtest_simulation(
+    result = run_backtest_simulation(
         market_data=df,
         signals=sig,
         strategy=strategy,
@@ -62,5 +65,7 @@ def test_return_skips_without_exposure():
         return_skips=True,
         global_features_config_path=get_empty_global_features_path(),
     )
-    trades, _, skipped = result  # type: ignore[misc]
+    trades, _, skipped = cast(
+        tuple[list[Any], list[tuple[datetime, float]], list[dict[str, Any]]], result
+    )
     assert isinstance(skipped, list)

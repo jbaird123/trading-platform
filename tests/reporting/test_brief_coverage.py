@@ -65,26 +65,6 @@ def test_extract_rem_policy_without_price_offsets() -> None:
     assert "take_profit_pips" not in result
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 def test_to_jsonable_nan() -> None:
     """Test _to_jsonable converts NaN to None.
 

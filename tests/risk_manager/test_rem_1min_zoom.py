@@ -197,9 +197,49 @@ def test_rem_does_not_zoom_when_no_ambiguity(mock_instrument, mock_data_handler)
 
     # Should NOT call DataHandler (no zoom needed)
     mock_data_handler.get_data.assert_not_called()
-
-    # Should return None (no exit)
     assert result is None
+
+
+def test_trailing_stop_with_bar_update_skips_intrabar_zoom(
+    mock_instrument, mock_data_handler
+):
+    """Trailing stops configured for bar updates should not trigger zoom."""
+    position = Position(
+        symbol="EUR_USD",
+        entry_time=pd.Timestamp("2023-01-01 10:00:00", tz="UTC"),
+        entry_price=1.0600,
+        entry_mid_price=1.0600,
+        side="long",
+        size=10000,
+        mfe_currency=0.0,
+    )
+
+    current_bar = pd.Series(
+        {
+            "timestamp": pd.Timestamp("2023-01-01 11:00:00", tz="UTC"),
+            "open": 1.0600,
+            "high": 1.0610,
+            "low": 1.0575,
+            "close": 1.0590,
+        },
+        name=pd.Timestamp("2023-01-01 11:00:00", tz="UTC"),
+    )
+
+    config = {
+        "stop_loss": {"type": "fixed_pips", "pips": 50},
+        "trailing_stop": {
+            "distance": {"type": "fixed_pips", "pips": 20},
+            "update": "bar",
+        },
+    }
+    rem = RiskExitManager(config=config, instrument=mock_instrument)
+
+    result = rem.check_exits(position, current_bar, data_handler=mock_data_handler)
+
+    mock_data_handler.get_data.assert_not_called()
+    assert result is not None
+    assert result["reason"] == "stop-loss"
+    assert result["exit_price"] == pytest.approx(1.0580, abs=1e-9)
 
 
 def test_rem_trailing_stop_with_favorable_movement_zooms_correctly(

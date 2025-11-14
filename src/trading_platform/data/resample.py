@@ -9,11 +9,62 @@ from __future__ import annotations
 
 import re
 import warnings
+from typing import Mapping, cast
 
 import pandas as pd
+from pandas.tseries.frequencies import to_offset
+from pandas.tseries.offsets import Week
+
+from trading_platform.data.instrument import SessionDefinition
+from trading_platform.data.session_metadata import (
+    ALIGNED_TO_CLOSE_ATTR,
+    annotate_session,
+    extract_session,
+)
 
 
-def resample_data(data: pd.DataFrame, rule: str) -> pd.DataFrame:
+def _timeframe_to_offset(rule: str) -> pd.tseries.offsets.BaseOffset:
+    """Convert timeframe string to pandas offset."""
+    normalized = str(rule).strip()
+    match = re.fullmatch(r"(\d+)\s*([A-Za-z]+)", normalized)
+    if match:
+        value, unit = match.groups()
+        unit_lower = unit.lower()
+        if unit_lower in {"min", "t"}:
+            normalized = f"{value}min"
+        elif unit_lower == "h":
+            normalized = f"{value}h"
+        elif unit_lower == "d":
+            normalized = f"{value}d"
+        elif unit_lower == "w":
+            normalized = f"{value}W"
+    return to_offset(normalized)
+
+
+def timeframe_to_timedelta(rule: str) -> pd.Timedelta:
+    """Return the duration represented by a timeframe string."""
+    offset = _timeframe_to_offset(rule)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", FutureWarning)
+        delta = getattr(offset, "delta", None)
+    if isinstance(delta, pd.Timedelta):
+        return delta
+    try:
+        nanos = getattr(offset, "nanos", None)
+    except ValueError:
+        nanos = None
+    if nanos is not None and nanos != 0:
+        return pd.Timedelta(nanos, unit="ns")
+    if isinstance(offset, Week):
+        return pd.Timedelta(days=7 * offset.n)
+    return pd.to_timedelta(offset.freqstr)
+
+
+def resample_data(
+    data: pd.DataFrame,
+    rule: str,
+    session: SessionDefinition | None = None,
+) -> pd.DataFrame:
     """Resample OHLCV data to a higher timeframe.
 
     This function resamples OHLCV data using canonical aggregation rules:
@@ -36,97 +87,109 @@ def resample_data(data: pd.DataFrame, rule: str) -> pd.DataFrame:
     Raises:
         TypeError: If data.index is not a DatetimeIndex
         ValueError: If rule is not a valid pandas frequency string
-
-    Warns:
-        UserWarning: If resampling produces entirely NaN data
     """
     # Validate index type
     if not isinstance(data.index, pd.DatetimeIndex):
         raise TypeError(f"Data index must be a DatetimeIndex, got {type(data.index)}")
 
-    # Define aggregation logic
-    agg_logic = {
-        "open": "first",
-        "high": "max",
-        "low": "min",
-        "close": "last",
-        "volume": "sum",
-    }
+    resolved_session = session
+    if resolved_session is None:
+        try:
+            resolved_session = extract_session(data)
+        except ValueError:
+            resolved_session = None
 
-    # Normalize rule casing:
-    # - minute-based rules should remain lower (e.g., 1min)
-    # - all other rules should use uppercase suffix (e.g., 1H, 1D, 1W)
-    raw_rule = str(rule).strip()
-    normalized_rule = raw_rule
+    agg_logic = _build_agg_logic(data)
+    if resolved_session is None:
+        return _naive_resample(data, rule, agg_logic)
+    return _session_resample(data, rule, agg_logic, resolved_session)
 
-    match = re.fullmatch(r"(\d+)\s*([A-Za-z]+)", raw_rule)
-    if match:
-        value, unit = match.groups()
-        unit_lower = unit.lower()
-        if unit_lower in {"min", "t"}:
-            unit_token = "min"
-        elif unit_lower == "h":
-            unit_token = "h"
-        elif unit_lower == "d":
-            unit_token = "d"
-        elif unit_lower == "w":
-            unit_token = "W"  # pandas prefers uppercase W for weeks
-        else:
-            unit_token = unit
-        normalized_rule = f"{value}{unit_token}"
 
-    # Validate and obtain canonical frequency via pandas offset
+def _build_agg_logic(df: pd.DataFrame) -> dict[str, str]:
+    logic: dict[str, str] = {}
+    if "open" in df.columns:
+        logic["open"] = "first"
+    if "high" in df.columns:
+        logic["high"] = "max"
+    if "low" in df.columns:
+        logic["low"] = "min"
+    if "close" in df.columns:
+        logic["close"] = "last"
+    if "volume" in df.columns:
+        logic["volume"] = "sum"
+    if not logic:
+        raise ValueError("Cannot resample DataFrame without OHLC/volume columns.")
+    return logic
+
+
+def _session_resample(
+    data: pd.DataFrame,
+    rule: str,
+    agg_logic: dict[str, str],
+    session: SessionDefinition,
+) -> pd.DataFrame:
     try:
-        offset = pd.tseries.frequencies.to_offset(normalized_rule)
-    except ValueError as e:
-        raise ValueError(f"Invalid frequency rule: {raw_rule}") from e
+        offset = _timeframe_to_offset(rule)
+    except ValueError as exc:
+        raise ValueError(f"Invalid frequency rule: {rule}") from exc
 
-    rule = offset.freqstr
+    freqstr = offset.freqstr.lower()
 
-    # Perform resampling with closed="left", label="right" to align
-    # with TradingView-style bar labeling convention:
-    # - closed="left": bar includes start time, excludes end time
-    # - label="right": bar is labeled at the close (end of period)
-    resampled = data.resample(rule, closed="left", label="right").agg(
-        agg_logic  # type: ignore[arg-type]
+    local_df = data.tz_convert(session.close_timezone)
+    tz_index = pd.DatetimeIndex(local_df.index)
+    naive_local = local_df.copy()
+    naive_local.index = pd.DatetimeIndex(tz_index.tz_localize(None), name=tz_index.name)
+
+    session_offset = pd.Timedelta(
+        hours=session.close_time.hour,
+        minutes=session.close_time.minute,
+        seconds=session.close_time.second,
     )
+    shifted = naive_local.copy()
+    shifted.index = pd.DatetimeIndex(shifted.index - session_offset)
 
-    # Check if OHLC columns are entirely NaN (sparse resampling)
-    # Note: volume sum of NaN is 0, so we check OHLC columns only
-    ohlc_columns = ["open", "high", "low", "close"]
-    available_ohlc = [col for col in ohlc_columns if col in resampled.columns]
-    # Check if all OHLC columns are entirely NaN
-    all_nan = (
-        all(resampled[col].isna().all() for col in available_ohlc)
-        if available_ohlc
-        else False
+    agg_mapping = cast("Mapping[str, str]", agg_logic)
+    resampled = shifted.resample(freqstr, closed="left", label="left").agg(agg_mapping)  # type: ignore[arg-type]
+    resampled = resampled.dropna(how="any")
+
+    resampled_index = pd.DatetimeIndex(resampled.index + session_offset)
+    resampled_index = resampled_index.tz_localize(
+        session.close_timezone, ambiguous="infer", nonexistent="shift_forward"
     )
-    if all_nan:
-        warnings.warn(
-            f"Resampling to {rule} produced entirely NaN data. "
-            "This may indicate the source timeframe is too coarse for the "
-            "target timeframe, leading to NaN propagation when forward-filling.",
-            UserWarning,
-            stacklevel=2,
-        )
+    resampled_index = resampled_index.tz_convert("UTC")
+    resampled.index = resampled_index
 
-    # Drop rows with any NaN values
-    result = resampled.dropna()
-
-    # Drop the last row if it represents a partial/incomplete bucket
-    # A bucket is incomplete if the last source bar doesn't reach the
-    # expected end of the bucket. With closed='left', a bucket labeled
-    # at time T contains data from T-period to T (exclusive), so the
-    # last bar in a complete bucket should be at T - source_freq.
-    if len(result) > 0 and len(data) > 1:
-        # Infer source frequency from the first two bars
+    if len(resampled) > 0 and len(data) > 1:
         source_freq = data.index[1] - data.index[0]
-        last_bucket_label = result.index[-1]
-        # For a complete bucket, the last source bar should be one
-        # source period before the bucket label
-        expected_last_bar = last_bucket_label - source_freq
-        # If our actual last bar is before the expected, drop the bucket
-        if data.index[-1] < expected_last_bar:
-            result = result.iloc[:-1]
+        bucket_duration = timeframe_to_timedelta(freqstr)
+        last_bucket_close = resampled.index[-1]
+        expected_last_source_bar = last_bucket_close - bucket_duration + source_freq
+        if data.index[-1] < expected_last_source_bar:
+            resampled = resampled.iloc[:-1]
 
-    return result
+    annotate_session(resampled, session)
+    resampled.attrs[ALIGNED_TO_CLOSE_ATTR] = True
+    return resampled
+
+
+def _naive_resample(
+    data: pd.DataFrame,
+    rule: str,
+    agg_logic: dict[str, str],
+) -> pd.DataFrame:
+    try:
+        offset = _timeframe_to_offset(rule)
+    except ValueError as exc:
+        raise ValueError(f"Invalid frequency rule: {rule}") from exc
+    freqstr = offset.freqstr
+    agg_mapping = cast("Mapping[str, str]", agg_logic)
+    resampled = data.resample(freqstr, closed="left", label="left").agg(agg_mapping)  # type: ignore[arg-type]
+    resampled = resampled.dropna(how="any")
+    if len(resampled) > 0 and len(data) > 1:
+        source_freq = data.index[1] - data.index[0]
+        bucket_duration = timeframe_to_timedelta(freqstr)
+        last_bucket_start = resampled.index[-1]
+        expected_last_bar = last_bucket_start + bucket_duration - source_freq
+        if data.index[-1] < expected_last_bar:
+            resampled = resampled.iloc[:-1]
+    return resampled

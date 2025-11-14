@@ -16,7 +16,7 @@ from typing import Any
 
 import pandas as pd
 
-from trading_platform.data.resample import resample_data
+from trading_platform.data.resample import resample_data, timeframe_to_timedelta
 
 
 def calculate_indicator_bars_needed(indicator_type: str, params: dict[str, Any]) -> int:
@@ -89,6 +89,14 @@ def calculate_warmup_start_date(
         ValueError: If insufficient data available for warmup
     """
     backtest_start = pd.Timestamp(backtest_start_date)
+    if isinstance(market_data.index, pd.DatetimeIndex):
+        idx = market_data.index
+        if idx.tz is None and backtest_start.tzinfo is not None:
+            backtest_start = backtest_start.tz_convert("UTC").tz_localize(None)
+        elif idx.tz is not None and backtest_start.tzinfo is None:
+            backtest_start = backtest_start.tz_localize(idx.tz)
+        elif idx.tz is not None and backtest_start.tzinfo is not None:
+            backtest_start = backtest_start.tz_convert(idx.tz)
 
     if backtest_start not in market_data.index:
         # Find nearest bar
@@ -161,9 +169,10 @@ def calculate_warmup_start_date(
         else:
             # Feature is on a different timeframe - resample and count
             resampled = resample_data(market_data, feature_timeframe)
+            offset = timeframe_to_timedelta(feature_timeframe)
+            close_index = resampled.index + offset
 
-            # Find backtest start in resampled data
-            start_idx_resampled = resampled.index.get_indexer(
+            start_idx_resampled = close_index.get_indexer(
                 [backtest_start], method="ffill"
             )[0]
             if start_idx_resampled == -1:

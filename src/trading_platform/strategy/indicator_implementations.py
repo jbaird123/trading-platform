@@ -18,7 +18,8 @@ Returns:
 
 from __future__ import annotations
 
-from typing import Any, cast
+import weakref
+from typing import Any, Callable, cast
 
 import numpy as np
 import pandas as pd
@@ -49,7 +50,29 @@ from ta.volume import (
     OnBalanceVolumeIndicator,
 )
 
+from trading_platform.data.resample import resample_data, timeframe_to_timedelta
 from trading_platform.strategy.indicator_helpers import find_swing_points
+
+_PRICE_SERIES_CACHE: dict[int, dict[str, pd.Series]] = {}
+_PRICE_CACHE_FINALIZERS: dict[int, weakref.finalize] = {}
+_INDICATOR_SERIES_CACHE: dict[int, dict[str, pd.Series]] = {}
+_INDICATOR_CACHE_FINALIZERS: dict[int, weakref.finalize] = {}
+
+
+def _get_price_cache(df: pd.DataFrame) -> dict[str, pd.Series]:
+    """Return (or create) the per-DataFrame cache for price-derived series."""
+    key = id(df)
+    cache = _PRICE_SERIES_CACHE.get(key)
+    if cache is None:
+        cache = {}
+        _PRICE_SERIES_CACHE[key] = cache
+
+        def _cleanup(ref_key: int = key) -> None:
+            _PRICE_SERIES_CACHE.pop(ref_key, None)
+            _PRICE_CACHE_FINALIZERS.pop(ref_key, None)
+
+        _PRICE_CACHE_FINALIZERS[key] = weakref.finalize(df, _cleanup)
+    return cache
 
 
 def _price_series(df: pd.DataFrame, source: str) -> pd.Series:
@@ -57,24 +80,75 @@ def _price_series(df: pd.DataFrame, source: str) -> pd.Series:
 
     Strict validation - raises ValueError for unrecognized sources.
     """
-    if source in ("open", "high", "low", "close"):
-        return pd.Series(df[source], dtype="float64")
-    if source == "hl2":
-        return (pd.Series(df["high"]) + pd.Series(df["low"])) / 2.0
-    if source == "ohlc4":
-        return (
-            pd.Series(df["open"])
-            + pd.Series(df["high"])
-            + pd.Series(df["low"])
-            + pd.Series(df["close"])
-        ) / 4.0
-    if source == "volume":
-        return pd.Series(df["volume"], dtype="float64")
+    cache = _get_price_cache(df)
+    if source in cache:
+        return cache[source]
 
-    raise ValueError(
-        f"Unrecognized source: {source}. "
-        f"Valid sources: open, high, low, close, hl2, ohlc4, volume"
-    )
+    if source in ("open", "high", "low", "close"):
+        series = pd.Series(df[source], dtype="float64")
+    elif source == "volume":
+        series = pd.Series(df["volume"])
+        if not pd.api.types.is_numeric_dtype(series):
+            series = series.astype("float64")
+    elif source == "hl2":
+        series = (
+            pd.Series(df["high"], dtype="float64")
+            + pd.Series(df["low"], dtype="float64")
+        ) / 2.0
+    elif source == "ohlc4":
+        series = (
+            pd.Series(df["open"], dtype="float64")
+            + pd.Series(df["high"], dtype="float64")
+            + pd.Series(df["low"], dtype="float64")
+            + pd.Series(df["close"], dtype="float64")
+        ) / 4.0
+    else:
+        raise ValueError(
+            f"Unrecognized source: {source}. "
+            f"Valid sources: open, high, low, close, hl2, ohlc4, volume"
+        )
+
+    cache[source] = series
+    return series
+
+
+def _get_indicator_cache(df: pd.DataFrame) -> dict[str, pd.Series]:
+    """Return per-DataFrame cache for expensive derived indicator series."""
+    key = id(df)
+    cache = _INDICATOR_SERIES_CACHE.get(key)
+    if cache is None:
+        cache = {}
+        _INDICATOR_SERIES_CACHE[key] = cache
+
+        def _cleanup(ref_key: int = key) -> None:
+            _INDICATOR_SERIES_CACHE.pop(ref_key, None)
+            _INDICATOR_CACHE_FINALIZERS.pop(ref_key, None)
+
+        _INDICATOR_CACHE_FINALIZERS[key] = weakref.finalize(df, _cleanup)
+    return cache
+
+
+def _cache_indicator_series(
+    df: pd.DataFrame,
+    cache_key: str,
+    builder: Callable[[], pd.Series],
+) -> pd.Series:
+    """Return cached indicator series or build/store it on demand."""
+    cache = _get_indicator_cache(df)
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    result = builder()
+    cache[cache_key] = result
+    return result
+
+
+def _volume_series(df: pd.DataFrame) -> pd.Series:
+    return _price_series(df, "volume")
+
+
+def _price_array(df: pd.DataFrame, source: str) -> np.ndarray:
+    return _price_series(df, source).to_numpy(dtype="float64")
 
 
 def _empty_series(df: pd.DataFrame) -> pd.Series:
@@ -114,13 +188,17 @@ def atr(df: pd.DataFrame, length: int) -> pd.Series:
     length = max(1, min(int(length), n))
     try:
         indicator = AverageTrueRange(
-            high=df["high"],
-            low=df["low"],
-            close=df["close"],
+            high=_price_series(df, "high"),
+            low=_price_series(df, "low"),
+            close=_price_series(df, "close"),
             window=length,
             fillna=False,
         )
-        return indicator.average_true_range()  # type: ignore[no-any-return]
+        result = indicator.average_true_range()
+        # Replace 0.0 values with NaN where insufficient data
+        # ATR needs at least 'length' bars to be valid
+        result = result.replace(0.0, np.nan)
+        return result  # type: ignore[no-any-return]
     except (IndexError, ValueError, TypeError):
         return pd.Series([np.nan] * n, index=df.index, dtype="float64")
 
@@ -137,17 +215,23 @@ def adx(df: pd.DataFrame, length: int) -> pd.DataFrame:
     length = max(3, min(int(length), n))
     try:
         indicator = ADXIndicator(
-            high=df["high"],
-            low=df["low"],
-            close=df["close"],
+            high=_price_series(df, "high"),
+            low=_price_series(df, "low"),
+            close=_price_series(df, "close"),
             window=length,
             fillna=False,
         )
+        # Replace 0.0 values with NaN where insufficient data
+        # ADX indicators need warm-up period
+        adx_series = indicator.adx().replace(0.0, np.nan)
+        di_plus = indicator.adx_pos().replace(0.0, np.nan)
+        di_minus = indicator.adx_neg().replace(0.0, np.nan)
+
         renamed = pd.DataFrame(
             {
-                "ADX": indicator.adx(),
-                "DI+": indicator.adx_pos(),
-                "DI-": indicator.adx_neg(),
+                "ADX": adx_series,
+                "DI+": di_plus,
+                "DI-": di_minus,
             },
             index=df.index,
         )
@@ -318,6 +402,498 @@ def compute_ema_slope(
     return slope
 
 
+def compute_ema_slope_pct(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute EMA slope as a percentage of the EMA value."""
+    length = int(params.get("length", 14))
+    slope_period = int(params.get("slope_period", 1))
+    price_series = _price_series(df, source)
+    ema_values = ema(price_series, length)
+    slope = ema_values.diff(periods=slope_period)
+    denominator = ema_values.replace(0.0, np.nan)
+    pct = slope / denominator
+    pct = pct.replace([np.inf, -np.inf], np.nan)
+    return pct
+
+
+def compute_rsi_bias(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute RSI bias normalised to [-1, 1]."""
+    length = int(params.get("length", 14))
+    rsi_vals = rsi(_price_series(df, source), length)
+    bias = (rsi_vals - 50.0) / 50.0
+    bias = bias.clip(lower=-1.0, upper=1.0)
+    return bias
+
+
+def compute_adx_strength(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute ADX strength scaled to [0, 1]."""
+    length = int(params.get("length", 14))
+    adx_df = adx(df, length)
+    adx_vals = adx_df["ADX"]
+    strength = (adx_vals / 50.0).clip(lower=0.0, upper=1.0)
+    return strength
+
+
+def compute_atr_percent(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute ATR as a percent of price."""
+    length = int(params.get("length", 14))
+    atr_vals = atr(df, length)
+    price_series = _price_series(df, source).replace(0.0, np.nan)
+    atr_pct = (atr_vals / price_series).replace([np.inf, -np.inf], np.nan)
+    return atr_pct
+
+
+def compute_atr_slope_pct(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute ATR slope normalised by ATR value."""
+    length = int(params.get("length", 14))
+    slope_period = int(params.get("slope_period", 1))
+    atr_vals = atr(df, length)
+    slope = atr_vals.diff(slope_period)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        slope_pct = slope / atr_vals
+    slope_pct = slope_pct.replace([np.inf, -np.inf], np.nan)
+    return slope_pct
+
+
+def compute_ema_trend_alignment(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> dict[str, pd.Series]:
+    """Compute multi-timeframe EMA slope alignment metrics."""
+    timeframes_param = params.get("timeframes") or []
+    if isinstance(timeframes_param, str):
+        tf_list = [timeframes_param]
+    else:
+        tf_list = list(timeframes_param)
+
+    tf_list = [str(tf) for tf in tf_list if str(tf)]
+    if not tf_list:
+        empty = pd.Series(np.nan, index=df.index, dtype="float64")
+        return {
+            "stack_score": empty,
+            "full_alignment": empty,
+            "nonzero_fraction": empty,
+        }
+
+    length = int(params.get("length", 50))
+    slope_period = int(params.get("slope_period", 1))
+
+    slope_pct_values: dict[str, pd.Series] = {}
+
+    for tf in tf_list:
+        try:
+            resampled = resample_data(df, rule=tf)
+        except Exception:
+            slope_pct_values[tf] = pd.Series(np.nan, index=df.index, dtype="float64")
+            continue
+
+        shift_needed = not resampled.index.equals(df.index)
+        timeframe_delta = (
+            timeframe_to_timedelta(tf) if shift_needed else pd.Timedelta(0)
+        )
+
+        pct = compute_ema_slope_pct(
+            resampled,
+            {"length": length, "slope_period": slope_period},
+            source,
+            source_ref,
+        )
+        pct = pct.copy()
+        if shift_needed:
+            pct.index = pct.index + timeframe_delta
+        pct = pct.reindex(df.index, method="ffill")
+        slope_pct_values[tf] = pct
+
+    slope_pct_df = pd.DataFrame(slope_pct_values, index=df.index)
+    sign_df = slope_pct_df.apply(np.sign)
+    sign_df = sign_df.where(~slope_pct_df.isna(), np.nan)
+
+    positive_count = (sign_df > 0).sum(axis=1)
+    negative_count = (sign_df < 0).sum(axis=1)
+    nonzero_count = (sign_df != 0).sum(axis=1)
+
+    with np.errstate(invalid="ignore", divide="ignore"):
+        stack_score = (positive_count - negative_count) / nonzero_count
+
+    stack_score = stack_score.replace([np.inf, -np.inf], np.nan)
+
+    full_alignment = (
+        (nonzero_count > 0)
+        & ((positive_count == nonzero_count) | (negative_count == nonzero_count))
+    ).astype(float)
+
+    nonzero_fraction = (nonzero_count / len(tf_list)).astype(float)
+
+    stack_score = stack_score.astype(float)
+    return {
+        "stack_score": stack_score,
+        "full_alignment": full_alignment,
+        "nonzero_fraction": nonzero_fraction,
+    }
+
+
+def compute_ema_slope_confluence(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> dict[str, pd.Series]:
+    """Compare EMA slope between a base timeframe and higher timeframes."""
+
+    length = int(params.get("length", 50))
+    slope_period = int(params.get("slope_period", 1))
+
+    base_timeframe = str(params.get("base_timeframe", "current") or "current")
+    compare_param = params.get("compare_timeframes")
+    if compare_param is None:
+        compare_param = params.get("compare_timeframe")
+
+    if isinstance(compare_param, str):
+        compare_timeframes = [compare_param]
+    else:
+        compare_timeframes = list(compare_param or [])
+
+    if not compare_timeframes:
+        empty = pd.Series(np.nan, index=df.index, dtype="float64")
+        return {
+            "spread": empty,
+            "ratio": empty,
+            "alignment": empty,
+        }
+
+    def slope_for_timeframe(timeframe: str) -> pd.Series:
+        if timeframe.lower() in {"", "current", "none"}:
+            slope_source = df
+            needs_align = False
+        else:
+            try:
+                slope_source = resample_data(df, rule=str(timeframe))
+            except Exception:
+                return pd.Series(np.nan, index=df.index, dtype="float64")
+            needs_align = True
+
+        delta = (
+            timeframe_to_timedelta(str(timeframe))
+            if needs_align and not slope_source.index.equals(df.index)
+            else pd.Timedelta(0)
+        )
+        shift_needed = delta != pd.Timedelta(0)
+
+        slope_values = compute_ema_slope_pct(
+            slope_source,
+            {"length": length, "slope_period": slope_period},
+            source,
+            source_ref,
+        )
+        if needs_align and shift_needed:
+            slope_values = slope_values.copy()
+            slope_values.index = slope_values.index + delta
+            slope_values = slope_values.reindex(df.index, method="ffill")
+        return slope_values
+
+    base_slope = slope_for_timeframe(base_timeframe)
+    outputs: dict[str, pd.Series] = {}
+
+    for compare_tf in compare_timeframes:
+        compare_slope = slope_for_timeframe(str(compare_tf))
+        spread = base_slope - compare_slope
+
+        with np.errstate(divide="ignore", invalid="ignore"):
+            ratio = base_slope / compare_slope
+        ratio = ratio.replace([np.inf, -np.inf], np.nan)
+
+        alignment = np.sign(base_slope) * np.sign(compare_slope)
+        alignment = alignment.where(
+            ~(base_slope.isna() | compare_slope.isna()),
+            np.nan,
+        )
+
+        outputs[f"spread_{compare_tf}"] = spread
+        outputs[f"ratio_{compare_tf}"] = ratio
+        outputs[f"alignment_{compare_tf}"] = alignment
+
+    return outputs
+
+
+def compute_ema_distance_pct(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute percent distance between price and EMA."""
+    length = int(params.get("length", 14))
+    price = _price_series(df, source)
+    ema_values = ema(price, length)
+    denominator = price.replace(0.0, np.nan)
+    distance = (price - ema_values) / denominator
+    distance = distance.replace([np.inf, -np.inf], np.nan)
+    return distance
+
+
+def compute_rsi_slope(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute slope of RSI."""
+    length = int(params.get("length", 14))
+    slope_period = int(params.get("slope_period", 1))
+    rsi_values = rsi(_price_series(df, source), length)
+    return rsi_values.diff(slope_period)
+
+
+def _rolling_percentile(series: pd.Series, lookback: int) -> pd.Series:
+    """Return rolling percentile (0-1) of current value within lookback."""
+
+    window = max(1, int(lookback))
+
+    def _percentile(values: np.ndarray) -> float:
+        if values.size == 0:
+            return float("nan")
+        current = values[-1]
+        if np.isnan(current):
+            return float("nan")
+        valid = values[~np.isnan(values)]
+        if valid.size == 0:
+            return float("nan")
+        count = np.count_nonzero(valid <= current)
+        return float(count) / float(valid.size)
+
+    return series.rolling(window=window, min_periods=1).apply(_percentile, raw=True)
+
+
+def compute_bb_width_percentile(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute percentile rank of Bollinger Band width."""
+    length = int(params.get("length", 20))
+    ndev = float(params.get("ndev", 2.0))
+    lookback = int(params.get("lookback", 100))
+    cache_key = f"bb_width_pct::{length}:{ndev}:{lookback}:{source}:{source_ref or ''}"
+    return _cache_indicator_series(
+        df,
+        cache_key,
+        lambda: _rolling_percentile(
+            compute_bb_width(
+                df,
+                {"length": length, "ndev": ndev},
+                source,
+                source_ref,
+            ),
+            lookback,
+        ),
+    )
+
+
+def compute_range_atr_ratio(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute high-low range divided by ATR."""
+    length = int(params.get("length", 14))
+    atr_vals = atr(df, length)
+    range_values = _price_series(df, "high") - _price_series(df, "low")
+    denominator = atr_vals.replace(0.0, np.nan)
+    ratio = range_values / denominator
+    ratio = ratio.replace([np.inf, -np.inf], np.nan)
+    return ratio
+
+
+def _true_range(df: pd.DataFrame) -> pd.Series:
+    high = _price_series(df, "high")
+    low = _price_series(df, "low")
+    prev_close = _price_series(df, "close").shift(1)
+    high_low = high - low
+    high_close = (high - prev_close).abs()
+    low_close = (low - prev_close).abs()
+    return pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+
+
+def compute_true_range_zscore(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute z-score of true range over rolling window."""
+    window = int(params.get("window", 50))
+    tr = _true_range(df)
+    mean = tr.rolling(window=window, min_periods=1).mean()
+    std = tr.rolling(window=window, min_periods=1).std(ddof=0)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        zscore = (tr - mean) / std
+    zscore = zscore.replace([np.inf, -np.inf], np.nan)
+    return zscore
+
+
+def _distance_pct(series: pd.Series, reference: pd.Series) -> pd.Series:
+    denominator = reference.replace(0.0, np.nan)
+    distance = (series - reference) / denominator
+    return distance.replace([np.inf, -np.inf], np.nan)
+
+
+def compute_close_to_hhv_pct(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute distance of price to rolling highest high."""
+    length = int(params.get("length", 20))
+    price = _price_series(df, source)
+    hhv_series = hhv(_price_series(df, "high"), length)
+    return _distance_pct(price, hhv_series)
+
+
+def compute_close_to_llv_pct(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute distance of price to rolling lowest low."""
+    length = int(params.get("length", 20))
+    price = _price_series(df, source)
+    llv_series = llv(_price_series(df, "low"), length)
+    return _distance_pct(price, llv_series)
+
+
+def compute_hhv_slope(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "high",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute slope of rolling highest high."""
+    length = int(params.get("length", 20))
+    slope_period = int(params.get("slope_period", 1))
+    hhv_series = hhv(_price_series(df, source), length)
+    return hhv_series.diff(slope_period)
+
+
+def compute_llv_slope(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "low",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute slope of rolling lowest low."""
+    length = int(params.get("length", 20))
+    slope_period = int(params.get("slope_period", 1))
+    llv_series = llv(_price_series(df, source), length)
+    return llv_series.diff(slope_period)
+
+
+def compute_volume_sma_ratio(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "volume",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute ratio of volume to its SMA."""
+    length = int(params.get("length", 20))
+    volume = _price_series(df, source)
+    sma_values = compute_sma(df, {"length": length}, source, source_ref)
+    denominator = sma_values.replace(0.0, np.nan)
+    ratio = volume / denominator
+    ratio = ratio.replace([np.inf, -np.inf], np.nan)
+    return ratio
+
+
+def compute_prior_return(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute price return over previous N bars."""
+    window = int(params.get("window", 1))
+    price = _price_series(df, source)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        returns = price.pct_change(periods=window)
+    return returns.replace([np.inf, -np.inf], np.nan)
+
+
+def compute_calendar_sessions(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> dict[str, pd.Series]:
+    """Encode trading sessions (Asia/London/New York) based on entry_time."""
+    index = df.index
+    if not isinstance(index, pd.DatetimeIndex):
+        empty = _empty_series(df)
+        return {
+            "session_asia": empty,
+            "session_london": empty,
+            "session_newyork": empty,
+        }
+
+    hours = index.hour
+    asia = ((hours >= 0) & (hours < 8)).astype(float)
+    london = ((hours >= 8) & (hours < 16)).astype(float)
+    newyork = ((hours >= 13) & (hours < 21)).astype(float)
+
+    return {
+        "session_asia": pd.Series(asia, index=index, dtype="float64"),
+        "session_london": pd.Series(london, index=index, dtype="float64"),
+        "session_newyork": pd.Series(newyork, index=index, dtype="float64"),
+    }
+
+
+def compute_day_of_week_onehot(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> dict[str, pd.Series]:
+    """One-hot encode day of week."""
+    index = df.index
+    if not isinstance(index, pd.DatetimeIndex):
+        empty = _empty_series(df)
+        return {f"dow_{day}": empty for day in range(7)}
+
+    day = index.dayofweek
+    columns: dict[str, pd.Series] = {}
+    for dow in range(7):
+        columns[f"dow_{dow}"] = pd.Series((day == dow).astype(float), index=index)
+    return columns
+
+
 def compute_bb_width(
     df: pd.DataFrame,
     params: dict[str, Any],
@@ -410,10 +986,13 @@ def compute_dc(
     """Compute Donchian Channels (upper, lower)."""
     length = int(params.get("length", 20))
     try:
+        high = _price_series(df, "high")
+        low = _price_series(df, "low")
+        close = _price_series(df, "close")
         indicator = DonchianChannel(
-            high=df["high"],
-            low=df["low"],
-            close=df["close"],
+            high=high,
+            low=low,
+            close=close,
             window=length,
             fillna=False,
         )
@@ -456,10 +1035,13 @@ def compute_psar(
     step = float(params.get("step", 0.02))
     max_step = float(params.get("max", 0.2))
     try:
+        high = _price_series(df, "high")
+        low = _price_series(df, "low")
+        close = _price_series(df, "close")
         indicator = PSARIndicator(
-            high=df["high"],
-            low=df["low"],
-            close=df["close"],
+            high=high,
+            low=low,
+            close=close,
             step=step,
             max_step=max_step,
             fillna=False,
@@ -489,10 +1071,13 @@ def compute_stoch(
     # Note: smooth_k is not used by ta library's StochasticOscillator
     # but kept in params for backwards compatibility
     try:
+        high = _price_series(df, "high")
+        low = _price_series(df, "low")
+        close = _price_series(df, "close")
         indicator = StochasticOscillator(
-            high=df["high"],
-            low=df["low"],
-            close=df["close"],
+            high=high,
+            low=low,
+            close=close,
             window=k_period,
             smooth_window=d_period,
             fillna=False,
@@ -517,10 +1102,13 @@ def compute_kc(
     # Note: mult parameter not used by ta library's KeltnerChannel
     # but kept in params for backwards compatibility
     try:
+        high = _price_series(df, "high")
+        low = _price_series(df, "low")
+        close = _price_series(df, "close")
         indicator = KeltnerChannel(
-            high=df["high"],
-            low=df["low"],
-            close=df["close"],
+            high=high,
+            low=low,
+            close=close,
             window=length,
             window_atr=length,
             fillna=False,
@@ -550,7 +1138,9 @@ def compute_obv(
     """Compute On-Balance Volume."""
     try:
         indicator = OnBalanceVolumeIndicator(
-            close=_price_series(df, source), volume=df["volume"], fillna=False
+            close=_price_series(df, source),
+            volume=_volume_series(df),
+            fillna=False,
         )
         return indicator.on_balance_volume()  # type: ignore[no-any-return]
     except (IndexError, ValueError, TypeError):
@@ -566,11 +1156,14 @@ def compute_cmf(
     """Compute Chaikin Money Flow."""
     length = int(params.get("length", 20))
     try:
+        high = _price_series(df, "high")
+        low = _price_series(df, "low")
+        close = _price_series(df, "close")
         indicator = ChaikinMoneyFlowIndicator(
-            high=df["high"],
-            low=df["low"],
-            close=df["close"],
-            volume=df["volume"],
+            high=high,
+            low=low,
+            close=close,
+            volume=_volume_series(df),
             window=length,
             fillna=False,
         )
@@ -599,8 +1192,11 @@ def compute_vwap(
     """
     try:
         # Calculate Typical Price (industry standard for VWAP)
-        typical_price = (df["high"] + df["low"] + df["close"]) / 3
-        volume = df["volume"]
+        high = _price_series(df, "high")
+        low = _price_series(df, "low")
+        close = _price_series(df, "close")
+        typical_price = (high + low + close) / 3
+        volume = _volume_series(df)
 
         # Identify session boundaries (new day in UTC)
         # Assumes index is DatetimeIndex with timezone info
@@ -651,9 +1247,9 @@ def compute_chop(
 
     try:
         # Calculate True Range for period of 1
-        high = df["high"]
-        low = df["low"]
-        close = df["close"]
+        high = _price_series(df, "high")
+        low = _price_series(df, "low")
+        close = _price_series(df, "close")
         prev_close = close.shift(1)
 
         tr = pd.concat(
@@ -689,9 +1285,9 @@ def compute_cci(
     length = int(params.get("length", 20))
     try:
         indicator = CCIIndicator(
-            high=df["high"],
-            low=df["low"],
-            close=df["close"],
+            high=_price_series(df, "high"),
+            low=_price_series(df, "low"),
+            close=_price_series(df, "close"),
             window=length,
             fillna=False,
         )
@@ -717,8 +1313,8 @@ def compute_ichimoku(
     senkou = int(params.get("senkou", 52))
     try:
         indicator = IchimokuIndicator(
-            high=df["high"],
-            low=df["low"],
+            high=_price_series(df, "high"),
+            low=_price_series(df, "low"),
             window1=tenkan,
             window2=kijun,
             window3=senkou,
@@ -735,9 +1331,7 @@ def compute_ichimoku(
             "kijun": indicator.ichimoku_base_line(),
             "senkou_a": indicator.ichimoku_a(),
             "senkou_b": indicator.ichimoku_b(),
-            "chikou": df["close"].shift(
-                kijun
-            ),  # Lagging span: past close (26 bars ago)
+            "chikou": _price_series(df, "close").shift(kijun),
         }
     except (IndexError, ValueError, TypeError):
         empty = _empty_series(df)
@@ -777,72 +1371,64 @@ def compute_supertrend(
         return {"": empty, "direction": empty, "long": empty, "short": empty}
 
     try:
-        # Calculate ATR
         atr_values = atr(df, length)
+        first_valid_ts = atr_values.first_valid_index()
+        if first_valid_ts is None:
+            empty = _empty_series(df)
+            return {"": empty, "direction": empty, "long": empty, "short": empty}
 
-        # Calculate HL2 (average of high and low)
-        hl2 = (df["high"] + df["low"]) / 2
+        start_pos = atr_values.index.get_loc(first_valid_ts)
 
-        # Calculate basic bands
+        hl2 = (_price_series(df, "high") + _price_series(df, "low")) / 2
         basic_upper = hl2 + (multiplier * atr_values)
         basic_lower = hl2 - (multiplier * atr_values)
 
-        # Initialize final bands
-        final_upper = pd.Series(index=df.index, dtype="float64")
-        final_lower = pd.Series(index=df.index, dtype="float64")
-        supertrend = pd.Series(index=df.index, dtype="float64")
-        direction = pd.Series(index=df.index, dtype="float64")
+        final_upper = pd.Series(np.nan, index=df.index, dtype="float64")
+        final_lower = pd.Series(np.nan, index=df.index, dtype="float64")
+        supertrend = pd.Series(np.nan, index=df.index, dtype="float64")
+        direction = pd.Series(np.nan, index=df.index, dtype="float64")
 
-        close = df["close"]
+        close = _price_series(df, "close")
 
-        # Calculate final bands with persistence logic
-        for i in range(n):
-            if i == 0:
+        for i in range(start_pos, n):
+            if i == start_pos:
                 final_upper.iloc[i] = basic_upper.iloc[i]
                 final_lower.iloc[i] = basic_lower.iloc[i]
+                continue
+
+            if (
+                basic_upper.iloc[i] < final_upper.iloc[i - 1]
+                or close.iloc[i - 1] > final_upper.iloc[i - 1]
+            ):
+                final_upper.iloc[i] = basic_upper.iloc[i]
             else:
-                # Upper band: use basic_upper unless it's greater than previous
-                # and close was above previous upper band
-                if (
-                    basic_upper.iloc[i] < final_upper.iloc[i - 1]
-                    or close.iloc[i - 1] > final_upper.iloc[i - 1]
-                ):
-                    final_upper.iloc[i] = basic_upper.iloc[i]
-                else:
-                    final_upper.iloc[i] = final_upper.iloc[i - 1]
+                final_upper.iloc[i] = final_upper.iloc[i - 1]
 
-                # Lower band: use basic_lower unless it's less than previous
-                # and close was below previous lower band
-                if (
-                    basic_lower.iloc[i] > final_lower.iloc[i - 1]
-                    or close.iloc[i - 1] < final_lower.iloc[i - 1]
-                ):
-                    final_lower.iloc[i] = basic_lower.iloc[i]
-                else:
-                    final_lower.iloc[i] = final_lower.iloc[i - 1]
+            if (
+                basic_lower.iloc[i] > final_lower.iloc[i - 1]
+                or close.iloc[i - 1] < final_lower.iloc[i - 1]
+            ):
+                final_lower.iloc[i] = basic_lower.iloc[i]
+            else:
+                final_lower.iloc[i] = final_lower.iloc[i - 1]
 
-        # Determine trend direction and supertrend value
-        for i in range(n):
-            if i == 0:
-                # Start with uptrend
+        for i in range(start_pos, n):
+            if i == start_pos:
                 direction.iloc[i] = 1
                 supertrend.iloc[i] = final_lower.iloc[i]
-            else:
-                # If close crosses above upper band, switch to uptrend
-                if close.iloc[i] > final_upper.iloc[i - 1]:
-                    direction.iloc[i] = 1
-                # If close crosses below lower band, switch to downtrend
-                elif close.iloc[i] < final_lower.iloc[i - 1]:
-                    direction.iloc[i] = -1
-                # Otherwise maintain previous direction
-                else:
-                    direction.iloc[i] = direction.iloc[i - 1]
+                continue
 
-                # SuperTrend follows the appropriate band
-                if direction.iloc[i] == 1:
-                    supertrend.iloc[i] = final_lower.iloc[i]
-                else:
-                    supertrend.iloc[i] = final_upper.iloc[i]
+            if close.iloc[i] > final_upper.iloc[i - 1]:
+                direction.iloc[i] = 1
+            elif close.iloc[i] < final_lower.iloc[i - 1]:
+                direction.iloc[i] = -1
+            else:
+                direction.iloc[i] = direction.iloc[i - 1]
+
+            if direction.iloc[i] == 1:
+                supertrend.iloc[i] = final_lower.iloc[i]
+            else:
+                supertrend.iloc[i] = final_upper.iloc[i]
 
         return {
             "": supertrend,  # Main value
@@ -918,10 +1504,10 @@ def compute_cdl_doji(
     """
     try:
         result = talib.CDLDOJI(
-            df["open"].to_numpy(dtype="float64"),
-            df["high"].to_numpy(dtype="float64"),
-            df["low"].to_numpy(dtype="float64"),
-            df["close"].to_numpy(dtype="float64"),
+            _price_array(df, "open"),
+            _price_array(df, "high"),
+            _price_array(df, "low"),
+            _price_array(df, "close"),
         )
         return pd.Series(result, index=df.index, dtype="float64")
     except (IndexError, ValueError, TypeError, KeyError):
@@ -940,10 +1526,10 @@ def compute_cdl_hammer(
     """
     try:
         result = talib.CDLHAMMER(
-            df["open"].to_numpy(dtype="float64"),
-            df["high"].to_numpy(dtype="float64"),
-            df["low"].to_numpy(dtype="float64"),
-            df["close"].to_numpy(dtype="float64"),
+            _price_array(df, "open"),
+            _price_array(df, "high"),
+            _price_array(df, "low"),
+            _price_array(df, "close"),
         )
         return pd.Series(result, index=df.index, dtype="float64")
     except (IndexError, ValueError, TypeError, KeyError):
@@ -962,10 +1548,10 @@ def compute_cdl_engulfing(
     """
     try:
         result = talib.CDLENGULFING(
-            df["open"].to_numpy(dtype="float64"),
-            df["high"].to_numpy(dtype="float64"),
-            df["low"].to_numpy(dtype="float64"),
-            df["close"].to_numpy(dtype="float64"),
+            _price_array(df, "open"),
+            _price_array(df, "high"),
+            _price_array(df, "low"),
+            _price_array(df, "close"),
         )
         return pd.Series(result, index=df.index, dtype="float64")
     except (IndexError, ValueError, TypeError, KeyError):
@@ -984,10 +1570,10 @@ def compute_cdl_morningstar(
     """
     try:
         result = talib.CDLMORNINGSTAR(
-            df["open"].to_numpy(dtype="float64"),
-            df["high"].to_numpy(dtype="float64"),
-            df["low"].to_numpy(dtype="float64"),
-            df["close"].to_numpy(dtype="float64"),
+            _price_array(df, "open"),
+            _price_array(df, "high"),
+            _price_array(df, "low"),
+            _price_array(df, "close"),
         )
         return pd.Series(result, index=df.index, dtype="float64")
     except (IndexError, ValueError, TypeError, KeyError):
@@ -1006,10 +1592,10 @@ def compute_cdl_eveningstar(
     """
     try:
         result = talib.CDLEVENINGSTAR(
-            df["open"].to_numpy(dtype="float64"),
-            df["high"].to_numpy(dtype="float64"),
-            df["low"].to_numpy(dtype="float64"),
-            df["close"].to_numpy(dtype="float64"),
+            _price_array(df, "open"),
+            _price_array(df, "high"),
+            _price_array(df, "low"),
+            _price_array(df, "close"),
         )
         return pd.Series(result, index=df.index, dtype="float64")
     except (IndexError, ValueError, TypeError, KeyError):
@@ -1028,10 +1614,10 @@ def compute_cdl_harami(
     """
     try:
         result = talib.CDLHARAMI(
-            df["open"].to_numpy(dtype="float64"),
-            df["high"].to_numpy(dtype="float64"),
-            df["low"].to_numpy(dtype="float64"),
-            df["close"].to_numpy(dtype="float64"),
+            _price_array(df, "open"),
+            _price_array(df, "high"),
+            _price_array(df, "low"),
+            _price_array(df, "close"),
         )
         return pd.Series(result, index=df.index, dtype="float64")
     except (IndexError, ValueError, TypeError, KeyError):
@@ -1056,28 +1642,33 @@ def compute_atr_percentile(
     """
     atr_len = int(params.get("atr_length", 14))
     lookback = int(params.get("lookback", 20))
-    atr_values = atr(df, atr_len)
+    cache_key = f"atr_pct::{atr_len}:{lookback}"
 
-    # TradingView's ta.percentrank() formula:
-    # Compares current value against previous N bars (excluding current)
-    # Formula: count(previous N values < current) / N * 100
-    # Then rounds to nearest 5% for zone-based display
-    def percentrank_tv(x):
-        if len(x) <= 1:
-            return 0.0
-        current = x.iloc[-1]
-        # Compare against previous values only (exclude current)
-        previous = x.iloc[:-1]
-        count_below = (previous < current).sum()
-        # Calculate precise percentile, then round to nearest 5%
-        precise = count_below / len(previous) * 100
-        return round(precise / 5) * 5
+    def _build_series() -> pd.Series:
+        atr_values = atr(df, atr_len)
+        window = max(2, lookback + 1)
+        return atr_values.rolling(
+            window=window,
+            min_periods=2,
+        ).apply(_percentrank_tv, raw=True)
 
-    # Use lookback+1 window to get current + previous N bars
-    percentile = atr_values.rolling(window=lookback + 1, min_periods=2).apply(
-        percentrank_tv, raw=False
-    )
-    return percentile
+    return _cache_indicator_series(df, cache_key, _build_series)
+
+
+def _percentrank_tv(values: np.ndarray) -> float:
+    """TradingView-style percentile rank rounded to nearest 5%."""
+    if values.size <= 1:
+        return 0.0
+    current = values[-1]
+    if np.isnan(current):
+        return float("nan")
+    previous = values[:-1]
+    previous = previous[~np.isnan(previous)]
+    if previous.size == 0:
+        return float("nan")
+    count_below = np.count_nonzero(previous < current)
+    precise = count_below / float(previous.size) * 100.0
+    return round(precise / 5.0) * 5.0
 
 
 def compute_realized_volatility(
@@ -1104,7 +1695,7 @@ def compute_volume_zscore(
 ) -> pd.Series:
     """Calculate volume z-score relative to rolling mean and std."""
     length = int(params.get("length", 20))
-    series = pd.Series(df["volume"])
+    series = _volume_series(df)
     rolling_mean = series.rolling(window=length, min_periods=1).mean()
     rolling_std = series.rolling(window=length, min_periods=1).std()
     # Avoid division by zero

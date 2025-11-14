@@ -7,10 +7,10 @@ and requires 1-minute resolution to determine the correct exit behavior.
 
 from __future__ import annotations
 
-import pandas as pd
+from trading_platform.core.types import BarData
 
 
-def is_trailing_stop_ambiguous(bar: pd.Series, trailing_stop_level: float) -> bool:
+def is_trailing_stop_ambiguous(bar: BarData, trailing_stop_level: float) -> bool:
     """Check if trailing stop exit is ambiguous on primary timeframe.
 
     Ambiguity exists when the trailing stop level is within the bar's range,
@@ -36,7 +36,7 @@ def is_trailing_stop_ambiguous(bar: pd.Series, trailing_stop_level: float) -> bo
 
 
 def is_fixed_stops_ambiguous(
-    bar: pd.Series, stop_loss_level: float, take_profit_level: float
+    bar: BarData, stop_loss_level: float, take_profit_level: float
 ) -> bool:
     """Check if fixed stop and TP are ambiguous on primary timeframe.
 
@@ -64,7 +64,7 @@ def is_fixed_stops_ambiguous(
 
 
 def both_exits_in_same_bar(
-    bar: pd.Series, stop_loss_level: float, take_profit_level: float
+    bar: BarData, stop_loss_level: float, take_profit_level: float
 ) -> bool:
     """Check if both stop-loss and take-profit are in the same bar's range.
 

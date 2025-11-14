@@ -675,6 +675,89 @@ def test_ema_slope_in_compute_features():
     assert pd.isna(result["ema_slope_14"].iloc[0])
 
 
+def test_ema_trend_alignment_in_compute_features():
+    """Verify EMATrendAlignment produces alignment metrics."""
+    df = pd.DataFrame(
+        {
+            "open": [10, 11, 12, 13, 14, 15, 16, 17],
+            "high": [10.5, 11.5, 12.5, 13.5, 14.5, 15.5, 16.5, 17.5],
+            "low": [9.5, 10.5, 11.5, 12.5, 13.5, 14.5, 15.5, 16.5],
+            "close": [10, 11, 12, 13, 14, 15, 16, 17],
+            "volume": [100] * 8,
+        },
+        index=pd.date_range("2024-01-01", periods=8, freq="1h"),
+    )
+
+    specs = [
+        {
+            "name": "trend_alignment",
+            "type": "EMATrendAlignment",
+            "params": {
+                "timeframes": ["1H", "4H"],
+                "length": 3,
+                "slope_period": 1,
+            },
+            "source": "close",
+        }
+    ]
+
+    result = compute_features(df, specs)
+
+    stack_col = "trend_alignment_stack_score"
+    align_col = "trend_alignment_full_alignment"
+    nonzero_col = "trend_alignment_nonzero_fraction"
+
+    for column in (stack_col, align_col, nonzero_col):
+        assert column in result.columns
+        assert result[column].dtype == "float64"
+
+    stack_values = result[stack_col].dropna()
+    assert all((stack_values >= -1.0) & (stack_values <= 1.0))
+
+
+def test_ema_slope_confluence_in_compute_features():
+    """Verify EMASlopeConfluence emits spread/ratio/alignment columns."""
+
+    df = pd.DataFrame(
+        {
+            "open": [10, 11, 12, 13, 14, 15, 16, 17],
+            "high": [10.5, 11.5, 12.5, 13.5, 14.5, 15.5, 16.5, 17.5],
+            "low": [9.5, 10.5, 11.5, 12.5, 13.5, 14.5, 15.5, 16.5],
+            "close": [10, 11, 12, 13, 14, 15, 16, 17],
+            "volume": [100] * 8,
+        },
+        index=pd.date_range("2024-01-01", periods=8, freq="1h"),
+    )
+
+    specs = [
+        {
+            "name": "slope_confluence",
+            "type": "EMASlopeConfluence",
+            "params": {
+                "base_timeframe": "1H",
+                "compare_timeframes": ["4H"],
+                "length": 3,
+                "slope_period": 1,
+            },
+            "source": "close",
+        }
+    ]
+
+    result = compute_features(df, specs)
+
+    spread_col = "slope_confluence_spread_4H"
+    ratio_col = "slope_confluence_ratio_4H"
+    align_col = "slope_confluence_alignment_4H"
+
+    for column in (spread_col, ratio_col, align_col):
+        assert column in result.columns
+        assert result[column].dtype == "float64"
+
+    # Alignment should only take values in [-1, 1]
+    alignment_values = result[align_col].dropna()
+    assert all((alignment_values >= -1.0) & (alignment_values <= 1.0))
+
+
 def test_rsi_in_compute_features():
     """Task 3: Test RSI indicator (already exists, verify it works).
 
@@ -742,3 +825,62 @@ def test_roc_in_compute_features():
 
     # ROC should be numeric
     assert result["roc_12"].dtype == "float64"
+
+
+def test_prior_return_indicator():
+    """Ensure PriorReturn indicator produces expected column."""
+
+    df = pd.DataFrame(
+        {
+            "open": [10, 11, 12, 13],
+            "high": [10.5, 11.5, 12.5, 13.5],
+            "low": [9.5, 10.5, 11.5, 12.5],
+            "close": [10, 11, 12, 13],
+            "volume": [100, 100, 100, 100],
+        },
+        index=pd.date_range("2024-01-01", periods=4, freq="15min"),
+    )
+
+    specs = [
+        {
+            "name": "prior_return_1",
+            "type": "PriorReturn",
+            "params": {"window": 1},
+        }
+    ]
+
+    result = compute_features(df, specs)
+    assert "prior_return_1" in result.columns
+
+
+def test_calendar_sessions_indicator():
+    """Ensure CalendarSessions indicator yields session columns."""
+
+    df = pd.DataFrame(
+        {
+            "open": [10, 11, 12],
+            "high": [10.5, 11.5, 12.5],
+            "low": [9.5, 10.5, 11.5],
+            "close": [10, 11, 12],
+            "volume": [100, 100, 100],
+        },
+        index=pd.date_range("2024-01-01", periods=3, freq="1h"),
+    )
+
+    specs = [
+        {
+            "name": "session_features",
+            "type": "CalendarSessions",
+            "params": {},
+        }
+    ]
+
+    result = compute_features(df, specs)
+
+    expected = [
+        "session_features_session_asia",
+        "session_features_session_london",
+        "session_features_session_newyork",
+    ]
+    for column in expected:
+        assert column in result.columns

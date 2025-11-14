@@ -22,6 +22,30 @@ from trading_platform.ai.campaigns.models import (
 from trading_platform.cli import _run_backtest_logic
 
 
+def _normalize_param_overrides(
+    strategy_data: dict[str, Any], overrides: dict[str, Any]
+) -> dict[str, Any]:
+    """Map legacy parameter aliases onto concrete strategy parameters."""
+
+    if not overrides:
+        return {}
+
+    params = strategy_data.get("parameters") or {}
+    normalized = dict(overrides)
+    alias_map = {
+        "fast_length": "ema_fast_length",
+        "slow_length": "ema_slow_length",
+    }
+
+    for alias, canonical in alias_map.items():
+        if alias in normalized and (
+            canonical in params or alias in params  # detect expected schema
+        ):
+            normalized[canonical] = normalized.pop(alias)
+
+    return normalized
+
+
 def execute_campaign_runs(
     plan: CampaignPlan,
     runs_dir: Path,
@@ -91,7 +115,10 @@ def execute_campaign_runs(
             if run.param_overrides:
                 if "parameters" not in strategy_data:
                     strategy_data["parameters"] = {}
-                strategy_data["parameters"].update(run.param_overrides)
+                normalized_overrides = _normalize_param_overrides(
+                    strategy_data, run.param_overrides
+                )
+                strategy_data["parameters"].update(normalized_overrides)
 
             # Build RunConfig data structure
             run_config_data: dict[str, Any] = {
@@ -111,6 +138,11 @@ def execute_campaign_runs(
                     "horizons": [10, 20, 50],
                 },
             }
+
+            if plan.global_features_config_path is not None:
+                run_config_data["global_features_config_path"] = str(
+                    plan.global_features_config_path
+                )
 
             # Add contextual features if specified
             if plan.contextual_features:
@@ -162,6 +194,19 @@ def execute_campaign_runs(
             stderr_text = stderr_buffer.getvalue()
             stdout_buffer.close()
             stderr_buffer.close()
+
+            stdout_path = run_config_dir / "stdout.log"
+            stderr_path = run_config_dir / "stderr.log"
+            stdout_path.write_text(stdout_text or "")
+            if stderr_text:
+                stderr_path.write_text(stderr_text)
+            log_line = (
+                f"[{datetime.now(timezone.utc).isoformat()}] "
+                f"Captured logs for {run.run_id} -> {stdout_path}"
+            )
+            if stderr_text:
+                log_line += f", {stderr_path}"
+            log_file.write(f"{log_line}\n")
 
             run_end = time()
             execution_time = run_end - run_start

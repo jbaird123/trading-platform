@@ -147,6 +147,7 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
         rm -rf data/campaigns
         rm -rf workspace/runs/campaign_runner
         rm -rf data/dvc/ml
+        rm -f data/dvc/processed/training_sets/master_trade_log.parquet
         echo -e "${GREEN}✓ Cleanup complete${NC}"
         echo ""
     else
@@ -345,8 +346,38 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
         PROF_CMD+=(--train-end "$TRAIN_PROFITABILITY_END")
     fi
     "${PROF_CMD[@]}"
-    PROFITABILITY_COUNT=$(find data/dvc/ml/models/profitability -name "*.pkl" 2>/dev/null | wc -l | xargs)
+    echo "  → Generating threshold recommendations..."
+    THRESH_CMD=(
+        poetry
+        run
+        python
+        scripts/rmm_analysis/generate_threshold_recommendations.py
+        --enriched-data
+        data/dvc/processed/training_sets/master_trade_log.parquet
+        --output-dir
+        analysis/rmm/featureset_trial/selected_combos
+        --context-model
+        5min_trend_following=gb_weighted
+        --context-model
+        15min_trend_following=gb_weighted
+        --context-gate
+        5min_trend_following=alignment_full
+        --context-gate
+        15min_trend_following=alignment_full
+        --context-output
+        15min_trend_following=structure+momentum:gb_weighted:0.53
+    )
+    "${THRESH_CMD[@]}"
+    PROFITABILITY_COUNT=$(
+        find data/dvc/ml/models/profitability -name "*.pkl" 2>/dev/null \
+            | wc -l | xargs
+    )
+    CLASSIFIER_COUNT=$(
+        find data/dvc/ml/models/profitability_classifier -name "*.pkl" 2>/dev/null \
+            | wc -l | xargs
+    )
     echo -e "${GREEN}✓ Trained ${PROFITABILITY_COUNT} profitability models${NC}"
+    echo -e "${GREEN}✓ Trained ${CLASSIFIER_COUNT} profitability classifiers${NC}"
     echo ""
 fi
 ((CURRENT_STAGE++))
@@ -363,14 +394,18 @@ echo -e "  Candidates approved:     ${GREEN}${APPROVED_COUNT:-0}${NC}"
 echo -e "  Total trades enriched:   ${GREEN}${TOTAL_TRADES:-0}${NC}"
 echo -e "  Diagnostic models:       ${GREEN}${DIAGNOSTIC_COUNT:-0}${NC}"
 echo -e "  Profitability models:    ${GREEN}${PROFITABILITY_COUNT:-0}${NC}"
+echo -e "  Profitability classifiers: ${GREEN}${CLASSIFIER_COUNT:-0}${NC}"
 echo ""
 echo -e "${CYAN}Generated Artifacts:${NC}"
 echo "  - Campaign plans:       data/candidates/*/plan.json"
 echo "  - Campaign briefs:      data/candidates/*/runs/*/brief.json"
 echo "  - Enriched data:        data/enriched/*/rich_trades.parquet"
-echo "  - Master trade log:     data/dvc/processed/training_sets/master_trade_log.parquet"
+echo "  - Master trade log:"
+echo "      data/dvc/processed/training_sets/master_trade_log.parquet"
 echo "  - Diagnostic models:    data/dvc/ml/models/diagnostic/"
 echo "  - Profitability models: data/dvc/ml/models/profitability/"
+echo "  - Profitability classifiers:"
+echo "      data/dvc/ml/models/profitability_classifier/"
 echo ""
 echo -e "${CYAN}Next Steps:${NC}"
 echo "  - Review audit log:     docs/ai/logs/campaign_audit.md"

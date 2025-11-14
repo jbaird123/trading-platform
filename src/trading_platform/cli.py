@@ -2,6 +2,7 @@ from __future__ import annotations
 
 #! ruff: noqa: I001
 import argparse
+import copy
 import json
 import logging
 import math
@@ -9,16 +10,35 @@ import subprocess
 import sys
 from copy import deepcopy
 from datetime import datetime
+from os import fspath
 from pathlib import Path
 from typing import Any, cast
+from unittest.mock import Mock
 
 import pandas as pd
 
 from trading_platform.ai.data_curation import run_curation_pipeline
-from trading_platform.backtester import run_backtest
+from trading_platform.ai.models import ModelRegistry
+from trading_platform.backtester.orchestrator import (
+    _infer_execution_timeframe,
+    _resolve_strategy_features_for_warmup,
+    ensure_market_data_with_warmup,
+    run_backtest,
+)
 from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
 from trading_platform.core.demo import generate_demo_run
+from trading_platform.core.global_features import (
+    DEFAULT_GLOBAL_FEATURES_PATH,
+    feature_to_dict,
+    resolve_global_feature_manifest,
+    select_minimal_global_features,
+)
+from trading_platform.core.global_features_cache import (
+    build_global_feature_caches,
+    cache_covers_features,
+    derive_execution_timeframes,
+)
 from trading_platform.core.meta_campaign_config import MetaCampaignConfig
 from trading_platform.core.meta_campaign_generator import (
     calculate_cartesian_product,
@@ -33,11 +53,16 @@ from trading_platform.core.sweeps import (
 from trading_platform.data.handler import DataHandler
 from trading_platform.data.instrument import get_instrument_definition
 from trading_platform.data.integrity_validator import validate_all_data
+from trading_platform.data.session_metadata import SESSION_ATTR
 from trading_platform.execution.oanda_stub import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
 from trading_platform.regime_market_manager.engine import RMMEngine
-from trading_platform.regime_market_manager.models import RMMConfig
+from trading_platform.regime_market_manager.models import (
+    RMMConfig,
+    RMMGatingProfile,
+    parse_rmm_resource,
+)
 from trading_platform.reporting.brief import compute_data_quality
 from trading_platform.reporting.chart_export import (
     save_chart_from_brief,
@@ -57,6 +82,11 @@ from trading_platform.validation.walk_forward import (
 )
 
 logger = logging.getLogger(__name__)
+
+CLASSIFIER_CONTEXTS = {
+    ("5min", "trend_following"),
+    ("15min", "trend_following"),
+}
 
 
 def _get_git_commit() -> str | None:
@@ -116,16 +146,24 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         # Remove the path key after loading since it's not part of the schema
         cfg_raw.pop("rem_path", None)
 
+    has_gating_profile = False
+    gating_profile_obj: RMMGatingProfile | None = None
     rmm_path = cfg_raw.get("rmm_path")
     if rmm_path:
         loaded_rmm_cfg = _load_config(Path(str(rmm_path)))
-        cfg_raw["rmm_config"] = loaded_rmm_cfg
+        legacy_rmm, gating_profile = parse_rmm_resource(loaded_rmm_cfg)
+        if legacy_rmm:
+            cfg_raw["rmm_config"] = legacy_rmm
+        if gating_profile:
+            cfg_raw["rmm_gating_profile"] = gating_profile.model_dump()
+            has_gating_profile = True
+            gating_profile_obj = gating_profile
         # Remove the path key after loading since it's not part of the schema
         cfg_raw.pop("rmm_path", None)
 
     # Remove CLI-only fields that aren't part of RunConfig schema
     global_features_config_path: Path | None = None
-    global_feat_val = cfg_raw.pop("global_features_config_path", None)
+    global_feat_val = cfg_raw.get("global_features_config_path")
     if global_feat_val:
         gf_path = Path(str(global_feat_val))
         if not gf_path.is_absolute():
@@ -140,6 +178,21 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                     global_features_config_path = candidate_path
         else:
             global_features_config_path = gf_path
+    if global_features_config_path is None and has_gating_profile:
+        default_global = paths.PROJECT_ROOT / "config" / "features" / "global.yaml"
+        if default_global.exists():
+            global_features_config_path = default_global
+        else:
+            logger.warning(
+                "RMM gating profile present but no global features "
+                "config provided; default path %s does not exist",
+                default_global,
+            )
+
+    if global_features_config_path is not None:
+        cfg_raw["global_features_config_path"] = global_features_config_path
+    else:
+        cfg_raw["global_features_config_path"] = None
 
     cfg_raw.pop("fast_mode", None)  # Removed - not needed
     cfg_raw.pop("rmm", None)  # Legacy field - not part of schema
@@ -151,55 +204,44 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     strategy_params = cfg_raw.pop("strategy_params", None)  # Extract for later use
 
     cfg = RunConfig.model_validate(cfg_raw)
-    run_path = initialize_run(cfg)
 
-    # Initialize DataHandler for centralized data access with caching
-    data_handler: DataHandler | None = None
-    df: pd.DataFrame
-    dq_flags: list[str] = []
-    instrument_def = None  # Will be set if data_request present
-    data_req = cfg_raw.get("data_request")
-    if isinstance(data_req, dict):
-        # Create DataHandler - loads raw data once, handles all resampling/caching
-        instrument_def = get_instrument_definition(data_req["symbol"])
-        data_handler = DataHandler(
-            symbol=data_req["symbol"],
-            data_root=paths.RAW_DATA_DIR,
-            instrument=instrument_def,
-        )
-        dq_flags = data_handler.data_quality_flags
+    def _normalize_optional_path(value: Any) -> Path | None:
+        if value in (None, "", False):
+            return None
+        try:
+            return Path(fspath(value))
+        except Exception:
+            return None
 
-        # Get data for requested timeframe and date range
-        # Will calculate warmup requirements dynamically based on indicators
-        df = data_handler.get_data(
-            timeframe=data_req.get("timeframe"),
-            start=data_req.get("start"),
-            end=data_req.get("end"),
-        )
-    else:
-        idx = pd.date_range("2024-01-01", periods=5, freq="h")
-        vals = [1.0, 2.0, 3.0, 2.0, 1.0]
-        df = pd.DataFrame(
-            {
-                "open": vals,
-                "high": vals,
-                "low": vals,
-                "close": vals,
-                "volume": [1] * 5,
-            },
-            index=idx,
-        )
+    cfg_global_features_path = _normalize_optional_path(
+        getattr(cfg, "global_features_config_path", None)
+    )
 
-    # Persist processed market data for AI Lab analysis
-    processed_data_path: Path | None = None
-    try:
-        processed_data_path = run_path / "processed_data.parquet"
-        df.to_parquet(processed_data_path)
-    except Exception as e:
-        # Safe to continue: processed_data.parquet is for AI Lab analysis
-        # Not required for backtest results
-        logger.warning(f"Failed to save processed data parquet: {e}")
-        processed_data_path = None
+    if (
+        not hasattr(cfg, "global_features_config_path")
+        or cfg_global_features_path is None
+    ):
+        cfg_global_features_path = _normalize_optional_path(
+            cfg_raw.get("global_features_config_path")
+        )
+        setattr(cfg, "global_features_config_path", cfg_global_features_path)
+    if not hasattr(cfg, "global_features_mode"):
+        setattr(cfg, "global_features_mode", "full")
+    if not hasattr(cfg, "minimal_global_features_include"):
+        setattr(cfg, "minimal_global_features_include", [])
+    current_instrument = getattr(cfg, "instrument", None)
+    if current_instrument is None or isinstance(current_instrument, Mock):
+        setattr(cfg, "instrument", cfg_raw.get("instrument"))
+    current_data_request = getattr(cfg, "data_request", None)
+    if current_data_request is None or isinstance(current_data_request, Mock):
+        setattr(cfg, "data_request", cfg_raw.get("data_request"))
+
+    def _update_cfg(obj: Any, **updates: Any) -> Any:
+        if hasattr(obj, "model_copy"):
+            return obj.model_copy(update=updates)
+        for key, value in updates.items():
+            setattr(obj, key, value)
+        return obj
 
     # Get strategy config (can be embedded or in a separate file)
     strat_cfg = cfg_raw.get("strategy")
@@ -214,6 +256,256 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     if not isinstance(strat_cfg, dict):
         raise ValueError("Strategy configuration must be a dict.")
     strat_cfg = cast(dict[str, Any], strat_cfg)
+
+    def _ensure_dict(value: Any) -> dict[str, Any]:
+        return value if isinstance(value, dict) else {}
+
+    def _prepare_strategy_for_warmup(
+        strategy_cfg: dict[str, Any],
+        params: dict[str, Any] | None,
+        overrides: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        cfg_copy = copy.deepcopy(strategy_cfg)
+
+        base_params = _ensure_dict(cfg_copy.get("parameters"))
+        cfg_copy["parameters"] = base_params
+
+        if isinstance(params, dict):
+            base_params.update(params)
+
+        if isinstance(overrides, dict):
+            param_over = overrides.get("parameters")
+            if isinstance(param_over, dict):
+                base_params.update(param_over)
+
+            feat_over = overrides.get("features")
+            if isinstance(feat_over, dict) and isinstance(
+                cfg_copy.get("features"), list
+            ):
+                for feature in cfg_copy["features"]:
+                    if not isinstance(feature, dict):
+                        continue
+                    name = str(feature.get("name", ""))
+                    override_params = feat_over.get(name)
+                    if not isinstance(override_params, dict):
+                        continue
+                    feature_params = feature.get("params")
+                    if not isinstance(feature_params, dict):
+                        feature_params = {}
+                        feature["params"] = feature_params
+                    feature_params.update(override_params)
+
+        features_list = cfg_copy.get("features")
+        if not isinstance(features_list, list):
+            cfg_copy["features"] = []
+
+        return cfg_copy
+
+    warmup_strategy_config = _prepare_strategy_for_warmup(
+        strat_cfg, strategy_params, strategy_overrides
+    )
+    warmup_strategy = compile_strategy(warmup_strategy_config)
+    warmup_strategy_features = _resolve_strategy_features_for_warmup(warmup_strategy)
+
+    exec_timeframe: str | None = None
+
+    # Initialize DataHandler for centralized data access with caching
+    data_handler: DataHandler | None = None
+    df: pd.DataFrame
+    dq_flags: list[str] = []
+    instrument_def = None  # Will be set if data_request present
+    data_req_raw = cfg_raw.get("data_request")
+    has_real_data_request = isinstance(data_req_raw, dict)
+    data_req: dict[str, Any] | None = data_req_raw if has_real_data_request else None
+    if has_real_data_request and data_req is not None:
+        # Create DataHandler - loads raw data once, handles all resampling/caching
+        instrument_def = get_instrument_definition(data_req["symbol"])
+        data_handler = DataHandler(
+            symbol=data_req["symbol"],
+            data_root=paths.RAW_DATA_DIR,
+            instrument=instrument_def,
+        )
+        dq_flags = data_handler.data_quality_flags
+
+        # Get data for requested timeframe and date range
+        df = data_handler.get_data(
+            timeframe=data_req.get("timeframe"),
+            start=data_req.get("start"),
+            end=data_req.get("end"),
+        )
+        walk_forward_df = data_handler.get_data(timeframe=data_req.get("timeframe"))
+    else:
+        idx = pd.date_range("2024-01-01", periods=5, freq="h")
+        vals = [1.0, 2.0, 3.0, 2.0, 1.0]
+        df = pd.DataFrame(
+            {
+                "open": vals,
+                "high": vals,
+                "low": vals,
+                "close": vals,
+                "volume": [1] * 5,
+            },
+            index=idx,
+        )
+        walk_forward_df = df
+
+    if exec_timeframe is None:
+        exec_timeframe = _infer_execution_timeframe(cfg, df)
+
+    if has_real_data_request:
+        global_features_mode = getattr(cfg, "global_features_mode", "full")
+        minimal_include = getattr(cfg, "minimal_global_features_include", [])
+
+        manifest_path, resolved_features = resolve_global_feature_manifest(
+            exec_timeframe,
+            cfg_global_features_path,
+            warn_on_default=(cfg_global_features_path is None),
+        )
+
+        minimal_features = select_minimal_global_features(
+            resolved_features,
+            mode=global_features_mode,
+            include=minimal_include,
+            gating_profile=gating_profile_obj,
+        )
+
+        global_feature_defs = [feature_to_dict(feature) for feature in minimal_features]
+
+        if cfg_global_features_path != manifest_path:
+            cfg = _update_cfg(cfg, global_features_config_path=manifest_path)
+            cfg_global_features_path = manifest_path
+        cfg_raw["global_features_config_path"] = str(manifest_path)
+    else:
+        manifest_path = None
+        global_feature_defs = []
+        cfg = _update_cfg(cfg, global_features_config_path=None)
+        cfg_global_features_path = None
+        cfg_raw["global_features_config_path"] = None
+
+    run_path = initialize_run(cfg)
+
+    skip_global_warmup = False
+    warmup_global_defs = global_feature_defs
+    if (
+        has_real_data_request
+        and global_feature_defs
+        and data_handler is not None
+        and cfg_global_features_path is not None
+    ):
+        symbol_candidate = None
+        if data_req is not None:
+            symbol_candidate = data_req.get("symbol")
+        if symbol_candidate is None:
+            instrument_cfg = getattr(cfg, "instrument", None)
+            if isinstance(instrument_cfg, dict):
+                symbol_candidate = instrument_cfg.get("symbol")
+            elif instrument_cfg is not None:
+                symbol_candidate = getattr(instrument_cfg, "symbol", None)
+
+        if symbol_candidate:
+            config_path = Path(cfg_global_features_path)
+            try:
+                cache_override = cfg_raw.get("global_feature_cache_root")
+                cache_root = (
+                    Path(str(cache_override)).expanduser().resolve()
+                    if cache_override
+                    else paths.GLOBAL_FEATURE_CACHE_DIR
+                )
+                skip_global_warmup = cache_covers_features(
+                    symbol=symbol_candidate,
+                    cache_root=cache_root,
+                    config_path=config_path,
+                    timeframe=exec_timeframe,
+                    feature_names=[
+                        cast(str, feature.get("name"))
+                        for feature in global_feature_defs
+                        if isinstance(feature.get("name"), str)
+                    ],
+                )
+            except Exception:  # pragma: no cover - defensive
+                skip_global_warmup = False
+        if skip_global_warmup:
+            warmup_global_defs = []
+            msg = (
+                f"Global feature cache covers {exec_timeframe} timeframe; "
+                "skipping global feature warmup."
+            )
+        else:
+            msg = (
+                f"Global feature cache not ready for {exec_timeframe} timeframe; "
+                "running full global warmup."
+            )
+        logger.info(msg)
+        print(msg)
+
+    df = ensure_market_data_with_warmup(
+        market_data=df,
+        execution_timeframe=exec_timeframe,
+        strategy_features=warmup_strategy_features,
+        global_features=warmup_global_defs,
+        data_request=getattr(cfg, "data_request", None),
+        data_handler=data_handler,
+    )
+
+    df_full = walk_forward_df
+    analysis_df = df
+    visible_start = None
+    visible_end = None
+    if has_real_data_request and data_req is not None:
+        start_val = data_req.get("start")
+        end_val = data_req.get("end")
+        if start_val:
+            try:
+                visible_start = pd.to_datetime(start_val, utc=True)
+            except Exception:
+                visible_start = None
+        if end_val:
+            try:
+                visible_end = pd.to_datetime(end_val, utc=True)
+                if isinstance(end_val, str) and len(end_val) == 10:
+                    visible_end = (
+                        visible_end + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
+                    )
+            except Exception:
+                visible_end = None
+        if visible_start is not None or visible_end is not None:
+            analysis_df = df
+            if isinstance(analysis_df.index, pd.DatetimeIndex):
+                try:
+                    if visible_start is not None:
+                        analysis_df = analysis_df.loc[
+                            analysis_df.index >= visible_start
+                        ]
+                    if visible_end is not None:
+                        analysis_df = analysis_df.loc[analysis_df.index <= visible_end]
+                except TypeError:
+                    logger.warning(
+                        "Requested start/end filters but index comparison failed; "
+                        "skipping visible window filtering.",
+                    )
+                else:
+                    if analysis_df.empty:
+                        raise ValueError(
+                            "No data remains within requested date range after warmup."
+                        )
+            else:
+                logger.warning(
+                    "Requested start/end filters but index is not datetime; "
+                    "skipping visible window filtering."
+                )
+
+    # Persist processed market data for AI Lab analysis
+    processed_data_path: Path | None = None
+    # Remove non-serializable attrs before persisting
+    df.attrs.pop(SESSION_ATTR, None)
+    try:
+        processed_data_path = run_path / "processed_data.parquet"
+        df.to_parquet(processed_data_path)
+    except Exception as e:
+        # Safe to continue: processed_data.parquet is for AI Lab analysis
+        # Not required for backtest results
+        logger.warning(f"Failed to save processed data parquet: {e}")
+        processed_data_path = None
 
     # RMM optional for legacy configs; if present, build per-bar context
     rmm_context: dict[datetime, dict[str, Any]] | None = None
@@ -361,7 +653,8 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         strategy_params=strategy_params,
         strategy_overrides=strategy_overrides,
         data_handler=data_handler,
-        global_features_config_path=global_features_config_path,
+        global_features_config_path=cfg_global_features_path,
+        global_feature_defs=global_feature_defs,
         rmm_context=rmm_context,
         return_exposure=ret_exp,
         return_skips=ret_skips,
@@ -400,6 +693,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
             strat = result_dict["compiled_strategy"]
             feature_enriched_df = result_dict["feature_enriched_df"]
             strategy_name = result_dict["strategy_name"]
+            skips = result_dict.get("skipped", []) or []
 
     # For tuple format, we need strategy object for features/signals saving
     # Recompile if needed (orchestrator already did this, but didn't return
@@ -463,7 +757,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     ps_results = None
     if isinstance(ps_cfg, dict) and (ps_cfg.get("grid") or ps_cfg.get("random_space")):
         ps_results = run_parameter_sweep(
-            df,
+            analysis_df,
             cfg_raw,
             strat_cfg,
             grid=ps_cfg.get("grid"),
@@ -475,6 +769,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
             vol_penalty=ps_cfg.get("vol_penalty"),
             debug_dir=run_path / "debug",
             data_handler=data_handler,
+            global_features_config_path=cfg_global_features_path,
         )
 
     # Optional walk-forward analysis (bar-based)
@@ -492,7 +787,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                 grid_cfg = ps_cfg.get("grid")
                 grid_typed = cast(dict[str, list[Any]], grid_cfg)
                 wf_results = walk_forward_optimize_and_test(
-                    df,
+                    df_full,
                     cfg_raw,
                     strat_cfg,
                     window=train_bars,
@@ -503,6 +798,9 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                     dd_penalty=ps_cfg.get("dd_penalty"),
                     vol_penalty=ps_cfg.get("vol_penalty"),
                     data_handler=data_handler,
+                    global_features_config_path=cfg_global_features_path,
+                    visible_start=visible_start,
+                    visible_end=visible_end,
                 )
 
                 # NEW: Add per-candidate WFE summaries
@@ -527,13 +825,16 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
 
                         # Run WFE for this candidate
                         wfe = walk_forward_analysis(
-                            df,
+                            df_full,
                             cfg_raw,
                             cand_strat_cfg,
                             train_bars=train_bars,
                             test_bars=test_bars,
                             step_bars=step_bars,
                             data_handler=data_handler,
+                            global_features_config_path=cfg_global_features_path,
+                            visible_start=visible_start,
+                            visible_end=visible_end,
                         )
                         per_candidate_wfe.append(
                             {
@@ -550,13 +851,16 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                 from trading_platform.core.sweeps import walk_forward_analysis
 
                 wf_results = walk_forward_analysis(
-                    df,
+                    df_full,
                     cfg_raw,
                     strat_cfg,
                     train_bars=train_bars,
                     test_bars=test_bars,
                     step_bars=step_bars,
                     data_handler=data_handler,
+                    global_features_config_path=cfg_global_features_path,
+                    visible_start=visible_start,
+                    visible_end=visible_end,
                 )
         else:
             logger.warning(
@@ -574,7 +878,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         from trading_platform.core.sweeps import monte_carlo_resimulation
 
         mc_results = monte_carlo_resimulation(
-            df,
+            analysis_df,
             cfg_raw,
             strat_cfg,
             trials=int(mc_cfg.get("trials", 100)),
@@ -979,8 +1283,6 @@ def cmd_clear_cache(args: argparse.Namespace) -> int:
 
 def cmd_train_profitability_models(args: argparse.Namespace) -> int:
     """Train profitability models from enriched trade data."""
-    from trading_platform.ai.models import ModelRegistry
-
     # Load enriched data
     enriched_path = Path(args.enriched_data)
     if not enriched_path.exists():
@@ -1053,6 +1355,7 @@ def cmd_train_profitability_models(args: argparse.Namespace) -> int:
     ].drop_duplicates()
 
     trained_models: dict[str, Any] = {}
+    trained_classifiers: dict[str, Any] = {}
 
     for _, row in contexts.iterrows():
         timeframe = row["execution_timeframe"]
@@ -1069,12 +1372,26 @@ def cmd_train_profitability_models(args: argparse.Namespace) -> int:
         trained_models[key] = model
         print(f"  ✓ Finished {key}")
 
-    if not trained_models:
+        if (timeframe, archetype) in CLASSIFIER_CONTEXTS:
+            print(f"  → Training classifier for {key}...")
+            clf_model = registry.get_or_create_profitability_classifier(
+                timeframe=timeframe,
+                archetype=archetype,
+                random_state=args.random_state,
+            )
+            clf_model.fit(trades_with_risk)
+            trained_classifiers[key] = clf_model
+            print(f"  ✓ Finished classifier {key}")
+
+    if not trained_models and not trained_classifiers:
         print("\nNo models trained (insufficient data for all contexts)")
         return 1
 
     # Save models
-    print(f"\nSaving {len(trained_models)} models...")
+    print(
+        f"\nSaving {len(trained_models)} regression models"
+        f" and {len(trained_classifiers)} classifier models..."
+    )
     registry.save()
 
     print("\nProfitability models trained successfully:")
@@ -1082,12 +1399,18 @@ def cmd_train_profitability_models(args: argparse.Namespace) -> int:
         model_path = registry.get_model_path("profitability", key)
         print(f"  - {key}: {model_path}")
 
+    if trained_classifiers:
+        print("\nProfitability classifier models trained:")
+        for key in trained_classifiers.keys():
+            model_path = registry.get_model_path("profitability_classifier", key)
+            print(f"  - {key}: {model_path}")
+
     return 0
 
 
 def cmd_train_diagnostic_models(args: argparse.Namespace) -> int:
     """Train diagnostic models from enriched trade data."""
-    from trading_platform.ai.models import ModelRegistry, PerformanceDiagnosticModel
+    from trading_platform.ai.models import PerformanceDiagnosticModel
 
     # Load enriched data
     enriched_path = Path(args.enriched_data)
@@ -1149,8 +1472,6 @@ def cmd_train_diagnostic_models(args: argparse.Namespace) -> int:
 
 def cmd_predict_profitability(args: argparse.Namespace) -> int:
     """Predict profitability for new trades using trained models."""
-    from trading_platform.ai.models import ModelRegistry
-
     # Load models
     model_dir = Path(args.model_dir) if args.model_dir else Path("models")
     registry = ModelRegistry(model_dir=model_dir)
@@ -1221,8 +1542,6 @@ def cmd_predict_profitability(args: argparse.Namespace) -> int:
 
 def cmd_analyze_regime(args: argparse.Namespace) -> int:
     """Analyze regime performance using trained diagnostic models."""
-    from trading_platform.ai.models import ModelRegistry
-
     # Load models
     model_dir = Path(args.model_dir) if args.model_dir else Path("models")
     registry = ModelRegistry(model_dir=model_dir)
@@ -1307,7 +1626,6 @@ def cmd_analyze_regime(args: argparse.Namespace) -> int:
 def cmd_ai_generate_rmm_candidates(args: argparse.Namespace) -> int:
     """Generate RMM candidate configurations from diagnostic summaries."""
 
-    from trading_platform.ai.models import ModelRegistry
     from trading_platform.ai.pipeline.candidate_generator import generate_rmm_candidates
     from trading_platform.ai.pipeline.diagnostic_collector import (
         collect_diagnostic_contexts,
@@ -1702,6 +2020,77 @@ def _validate_data_logic(args: argparse.Namespace) -> int:
 
     # Return exit code
     return 1 if results["total_issues"] > 0 else 0
+
+
+def _precompute_global_features_logic(args: argparse.Namespace) -> int:
+    """Precompute global feature caches for the requested symbol."""
+
+    symbol = args.symbol or "EUR_USD"
+    data_root = Path(args.data_root or paths.RAW_DATA_DIR).expanduser().resolve()
+
+    config_arg = args.config
+    if config_arg is None:
+        config_path = DEFAULT_GLOBAL_FEATURES_PATH
+    else:
+        config_candidate = Path(config_arg)
+        if not config_candidate.is_absolute():
+            if config_candidate.exists():
+                config_path = config_candidate.resolve()
+            else:
+                config_path = (paths.PROJECT_ROOT / config_candidate).resolve()
+        else:
+            config_path = config_candidate
+
+    if not config_path.exists():
+        print(f"Global features config not found at {config_path}", file=sys.stderr)
+        return 2
+
+    tf_list = None
+    if args.timeframes:
+        tf_list = [tf.strip() for tf in args.timeframes if tf and tf.strip()]
+        if not tf_list:
+            tf_list = None
+
+    if tf_list is None:
+        tf_list = derive_execution_timeframes(config_path)
+
+    cache_root = (
+        Path(args.cache_root).expanduser().resolve()
+        if getattr(args, "cache_root", None)
+        else paths.GLOBAL_FEATURE_CACHE_DIR
+    )
+
+    descriptor = build_global_feature_caches(
+        symbol=symbol,
+        data_root=data_root,
+        config_path=config_path,
+        timeframes=tf_list,
+        overwrite=args.overwrite,
+        cache_root=cache_root,
+        include_bar_windows=args.include_bar_windows,
+    )
+
+    metadata_path = descriptor.metadata_path()
+    if not metadata_path.exists():
+        print(
+            "Cache metadata missing after build; rerun with --overwrite.",
+            file=sys.stderr,
+        )
+        return 1
+
+    metadata = json.loads(metadata_path.read_text())
+    cached_timeframes = list(metadata.get("timeframes", {}))
+    cached_timeframes.sort(
+        key=lambda tf: (pd.to_timedelta(tf.lower()).total_seconds(), tf.lower())
+    )
+
+    print(f"Global feature cache directory: {descriptor.base_dir()}")
+    print(f"Config hash: {metadata.get('config_hash')}")
+    if cached_timeframes:
+        print(f"Cached timeframes: {', '.join(cached_timeframes)}")
+    else:
+        print("Cached timeframes: (none recorded)")
+    return 0
 
 
 def _walk_forward_validate_logic(args: argparse.Namespace) -> int:
@@ -2100,6 +2489,45 @@ def main() -> int:
         help="Specific instruments to check (default: all in directory)",
     )
     pvd.set_defaults(func=_validate_data_logic)
+
+    pgfc = sub.add_parser(
+        "precompute-global-features",
+        help="Precompute cached global feature matrices for a symbol",
+    )
+    pgfc.add_argument("--symbol", default="EUR_USD", help="Instrument symbol")
+    pgfc.add_argument(
+        "--data-root",
+        default=str(paths.RAW_DATA_DIR),
+        help="Root directory containing raw data (default: data/dvc/raw)",
+    )
+    pgfc.add_argument(
+        "--config",
+        default=None,
+        help="Path to global features YAML (default: config/features/global.yaml)",
+    )
+    pgfc.add_argument(
+        "--timeframes",
+        nargs="+",
+        help="Execution timeframes to cache (default: inferred from config)",
+    )
+    pgfc.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Rebuild cache even if it already exists",
+    )
+    pgfc.add_argument(
+        "--cache-root",
+        default=None,
+        help="Root directory to store cached features "
+        "(default: same as --data-root)",
+    )
+    pgfc.add_argument(
+        "--include-bar-windows",
+        action="store_true",
+        help="Include *_bar_open/_bar_close columns in cache outputs "
+        "(default: disabled)",
+    )
+    pgfc.set_defaults(func=_precompute_global_features_logic)
 
     # Walk-Forward Validation command
     pwfv = sub.add_parser(

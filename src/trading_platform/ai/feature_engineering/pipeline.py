@@ -56,10 +56,7 @@ class FeatureEngineeringPipeline:
         Returns:
             A new DataFrame with the added feature columns.
         """
-        print(
-            f"Running feature engineering for {len(feature_configs)} "
-            f"features..."
-        )
+        print(f"Running feature engineering for {len(feature_configs)} " f"features...")
 
         # Convert all configs to specs format
         specs = []

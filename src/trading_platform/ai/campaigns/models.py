@@ -60,6 +60,10 @@ class CampaignConfig(BaseModel):
     )
     rem_path: Optional[Path] = Field(default=None, description="Path to REM config")
     rmm_path: Optional[Path] = Field(default=None, description="Path to RMM config")
+    global_features_config_path: Optional[Path] = Field(
+        default=None,
+        description="Path to the global features configuration (global.yaml).",
+    )
     description: Optional[str] = Field(default=None, description="Campaign description")
 
 
@@ -98,6 +102,10 @@ class CampaignPlan(BaseModel):
     provenance: Provenance = Field(..., description="Provenance metadata")
     rem_path: Optional[Path] = Field(default=None, description="Path to REM config")
     rmm_path: Optional[Path] = Field(default=None, description="Path to RMM config")
+    global_features_config_path: Optional[Path] = Field(
+        default=None,
+        description="Global features configuration path",
+    )
 
 
 class RunResult(BaseModel):

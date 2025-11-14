@@ -12,12 +12,17 @@ See: docs/GOLDEN_VALIDATION.md for the golden validation contract.
 """
 
 from datetime import timedelta
+from numbers import Real
 from pathlib import Path
 from typing import Any, cast
 
 import pandas as pd
 import pytest
+from trading_platform.core.global_features_cache import cache_covers_features
 from trading_platform.portfolio.trade import Trade
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+GOLDEN_FEATURE_CACHE_ROOT = PROJECT_ROOT / "data" / "dvc" / "golden"
 
 # Golden validation utilities (ALWAYS use these for golden tests)
 
@@ -37,6 +42,25 @@ TRADE_VALIDATION_TOLERANCES: dict[str, Any] = {
     "exit_price": 1e-10,  # Floating-point precision tolerance
     "trade_count": 0,  # Must match exactly
 }
+
+HASH_VALIDATION_CASES: list[tuple[str, str]] = [
+    ("ema_crossover/baseline", "platform_trades_baseline"),
+    ("ema_crossover/20pip_stop", "platform_trades_20pip_stop"),
+    (
+        "ema_crossover/20pip_stop_40pip_tp",
+        "platform_trades_20pip_stop_40pip_tp",
+    ),
+    (
+        "ema_crossover/20pip_trailing_stop",
+        "platform_trades_20pip_trailing_stop",
+    ),
+    (
+        "ema_crossover/20pip_trailing_stop_15pip_tp",
+        "platform_trades_20pip_trailing_stop_15pip_tp",
+    ),
+    ("ema_crossover/2atr_stop", "platform_trades_2atr_stop"),
+    ("ema_crossover/bb_stop", "platform_trades_bb_stop"),
+]
 
 # === KNOWN EDGE CASES ===
 #
@@ -624,6 +648,17 @@ def load_platform_trades(
     if rem_config:
         config_dict["rem_config"] = rem_config
 
+    data_request: dict[str, Any] = config_dict.get("data_request", {}).copy()
+    if date_range:
+        start_val = date_range.get("start")
+        end_val = date_range.get("end")
+        if start_val and "start" not in data_request:
+            data_request["start"] = start_val
+        if end_val and "end" not in data_request:
+            data_request["end"] = end_val
+    if data_request:
+        config_dict["data_request"] = data_request
+
     # Create RunConfig (trim handled by warmup guards)
     config = RunConfig.model_validate(config_dict)
 
@@ -663,6 +698,25 @@ def load_platform_trades(
             }
             for f in resolved_global
         ]
+        feature_names = [
+            cast(str, feature["name"])
+            for feature in global_features_list
+            if isinstance(feature.get("name"), str)
+        ]
+
+        use_cached_global = False
+        if feature_names and hasattr(data_handler, "data_root"):
+            symbol_for_cache = instrument_cfg.get("symbol") or data_request.get(
+                "symbol"
+            )
+            if symbol_for_cache:
+                use_cached_global = cache_covers_features(
+                    symbol=symbol_for_cache,
+                    cache_root=GOLDEN_FEATURE_CACHE_ROOT,
+                    config_path=golden_features_path,
+                    timeframe=execution_timeframe,
+                    feature_names=feature_names,
+                )
 
         # Compile strategy to get parameters
         from trading_platform.strategy.features import _resolve_parameter
@@ -686,7 +740,7 @@ def load_platform_trades(
         # Calculate warmup start date
         warmup_start_date, warmup_info = calculate_warmup_start_date(
             strategy_features=resolved_strategy_features,
-            global_features=global_features_list,
+            global_features=[] if use_cached_global else global_features_list,
             execution_timeframe=execution_timeframe,
             market_data=ohlcv_1h,
             backtest_start_date=backtest_start_date,
@@ -802,6 +856,9 @@ def _flatten_context_for_verification(ctx: dict, prefix: str = "") -> dict:
             # Recursively flatten nested dicts
             result.update(_flatten_context_for_verification(value, f"{new_key}_"))
         else:
+            if isinstance(value, Real) and "obv" in new_key.lower():
+                if float(value).is_integer():
+                    value = int(float(value))
             result[new_key] = value
     return result
 
@@ -1111,6 +1168,20 @@ pytestmark = pytest.mark.validation
 # === TEST CASES ===
 
 
+@pytest.mark.parametrize(
+    ("strategy_name", "platform_fixture"),
+    HASH_VALIDATION_CASES,
+)
+def test_ema_crossover_platform_trades_match_golden(
+    strategy_name: str,
+    platform_fixture: str,
+    request: pytest.FixtureRequest,
+):
+    """Ensure platform trade snapshots still match the frozen golden files."""
+    platform_trades = request.getfixturevalue(platform_fixture)
+    verify_golden_trades_hash(strategy_name, platform_trades)
+
+
 def test_ema_crossover_trade_count_matches_tradingview(
     tradingview_trades,
     golden_metadata,
@@ -1122,10 +1193,6 @@ def test_ema_crossover_trade_count_matches_tradingview(
     """
     # Load platform trades
     platform_trades = platform_trades_baseline
-
-    # Verify platform trades hash matches golden reference
-    # This catches ANY changes in platform output (MFE/MAE, exit_reason, etc.)
-    verify_golden_trades_hash("ema_crossover/baseline", platform_trades)
 
     # Compare counts
     # Use align_trades to parse TradingView trades with validation range filtering
@@ -1412,9 +1479,6 @@ def test_ema_crossover_20pip_stop_trade_count_matches_tradingview(
     # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
     """
     platform_trades = platform_trades_20pip_stop
-
-    # Verify platform trades hash matches golden reference
-    verify_golden_trades_hash("ema_crossover/20pip_stop", platform_trades)
 
     if "Signal" in tradingview_trades.columns:
         closed_trades = tradingview_trades[tradingview_trades["Signal"] != "Open"]
@@ -1741,9 +1805,6 @@ def test_ema_crossover_20pip_stop_40pip_tp_trade_count_matches_tradingview(
     # Validates: [SE-3.5.3], [BT-7.8], [REM-6.3]
     """
     platform_trades = platform_trades_20pip_stop_40pip_tp
-
-    # Verify platform trades hash matches golden reference
-    verify_golden_trades_hash("ema_crossover/20pip_stop_40pip_tp", platform_trades)
 
     if "Signal" in tradingview_trades.columns:
         closed_trades = tradingview_trades[tradingview_trades["Signal"] != "Open"]
@@ -2125,9 +2186,6 @@ def test_ema_crossover_20pip_trailing_stop_trade_count_matches_tradingview(
 
     # Load platform trades
     platform_trades = platform_trades_20pip_trailing_stop
-
-    # Verify platform trades hash matches golden reference
-    verify_golden_trades_hash("ema_crossover/20pip_trailing_stop", platform_trades)
 
     # Align trades
     platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
@@ -2519,11 +2577,6 @@ def test_ema_crossover_20pip_trailing_stop_15pip_tp_trade_count_matches_tradingv
 
     # Load platform trades
     platform_trades = platform_trades_20pip_trailing_stop_15pip_tp
-
-    # Verify platform trades hash matches golden reference
-    verify_golden_trades_hash(
-        "ema_crossover/20pip_trailing_stop_15pip_tp", platform_trades
-    )
 
     # Align trades
     platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
@@ -2920,9 +2973,6 @@ def test_ema_crossover_2atr_stop_trade_count_matches_tradingview(
     # Load platform trades
     platform_trades = platform_trades_2atr_stop
 
-    # Verify platform trades hash matches golden reference
-    verify_golden_trades_hash("ema_crossover/2atr_stop", platform_trades)
-
     # Align trades
     platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
 
@@ -3217,11 +3267,6 @@ def test_ema_crossover_bb_stop_trade_count_matches_tradingview(
     date_range = golden_metadata.get("date_range")
     platform_trades = platform_trades_bb_stop
 
-    try:
-        verify_golden_trades_hash("ema_crossover/bb_stop", platform_trades)
-    except FileNotFoundError as exc:
-        pytest.skip(str(exc))
-
     platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
 
     assert len(platform_df) == len(tv_df), (
@@ -3243,11 +3288,6 @@ def test_ema_crossover_bb_stop_exit_times_match_tradingview(
 
     date_range = golden_metadata.get("date_range")
     platform_trades = platform_trades_bb_stop
-
-    try:
-        verify_golden_trades_hash("ema_crossover/bb_stop", platform_trades)
-    except FileNotFoundError as exc:
-        pytest.skip(str(exc))
 
     platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
 
@@ -3275,11 +3315,6 @@ def test_ema_crossover_bb_stop_exit_prices_match_tradingview(
 
     date_range = golden_metadata.get("date_range")
     platform_trades = platform_trades_bb_stop
-
-    try:
-        verify_golden_trades_hash("ema_crossover/bb_stop", platform_trades)
-    except FileNotFoundError as exc:
-        pytest.skip(str(exc))
 
     platform_df, tv_df = align_trades(platform_trades, tradingview_trades, date_range)
 

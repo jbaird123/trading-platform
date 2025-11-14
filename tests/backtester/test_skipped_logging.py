@@ -2,15 +2,18 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any, cast
 
 import pandas as pd
 import pytest
-from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 
 from tests.backtester.dummy_objects import _dummy_strategy_cfg
-from tests.test_helpers import get_empty_global_features_path
+from tests.test_helpers import (
+    get_empty_global_features_path,
+    run_backtest_simulation,
+)
 
 
 def _df() -> pd.DataFrame:
@@ -55,7 +58,7 @@ def test_skip_logged_for_blackout():
         exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config=None)
-    result = _run_backtest_simulation(
+    result = run_backtest_simulation(
         market_data=df,
         signals=sig,
         strategy=strategy,
@@ -65,10 +68,12 @@ def test_skip_logged_for_blackout():
         return_skips=True,
         global_features_config_path=get_empty_global_features_path(),
     )
-    trades, _exp, skips = result  # type: ignore[misc]
+    _, _, skips = cast(
+        tuple[list[Any], list[tuple[datetime, float]], list[dict[str, Any]]], result
+    )
     assert skips is not None
-    assert len(skips) >= 1  # type: ignore[arg-type]
-    s0 = skips[0]  # type: ignore[index]
+    assert len(skips) >= 1
+    s0 = skips[0]
     assert s0["skip_reason"] in ("blackout_static", "blackout")
     assert "policy_snapshot" in s0
 
@@ -92,7 +97,7 @@ def test_skip_logged_for_position_cap():
         exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config=None)
-    result = _run_backtest_simulation(
+    result = run_backtest_simulation(
         market_data=df,
         signals=sig,
         strategy=strategy,
@@ -102,7 +107,9 @@ def test_skip_logged_for_position_cap():
         return_skips=True,
         global_features_config_path=get_empty_global_features_path(),
     )
-    trades, _exp, skips = result  # type: ignore[misc]
+    _, _, skips = cast(
+        tuple[list[Any], list[tuple[datetime, float]], list[dict[str, Any]]], result
+    )
     # One entry, second long should be skipped due to cap
     assert skips is not None
     # TODO: Fix this test for command-based signals - position cap logic

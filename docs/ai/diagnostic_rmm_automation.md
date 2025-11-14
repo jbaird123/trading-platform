@@ -83,7 +83,7 @@ Integration tests under `tests/cli/test_rmm_automation_commands.py` exercise bot
 ## Extensibility Notes
 
 - **Threshold heuristics**: Adjust the percentile or interpolation logic in `candidate_generator` to experiment with tighter or looser bounds (e.g., 10th/90th percentiles or adaptive ranges based on volatility).
-- **Backtest integration**: Replace the stubbed backtest callable in `validation_runner` with the real `_run_backtest_simulation` once the execution layer is ready. Update metrics to include additional fields (e.g., equity curve diagnostics, regime compliance).
+- **Backtest integration**: Replace the stubbed backtest callable in `validation_runner` with the canonical `run_backtest` entry point once the execution layer is ready. Update metrics to include additional fields (e.g., equity curve diagnostics, regime compliance).
 - **AI orchestration**: Because the pipeline is deterministic, an AI assistant can iterate by tweaking inputs (model dir, enriched slices, percentile logic) while preserving reproducibility.
 - **Future enhancements**: Capture performance metadata per diagnostic model version, maintain an autogen RMM library with provenance, and feed validation outcomes back into the diagnostic models for continual learning.
 

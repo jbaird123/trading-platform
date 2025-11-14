@@ -211,9 +211,9 @@ def test_resample_ohlc_with_daily_session_offset() -> None:
     # Assert that we get exactly one daily bar
     assert len(result) == 1
 
-    # Assert that the timestamp is the date with 00:00:00 time component
-    assert result.index[0].time() == time(0, 0, 0)
-    assert result.index[0].date() == pd.Timestamp("2023-01-01").date()
+    # Assert that the timestamp aligns with the previous day's 22:00 UTC close
+    assert result.index[0].time() == time(22, 0, 0)
+    assert result.index[0].date() == pd.Timestamp("2022-12-31").date()
 
     # Assert that the close price is the close price of the 16:59 bar
     # (the bar right before the 17:00 session close)
@@ -386,9 +386,9 @@ def test_resample_ohlc_direct_timestamp_normalization_branches() -> None:
 
     # Verify we get the expected result
     assert len(result) >= 1
-    # The timestamp should be normalized to 00:00:00
+    # Timestamps should align with the 22:00 UTC session close markers
     assert all(
-        ts.hour == 0 and ts.minute == 0 and ts.second == 0 for ts in result.index
+        ts.hour == 22 and ts.minute == 0 and ts.second == 0 for ts in result.index
     )
 
 

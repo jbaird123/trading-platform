@@ -312,22 +312,17 @@ class AmbiguityAnalyzer(ABC):
         analyzer_type = self.get_analyzer_type()
         total_discrepancies = sum(len(v) for v in categories.values())
         total_explained = sum(
-            len(categories[cat])
-            for cat in self.get_acceptable_categories()
+            len(categories[cat]) for cat in self.get_acceptable_categories()
         )
         total_unexplained = len(categories.get("UNEXPLAINED", []))
 
         report = []
         report.append("=" * 100)
-        report.append(f"{analyzer_type.upper()} VALIDATION - "
-                     f"DISCREPANCY ANALYSIS")
+        report.append(f"{analyzer_type.upper()} VALIDATION - " f"DISCREPANCY ANALYSIS")
         report.append("=" * 100)
         report.append(f"\nTotal discrepancies: {total_discrepancies}")
         report.append(f"Explained (acceptable): {total_explained}")
-        report.append(
-            f"Unexplained (requires investigation): "
-            f"{total_unexplained}"
-        )
+        report.append(f"Unexplained (requires investigation): " f"{total_unexplained}")
 
         if total_unexplained == 0:
             report.append(
@@ -341,8 +336,7 @@ class AmbiguityAnalyzer(ABC):
                     report.append(f"  - {cat}: {count}")
         else:
             report.append(
-                f"\n✗ FAIL: {total_unexplained} unexplained "
-                f"discrepancies"
+                f"\n✗ FAIL: {total_unexplained} unexplained " f"discrepancies"
             )
             report.append("\nUnexplained trades:")
             for trade in categories.get("UNEXPLAINED", []):
@@ -357,9 +351,7 @@ class AmbiguityAnalyzer(ABC):
         report.append("=" * 100)
         return "\n".join(report)
 
-    def assert_all_explained(
-        self, categories: Dict[str, List[Dict[str, Any]]]
-    ) -> None:
+    def assert_all_explained(self, categories: Dict[str, List[Dict[str, Any]]]) -> None:
         """Assert that all discrepancies are explained.
 
         Args:

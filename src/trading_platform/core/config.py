@@ -143,6 +143,23 @@ class RunConfig(BaseModel):
         description="The root directory where run artifacts are stored.",
     )
     log_level: str = Field("INFO", description="The logging level for the run.")
+    global_features_config_path: Path | None = Field(
+        default=None,
+        description="Path to the global features configuration (global.yaml).",
+    )
+    global_features_mode: Literal["full", "minimal"] = Field(
+        default="full",
+        description=(
+            "Controls how global features are loaded: 'full' loads the entire"
+            " registry, 'minimal' loads only required subsets."
+        ),
+    )
+    minimal_global_features_include: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Feature names to force include when global_features_mode is" " 'minimal'."
+        ),
+    )
 
     # Optional runtime snapshots for reporting/traceability
     instrument_definitions: dict[str, Any] = Field(
@@ -187,6 +204,10 @@ class RunConfig(BaseModel):
     )
     rmm_config: dict[str, Any] | None = Field(
         default=None, description="Regime Market Manager configuration, if any."
+    )
+    rmm_gating_profile: dict[str, Any] | None = Field(
+        default=None,
+        description="Profitability gating profile configuration (classifier-based).",
     )
     entry_window_bars: int = Field(
         default=0,

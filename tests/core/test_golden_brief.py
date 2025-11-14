@@ -6,7 +6,6 @@ from typing import Any, cast
 
 import pytest
 import yaml
-from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.core.config import RunConfig
 from trading_platform.core.run import finalize_run
 from trading_platform.data.schema import load_and_normalize_data
@@ -15,7 +14,10 @@ from trading_platform.reporting.brief import compute_data_quality
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
 
-from tests.test_helpers import get_empty_global_features_path
+from tests.test_helpers import (
+    get_empty_global_features_path,
+    run_backtest_simulation,
+)
 
 # Fields that are dynamic and should be ignored during comparison
 KEYS_TO_IGNORE = {
@@ -125,7 +127,7 @@ def test_brief_matches_golden_master(tmp_path: Path, request):
     run_config = RunConfig.model_validate(cfg_for_validation)
 
     # 4. Run the backtest
-    res = _run_backtest_simulation(
+    res = run_backtest_simulation(
         market_data=df,
         signals=signals,
         strategy=strategy,

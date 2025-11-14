@@ -7,11 +7,12 @@ indicator registry to calculate technical indicators on OHLCV data.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 
-from trading_platform.data.resample import resample_data
+from trading_platform.data.resample import resample_data, timeframe_to_timedelta
+from trading_platform.data.session_metadata import ALIGNED_TO_CLOSE_ATTR, SESSION_ATTR
 
 # ema_slope is now compute_ema_slope, create wrapper
 from trading_platform.strategy import indicator_implementations as _impl
@@ -90,20 +91,48 @@ def _resolve_parameter(param_value: Any, strategy_parameters: dict) -> Any:
 
 
 def _resample_to_higher_timeframe(df: pd.DataFrame, timeframe: str) -> pd.DataFrame:
-    """Resample OHLCV data to a higher timeframe.
+    """Resample OHLCV data to a higher timeframe using canonical rules."""
+    return resample_data(df, timeframe)
 
-    Args:
-        df: DataFrame with OHLCV data
-        timeframe: Target timeframe (e.g., '1h', '4h', '1D')
 
-    Returns:
-        Resampled DataFrame
-    """
-    # Use pandas resample with OHLC aggregation
-    resampled = df.resample(timeframe).agg(
-        {"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"}
-    )
-    return resampled
+def _to_series(value: Any, index: pd.Index) -> pd.Series:
+    """Ensure a value is a Series aligned to the provided index."""
+    if isinstance(value, pd.Series):
+        return cast(pd.Series, value.reindex(index))
+    if isinstance(value, pd.DataFrame):
+        if value.shape[1] != 1:
+            raise ValueError(
+                "Indicator output DataFrame must have exactly one column "
+                "when assigning to a single feature."
+            )
+        return cast(pd.Series, value.iloc[:, 0].reindex(index))
+    if hasattr(value, "__len__") and len(value) == len(index):
+        return cast(pd.Series, pd.Series(value, index=index))
+    repeated = pd.Series([value] * len(index), index=index)
+    return cast(pd.Series, repeated)
+
+
+def _append_columns(
+    base: pd.DataFrame,
+    columns: dict[str, Any],
+    assign_state: dict[str, int],
+    added_columns: list[str] | None = None,
+) -> pd.DataFrame:
+    """Assign columns in-place, consolidating periodically to avoid fragmentation."""
+    if not columns:
+        return base
+    for name, value in columns.items():
+        series = _to_series(value, base.index)
+        base[name] = series
+        if added_columns is not None:
+            added_columns.append(name)
+    assign_state["pending"] = assign_state.get("pending", 0) + len(columns)
+    if assign_state["pending"] >= 32:
+        consolidate = getattr(base, "_consolidate_inplace", None)
+        if callable(consolidate):
+            consolidate()
+        assign_state["pending"] = 0
+    return base
 
 
 def compute_features(
@@ -133,6 +162,7 @@ def compute_features(
 
     # Cache for resampled DataFrames - scoped to this single call
     resampled_frames: dict[str, pd.DataFrame] = {}
+    resampled_assign_states: dict[str, dict[str, int]] = {}
 
     # Group specs by timeframe for efficient resampling
     base_specs = []
@@ -148,20 +178,38 @@ def compute_features(
             base_specs.append(spec)
 
     # Process base timeframe features first
+    assign_state: dict[str, int] = {"pending": 0}
+
     for spec in base_specs:
-        _process_single_feature(spec, df, out, strategy_parameters)
+        out, _ = _process_single_feature(
+            spec,
+            out,
+            strategy_parameters,
+            assign_state=assign_state,
+        )
 
     # Process higher timeframe features grouped by timeframe
     for timeframe, group_specs in timeframe_groups.items():
         # Resample once per timeframe (cached)
         if timeframe not in resampled_frames:
-            resampled_frames[timeframe] = resample_data(df, rule=timeframe)
+            session = df.attrs.get(SESSION_ATTR)
+            resampled_frames[timeframe] = resample_data(
+                df, rule=timeframe, session=session
+            )
 
         df_resampled = resampled_frames[timeframe]
+        shift_needed = not df_resampled.index.equals(df.index)
+        aligned_to_close = df_resampled.attrs.get(ALIGNED_TO_CLOSE_ATTR, False)
+        timeframe_delta = (
+            timeframe_to_timedelta(timeframe)
+            if shift_needed and not aligned_to_close
+            else pd.Timedelta(0)
+        )
+
+        assign_state_htf = resampled_assign_states.setdefault(timeframe, {"pending": 0})
 
         # Compute all features for this timeframe on the resampled data
         for spec in group_specs:
-            # Build temp spec without timeframe to avoid recursion
             name = str(spec.get("name"))
             typ = str(spec.get("type"))
             params = spec.get("params") or {}
@@ -184,7 +232,7 @@ def compute_features(
             if not name:
                 continue
 
-            temp_spec = {
+            temp_spec: dict[str, Any] = {
                 "name": name,
                 "type": typ,
                 "params": params,
@@ -193,26 +241,25 @@ def compute_features(
             if source_ref:
                 temp_spec["source_ref"] = {"ref": source_ref}
 
-            # Compute feature on resampled data
-            df_htf = compute_features(df_resampled, [temp_spec], strategy_parameters)
+            df_resampled, new_column_names = _process_single_feature(
+                temp_spec,
+                df_resampled,
+                strategy_parameters,
+                assign_state=assign_state_htf,
+            )
+            resampled_frames[timeframe] = df_resampled
+            if not new_column_names:
+                continue
 
-            # Handle multi-output indicators (e.g., ADX returns name_ADX,
-            # name_DI+, name_DI-). Find columns that start with feature name.
-            htf_cols = [
-                col
-                for col in df_htf.columns
-                if col == name or col.startswith(f"{name}_")
-            ]
+            htf_values = df_resampled[new_column_names].copy()
+            if shift_needed:
+                htf_values.index = htf_values.index + timeframe_delta
+            htf_values = htf_values.reindex(df.index, method="ffill")
 
-            if not htf_cols:
-                # Fallback: try the exact name (shouldn't happen but be safe)
-                htf_cols = [name]
-
-            # Reindex and forward-fill all columns for this feature
-            for col in htf_cols:
-                if col in df_htf.columns:
-                    htf_series = df_htf[col].reindex(df.index, method="ffill")
-                    out[col] = htf_series
+            new_cols: dict[str, pd.Series] = {
+                col: htf_values[col] for col in new_column_names
+            }
+            out = _append_columns(out, new_cols, assign_state)
 
     # Return with natural NaN values - consuming code handles them
     return out
@@ -220,11 +267,12 @@ def compute_features(
 
 def _process_single_feature(
     spec: dict,
-    df: pd.DataFrame,
-    out: pd.DataFrame,
+    data: pd.DataFrame,
     strategy_parameters: dict,
-) -> None:
-    """Process a single feature specification and add to output DataFrame.
+    *,
+    assign_state: dict[str, int],
+) -> tuple[pd.DataFrame, list[str]]:
+    """Process a single feature specification and append new columns.
 
     Args:
         spec: Feature specification dict
@@ -252,7 +300,7 @@ def _process_single_feature(
         source_ref = str(ref_val) if ref_val is not None else None
 
     if not name:
-        return
+        return data, []
 
     # Resolve parameter substitutions (${param_name})
     resolved_params = {
@@ -266,22 +314,39 @@ def _process_single_feature(
         # instead of raising an error
         import numpy as np
 
-        out[name] = np.nan
-        return
+        fallback_columns = {name: pd.Series(np.nan, index=data.index)}
+        added: list[str] = []
+        data = _append_columns(
+            data,
+            fallback_columns,
+            assign_state,
+            added_columns=added,
+        )
+        return data, added
 
     # Call implementation with standard interface
     impl_fn = indicator["implementation"]
-    result = impl_fn(df, resolved_params, source, source_ref)
+    result = impl_fn(data, resolved_params, source, source_ref)
 
     # Handle output based on return type
+    new_columns: dict[str, pd.Series] = {}
     if isinstance(result, dict):
         # Multi-column output (BB, MACD, ADX, etc.)
         for col_name, col_data in result.items():
             if col_name == "":
                 # Empty string means no suffix (e.g., PSAR, STOCH main value)
-                out[name] = col_data
+                new_columns[name] = col_data
             else:
-                out[f"{name}_{col_name}"] = col_data
+                new_columns[f"{name}_{col_name}"] = col_data
     else:
         # Single-column output (EMA, RSI, ATR, etc.)
-        out[name] = result
+        new_columns[name] = result
+
+    added_columns: list[str] = []
+    data = _append_columns(
+        data,
+        new_columns,
+        assign_state,
+        added_columns=added_columns,
+    )
+    return data, added_columns

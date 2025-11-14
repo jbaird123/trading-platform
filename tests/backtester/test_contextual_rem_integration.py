@@ -5,13 +5,18 @@ Task 3.1: End-to-end test of Signal context flowing to REM.
 
 from __future__ import annotations
 
+from datetime import datetime
+from typing import Any, cast
+
 import pandas as pd
-from trading_platform.backtester.core import _run_backtest_simulation
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import compile_strategy
 
-from tests.test_helpers import get_empty_global_features_path
+from tests.test_helpers import (
+    get_empty_global_features_path,
+    run_backtest_simulation,
+)
 
 
 def test_contextual_rem_with_order_block_strategy():
@@ -111,7 +116,7 @@ def test_contextual_rem_with_order_block_strategy():
     signals = strategy.generate_signals(market_data)
 
     # run_backtest with return_exposure=True returns (trades, exposure)
-    result = _run_backtest_simulation(
+    result = run_backtest_simulation(
         config=run_config,
         market_data=market_data,
         signals=signals,
@@ -120,12 +125,15 @@ def test_contextual_rem_with_order_block_strategy():
         return_exposure=True,
         global_features_config_path=get_empty_global_features_path(),
     )
-    trades, _ = result  # type: ignore[misc]
+    trades, _ = cast(
+        tuple[list[Any], list[tuple[datetime, float]]],
+        result,
+    )
 
     # Assertions
-    assert len(trades) >= 1, "At least one trade should be generated"  # type: ignore[arg-type]
+    assert len(trades) >= 1, "At least one trade should be generated"
 
-    first_trade = trades[0]  # type: ignore[index]
+    first_trade = trades[0]
     assert first_trade.side == "long"
     assert first_trade.exit_reason == "stop-loss"
 

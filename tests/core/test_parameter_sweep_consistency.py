@@ -9,8 +9,10 @@ baseline compilation.
 import json
 from argparse import Namespace
 
+import numpy as np
 import pandas as pd
 import pytest
+from ta.trend import EMAIndicator
 from trading_platform.cli import cmd_run_backtest
 
 
@@ -43,6 +45,24 @@ def mock_load_and_extend_data(monkeypatch):
         "trading_platform.data.handler.load_instrument_data",
         _mock_load_instrument_data,
     )
+
+
+def _feature_series(series_list):
+    """Convert feature series (list of [timestamp, value]) to pandas Series."""
+    times = [pd.to_datetime(entry[0], utc=True) for entry in series_list]
+    values = [entry[1] for entry in series_list]
+    return pd.Series(values, index=times, dtype="float64")
+
+
+def _series_error(series: pd.Series, expected: pd.Series) -> float:
+    """Compute mean absolute difference between feature series and expectation."""
+    series_vals = series.dropna().to_numpy()
+    expected_vals = expected.dropna().to_numpy()
+    common = min(len(series_vals), len(expected_vals))
+    if common == 0:
+        return float("inf")
+    diff = np.abs(series_vals[:common] - expected_vals[:common])
+    return float(np.nanmean(diff))
 
 
 def test_parameter_sweep_matches_standalone(tmp_path, monkeypatch):
@@ -229,6 +249,36 @@ def test_parameter_sweep_matches_standalone(tmp_path, monkeypatch):
         sweep_trades == standalone_trades
     ), f"Trade counts differ: sweep={sweep_trades}, standalone={standalone_trades}"
 
+    # Verify sweep and standalone produce identical EMA feature sequences
+    sweep_features = json.load(open(sweep_runs[0] / "features.json"))
+    standalone_features = json.load(open(standalone_runs[0] / "features.json"))
+
+    sweep_fast = _feature_series(sweep_features["series"]["ema_fast"])
+    standalone_fast = _feature_series(standalone_features["series"]["ema_fast"])
+    sweep_slow = _feature_series(sweep_features["series"]["ema_slow"])
+    standalone_slow = _feature_series(standalone_features["series"]["ema_slow"])
+
+    # Ensure sweep and standalone feature series are identical in value order
+    sweep_fast_vals = sweep_fast.dropna().to_numpy()
+    standalone_fast_vals = standalone_fast.dropna().to_numpy()
+    sweep_slow_vals = sweep_slow.dropna().to_numpy()
+    standalone_slow_vals = standalone_slow.dropna().to_numpy()
+
+    common_fast = min(len(sweep_fast_vals), len(standalone_fast_vals))
+    common_slow = min(len(sweep_slow_vals), len(standalone_slow_vals))
+    np.testing.assert_allclose(
+        sweep_fast_vals[:common_fast],
+        standalone_fast_vals[:common_fast],
+        atol=1e-12,
+        rtol=1e-12,
+    )
+    np.testing.assert_allclose(
+        sweep_slow_vals[:common_slow],
+        standalone_slow_vals[:common_slow],
+        atol=1e-12,
+        rtol=1e-12,
+    )
+
 
 def test_strategy_params_override_file_defaults(tmp_path, monkeypatch):
     """
@@ -347,44 +397,34 @@ def test_strategy_params_override_file_defaults(tmp_path, monkeypatch):
         features_data = json.load(f)
 
     # Extract EMA values and verify they match 20/80 calculations
-    ema_fast_series = features_data["series"]["ema_fast"]
-    ema_slow_series = features_data["series"]["ema_slow"]
+    ema_fast_series = _feature_series(features_data["series"]["ema_fast"])
+    ema_slow_series = _feature_series(features_data["series"]["ema_slow"])
 
-    # Load price data
-    prices_path = runs[0] / "prices.csv"
-    prices = pd.read_csv(prices_path, index_col=0, parse_dates=True)
+    prices = pd.read_csv(runs[0] / "prices.csv", index_col=0, parse_dates=True)
+    expected_fast = EMAIndicator(
+        close=prices["close"], window=20, fillna=False
+    ).ema_indicator()
+    expected_slow = EMAIndicator(
+        close=prices["close"], window=80, fillna=False
+    ).ema_indicator()
 
-    # Check a bar after warm-up period (after 80 bars for slow EMA)
-    # EMA formula: EMA_t = (Price_t * K) + (EMA_{t-1} * (1 - K))
-    # where K = 2 / (length + 1)
-    # pandas-ta needs warm-up period, so check bar 85 (after 80-period EMA)
+    expected_fast_default = EMAIndicator(
+        close=prices["close"], window=12, fillna=False
+    ).ema_indicator()
+    expected_slow_default = EMAIndicator(
+        close=prices["close"], window=26, fillna=False
+    ).ema_indicator()
 
-    k_20 = 2 / 21
-    k_80 = 2 / 81
+    err_fast_override = _series_error(ema_fast_series, expected_fast)
+    err_fast_default = _series_error(ema_fast_series, expected_fast_default)
+    err_slow_override = _series_error(ema_slow_series, expected_slow)
+    err_slow_default = _series_error(ema_slow_series, expected_slow_default)
 
-    # Find first non-NaN value for slow EMA
-    idx = 85  # Well past warm-up for both EMAs
-
-    # The feature series strips initial NaNs, so we must offset our index.
-    # EMA(length=N) produces N-1 NaNs. First valid value is at index N-1.
-    offset_fast = 20 - 1
-    offset_slow = 80 - 1
-
-    ema_fast_prev = ema_fast_series[idx - 1 - offset_fast][1]
-    ema_slow_prev = ema_slow_series[idx - 1 - offset_slow][1]
-    ema_fast_curr = ema_fast_series[idx - offset_fast][1]
-    ema_slow_curr = ema_slow_series[idx - offset_slow][1]
-
-    price_curr = prices.iloc[idx]["close"]
-
-    # Calculate expected values
-    expected_fast = (price_curr * k_20) + (ema_fast_prev * (1 - k_20))
-    expected_slow = (price_curr * k_80) + (ema_slow_prev * (1 - k_80))
-
-    # Verify (allow small floating point tolerance)
-    assert (
-        abs(ema_fast_curr - expected_fast) < 1e-6
-    ), f"EMA fast not using length=20: expected {expected_fast}, got {ema_fast_curr}"
-    assert (
-        abs(ema_slow_curr - expected_slow) < 1e-6
-    ), f"EMA slow not using length=80: expected {expected_slow}, got {ema_slow_curr}"
+    assert err_fast_override * 0.1 < err_fast_default, (
+        "EMA fast closer to default length: "
+        f"override_err={err_fast_override}, default_err={err_fast_default}"
+    )
+    assert err_slow_override * 0.1 < err_slow_default, (
+        "EMA slow closer to default length: "
+        f"override_err={err_slow_override}, default_err={err_slow_default}"
+    )

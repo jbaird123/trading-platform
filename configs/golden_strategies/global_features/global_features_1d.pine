@@ -1,0 +1,10 @@
+//@version=5
+indicator("Global Feature Pack – 1D", overlay=false, timeframe="D", timeframe_gaps=true)
+
+d1_ema_24 = ta.ema(close, 24)
+d1_atr_14 = ta.atr(14)
+d1_volume_sma_20 = ta.sma(volume, 20)
+
+plot(d1_ema_24,        "d1_ema_24",        display=display.data_window)
+plot(d1_atr_14,        "d1_atr_14",        display=display.data_window)
+plot(d1_volume_sma_20, "d1_volume_sma_20", display=display.data_window)

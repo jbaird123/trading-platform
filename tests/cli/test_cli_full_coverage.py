@@ -38,12 +38,13 @@ def cli_stubs(monkeypatch, tmp_path):
     class MockDataHandler:
         def __init__(self, symbol, data_root, instrument):
             self.data_quality_flags = ["mock_dq_flag"]
-
-        def get_data(self, timeframe, start, end):
-            df = pd.DataFrame(
-                {"close": [1.0, 2.0, 3.0]},
-                index=pd.date_range("2024-01-01", periods=3, freq="h"),
+            self._df = pd.DataFrame(
+                {"close": list(range(200))},
+                index=pd.date_range("2023-12-01", periods=200, freq="h", tz="UTC"),
             )
+
+        def get_data(self, timeframe=None, start=None, end=None):
+            df = self._df
             df_any = cast(Any, df)
             df_any.to_parquet = lambda *args, **kwargs: None
             return df_any
@@ -84,7 +85,7 @@ def cli_stubs(monkeypatch, tmp_path):
 
         def generate_signals(self, df: pd.DataFrame):
             calls["signals_input"] = df
-            return pd.Series([1, 0, -1], index=df.index)
+            return pd.Series([1] * len(df), index=df.index)
 
     monkeypatch.setattr(cli, "compile_strategy", lambda cfg: DummyStrategy())
 
@@ -216,7 +217,7 @@ def test_cmd_run_backtest_fast_mode_last_days_and_overrides(
         def __init__(self, symbol, data_root, instrument):
             self.data_quality_flags = []
 
-        def get_data(self, timeframe, start, end):
+        def get_data(self, timeframe=None, start=None, end=None):
             idx = pd.date_range("2024-01-01", periods=4, freq="h")
             return pd.DataFrame({"close": [1.0, 2.0, 3.0, 4.0]}, index=idx)
 
@@ -336,7 +337,7 @@ def test_cmd_run_backtest_fast_mode_limit_and_exception(
         def __init__(self, symbol, data_root, instrument):
             self.data_quality_flags = []
 
-        def get_data(self, timeframe, start, end):
+        def get_data(self, timeframe=None, start=None, end=None):
             return pd.DataFrame({"close": list(range(6))})
 
     monkeypatch.setattr("trading_platform.cli.DataHandler", MockDataHandler)
@@ -417,6 +418,30 @@ def test_cmd_run_backtest_tuple_variants(cli_stubs, tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "run_backtest", list_result)
     assert cli.cmd_run_backtest(ns) == 0
     assert calls["finalize"]["exposure_curve"] == []
+
+    class DictStrat(SimpleNamespace):
+        def __init__(self):
+            super().__init__(name="dict_strat", features=[], _feature_df=None)
+
+        def generate_signals(self, df: pd.DataFrame):
+            return pd.Series([0] * len(df), index=df.index)
+
+    def dict_with_skips(**kwargs):
+        return {
+            "trades": [SimpleNamespace(entry=datetime(2024, 1, 1))],
+            "equity_curve": [],
+            "compiled_strategy": DictStrat(),
+            "feature_enriched_df": pd.DataFrame(
+                {"close": [1.0]},
+                index=pd.DatetimeIndex([datetime(2024, 1, 1)]),
+            ),
+            "strategy_name": "dict_strat",
+            "skipped": [{"reason": "dict_skip"}],
+        }
+
+    monkeypatch.setattr(cli, "run_backtest", dict_with_skips)
+    assert cli.cmd_run_backtest(ns) == 0
+    assert calls["finalize"]["skipped_trades"] == [{"reason": "dict_skip"}]
 
 
 def test_cmd_run_backtest_fast_mode_not_dict(cli_stubs, tmp_path, monkeypatch):
@@ -597,7 +622,7 @@ def test_cmd_run_backtest_with_paths_and_failures(tmp_path, monkeypatch):
         def __init__(self, symbol, data_root, instrument):
             self.data_quality_flags = []
 
-        def get_data(self, timeframe, start, end):
+        def get_data(self, timeframe=None, start=None, end=None):
             idx = pd.date_range("2024-01-01", periods=6, freq="h")
             return pd.DataFrame({"close": range(6)}, index=idx)
 
