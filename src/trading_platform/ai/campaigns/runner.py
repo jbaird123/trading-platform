@@ -195,6 +195,19 @@ def execute_campaign_runs(
             stdout_buffer.close()
             stderr_buffer.close()
 
+            stdout_path = run_config_dir / "stdout.log"
+            stderr_path = run_config_dir / "stderr.log"
+            stdout_path.write_text(stdout_text or "")
+            if stderr_text:
+                stderr_path.write_text(stderr_text)
+            log_line = (
+                f"[{datetime.now(timezone.utc).isoformat()}] "
+                f"Captured logs for {run.run_id} -> {stdout_path}"
+            )
+            if stderr_text:
+                log_line += f", {stderr_path}"
+            log_file.write(f"{log_line}\n")
+
             run_end = time()
             execution_time = run_end - run_start
 
