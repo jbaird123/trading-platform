@@ -30,11 +30,11 @@ def _write_sample_global_yaml(path: Path) -> None:
         "\n".join(
             [
                 "features:",
-                '  - name: "m5_test_ema"',
+                '  - name: "5min_test_ema"',
                 '    type: "EMA"',
                 '    params: {"length": 3}',
                 '    timeframe: "5min"',
-                '  - name: "m15_test_rsi"',
+                '  - name: "15min_test_rsi"',
                 '    type: "RSI"',
                 '    params: {"length": 5}',
                 '    timeframe: "15min"',
@@ -205,7 +205,7 @@ def test_cache_covers_features_detects_available_columns(tmp_path) -> None:
         cache_root=cache_root,
         config_path=global_yaml,
         timeframe="5min",
-        feature_names=["m5_test_ema"],
+        feature_names=["5min_test_ema"],
     )
     assert not cache_covers_features(
         symbol="EUR_USD",

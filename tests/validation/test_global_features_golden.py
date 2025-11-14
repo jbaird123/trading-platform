@@ -59,12 +59,12 @@ WARMUP_BARS = {
 }
 CACHE_TIMESTAMP_COLUMN = "available_at"
 COLUMN_RENAMES = {
-    "h1_adx_14_DI+": "h1_adx_14_DIplus",
-    "h1_adx_14_DI-": "h1_adx_14_DIminus",
-    "h4_adx_14_DI+": "h4_adx_14_DIplus",
-    "h4_adx_14_DI-": "h4_adx_14_DIminus",
-    "d1_adx_14_DI+": "d1_adx_14_DIplus",
-    "d1_adx_14_DI-": "d1_adx_14_DIminus",
+    "1h_adx_14_DI+": "1h_adx_14_DIplus",
+    "1h_adx_14_DI-": "1h_adx_14_DIminus",
+    "4h_adx_14_DI+": "4h_adx_14_DIplus",
+    "4h_adx_14_DI-": "4h_adx_14_DIminus",
+    "1d_adx_14_DI+": "1d_adx_14_DIplus",
+    "1d_adx_14_DI-": "1d_adx_14_DIminus",
 }
 EXPORT_SKIP_COLUMNS = {"1h_volume_sma_20", "1d_volume_sma_20"}
 OHLC_COLUMNS = {"open", "high", "low", "close", "volume"}
@@ -728,26 +728,26 @@ def test_golden_cache_matches_source_csv() -> None:
     bar_lookup_key.
     """
     # Column name mapping from parquet to CSV
-    # Parquet uses "1h_" prefix and "DIplus"/"DIminus", CSV uses "h1_" prefix and
+    # Parquet uses "1h_" prefix and "DIplus"/"DIminus", CSV uses "1h_" prefix and
     # "DI+"/"DI-"
     column_mapping = {
-        "1h_ema_50": "h1_ema_50",
-        "1h_adx_14_ADX": "h1_adx_14_ADX",
-        "1h_adx_14_DIplus": "h1_adx_14_DI+",
-        "1h_adx_14_DIminus": "h1_adx_14_DI-",
-        "1h_rsi_14": "h1_rsi_14",
-        "1h_macd_macd": "h1_macd_macd",
-        "1h_macd_signal": "h1_macd_signal",
-        "1h_macd_diff": "h1_macd_diff",
-        "1h_atr_14": "h1_atr_14",
-        "1h_bb_width_20": "h1_bb_width_20",
-        "1h_volume_sma_20": "h1_volume_sma_20",
-        "4h_ema_50": "h4_ema_50",
-        "4h_rsi_14": "h4_rsi_14",
-        "4h_atr_14": "h4_atr_14",
-        "1d_ema_24": "d1_ema_24",
-        "1d_atr_14": "d1_atr_14",
-        "1d_volume_sma_20": "d1_volume_sma_20",
+        "1h_ema_50": "1h_ema_50",
+        "1h_adx_14_ADX": "1h_adx_14_ADX",
+        "1h_adx_14_DIplus": "1h_adx_14_DI+",
+        "1h_adx_14_DIminus": "1h_adx_14_DI-",
+        "1h_rsi_14": "1h_rsi_14",
+        "1h_macd_macd": "1h_macd_macd",
+        "1h_macd_signal": "1h_macd_signal",
+        "1h_macd_diff": "1h_macd_diff",
+        "1h_atr_14": "1h_atr_14",
+        "1h_bb_width_20": "1h_bb_width_20",
+        "1h_volume_sma_20": "1h_volume_sma_20",
+        "4h_ema_50": "4h_ema_50",
+        "4h_rsi_14": "4h_rsi_14",
+        "4h_atr_14": "4h_atr_14",
+        "1d_ema_24": "1d_ema_24",
+        "1d_atr_14": "1d_atr_14",
+        "1d_volume_sma_20": "1d_volume_sma_20",
     }
 
     # Timeframe configurations
@@ -929,29 +929,29 @@ def test_builder_cache_matches_calculated_indicators(tmp_path: Path) -> None:
         features_by_timeframe.setdefault(tf, []).append(feature)
 
     # Column name mapping from builder cache to calculated
-    # Builder uses "1h_" prefix, calculated uses "h1_" prefix
-    # Builder uses "15min_" prefix, calculated uses "m15_" prefix
+    # Builder uses "1h_" prefix, calculated uses "1h_" prefix
+    # Builder uses "15min_" prefix, calculated uses "15min_" prefix
     # Also ADX columns have different naming conventions
     column_mapping = {
-        "15min_rsi_14": "m15_rsi_14",
-        "15min_atr_14": "m15_atr_14",
-        "1h_ema_50": "h1_ema_50",
-        "1h_adx_14_ADX": "h1_adx_14_ADX",
-        "1h_adx_14_DIplus": "h1_adx_14_DI+",
-        "1h_adx_14_DIminus": "h1_adx_14_DI-",
-        "1h_rsi_14": "h1_rsi_14",
-        "1h_macd_macd": "h1_macd_macd",
-        "1h_macd_signal": "h1_macd_signal",
-        "1h_macd_diff": "h1_macd_diff",
-        "1h_atr_14": "h1_atr_14",
-        "1h_bb_width_20": "h1_bb_width_20",
-        "1h_volume_sma_20": "h1_volume_sma_20",
-        "4h_ema_50": "h4_ema_50",
-        "4h_rsi_14": "h4_rsi_14",
-        "4h_atr_14": "h4_atr_14",
-        "1d_ema_24": "d1_ema_24",
-        "1d_atr_14": "d1_atr_14",
-        "1d_volume_sma_20": "d1_volume_sma_20",
+        "15min_rsi_14": "15min_rsi_14",
+        "15min_atr_14": "15min_atr_14",
+        "1h_ema_50": "1h_ema_50",
+        "1h_adx_14_ADX": "1h_adx_14_ADX",
+        "1h_adx_14_DIplus": "1h_adx_14_DI+",
+        "1h_adx_14_DIminus": "1h_adx_14_DI-",
+        "1h_rsi_14": "1h_rsi_14",
+        "1h_macd_macd": "1h_macd_macd",
+        "1h_macd_signal": "1h_macd_signal",
+        "1h_macd_diff": "1h_macd_diff",
+        "1h_atr_14": "1h_atr_14",
+        "1h_bb_width_20": "1h_bb_width_20",
+        "1h_volume_sma_20": "1h_volume_sma_20",
+        "4h_ema_50": "4h_ema_50",
+        "4h_rsi_14": "4h_rsi_14",
+        "4h_atr_14": "4h_atr_14",
+        "1d_ema_24": "1d_ema_24",
+        "1d_atr_14": "1d_atr_14",
+        "1d_volume_sma_20": "1d_volume_sma_20",
     }
 
     # Test configurations

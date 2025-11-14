@@ -300,7 +300,7 @@ class StrategyConfig(BaseModel):
         """Ensure strategy features do NOT have timeframe prefixes.
 
         Strategy features must not have timeframe prefixes
-        (m1_, m5_, m15_, h1_, h4_, d1_).
+        (1min_, 5min_, 15min_, 1h_, 4h_, 1d_).
         Only global features should have timeframe prefixes.
 
         Raises:

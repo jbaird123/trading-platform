@@ -88,14 +88,14 @@ PARQUET_FILENAMES = {
     "1D": "1d.parquet",
 }
 COLUMN_RENAMES = {
-    "m15_adx_14_DI+": "m15_adx_14_DIplus",
-    "m15_adx_14_DI-": "m15_adx_14_DIminus",
-    "h1_adx_14_DI+": "h1_adx_14_DIplus",
-    "h1_adx_14_DI-": "h1_adx_14_DIminus",
-    "h4_adx_14_DI+": "h4_adx_14_DIplus",
-    "h4_adx_14_DI-": "h4_adx_14_DIminus",
-    "d1_adx_14_DI+": "d1_adx_14_DIplus",
-    "d1_adx_14_DI-": "d1_adx_14_DIminus",
+    "15min_adx_14_DI+": "15min_adx_14_DIplus",
+    "15min_adx_14_DI-": "15min_adx_14_DIminus",
+    "1h_adx_14_DI+": "1h_adx_14_DIplus",
+    "1h_adx_14_DI-": "1h_adx_14_DIminus",
+    "4h_adx_14_DI+": "4h_adx_14_DIplus",
+    "4h_adx_14_DI-": "4h_adx_14_DIminus",
+    "1d_adx_14_DI+": "1d_adx_14_DIplus",
+    "1d_adx_14_DI-": "1d_adx_14_DIminus",
 }
 
 

@@ -77,11 +77,11 @@ $ grep -r "export" tests/cli/ | grep -i test
 ```python
 # From the test:
 entry_features = trades[0].context_at_entry["strategy_features"]
-assert "h1_rsi" in entry_features  # Multi-timeframe feature
-assert isinstance(entry_features["h1_rsi"], (int, float))
+assert "1h_rsi" in entry_features  # Multi-timeframe feature
+assert isinstance(entry_features["1h_rsi"], (int, float))
 
 exit_features = trades[0].context_at_exit["strategy_features"]
-assert "h1_rsi" in exit_features  # Multi-timeframe feature
+assert "1h_rsi" in exit_features  # Multi-timeframe feature
 ```
 
 The backtester calls `compute_features()` which now handles multi-timeframe features transparently (implemented in Phase 2).

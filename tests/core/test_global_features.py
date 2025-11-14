@@ -31,14 +31,14 @@ def test_select_minimal_global_features_uses_classifier_metadata(
     tmp_path: Path,
 ) -> None:
     feature_a = ResolvedFeature(
-        name="h1_atr_14",
+        name="1h_atr_14",
         type="ATR",
         params={"length": 14},
         timeframe="1H",
         source="close",
     )
     feature_b = ResolvedFeature(
-        name="h1_rsi_14",
+        name="1h_rsi_14",
         type="RSI",
         params={"length": 14},
         timeframe="1H",
@@ -75,4 +75,4 @@ def test_select_minimal_global_features_uses_classifier_metadata(
         model_dir=registry_dir,
     )
 
-    assert [feature.name for feature in subset] == ["h1_atr_14"]
+    assert [feature.name for feature in subset] == ["1h_atr_14"]

@@ -21,7 +21,7 @@ def test_resolve_global_features_returns_resolved_features(tmp_path: Path) -> No
             {
                 "features": [
                     {
-                        "name": "h1_rsi_14",
+                        "name": "1h_rsi_14",
                         "type": "RSI",
                         "params": {"length": 14},
                         "timeframe": "1H",
@@ -40,7 +40,7 @@ def test_resolve_global_features_returns_resolved_features(tmp_path: Path) -> No
         features = resolve_global_features("1min")
         assert len(features) == 1
         assert isinstance(features[0], ResolvedFeature)
-        assert features[0].name == "h1_rsi_14"
+        assert features[0].name == "1h_rsi_14"
     finally:
         os.chdir(original_cwd)
 
@@ -74,19 +74,19 @@ def test_resolve_global_features_includes_gte_timeframe(tmp_path: Path) -> None:
             {
                 "features": [
                     {
-                        "name": "m15_rsi",
+                        "name": "15min_rsi",
                         "type": "RSI",
                         "params": {"length": 14},
                         "timeframe": "15min",
                     },
                     {
-                        "name": "h1_ema",
+                        "name": "1h_ema",
                         "type": "EMA",
                         "params": {"length": 50},
                         "timeframe": "1H",
                     },
                     {
-                        "name": "d1_atr",
+                        "name": "1d_atr",
                         "type": "ATR",
                         "params": {"length": 14},
                         "timeframe": "1D",
@@ -105,9 +105,9 @@ def test_resolve_global_features_includes_gte_timeframe(tmp_path: Path) -> None:
         features = resolve_global_features("1min")
         assert len(features) == 3
         names = [f.name for f in features]
-        assert "m15_rsi" in names
-        assert "h1_ema" in names
-        assert "d1_atr" in names
+        assert "15min_rsi" in names
+        assert "1h_ema" in names
+        assert "1d_atr" in names
     finally:
         os.chdir(original_cwd)
 
@@ -122,19 +122,19 @@ def test_resolve_global_features_filters_lt_timeframe(tmp_path: Path) -> None:
             {
                 "features": [
                     {
-                        "name": "m5_rsi",
+                        "name": "5min_rsi",
                         "type": "RSI",
                         "params": {"length": 14},
                         "timeframe": "5min",
                     },
                     {
-                        "name": "m15_ema",
+                        "name": "15min_ema",
                         "type": "EMA",
                         "params": {"length": 50},
                         "timeframe": "15min",
                     },
                     {
-                        "name": "h1_atr",
+                        "name": "1h_atr",
                         "type": "ATR",
                         "params": {"length": 14},
                         "timeframe": "1H",
@@ -152,7 +152,7 @@ def test_resolve_global_features_filters_lt_timeframe(tmp_path: Path) -> None:
         # Execution timeframe is 1H - should exclude m5 and m15
         features = resolve_global_features("1H")
         assert len(features) == 1
-        assert features[0].name == "h1_atr"
+        assert features[0].name == "1h_atr"
     finally:
         os.chdir(original_cwd)
 
@@ -167,12 +167,12 @@ def test_resolve_global_features_includes_no_timeframe(tmp_path: Path) -> None:
             {
                 "features": [
                     {
-                        "name": "h1_rsi",
+                        "name": "1h_rsi",
                         "type": "RSI",
                         "params": {"length": 14},
                     },  # No timeframe
                     {
-                        "name": "d1_ema",
+                        "name": "1d_ema",
                         "type": "EMA",
                         "params": {"length": 50},
                         "timeframe": "1D",
@@ -190,7 +190,7 @@ def test_resolve_global_features_includes_no_timeframe(tmp_path: Path) -> None:
         features = resolve_global_features("1H")
         assert len(features) == 2
         names = [f.name for f in features]
-        assert "h1_rsi" in names
-        assert "d1_ema" in names
+        assert "1h_rsi" in names
+        assert "1d_ema" in names
     finally:
         os.chdir(original_cwd)

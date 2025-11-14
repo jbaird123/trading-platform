@@ -236,20 +236,20 @@ contextual_features:
       length: 14
 
   # Higher timeframe features (1H)
-  - name: h1_rsi
+  - name: 1h_rsi
     type: RSI
     params:
       length: 14
     timeframe: 1h
 
-  - name: h1_ema_trend
+  - name: 1h_ema_trend
     type: EMA
     params:
       length: 50
     timeframe: 1h
 
   # Daily context
-  - name: d1_atr
+  - name: 1d_atr
     type: ATR
     params:
       length: 14
@@ -313,8 +313,8 @@ contextual_features:
 **For New Campaigns:**
 
 - Include multi-timeframe features from the start in your campaign YAML.
-- Follow the naming convention: `<timeframe>_<indicator>` (e.g., `h1_rsi`,
-  `d1_atr`) to make the timeframe explicit in feature names.
+- Follow the naming convention: `<timeframe>_<indicator>` (e.g., `1h_rsi`,
+  `1d_atr`) to make the timeframe explicit in feature names.
 - Document the rationale for each higher-timeframe feature in campaign notes.
 
 ## 7. Key Concepts

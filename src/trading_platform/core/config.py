@@ -88,7 +88,7 @@ class FeatureConfig(BaseModel):
             if not re.match(pattern, v):
                 raise ValueError(
                     f"Global features must have timeframe prefix "
-                    f"(m1_, m5_, m15_, h1_, h4_, d1_, w1_). Got: {v}"
+                    f"(1min_, 5min_, 15min_, 1h_, 4h_, 1d_, 1w_). Got: {v}"
                 )
 
         return v

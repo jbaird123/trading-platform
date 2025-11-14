@@ -168,7 +168,7 @@ def _check_lower_tf_features(
     subset = df.loc[:, lower_cols]
     grouped = subset.isna().groupby(tf_col).mean().mean(axis=1).sort_index()
     grouped.to_csv(
-        out_dir / "m15_feature_missing_by_execution_timeframe.csv",
+        out_dir / "15min_feature_missing_by_execution_timeframe.csv",
         header=["missing_fraction"],
     )
     return grouped
@@ -178,7 +178,7 @@ def _write_markdown_summary(
     path: Path,
     summary: dict[str, object],
     r_multiple_stats: dict[str, float] | None,
-    m15_stats: pd.Series | None,
+    15min_stats: pd.Series | None,
 ) -> None:
     lines = [
         "# Feature Audit Summary",
@@ -217,7 +217,7 @@ def _write_markdown_summary(
                 "",
             ]
         )
-    if m15_stats is not None:
+    if 15min_stats is not None:
         lines.extend(
             [
                 "## M15 feature availability",
@@ -226,7 +226,7 @@ def _write_markdown_summary(
                 "|---------------------|---------------------------------------|",
             ]
         )
-        for tf, frac in m15_stats.items():
+        for tf, frac in 15min_stats.items():
             lines.append(f"| {tf} | {frac:.3f} |")
         lines.extend(
             [
@@ -288,10 +288,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     summary = _basic_profile(df, args.output_dir)
     r_stats = _check_r_multiple_missing(df, args.output_dir)
-    m15_stats = _check_lower_tf_features(df, args.output_dir)
+    15min_stats = _check_lower_tf_features(df, args.output_dir)
     _plot_top_variance_histograms(df, args.output_dir, args.hist_top_variance)
     if args.report_path:
-        _write_markdown_summary(args.report_path, summary, r_stats, m15_stats)
+        _write_markdown_summary(args.report_path, summary, r_stats, 15min_stats)
     LOGGER.info("Feature audit complete. Results written to %s", args.output_dir)
 
 

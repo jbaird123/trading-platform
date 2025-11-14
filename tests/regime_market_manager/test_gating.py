@@ -64,7 +64,7 @@ def test_gating_engine_allows_when_probability_and_alignment_pass():
     context = {
         "strategy_features": {},
         "global_features": {
-            "m15_trend_alignment_full_alignment": 1.0,
+            "15min_trend_alignment_full_alignment": 1.0,
         },
     }
     decision = engine.should_allow(
@@ -87,7 +87,7 @@ def test_gating_engine_blocks_when_probability_below_threshold():
     context = {
         "strategy_features": {},
         "global_features": {
-            "m15_trend_alignment_full_alignment": 1.0,
+            "15min_trend_alignment_full_alignment": 1.0,
         },
     }
     decision = engine.should_allow(
@@ -142,8 +142,8 @@ def test_gating_engine_builds_prefixed_feature_row():
             "atr_14": 0.5,
         },
         "global_features": {
-            "m15_day_of_week_dow_3": 1.0,
-            "m15_trend_alignment_full_alignment": 1.0,
+            "15min_day_of_week_dow_3": 1.0,
+            "15min_trend_alignment_full_alignment": 1.0,
         },
         "risk": {
             "entry_price": 1.2345,

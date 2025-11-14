@@ -122,7 +122,7 @@ def test_global_features_must_be_warmed(tmp_path) -> None:
     global_yaml = features_dir / "global.yaml"
     global_yaml.write_text(
         "features:\n"
-        '  - name: "h1_sma_20"\n'
+        '  - name: "1h_sma_20"\n'
         '    type: "SMA"\n'
         '    params: { "length": 20 }\n'
         '    timeframe: "1H"\n'
