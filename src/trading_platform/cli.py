@@ -53,6 +53,7 @@ from trading_platform.core.sweeps import (
 from trading_platform.data.handler import DataHandler
 from trading_platform.data.instrument import get_instrument_definition
 from trading_platform.data.integrity_validator import validate_all_data
+from trading_platform.data.session_metadata import SESSION_ATTR
 from trading_platform.execution.oanda_stub import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
@@ -479,6 +480,8 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
 
     # Persist processed market data for AI Lab analysis
     processed_data_path: Path | None = None
+    # Remove non-serializable attrs before persisting
+    df.attrs.pop(SESSION_ATTR, None)
     try:
         processed_data_path = run_path / "processed_data.parquet"
         df.to_parquet(processed_data_path)
@@ -2062,7 +2065,7 @@ def _precompute_global_features_logic(args: argparse.Namespace) -> int:
     metadata = json.loads(metadata_path.read_text())
     cached_timeframes = list(metadata.get("timeframes", {}))
     cached_timeframes.sort(
-        key=lambda tf: (pd.to_timedelta(tf).total_seconds(), tf.lower())
+        key=lambda tf: (pd.to_timedelta(tf.lower()).total_seconds(), tf.lower())
     )
 
     print(f"Global feature cache directory: {descriptor.base_dir()}")

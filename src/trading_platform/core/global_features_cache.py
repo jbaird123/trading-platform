@@ -52,7 +52,7 @@ def _sorted_unique_timeframes(timeframes: Iterable[str]) -> list[str]:
 
 def _timeframe_sort_key(timeframe: str) -> tuple[int, str]:
     try:
-        delta = pd.to_timedelta(timeframe)
+        delta = pd.to_timedelta(timeframe.lower())
         minutes = int(delta.total_seconds() // 60)
     except Exception:  # pragma: no cover - relies on pandas parsing
         minutes = 0
@@ -115,15 +115,16 @@ def _merge_timeframes_for_output(
     include_bar_windows: bool,
 ) -> pd.DataFrame:
     base_raw = raw_frames[base_timeframe]
-    result = pd.DataFrame(
+    base_result = pd.DataFrame(
         {"available_at": pd.to_datetime(base_raw["bar_open"], utc=True)}
     )
-    result = result.sort_values("available_at").reset_index(drop=True)
+    base_result = base_result.sort_values("available_at").reset_index(drop=True)
+    concatenated_parts: list[pd.DataFrame] = [base_result]
 
     for timeframe in dependencies.get(base_timeframe, []):
         frame = raw_frames[timeframe]
         merged = pd.merge_asof(
-            result[["available_at"]],
+            base_result[["available_at"]],
             frame,
             left_on="available_at",
             right_on="bar_close",
@@ -136,22 +137,21 @@ def _merge_timeframes_for_output(
             for col in frame.columns
             if col not in {"bar_open", "bar_close", "bar_lookup"}
         ]
-        for col in feature_cols:
-            result[col] = merged[col]
+        if feature_cols:
+            concatenated_parts.append(merged[feature_cols].copy())
 
-        result[f"{slug}_bar_open"] = merged["bar_open"]
-        result[f"{slug}_bar_close"] = merged["bar_close"]
-        result[f"{slug}_bar_lookup_key"] = merged["bar_lookup"]
+        if include_bar_windows:
+            bar_windows = pd.DataFrame(
+                {
+                    f"{slug}_bar_open": merged["bar_open"],
+                    f"{slug}_bar_close": merged["bar_close"],
+                    f"{slug}_bar_lookup_key": merged["bar_lookup"],
+                }
+            )
+            concatenated_parts.append(bar_windows)
 
-    if not include_bar_windows:
-        drop_cols = [
-            col
-            for col in result.columns
-            if col.endswith("_bar_open")
-            or col.endswith("_bar_close")
-            or col.endswith("_bar_lookup_key")
-        ]
-        result = result.drop(columns=drop_cols)
+    result = pd.concat(concatenated_parts, axis=1)
+    result = result.loc[:, ~result.columns.duplicated(keep="last")]
 
     cols = result.columns.tolist()
     ordered_cols = ["available_at"] + [c for c in cols if c != "available_at"]
