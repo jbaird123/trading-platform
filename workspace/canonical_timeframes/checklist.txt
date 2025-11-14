@@ -34,13 +34,13 @@ Goal: ensure every configuration, cache, dataset, and code path uses the same ca
    - [x] Regenerate any golden/reference files so they match the canonical scheme.
 
 7. **Tests & enforcement**
-   - [ ] Add tests/assertions that metadata/caches never contain legacy prefixes.
+   - [x] Add tests/assertions that metadata/caches never contain legacy prefixes.
    - [ ] Add CI checks or scripts that scan generated artifacts for non-canonical columns.
-   - [ ] Update existing tests (golden validation, contextual features) to use canonical names and guard against regressions.
+   - [x] Update existing tests (golden validation, contextual features) to use canonical names and guard against regressions.
 
 8. **Documentation & onboarding**
-   - [ ] Document the canonical scheme and how to extend it in `workspace/canonical_timeframes/` or docs.
-   - [ ] Provide usage examples for new feature authors (e.g., “always call `canonicalize_timeframe('m15')` before persisting column names”).
+   - [x] Document the canonical scheme and how to extend it in `workspace/canonical_timeframes/` or docs.
+   - [x] Provide usage examples for new feature authors (e.g., “always call `canonicalize_timeframe('m15')` before persisting column names”).
    - [ ] Once everything passes, remove any remaining legacy normalizations so there’s only one canonical path.
 
 Success criterion: every artifact (config, cache metadata, context exports, campaigns, reports) only references canonical timeframe names, with automated checks preventing regressions.
