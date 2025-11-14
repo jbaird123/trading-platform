@@ -28,22 +28,21 @@ from pathlib import Path
 from typing import Callable, Iterable, Pattern
 
 from trading_platform.data.handler import DataHandler
-
-from scripts.check_golden_trades import (
+from trading_platform.tools.check_golden_trades import (
     DEFAULT_DATA_ROOT as DEFAULT_TV_DATA_ROOT,
 )
-from scripts.check_golden_trades import (
+from trading_platform.tools.check_golden_trades import (
     DEFAULT_INDEX,
     ensure_output_dir,
     export_trades,
 )
-from scripts.check_golden_trades import (
+from trading_platform.tools.check_golden_trades import (
     DEFAULT_OUTPUT_DIR as DEFAULT_TRADE_OUTPUT_DIR,
 )
-from scripts.check_golden_trades import (
+from trading_platform.tools.check_golden_trades import (
     STRATEGIES as TRADE_OUTPUT_NAMES,
 )
-from scripts.golden_compare import compare_paths
+from trading_platform.tools.golden_compare import compare_paths
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
