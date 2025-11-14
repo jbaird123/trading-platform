@@ -24,14 +24,14 @@ Goal: ensure every configuration, cache, dataset, and code path uses the same ca
    - [x] Normalize `global_feature_names` and guard-feature validations around canonical labels.
 
 5. **CLI, campaigns, and scripts**
-   - [ ] Normalize timeframe arguments in `trading_platform.cli`: `--timeframes`, `global_features_mode`, campaign plan generator/resolver, etc.
-   - [ ] Update pipeline scripts (`run-backtest.sh`, `run-full-ml-pipeline.sh`, campaign-run outputs) to expect canonical column names.
-   - [ ] Document the canonical naming expectation for YAML configs, campaign configs, and CLI overrides.
+   - [x] Normalize timeframe arguments in `trading_platform.cli`: `--timeframes`, `global_features_mode`, campaign plan generator/resolver, etc.
+   - [x] Update pipeline scripts (`run-backtest.sh`, `run-full-ml-pipeline.sh`, campaign-run outputs) to expect canonical column names.
+   - [x] Document the canonical naming expectation for YAML configs, campaign configs, and CLI overrides.
 
 6. **Persistence and reporting**
-   - [ ] Confirm `brief.json`, `trades.csv`, `signals.parquet`, `processed_data.parquet` emit canonical field names (e.g., `ctx_global_features_15min_...` instead of `ctx_global_features_m15_...`).
-   - [ ] Update reporting analytics, AI diagnostics, and verification tools to parse canonical names.
-   - [ ] Regenerate any golden/reference files so they match the canonical scheme.
+   - [x] Confirm `brief.json`, `trades.csv`, `signals.parquet`, `processed_data.parquet` emit canonical field names (e.g., `ctx_global_features_15min_...` instead of `ctx_global_features_m15_...`).
+   - [x] Update reporting analytics, AI diagnostics, and verification tools to parse canonical names.
+   - [x] Regenerate any golden/reference files so they match the canonical scheme.
 
 7. **Tests & enforcement**
    - [ ] Add tests/assertions that metadata/caches never contain legacy prefixes.
