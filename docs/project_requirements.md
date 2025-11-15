@@ -532,6 +532,17 @@ _Last updated: 2025-09-16_
 - **[GOV-15.3]** **Issue Tracking**: All work should be tracked in an issue tracker, with issue numbers referenced in commit messages.
 - **[GOV-15.5.2]** **Canonical Timeframe Enforcement**: Legacy timeframe prefixes are rejected; every configuration, cache, and export must already use the canonical pandas-style labels (`1min`, `5min`, `15min`, `30min`, `1h`, `4h`, `1d`, `1w`), and any attempt to use the older `m*/h*/d*` prefixes must fail validation instead of being normalized.
 
+### Canonical Timeframes Guidance
+
+The canonical timeframe scheme described above is detailed in the `workspace/canonical_timeframes/README.md` guide (which is intentionally kept outside the repo), but the key points are:
+
+1. `trading_platform/data/timeframe_aliases.py` defines the alias registry and helpers (`canonicalize_timeframe`, `canonicalize_column_name`, `has_canonical_timeframe_prefix`).
+2. All configs, cache manifests, and exports derive their columns from canonical names; legacy prefixes are rejected rather than normalized.
+3. Tests such as `tests/test_canonical_timeframes.py` verify caches and contexts never expose non-canonical field names.
+4. When adding a new timeframe, update the registry, validators, and documentation to reflect the canonical label, ensuring every artifact remains aligned.
+
+This section serves as the documented replacement for the Workspace README so the enforcement guidance remains in the tracked repo.
+
 ---
 
 ## 16) Open TODOs
