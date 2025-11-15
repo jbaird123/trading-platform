@@ -11,6 +11,7 @@ import pandas as pd
 from numpy.typing import NDArray
 from sklearn.ensemble import GradientBoostingClassifier
 
+from ._timeframe_utils import drop_lower_timeframe_global_features
 from .feature_groups import (
     ENGINEERED_GROUP_PATTERNS,
     RISK_FEATURE_COLUMNS,
@@ -72,6 +73,8 @@ class ProfitabilityClassifierModel:
 
         self.training_start_date_ = pd.to_datetime(df["entry_time"]).min()
         self.training_end_date_ = pd.to_datetime(df["entry_time"]).max()
+
+        df = drop_lower_timeframe_global_features(df, self.timeframe)
 
         X = self._extract_features(df)
         y = (df["r_multiple"] > 0.0).astype(int).to_numpy()
