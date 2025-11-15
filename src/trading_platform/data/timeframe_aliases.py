@@ -22,6 +22,10 @@ TIMEFRAME_PREFIX_RENAMES: OrderedDict[str, str] = OrderedDict(
     ]
 )
 
+CANONICAL_TIMEFRAMES: tuple[str, ...] = tuple(
+    dict.fromkeys(TIMEFRAME_PREFIX_RENAMES.values())
+)
+
 
 def _normalize_indicator_suffix(column_name: str) -> str:
     if column_name.endswith("DI+"):
@@ -75,10 +79,21 @@ def normalize_name_sequence(columns: Iterable[str]) -> list[str]:
     ]
 
 
+def has_canonical_timeframe_prefix(column_name: str) -> bool:
+    """Return True if column_name is prefixed with a canonical timeframe label."""
+    if "_" not in column_name:
+        return False
+    prefix = column_name.split("_", 1)[0]
+    canonical_prefix = canonicalize_timeframe(prefix)
+    return canonical_prefix in CANONICAL_TIMEFRAMES
+
+
 __all__ = [
     "TIMEFRAME_PREFIX_RENAMES",
+    "CANONICAL_TIMEFRAMES",
     "canonicalize_timeframe",
     "canonicalize_column_name",
     "normalize_timeframe_columns",
     "normalize_name_sequence",
+    "has_canonical_timeframe_prefix",
 ]

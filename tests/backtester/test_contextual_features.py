@@ -121,15 +121,15 @@ def test_backtester_adds_contextual_features_to_trade_context() -> None:
             # Check that 1h_atr_14 exists in global_features
             assert "1h_atr_14" in global_features, "Global feature 1h_atr_14 not found"
 
-            1h_atr_value = global_features["1h_atr_14"]
+            h1_atr_value = global_features["1h_atr_14"]
 
             # Verify it's a number
             assert isinstance(
-                1h_atr_value, (int, float)
-            ), f"1h_atr_14 should be numeric, got {type(1h_atr_value)}"
+                h1_atr_value, (int, float)
+            ), f"1h_atr_14 should be numeric, got {type(h1_atr_value)}"
 
             # Verify it's positive (ATR should always be positive)
-            assert 1h_atr_value > 0, f"Expected positive ATR, got {1h_atr_value}"
+            assert h1_atr_value > 0, f"Expected positive ATR, got {h1_atr_value}"
         finally:
             os.chdir(original_cwd)
 
@@ -212,9 +212,9 @@ def test_end_of_data_exit_preserves_context() -> None:
             assert trade.context_at_exit is not None
             exit_context = trade.context_at_exit
             assert "global_features" in exit_context
-            1h_atr = exit_context["global_features"].get("1h_atr_14")
-            assert isinstance(1h_atr, (int, float))
-            assert 1h_atr > 0
+            exit_1h_atr = exit_context["global_features"].get("1h_atr_14")
+            assert isinstance(exit_1h_atr, (int, float))
+            assert exit_1h_atr > 0
         finally:
             os.chdir(original_cwd)
 
@@ -440,8 +440,8 @@ def test_backtester_trade_context_with_multi_timeframe_at_entry_and_exit() -> No
             entry_time = first_trade.entry_time
             assert entry_time is not None
             expected_entry_rsi = expected_rsi.loc[entry_time]
-            1h_rsi_entry = entry_features["1h_rsi_14"]
-            assert 1h_rsi_entry == pytest.approx(expected_entry_rsi, rel=1e-6)
+            entry_1h_rsi = entry_features["1h_rsi_14"]
+            assert entry_1h_rsi == pytest.approx(expected_entry_rsi, rel=1e-6)
 
             # Verify context_at_exit contains expected value
             assert hasattr(first_trade, "context_at_exit")
@@ -455,7 +455,7 @@ def test_backtester_trade_context_with_multi_timeframe_at_entry_and_exit() -> No
             exit_time = first_trade.exit_time
             assert exit_time is not None
             expected_exit_rsi = expected_rsi.loc[exit_time]
-            1h_rsi_exit = exit_features["1h_rsi_14"]
-            assert 1h_rsi_exit == pytest.approx(expected_exit_rsi, rel=1e-6)
+            exit_1h_rsi = exit_features["1h_rsi_14"]
+            assert exit_1h_rsi == pytest.approx(expected_exit_rsi, rel=1e-6)
         finally:
             os.chdir(original_cwd)
