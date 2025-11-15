@@ -530,6 +530,7 @@ _Last updated: 2025-09-16_
 - **[GOV-15.1]** **Branching Strategy**: A standardized branching model will be used.
 - **[GOV-15.2]** **Code Reviews**: All code must be submitted via Pull Requests and requires at least one approval.
 - **[GOV-15.3]** **Issue Tracking**: All work should be tracked in an issue tracker, with issue numbers referenced in commit messages.
+- **[GOV-15.5.2]** **Canonical Timeframe Enforcement**: Legacy timeframe prefixes are rejected; every configuration, cache, and export must already use the canonical pandas-style labels (`1min`, `5min`, `15min`, `30min`, `1h`, `4h`, `1d`, `1w`), and any attempt to use the older `m*/h*/d*` prefixes must fail validation instead of being normalized.
 
 ---
 
