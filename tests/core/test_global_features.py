@@ -52,8 +52,8 @@ def test_select_minimal_global_features_uses_classifier_metadata(
     model = ProfitabilityClassifierModel(timeframe="5min", archetype="trend_following")
     model.model = GradientBoostingClassifier()
     model.feature_names_ = [
-        "context_at_entry_global_features_h1_atr_14",
-        "context_at_entry_global_features_h1_atr_14_slope",
+        "context_at_entry_global_features_1h_atr_14",
+        "context_at_entry_global_features_1h_atr_14_slope",
     ]
     model.save(clf_dir / "5min_trend_following.pkl")
 

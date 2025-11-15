@@ -12,18 +12,18 @@ def _write_summary(root: Path, context: str) -> Path:
         "context_key": context,
         "model_hash": "hash123",
         "top_features": [
-            "context_at_entry_global_features_h1_rsi_14",
-            "context_at_entry_global_features_h1_atr_14",
+            "context_at_entry_global_features_1h_rsi_14",
+            "context_at_entry_global_features_1h_atr_14",
         ],
         "high_quintile_trades": 15,
         "feature_bounds": [
             {
-                "feature": "context_at_entry_global_features_h1_rsi_14",
+                "feature": "context_at_entry_global_features_1h_rsi_14",
                 "lower": 41.4,
                 "upper": 58.6,
             },
             {
-                "feature": "context_at_entry_global_features_h1_atr_14",
+                "feature": "context_at_entry_global_features_1h_atr_14",
                 "lower": 0.001,
                 "upper": 0.002,
             },
@@ -78,7 +78,7 @@ def test_generate_rmm_candidates_creates_yaml(tmp_path: Path) -> None:
     assert metadata["context_key"] == "1H_trend_following"
     assert (
         metadata["candidates"][0]["feature_bounds"][0]["feature"]
-        == "context_at_entry_global_features_h1_rsi_14"
+        == "context_at_entry_global_features_1h_rsi_14"
     )
 
 
@@ -98,7 +98,7 @@ def test_generate_rmm_candidates_filters_unsupported_features(tmp_path: Path) ->
                 "upper": 2.0,
             },
             {
-                "feature": "context_at_entry_global_features_h1_rsi_14",
+                "feature": "context_at_entry_global_features_1h_rsi_14",
                 "lower": 40.0,
                 "upper": 60.0,
             },

@@ -160,7 +160,7 @@ def _check_lower_tf_features(
         return None
     tf_col = df[base_timeframe]
     lower_cols = [
-        col for col in df.columns if "_m15_" in col.lower() and df[col].dtype != "O"
+        col for col in df.columns if "_15min_" in col.lower() and df[col].dtype != "O"
     ]
     if not lower_cols:
         LOGGER.info("No lower timeframe (m15) features detected; skipping check.")
@@ -178,7 +178,7 @@ def _write_markdown_summary(
     path: Path,
     summary: dict[str, object],
     r_multiple_stats: dict[str, float] | None,
-    15min_stats: pd.Series | None,
+    stats_15min: pd.Series | None,
 ) -> None:
     lines = [
         "# Feature Audit Summary",
@@ -217,7 +217,7 @@ def _write_markdown_summary(
                 "",
             ]
         )
-    if 15min_stats is not None:
+    if stats_15min is not None:
         lines.extend(
             [
                 "## M15 feature availability",
@@ -226,7 +226,7 @@ def _write_markdown_summary(
                 "|---------------------|---------------------------------------|",
             ]
         )
-        for tf, frac in 15min_stats.items():
+        for tf, frac in stats_15min.items():
             lines.append(f"| {tf} | {frac:.3f} |")
         lines.extend(
             [
@@ -288,10 +288,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     summary = _basic_profile(df, args.output_dir)
     r_stats = _check_r_multiple_missing(df, args.output_dir)
-    15min_stats = _check_lower_tf_features(df, args.output_dir)
+    stats_15min = _check_lower_tf_features(df, args.output_dir)
     _plot_top_variance_histograms(df, args.output_dir, args.hist_top_variance)
     if args.report_path:
-        _write_markdown_summary(args.report_path, summary, r_stats, 15min_stats)
+        _write_markdown_summary(args.report_path, summary, r_stats, stats_15min)
     LOGGER.info("Feature audit complete. Results written to %s", args.output_dir)
 
 

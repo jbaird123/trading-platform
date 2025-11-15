@@ -121,8 +121,8 @@ def test_gating_engine_builds_prefixed_feature_row():
     required = [
         "context_at_entry_strategy_features_ema_fast",
         "context_at_entry_strategy_features_atr_14",
-        "context_at_entry_global_features_m15_day_of_week_dow_3",
-        "context_at_entry_global_features_m15_trend_alignment_full_alignment",
+        "context_at_entry_global_features_15min_day_of_week_dow_3",
+        "context_at_entry_global_features_15min_trend_alignment_full_alignment",
         "risk_distance_abs",
         "risk_distance_pct_entry",
         "risk_distance_atr_ratio",
