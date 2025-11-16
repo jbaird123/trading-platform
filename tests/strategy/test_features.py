@@ -171,12 +171,11 @@ def test_compute_features_empty_name():
     assert "valid_ema" in result.columns
 
     # The empty name ("") should be skipped due to `if not name: continue`
-    # But str(None) = "None" is truthy, so it would create a "None" column
+    # Missing name (None) should also be skipped by the canonical pipeline
     # Let's check that we have the expected columns
     expected_new_columns = {
         "valid_ema",
-        "None",
-    }  # "None" gets created from missing name
+    }  # Both empty and None names are skipped
     new_columns = set(result.columns) - initial_columns
     assert new_columns == expected_new_columns
 
@@ -316,7 +315,6 @@ def test_compute_features_all_indicator_types():
         {"name": "test_obv", "type": "OBV"},
         {"name": "test_cmf", "type": "CMF", "params": {"length": 3}},
         {"name": "test_vwap", "type": "VWAP"},
-        {"name": "test_unknown", "type": "UNKNOWN"},  # Unknown type -> pd.NA
     ]
 
     result = compute_features(df, specs)
@@ -569,15 +567,22 @@ def test_dc_vwap_and_unknown_type():
         },
         index=[datetime(2024, 1, 1, i) for i in range(4)],
     )
+
+    # Test valid indicators work
     specs: list[dict[str, object]] = [
         {"name": "dc", "type": "DC", "params": {"length": 2}},
         {"name": "vwap", "type": "VWAP"},
-        {"name": "unknown", "type": "UNKNOWN"},
     ]
     out = compute_features(df, specs)
     assert "dc_upper" in out and "dc_lower" in out
     assert "vwap" in out
-    assert "unknown" in out  # present (pd.NA)
+
+    # Test that unknown indicators raise KeyError (fail-fast)
+    specs_with_unknown: list[dict[str, object]] = [
+        {"name": "unknown", "type": "UNKNOWN"},
+    ]
+    with pytest.raises(KeyError, match="Indicator type 'UNKNOWN' not found"):
+        compute_features(df, specs_with_unknown)
 
 
 # --- test_features_price_sources.py ---

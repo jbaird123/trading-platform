@@ -30,15 +30,25 @@ def _create_minimal_cache(
     cache_dir = cache_root / symbol.lower().replace("_", "") / config_hash
     cache_dir.mkdir(parents=True, exist_ok=True)
 
+    # Shift feature data forward one row to match cache semantics
+    cache_ready = feature_data.copy().shift(1)
+
     # Write metadata.json
+    first_valid_index = (
+        feature_data.index[1] if len(feature_data) > 1 else feature_data.index[0]
+    )
+
     metadata = {
         "symbol": symbol,
         "config_hash": config_hash,
         "manifest_digest": manifest_digest,
         "timeframes": {
             timeframe: {
-                "columns": list(feature_data.columns),
-                "rows": len(feature_data),
+                "columns": ["available_at"] + list(cache_ready.columns),
+                "rows": len(cache_ready),
+                "valid_start": {
+                    list(cache_ready.columns)[0]: first_valid_index.isoformat()
+                },
             }
         },
     }
@@ -47,7 +57,7 @@ def _create_minimal_cache(
 
     # Write parquet file for the timeframe
     parquet_path = cache_dir / f"{timeframe}.parquet"
-    df_to_save = feature_data.copy()
+    df_to_save = cache_ready.copy()
     df_to_save.reset_index(inplace=True)
     df_to_save.rename(columns={"timestamp": "available_at"}, inplace=True)
     df_to_save.to_parquet(parquet_path, index=False)
@@ -79,8 +89,8 @@ def _setup_mocks_and_run(
     sample_feature_data: pd.DataFrame,
     recomputed_data: pd.DataFrame,
     extra_args: list[str] | None = None,
-) -> int | str | None:
-    """Helper to set up mocks and run validation, returning exit code."""
+) -> int:
+    """Helper to set up mocks and run validation, returning the exit code."""
     import hashlib
 
     import yaml
@@ -103,20 +113,16 @@ def _setup_mocks_and_run(
         cache_root, "EUR_USD", "5min", config_hash, manifest_digest, sample_feature_data
     )
 
-    # Create mock market data (OHLCV) at 1min frequency
-    # Need enough 1min bars to cover the 5min bars in sample_feature_data
-    # If sample has 2 rows at 5min freq, we need at least 10 mins of 1min data
-    num_1min_bars = len(sample_feature_data) * 5 + 5  # Extra buffer
-    idx_1min = pd.date_range("2023-01-01", periods=num_1min_bars, freq="1min", tz="UTC")
+    # Create mock market data (matching the cached feature timestamps)
     mock_market_data = pd.DataFrame(
         {
-            "open": [1.0] * num_1min_bars,
-            "high": [1.0] * num_1min_bars,
-            "low": [1.0] * num_1min_bars,
-            "close": [1.0] * num_1min_bars,
-            "volume": [100.0] * num_1min_bars,
+            "open": [1.0] * len(sample_feature_data),
+            "high": [1.0] * len(sample_feature_data),
+            "low": [1.0] * len(sample_feature_data),
+            "close": [1.0] * len(sample_feature_data),
+            "volume": [100.0] * len(sample_feature_data),
         },
-        index=idx_1min,
+        index=sample_feature_data.index,
     )
     mock_market_data.index.name = "timestamp"
 
@@ -136,31 +142,36 @@ def _setup_mocks_and_run(
     if extra_args:
         base_args.extend(extra_args)
 
-    # Mock load_instrument_data and build_global_feature_frame
-    with patch("scripts.validate_feature_cache.load_instrument_data") as mock_load_data:
-        mock_load_data.return_value = (mock_market_data, [])
+    # Mock DataHandler to return deterministic market data
+    class FakeDataHandler:
+        def __init__(self, symbol: str, data_root: Path):
+            self.symbol = symbol
+            self.data_root = data_root
 
-        # Mock build_global_feature_frame to return data matching market_data index
-        def mock_build_fn(market_data_input, *args, **kwargs):
-            # Return recomputed_data values but indexed to market_data
-            # Resample the recomputed data to the full 1min index
-            result = recomputed_data.copy()
-            # Forward-fill to match market_data index
-            result = result.reindex(market_data_input.index, method="ffill")
-            return (result, {"valid_start": {}})
+        def get_data(self, timeframe: str) -> pd.DataFrame:
+            assert timeframe == "5min"
+            return mock_market_data.copy()
 
+    # Mock build_global_feature_frame to return recomputed data aligned to cache index
+    def mock_build_fn(*args, **kwargs):
+        aligned = recomputed_data.copy().reindex(mock_market_data.index, method="ffill")
+        return aligned, {"valid_start": {}}
+
+    with patch("scripts.validate_feature_cache.DataHandler", FakeDataHandler):
         with patch(
-            "scripts.validate_feature_cache.build_global_feature_frame"
-        ) as mock_build:
-            mock_build.side_effect = mock_build_fn
-
+            "trading_platform.core.global_feature_pipeline.build_global_feature_frame",
+            side_effect=mock_build_fn,
+        ):
             with patch("sys.argv", base_args):
                 with pytest.raises(SystemExit) as exc_info:
                     from scripts.validate_feature_cache import main
 
                     main()
 
-                return exc_info.value.code
+                exit_code = exc_info.value.code
+                if not isinstance(exit_code, int):
+                    exit_code = int(exit_code or 0)
+                return exit_code
 
 
 def test_validate_script_exists():
@@ -174,14 +185,12 @@ def test_validate_script_exists():
     assert script_path.parent.exists(), "scripts directory should exist"
 
 
-@pytest.mark.skip(reason="Test mocking needs refinement for datetime index handling")
 def test_validation_succeeds_with_matching_cache(tmp_path, sample_feature_data):
     """Test that validation exits 0 when cache matches recomputed features."""
     exit_code = _setup_mocks_and_run(tmp_path, sample_feature_data, sample_feature_data)
     assert exit_code == 0, "Should exit 0 on matching cache"
 
 
-@pytest.mark.skip(reason="Test mocking needs refinement for datetime index handling")
 def test_validation_fails_with_corrupted_cache(tmp_path, sample_feature_data):
     """Test that validation exits 1 when cache contains corrupted data."""
     # Create mismatched recomputed data
@@ -192,7 +201,6 @@ def test_validation_fails_with_corrupted_cache(tmp_path, sample_feature_data):
     assert exit_code == 1, "Should exit 1 on corrupted cache"
 
 
-@pytest.mark.skip(reason="Test mocking needs refinement for datetime index handling")
 def test_validation_reports_digest_and_mismatches(
     tmp_path, sample_feature_data, capsys
 ):

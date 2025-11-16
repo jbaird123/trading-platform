@@ -103,16 +103,14 @@ def test_add_feature_missing_kind(sample_dataframe):
 
 def test_add_feature_unsupported_kind(sample_dataframe):
     """
-    Verifies behavior for unsupported feature kinds.
-    Now that we use centralized compute_features, unsupported types
-    result in a column with NaN values rather than an exception.
+    Unsupported feature kinds must raise immediately (fail-fast policy).
     """
     pipeline = FeatureEngineeringPipeline(sample_dataframe)
     feature_config = {"kind": "unsupported_feature", "params": {"length": 10}}
-    pipeline.add_feature(feature_config)
-    # Should create column with NaN values
-    assert "unsupported_feature_10" in pipeline.df.columns
-    assert pipeline.df["unsupported_feature_10"].isna().all()
+    with pytest.raises(
+        KeyError, match="Indicator type 'UNSUPPORTED_FEATURE' not found"
+    ):
+        pipeline.add_feature(feature_config)
 
 
 def test_run_multiple_features(sample_dataframe):

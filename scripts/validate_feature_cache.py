@@ -27,6 +27,8 @@ from trading_platform.core.global_features_cache import (
     load_cached_global_features,
 )
 from trading_platform.data.handler import DataHandler
+from trading_platform.data.resample import timeframe_to_timedelta
+from trading_platform.data.timeframe_aliases import canonicalize_timeframe
 
 
 def parse_args() -> argparse.Namespace:
@@ -188,36 +190,63 @@ def main() -> None:
 
     print(f"Loaded {len(market_data)} rows of market data at {args.timeframe}")
 
-    # Recompute features using compute_features (same as cache builder)
+    # Recompute features using canonical pipeline (same as cache builder)
     try:
-        from trading_platform.strategy.features import compute_features
-
-        recomputed_df = compute_features(
-            market_data, feature_defs, strategy_parameters={}
+        from trading_platform.core.global_feature_pipeline import (
+            build_global_feature_frame,
         )
 
-        # Extract only feature columns (not OHLCV)
-        base_columns = ["open", "high", "low", "close", "volume"]
-        feature_columns = [
-            col for col in recomputed_df.columns if col not in base_columns
-        ]
-        recomputed_df = recomputed_df[feature_columns]
+        recomputed_df, _ = build_global_feature_frame(
+            market_data=market_data,
+            feature_defs=feature_defs,
+            execution_timeframe=args.timeframe,
+            strategy_parameters={},
+        )
     except Exception as e:
         print(f"ERROR: Failed to recompute features: {e}")
         sys.exit(1)
 
-    # 6. Compare values
+    # 6. Compare values at matching timestamps
     print("\nComparing cached vs recomputed features...")
 
     mismatches: list[tuple[str, int]] = []
 
-    for col in validation_df.columns:
-        if col not in recomputed_df.columns:
+    valid_start_map: dict[str, pd.Timestamp] = cached_df.attrs.get("valid_start", {})
+
+    # Align recomputed data to cached timestamps (each column uses its own timeframe)
+    shifted_columns: dict[str, pd.Series] = {}
+    for col in recomputed_df.columns:
+        prefix = col.split("_", 1)[0]
+        column_timeframe = canonicalize_timeframe(prefix) or args.timeframe
+        try:
+            delta = timeframe_to_timedelta(column_timeframe)
+        except ValueError:
+            delta = timeframe_to_timedelta(args.timeframe)
+        series = recomputed_df[col].copy()
+        series.index = series.index + delta
+        shifted_columns[col] = series
+
+    recomputed_shifted = (
+        pd.DataFrame(shifted_columns) if shifted_columns else pd.DataFrame()
+    )
+
+    recomputed_subset = recomputed_shifted.reindex(validation_df.index, method="ffill")
+    validation_subset = validation_df
+
+    for col in validation_subset.columns:
+        if col not in recomputed_subset.columns:
             print(f"WARNING: Column {col} not found in recomputed data")
             continue
 
-        cached_values = validation_df[col].values
-        recomputed_values = recomputed_df[col].values
+        valid_mask = validation_subset[col].notna()
+        start_ts = valid_start_map.get(col)
+        if start_ts is not None:
+            valid_mask &= validation_subset.index >= start_ts
+        if valid_mask.sum() == 0:
+            continue
+
+        cached_values = validation_subset.loc[valid_mask, col].values
+        recomputed_values = recomputed_subset.loc[valid_mask, col].values
 
         # Compare with np.isclose, handling NaN values
         close_mask = np.isclose(
@@ -233,13 +262,13 @@ def main() -> None:
             mismatches.append((col, mismatch_count))
             print(
                 f"  MISMATCH: {col} has {mismatch_count} "
-                f"mismatched cells (out of {len(validation_df)})"
+                f"mismatched cells (out of {len(validation_subset)})"
             )
 
             # Show first few mismatches for debugging
             mismatch_indices = np.where(~close_mask)[0][:3]
             for idx in mismatch_indices:
-                timestamp = validation_df.index[idx]
+                timestamp = validation_subset.index[idx]
                 cached_val = cached_values[idx]
                 recomputed_val = recomputed_values[idx]
                 diff = abs(cached_val - recomputed_val)
@@ -260,9 +289,9 @@ def main() -> None:
             print(f"  - {col}: {count} cells")
         sys.exit(1)
     else:
-        print(f"VALIDATION PASSED: All {len(validation_df.columns)} columns match")
+        print(f"VALIDATION PASSED: All {len(validation_subset.columns)} columns match")
         print(f"Timeframe: {args.timeframe}")
-        print(f"Rows validated: {len(validation_df)}")
+        print(f"Rows validated: {len(validation_subset)}")
         print(f"Manifest digest: {manifest_digest[:16]}...")
         print(f"Max drift tolerance: {args.max_drift}")
         sys.exit(0)

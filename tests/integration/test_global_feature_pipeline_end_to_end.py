@@ -5,14 +5,6 @@ This test verifies that all components of the global feature system interoperate
 2. Feature computation via build_global_feature_frame
 3. Cache loading with digest validation
 4. CLI validation script
-
-KNOWN ISSUE: This test currently fails because compute_features() produces
-different results when called via build_global_feature_caches() versus when
-called directly in validation. Root cause is under investigation - appears to
-be non-determinism or subtle difference in data/parameters.
-
-The test is kept to document expected behavior and will pass once the issue
-is resolved.
 """
 
 from __future__ import annotations
@@ -84,10 +76,6 @@ def _write_feature_manifest(path: Path) -> None:
     path.write_text(yaml.dump(manifest, sort_keys=True))
 
 
-@pytest.mark.xfail(
-    reason="compute_features() non-determinism between cache build and validation",
-    strict=False,
-)
 def test_global_feature_pipeline_end_to_end(tmp_path: Path) -> None:
     """Test complete pipeline: build → load → validate."""
     # ==================== Setup ====================

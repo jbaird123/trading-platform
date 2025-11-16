@@ -17,6 +17,7 @@ import pandas as pd
 import yaml
 from trading_platform.core import paths
 from trading_platform.core.config import GlobalFeatureSetConfig
+from trading_platform.core.global_feature_pipeline import build_global_feature_frame
 from trading_platform.core.global_features import (
     feature_to_dict,
     resolve_global_feature_manifest,
@@ -32,7 +33,6 @@ from trading_platform.data.timeframe_aliases import (
     normalize_name_sequence,
     normalize_timeframe_columns,
 )
-from trading_platform.strategy.features import compute_features
 
 logger = logging.getLogger(__name__)
 
@@ -330,6 +330,7 @@ def build_global_feature_caches(
         default_session = resolved_instrument.sessions[0]
 
     raw_frames: dict[str, pd.DataFrame] = {}
+    valid_start_registry: dict[str, dict[str, pd.Timestamp]] = {}
 
     for timeframe in tf_list:
         resolved_path, resolved_features = resolve_global_feature_manifest(
@@ -346,10 +347,14 @@ def build_global_feature_caches(
         df = handler.get_data(timeframe=timeframe)
         raw_index = pd.DatetimeIndex(df.index)
         session = df.attrs.get(SESSION_ATTR) or default_session
-        base_columns = list(df.columns)
         specs = [feature_to_dict(feature) for feature in resolved_features]
-        enriched = compute_features(df, specs, strategy_parameters={})
-        feature_columns = [col for col in enriched.columns if col not in base_columns]
+        feature_df, feature_metadata = build_global_feature_frame(
+            market_data=df,
+            feature_defs=specs,
+            execution_timeframe=timeframe,
+            strategy_parameters={},
+        )
+        feature_columns = list(feature_df.columns)
         if not feature_columns:
             logger.warning(
                 "Resolved features for timeframe %s produced no columns.",
@@ -357,7 +362,6 @@ def build_global_feature_caches(
             )
             continue
 
-        feature_df = enriched[feature_columns].copy()
         feature_df.attrs.pop(SESSION_ATTR, None)
         bar_open, bar_close, bar_lookup = _compute_bar_windows_for_cache(
             raw_index,
@@ -367,6 +371,16 @@ def build_global_feature_caches(
 
         feature_df = normalize_timeframe_columns(feature_df)
         feature_columns = normalize_name_sequence(feature_columns)
+
+        raw_valid_start = feature_metadata.get("valid_start", {})
+        normalized_valid_start: dict[str, pd.Timestamp] = {}
+        for key, value in raw_valid_start.items():
+            if value is None:
+                continue
+            normalized_key = canonicalize_column_name(str(key))
+            ts = pd.to_datetime(value, utc=True)
+            normalized_valid_start[normalized_key] = ts
+        valid_start_registry[timeframe] = normalized_valid_start
 
         # Convert bar_lookup to ISO string format (matching TradingView golden cache)
         bar_lookup_strings = pd.Series(
@@ -420,6 +434,12 @@ def build_global_feature_caches(
                 timestamp_series.iloc[-1].isoformat() if len(output_frame) else None
             ),
         }
+        normalized_valid_start = valid_start_registry.get(timeframe, {})
+        valid_start_serialized = {
+            col: ts.isoformat() for col, ts in normalized_valid_start.items()
+        }
+        if valid_start_serialized:
+            frame_meta["valid_start"] = valid_start_serialized
         timeframes_meta[timeframe] = frame_meta
         logger.info("Cached %s global features at %s", timeframe, tf_file)
 
@@ -543,6 +563,16 @@ def load_cached_global_features(
     if timestamp_col in df.columns:
         timestamps = pd.to_datetime(df[timestamp_col], utc=True)
         df = df.drop(columns=[timestamp_col]).set_index(timestamps)
+    valid_start_meta = frame_meta.get("valid_start")
+    if isinstance(valid_start_meta, dict):
+        valid_start_attr: dict[str, pd.Timestamp] = {}
+        for col_name, ts_str in valid_start_meta.items():
+            if not ts_str:
+                continue
+            canonical_name = canonicalize_column_name(str(col_name))
+            valid_start_attr[canonical_name] = pd.to_datetime(ts_str, utc=True)
+        if valid_start_attr:
+            df.attrs["valid_start"] = valid_start_attr
     return df, mapping
 
 

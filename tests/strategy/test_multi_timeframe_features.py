@@ -106,7 +106,7 @@ def test_compute_features_caches_resampled_data_per_timeframe():
 
     # Patch resample_data to count calls
     with patch(
-        "trading_platform.strategy.features.resample_data",
+        "trading_platform.core.global_feature_pipeline.resample_data",
         wraps=resample_data,
     ) as mock_resample:
         result = compute_features(df, feature_configs)
