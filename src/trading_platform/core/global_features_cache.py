@@ -10,8 +10,9 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from os import fspath
 from pathlib import Path
-from typing import Iterable, Sequence, cast
+from typing import Any, Iterable, Sequence, cast
 
+import numpy as np
 import pandas as pd
 import yaml
 from trading_platform.core import paths
@@ -42,6 +43,46 @@ _DEFAULT_TIMEFRAMES: tuple[str, ...] = ("5min", "15min", "1H", "4H", "1D")
 def _hash_file(path: Path) -> str:
     data = path.read_bytes()
     return hashlib.sha256(data).hexdigest()
+
+
+def compute_manifest_digest(manifest: dict[str, Any]) -> str:
+    """Compute a deterministic SHA256 digest from a feature manifest.
+
+    This function converts the manifest to a canonical JSON representation,
+    handling non-JSON-serializable types like pandas Timestamps and numpy types.
+
+    Args:
+        manifest: Feature manifest dictionary
+
+    Returns:
+        64-character hex string (SHA256 hash)
+
+    Example:
+        >>> manifest = {"features": [{"name": "ema", "params": {"length": 20}}]}
+        >>> digest = compute_manifest_digest(manifest)
+        >>> len(digest)
+        64
+    """
+
+    def _serialize_value(obj: Any) -> Any:
+        """Convert transient objects to JSON-serializable types."""
+        if isinstance(obj, pd.Timestamp):
+            return obj.isoformat()
+        if isinstance(obj, (np.integer, np.floating)):
+            return obj.item()  # Convert to Python int/float
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, dict):
+            # Sort keys for deterministic ordering
+            return {k: _serialize_value(v) for k, v in sorted(obj.items())}
+        if isinstance(obj, (list, tuple)):
+            return [_serialize_value(item) for item in obj]
+        return obj
+
+    # Serialize with sorted keys for deterministic output
+    normalized = _serialize_value(manifest)
+    canonical_json = json.dumps(normalized, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()
 
 
 def _sorted_unique_timeframes(timeframes: Iterable[str]) -> list[str]:
@@ -261,6 +302,10 @@ def build_global_feature_caches(
     if not tf_list:
         tf_list = list(_DEFAULT_TIMEFRAMES)
 
+    # Load the manifest to compute digest
+    manifest_data = yaml.safe_load(config_path.read_text())
+    manifest_digest = compute_manifest_digest(manifest_data)
+
     timeframes_meta: dict[str, dict[str, object]] = {}
     metadata: dict[str, object] = {
         "symbol": symbol,
@@ -269,6 +314,7 @@ def build_global_feature_caches(
         "cache_root": fspath(descriptor.data_root),
         "config_path": fspath(descriptor.config_path),
         "config_hash": descriptor.config_hash,
+        "manifest_digest": manifest_digest,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "timeframes": timeframes_meta,
     }
@@ -433,6 +479,12 @@ def load_cached_global_features(
 ) -> tuple[pd.DataFrame, dict[str, list[str]]] | None:
     """
     Load cached global features for the requested execution timeframe.
+
+    Validates that the cached features were built from the same manifest
+    by comparing manifest digests. Raises ValueError if mismatch detected.
+
+    Raises:
+        ValueError: If manifest digest mismatch detected
     """
 
     storage_root = (
@@ -442,6 +494,23 @@ def load_cached_global_features(
     )
     descriptor = _resolve_descriptor(symbol, storage_root, config_path)
     metadata = _load_metadata(descriptor)
+
+    # Validate manifest digest
+    if metadata:
+        stored_digest = metadata.get("manifest_digest")
+        if stored_digest and isinstance(stored_digest, str):
+            # Compute current manifest digest
+            manifest_data = yaml.safe_load(config_path.read_text())
+            current_digest = compute_manifest_digest(manifest_data)
+
+            if current_digest != stored_digest:
+                raise ValueError(
+                    f"Manifest digest mismatch for {symbol}/{timeframe}. "
+                    f"Cache was built with digest {stored_digest[:16]}..., "
+                    f"but current manifest has digest {current_digest[:16]}.... "
+                    f"Rebuild the cache with the current manifest."
+                )
+
     frame_meta: dict[str, object] | None = None
     timeframes_obj = metadata.get("timeframes") if metadata else None
     if isinstance(timeframes_obj, dict):
