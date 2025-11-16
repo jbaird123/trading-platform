@@ -254,7 +254,9 @@ def compute_features(
             htf_values = df_resampled[new_column_names].copy()
             if shift_needed:
                 htf_values.index = htf_values.index + timeframe_delta
-            htf_values = htf_values.reindex(df.index, method="ffill")
+                htf_values = htf_values.reindex(df.index, method="ffill")
+            # else: when execution TF == feature TF, indices already match perfectly
+            # no reindex needed - using features as-is prevents forward-fill leakage
 
             new_cols: dict[str, pd.Series] = {
                 col: htf_values[col] for col in new_column_names
