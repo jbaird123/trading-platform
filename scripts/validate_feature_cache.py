@@ -22,12 +22,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import yaml
-from trading_platform.core.global_feature_pipeline import build_global_feature_frame
 from trading_platform.core.global_features_cache import (
     compute_manifest_digest,
     load_cached_global_features,
 )
-from trading_platform.data.loader import load_instrument_data
+from trading_platform.data.handler import DataHandler
 
 
 def parse_args() -> argparse.Namespace:
@@ -97,13 +96,31 @@ def main() -> None:
         f"from {args.cache_dir}"
     )
 
-    # Extract feature names from manifest
-    feature_defs = manifest_data.get("features", [])
-    if not feature_defs:
+    # Filter features to only those matching the execution timeframe
+    # (same as resolve_global_features does in cache builder)
+    all_features = manifest_data.get("features", [])
+    if not all_features:
         print("ERROR: No features defined in manifest")
         sys.exit(1)
 
-    feature_names = [f["name"] for f in feature_defs if "name" in f]
+    # Filter to features at or below the execution timeframe
+    # The cache builder only computes features matching the exact timeframe
+    from trading_platform.core.feature_resolver import resolve_global_features
+
+    resolved_features = resolve_global_features(args.timeframe, args.feature_config)
+    feature_defs = [
+        {
+            "name": f.name,
+            "type": f.type,
+            "params": f.params,
+            "source": f.source,
+            "timeframe": f.timeframe,
+        }
+        for f in resolved_features
+    ]
+
+    # Extract feature names with type annotation for mypy
+    feature_names: list[str] = [str(f["name"]) for f in feature_defs if "name" in f]
 
     try:
         cache_result = load_cached_global_features(
@@ -150,48 +167,44 @@ def main() -> None:
 
         data_root = tp_paths.DATA_ROOT  # type: ignore[attr-defined]
 
-    # Load market data (1min base data)
+    # Use DataHandler to load data at execution timeframe (same as cache builder)
     try:
-        market_data_1min, _ = load_instrument_data(
-            symbol=args.symbol, data_root=data_root
-        )
+        handler = DataHandler(symbol=args.symbol, data_root=data_root)
+        market_data = handler.get_data(timeframe=args.timeframe)
     except Exception as e:
         print(f"ERROR: Failed to load market data: {e}")
         sys.exit(1)
 
-    if market_data_1min.empty:
+    if market_data.empty:
         print("ERROR: No market data loaded")
         sys.exit(1)
 
-    # Filter to validation date range (only if index is datetime)
+    # Filter to validation date range
     if pd.api.types.is_datetime64_any_dtype(validation_df.index):
-        market_data_1min = market_data_1min[
-            (market_data_1min.index >= validation_df.index.min())
-            & (market_data_1min.index <= validation_df.index.max())
+        market_data = market_data[
+            (market_data.index >= validation_df.index.min())
+            & (market_data.index <= validation_df.index.max())
         ]
 
-    print(f"Loaded {len(market_data_1min)} rows of market data")
+    print(f"Loaded {len(market_data)} rows of market data at {args.timeframe}")
 
-    # Recompute features using canonical pipeline
+    # Recompute features using compute_features (same as cache builder)
     try:
-        recomputed_df, _ = build_global_feature_frame(
-            market_data_1min,
-            feature_defs,
-            execution_timeframe=args.timeframe,
+        from trading_platform.strategy.features import compute_features
+
+        recomputed_df = compute_features(
+            market_data, feature_defs, strategy_parameters={}
         )
+
+        # Extract only feature columns (not OHLCV)
+        base_columns = ["open", "high", "low", "close", "volume"]
+        feature_columns = [
+            col for col in recomputed_df.columns if col not in base_columns
+        ]
+        recomputed_df = recomputed_df[feature_columns]
     except Exception as e:
         print(f"ERROR: Failed to recompute features: {e}")
         sys.exit(1)
-
-    # 5. Align recomputed data to validation timestamps
-    # Only reindex if validation_df has a proper datetime index
-    if pd.api.types.is_datetime64_any_dtype(validation_df.index):
-        # Use ffill for safety in case timestamps don't match exactly
-        recomputed_df = recomputed_df.reindex(validation_df.index, method="ffill")
-    else:
-        # If validation_df doesn't have datetime index, just use as-is
-        # This might happen in test scenarios
-        pass
 
     # 6. Compare values
     print("\nComparing cached vs recomputed features...")
