@@ -375,9 +375,8 @@ def _execute_backtest_loop(
                                     cache_frame.index = cache_index.tz_localize(
                                         market_index.tz
                                     )
-                            cache_frame = cache_frame.reindex(
-                                market_data.index, method="ffill"
-                            )
+                            # Direct lookup - indices should match perfectly
+                            # No reindex/ffill needed
                             data_with_global_features = market_data.join(
                                 cache_frame, how="left"
                             )
