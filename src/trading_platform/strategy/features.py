@@ -126,13 +126,9 @@ def _infer_execution_timeframe(index: pd.Index) -> str:
     if freq:
         try:
             offset = to_offset(freq)
-            nanos = getattr(offset, "nanos", None)
-            delta_attr = getattr(offset, "delta", None)
-            if nanos is not None and nanos != 0:
-                delta = pd.to_timedelta(nanos, unit="ns")
-            elif delta_attr is not None:
-                delta = pd.to_timedelta(delta_attr)
-            else:
+            try:
+                delta = pd.Timedelta(offset.freqstr)
+            except (ValueError, TypeError):
                 delta = pd.to_timedelta(freq)
             minutes = int(delta.total_seconds() // 60)
             tf = _MINUTE_TO_TIMEFRAME.get(minutes)
