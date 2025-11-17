@@ -22,10 +22,8 @@ from trading_platform.core.global_features_cache import cache_covers_features
 from trading_platform.portfolio.trade import Trade
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
-GOLDEN_FEATURE_CACHE_ROOT = PROJECT_ROOT / "data" / "dvc" / "golden"
-GOLDEN_TV_CACHE_ROOT = (
-    GOLDEN_FEATURE_CACHE_ROOT / "features" / "trading_platform" / "cache"
-)
+GOLDEN_FEATURE_CACHE_ROOT = PROJECT_ROOT / "data" / "cache_test"
+GOLDEN_TV_CACHE_ROOT = GOLDEN_FEATURE_CACHE_ROOT
 
 # Golden validation utilities (ALWAYS use these for golden tests)
 

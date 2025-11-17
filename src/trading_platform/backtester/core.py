@@ -548,10 +548,19 @@ def _execute_backtest_loop(
                                 and len(cache_frame.index) > 0
                                 and len(market_data.index) > 0
                             ):
-                                diff = cache_frame.index[0] - market_data.index[0]
+                                market_start = market_data.index[0]
+                                overlapping = cache_frame.index[
+                                    cache_frame.index >= market_start
+                                ]
+                                cache_start = (
+                                    overlapping[0]
+                                    if len(overlapping) > 0
+                                    else cache_frame.index[0]
+                                )
+                                diff = cache_start - market_start
                                 aligned_to_close = diff == cast(
                                     pd.Timedelta, bar_close_timedelta
-                                )
+                                ) or diff == pd.Timedelta(0)
 
                             join_frame = cache_frame.copy()
                             if aligned_to_close:
