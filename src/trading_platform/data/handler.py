@@ -36,6 +36,7 @@ class _CachedInstrumentData:
     cache: dict[str, pd.DataFrame]
     base_timeframe: str
     base_minutes: int
+    loader_token: int
 
 
 _GLOBAL_INSTRUMENT_CACHE: dict[tuple[str, Path], _CachedInstrumentData] = {}
@@ -138,20 +139,25 @@ class DataHandler:
         cache_key = (symbol, resolved_root)
         cached = _GLOBAL_INSTRUMENT_CACHE.get(cache_key)
 
-        if cached is None:
+        loader_token = id(load_instrument_data)
+        needs_reload = cached is None or cached.loader_token != loader_token
+
+        if needs_reload:
             raw_data, dq_flags = load_instrument_data(symbol, resolved_root)
             annotate_session(raw_data, self._session)
             base_timeframe, base_minutes = self._detect_base_timeframe_from_df(raw_data)
-            cache: dict[str, pd.DataFrame] = {base_timeframe: raw_data}
+            cache_dict: dict[str, pd.DataFrame] = {base_timeframe: raw_data}
             cached = _CachedInstrumentData(
                 raw_data=raw_data,
                 data_quality_flags=dq_flags,
-                cache=cache,
+                cache=cache_dict,
                 base_timeframe=base_timeframe,
                 base_minutes=base_minutes,
+                loader_token=loader_token,
             )
             _GLOBAL_INSTRUMENT_CACHE[cache_key] = cached
         else:
+            assert cached is not None  # narrow type for static analyzers
             annotate_session(cached.raw_data, self._session)
 
         # Load raw data once (shared across handler instances)
