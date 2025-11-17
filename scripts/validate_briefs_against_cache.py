@@ -172,6 +172,24 @@ def compare_features(
     return matches, total, mismatches
 
 
+def _resolve_lookup_timestamp(
+    brief_context: dict[str, Any] | None,
+    fallback: pd.Timestamp,
+) -> pd.Timestamp:
+    """Prefer a cached decision timestamp when available."""
+    if not isinstance(brief_context, dict):
+        return fallback
+
+    decision_time = brief_context.get("decision_time")
+    if not decision_time:
+        return fallback
+
+    try:
+        return pd.to_datetime(decision_time)
+    except Exception:
+        return fallback
+
+
 def validate_brief(
     brief_path: Path,
     cache: pd.DataFrame,
@@ -209,8 +227,16 @@ def validate_brief(
         total=len(trades),
         description="Validating trades",
     ):
-        entry_time = pd.to_datetime(trade["entry_time"])
-        exit_time = pd.to_datetime(trade["exit_time"])
+        raw_entry_time = pd.to_datetime(trade["entry_time"])
+        raw_exit_time = pd.to_datetime(trade["exit_time"])
+        entry_time = _resolve_lookup_timestamp(
+            trade.get("context_at_entry"),
+            fallback=raw_entry_time,
+        )
+        exit_time = _resolve_lookup_timestamp(
+            trade.get("context_at_exit"),
+            fallback=raw_exit_time,
+        )
 
         trade_result = {
             "trade_idx": idx,

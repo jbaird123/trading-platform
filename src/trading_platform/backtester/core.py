@@ -132,6 +132,7 @@ def _build_context_snapshot(
         "strategy_features": strategy_context,
         "global_features": global_features,
     }
+    context["decision_time"] = timestamp.isoformat()
 
     if rmm_context is not None and regime_builder is not None:
         regime_source = rmm_context.get(timestamp)
