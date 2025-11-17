@@ -157,8 +157,10 @@ def _merge_timeframes_for_output(
     include_bar_windows: bool,
 ) -> pd.DataFrame:
     base_raw = raw_frames[base_timeframe]
+    # available_at reflects the bar close (decision) timestamp so downstream
+    # consumers always read features that were fully known at that instant.
     base_result = pd.DataFrame(
-        {"available_at": pd.to_datetime(base_raw["bar_open"], utc=True)}
+        {"available_at": pd.to_datetime(base_raw["bar_close"], utc=True)}
     )
     base_result = base_result.sort_values("available_at").reset_index(drop=True)
     concatenated_parts: list[pd.DataFrame] = [base_result]
@@ -390,7 +392,8 @@ def build_global_feature_caches(
             ]
         )
 
-        aligned_index = bar_open
+        # Align availability to bar close to include the final decision timestamp.
+        aligned_index = bar_close
 
         timestamp_col = pd.Series(aligned_index, name="available_at")
         storage_df = feature_df.copy()

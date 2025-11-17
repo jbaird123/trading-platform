@@ -74,6 +74,9 @@ GOLDEN_CACHE_START_DATE = pd.Timestamp("2020-03-01 22:00:00", tz="UTC")
 # Earliest timestamp where all higher timeframe metadata exists in the
 # trading_platform cache (15min base + 1H/4H/1D dependencies)
 TRADING_PLATFORM_VALIDATION_START = pd.Timestamp("2020-03-03 22:00:00", tz="UTC")
+# Snapshot comparison window (aligned to existing golden cache coverage)
+SNAPSHOT_TEST_START = pd.Timestamp("2020-03-01 23:00:00", tz="UTC")
+SNAPSHOT_TEST_END = pd.Timestamp("2024-12-31 22:00:00", tz="UTC")
 TV_ONLY_COLUMNS = {
     "4h_atr_14",
     "1h_bar_open",
@@ -580,7 +583,6 @@ def test_test_cache_matches_golden_snapshot(
             CACHE_TIMESTAMP_COLUMN
         )
 
-        # Filter both caches to start at GOLDEN_CACHE_START_DATE
         builder_df[CACHE_TIMESTAMP_COLUMN] = pd.to_datetime(
             builder_df[CACHE_TIMESTAMP_COLUMN], utc=True
         )
@@ -588,14 +590,26 @@ def test_test_cache_matches_golden_snapshot(
             golden_df[CACHE_TIMESTAMP_COLUMN], utc=True
         )
         builder_df = builder_df[
-            builder_df[CACHE_TIMESTAMP_COLUMN] >= GOLDEN_CACHE_START_DATE
-        ]
+            (builder_df[CACHE_TIMESTAMP_COLUMN] >= SNAPSHOT_TEST_START)
+            & (builder_df[CACHE_TIMESTAMP_COLUMN] <= SNAPSHOT_TEST_END)
+        ].reset_index(drop=True)
         golden_df = golden_df[
-            golden_df[CACHE_TIMESTAMP_COLUMN] >= GOLDEN_CACHE_START_DATE
-        ]
+            (golden_df[CACHE_TIMESTAMP_COLUMN] >= SNAPSHOT_TEST_START)
+            & (golden_df[CACHE_TIMESTAMP_COLUMN] <= SNAPSHOT_TEST_END)
+        ].reset_index(drop=True)
 
-        # Trading-platform golden cache lacks higher-timeframe metadata at the very
-        # start (no previous bars). Compare only once all dependencies have valid data.
+        builder_timestamps = set(builder_df[CACHE_TIMESTAMP_COLUMN])
+        golden_timestamps = set(golden_df[CACHE_TIMESTAMP_COLUMN])
+        builder_only = sorted(builder_timestamps - golden_timestamps)
+        golden_only = sorted(golden_timestamps - builder_timestamps)
+        if builder_only or golden_only:
+            raise AssertionError(
+                "Timestamp mismatch between rebuilt cache and golden snapshot\n"
+                f"  Rows only in builder (first 5): {builder_only[:5]}\n"
+                f"  Rows only in golden (first 5): {golden_only[:5]}"
+            )
+
+        # Compare values only once all dependent timeframes have valid data.
         builder_df = builder_df[
             builder_df[CACHE_TIMESTAMP_COLUMN] >= TRADING_PLATFORM_VALIDATION_START
         ].reset_index(drop=True)

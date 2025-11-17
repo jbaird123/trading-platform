@@ -181,13 +181,6 @@ def main() -> None:
         print("ERROR: No market data loaded")
         sys.exit(1)
 
-    # Filter to validation date range
-    if pd.api.types.is_datetime64_any_dtype(validation_df.index):
-        market_data = market_data[
-            (market_data.index >= validation_df.index.min())
-            & (market_data.index <= validation_df.index.max())
-        ]
-
     print(f"Loaded {len(market_data)} rows of market data at {args.timeframe}")
 
     # Recompute features using canonical pipeline (same as cache builder)

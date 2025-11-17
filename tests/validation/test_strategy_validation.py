@@ -23,6 +23,9 @@ from trading_platform.portfolio.trade import Trade
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 GOLDEN_FEATURE_CACHE_ROOT = PROJECT_ROOT / "data" / "dvc" / "golden"
+GOLDEN_TV_CACHE_ROOT = (
+    GOLDEN_FEATURE_CACHE_ROOT / "features" / "trading_platform" / "cache"
+)
 
 # Golden validation utilities (ALWAYS use these for golden tests)
 
@@ -776,6 +779,7 @@ def load_platform_trades(
         strategy_config=strategy_config,
         data_handler=data_handler,
         global_features_config_path=golden_features_path,
+        cache_root=GOLDEN_TV_CACHE_ROOT,
     )
     assert isinstance(results, dict)
     trades_source = cast(list[Trade], results["trades"])
