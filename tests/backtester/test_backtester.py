@@ -89,9 +89,10 @@ def test_run_backtest_uses_cached_global_features(
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
+    cache_idx = market_data.index.tolist() + [datetime(2024, 1, 1, 4)]
     cache_df = pd.DataFrame(
-        {"1h_cached_rsi": [50.0] * len(idx)},
-        index=market_data.index,
+        {"1h_cached_rsi": [50.0] * len(cache_idx)},
+        index=pd.DatetimeIndex(cache_idx),
     )
 
     def fake_load_cached(**_: Any) -> tuple[pd.DataFrame, dict[str, list[str]]]:
