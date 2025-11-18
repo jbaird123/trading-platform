@@ -106,7 +106,7 @@ If an iteration meets the objective:
 1.  Identify the best `candidate_path` from that iteration.
 2.  Read the YAML content and propose a descriptive filename that does not
     collide with existing files (e.g.,
-    `autogen_ema_crossover_h1_volatility_filter.yaml`).
+    `autogen_ema_crossover_1h_volatility_filter.yaml`).
 3.  Write the YAML to `config/rmm/<new_filename>.yaml`.
 4.  Document the promoted file path and metrics in both the iteration summary
     and the campaign log.

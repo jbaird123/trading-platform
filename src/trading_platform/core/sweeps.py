@@ -4,6 +4,7 @@ import logging
 import math
 import random
 from copy import deepcopy
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Sequence, cast
 
@@ -230,7 +231,7 @@ def _rmm_context(
 
     # Build RMM context with full precision - rounding happens in brief.py
     rmm_context = {
-        ts: {
+        cast(datetime, ts): {
             "label": str(row["label"]),
             "confidence": float(row["confidence"]),
             "allowed_sides": list(row.get("allowed_sides") or []),
@@ -248,7 +249,6 @@ def _rmm_context(
         }
         for ts, row in proj.iterrows()
     }
-
     for ctx in rmm_context.values():
         ctx["hysteresis"] = {
             "bars_in_state": _safe_int(ctx["bars_in_state"]),

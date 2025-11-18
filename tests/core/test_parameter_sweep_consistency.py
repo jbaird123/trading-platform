@@ -8,42 +8,111 @@ baseline compilation.
 
 import json
 from argparse import Namespace
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
 from ta.trend import EMAIndicator
 from trading_platform.cli import cmd_run_backtest
+from trading_platform.core import paths
+from trading_platform.data.instrument import InstrumentDefinition
 
 
 @pytest.fixture(autouse=True)
 def mock_load_and_extend_data(monkeypatch):
-    """Mock data loading to provide sufficient warmup bars automatically."""
+    """Mock data loading and global cache access for deterministic sweeps."""
 
     def _mock_load_instrument_data(symbol, data_root):
-        # Return a large dataset that covers warmup needs
-        # DataHandler will slice this based on start/end + warmup calculation
-        num_rows = 500  # Enough for any reasonable warmup
+        # Provide ample warmup and visible window coverage.
+        num_rows = 60000  # ~6.8 years of hourly data
         dates = pd.to_datetime(
-            pd.date_range(start="2023-12-20", periods=num_rows, freq="h"),
+            pd.date_range(start="2020-01-01", periods=num_rows, freq="h"),
             utc=True,
         )
         df = pd.DataFrame(
             {
                 "timestamp": dates,
-                "open": [1.1 + i * 0.01 for i in range(num_rows)],
-                "high": [1.1 + i * 0.01 for i in range(num_rows)],
-                "low": [1.1 + i * 0.01 for i in range(num_rows)],
-                "close": [1.1 + i * 0.01 for i in range(num_rows)],
+                "open": [1.1 + i * 0.0001 for i in range(num_rows)],
+                "high": [1.1 + i * 0.0001 for i in range(num_rows)],
+                "low": [1.1 + i * 0.0001 for i in range(num_rows)],
+                "close": [1.1 + i * 0.0001 for i in range(num_rows)],
                 "volume": [100] * num_rows,
             }
         )
-        df = df.set_index("timestamp")
-        return df, []
+        return df.set_index("timestamp"), []
+
+    def _mock_cache_covers_features(*args, **kwargs):
+        return False
+
+    def _mock_load_cached_global_features(*args, **kwargs):
+        return None
 
     monkeypatch.setattr(
         "trading_platform.data.handler.load_instrument_data",
         _mock_load_instrument_data,
+    )
+    monkeypatch.setattr(
+        "trading_platform.data.handler.get_instrument_definition",
+        lambda symbol: InstrumentDefinition(
+            asset_class="Synthetic",
+            point_value=1.0,
+            tick_size=0.0001,
+            pip_location=None,
+            commission_model={"type": "synthetic"},
+            sessions=[],
+            symbol=symbol,
+        ),
+    )
+    monkeypatch.setattr(
+        "trading_platform.core.global_features_cache.cache_covers_features",
+        _mock_cache_covers_features,
+    )
+    monkeypatch.setattr(
+        "trading_platform.core.global_features_cache.load_cached_global_features",
+        _mock_load_cached_global_features,
+    )
+
+    def _mock_extract_session(df, fallback=None):
+        if fallback is not None:
+            return fallback
+        raise ValueError("session metadata disabled in parameter sweep tests")
+
+    def _mock_resolve_global_feature_manifest(execution_timeframe, config_path, **_):
+        if config_path is None:
+            config_path = paths.PROJECT_ROOT / "config" / "features" / "global.yaml"
+        return Path(config_path), []
+
+    def _mock_select_minimal_global_features(features, **kwargs):
+        return []
+
+    monkeypatch.setattr(
+        "trading_platform.data.session_metadata.extract_session",
+        _mock_extract_session,
+    )
+    monkeypatch.setattr(
+        "trading_platform.data.resample.extract_session",
+        _mock_extract_session,
+    )
+    monkeypatch.setattr(
+        "trading_platform.core.global_features.resolve_global_feature_manifest",
+        _mock_resolve_global_feature_manifest,
+    )
+    monkeypatch.setattr(
+        "trading_platform.cli.resolve_global_feature_manifest",
+        _mock_resolve_global_feature_manifest,
+    )
+    monkeypatch.setattr(
+        "trading_platform.core.global_features.select_minimal_global_features",
+        _mock_select_minimal_global_features,
+    )
+    monkeypatch.setattr(
+        "trading_platform.cli.select_minimal_global_features",
+        _mock_select_minimal_global_features,
+    )
+    monkeypatch.setattr(
+        "trading_platform.backtester.orchestrator._resolve_global_feature_defs",
+        lambda execution_timeframe, config_path: [],
     )
 
 
@@ -157,6 +226,8 @@ def test_parameter_sweep_matches_standalone(tmp_path, monkeypatch):
         "user_id": "sweep",
         "initial_cash": 100000,
         "position_size": 10000,
+        "global_features_mode": "minimal",
+        "minimal_global_features_include": ["5min_rsi_14"],
         "data_request": {
             "symbol": "EUR_USD",
             "timeframe": "1H",
@@ -182,6 +253,8 @@ def test_parameter_sweep_matches_standalone(tmp_path, monkeypatch):
         "user_id": "standalone",
         "initial_cash": 100000,
         "position_size": 10000,
+        "global_features_mode": "minimal",
+        "minimal_global_features_include": ["5min_rsi_14"],
         "data_request": {
             "symbol": "EUR_USD",
             "timeframe": "1H",
@@ -368,6 +441,8 @@ def test_strategy_params_override_file_defaults(tmp_path, monkeypatch):
         "user_id": "test",
         "initial_cash": 100000,
         "position_size": 10000,
+        "global_features_mode": "minimal",
+        "minimal_global_features_include": ["5min_rsi_14"],
         "data_request": {
             "symbol": "EUR_USD",
             "timeframe": "1H",

@@ -266,6 +266,7 @@ def run_backtest(
     precomputed_signals: SignalInput | None = None,
     feature_enriched_df: pd.DataFrame | None = None,
     rem_instance: RiskExitManager | None = None,
+    cache_root: Path | str | None = None,
 ) -> (
     dict[str, Any]
     | tuple[list[Trade], list[tuple[datetime, float]]]
@@ -477,6 +478,9 @@ def run_backtest(
         global_feature_defs=resolved_global_features,
         gating_engine=gating_engine,
         gating_metadata=gating_metadata,
+        cache_root_override=Path(cache_root).expanduser().resolve()
+        if cache_root is not None
+        else None,
     )
 
     # Handle return value based on return_exposure and return_skips flags

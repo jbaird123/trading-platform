@@ -60,7 +60,7 @@ def test_campaign_validate_accepts_timeframe_field():
     """
     # Create a sample configuration with contextual features using timeframe
     sample_config = {
-        "name": "h1_rsi",
+        "name": "1h_rsi",
         "type": "RSI",
         "params": {"length": 14},
         "timeframe": "1h",
@@ -70,7 +70,7 @@ def test_campaign_validate_accepts_timeframe_field():
     feature = FeatureConfig.model_validate(sample_config)
 
     # Verify all fields are correctly set
-    assert feature.name == "h1_rsi"
+    assert feature.name == "1h_rsi"
     assert feature.type == "RSI"
     assert feature.params == {"length": 14}
     assert feature.timeframe == "1h"

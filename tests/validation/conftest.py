@@ -16,7 +16,7 @@ import yaml
 # Path constants
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 GOLDEN_DATA_ROOT = PROJECT_ROOT / "data" / "dvc" / "golden"
-GOLDEN_FEATURE_CACHE_ROOT = GOLDEN_DATA_ROOT
+GOLDEN_FEATURE_CACHE_ROOT = PROJECT_ROOT / "data" / "cache_test"
 GOLDEN_STRATEGIES_ROOT = GOLDEN_DATA_ROOT / "strategies"
 GOLDEN_CONFIG_ROOT = PROJECT_ROOT / "configs" / "golden_strategies"
 SCHEMA_PATH = Path(__file__).parent / "schemas" / "golden_metadata.schema.json"

@@ -40,7 +40,7 @@ config = RunConfig.model_validate({
     "instrument": {"symbol": "EURUSD"},
     "contextual_features": [
         {
-            "name": "h1_rsi",
+            "name": "1h_rsi",
             "type": "RSI",
             "params": {"length": 14},
             "timeframe": "1h",  # ← This field is validated and preserved
@@ -51,7 +51,7 @@ config = RunConfig.model_validate({
 trades = run_backtest(market_data=df, signals=signals, strategy=strategy, config=config, rem=rem)
 
 # Test passes, proving RunConfig validation works correctly
-assert "h1_rsi" in trades[0].context_at_entry["strategy_features"]
+assert "1h_rsi" in trades[0].context_at_entry["strategy_features"]
 ```
 
 ### Task #23: Export Test - NOT APPLICABLE ⚠️
@@ -91,12 +91,12 @@ The test verifies multi-timeframe features appear in both entry and exit context
 ```python
 # From the test assertions:
 entry_features = trades[0].context_at_entry["strategy_features"]
-assert "h1_rsi" in entry_features
-assert isinstance(entry_features["h1_rsi"], (int, float))
+assert "1h_rsi" in entry_features
+assert isinstance(entry_features["1h_rsi"], (int, float))
 
 exit_features = trades[0].context_at_exit["strategy_features"]
-assert "h1_rsi" in exit_features
-assert isinstance(exit_features["h1_rsi"], (int, float))
+assert "1h_rsi" in exit_features
+assert isinstance(exit_features["1h_rsi"], (int, float))
 ```
 
 ### Task #25: CLI Modifications - NOT NEEDED ✅

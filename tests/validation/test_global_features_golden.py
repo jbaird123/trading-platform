@@ -15,8 +15,8 @@ from trading_platform.data.instrument import get_instrument_definition
 from trading_platform.data.resample import resample_data, timeframe_to_timedelta
 from trading_platform.data.session_metadata import annotate_session
 from trading_platform.data.timeframe_aliases import (
+    canonicalize_column_name,
     normalize_timeframe_columns,
-    normalize_timeframe_prefix,
 )
 from trading_platform.strategy.features import compute_features
 
@@ -59,12 +59,12 @@ WARMUP_BARS = {
 }
 CACHE_TIMESTAMP_COLUMN = "available_at"
 COLUMN_RENAMES = {
-    "h1_adx_14_DI+": "h1_adx_14_DIplus",
-    "h1_adx_14_DI-": "h1_adx_14_DIminus",
-    "h4_adx_14_DI+": "h4_adx_14_DIplus",
-    "h4_adx_14_DI-": "h4_adx_14_DIminus",
-    "d1_adx_14_DI+": "d1_adx_14_DIplus",
-    "d1_adx_14_DI-": "d1_adx_14_DIminus",
+    "1h_adx_14_DI+": "1h_adx_14_DIplus",
+    "1h_adx_14_DI-": "1h_adx_14_DIminus",
+    "4h_adx_14_DI+": "4h_adx_14_DIplus",
+    "4h_adx_14_DI-": "4h_adx_14_DIminus",
+    "1d_adx_14_DI+": "1d_adx_14_DIplus",
+    "1d_adx_14_DI-": "1d_adx_14_DIminus",
 }
 EXPORT_SKIP_COLUMNS = {"1h_volume_sma_20", "1d_volume_sma_20"}
 OHLC_COLUMNS = {"open", "high", "low", "close", "volume"}
@@ -74,6 +74,9 @@ GOLDEN_CACHE_START_DATE = pd.Timestamp("2020-03-01 22:00:00", tz="UTC")
 # Earliest timestamp where all higher timeframe metadata exists in the
 # trading_platform cache (15min base + 1H/4H/1D dependencies)
 TRADING_PLATFORM_VALIDATION_START = pd.Timestamp("2020-03-03 22:00:00", tz="UTC")
+# Snapshot comparison window (aligned to existing golden cache coverage)
+SNAPSHOT_TEST_START = pd.Timestamp("2020-03-01 23:00:00", tz="UTC")
+SNAPSHOT_TEST_END = pd.Timestamp("2024-12-31 22:00:00", tz="UTC")
 TV_ONLY_COLUMNS = {
     "4h_atr_14",
     "1h_bar_open",
@@ -97,7 +100,7 @@ def _build_column_tolerance_map() -> dict[str, dict[str, float]]:
         indicator_type = str(feature.get("type", "")).upper()
         if not name or not indicator_type:
             continue
-        canonical = normalize_timeframe_prefix(str(name))
+        canonical = canonicalize_column_name(str(name))
         tolerance = INDICATOR_TOLERANCES.get(
             indicator_type, DEFAULT_INDICATOR_TOLERANCE
         )
@@ -580,7 +583,6 @@ def test_test_cache_matches_golden_snapshot(
             CACHE_TIMESTAMP_COLUMN
         )
 
-        # Filter both caches to start at GOLDEN_CACHE_START_DATE
         builder_df[CACHE_TIMESTAMP_COLUMN] = pd.to_datetime(
             builder_df[CACHE_TIMESTAMP_COLUMN], utc=True
         )
@@ -588,14 +590,26 @@ def test_test_cache_matches_golden_snapshot(
             golden_df[CACHE_TIMESTAMP_COLUMN], utc=True
         )
         builder_df = builder_df[
-            builder_df[CACHE_TIMESTAMP_COLUMN] >= GOLDEN_CACHE_START_DATE
-        ]
+            (builder_df[CACHE_TIMESTAMP_COLUMN] >= SNAPSHOT_TEST_START)
+            & (builder_df[CACHE_TIMESTAMP_COLUMN] <= SNAPSHOT_TEST_END)
+        ].reset_index(drop=True)
         golden_df = golden_df[
-            golden_df[CACHE_TIMESTAMP_COLUMN] >= GOLDEN_CACHE_START_DATE
-        ]
+            (golden_df[CACHE_TIMESTAMP_COLUMN] >= SNAPSHOT_TEST_START)
+            & (golden_df[CACHE_TIMESTAMP_COLUMN] <= SNAPSHOT_TEST_END)
+        ].reset_index(drop=True)
 
-        # Trading-platform golden cache lacks higher-timeframe metadata at the very
-        # start (no previous bars). Compare only once all dependencies have valid data.
+        builder_timestamps = set(builder_df[CACHE_TIMESTAMP_COLUMN])
+        golden_timestamps = set(golden_df[CACHE_TIMESTAMP_COLUMN])
+        builder_only = sorted(builder_timestamps - golden_timestamps)
+        golden_only = sorted(golden_timestamps - builder_timestamps)
+        if builder_only or golden_only:
+            raise AssertionError(
+                "Timestamp mismatch between rebuilt cache and golden snapshot\n"
+                f"  Rows only in builder (first 5): {builder_only[:5]}\n"
+                f"  Rows only in golden (first 5): {golden_only[:5]}"
+            )
+
+        # Compare values only once all dependent timeframes have valid data.
         builder_df = builder_df[
             builder_df[CACHE_TIMESTAMP_COLUMN] >= TRADING_PLATFORM_VALIDATION_START
         ].reset_index(drop=True)
@@ -728,7 +742,7 @@ def test_golden_cache_matches_source_csv() -> None:
     bar_lookup_key.
     """
     # Column name mapping from parquet to CSV
-    # Parquet uses "1h_" prefix and "DIplus"/"DIminus", CSV uses "h1_" prefix and
+    # Parquet uses "1h_" prefix and "DIplus"/"DIminus", CSV uses "1h_" prefix and
     # "DI+"/"DI-"
     column_mapping = {
         "1h_ema_50": "h1_ema_50",
@@ -748,6 +762,8 @@ def test_golden_cache_matches_source_csv() -> None:
         "1d_ema_24": "d1_ema_24",
         "1d_atr_14": "d1_atr_14",
         "1d_volume_sma_20": "d1_volume_sma_20",
+        "15min_rsi_14": "m15_rsi_14",
+        "15min_atr_14": "m15_atr_14",
     }
 
     # Timeframe configurations
@@ -929,29 +945,29 @@ def test_builder_cache_matches_calculated_indicators(tmp_path: Path) -> None:
         features_by_timeframe.setdefault(tf, []).append(feature)
 
     # Column name mapping from builder cache to calculated
-    # Builder uses "1h_" prefix, calculated uses "h1_" prefix
-    # Builder uses "15min_" prefix, calculated uses "m15_" prefix
+    # Builder uses "1h_" prefix, calculated uses "1h_" prefix
+    # Builder uses "15min_" prefix, calculated uses "15min_" prefix
     # Also ADX columns have different naming conventions
     column_mapping = {
-        "15min_rsi_14": "m15_rsi_14",
-        "15min_atr_14": "m15_atr_14",
-        "1h_ema_50": "h1_ema_50",
-        "1h_adx_14_ADX": "h1_adx_14_ADX",
-        "1h_adx_14_DIplus": "h1_adx_14_DI+",
-        "1h_adx_14_DIminus": "h1_adx_14_DI-",
-        "1h_rsi_14": "h1_rsi_14",
-        "1h_macd_macd": "h1_macd_macd",
-        "1h_macd_signal": "h1_macd_signal",
-        "1h_macd_diff": "h1_macd_diff",
-        "1h_atr_14": "h1_atr_14",
-        "1h_bb_width_20": "h1_bb_width_20",
-        "1h_volume_sma_20": "h1_volume_sma_20",
-        "4h_ema_50": "h4_ema_50",
-        "4h_rsi_14": "h4_rsi_14",
-        "4h_atr_14": "h4_atr_14",
-        "1d_ema_24": "d1_ema_24",
-        "1d_atr_14": "d1_atr_14",
-        "1d_volume_sma_20": "d1_volume_sma_20",
+        "15min_rsi_14": "15min_rsi_14",
+        "15min_atr_14": "15min_atr_14",
+        "1h_ema_50": "1h_ema_50",
+        "1h_adx_14_ADX": "1h_adx_14_ADX",
+        "1h_adx_14_DIplus": "1h_adx_14_DI+",
+        "1h_adx_14_DIminus": "1h_adx_14_DI-",
+        "1h_rsi_14": "1h_rsi_14",
+        "1h_macd_macd": "1h_macd_macd",
+        "1h_macd_signal": "1h_macd_signal",
+        "1h_macd_diff": "1h_macd_diff",
+        "1h_atr_14": "1h_atr_14",
+        "1h_bb_width_20": "1h_bb_width_20",
+        "1h_volume_sma_20": "1h_volume_sma_20",
+        "4h_ema_50": "4h_ema_50",
+        "4h_rsi_14": "4h_rsi_14",
+        "4h_atr_14": "4h_atr_14",
+        "1d_ema_24": "1d_ema_24",
+        "1d_atr_14": "1d_atr_14",
+        "1d_volume_sma_20": "1d_volume_sma_20",
     }
 
     # Test configurations

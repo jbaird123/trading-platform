@@ -36,7 +36,7 @@ def test_compute_features_with_higher_timeframe_alignment():
 
     # Define a feature with timeframe="1H"
     feature_config = FeatureConfig(
-        name="h1_rsi",
+        name="1h_rsi",
         type="RSI",
         params={"length": 14},
         timeframe="1h",
@@ -65,12 +65,12 @@ def test_compute_features_with_higher_timeframe_alignment():
     result = compute_features(df, [feature_config.model_dump()])
 
     # Verify the column exists
-    assert "h1_rsi" in result.columns
+    assert "1h_rsi" in result.columns
 
     # Verify the values match (where not NaN)
     valid_mask = expected.notna()
     pd.testing.assert_series_equal(
-        result.loc[valid_mask, "h1_rsi"],
+        result.loc[valid_mask, "1h_rsi"],
         expected[valid_mask],
         check_names=False,
     )
@@ -99,14 +99,14 @@ def test_compute_features_caches_resampled_data_per_timeframe():
 
     # Define multiple features that all use 1H timeframe
     feature_configs = [
-        {"name": "h1_rsi", "type": "RSI", "params": {"length": 14}, "timeframe": "1h"},
-        {"name": "h1_sma", "type": "SMA", "params": {"length": 3}, "timeframe": "1h"},
-        {"name": "h1_ema", "type": "EMA", "params": {"length": 5}, "timeframe": "1h"},
+        {"name": "1h_rsi", "type": "RSI", "params": {"length": 14}, "timeframe": "1h"},
+        {"name": "1h_sma", "type": "SMA", "params": {"length": 3}, "timeframe": "1h"},
+        {"name": "1h_ema", "type": "EMA", "params": {"length": 5}, "timeframe": "1h"},
     ]
 
     # Patch resample_data to count calls
     with patch(
-        "trading_platform.strategy.features.resample_data",
+        "trading_platform.core.global_feature_pipeline.resample_data",
         wraps=resample_data,
     ) as mock_resample:
         result = compute_features(df, feature_configs)
@@ -120,9 +120,9 @@ def test_compute_features_caches_resampled_data_per_timeframe():
         assert call_args[1]["rule"] == "1h"
 
     # Verify all features were computed
-    assert "h1_rsi" in result.columns
-    assert "h1_sma" in result.columns
-    assert "h1_ema" in result.columns
+    assert "1h_rsi" in result.columns
+    assert "1h_sma" in result.columns
+    assert "1h_ema" in result.columns
 
 
 def test_higher_timeframe_features_only_available_after_close():
@@ -140,7 +140,7 @@ def test_higher_timeframe_features_only_available_after_close():
     )
 
     feature_configs = [
-        {"name": "h1_sma", "type": "SMA", "params": {"length": 2}, "timeframe": "1H"}
+        {"name": "1h_sma", "type": "SMA", "params": {"length": 2}, "timeframe": "1H"}
     ]
 
     result = compute_features(df, feature_configs)
@@ -148,8 +148,8 @@ def test_higher_timeframe_features_only_available_after_close():
     before_close = pd.Timestamp("2024-01-01 10:55:00")
     at_close = pd.Timestamp("2024-01-01 11:00:00")
 
-    assert pd.isna(result.loc[before_close, "h1_sma"])
-    assert not pd.isna(result.loc[at_close, "h1_sma"])
+    assert pd.isna(result.loc[before_close, "1h_sma"])
+    assert not pd.isna(result.loc[at_close, "1h_sma"])
 
 
 def test_compute_features_backwards_compatible_without_timeframe():

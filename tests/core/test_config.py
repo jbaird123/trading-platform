@@ -116,7 +116,7 @@ def test_feature_config_global_requires_timeframe_prefix() -> None:
 
 def test_feature_config_global_accepts_valid_prefix() -> None:
     """Test that global FeatureConfig accepts valid timeframe-prefixed names."""
-    valid_names = ["m1_rsi", "m5_ema", "m15_atr", "h1_rsi", "h4_ema", "d1_sma"]
+    valid_names = ["1min_rsi", "5min_ema", "15min_atr", "1h_rsi", "4h_ema", "1d_sma"]
 
     for name in valid_names:
         # Should not raise ValidationError
@@ -154,8 +154,8 @@ def test_global_feature_set_config_validates_names() -> None:
     config = GlobalFeatureSetConfig.model_validate(
         {
             "features": [
-                {"name": "h1_rsi_14", "type": "RSI", "params": {"length": 14}},
-                {"name": "m15_ema_9", "type": "EMA", "params": {"length": 9}},
+                {"name": "1h_rsi_14", "type": "RSI", "params": {"length": 14}},
+                {"name": "15min_ema_9", "type": "EMA", "params": {"length": 9}},
             ]
         }
     )

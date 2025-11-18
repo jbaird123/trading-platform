@@ -30,12 +30,12 @@ The core utilities are production-ready. Backtester/live integration requires de
 To prevent feature name collisions between global features and strategy features, we enforce strict naming conventions:
 
 1. **Global features** (defined in `config/features/global.yaml`) **MUST** have timeframe prefixes:
-   - Valid: `m5_rsi_14`, `m15_ema_9`, `h1_atr_14`, `h4_rsi`, `d1_volume_sma_20`
+   - Valid: `5min_rsi_14`, `15min_ema_9`, `1h_atr_14`, `4h_rsi`, `1d_volume_sma_20`
    - Invalid: `rsi_14`, `ema_9`, `atr_14` (missing timeframe prefix)
 
 2. **Strategy features** (defined in strategy YAML configs) **MUST NOT** have timeframe prefixes:
    - Valid: `rsi`, `ema_fast`, `ema_slow`, `atr`
-   - Invalid: `h1_rsi`, `m15_ema_fast` (has timeframe prefix)
+   - Invalid: `1h_rsi`, `15min_ema_fast` (has timeframe prefix)
 
 3. **`contextual_features` is removed** from `RunConfig` entirely. All non-strategy features must be defined in `global.yaml`.
 
@@ -55,19 +55,19 @@ This ensures that feature names in `context_at_entry` and `context_at_exit` can 
 
     ```yaml
     # Global features that are ALWAYS included in every backtest context.
-    # Feature names MUST have timeframe prefix (m1_, m5_, m15_, h1_, h4_, d1_)
+    # Feature names MUST have timeframe prefix (1min_, 5min_, 15min_, 1h_, 4h_, 1d_)
     features:
-      - name: "m15_rsi_14"
+      - name: "15min_rsi_14"
         type: "RSI"
         params: { "length": 14 }
         timeframe: "15min"
 
-      - name: "h1_atr_14"
+      - name: "1h_atr_14"
         type: "ATR"
         params: { "length": 14 }
         timeframe: "1H"
 
-      - name: "d1_volume_sma_20"
+      - name: "1d_volume_sma_20"
         type: "SMA"
         params: { "length": 20 }
         source: "volume"
@@ -86,11 +86,11 @@ This ensures that feature names in `context_at_entry` and `context_at_exit` can 
 
 5.  [ ] **Add Test for Global Feature Name Validation:** In `tests/core/test_config.py`, add a new test `test_feature_config_global_requires_timeframe_prefix` that attempts to create a `FeatureConfig` instance with validation context `{"is_global": True}` and a name without a timeframe prefix (e.g., `name="rsi_14"`). Assert that a `pydantic.ValidationError` is raised with a message about missing timeframe prefix.
 
-6.  [ ] **Add Test for Global Feature Valid Names:** In `tests/core/test_config.py`, add a test `test_feature_config_global_accepts_valid_prefix` that creates `FeatureConfig` instances with validation context `{"is_global": True}` and valid timeframe-prefixed names (e.g., `"m1_rsi"`, `"m5_ema"`, `"m15_atr"`, `"h1_rsi"`, `"h4_ema"`, `"d1_sma"`). Assert that no validation error is raised.
+6.  [ ] **Add Test for Global Feature Valid Names:** In `tests/core/test_config.py`, add a test `test_feature_config_global_accepts_valid_prefix` that creates `FeatureConfig` instances with validation context `{"is_global": True}` and valid timeframe-prefixed names (e.g., `"1min_rsi"`, `"5min_ema"`, `"15min_atr"`, `"1h_rsi"`, `"4h_ema"`, `"1d_sma"`). Assert that no validation error is raised.
 
-7.  [ ] **Implement Global Feature Name Validator:** In `src/trading_platform/core/config.py`, add a `@field_validator("name")` to the `FeatureConfig` model. Use `info: ValidationInfo` to check if `info.context.get("is_global", False)` is True. If so, validate that the name matches the regex pattern `^(m1|m5|m15|h1|h4|d1)_[a-z0-9_]+$`. If validation fails, raise a `ValueError` with message: `"Global features must have timeframe prefix (m1_, m5_, m15_, h1_, h4_, d1_). Got: {v}"`.
+7.  [ ] **Implement Global Feature Name Validator:** In `src/trading_platform/core/config.py`, add a `@field_validator("name")` to the `FeatureConfig` model. Use `info: ValidationInfo` to check if `info.context.get("is_global", False)` is True. If so, validate that the name matches the regex pattern `^(m1|m5|m15|h1|h4|d1)_[a-z0-9_]+$`. If validation fails, raise a `ValueError` with message: `"Global features must have timeframe prefix (1min_, 5min_, 15min_, 1h_, 4h_, 1d_). Got: {v}"`.
 
-8.  [ ] **Add Test for Strategy Feature Name Validation:** In `tests/strategy/test_models.py`, add a test `test_strategy_feature_cannot_have_timeframe_prefix` that attempts to create a strategy config with a feature that has a timeframe prefix (e.g., `name="h1_rsi"`). Assert that a `pydantic.ValidationError` is raised with a message about forbidden timeframe prefix.
+8.  [ ] **Add Test for Strategy Feature Name Validation:** In `tests/strategy/test_models.py`, add a test `test_strategy_feature_cannot_have_timeframe_prefix` that attempts to create a strategy config with a feature that has a timeframe prefix (e.g., `name="1h_rsi"`). Assert that a `pydantic.ValidationError` is raised with a message about forbidden timeframe prefix.
 
 9.  [ ] **Add Test for Strategy Feature Valid Names:** In `tests/strategy/test_models.py`, add a test `test_strategy_feature_accepts_valid_names` that creates strategy configs with features that have valid names without timeframe prefixes (e.g., `"rsi"`, `"ema_fast"`, `"ema_slow"`, `"atr_value"`). Assert that no validation error is raised.
 

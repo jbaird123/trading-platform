@@ -25,10 +25,10 @@ def sample_trades_df():
         "context_at_entry_strategy_features_ema_slow": np.random.uniform(
             0.9, 1.4, n_trades
         ),
-        "context_at_entry_strategy_features_h1_rsi": np.random.uniform(
+        "context_at_entry_strategy_features_1h_rsi": np.random.uniform(
             20, 80, n_trades
         ),
-        "context_at_entry_strategy_features_d1_atr": np.random.uniform(
+        "context_at_entry_strategy_features_1d_atr": np.random.uniform(
             0.001, 0.01, n_trades
         ),
         "context_at_entry_strategy_features_volume": np.random.uniform(

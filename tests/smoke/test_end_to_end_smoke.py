@@ -142,5 +142,5 @@ def test_e2e_run_with_contextual_features(tmp_path):
     global_features = entry_context["global_features"]
 
     # Verify global features (from global.yaml with timeframe prefix)
-    assert "h1_atr_14" in global_features
-    assert isinstance(global_features["h1_atr_14"], (int, float, type(None)))
+    assert "1h_atr_14" in global_features
+    assert isinstance(global_features["1h_atr_14"], (int, float, type(None)))

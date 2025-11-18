@@ -10,12 +10,14 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from os import fspath
 from pathlib import Path
-from typing import Iterable, Sequence, cast
+from typing import Any, Iterable, Sequence, cast
 
+import numpy as np
 import pandas as pd
 import yaml
 from trading_platform.core import paths
 from trading_platform.core.config import GlobalFeatureSetConfig
+from trading_platform.core.global_feature_pipeline import build_global_feature_frame
 from trading_platform.core.global_features import (
     feature_to_dict,
     resolve_global_feature_manifest,
@@ -27,11 +29,10 @@ from trading_platform.data.instrument import InstrumentDefinition, SessionDefini
 from trading_platform.data.resample import timeframe_to_timedelta
 from trading_platform.data.session_metadata import SESSION_ATTR
 from trading_platform.data.timeframe_aliases import (
+    canonicalize_column_name,
     normalize_name_sequence,
     normalize_timeframe_columns,
-    normalize_timeframe_prefix,
 )
-from trading_platform.strategy.features import compute_features
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,46 @@ _DEFAULT_TIMEFRAMES: tuple[str, ...] = ("5min", "15min", "1H", "4H", "1D")
 def _hash_file(path: Path) -> str:
     data = path.read_bytes()
     return hashlib.sha256(data).hexdigest()
+
+
+def compute_manifest_digest(manifest: dict[str, Any]) -> str:
+    """Compute a deterministic SHA256 digest from a feature manifest.
+
+    This function converts the manifest to a canonical JSON representation,
+    handling non-JSON-serializable types like pandas Timestamps and numpy types.
+
+    Args:
+        manifest: Feature manifest dictionary
+
+    Returns:
+        64-character hex string (SHA256 hash)
+
+    Example:
+        >>> manifest = {"features": [{"name": "ema", "params": {"length": 20}}]}
+        >>> digest = compute_manifest_digest(manifest)
+        >>> len(digest)
+        64
+    """
+
+    def _serialize_value(obj: Any) -> Any:
+        """Convert transient objects to JSON-serializable types."""
+        if isinstance(obj, pd.Timestamp):
+            return obj.isoformat()
+        if isinstance(obj, (np.integer, np.floating)):
+            return obj.item()  # Convert to Python int/float
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, dict):
+            # Sort keys for deterministic ordering
+            return {k: _serialize_value(v) for k, v in sorted(obj.items())}
+        if isinstance(obj, (list, tuple)):
+            return [_serialize_value(item) for item in obj]
+        return obj
+
+    # Serialize with sorted keys for deterministic output
+    normalized = _serialize_value(manifest)
+    canonical_json = json.dumps(normalized, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()
 
 
 def _sorted_unique_timeframes(timeframes: Iterable[str]) -> list[str]:
@@ -116,8 +157,10 @@ def _merge_timeframes_for_output(
     include_bar_windows: bool,
 ) -> pd.DataFrame:
     base_raw = raw_frames[base_timeframe]
+    # available_at reflects the bar close (decision) timestamp so downstream
+    # consumers always read features that were fully known at that instant.
     base_result = pd.DataFrame(
-        {"available_at": pd.to_datetime(base_raw["bar_open"], utc=True)}
+        {"available_at": pd.to_datetime(base_raw["bar_close"], utc=True)}
     )
     base_result = base_result.sort_values("available_at").reset_index(drop=True)
     concatenated_parts: list[pd.DataFrame] = [base_result]
@@ -261,6 +304,10 @@ def build_global_feature_caches(
     if not tf_list:
         tf_list = list(_DEFAULT_TIMEFRAMES)
 
+    # Load the manifest to compute digest
+    manifest_data = yaml.safe_load(config_path.read_text())
+    manifest_digest = compute_manifest_digest(manifest_data)
+
     timeframes_meta: dict[str, dict[str, object]] = {}
     metadata: dict[str, object] = {
         "symbol": symbol,
@@ -269,6 +316,7 @@ def build_global_feature_caches(
         "cache_root": fspath(descriptor.data_root),
         "config_path": fspath(descriptor.config_path),
         "config_hash": descriptor.config_hash,
+        "manifest_digest": manifest_digest,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "timeframes": timeframes_meta,
     }
@@ -284,6 +332,7 @@ def build_global_feature_caches(
         default_session = resolved_instrument.sessions[0]
 
     raw_frames: dict[str, pd.DataFrame] = {}
+    valid_start_registry: dict[str, dict[str, pd.Timestamp]] = {}
 
     for timeframe in tf_list:
         resolved_path, resolved_features = resolve_global_feature_manifest(
@@ -300,10 +349,14 @@ def build_global_feature_caches(
         df = handler.get_data(timeframe=timeframe)
         raw_index = pd.DatetimeIndex(df.index)
         session = df.attrs.get(SESSION_ATTR) or default_session
-        base_columns = list(df.columns)
         specs = [feature_to_dict(feature) for feature in resolved_features]
-        enriched = compute_features(df, specs, strategy_parameters={})
-        feature_columns = [col for col in enriched.columns if col not in base_columns]
+        feature_df, feature_metadata = build_global_feature_frame(
+            market_data=df,
+            feature_defs=specs,
+            execution_timeframe=timeframe,
+            strategy_parameters={},
+        )
+        feature_columns = list(feature_df.columns)
         if not feature_columns:
             logger.warning(
                 "Resolved features for timeframe %s produced no columns.",
@@ -311,7 +364,6 @@ def build_global_feature_caches(
             )
             continue
 
-        feature_df = enriched[feature_columns].copy()
         feature_df.attrs.pop(SESSION_ATTR, None)
         bar_open, bar_close, bar_lookup = _compute_bar_windows_for_cache(
             raw_index,
@@ -322,6 +374,16 @@ def build_global_feature_caches(
         feature_df = normalize_timeframe_columns(feature_df)
         feature_columns = normalize_name_sequence(feature_columns)
 
+        raw_valid_start = feature_metadata.get("valid_start", {})
+        normalized_valid_start: dict[str, pd.Timestamp] = {}
+        for key, value in raw_valid_start.items():
+            if value is None:
+                continue
+            normalized_key = canonicalize_column_name(str(key))
+            ts = pd.to_datetime(value, utc=True)
+            normalized_valid_start[normalized_key] = ts
+        valid_start_registry[timeframe] = normalized_valid_start
+
         # Convert bar_lookup to ISO string format (matching TradingView golden cache)
         bar_lookup_strings = pd.Series(
             [
@@ -330,7 +392,8 @@ def build_global_feature_caches(
             ]
         )
 
-        aligned_index = bar_open
+        # Align availability to bar close to include the final decision timestamp.
+        aligned_index = bar_close
 
         timestamp_col = pd.Series(aligned_index, name="available_at")
         storage_df = feature_df.copy()
@@ -374,6 +437,12 @@ def build_global_feature_caches(
                 timestamp_series.iloc[-1].isoformat() if len(output_frame) else None
             ),
         }
+        normalized_valid_start = valid_start_registry.get(timeframe, {})
+        valid_start_serialized = {
+            col: ts.isoformat() for col, ts in normalized_valid_start.items()
+        }
+        if valid_start_serialized:
+            frame_meta["valid_start"] = valid_start_serialized
         timeframes_meta[timeframe] = frame_meta
         logger.info("Cached %s global features at %s", timeframe, tf_file)
 
@@ -409,7 +478,7 @@ def _columns_for_features(
     for feature_name in feature_names:
         if not feature_name:
             continue
-        canonical_name = normalize_timeframe_prefix(feature_name)
+        canonical_name = canonicalize_column_name(feature_name)
         derived = [
             column
             for column in all_columns
@@ -433,6 +502,12 @@ def load_cached_global_features(
 ) -> tuple[pd.DataFrame, dict[str, list[str]]] | None:
     """
     Load cached global features for the requested execution timeframe.
+
+    Validates that the cached features were built from the same manifest
+    by comparing manifest digests. Raises ValueError if mismatch detected.
+
+    Raises:
+        ValueError: If manifest digest mismatch detected
     """
 
     storage_root = (
@@ -442,6 +517,23 @@ def load_cached_global_features(
     )
     descriptor = _resolve_descriptor(symbol, storage_root, config_path)
     metadata = _load_metadata(descriptor)
+
+    # Validate manifest digest
+    if metadata:
+        stored_digest = metadata.get("manifest_digest")
+        if stored_digest and isinstance(stored_digest, str):
+            # Compute current manifest digest
+            manifest_data = yaml.safe_load(config_path.read_text())
+            current_digest = compute_manifest_digest(manifest_data)
+
+            if current_digest != stored_digest:
+                raise ValueError(
+                    f"Manifest digest mismatch for {symbol}/{timeframe}. "
+                    f"Cache was built with digest {stored_digest[:16]}..., "
+                    f"but current manifest has digest {current_digest[:16]}.... "
+                    f"Rebuild the cache with the current manifest."
+                )
+
     frame_meta: dict[str, object] | None = None
     timeframes_obj = metadata.get("timeframes") if metadata else None
     if isinstance(timeframes_obj, dict):
@@ -474,6 +566,16 @@ def load_cached_global_features(
     if timestamp_col in df.columns:
         timestamps = pd.to_datetime(df[timestamp_col], utc=True)
         df = df.drop(columns=[timestamp_col]).set_index(timestamps)
+    valid_start_meta = frame_meta.get("valid_start")
+    if isinstance(valid_start_meta, dict):
+        valid_start_attr: dict[str, pd.Timestamp] = {}
+        for col_name, ts_str in valid_start_meta.items():
+            if not ts_str:
+                continue
+            canonical_name = canonicalize_column_name(str(col_name))
+            valid_start_attr[canonical_name] = pd.to_datetime(ts_str, utc=True)
+        if valid_start_attr:
+            df.attrs["valid_start"] = valid_start_attr
     return df, mapping
 
 

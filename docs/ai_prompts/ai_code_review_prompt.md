@@ -45,6 +45,7 @@ You must perform the review in the following distinct, ordered passes. For each 
     -   **[SYS-1.1] Module Separation:** No direct internal imports or new circular dependencies.
     -   **[SE-3.1] Strategy/Risk Separation:** The Strategy Engine remains for signal generation only.
     -   **[JSON-11] Brief Schema:** Any changes to the brief output must match the schema.
+    -   **Fail-Fast Exception Handling Policy:** Every change must comply with `docs/coding_standards/exception_handling_policy.md`; defensive exception swallowing or silent fallback paths are grounds for rejection.
     -   **Line Length & Formatting:** All new code must be under 88 characters per line.
 3.  **Output:**
     -   If compliant, state: "**Pass 3/5 Complete:** The changes adhere to all architectural principles and project requirements."

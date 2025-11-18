@@ -91,13 +91,13 @@ Multi-timeframe features for ML model context:
 
 ```yaml
 contextual_features:
-  - name: h1_rsi
+  - name: 1h_rsi
     type: RSI
     params:
       length: 14
     timeframe: 1h  # Higher timeframe context
 
-  - name: d1_atr
+  - name: 1d_atr
     type: ATR
     params:
       length: 14

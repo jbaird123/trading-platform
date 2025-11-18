@@ -20,6 +20,7 @@ from trading_platform.ai.campaigns.models import (
     RunResult,
 )
 from trading_platform.cli import _run_backtest_logic
+from trading_platform.data.timeframe_aliases import canonicalize_timeframe
 
 
 def _normalize_param_overrides(
@@ -121,13 +122,17 @@ def execute_campaign_runs(
                 strategy_data["parameters"].update(normalized_overrides)
 
             # Build RunConfig data structure
+            canonical_execution_timeframe = (
+                canonicalize_timeframe(plan.execution_timeframe)
+                or plan.execution_timeframe
+            )
             run_config_data: dict[str, Any] = {
                 "run_id": run.run_id,
                 "user_id": "campaign_runner",
                 "runs_dir": str(runs_dir.parent),
                 "data_request": {
                     "symbol": run.instrument,
-                    "timeframe": plan.execution_timeframe,
+                    "timeframe": canonical_execution_timeframe,
                     "start": run.start_date,
                     "end": run.end_date,
                 },
