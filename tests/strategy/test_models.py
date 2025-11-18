@@ -13,7 +13,7 @@ def test_strategy_feature_cannot_have_timeframe_prefix() -> None:
                 "strategy_name": "test_strategy",
                 "features": [
                     {
-                        "name": "h1_rsi",  # Invalid: has timeframe prefix
+                        "name": "1h_rsi",  # Invalid: has timeframe prefix
                         "type": "RSI",
                         "params": {"length": 14},
                     }
@@ -23,7 +23,7 @@ def test_strategy_feature_cannot_have_timeframe_prefix() -> None:
                         "any_of": [
                             {
                                 "condition": "is_above",
-                                "left": {"ref": "h1_rsi"},
+                                "left": {"ref": "1h_rsi"},
                                 "right": {"value": 50},
                             }
                         ]
@@ -34,7 +34,7 @@ def test_strategy_feature_cannot_have_timeframe_prefix() -> None:
 
     error_msg = str(exc_info.value)
     assert "timeframe prefix" in error_msg.lower()
-    assert "h1_rsi" in error_msg
+    assert "1h_rsi" in error_msg
 
 
 def test_strategy_feature_accepts_valid_names() -> None:

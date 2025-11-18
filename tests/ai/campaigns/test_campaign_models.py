@@ -87,7 +87,7 @@ def test_campaign_config_accepts_contextual_features():
         "run_matrix": [],
         "contextual_features": [
             {
-                "name": "h1_rsi",
+                "name": "1h_rsi",
                 "type": "RSI",
                 "params": {"length": 14},
                 "timeframe": "1h",
@@ -98,7 +98,7 @@ def test_campaign_config_accepts_contextual_features():
     config = CampaignConfig.model_validate(campaign_dict)
 
     assert len(config.contextual_features) == 1
-    assert config.contextual_features[0].name == "h1_rsi"
+    assert config.contextual_features[0].name == "1h_rsi"
     assert config.contextual_features[0].timeframe == "1h"
 
 

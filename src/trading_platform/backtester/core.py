@@ -17,7 +17,7 @@ from trading_platform.core.policy import TradingWindowPolicy
 from trading_platform.core.signal import Signal
 from trading_platform.core.types import BarData, SignalCommand
 from trading_platform.core.utils import normalize_symbol
-from trading_platform.data.timeframe_aliases import normalize_timeframe_prefix
+from trading_platform.data.timeframe_aliases import canonicalize_column_name
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
 from trading_platform.regime_market_manager.gating import (
@@ -49,6 +49,137 @@ def _normalize_global_feature_key(name: str) -> str:
     if name.startswith(GLOBAL_FEATURE_PREFIX):
         return name[len(GLOBAL_FEATURE_PREFIX) :]
     return name
+
+
+def _extract_context_extras(context: dict[str, Any]) -> dict[str, Any]:
+    """Return a shallow copy of non-feature context fields (risk, gating, etc.)."""
+    protected = {"strategy_features", "global_features", "regime"}
+    return {k: v for k, v in context.items() if k not in protected}
+
+
+def _lookup_global_features_for_timestamp(
+    *,
+    timestamp: datetime,
+    global_feature_df: pd.DataFrame | None,
+    global_feature_normalized_keys: list[str],
+    global_feature_timeframes: dict[str, int],
+    execution_tf_minutes: int | None,
+) -> dict[str, Any]:
+    """Fetch cached global features for a specific timestamp."""
+
+    if global_feature_df is None:
+        return {}
+
+    if timestamp not in global_feature_df.index:
+        raise ValueError(
+            f"Timestamp {timestamp} not found in global features cache. "
+            "This should not happen if cache was built correctly."
+        )
+
+    feature_row = global_feature_df.loc[timestamp]
+    features: dict[str, Any] = {}
+    for idx, column in enumerate(global_feature_df.columns):
+        val = feature_row[column]
+        feature_minutes = global_feature_timeframes.get(column)
+        if pd.isna(val):
+            if (
+                execution_tf_minutes is not None
+                and feature_minutes is not None
+                and feature_minutes >= execution_tf_minutes
+            ):
+                raise ValueError(
+                    "Global feature "
+                    f"{column!r} is NaN at {timestamp}. "
+                    "Features at or above the execution timeframe must "
+                    "be fully populated."
+                )
+            normalized_val: Any = None
+        else:
+            normalized_val = val
+
+        if idx < len(global_feature_normalized_keys):
+            key = global_feature_normalized_keys[idx]
+        else:  # pragma: no cover - defensive guard
+            key = column
+        features[key] = normalized_val
+
+    return features
+
+
+def _build_context_snapshot(
+    *,
+    timestamp: datetime,
+    strategy_context: dict[str, Any],
+    rmm_context: dict[datetime, dict[str, Any]] | None,
+    regime_builder: Callable[[dict[str, Any] | None], dict[str, Any] | None] | None,
+    global_feature_df: pd.DataFrame | None,
+    global_feature_normalized_keys: list[str],
+    global_feature_timeframes: dict[str, int],
+    execution_tf_minutes: int | None,
+    extra_fields: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Assemble a full context blob aligned to a given timestamp."""
+
+    global_features = _lookup_global_features_for_timestamp(
+        timestamp=timestamp,
+        global_feature_df=global_feature_df,
+        global_feature_normalized_keys=global_feature_normalized_keys,
+        global_feature_timeframes=global_feature_timeframes,
+        execution_tf_minutes=execution_tf_minutes,
+    )
+
+    context: dict[str, Any] = {
+        "strategy_features": strategy_context,
+        "global_features": global_features,
+    }
+    context["decision_time"] = timestamp.isoformat()
+
+    if rmm_context is not None and regime_builder is not None:
+        regime_source = rmm_context.get(timestamp)
+        if regime_source is None and execution_tf_minutes:
+            lookback = pd.to_timedelta(f"{execution_tf_minutes}min")
+            regime_source = rmm_context.get(timestamp - lookback)
+        if regime_source is not None:
+            regime_data = regime_builder(regime_source)
+            if regime_data is not None:
+                context["regime"] = regime_data
+
+    if extra_fields:
+        context.update(extra_fields)
+
+    return context
+
+
+def _update_context_for_timestamp(
+    *,
+    base_context: dict[str, Any] | None,
+    timestamp: datetime,
+    rmm_context: dict[datetime, dict[str, Any]] | None,
+    regime_builder: Callable[[dict[str, Any] | None], dict[str, Any] | None] | None,
+    global_feature_df: pd.DataFrame | None,
+    global_feature_normalized_keys: list[str],
+    global_feature_timeframes: dict[str, int],
+    execution_tf_minutes: int | None,
+) -> dict[str, Any]:
+    """Rebuild an existing context so its globals/regime align to timestamp."""
+
+    strategy_context: dict[str, Any] = {}
+    extras: dict[str, Any] = {}
+    if base_context:
+        strategy_context = base_context.get("strategy_features") or {}
+        extras = _extract_context_extras(base_context)
+
+    return _build_context_snapshot(
+        timestamp=timestamp,
+        strategy_context=strategy_context,
+        rmm_context=rmm_context,
+        regime_builder=regime_builder,
+        global_feature_df=global_feature_df,
+        global_feature_normalized_keys=global_feature_normalized_keys,
+        global_feature_timeframes=global_feature_timeframes,
+        execution_tf_minutes=execution_tf_minutes,
+        extra_fields=extras,
+    )
 
 
 def _enrich_trades_with_post_exit_analysis(
@@ -163,6 +294,7 @@ def _execute_backtest_loop(
     global_feature_defs: list[dict[str, Any]] | None = None,
     gating_engine: ProfitabilityGatingEngine | None = None,
     gating_metadata: dict[str, Any] | None = None,
+    cache_root_override: Path | None = None,
 ) -> SimulationReturn:
     """INTERNAL: Bar-by-bar backtest simulation engine.
 
@@ -299,6 +431,36 @@ def _execute_backtest_loop(
                 f"{execution_timeframe!r}"
             ) from exc
 
+        bar_close_timedelta = (
+            pd.to_timedelta(f"{execution_tf_minutes}min")
+            if execution_tf_minutes
+            else pd.Timedelta(0)
+        )
+
+        def _decision_timestamp(ts: datetime) -> datetime:
+            return ts
+
+        def _decision_index_for(idx: pd.Index) -> pd.DatetimeIndex | None:
+            if not isinstance(idx, pd.DatetimeIndex):
+                return None
+            return idx
+
+        def _shift_to_decision_index(
+            obj: pd.DataFrame | pd.Series,
+        ) -> pd.DataFrame | pd.Series:
+            if bar_close_timedelta == pd.Timedelta(0):
+                return obj
+            if not isinstance(obj.index, pd.DatetimeIndex):
+                return obj
+            shifted = obj.copy()
+            shifted.index = obj.index + cast(pd.Timedelta, bar_close_timedelta)
+            return shifted
+
+        data_with_global_features = market_data
+        decision_feature_frame: pd.DataFrame | None = None
+        decision_feature_frame_source: pd.DataFrame | None = None
+        decision_index = _decision_index_for(market_data.index)
+
         if global_feature_defs is not None:
             global_features_list.extend(global_feature_defs)
         elif global_features_config_path is not None:
@@ -343,7 +505,11 @@ def _execute_backtest_loop(
             if requested_names and global_features_config_path is not None:
                 symbol_for_cache = _resolve_symbol_from_config()
                 config_path = Path(global_features_config_path)
-                cache_root = paths.GLOBAL_FEATURE_CACHE_DIR
+                cache_root = (
+                    Path(cache_root_override).expanduser().resolve()
+                    if cache_root_override is not None
+                    else paths.GLOBAL_FEATURE_CACHE_DIR
+                )
                 if symbol_for_cache:
                     cache_result = load_cached_global_features(
                         symbol=symbol_for_cache,
@@ -375,13 +541,81 @@ def _execute_backtest_loop(
                                     cache_frame.index = cache_index.tz_localize(
                                         market_index.tz
                                     )
-                            cache_frame = cache_frame.reindex(
-                                market_data.index, method="ffill"
-                            )
+                            aligned_to_close = False
+                            if (
+                                bar_close_timedelta != pd.Timedelta(0)
+                                and isinstance(cache_frame.index, pd.DatetimeIndex)
+                                and isinstance(market_data.index, pd.DatetimeIndex)
+                                and len(cache_frame.index) > 0
+                                and len(market_data.index) > 0
+                            ):
+                                market_start = market_data.index[0]
+                                overlapping = cache_frame.index[
+                                    cache_frame.index >= market_start
+                                ]
+                                cache_start = (
+                                    overlapping[0]
+                                    if len(overlapping) > 0
+                                    else cache_frame.index[0]
+                                )
+                                diff = cache_start - market_start
+                                aligned_to_close = diff == cast(
+                                    pd.Timedelta, bar_close_timedelta
+                                ) or diff == pd.Timedelta(0)
+
+                            join_frame = cache_frame.copy()
+                            if aligned_to_close:
+                                join_frame.index = cache_frame.index - cast(
+                                    pd.Timedelta, bar_close_timedelta
+                                )
+
                             data_with_global_features = market_data.join(
-                                cache_frame, how="left"
+                                join_frame, how="left"
                             )
+                            decision_feature_frame = (
+                                cast(
+                                    pd.DataFrame,
+                                    _shift_to_decision_index(cache_frame.copy()),
+                                )
+                                if aligned_to_close
+                                else cache_frame.copy()
+                            )
+                            decision_feature_frame_source = cache_frame.copy()
                             cache_loaded = True
+
+                            # DEBUG: Check first few rows
+                            if (
+                                "15min_ema_50" in cache_frame.columns
+                                and len(market_data) > 5
+                            ):
+                                test_idx = 3
+                                test_ts = market_data.index[test_idx]
+                                decision_test_ts = (
+                                    _decision_timestamp(cast(datetime, test_ts))
+                                    if isinstance(test_ts, pd.Timestamp)
+                                    else _decision_timestamp(
+                                        cast(datetime, market_data.index[test_idx])
+                                    )
+                                )
+                                if decision_test_ts in cache_frame.index:
+                                    cache_val = cache_frame.loc[decision_test_ts][
+                                        "15min_ema_50"
+                                    ]
+                                    joined_val = data_with_global_features.loc[
+                                        market_data.index[test_idx]
+                                    ]["15min_ema_50"]
+                                    print(
+                                        "DEBUG: "
+                                        f"At index {test_idx} ({test_ts}) "
+                                        f"decision {decision_test_ts}:"
+                                    )
+                                    cache_msg = "  Cache value: " f"{cache_val:.8f}"
+                                    joined_msg = "  Joined value: " f"{joined_val:.8f}"
+                                    print(cache_msg)
+                                    print(joined_msg)
+                                    is_match = abs(cache_val - joined_val) < 1e-10
+                                    print(f"  Match: {is_match}")
+
                             msg = (
                                 f"Global feature cache HIT ("
                                 f"{execution_timeframe} timeframe): "
@@ -400,6 +634,8 @@ def _execute_backtest_loop(
                 data_with_global_features = compute_features(
                     market_data, global_features_list, strategy_parameters={}
                 )
+                decision_feature_frame = data_with_global_features.copy()
+                decision_feature_frame_source = decision_feature_frame.copy()
                 logger.info(
                     f"Computed {len(global_features_list)} global features: "
                     f"{[f['name'] for f in global_features_list]}"
@@ -422,9 +658,35 @@ def _execute_backtest_loop(
                     if column not in global_feature_timeframes and minutes is not None:
                         global_feature_timeframes[column] = minutes
 
-            global_valid_start = _first_valid_timestamp(
-                data_with_global_features, global_names
+            decision_valid_start: pd.Timestamp | None = None
+            source_view = (
+                decision_feature_frame_source
+                if decision_feature_frame_source is not None
+                else decision_feature_frame
             )
+            if source_view is not None:
+                trimmed_view = source_view
+                if (
+                    isinstance(trimmed_view.index, pd.DatetimeIndex)
+                    and len(market_data.index) > 0
+                ):
+                    trimmed_view = trimmed_view.loc[
+                        trimmed_view.index >= market_data.index[0]
+                    ]
+                decision_valid_start = _first_valid_timestamp(
+                    trimmed_view, global_names
+                )
+            global_valid_start = decision_valid_start
+            if global_valid_start is not None and bar_close_timedelta != pd.Timedelta(
+                0
+            ):
+                adjusted = global_valid_start - cast(pd.Timedelta, bar_close_timedelta)
+                earliest = (
+                    market_data.index[0]
+                    if isinstance(market_data.index, pd.DatetimeIndex)
+                    else adjusted
+                )
+                global_valid_start = max(adjusted, earliest)
             if global_valid_start is None:
                 global_validation_error = (
                     "Insufficient warmup: Global features never fully initialize. "
@@ -492,15 +754,53 @@ def _execute_backtest_loop(
             and len(data_with_global_features) > 0
         ):
             data_with_global_features = _trim_indexed(data_with_global_features)
+            # DEBUG: Verify indices match after trim
+            if len(market_data) != len(data_with_global_features):
+                print("WARNING: Length mismatch after trim!")
+                print(f"  market_data: {len(market_data)} rows")
+                feature_rows_msg = (
+                    "  data_with_global_features: "
+                    f"{len(data_with_global_features)} rows"
+                )
+                print(feature_rows_msg)
+            elif not market_data.index.equals(data_with_global_features.index):
+                print("WARNING: Index mismatch after trim!")
+                print(f"  First market_data: {market_data.index[0]}")
+                first_feature_msg = (
+                    "  First data_with_global_features: "
+                    f"{data_with_global_features.index[0]}"
+                )
+                print(first_feature_msg)
+    decision_index = _decision_index_for(market_data.index)
+    if (
+        decision_feature_frame_source is not None
+        and decision_index is not None
+        and isinstance(decision_feature_frame_source.index, pd.DatetimeIndex)
+    ):
+        decision_feature_frame = decision_feature_frame_source.reindex(
+            decision_index, method=None
+        )
+        added_mask = ~decision_index.isin(decision_feature_frame_source.index)
+        if added_mask.any():
+            filled = decision_feature_frame_source.reindex(
+                decision_index, method="ffill"
+            )
+            decision_feature_frame.loc[added_mask] = filled.loc[added_mask]
+        aligned_valid_start = _first_valid_timestamp(
+            decision_feature_frame, global_names
+        )
+        if aligned_valid_start is not None:
+            global_valid_start = aligned_valid_start
     warmup_threshold = 0
 
+    base_columns = set(market_data.columns)
     global_feature_columns: list[str] = []
-    if data_with_global_features is not market_data:
+    if any(col not in base_columns for col in data_with_global_features.columns):
         for feature in global_features_list:
             raw_name = feature.get("name")
             if not isinstance(raw_name, str):
                 continue
-            canonical_name = normalize_timeframe_prefix(raw_name)
+            canonical_name = canonicalize_column_name(raw_name)
             candidate_columns: list[str] = []
             for column in data_with_global_features.columns:
                 if column == raw_name or column.startswith(f"{raw_name}_"):
@@ -509,31 +809,47 @@ def _execute_backtest_loop(
                     column == canonical_name or column.startswith(f"{canonical_name}_")
                 ):
                     candidate_columns.append(column)
+
             for column in candidate_columns:
                 if column not in global_feature_columns:
                     global_feature_columns.append(column)
-                if execution_tf_minutes is not None:
-                    feature_minutes = global_feature_timeframes.get(column)
-                    if (
-                        feature_minutes is not None
-                        and feature_minutes >= execution_tf_minutes
-                    ):
-                        guard_feature_names.add(column)
-                        guard_feature_valid_start[column] = cast(
-                            pd.Timestamp | None,
-                            data_with_global_features[column].first_valid_index(),
-                        )
+                feature_minutes = (
+                    global_feature_timeframes.get(column)
+                    if execution_tf_minutes is not None
+                    else None
+                )
+                if (
+                    feature_minutes is not None
+                    and execution_tf_minutes is not None
+                    and feature_minutes >= execution_tf_minutes
+                ):
+                    guard_feature_names.add(column)
+                    source_frame = (
+                        decision_feature_frame_source
+                        if decision_feature_frame_source is not None
+                        else data_with_global_features
+                    )
+                    guard_feature_valid_start[column] = cast(
+                        pd.Timestamp | None,
+                        source_frame[column].first_valid_index()
+                        if column in source_frame.columns
+                        else None,
+                    )
 
-    if guard_feature_names and data_with_global_features is not None:
+    if guard_feature_names:
+        aligned_guard = data_with_global_features.loc[
+            market_data.index, global_feature_columns
+        ]
         for feature_name in guard_feature_names:
-            if feature_name not in data_with_global_features.columns:
+            if feature_name not in aligned_guard.columns:
                 continue
-            series = data_with_global_features.loc[market_data.index, feature_name]
+            series = aligned_guard.loc[:, feature_name]
             valid_start = guard_feature_valid_start.get(feature_name)
             if valid_start is not None:
                 series = series.loc[series.index >= valid_start]
-            if not series.empty and series.index[0] == market_data.index[0]:
-                series = series.iloc[1:]
+            first_valid = series.first_valid_index()
+            if first_valid is not None:
+                series = series.loc[series.index >= first_valid]
             bad = series[series.isna()]
             if not bad.empty:
                 first_bad = bad.index[0]
@@ -544,15 +860,11 @@ def _execute_backtest_loop(
                     "must be fully populated."
                 )
 
-    global_feature_matrix: np.ndarray | None = None
-    global_feature_column_index: dict[str, int] = {}
+    # Keep global features as DataFrame for direct timestamp lookups
+    global_feature_df: pd.DataFrame | None = None
     global_feature_normalized_keys: list[str] = []
-    if global_feature_columns and data_with_global_features is not market_data:
-        subset = data_with_global_features.loc[:, global_feature_columns]
-        global_feature_matrix = subset.to_numpy()
-        global_feature_column_index = {
-            column: idx for idx, column in enumerate(global_feature_columns)
-        }
+    if global_feature_columns and decision_feature_frame is not None:
+        global_feature_df = decision_feature_frame.loc[:, global_feature_columns]
         global_feature_normalized_keys = [
             _normalize_global_feature_key(column) for column in global_feature_columns
         ]
@@ -682,15 +994,33 @@ def _execute_backtest_loop(
                     data_with_global_features.iloc[i - 1] if i > 0 else None
                 )
 
+        bar_close_ts = cast(datetime, current_bar.name)
+        decision_ts = _decision_timestamp(bar_close_ts)
+
         # === EXECUTION PHASE: Execute pending actions ===
         # Execute pending exit from previous bar (next_bar_open model)
         if pending_exit is not None:
+            exit_decision_ts = cast(
+                datetime,
+                pending_exit.get("decision_time", decision_ts),
+            )
+            exit_context = _update_context_for_timestamp(
+                base_context=pending_exit.get("context"),
+                timestamp=exit_decision_ts,
+                rmm_context=rmm_context,
+                regime_builder=_build_regime_data,
+                global_feature_df=global_feature_df,
+                global_feature_normalized_keys=global_feature_normalized_keys,
+                global_feature_timeframes=global_feature_timeframes,
+                execution_tf_minutes=execution_tf_minutes,
+            )
             portfolio.close_position(
                 exit_price=current_bar["open"],
-                exit_time=cast(datetime, current_bar.name),
+                exit_time=decision_ts,
                 exit_reason=pending_exit["reason"],
-                context_at_exit=pending_exit.get("context"),
+                context_at_exit=exit_context,
             )
+            last_context_at_exit = exit_context
             # Handle flip: if exit was for opposite signal, open entry window
             # and immediately execute entry at same bar open
             if "entry_side" in pending_exit:
@@ -704,30 +1034,47 @@ def _execute_backtest_loop(
                     "side": pending_exit["entry_side"],
                     "size": float(config.position_size),
                     "instrument": instrument_dict,
-                    "context": pending_exit.get("context"),
+                    "context": exit_context,
+                    "decision_time": exit_decision_ts,
                 }
             pending_exit = None
 
         # Execute pending entry from previous bar (next_bar_open model)
         if pending_entry is not None:
+            entry_decision_ts = cast(
+                datetime,
+                pending_entry.get("decision_time", decision_ts),
+            )
+            entry_context = _update_context_for_timestamp(
+                base_context=pending_entry.get("context"),
+                timestamp=entry_decision_ts,
+                rmm_context=rmm_context,
+                regime_builder=_build_regime_data,
+                global_feature_df=global_feature_df,
+                global_feature_normalized_keys=global_feature_normalized_keys,
+                global_feature_timeframes=global_feature_timeframes,
+                execution_tf_minutes=execution_tf_minutes,
+            )
+
             # Calculate initial stop loss price for r_multiple calculation
             entry_price = current_bar["open"]
             initial_risk_ccy = None
             stop_price = None
             tp_price = None
             if rem is not None:
+                signal_ctx = entry_context.get("strategy_features", {})
                 stop_price = rem.calculate_initial_stop_price(
                     entry_price=entry_price,
                     side=pending_entry["side"],
                     entry_bar=feature_bar,
-                    signal_context=pending_entry.get("context") or {},
+                    signal_context=signal_ctx,
                     prior_bar=feature_prior_bar or feature_bar,
                 )
                 tp_price = rem.calculate_initial_take_profit_price(
                     entry_price=entry_price,
                     side=pending_entry["side"],
                     entry_bar=feature_bar,
-                    signal_context=pending_entry.get("context") or {},
+                    signal_context=signal_ctx,
                     prior_bar=feature_prior_bar or feature_bar,
                 )
                 if stop_price is not None:
@@ -741,9 +1088,9 @@ def _execute_backtest_loop(
                 side=pending_entry["side"],
                 entry_price=entry_price,
                 size=pending_entry["size"],
-                entry_time=cast(datetime, current_bar.name),
+                entry_time=decision_ts,
                 instrument=pending_entry["instrument"],
-                context_at_entry=pending_entry.get("context"),
+                context_at_entry=entry_context,
                 initial_risk_ccy=initial_risk_ccy,
                 stop_loss=stop_price,
                 take_profit=tp_price,
@@ -782,45 +1129,16 @@ def _execute_backtest_loop(
         need_context = bool(portfolio.current_position) or not is_no_command
         context: dict[str, Any] | None = None
         if need_context:
-            # Build global features dict separately from strategy features
-            global_features: dict[str, Any] = {}
-            if global_feature_matrix is not None:
-                feature_row_values = global_feature_matrix[i]
-                for column, idx in global_feature_column_index.items():
-                    val = feature_row_values[idx]
-                    feature_minutes = global_feature_timeframes.get(column)
-                    is_missing = pd.isna(val)
-                    if is_missing:
-                        if (
-                            execution_tf_minutes is not None
-                            and feature_minutes is not None
-                            and feature_minutes >= execution_tf_minutes
-                        ):
-                            raise ValueError(
-                                "Global feature "
-                                f"{column!r} is NaN at {current_bar.name}. "
-                                "Features at or above the execution timeframe "
-                                "must be fully populated."
-                            )
-                        normalized_val: Any = None
-                    else:
-                        normalized_val = val
-                    key = global_feature_normalized_keys[idx]
-                    global_features[key] = normalized_val
-
-            # Build consistent nested context structure
-            # Separate strategy_features and global_features for clarity
-            regime_data = None
-            if rmm_context is not None:
-                rmm_ctx = rmm_context.get(cast(datetime, current_bar.name))
-                regime_data = _build_regime_data(rmm_ctx)
-
-            context = {
-                "strategy_features": strategy_feature_context,
-                "global_features": global_features,
-            }
-            if regime_data is not None:
-                context["regime"] = regime_data
+            context = _build_context_snapshot(
+                timestamp=decision_ts,
+                strategy_context=strategy_feature_context,
+                rmm_context=rmm_context,
+                regime_builder=_build_regime_data,
+                global_feature_df=global_feature_df,
+                global_feature_normalized_keys=global_feature_normalized_keys,
+                global_feature_timeframes=global_feature_timeframes,
+                execution_tf_minutes=execution_tf_minutes,
+            )
             last_context_at_exit = context
 
         gating_decision: GatingDecision | None = None
@@ -864,7 +1182,7 @@ def _execute_backtest_loop(
                 archetype=strategy_archetype,
                 side=side,
                 symbol=symbol,
-                entry_time=cast(datetime, current_bar.name),
+                entry_time=decision_ts,
                 context=context,
             )
             context["gating"] = gating_decision.as_dict()
@@ -872,7 +1190,7 @@ def _execute_backtest_loop(
                 if return_skips:
                     skipped.append(
                         {
-                            "entry_time": _fmt_ts(current_bar.name),
+                            "entry_time": _fmt_ts(decision_ts),
                             "symbol": symbol,
                             "side": side,
                             "size": float(config.position_size),
@@ -918,12 +1236,12 @@ def _execute_backtest_loop(
                 # Stop-loss and take-profit orders don't wait for bar close
                 portfolio.close_position(
                     exit_price=rem_result["exit_price"],
-                    exit_time=cast(datetime, current_bar.name),
+                    exit_time=decision_ts,
                     exit_reason=rem_result["reason"],
                     context_at_exit=context,
                 )
                 if return_exposure:
-                    exposure_curve.append((cast(datetime, current_bar.name), 0.0))
+                    exposure_curve.append((decision_ts, 0.0))
                 # Don't continue - allow entry signals to be processed on same bar
                 # after stop loss exit (realistic: stop hits early in bar, signal
                 # triggers later in bar)
@@ -946,12 +1264,12 @@ def _execute_backtest_loop(
                 # Immediate execution at bar close
                 portfolio.close_position(
                     exit_price=current_bar["close"],
-                    exit_time=cast(datetime, current_bar.name),
+                    exit_time=decision_ts,
                     exit_reason=result["reason"],
                     context_at_exit=context,
                 )
                 if return_exposure:
-                    exposure_curve.append((cast(datetime, current_bar.name), 0.0))
+                    exposure_curve.append((decision_ts, 0.0))
 
                 # For flips: open entry window for opposite side (don't continue)
                 # This allows the entry logic below to process the flip on same bar
@@ -974,6 +1292,7 @@ def _execute_backtest_loop(
                 pending_exit = {
                     "reason": result["reason"],
                     "context": context,
+                    "decision_time": decision_ts,
                 }
                 # For flip: include entry_side and bar_index
                 if "entry_side" in result:
@@ -993,18 +1312,18 @@ def _execute_backtest_loop(
             if (
                 not portfolio.current_position
                 and portfolio.can_attempt_entry(side, i, config.entry_window_bars)
-                and policy.can_open(cast(datetime, current_bar.name))
+                and policy.can_open(decision_ts)
             ):
                 # Enforce RMM side gating if provided
                 if rmm_context is not None:
-                    ctx = rmm_context.get(cast(datetime, current_bar.name))
+                    ctx = rmm_context.get(decision_ts)
                     if ctx is not None:
                         allowed_sides = list(ctx.get("allowed_sides") or [])
                         regime_snapshot = _build_regime_data(ctx)
                         if side not in allowed_sides:
                             skipped.append(
                                 {
-                                    "entry_time": _fmt_ts(current_bar.name),
+                                    "entry_time": _fmt_ts(decision_ts),
                                     "symbol": symbol,
                                     "side": side,
                                     "size": float(config.position_size),
@@ -1030,7 +1349,7 @@ def _execute_backtest_loop(
 
                 # Check daily loss cap
                 if config.daily_loss_cap is not None and config.daily_loss_cap > 0:
-                    now = cast(datetime, current_bar.name)
+                    now = decision_ts
                     if portfolio.hit_daily_loss_cap(now, float(config.daily_loss_cap)):
                         skipped.append(
                             {
@@ -1062,7 +1381,7 @@ def _execute_backtest_loop(
                 if open_ct >= cap:
                     skipped.append(
                         {
-                            "entry_time": _fmt_ts(current_bar.name),
+                            "entry_time": _fmt_ts(decision_ts),
                             "symbol": symbol,
                             "side": side,
                             "size": float(config.position_size),
@@ -1111,7 +1430,7 @@ def _execute_backtest_loop(
                             side=side,
                             entry_price=entry_price,
                             size=size,
-                            entry_time=cast(datetime, current_bar.name),
+                            entry_time=decision_ts,
                             instrument=instrument_dict,
                             context_at_entry=context,
                             initial_risk_ccy=initial_risk_ccy,
@@ -1131,23 +1450,20 @@ def _execute_backtest_loop(
                             "size": size,
                             "instrument": instrument_dict,
                             "context": context,
+                            "decision_time": decision_ts,
                         }
 
-            elif not policy.can_open(
-                cast(datetime, current_bar.name)
-            ):  # pragma: no cover
+            elif not policy.can_open(decision_ts):  # pragma: no cover
                 # Entry window open but blackout period active
                 # pragma: no cover - Defensive: blackout blocks entry at line 269
-                reason = (
-                    policy.reason(cast(datetime, current_bar.name)) or "blackout"
-                )  # pragma: no cover
+                reason = policy.reason(decision_ts) or "blackout"  # pragma: no cover
                 snap = {
                     "blackout_utc": config.blackout_utc or [],
                     "blackout_events": config.blackout_events or [],
                 }
                 skipped.append(
                     {
-                        "entry_time": _fmt_ts(current_bar.name),
+                        "entry_time": _fmt_ts(decision_ts),
                         "symbol": symbol,
                         "side": side,
                         "size": float(config.position_size),
@@ -1167,7 +1483,7 @@ def _execute_backtest_loop(
             exposure_val = 0.0
             if pos is not None:
                 exposure_val = float(abs(pos.size) * float(current_bar["close"]))
-            exposure_curve.append((cast(datetime, current_bar.name), exposure_val))
+            exposure_curve.append((decision_ts, exposure_val))
 
     # Force-close any remaining open position at end of backtest
     if portfolio.current_position:

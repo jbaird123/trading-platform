@@ -130,7 +130,7 @@ quintiles = model.predict(enriched_df)
 top_quintile_trades = enriched_df[quintiles == 4]
 
 # What conditions produced the best trades?
-print(top_quintile_trades[["context_at_entry_rsi", "context_at_entry_h1_rsi"]].describe())
+print(top_quintile_trades[["context_at_entry_rsi", "context_at_entry_1h_rsi"]].describe())
 ```
 
 ### Feature Importance Analysis
@@ -174,11 +174,11 @@ top_trades = enriched_df[quintiles == 4]
 
 # Build regime rules (example)
 avg_rsi_entry = top_trades["context_at_entry_rsi"].mean()
-avg_h1_rsi = top_trades["context_at_entry_h1_rsi"].mean()
+avg_1h_rsi = top_trades["context_at_entry_1h_rsi"].mean()
 
 print(f"High-performance regime characteristics:")
 print(f"  Entry RSI: {avg_rsi_entry:.1f}")
-print(f"  H1 RSI: {avg_h1_rsi:.1f}")
+print(f"  H1 RSI: {avg_1h_rsi:.1f}")
 
 # These insights can inform strategy improvements
 ```
@@ -197,7 +197,7 @@ best_trades = enriched_df[model.predict(enriched_df) == 4]
 worst_trades = enriched_df[model.predict(enriched_df) == 0]
 
 # Statistical comparison
-for feature in ["context_at_entry_rsi", "context_at_entry_h1_rsi", "context_at_entry_d1_atr"]:
+for feature in ["context_at_entry_rsi", "context_at_entry_1h_rsi", "context_at_entry_1d_atr"]:
     best_avg = best_trades[feature].mean()
     worst_avg = worst_trades[feature].mean()
     print(f"{feature}: best={best_avg:.2f}, worst={worst_avg:.2f}")

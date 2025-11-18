@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from trading_platform.data.timeframe_aliases import canonicalize_timeframe
 
 from .config import GlobalFeatureSetConfig
 from .timeframes import compare_timeframes
@@ -61,6 +62,9 @@ def resolve_global_features(
     # Parse into GlobalFeatureSetConfig (validates timeframe prefix naming)
     config = GlobalFeatureSetConfig.model_validate(yaml_content)
 
+    execution_timeframe = (
+        canonicalize_timeframe(execution_timeframe) or execution_timeframe
+    )
     # Filter features by timeframe
     resolved = []
     for feature in config.features:
@@ -71,20 +75,26 @@ def resolve_global_features(
                     name=feature.name,
                     type=feature.type,
                     params=feature.params or {},
-                    timeframe=feature.timeframe,
+                    timeframe=(
+                        canonicalize_timeframe(execution_timeframe)
+                        or execution_timeframe
+                    ),
                     source=feature.source.value if feature.source else "close",
                 )
             )
             continue
 
         # Include if feature timeframe >= execution timeframe
-        if compare_timeframes(feature.timeframe, execution_timeframe) >= 0:
+        feature_timeframe = canonicalize_timeframe(feature.timeframe)
+        if feature_timeframe is None:
+            continue
+        if compare_timeframes(feature_timeframe, execution_timeframe) >= 0:
             resolved.append(
                 ResolvedFeature(
                     name=feature.name,
                     type=feature.type,
                     params=feature.params or {},
-                    timeframe=feature.timeframe,
+                    timeframe=feature_timeframe,
                     source=feature.source.value if feature.source else "close",
                 )
             )

@@ -89,13 +89,14 @@ def test_run_backtest_uses_cached_global_features(
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
+    cache_idx = market_data.index.tolist() + [datetime(2024, 1, 1, 4)]
     cache_df = pd.DataFrame(
-        {"h1_cached_rsi": [50.0] * len(idx)},
-        index=market_data.index,
+        {"1h_cached_rsi": [50.0] * len(cache_idx)},
+        index=pd.DatetimeIndex(cache_idx),
     )
 
     def fake_load_cached(**_: Any) -> tuple[pd.DataFrame, dict[str, list[str]]]:
-        return cache_df, {"h1_cached_rsi": ["h1_cached_rsi"]}
+        return cache_df, {"1h_cached_rsi": ["1h_cached_rsi"]}
 
     def fake_compute_features(*_: Any, **__: Any) -> pd.DataFrame:
         raise AssertionError("compute_features should not run when cache is present")
@@ -110,7 +111,7 @@ def test_run_backtest_uses_cached_global_features(
     )
 
     feature_spec = {
-        "name": "h1_cached_rsi",
+        "name": "1h_cached_rsi",
         "type": "RSI",
         "params": {"length": 2},
         "timeframe": "1H",

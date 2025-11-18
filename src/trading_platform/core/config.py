@@ -1,17 +1,23 @@
 from __future__ import annotations
 
 import logging
-import re
 from enum import Enum
 from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
+from trading_platform.data.timeframe_aliases import (
+    CANONICAL_TIMEFRAMES,
+    canonicalize_column_name,
+    has_canonical_timeframe_prefix,
+)
 
 from . import paths
 from .utils import gen_run_id, normalize_symbol
 
 logger = logging.getLogger(__name__)
+
+CANONICAL_PREFIXES_DISPLAY = ", ".join(f"{prefix}_" for prefix in CANONICAL_TIMEFRAMES)
 
 
 class PriceSource(str, Enum):
@@ -83,12 +89,16 @@ class FeatureConfig(BaseModel):
         is_global = context.get("is_global", False)
 
         if is_global:
-            # Global features MUST have timeframe prefix
-            pattern = r"^(m1|m5|m15|h1|h4|d1|w1)_[a-z0-9_]+$"
-            if not re.match(pattern, v):
+            if not has_canonical_timeframe_prefix(v):
                 raise ValueError(
-                    f"Global features must have timeframe prefix "
-                    f"(m1_, m5_, m15_, h1_, h4_, d1_, w1_). Got: {v}"
+                    "Global features must use canonical timeframe prefixes "
+                    f"({CANONICAL_PREFIXES_DISPLAY}). Got: {v}"
+                )
+            canonical = canonicalize_column_name(v)
+            if canonical != v:
+                raise ValueError(
+                    "Global features must use canonical timeframe prefixes "
+                    f"({CANONICAL_PREFIXES_DISPLAY}). Got: {v}"
                 )
 
         return v

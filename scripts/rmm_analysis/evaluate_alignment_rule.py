@@ -10,9 +10,9 @@ import pandas as pd
 TEST_START = "2022-01-01"
 
 SLOPE_COLUMNS = {
-    "h1": "context_at_entry_global_features_h1_ema_50_slope_pct",
-    "h4": "context_at_entry_global_features_h4_ema_50_slope_pct",
-    "d1": "context_at_entry_global_features_d1_ema_50_slope_pct",
+    "h1": "context_at_entry_global_features_1h_ema_50_slope_pct",
+    "h4": "context_at_entry_global_features_4h_ema_50_slope_pct",
+    "d1": "context_at_entry_global_features_1d_ema_50_slope_pct",
 }
 
 

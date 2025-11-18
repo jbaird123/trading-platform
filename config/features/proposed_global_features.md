@@ -11,158 +11,158 @@ This document contains a proposed comprehensive feature set for the `global.yaml
 # This feature set is designed to provide a rich, multi-timeframe view of
 # market trend, momentum, volatility, and volume.
 #
-# Feature names MUST have a timeframe prefix (m15_, h1_, h4_, d1_).
+# Feature names MUST have a timeframe prefix (15min_, 1h_, 4h_, 1d_).
 
 features:
   # --- Trend Indicators ---
   # Provide a view of the trend across major timeframes.
-  - name: "m15_ema_50"
+  - name: "15min_ema_50"
     type: "EMA"
     params: { "length": 50 }
     timeframe: "15min"
-  - name: "h1_ema_50"
+  - name: "1h_ema_50"
     type: "EMA"
     params: { "length": 50 }
     timeframe: "1H"
-  - name: "h4_ema_50"
+  - name: "4h_ema_50"
     type: "EMA"
     params: { "length": 50 }
     timeframe: "4H"
-  - name: "d1_ema_50"
+  - name: "1d_ema_50"
     type: "EMA"
     params: { "length": 50 }
     timeframe: "1D"
-  - name: "w1_ema_50"
+  - name: "1w_ema_50"
     type: "EMA"
     params: { "length": 50 }
     timeframe: "1W"
-  - name: "h1_adx_14"
+  - name: "1h_adx_14"
     type: "ADX"
     params: { "length": 14 }
     timeframe: "1H"
-  - name: "h4_adx_14"
+  - name: "4h_adx_14"
     type: "ADX"
     params: { "length": 14 }
     timeframe: "4H"
-  - name: "d1_adx_14"
+  - name: "1d_adx_14"
     type: "ADX"
     params: { "length": 14 }
     timeframe: "1D"
-  - name: "w1_adx_14"
+  - name: "1w_adx_14"
     type: "ADX"
     params: { "length": 14 }
     timeframe: "1W"
 
   # --- Momentum Indicators ---
   # Measure the speed and change of price movements.
-  - name: "m15_rsi_14"
+  - name: "15min_rsi_14"
     type: "RSI"
     params: { "length": 14 }
     timeframe: "15min"
-  - name: "h1_rsi_14"
+  - name: "1h_rsi_14"
     type: "RSI"
     params: { "length": 14 }
     timeframe: "1H"
-  - name: "h4_rsi_14"
+  - name: "4h_rsi_14"
     type: "RSI"
     params: { "length": 14 }
     timeframe: "4H"
-  - name: "d1_rsi_14"
+  - name: "1d_rsi_14"
     type: "RSI"
     params: { "length": 14 }
     timeframe: "1D"
-  - name: "w1_rsi_14"
+  - name: "1w_rsi_14"
     type: "RSI"
     params: { "length": 14 }
     timeframe: "1W"
-  - name: "h1_macd"
+  - name: "1h_macd"
     type: "MACD"
     params: { "fast": 12, "slow": 26, "signal": 9 }
     timeframe: "1H"
-  - name: "h4_macd"
+  - name: "4h_macd"
     type: "MACD"
     params: { "fast": 12, "slow": 26, "signal": 9 }
     timeframe: "4H"
-  - name: "d1_macd"
+  - name: "1d_macd"
     type: "MACD"
     params: { "fast": 12, "slow": 26, "signal": 9 }
     timeframe: "1D"
-  - name: "w1_macd"
+  - name: "1w_macd"
     type: "MACD"
     params: { "fast": 12, "slow": 26, "signal": 9 }
     timeframe: "1W"
 
   # --- Volatility Indicators ---
   # Measure the magnitude of price fluctuations.
-  - name: "m15_atr_14"
+  - name: "15min_atr_14"
     type: "ATR"
     params: { "length": 14 }
     timeframe: "15min"
-  - name: "h1_atr_14"
+  - name: "1h_atr_14"
     type: "ATR"
     params: { "length": 14 }
     timeframe: "1H"
-  - name: "h4_atr_14"
+  - name: "4h_atr_14"
     type: "ATR"
     params: { "length": 14 }
     timeframe: "4H"
-  - name: "d1_atr_14"
+  - name: "1d_atr_14"
     type: "ATR"
     params: { "length": 14 }
     timeframe: "1D"
-  - name: "w1_atr_14"
+  - name: "1w_atr_14"
     type: "ATR"
     params: { "length": 14 }
     timeframe: "1W"
-  - name: "h1_bb_width_20"
+  - name: "1h_bb_width_20"
     type: "BBWidth"
     params: { "length": 20, "ndev": 2.0 }
     timeframe: "1H"
-  - name: "h4_bb_width_20"
+  - name: "4h_bb_width_20"
     type: "BBWidth"
     params: { "length": 20, "ndev": 2.0 }
     timeframe: "4H"
-  - name: "d1_bb_width_20"
+  - name: "1d_bb_width_20"
     type: "BBWidth"
     params: { "length": 20, "ndev": 2.0 }
     timeframe: "1D"
 
   # --- Volume Indicators ---
   # Measure market participation and conviction.
-  - name: "m15_volume_sma_20"
+  - name: "15min_volume_sma_20"
     type: "SMA"
     params: { "length": 20 }
     source: "volume"
     timeframe: "15min"
-  - name: "h1_volume_sma_20"
+  - name: "1h_volume_sma_20"
     type: "SMA"
     params: { "length": 20 }
     source: "volume"
     timeframe: "1H"
-  - name: "h4_volume_sma_20"
+  - name: "4h_volume_sma_20"
     type: "SMA"
     params: { "length": 20 }
     source: "volume"
     timeframe: "4H"
-  - name: "d1_volume_sma_20"
+  - name: "1d_volume_sma_20"
     type: "SMA"
     params: { "length": 20 }
     source: "volume"
     timeframe: "1D"
-  - name: "w1_volume_sma_20"
+  - name: "1w_volume_sma_20"
     type: "SMA"
     params: { "length": 20 }
     source: "volume"
     timeframe: "1W"
-  - name: "h1_obv"
+  - name: "1h_obv"
     type: "OBV"
     params: {} # OBV has no length parameter
     timeframe: "1H"
-  - name: "d1_obv"
+  - name: "1d_obv"
     type: "OBV"
     params: {}
     timeframe: "1D"
-  - name: "w1_obv"
+  - name: "1w_obv"
     type: "OBV"
     params: {}
     timeframe: "1W"

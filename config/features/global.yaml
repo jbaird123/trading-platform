@@ -2,40 +2,40 @@
 # This feature set is designed to provide a rich, multi-timeframe view of
 # market trend, momentum, volatility, and volume.
 #
-# Feature names MUST have a timeframe prefix (m15_, h1_, h4_, d1_).
+# Feature names MUST have a timeframe prefix (15min_, 1h_, 4h_, 1d_).
 
 features:
   # --- Micro Trend Indicators (5min) ---
   # Provide faster context for intraday strategies.
-  - name: "m5_ema_50"
+  - name: "5min_ema_50"
     type: "EMA"
     params: { "length": 50 }
     timeframe: "5min"
-  - name: "m5_ema_50_slope_pct"
+  - name: "5min_ema_50_slope_pct"
     type: "EMASlopePct"
     params: { "length": 50, "slope_period": 1 }
     timeframe: "5min"
-  - name: "m5_ema_20"
+  - name: "5min_ema_20"
     type: "EMA"
     params: { "length": 20 }
     timeframe: "5min"
-  - name: "m5_ema_20_slope_pct"
+  - name: "5min_ema_20_slope_pct"
     type: "EMASlopePct"
     params: { "length": 20, "slope_period": 1 }
     timeframe: "5min"
-  - name: "m5_ema_100"
+  - name: "5min_ema_100"
     type: "EMA"
     params: { "length": 100 }
     timeframe: "5min"
-  - name: "m5_ema_100_slope_pct"
+  - name: "5min_ema_100_slope_pct"
     type: "EMASlopePct"
     params: { "length": 100, "slope_period": 1 }
     timeframe: "5min"
-  - name: "m5_ema_50_distance_pct"
+  - name: "5min_ema_50_distance_pct"
     type: "EMADistancePercent"
     params: { "length": 50 }
     timeframe: "5min"
-  - name: "m5_trend_alignment"
+  - name: "5min_trend_alignment"
     type: "EMATrendAlignment"
     params:
       {
@@ -46,86 +46,86 @@ features:
     timeframe: "5min"
 
   # --- Micro Volatility & Structure (5min) ---
-  - name: "m5_atr_percentile_100"
+  - name: "5min_atr_percentile_100"
     type: "ATRPercentile"
     params: { "atr_length": 14, "lookback": 100 }
     timeframe: "5min"
-  - name: "m5_atr_slope_pct"
+  - name: "5min_atr_slope_pct"
     type: "ATRSlopePercent"
     params: { "length": 14, "slope_period": 1 }
     timeframe: "5min"
-  - name: "m5_true_range_zscore_50"
+  - name: "5min_true_range_zscore_50"
     type: "TrueRangeZScore"
     params: { "window": 50 }
     timeframe: "5min"
-  - name: "m5_close_to_hhv_20_pct"
+  - name: "5min_close_to_hhv_20_pct"
     type: "CloseToHHVPercent"
     params: { "length": 20 }
     timeframe: "5min"
-  - name: "m5_close_to_llv_20_pct"
+  - name: "5min_close_to_llv_20_pct"
     type: "CloseToLLVPercent"
     params: { "length": 20 }
     timeframe: "5min"
-  - name: "m5_hhv_20_slope"
+  - name: "5min_hhv_20_slope"
     type: "HHVSlope"
     params: { "length": 20, "slope_period": 1 }
     timeframe: "5min"
-  - name: "m5_llv_20_slope"
+  - name: "5min_llv_20_slope"
     type: "LLVSlope"
     params: { "length": 20, "slope_period": 1 }
     timeframe: "5min"
-  - name: "m5_volume_sma_ratio_20"
+  - name: "5min_volume_sma_ratio_20"
     type: "VolumeSMARatio"
     params: { "length": 20 }
     timeframe: "5min"
-  - name: "m5_prior_return_1"
+  - name: "5min_prior_return_1"
     type: "PriorReturn"
     params: { "window": 1 }
     timeframe: "5min"
-  - name: "m5_prior_return_5"
+  - name: "5min_prior_return_5"
     type: "PriorReturn"
     params: { "window": 5 }
     timeframe: "5min"
-  - name: "m5_rsi_14"
+  - name: "5min_rsi_14"
     type: "RSI"
     params: { "length": 14 }
     timeframe: "5min"
-  - name: "m5_rsi_bias"
+  - name: "5min_rsi_bias"
     type: "RSIBias"
     params: { "length": 14 }
     timeframe: "5min"
-  - name: "m5_adx_14"
+  - name: "5min_adx_14"
     type: "ADX"
     params: { "length": 14 }
     timeframe: "5min"
-  - name: "m5_adx_strength"
+  - name: "5min_adx_strength"
     type: "ADXStrength"
     params: { "length": 14 }
     timeframe: "5min"
-  - name: "m5_calendar"
+  - name: "5min_calendar"
     type: "CalendarSessions"
     params: {}
     timeframe: "5min"
-  - name: "m5_day_of_week"
+  - name: "5min_day_of_week"
     type: "DayOfWeekOneHot"
     params: {}
     timeframe: "5min"
 
   # --- Trend Indicators ---
   # Provide a view of the trend across major timeframes.
-  - name: "m15_ema_50"
+  - name: "15min_ema_50"
     type: "EMA"
     params: { "length": 50 }
     timeframe: "15min"
-  - name: "m15_ema_50_slope"
+  - name: "15min_ema_50_slope"
     type: "EMASlope"
     params: { "length": 50, "slope_period": 1 }
     timeframe: "15min"
-  - name: "m15_ema_50_slope_pct"
+  - name: "15min_ema_50_slope_pct"
     type: "EMASlopePct"
     params: { "length": 50, "slope_period": 1 }
     timeframe: "15min"
-  - name: "m15_trend_alignment"
+  - name: "15min_trend_alignment"
     type: "EMATrendAlignment"
     params:
       {
@@ -134,107 +134,107 @@ features:
         "slope_period": 1,
       }
     timeframe: "15min"
-  - name: "m15_ema_20"
+  - name: "15min_ema_20"
     type: "EMA"
     params: { "length": 20 }
     timeframe: "15min"
-  - name: "m15_ema_20_slope_pct"
+  - name: "15min_ema_20_slope_pct"
     type: "EMASlopePct"
     params: { "length": 20, "slope_period": 1 }
     timeframe: "15min"
-  - name: "m15_ema_100"
+  - name: "15min_ema_100"
     type: "EMA"
     params: { "length": 100 }
     timeframe: "15min"
-  - name: "m15_ema_100_slope_pct"
+  - name: "15min_ema_100_slope_pct"
     type: "EMASlopePct"
     params: { "length": 100, "slope_period": 1 }
     timeframe: "15min"
-  - name: "m15_ema_50_distance_pct"
+  - name: "15min_ema_50_distance_pct"
     type: "EMADistancePercent"
     params: { "length": 50 }
     timeframe: "15min"
-  - name: "m15_roc_5"
+  - name: "15min_roc_5"
     type: "ROC"
     params: { "length": 5 }
     timeframe: "15min"
-  - name: "m15_roc_20"
+  - name: "15min_roc_20"
     type: "ROC"
     params: { "length": 20 }
     timeframe: "15min"
-  - name: "m15_rsi_slope"
+  - name: "15min_rsi_slope"
     type: "RSISlope"
     params: { "length": 14, "slope_period": 1 }
     timeframe: "15min"
-  - name: "m15_atr_percentile_100"
+  - name: "15min_atr_percentile_100"
     type: "ATRPercentile"
     params: { "atr_length": 14, "lookback": 100 }
     timeframe: "15min"
-  - name: "m15_atr_slope_pct"
+  - name: "15min_atr_slope_pct"
     type: "ATRSlopePercent"
     params: { "length": 14, "slope_period": 1 }
     timeframe: "15min"
-  - name: "m15_bb_width_percentile_100"
+  - name: "15min_bb_width_percentile_100"
     type: "BBWidthPercentile"
     params: { "length": 20, "ndev": 2.0, "lookback": 100 }
     timeframe: "15min"
-  - name: "m15_range_atr_ratio"
+  - name: "15min_range_atr_ratio"
     type: "RangeATRRatio"
     params: { "length": 14 }
     timeframe: "15min"
-  - name: "m15_true_range_zscore_50"
+  - name: "15min_true_range_zscore_50"
     type: "TrueRangeZScore"
     params: { "window": 50 }
     timeframe: "15min"
-  - name: "m15_close_to_hhv_20_pct"
+  - name: "15min_close_to_hhv_20_pct"
     type: "CloseToHHVPercent"
     params: { "length": 20 }
     timeframe: "15min"
-  - name: "m15_close_to_llv_20_pct"
+  - name: "15min_close_to_llv_20_pct"
     type: "CloseToLLVPercent"
     params: { "length": 20 }
     timeframe: "15min"
-  - name: "m15_hhv_20_slope"
+  - name: "15min_hhv_20_slope"
     type: "HHVSlope"
     params: { "length": 20, "slope_period": 1 }
     timeframe: "15min"
-  - name: "m15_llv_20_slope"
+  - name: "15min_llv_20_slope"
     type: "LLVSlope"
     params: { "length": 20, "slope_period": 1 }
     timeframe: "15min"
-  - name: "m15_volume_sma_ratio_20"
+  - name: "15min_volume_sma_ratio_20"
     type: "VolumeSMARatio"
     params: { "length": 20 }
     timeframe: "15min"
-  - name: "m15_prior_return_1"
+  - name: "15min_prior_return_1"
     type: "PriorReturn"
     params: { "window": 1 }
     timeframe: "15min"
-  - name: "m15_prior_return_5"
+  - name: "15min_prior_return_5"
     type: "PriorReturn"
     params: { "window": 5 }
     timeframe: "15min"
-  - name: "m15_calendar"
+  - name: "15min_calendar"
     type: "CalendarSessions"
     params: {}
     timeframe: "15min"
-  - name: "m15_day_of_week"
+  - name: "15min_day_of_week"
     type: "DayOfWeekOneHot"
     params: {}
     timeframe: "15min"
-  - name: "h1_ema_50"
+  - name: "1h_ema_50"
     type: "EMA"
     params: { "length": 50 }
     timeframe: "1H"
-  - name: "h1_ema_50_slope"
+  - name: "1h_ema_50_slope"
     type: "EMASlope"
     params: { "length": 50, "slope_period": 1 }
     timeframe: "1H"
-  - name: "h1_ema_50_slope_pct"
+  - name: "1h_ema_50_slope_pct"
     type: "EMASlopePct"
     params: { "length": 50, "slope_period": 1 }
     timeframe: "1H"
-  - name: "h1_trend_alignment"
+  - name: "1h_trend_alignment"
     type: "EMATrendAlignment"
     params:
       {
@@ -243,107 +243,107 @@ features:
         "slope_period": 1,
       }
     timeframe: "1H"
-  - name: "h1_ema_20"
+  - name: "1h_ema_20"
     type: "EMA"
     params: { "length": 20 }
     timeframe: "1H"
-  - name: "h1_ema_20_slope_pct"
+  - name: "1h_ema_20_slope_pct"
     type: "EMASlopePct"
     params: { "length": 20, "slope_period": 1 }
     timeframe: "1H"
-  - name: "h1_ema_100"
+  - name: "1h_ema_100"
     type: "EMA"
     params: { "length": 100 }
     timeframe: "1H"
-  - name: "h1_ema_100_slope_pct"
+  - name: "1h_ema_100_slope_pct"
     type: "EMASlopePct"
     params: { "length": 100, "slope_period": 1 }
     timeframe: "1H"
-  - name: "h1_ema_50_distance_pct"
+  - name: "1h_ema_50_distance_pct"
     type: "EMADistancePercent"
     params: { "length": 50 }
     timeframe: "1H"
-  - name: "h1_roc_5"
+  - name: "1h_roc_5"
     type: "ROC"
     params: { "length": 5 }
     timeframe: "1H"
-  - name: "h1_roc_20"
+  - name: "1h_roc_20"
     type: "ROC"
     params: { "length": 20 }
     timeframe: "1H"
-  - name: "h1_rsi_slope"
+  - name: "1h_rsi_slope"
     type: "RSISlope"
     params: { "length": 14, "slope_period": 1 }
     timeframe: "1H"
-  - name: "h1_atr_percentile_100"
+  - name: "1h_atr_percentile_100"
     type: "ATRPercentile"
     params: { "atr_length": 14, "lookback": 100 }
     timeframe: "1H"
-  - name: "h1_atr_slope_pct"
+  - name: "1h_atr_slope_pct"
     type: "ATRSlopePercent"
     params: { "length": 14, "slope_period": 1 }
     timeframe: "1H"
-  - name: "h1_bb_width_percentile_100"
+  - name: "1h_bb_width_percentile_100"
     type: "BBWidthPercentile"
     params: { "length": 20, "ndev": 2.0, "lookback": 100 }
     timeframe: "1H"
-  - name: "h1_range_atr_ratio"
+  - name: "1h_range_atr_ratio"
     type: "RangeATRRatio"
     params: { "length": 14 }
     timeframe: "1H"
-  - name: "h1_true_range_zscore_50"
+  - name: "1h_true_range_zscore_50"
     type: "TrueRangeZScore"
     params: { "window": 50 }
     timeframe: "1H"
-  - name: "h1_close_to_hhv_20_pct"
+  - name: "1h_close_to_hhv_20_pct"
     type: "CloseToHHVPercent"
     params: { "length": 20 }
     timeframe: "1H"
-  - name: "h1_close_to_llv_20_pct"
+  - name: "1h_close_to_llv_20_pct"
     type: "CloseToLLVPercent"
     params: { "length": 20 }
     timeframe: "1H"
-  - name: "h1_hhv_20_slope"
+  - name: "1h_hhv_20_slope"
     type: "HHVSlope"
     params: { "length": 20, "slope_period": 1 }
     timeframe: "1H"
-  - name: "h1_llv_20_slope"
+  - name: "1h_llv_20_slope"
     type: "LLVSlope"
     params: { "length": 20, "slope_period": 1 }
     timeframe: "1H"
-  - name: "h1_volume_sma_ratio_20"
+  - name: "1h_volume_sma_ratio_20"
     type: "VolumeSMARatio"
     params: { "length": 20 }
     timeframe: "1H"
-  - name: "h1_prior_return_1"
+  - name: "1h_prior_return_1"
     type: "PriorReturn"
     params: { "window": 1 }
     timeframe: "1H"
-  - name: "h1_prior_return_5"
+  - name: "1h_prior_return_5"
     type: "PriorReturn"
     params: { "window": 5 }
     timeframe: "1H"
-  - name: "h1_calendar"
+  - name: "1h_calendar"
     type: "CalendarSessions"
     params: {}
     timeframe: "1H"
-  - name: "h1_day_of_week"
+  - name: "1h_day_of_week"
     type: "DayOfWeekOneHot"
     params: {}
     timeframe: "1H"
-  - name: "h4_ema_50"
+  - name: "4h_ema_50"
     type: "EMA"
     params: { "length": 50 }
     timeframe: "4H"
-  - name: "h4_ema_50_slope"
+  - name: "4h_ema_50_slope"
     type: "EMASlope"
     params: { "length": 50, "slope_period": 1 }
     timeframe: "4H"
-  - name: "h4_ema_50_slope_pct"
+  - name: "4h_ema_50_slope_pct"
     type: "EMASlopePct"
     params: { "length": 50, "slope_period": 1 }
     timeframe: "4H"
-  - name: "h4_trend_alignment"
+  - name: "4h_trend_alignment"
     type: "EMATrendAlignment"
     params:
       {
@@ -352,7 +352,7 @@ features:
         "slope_period": 1,
       }
     timeframe: "4H"
-  - name: "h4_ema_slope_confluence"
+  - name: "4h_ema_slope_confluence"
     type: "EMASlopeConfluence"
     params:
       {
@@ -362,107 +362,107 @@ features:
         "slope_period": 1,
       }
     timeframe: "4H"
-  - name: "h4_ema_20"
+  - name: "4h_ema_20"
     type: "EMA"
     params: { "length": 20 }
     timeframe: "4H"
-  - name: "h4_ema_20_slope_pct"
+  - name: "4h_ema_20_slope_pct"
     type: "EMASlopePct"
     params: { "length": 20, "slope_period": 1 }
     timeframe: "4H"
-  - name: "h4_ema_100"
+  - name: "4h_ema_100"
     type: "EMA"
     params: { "length": 100 }
     timeframe: "4H"
-  - name: "h4_ema_100_slope_pct"
+  - name: "4h_ema_100_slope_pct"
     type: "EMASlopePct"
     params: { "length": 100, "slope_period": 1 }
     timeframe: "4H"
-  - name: "h4_ema_50_distance_pct"
+  - name: "4h_ema_50_distance_pct"
     type: "EMADistancePercent"
     params: { "length": 50 }
     timeframe: "4H"
-  - name: "h4_roc_5"
+  - name: "4h_roc_5"
     type: "ROC"
     params: { "length": 5 }
     timeframe: "4H"
-  - name: "h4_roc_20"
+  - name: "4h_roc_20"
     type: "ROC"
     params: { "length": 20 }
     timeframe: "4H"
-  - name: "h4_rsi_slope"
+  - name: "4h_rsi_slope"
     type: "RSISlope"
     params: { "length": 14, "slope_period": 1 }
     timeframe: "4H"
-  - name: "h4_atr_percentile_100"
+  - name: "4h_atr_percentile_100"
     type: "ATRPercentile"
     params: { "atr_length": 14, "lookback": 100 }
     timeframe: "4H"
-  - name: "h4_atr_slope_pct"
+  - name: "4h_atr_slope_pct"
     type: "ATRSlopePercent"
     params: { "length": 14, "slope_period": 1 }
     timeframe: "4H"
-  - name: "h4_bb_width_percentile_100"
+  - name: "4h_bb_width_percentile_100"
     type: "BBWidthPercentile"
     params: { "length": 20, "ndev": 2.0, "lookback": 100 }
     timeframe: "4H"
-  - name: "h4_range_atr_ratio"
+  - name: "4h_range_atr_ratio"
     type: "RangeATRRatio"
     params: { "length": 14 }
     timeframe: "4H"
-  - name: "h4_true_range_zscore_50"
+  - name: "4h_true_range_zscore_50"
     type: "TrueRangeZScore"
     params: { "window": 50 }
     timeframe: "4H"
-  - name: "h4_close_to_hhv_20_pct"
+  - name: "4h_close_to_hhv_20_pct"
     type: "CloseToHHVPercent"
     params: { "length": 20 }
     timeframe: "4H"
-  - name: "h4_close_to_llv_20_pct"
+  - name: "4h_close_to_llv_20_pct"
     type: "CloseToLLVPercent"
     params: { "length": 20 }
     timeframe: "4H"
-  - name: "h4_hhv_20_slope"
+  - name: "4h_hhv_20_slope"
     type: "HHVSlope"
     params: { "length": 20, "slope_period": 1 }
     timeframe: "4H"
-  - name: "h4_llv_20_slope"
+  - name: "4h_llv_20_slope"
     type: "LLVSlope"
     params: { "length": 20, "slope_period": 1 }
     timeframe: "4H"
-  - name: "h4_volume_sma_ratio_20"
+  - name: "4h_volume_sma_ratio_20"
     type: "VolumeSMARatio"
     params: { "length": 20 }
     timeframe: "4H"
-  - name: "h4_prior_return_1"
+  - name: "4h_prior_return_1"
     type: "PriorReturn"
     params: { "window": 1 }
     timeframe: "4H"
-  - name: "h4_prior_return_5"
+  - name: "4h_prior_return_5"
     type: "PriorReturn"
     params: { "window": 5 }
     timeframe: "4H"
-  - name: "h4_calendar"
+  - name: "4h_calendar"
     type: "CalendarSessions"
     params: {}
     timeframe: "4H"
-  - name: "h4_day_of_week"
+  - name: "4h_day_of_week"
     type: "DayOfWeekOneHot"
     params: {}
     timeframe: "4H"
-  - name: "d1_ema_50"
+  - name: "1d_ema_50"
     type: "EMA"
     params: { "length": 50 }
     timeframe: "1D"
-  - name: "d1_ema_50_slope"
+  - name: "1d_ema_50_slope"
     type: "EMASlope"
     params: { "length": 50, "slope_period": 1 }
     timeframe: "1D"
-  - name: "d1_ema_50_slope_pct"
+  - name: "1d_ema_50_slope_pct"
     type: "EMASlopePct"
     params: { "length": 50, "slope_period": 1 }
     timeframe: "1D"
-  - name: "d1_trend_alignment"
+  - name: "1d_trend_alignment"
     type: "EMATrendAlignment"
     params:
       {
@@ -471,377 +471,377 @@ features:
         "slope_period": 1,
       }
     timeframe: "1D"
-  - name: "d1_ema_20"
+  - name: "1d_ema_20"
     type: "EMA"
     params: { "length": 20 }
     timeframe: "1D"
-  - name: "d1_ema_20_slope_pct"
+  - name: "1d_ema_20_slope_pct"
     type: "EMASlopePct"
     params: { "length": 20, "slope_period": 1 }
     timeframe: "1D"
-  - name: "d1_ema_100"
+  - name: "1d_ema_100"
     type: "EMA"
     params: { "length": 100 }
     timeframe: "1D"
-  - name: "d1_ema_100_slope_pct"
+  - name: "1d_ema_100_slope_pct"
     type: "EMASlopePct"
     params: { "length": 100, "slope_period": 1 }
     timeframe: "1D"
-  - name: "d1_ema_50_distance_pct"
+  - name: "1d_ema_50_distance_pct"
     type: "EMADistancePercent"
     params: { "length": 50 }
     timeframe: "1D"
-  - name: "d1_roc_5"
+  - name: "1d_roc_5"
     type: "ROC"
     params: { "length": 5 }
     timeframe: "1D"
-  - name: "d1_roc_20"
+  - name: "1d_roc_20"
     type: "ROC"
     params: { "length": 20 }
     timeframe: "1D"
-  - name: "d1_rsi_slope"
+  - name: "1d_rsi_slope"
     type: "RSISlope"
     params: { "length": 14, "slope_period": 1 }
     timeframe: "1D"
-  - name: "d1_atr_percentile_100"
+  - name: "1d_atr_percentile_100"
     type: "ATRPercentile"
     params: { "atr_length": 14, "lookback": 100 }
     timeframe: "1D"
-  - name: "d1_atr_slope_pct"
+  - name: "1d_atr_slope_pct"
     type: "ATRSlopePercent"
     params: { "length": 14, "slope_period": 1 }
     timeframe: "1D"
-  - name: "d1_bb_width_percentile_100"
+  - name: "1d_bb_width_percentile_100"
     type: "BBWidthPercentile"
     params: { "length": 20, "ndev": 2.0, "lookback": 100 }
     timeframe: "1D"
-  - name: "d1_range_atr_ratio"
+  - name: "1d_range_atr_ratio"
     type: "RangeATRRatio"
     params: { "length": 14 }
     timeframe: "1D"
-  - name: "d1_true_range_zscore_50"
+  - name: "1d_true_range_zscore_50"
     type: "TrueRangeZScore"
     params: { "window": 50 }
     timeframe: "1D"
-  - name: "d1_close_to_hhv_20_pct"
+  - name: "1d_close_to_hhv_20_pct"
     type: "CloseToHHVPercent"
     params: { "length": 20 }
     timeframe: "1D"
-  - name: "d1_close_to_llv_20_pct"
+  - name: "1d_close_to_llv_20_pct"
     type: "CloseToLLVPercent"
     params: { "length": 20 }
     timeframe: "1D"
-  - name: "d1_hhv_20_slope"
+  - name: "1d_hhv_20_slope"
     type: "HHVSlope"
     params: { "length": 20, "slope_period": 1 }
     timeframe: "1D"
-  - name: "d1_llv_20_slope"
+  - name: "1d_llv_20_slope"
     type: "LLVSlope"
     params: { "length": 20, "slope_period": 1 }
     timeframe: "1D"
-  - name: "d1_volume_sma_ratio_20"
+  - name: "1d_volume_sma_ratio_20"
     type: "VolumeSMARatio"
     params: { "length": 20 }
     timeframe: "1D"
-  - name: "d1_prior_return_1"
+  - name: "1d_prior_return_1"
     type: "PriorReturn"
     params: { "window": 1 }
     timeframe: "1D"
-  - name: "d1_prior_return_5"
+  - name: "1d_prior_return_5"
     type: "PriorReturn"
     params: { "window": 5 }
     timeframe: "1D"
-  - name: "d1_calendar"
+  - name: "1d_calendar"
     type: "CalendarSessions"
     params: {}
     timeframe: "1D"
-  - name: "d1_day_of_week"
+  - name: "1d_day_of_week"
     type: "DayOfWeekOneHot"
     params: {}
     timeframe: "1D"
-  - name: "w1_ema_50"
+  - name: "1w_ema_50"
     type: "EMA"
     params: { "length": 50 }
     timeframe: "1W"
-  - name: "w1_ema_50_slope"
+  - name: "1w_ema_50_slope"
     type: "EMASlope"
     params: { "length": 50, "slope_period": 1 }
     timeframe: "1W"
-  - name: "w1_ema_50_slope_pct"
+  - name: "1w_ema_50_slope_pct"
     type: "EMASlopePct"
     params: { "length": 50, "slope_period": 1 }
     timeframe: "1W"
-  - name: "w1_ema_20"
+  - name: "1w_ema_20"
     type: "EMA"
     params: { "length": 20 }
     timeframe: "1W"
-  - name: "w1_ema_20_slope_pct"
+  - name: "1w_ema_20_slope_pct"
     type: "EMASlopePct"
     params: { "length": 20, "slope_period": 1 }
     timeframe: "1W"
-  - name: "w1_ema_100"
+  - name: "1w_ema_100"
     type: "EMA"
     params: { "length": 100 }
     timeframe: "1W"
-  - name: "w1_ema_100_slope_pct"
+  - name: "1w_ema_100_slope_pct"
     type: "EMASlopePct"
     params: { "length": 100, "slope_period": 1 }
     timeframe: "1W"
-  - name: "w1_ema_50_distance_pct"
+  - name: "1w_ema_50_distance_pct"
     type: "EMADistancePercent"
     params: { "length": 50 }
     timeframe: "1W"
-  - name: "w1_roc_5"
+  - name: "1w_roc_5"
     type: "ROC"
     params: { "length": 5 }
     timeframe: "1W"
-  - name: "w1_roc_20"
+  - name: "1w_roc_20"
     type: "ROC"
     params: { "length": 20 }
     timeframe: "1W"
-  - name: "w1_rsi_slope"
+  - name: "1w_rsi_slope"
     type: "RSISlope"
     params: { "length": 14, "slope_period": 1 }
     timeframe: "1W"
-  - name: "w1_atr_percentile_100"
+  - name: "1w_atr_percentile_100"
     type: "ATRPercentile"
     params: { "atr_length": 14, "lookback": 100 }
     timeframe: "1W"
-  - name: "w1_atr_slope_pct"
+  - name: "1w_atr_slope_pct"
     type: "ATRSlopePercent"
     params: { "length": 14, "slope_period": 1 }
     timeframe: "1W"
-  - name: "w1_bb_width_percentile_100"
+  - name: "1w_bb_width_percentile_100"
     type: "BBWidthPercentile"
     params: { "length": 20, "ndev": 2.0, "lookback": 100 }
     timeframe: "1W"
-  - name: "w1_range_atr_ratio"
+  - name: "1w_range_atr_ratio"
     type: "RangeATRRatio"
     params: { "length": 14 }
     timeframe: "1W"
-  - name: "w1_true_range_zscore_50"
+  - name: "1w_true_range_zscore_50"
     type: "TrueRangeZScore"
     params: { "window": 50 }
     timeframe: "1W"
-  - name: "w1_close_to_hhv_20_pct"
+  - name: "1w_close_to_hhv_20_pct"
     type: "CloseToHHVPercent"
     params: { "length": 20 }
     timeframe: "1W"
-  - name: "w1_close_to_llv_20_pct"
+  - name: "1w_close_to_llv_20_pct"
     type: "CloseToLLVPercent"
     params: { "length": 20 }
     timeframe: "1W"
-  - name: "w1_hhv_20_slope"
+  - name: "1w_hhv_20_slope"
     type: "HHVSlope"
     params: { "length": 20, "slope_period": 1 }
     timeframe: "1W"
-  - name: "w1_llv_20_slope"
+  - name: "1w_llv_20_slope"
     type: "LLVSlope"
     params: { "length": 20, "slope_period": 1 }
     timeframe: "1W"
-  - name: "w1_volume_sma_ratio_20"
+  - name: "1w_volume_sma_ratio_20"
     type: "VolumeSMARatio"
     params: { "length": 20 }
     timeframe: "1W"
-  - name: "w1_prior_return_1"
+  - name: "1w_prior_return_1"
     type: "PriorReturn"
     params: { "window": 1 }
     timeframe: "1W"
-  - name: "w1_prior_return_5"
+  - name: "1w_prior_return_5"
     type: "PriorReturn"
     params: { "window": 5 }
     timeframe: "1W"
-  - name: "w1_calendar"
+  - name: "1w_calendar"
     type: "CalendarSessions"
     params: {}
     timeframe: "1W"
-  - name: "w1_day_of_week"
+  - name: "1w_day_of_week"
     type: "DayOfWeekOneHot"
     params: {}
     timeframe: "1W"
-  - name: "h1_adx_14"
+  - name: "1h_adx_14"
     type: "ADX"
     params: { "length": 14 }
     timeframe: "1H"
-  - name: "h1_adx_strength"
+  - name: "1h_adx_strength"
     type: "ADXStrength"
     params: { "length": 14 }
     timeframe: "1H"
-  - name: "h4_adx_14"
+  - name: "4h_adx_14"
     type: "ADX"
     params: { "length": 14 }
     timeframe: "4H"
-  - name: "h4_adx_strength"
+  - name: "4h_adx_strength"
     type: "ADXStrength"
     params: { "length": 14 }
     timeframe: "4H"
-  - name: "d1_adx_14"
+  - name: "1d_adx_14"
     type: "ADX"
     params: { "length": 14 }
     timeframe: "1D"
-  - name: "d1_adx_strength"
+  - name: "1d_adx_strength"
     type: "ADXStrength"
     params: { "length": 14 }
     timeframe: "1D"
-  - name: "w1_adx_14"
+  - name: "1w_adx_14"
     type: "ADX"
     params: { "length": 14 }
     timeframe: "1W"
-  - name: "w1_adx_strength"
+  - name: "1w_adx_strength"
     type: "ADXStrength"
     params: { "length": 14 }
     timeframe: "1W"
 
   # --- Momentum Indicators ---
   # Measure the speed and change of price movements.
-  - name: "m15_rsi_14"
+  - name: "15min_rsi_14"
     type: "RSI"
     params: { "length": 14 }
     timeframe: "15min"
-  - name: "m15_rsi_bias"
+  - name: "15min_rsi_bias"
     type: "RSIBias"
     params: { "length": 14 }
     timeframe: "15min"
-  - name: "h1_rsi_14"
+  - name: "1h_rsi_14"
     type: "RSI"
     params: { "length": 14 }
     timeframe: "1H"
-  - name: "h1_rsi_bias"
+  - name: "1h_rsi_bias"
     type: "RSIBias"
     params: { "length": 14 }
     timeframe: "1H"
-  - name: "h4_rsi_14"
+  - name: "4h_rsi_14"
     type: "RSI"
     params: { "length": 14 }
     timeframe: "4H"
-  - name: "h4_rsi_bias"
+  - name: "4h_rsi_bias"
     type: "RSIBias"
     params: { "length": 14 }
     timeframe: "4H"
-  - name: "d1_rsi_14"
+  - name: "1d_rsi_14"
     type: "RSI"
     params: { "length": 14 }
     timeframe: "1D"
-  - name: "d1_rsi_bias"
+  - name: "1d_rsi_bias"
     type: "RSIBias"
     params: { "length": 14 }
     timeframe: "1D"
-  - name: "w1_rsi_14"
+  - name: "1w_rsi_14"
     type: "RSI"
     params: { "length": 14 }
     timeframe: "1W"
-  - name: "w1_rsi_bias"
+  - name: "1w_rsi_bias"
     type: "RSIBias"
     params: { "length": 14 }
     timeframe: "1W"
-  - name: "h1_macd"
+  - name: "1h_macd"
     type: "MACD"
     params: { "fast": 12, "slow": 26, "signal": 9 }
     timeframe: "1H"
-  - name: "h4_macd"
+  - name: "4h_macd"
     type: "MACD"
     params: { "fast": 12, "slow": 26, "signal": 9 }
     timeframe: "4H"
-  - name: "d1_macd"
+  - name: "1d_macd"
     type: "MACD"
     params: { "fast": 12, "slow": 26, "signal": 9 }
     timeframe: "1D"
-  - name: "w1_macd"
+  - name: "1w_macd"
     type: "MACD"
     params: { "fast": 12, "slow": 26, "signal": 9 }
     timeframe: "1W"
 
   # --- Volatility Indicators ---
   # Measure the magnitude of price fluctuations.
-  - name: "m15_atr_14"
+  - name: "15min_atr_14"
     type: "ATR"
     params: { "length": 14 }
     timeframe: "15min"
-  - name: "m15_atr_pct"
+  - name: "15min_atr_pct"
     type: "ATRPercent"
     params: { "length": 14 }
     timeframe: "15min"
-  - name: "h1_atr_14"
+  - name: "1h_atr_14"
     type: "ATR"
     params: { "length": 14 }
     timeframe: "1H"
-  - name: "h1_atr_pct"
+  - name: "1h_atr_pct"
     type: "ATRPercent"
     params: { "length": 14 }
     timeframe: "1H"
-  - name: "d1_atr_14"
+  - name: "1d_atr_14"
     type: "ATR"
     params: { "length": 14 }
     timeframe: "1D"
-  - name: "d1_atr_pct"
+  - name: "1d_atr_pct"
     type: "ATRPercent"
     params: { "length": 14 }
     timeframe: "1D"
-  - name: "h4_atr_14"
+  - name: "4h_atr_14"
     type: "ATR"
     params: { "length": 14 }
     timeframe: "4H"
-  - name: "h4_atr_pct"
+  - name: "4h_atr_pct"
     type: "ATRPercent"
     params: { "length": 14 }
     timeframe: "4H"
-  - name: "w1_atr_14"
+  - name: "1w_atr_14"
     type: "ATR"
     params: { "length": 14 }
     timeframe: "1W"
-  - name: "w1_atr_pct"
+  - name: "1w_atr_pct"
     type: "ATRPercent"
     params: { "length": 14 }
     timeframe: "1W"
-  - name: "h1_bb_width_20"
+  - name: "1h_bb_width_20"
     type: "BBWidth"
     params: { "length": 20, "ndev": 2.0 }
     timeframe: "1H"
-  - name: "h4_bb_width_20"
+  - name: "4h_bb_width_20"
     type: "BBWidth"
     params: { "length": 20, "ndev": 2.0 }
     timeframe: "4H"
-  - name: "d1_bb_width_20"
+  - name: "1d_bb_width_20"
     type: "BBWidth"
     params: { "length": 20, "ndev": 2.0 }
     timeframe: "1D"
 
   # --- Volume Indicators ---
   # Measure market participation and conviction.
-  - name: "m15_volume_sma_20"
+  - name: "15min_volume_sma_20"
     type: "SMA"
     params: { "length": 20 }
     source: "volume"
     timeframe: "15min"
-  - name: "h1_volume_sma_20"
+  - name: "1h_volume_sma_20"
     type: "SMA"
     params: { "length": 20 }
     source: "volume"
     timeframe: "1H"
-  - name: "h4_volume_sma_20"
+  - name: "4h_volume_sma_20"
     type: "SMA"
     params: { "length": 20 }
     source: "volume"
     timeframe: "4H"
-  - name: "d1_volume_sma_20"
+  - name: "1d_volume_sma_20"
     type: "SMA"
     params: { "length": 20 }
     source: "volume"
     timeframe: "1D"
-  - name: "w1_volume_sma_20"
+  - name: "1w_volume_sma_20"
     type: "SMA"
     params: { "length": 20 }
     source: "volume"
     timeframe: "1W"
-  - name: "h1_obv"
+  - name: "1h_obv"
     type: "OBV"
     params: {} # OBV has no length parameter
     timeframe: "1H"
-  - name: "d1_obv"
+  - name: "1d_obv"
     type: "OBV"
     params: {}
     timeframe: "1D"
-  - name: "w1_obv"
+  - name: "1w_obv"
     type: "OBV"
     params: {}
     timeframe: "1W"

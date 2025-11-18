@@ -120,22 +120,29 @@ def _rules() -> list[TwoStageRule]:
 
 def _gating_frame(df: pd.DataFrame) -> pd.DataFrame:
     columns = {
-        "atr_percentile": df["context_at_entry_global_features_m15_atr_percentile_100"],
+        "atr_percentile": df[
+            "context_at_entry_global_features_15min_" "atr_percentile_100"
+        ],
         "session_london": (
-            df["context_at_entry_global_features_m15_calendar_session_london"] > 0.0
+            df["context_at_entry_global_features_15min_calendar_session_london"] > 0.0
         ),
         "session_newyork": (
-            df["context_at_entry_global_features_m15_calendar_session_newyork"] > 0.0
+            df["context_at_entry_global_features_15min_calendar_session_newyork"] > 0.0
         ),
         "alignment_score": df[
-            "context_at_entry_global_features_m15_trend_alignment_stack_score"
+            "context_at_entry_global_features_15min_trend_" "alignment_stack_score"
         ],
         "alignment_full": (
-            df["context_at_entry_global_features_m15_trend_alignment_full_alignment"]
+            df[
+                "context_at_entry_global_features_15min_trend_alignment_full_"
+                "alignment"
+            ]
             > 0.0
         ),
-        "prior_return": df["context_at_entry_global_features_m15_prior_return_1"],
-        "volume_ratio": df["context_at_entry_global_features_m15_volume_sma_ratio_20"],
+        "prior_return": df["context_at_entry_global_features_15min_prior_return_1"],
+        "volume_ratio": df[
+            "context_at_entry_global_features_15min_volume_sma_ratio_20"
+        ],
     }
     return pd.DataFrame(columns, index=df.index)
 

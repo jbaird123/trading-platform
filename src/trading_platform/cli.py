@@ -54,6 +54,7 @@ from trading_platform.data.handler import DataHandler
 from trading_platform.data.instrument import get_instrument_definition
 from trading_platform.data.integrity_validator import validate_all_data
 from trading_platform.data.session_metadata import SESSION_ATTR
+from trading_platform.data.timeframe_aliases import canonicalize_timeframe
 from trading_platform.execution.oanda_stub import OandaStubAdapter
 from trading_platform.portfolio.portfolio import PortfolioManager
 from trading_platform.portfolio.trade import Trade
@@ -116,6 +117,25 @@ def _load_config(path: Path) -> dict[str, Any]:
             ) from exc
         return dict(yaml.safe_load(txt))
     return dict(json.loads(txt))
+
+
+def _canonicalize_timeframes_in_config(cfg: dict[str, Any]) -> None:
+    """Normalize configured timeframes to canonical values."""
+
+    def _maybe_canonicalize(container: dict[str, Any], key: str) -> None:
+        value = container.get(key)
+        if isinstance(value, str):
+            canonical = canonicalize_timeframe(value)
+            if canonical:
+                container[key] = canonical
+
+    data_request = cfg.get("data_request")
+    if isinstance(data_request, dict):
+        _maybe_canonicalize(data_request, "timeframe")
+
+    instrument_cfg = cfg.get("instrument")
+    if isinstance(instrument_cfg, dict):
+        _maybe_canonicalize(instrument_cfg, "timeframe")
 
 
 def _run_backtest_logic(args: argparse.Namespace) -> int:
@@ -202,6 +222,8 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     )  # Extract for later use
     strategy_path = cfg_raw.pop("strategy_path", None)  # Extract for later use
     strategy_params = cfg_raw.pop("strategy_params", None)  # Extract for later use
+
+    _canonicalize_timeframes_in_config(cfg_raw)
 
     cfg = RunConfig.model_validate(cfg_raw)
 
@@ -2047,12 +2069,17 @@ def _precompute_global_features_logic(args: argparse.Namespace) -> int:
 
     tf_list = None
     if args.timeframes:
-        tf_list = [tf.strip() for tf in args.timeframes if tf and tf.strip()]
+        tf_list = [
+            canonicalize_timeframe(tf.strip()) or tf.strip()
+            for tf in args.timeframes
+            if tf and tf.strip()
+        ]
         if not tf_list:
             tf_list = None
 
     if tf_list is None:
         tf_list = derive_execution_timeframes(config_path)
+    tf_list = [canonicalize_timeframe(tf) or tf for tf in tf_list if tf]
 
     cache_root = (
         Path(args.cache_root).expanduser().resolve()

@@ -1,5 +1,5 @@
 outs:
-- md5: e1c15a8a30f9b0042c552cca36b3bb8b
-  size: 168048091
+- md5: 3228bd59171673d575c17757a87c2aaf
+  size: 328581336
   hash: md5
   path: master_trade_log.parquet

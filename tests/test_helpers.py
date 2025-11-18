@@ -175,7 +175,7 @@ def create_market_data_with_warmup(
         full_index = pd.date_range(warmup_ts, end_ts, freq=freq_alias)
     except (ValueError, KeyError):
         # If warmup calculation fails (e.g., insufficient data), use a
-        # conservative buffer. Most tests use h1_ema_50, d1_ema_50 which
+        # conservative buffer. Most tests use 1h_ema_50, 1d_ema_50 which
         # need 50 bars at 1D = ~60 days
         warmup_ts = start_ts - pd.Timedelta(days=100)
         full_index = pd.date_range(warmup_ts, end_ts, freq=freq_alias)

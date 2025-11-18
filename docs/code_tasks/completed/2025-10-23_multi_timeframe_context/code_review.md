@@ -217,7 +217,7 @@ All tasks are fully implemented per instructions with the following notes:
 ✅ **test_compute_features_with_higher_timeframe_alignment**
 - **Coverage**: Multi-timeframe feature computation and alignment
 - **Assertions**:
-  - Result contains h1_rsi column
+  - Result contains 1h_rsi column
   - Forward-filled values match expected computation
   - Specific value checks
 - **Edge Cases**: N/A (happy path)
@@ -275,8 +275,8 @@ All tasks are fully implemented per instructions with the following notes:
 - **Coverage**: End-to-end integration
 - **Assertions**:
   - Trade generated
-  - context_at_entry contains h1_rsi
-  - context_at_exit contains h1_rsi
+  - context_at_entry contains 1h_rsi
+  - context_at_exit contains 1h_rsi
   - **Values match expected RSI computation** (critical improvement from code review)
 - **Edge Cases**:
   - Sufficient data for RSI(14) on 1H timeframe

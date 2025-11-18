@@ -28,7 +28,7 @@ def _write_global_yaml(path: Path) -> None:
         "\n".join(
             [
                 "features:",
-                '  - name: "m5_cli_ema"',
+                '  - name: "5min_cli_ema"',
                 '    type: "EMA"',
                 '    params: {"length": 4}',
                 '    timeframe: "5min"',

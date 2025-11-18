@@ -22,29 +22,29 @@ To prevent feature name collisions between global features and strategy-specific
 ### Global Features (config/features/global.yaml)
 
 **MUST** have timeframe prefixes:
-- **Valid**: `m5_rsi_14`, `m15_ema_9`, `h1_atr_14`, `h4_rsi`, `d1_volume_sma_20`
+- **Valid**: `5min_rsi_14`, `15min_ema_9`, `1h_atr_14`, `4h_rsi`, `1d_volume_sma_20`
 - **Invalid**: `rsi_14`, `ema_9`, `atr_14` (missing timeframe prefix)
 
 **Timeframe prefix format**: `{timeframe}_{descriptor}`
 
 Where `{timeframe}` must be one of:
-- `m1_` - 1-minute
-- `m5_` - 5-minute
-- `m15_` - 15-minute
-- `h1_` - 1-hour
-- `h4_` - 4-hour
-- `d1_` - 1-day
+- `1min_` - 1-minute
+- `5min_` - 5-minute
+- `15min_` - 15-minute
+- `1h_` - 1-hour
+- `4h_` - 4-hour
+- `1d_` - 1-day
 
 ### Strategy Features (config/strategies/*.yaml)
 
 **MUST NOT** have timeframe prefixes:
 - **Valid**: `rsi`, `ema_fast`, `ema_slow`, `atr`, `bb_upper`
-- **Invalid**: `h1_rsi`, `m15_ema_fast` (has timeframe prefix)
+- **Invalid**: `1h_rsi`, `15min_ema_fast` (has timeframe prefix)
 
 ### Rationale
 
 This naming convention ensures that features in `context_at_entry` and `context_at_exit` can never collide:
-- Global features: `h1_rsi_14`, `m15_ema_9`, `d1_volume_sma_20`
+- Global features: `1h_rsi_14`, `15min_ema_9`, `1d_volume_sma_20`
 - Strategy features: `rsi`, `ema_fast`, `ema_slow`
 
 The naming convention is enforced via Pydantic validators, making it impossible to instantiate invalid configurations.
@@ -133,12 +133,12 @@ FileNotFoundError: Global feature configuration not found at config/features/glo
 
 If a global feature lacks a timeframe prefix:
 ```python
-ValidationError: Global features must have timeframe prefix (m1_, m5_, m15_, h1_, h4_, d1_). Got: rsi_14
+ValidationError: Global features must have timeframe prefix (1min_, 5min_, 15min_, 1h_, 4h_, 1d_). Got: rsi_14
 ```
 
 If a strategy feature has a timeframe prefix:
 ```python
-ValidationError: Strategy features must NOT have timeframe prefix. Found: h1_rsi
+ValidationError: Strategy features must NOT have timeframe prefix. Found: 1h_rsi
 ```
 
 ### Unrecognized Timeframe
@@ -167,7 +167,7 @@ contextual_features:
 ```yaml
 # config/features/global.yaml
 features:
-  - name: h1_atr_14  # Note: must have timeframe prefix
+  - name: 1h_atr_14  # Note: must have timeframe prefix
     type: ATR
     params: {length: 14}
     timeframe: "1H"
@@ -201,35 +201,35 @@ Timeframe ranks (in minutes):
 # config/features/global.yaml
 features:
   # Trend indicators
-  - name: "h1_ema_50"
+  - name: "1h_ema_50"
     type: "EMA"
     params: { "length": 50 }
     timeframe: "1H"
 
-  - name: "d1_ema_50"
+  - name: "1d_ema_50"
     type: "EMA"
     params: { "length": 50 }
     timeframe: "1D"
 
   # Momentum indicators
-  - name: "m15_rsi_14"
+  - name: "15min_rsi_14"
     type: "RSI"
     params: { "length": 14 }
     timeframe: "15min"
 
-  - name: "h1_rsi_14"
+  - name: "1h_rsi_14"
     type: "RSI"
     params: { "length": 14 }
     timeframe: "1H"
 
   # Volatility indicators
-  - name: "h1_atr_14"
+  - name: "1h_atr_14"
     type: "ATR"
     params: { "length": 14 }
     timeframe: "1H"
 
   # Volume indicators
-  - name: "h1_volume_sma_20"
+  - name: "1h_volume_sma_20"
     type: "SMA"
     params: { "length": 20 }
     source: "volume"
@@ -266,12 +266,12 @@ When this strategy runs on a **15-minute timeframe**, the following features are
 - `ema_slow`
 
 **From global** (filtered to >= 15min):
-- `m15_rsi_14` (15min data, resampled)
-- `h1_ema_50` (1H data, resampled)
-- `h1_rsi_14` (1H data, resampled)
-- `h1_atr_14` (1H data, resampled)
-- `h1_volume_sma_20` (1H data, resampled)
-- `d1_ema_50` (1D data, resampled)
+- `15min_rsi_14` (15min data, resampled)
+- `1h_ema_50` (1H data, resampled)
+- `1h_rsi_14` (1H data, resampled)
+- `1h_atr_14` (1H data, resampled)
+- `1h_volume_sma_20` (1H data, resampled)
+- `1d_ema_50` (1D data, resampled)
 
 **Excluded** (< 15min):
 - None in this example

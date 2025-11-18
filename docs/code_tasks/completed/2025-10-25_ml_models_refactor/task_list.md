@@ -87,7 +87,7 @@ git checkout -b refactor/ml-models-architecture
   - Filter data: `df = trades_df[(trades_df['execution_timeframe'] == self.timeframe) & (trades_df['strategy_archetype'] == self.archetype)]`
   - Validate minimum samples: `if len(df) < 50: raise ValueError(f"Insufficient data: need 50+ trades, got {len(df)}")`
   - Extract feature columns (ONLY features known at entry time - NO lookahead):
-    - Pattern match: All columns matching `context_at_entry_*` (e.g., `context_at_entry_strategy_features_ema_fast`, `context_at_entry_strategy_features_h1_rsi`)
+    - Pattern match: All columns matching `context_at_entry_*` (e.g., `context_at_entry_strategy_features_ema_fast`, `context_at_entry_strategy_features_1h_rsi`)
     - Categorical: `side` (one-hot encode: long=1/short=0 or create dummy variables)
     - Categorical: `symbol` (one-hot encode if multiple pairs, or use label encoding)
     - Temporal: Derived from `entry_time`: `hour_of_day`, `day_of_week`, `is_london_session`, `is_ny_session`, etc.

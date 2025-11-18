@@ -88,14 +88,14 @@ PARQUET_FILENAMES = {
     "1D": "1d.parquet",
 }
 COLUMN_RENAMES = {
-    "m15_adx_14_DI+": "m15_adx_14_DIplus",
-    "m15_adx_14_DI-": "m15_adx_14_DIminus",
-    "h1_adx_14_DI+": "h1_adx_14_DIplus",
-    "h1_adx_14_DI-": "h1_adx_14_DIminus",
-    "h4_adx_14_DI+": "h4_adx_14_DIplus",
-    "h4_adx_14_DI-": "h4_adx_14_DIminus",
-    "d1_adx_14_DI+": "d1_adx_14_DIplus",
-    "d1_adx_14_DI-": "d1_adx_14_DIminus",
+    "15min_adx_14_DI+": "15min_adx_14_DIplus",
+    "15min_adx_14_DI-": "15min_adx_14_DIminus",
+    "1h_adx_14_DI+": "1h_adx_14_DIplus",
+    "1h_adx_14_DI-": "1h_adx_14_DIminus",
+    "4h_adx_14_DI+": "4h_adx_14_DIplus",
+    "4h_adx_14_DI-": "4h_adx_14_DIminus",
+    "1d_adx_14_DI+": "1d_adx_14_DIplus",
+    "1d_adx_14_DI-": "1d_adx_14_DIminus",
 }
 
 
@@ -228,7 +228,10 @@ def _build_target_frame(
     """Construct the golden rows for a single target timeframe."""
 
     base_raw = raw_frames[base_timeframe]
-    result = pd.DataFrame({"available_at": base_raw["bar_open"]})
+    # Use bar_close so we always capture the decision timestamp (including the
+    # final close before a weekend gap). Previously using bar_open omitted the
+    # final row.
+    result = pd.DataFrame({"available_at": base_raw["bar_close"]})
     result = result.sort_values("available_at").reset_index(drop=True)
 
     for tf in dependencies:

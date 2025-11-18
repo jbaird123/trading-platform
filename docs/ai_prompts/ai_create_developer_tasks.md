@@ -18,6 +18,8 @@ At the top of the generated task list, you **must** include the following sectio
 -   **No Deferrals:** You must **never** mark any task as "deferred" or flag it for "future work." If a task is in the plan, it must be implemented.
 -   **Full Implementation:** All tasks must be **completely implemented** as described. Do not leave placeholders or incomplete logic.
 
+In addition, every task you define must explicitly enforce the **fail-fast exception handling policy** documented in `docs/coding_standards/exception_handling_policy.md`. Any plan that allows silent failures, defensive exception swallowing, or retries that contradict that policy is automatically invalid. Make the policy a first-class acceptance criterion for each implementation item.
+
 ---
 
 **Your instructions must be:**

@@ -866,7 +866,7 @@ and completeness are automatically maintained.
 
 #### Comprehensive Indicator Dataset (Phase 1 Complete)
 - [x] Created 9 PineScript batch files for TradingView export:
-  - `configs/golden_strategies/indicators/batch1_moving_averages.pine`
+  - `configs/golden_strategies/indicators/batc1h_moving_averages.pine`
     - 6 indicators: SMA 20, EMA 20, WMA 20, RSI 14, ATR 14, PSAR
     - 11 total columns (5 OHLCV + 6 indicators)
   - `configs/golden_strategies/indicators/batch2_oscillators.pine`
@@ -875,7 +875,7 @@ and completeness are automatically maintained.
   - `configs/golden_strategies/indicators/batch3_volume.pine`
     - 2 indicators: OBV, VWAP
     - 7 total columns (5 OHLCV + 2 indicators)
-  - `configs/golden_strategies/indicators/batch4_adx.pine`
+  - `configs/golden_strategies/indicators/batc4h_adx.pine`
     - 3 indicators: DMI+, DMI-, ADX 14
     - 8 total columns (5 OHLCV + 3 indicators)
   - `configs/golden_strategies/indicators/batch5_bollinger.pine`
@@ -907,10 +907,10 @@ and completeness are automatically maintained.
 - [x] Organized indicator batch data:
   - Created `data/dvc/golden/indicators/comprehensive/` directory
   - Placed all 9 CSV batch files:
-    - `batch1_moving_averages_eurusd_1h.csv`
+    - `batc1h_moving_averages_eurusd_1h.csv`
     - `batch2_oscillators_eurusd_1h.csv`
     - `batch3_volume_eurusd_1h.csv`
-    - `batch4_adx_eurusd_1h.csv`
+    - `batc4h_adx_eurusd_1h.csv`
     - `batch5_bollinger_eurusd_1h.csv`
     - `batch6_supertrend_eurusd_1h.csv`
     - `batch7_keltner_eurusd_1h.csv`

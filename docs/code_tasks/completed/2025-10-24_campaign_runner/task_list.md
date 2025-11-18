@@ -80,7 +80,7 @@ git checkout -b feature/campaign-runner
 ### 6. [ ] Write test for CampaignConfig with contextual features
 - In `tests/ai/campaigns/test_campaign_models.py`, add function `test_campaign_config_accepts_contextual_features`
 - Create a campaign dictionary with `contextual_features` list containing one feature:
-  - `name: "h1_rsi"`
+  - `name: "1h_rsi"`
   - `type: "RSI"`
   - `params: {"length": 14}`
   - `timeframe: "1h"`
@@ -1202,19 +1202,19 @@ git checkout -b feature/campaign-runner
         slow_length: 20
 
   contextual_features:
-    - name: h1_rsi
+    - name: 1h_rsi
       type: RSI
       params:
         length: 14
       timeframe: 1h
 
-    - name: h4_ema_50
+    - name: 4h_ema_50
       type: EMA
       params:
         length: 50
       timeframe: 4h
 
-    - name: d1_atr
+    - name: 1d_atr
       type: ATR
       params:
         length: 14

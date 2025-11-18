@@ -82,13 +82,17 @@ def calculated_data(golden_data_1h):
     feature_specs.append(
         {"name": "ADX_14_base", "type": "ADX", "params": {"length": 14}}
     )
-    calculated_df = compute_features(golden_data_1h, feature_specs).rename(
+    base_inputs = golden_data_1h[["open", "high", "low", "close", "volume"]].copy()
+    calculated_df = compute_features(base_inputs, feature_specs).rename(
         columns={
             "BB_middle": "BB_MIDDLE",
             "BB_upper": "BB_UPPER",
             "BB_lower": "BB_LOWER",
             "ADX_14_base_ADX": "ADX_14",  # Rename ADX column to match test expectation
         }
+    )
+    calculated_df = calculated_df.drop(
+        columns=["open", "high", "low", "close", "volume"], errors="ignore"
     )
     return calculated_df
 
