@@ -53,6 +53,7 @@ class NextBarExecutionEngine:
                     timestamp=event.timestamp,
                     price=float(event.price),
                     size=float(event.decision.size),
+                    decision=event.decision,
                     costs={},
                     reason=event.reason,
                 )
@@ -70,6 +71,7 @@ class NextBarExecutionEngine:
                         timestamp=bar_open_time,
                         price=float(bar["open"]),
                         size=float(intent.decision.size),
+                        decision=intent.decision,
                         costs={},
                         reason="entry"
                         if intent.intent_type in {"enter_long", "enter_short"}

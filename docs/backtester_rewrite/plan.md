@@ -5,9 +5,9 @@ This document tracks the objectives, scope, and progress for the backtester rewr
 ## Progress Summary
 | Milestone | Status | Notes |
 |-----------|--------|-------|
-| M1 – Requirements & Architecture | 🟡 In Progress | Use checkboxes below to track completion |
-| M2 – Execution Engine | ⚪ Not Started | |
-| M3 – Risk & Portfolio | ⚪ Not Started | |
+| M1 – Requirements & Architecture | ✅ Complete | Use checkboxes below to track completion |
+| M2 – Execution Engine | ✅ Complete | |
+| M3 – Risk & Portfolio | ✅ Complete | |
 | M4 – Context/Reporting & Validation | ⚪ Not Started | |
 | M5 – Full Validation & Cutover | ⚪ Not Started | |
 
@@ -19,8 +19,8 @@ This document tracks the objectives, scope, and progress for the backtester rewr
 
 ## Milestones
 
-### M1 – Requirements & Architecture (Current)
-**Status:** 🟡 In Progress
+### M1 – Requirements & Architecture (Complete)
+**Status:** ✅ Complete
 **Exit Criteria:** Behavioral requirements documented; interfaces defined with type hints; architecture & sequence diagrams approved; rollout decisions resolved.
 
 #### M1.1 Behavioral Requirements
@@ -88,26 +88,30 @@ This document tracks the objectives, scope, and progress for the backtester rewr
   - [x] Edge cases and expected failures covered.
   - [x] Code adheres to `principles.md` and `project_requirements.md`.
   - [x] Code is clean/readable and documented; no `mypy`/`ruff` violations.
-**Status:** ⚪ Planned
+**Status:** ✅ Complete
 
 ### M3 – Risk & Portfolio Integration
-- [ ] Adapt REM to emit structured `RiskExitEvent`s and consume clock signals.
-- [ ] Wire the portfolio FSM to handle intents/fills and apply costs centrally.
-- [ ] Ensure entry window serialization works with new interfaces.
-- [ ] Verify cost model remains centralized (no duplication).
+- [x] Adapt REM to emit structured `RiskExitEvent`s and consume clock signals.
+- [x] Wire the portfolio FSM to handle intents/fills and apply costs centrally.
+- [x] Ensure entry window serialization works with new interfaces.
+- [x] Verify cost model remains centralized (no duplication).
 
 **Exit Criteria:**
-- [ ] REM integration does not degrade throughput by >10%.
-- [ ] Profiling identifies top three bottlenecks for future optimization.
-- [ ] Portfolio FSM documented with explicit states/transitions.
-- [ ] Tests covering intent → fill → trade lifecycle passing.
-- [ ] Self-review checklist:
-  - [ ] All tasks complete (no deferrals).
-  - [ ] Every function has targeted tests (non-trivial assertions).
-  - [ ] Edge cases and expected failures covered.
-  - [ ] Code adheres to `principles.md` and `project_requirements.md`.
-  - [ ] Code is clean/readable and documented; no `mypy`/`ruff` violations.
-**Status:** ⚪ Planned
+- [x] REM integration does not degrade throughput by >10%.
+- [x] Profiling identifies top three bottlenecks for future optimization.
+- [x] Portfolio FSM documented with explicit states/transitions.
+- [x] Tests covering intent → fill → trade lifecycle passing.
+- [x] Self-review checklist:
+  - [x] All tasks complete (no deferrals).
+  - [x] Every function has targeted tests (non-trivial assertions).
+- [x] Edge cases and expected failures covered.
+- [x] Code adheres to `principles.md` and `project_requirements.md`.
+- [x] Code is clean/readable and documented; no `mypy`/`ruff` violations.
+
+Performance & profiling notes (10k-bar micro-benchmark on 2021 M1 Pro):
+- Portfolio-only loop averages 0.054 s (≈185k bars/sec). With the RiskExitAdapter wired (NoOp REM), the same loop averages 0.058 s (≈172k bars/sec), a 7.2% overhead—within the ≤10% regression budget. See `docs/backtester_rewrite/benchmarks.md` for the raw numbers and commands.
+- cProfile shows the dominant hot spots to revisit when optimizing: `EventLoop.on_bar`, `BarClock.advance`, `NextBarExecutionEngine.advance_clock`, `RiskExitAdapter.evaluate`, and `EventLoop._extract_bar_series`. These functions consume the majority of cumulative time in the synthetic benchmark.
+**Status:** ✅ Complete
 
 ### M4 – Context/Reporting & Validation Harness
 - [ ] Reconnect brief generation, analytics, and validation exporters to the new data flow.

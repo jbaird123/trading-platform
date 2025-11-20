@@ -17,18 +17,26 @@ def snapshot_factory(
     price: float = 1.0,
     size: float = 1.0,
     minute_offset: int = 0,
+    bar_index: int | None = 0,
 ) -> DecisionSnapshot:
     ts = datetime(2024, 1, 1, tzinfo=timezone.utc) + timedelta(minutes=minute_offset)
     literal_side = cast(Literal["long", "short"], side)
-    return DecisionSnapshot(timestamp=ts, price=price, side=literal_side, size=size)
+    return DecisionSnapshot(
+        timestamp=ts,
+        price=price,
+        side=literal_side,
+        size=size,
+        bar_index=bar_index,
+    )
 
 
 def intent_factory(
     *,
     side: Literal["long", "short"] = "long",
     execution_model: str = "next_bar_open",
+    bar_index: int | None = 0,
 ) -> ExecutionIntent:
-    decision = snapshot_factory(side=side)
+    decision = snapshot_factory(side=side, bar_index=bar_index)
     intent_type = cast(
         Literal["enter_long", "enter_short"],
         "enter_long" if side == "long" else "enter_short",
@@ -46,8 +54,9 @@ def risk_event_factory(
     reason: Literal["stop_loss", "take_profit", "trailing_stop"] = "stop_loss",
     price: float = 0.99,
     minute_offset: int = 0,
+    decision: DecisionSnapshot | None = None,
 ) -> RiskExitEvent:
-    decision = snapshot_factory(minute_offset=minute_offset)
+    decision = decision or snapshot_factory(minute_offset=minute_offset)
     return RiskExitEvent(
         timestamp=decision.timestamp,
         price=price,
@@ -59,6 +68,8 @@ def risk_event_factory(
 def fill_factory(
     *,
     intent: ExecutionIntent | None = None,
+    decision: DecisionSnapshot | None = None,
+    price: float = 1.0,
     reason: Literal[
         "entry",
         "strategy_exit",
@@ -72,11 +83,13 @@ def fill_factory(
         minutes=minute_offset
     )
     size = intent.decision.size if intent else 1.0
+    decision_snapshot = decision or (intent.decision if intent else None)
     return FillEvent(
         intent=intent,
         timestamp=timestamp,
-        price=1.0,
+        price=price,
         size=size,
         costs={},
+        decision=decision_snapshot,
         reason=reason,
     )

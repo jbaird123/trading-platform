@@ -108,6 +108,7 @@ def test_risk_event_generates_immediate_fill() -> None:
     assert len(fills) == 1
     fill = fills[0]
     assert fill.intent is None
+    assert fill.decision == event.decision
     assert fill.timestamp == event.timestamp
     assert fill.price == event.price
     assert fill.reason == "stop_loss"

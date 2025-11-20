@@ -12,7 +12,7 @@ class DecisionSnapshot:
     timestamp: datetime
     price: float
     side: Literal["long", "short"]
-    size: float
+    size: float = 0.0
     bar_index: int | None = None
     strategy_features: dict[str, float | None] = field(default_factory=dict)
     global_features: dict[str, float | None] = field(default_factory=dict)
@@ -52,6 +52,7 @@ class FillEvent:
     timestamp: datetime
     price: float
     size: float
+    decision: DecisionSnapshot | None
     costs: dict[str, float]
     reason: Literal[
         "entry",
