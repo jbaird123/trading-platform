@@ -24,24 +24,24 @@ This document tracks the objectives, scope, and progress for the backtester rewr
 **Exit Criteria:** Behavioral requirements documented; interfaces defined with type hints; architecture & sequence diagrams approved; rollout decisions resolved.
 
 #### M1.1 Behavioral Requirements
-- [ ] Document entry/exit timing semantics (same-bar vs. next-bar-open).
-- [ ] Enumerate timestamp types (`decision_time`, `execution_time`, `stop_check_time`) and propagation rules.
-- [ ] Specify context snapshot contract (structure, schema versioning, immutability).
-- [ ] Define explicit portfolio/position state machine.
-- [ ] Document gap handling and tie-break policies.
-- [ ] Identify cost application points and supported cost models.
+- [x] Document entry/exit timing semantics (same-bar vs. next-bar-open).
+- [x] Enumerate timestamp types (`decision_time`, `execution_time`, `stop_check_time`) and propagation rules.
+- [x] Specify context snapshot contract (structure, schema versioning, immutability).
+- [x] Define explicit portfolio/position state machine.
+- [x] Document gap handling and tie-break policies.
+- [x] Identify cost application points and supported cost models.
 
 #### M1.2 Interface Definitions
-- [ ] Draft `DecisionSnapshot` dataclass (fields + typing).
-- [ ] Draft `ExecutionIntent` model (intent type, execution model, risk metadata).
-- [ ] Draft `FillEvent` structure (timestamp, price, intent reference, costs).
-- [ ] Draft `RiskExitEvent` structure for REM outputs.
-- [ ] Define `ExecutionEngine` protocol (inputs, outputs, clock dependency).
-- [ ] Define `PortfolioManager` command API for intents/fills.
+- [x] Draft `DecisionSnapshot` dataclass (fields + typing).
+- [x] Draft `ExecutionIntent` model (intent type, execution model, risk metadata).
+- [x] Draft `FillEvent` structure (timestamp, price, intent reference, costs).
+- [x] Draft `RiskExitEvent` structure for REM outputs.
+- [x] Define `ExecutionEngine` protocol (inputs, outputs, clock dependency).
+- [x] Define `PortfolioManager` command API for intents/fills.
 
 #### M1.3 Architecture & Review
-- [ ] Component diagram showing flow from DataHandler → Strategy → Execution Engine → Portfolio → REM → Reporting.
-- [ ] Sequence diagrams for: next-bar-open entry, intrabar stop detection, gating rejection.
+- [x] Component diagram showing flow from DataHandler → Strategy → Execution Engine → Portfolio → REM → Reporting.
+- [x] Sequence diagrams for: next-bar-open entry, intrabar stop detection, gating rejection.
 - [ ] Review diagrams/requirements with team; capture feedback.
 - [ ] Finalize rollout strategy before M2 begins.
 
