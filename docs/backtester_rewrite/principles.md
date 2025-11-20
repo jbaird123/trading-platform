@@ -12,6 +12,22 @@ Use this document to capture architectural principles, coding rules, and behavio
 - **Authoritative system clock.** All modules must derive “current time” from a single clock abstraction injected by the orchestrator. In live trading the clock maps to wall time; in simulation the backtester advances it per bar. No component should infer time by reading `datetime.utcnow()` or deriving it from labels on its own. This ensures deterministic sequencing and catches any attempt to operate on T‑1/T‑2 accidentally.
 - **Performance without look-ahead.** Optimize for higher throughput (vectorization, caching, parallel sweep execution) while guaranteeing no look-ahead bias. Any precomputation or batching must respect the authoritative clock and expose only data available at that simulated time. Track performance (bars/sec, per-module timing) so regressions are visible.
 
+## Performance Anti-Patterns to Avoid
+The legacy backtester surfaced several bottlenecks we must not replicate:
+1. **Serial re-materialization:** Rebuilding context snapshots from scratch each bar instead of capturing immutable snapshots once and reusing them.
+2. **Alignment fixups:** Shifting/reindexing DataFrames to “guess” alignment. Explicit timestamps must make all joins trivial.
+3. **Per-component recomputation:** Indicators/risk thresholds recalculated independently by each module. Compute once per bar/batch and share.
+4. **No batching:** Processing one bar at a time with no opportunity for vectorization or batched/gated evaluations.
+5. **Hidden state:** Modules pulling timestamps or session info from globals leads to inconsistent timelines and race conditions.
+
+## Performance Optimization Levers
+The new architecture enables specific accelerators, each with the constraint that they must respect the system clock and be backed by equivalence tests:
+1. **Batch indicator computation.** Compute strategy/global features once per bar batch instead of per component.
+2. **Immutable snapshot reuse.** Cache decision snapshots/feature bars for reuse across WFE windows, Monte Carlo runs, and Monte Carlo seeds.
+3. **Parallel sweep execution.** Run Monte Carlo seeds or parameter grid cells in separate processes/workers using isolated data snapshots.
+4. **Vectorized gating.** Evaluate gating policies on series/batches instead of per bar when rules allow it.
+5. **Pluggable execution variants.** Provide stripped-down engines (e.g., “no REM”, “no reporting”) for rapid exploratory sweeps while keeping the default engine full featured.
+
 ## Behavioral Requirements (Living List)
 
 > **Note:** Requirement IDs use the `BT-10.x` namespace so they can be copied directly into `docs/project_requirements.md` later without renumbering.
@@ -50,6 +66,8 @@ Use this document to capture architectural principles, coding rules, and behavio
 - **[BT-10.19]** Golden validations remain authoritative. Any intentional deviations must be documented with rationale and migration tooling.
 - **[BT-10.20]** Each module requires unit tests covering valid/invalid inputs before it participates in integration suites.
 - **[BT-10.21]** Public interfaces must have contract tests or fixtures that assert required fields and failure modes.
+- **[BT-10.25]** Any optimization relying on caching/batching/precomputation must include tests proving there is no look-ahead bias (results must match serial per-bar computation exactly).
+- **[BT-10.26]** Performance instrumentation (bars/sec, per-module timing) is part of the execution loop. Regression tests must fail if throughput drops >20% without documented justification.
 
 ### Extensibility & Future-Proofing
 - **[BT-10.22]** Design workflows so multi-position support can be added without a wholesale rewrite (e.g., treat “position” as a collection).
