@@ -3,11 +3,11 @@
 ## Component Diagram
 ```mermaid
 graph LR
-    DH[DataHandler (session-aware bars)] --> STR[Strategy Engine & features]
+    DH[DataHandler] --> STR[Strategy Engine]
     STR --> SNAP[DecisionSnapshot]
     SNAP --> INTENTS[ExecutionIntent Queue]
     INTENTS --> EE[Execution Engine]
-    EE -->|FillEvents| PM[Portfolio Manager (FSM + CostModel)]
+    EE -->|FillEvents| PM[Portfolio Manager]
     SNAP --> REM[Risk Exit Manager]
     REM -->|RiskExitEvents| EE
     PM --> RPT[Reporting/Briefs]
