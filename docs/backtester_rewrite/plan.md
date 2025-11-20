@@ -2,6 +2,15 @@
 
 This document tracks the objectives, scope, and progress for the backtester rewrite.
 
+## Progress Summary
+| Milestone | Status | Notes |
+|-----------|--------|-------|
+| M1 – Requirements & Architecture | 🟡 In Progress | Use checkboxes below to track completion |
+| M2 – Execution Engine | ⚪ Not Started | |
+| M3 – Risk & Portfolio | ⚪ Not Started | |
+| M4 – Context/Reporting & Validation | ⚪ Not Started | |
+| M5 – Full Validation & Cutover | ⚪ Not Started | |
+
 ## Guiding Goals
 - **Deterministic timing semantics.** Clearly separate decision, execution, and stop timestamps so every component shares the same contract.
 - **Modular layers.** Strategy, execution engine, portfolio manager, and risk/exit manager should communicate via well-defined interfaces (e.g., intents, fills, risk events).
@@ -36,44 +45,75 @@ This document tracks the objectives, scope, and progress for the backtester rewr
 - [ ] Review diagrams/requirements with team; capture feedback.
 - [ ] Finalize rollout strategy before M2 begins.
 
+**Exit Criteria:**
+- [ ] All M1.1–M1.3 tasks complete.
+- [ ] Interfaces have type-hinted signatures captured in repo.
+- [ ] Architecture & sequence diagrams checked in.
+- [ ] Rollout strategy documented (feature flag → cutover plan).
+
 ### M2 – Execution Engine Implementation
-- Build the new event/intent loop with unit tests and contract tests.
-- Integrate the authoritative system clock abstraction.
-- Add performance instrumentation (bars/sec, per-module timings) directly in the loop.
-- Create a benchmark suite comparing legacy vs. new execution.
-- Provide fixtures to compare legacy vs. new loop outputs.
-**Exit Criteria:** Baseline throughput recorded (bars/sec on reference backtest) and matches or exceeds legacy within 20%.
+- [ ] Build the new event/intent loop with unit tests and contract tests.
+- [ ] Integrate the authoritative system clock abstraction.
+- [ ] Add performance instrumentation (bars/sec, per-module timings) directly in the loop.
+- [ ] Create a benchmark suite comparing legacy vs. new execution.
+- [ ] Provide fixtures to compare legacy vs. new loop outputs.
+
+**Exit Criteria:**
+- [ ] Baseline throughput recorded (bars/sec on reference backtest).
+- [ ] Performance matches or exceeds legacy within 20%.
+- [ ] All tests passing.
+- [ ] Self-review against `principles.md` completed.
 **Status:** ⚪ Planned
 
 ### M3 – Risk & Portfolio Integration
-- Adapt REM to emit structured `RiskExitEvent`s and consume clock signals.
-- Wire the portfolio FSM to handle intents/fills and apply costs centrally.
-- Ensure entry window serialization works with new interfaces.
-**Exit Criteria:** REM integration does not degrade throughput by >10% and profiling identifies top three bottlenecks for future optimization.
+- [ ] Adapt REM to emit structured `RiskExitEvent`s and consume clock signals.
+- [ ] Wire the portfolio FSM to handle intents/fills and apply costs centrally.
+- [ ] Ensure entry window serialization works with new interfaces.
+- [ ] Verify cost model remains centralized (no duplication).
+
+**Exit Criteria:**
+- [ ] REM integration does not degrade throughput by >10%.
+- [ ] Profiling identifies top three bottlenecks for future optimization.
+- [ ] Portfolio FSM documented with explicit states/transitions.
+- [ ] Tests covering intent → fill → trade lifecycle passing.
 **Status:** ⚪ Planned
 
 ### M4 – Context/Reporting & Validation Harness
-- Reconnect brief generation, analytics, and validation exporters to the new data flow.
-- Run smoke tests + targeted golden comparisons under feature flag.
-**Exit Criteria:** Brief/reporting overhead measured and caching strategy for WFE/Monte Carlo validated.
+- [ ] Reconnect brief generation, analytics, and validation exporters to the new data flow.
+- [ ] Validate context snapshot schema with briefs and comparison exports.
+- [ ] Run smoke tests + targeted golden comparisons under feature flag.
+- [ ] Validate caching strategy for WFE/Monte Carlo reuse.
+
+**Exit Criteria:**
+- [ ] Brief/reporting overhead measured and documented.
+- [ ] Golden comparison exporters produce explainable results (hash variances documented).
+- [ ] WFE/Monte Carlo caching strategy exercised.
+- [ ] Telemetry/logging validated for downstream consumers.
 **Status:** ⚪ Planned
 
 ### M5 – Full Validation & Cutover
-- Execute entire validation suite with the new engine.
-- Roll through parallel → canary → default-on → legacy removal according to rollout plan.
-**Exit Criteria:** Full validation suite hits performance target (≤ 2 minutes for 2-year/5-min run) and performance regression tests exist in CI.
+- [ ] Execute entire validation suite with the new engine.
+- [ ] Run parallel comparisons vs. legacy outputs; reconcile differences.
+- [ ] Roll through parallel → canary → default-on → legacy removal per rollout plan.
+- [ ] Add performance regression tests to CI.
+
+**Exit Criteria:**
+- [ ] Full validation suite hits performance target (≤ 2 minutes for 2-year/5-min run, ≤ 3 minutes worst-case).
+- [ ] Legacy backtester gated behind feature flag or removed per plan.
+- [ ] Documentation updated (README/handbooks) to reflect new engine.
+- [ ] Post-cutover monitoring plan in place.
 **Status:** ⚪ Planned
 
 ## Current Focus
 - Draft requirements doc that enumerates all behavioral rules (entry timing, next-bar semantics, REM expectations, cache usage).
 - Identify pain points in the legacy code that the new design must avoid (e.g., implicit index shifting, duplicated context snapshots).
 - Decide on initial data structures (e.g., `DecisionSnapshot`, `ExecutionIntent`, `FillEvent`) so we can stub interfaces early.
-- Define performance targets, including:
+- [ ] Define performance targets, including:
   - **Primary:** ≤ 2 minutes for a 2-year / 5-minute backtest on reference hardware (2021 MacBook Pro, M1 Pro, 32 GB RAM).
   - **Stretch:** ≤ 1 minute for the same workload.
   - **Minimum acceptable:** ≤ 3 minutes (50% slower than target) with a remediation plan.
   - **Measurement:** Average of three runs after warm-up (excluding first-time compilation).
-- Instrument the prototype loop with timing hooks so benchmarks are ready once code exists.
+- [ ] Instrument the prototype loop with timing hooks so benchmarks are ready once code exists.
 
 ## Notes / Open Questions
 
