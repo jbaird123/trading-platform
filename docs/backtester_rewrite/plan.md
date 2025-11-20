@@ -114,6 +114,9 @@ This document tracks the objectives, scope, and progress for the backtester rewr
   - **Minimum acceptable:** ≤ 3 minutes (50% slower than target) with a remediation plan.
   - **Measurement:** Average of three runs after warm-up (excluding first-time compilation).
 - [ ] Instrument the prototype loop with timing hooks so benchmarks are ready once code exists.
+- [ ] Emit performance telemetry (bars/sec, per-module timings) into structured logs so that historical runs can be inspected whenever a regression or negative user experience is reported.
+- [ ] Define global feature “profiles” (e.g., full_campaign, profitability_ml, diagnostics, minimal) and document how each scenario selects the appropriate bundle.
+- [ ] Ensure strategies/ML modules declare their feature dependencies so the chosen profile can validate that all required features are present.
 
 ## Notes / Open Questions
 
