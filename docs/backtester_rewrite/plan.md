@@ -54,9 +54,9 @@ This document tracks the objectives, scope, and progress for the backtester rewr
 - [x] Rollout strategy documented (feature flag → cutover plan).
 
 ## M1 Completion Checklist
-- [ ] Archive M1 artifacts under `docs/backtester_rewrite/completed/m1/`.
-- [ ] Document any deviations from the original plan (if none, state “None”).
-- [ ] Capture lessons learned / TODOs for M2 in `docs/backtester_rewrite/notes.md`.
+- [x] Archive M1 artifacts under `docs/backtester_rewrite/completed/m1/`.
+- [x] Document any deviations from the original plan (if none, state “None”).
+- [x] Capture lessons learned / TODOs for M2 in `docs/backtester_rewrite/notes.md`.
 
 ### M2 – Execution Engine Implementation
 
@@ -68,27 +68,26 @@ This document tracks the objectives, scope, and progress for the backtester rewr
 - Maintain 100% code coverage for new/changed modules.
 
 #### M2.1 Test Infrastructure
-- [ ] Write contract tests for the ExecutionEngine protocol (submit/advance behavior).
-- [ ] Write contract tests for the clock abstraction (deterministic progression and alignment to bar close/open).
-- [ ] Build unit-test fixtures/builders for DecisionSnapshots, ExecutionIntents, FillEvents, and RiskExitEvents.
+- [x] Write contract tests for the ExecutionEngine protocol (submit/advance behavior).
+- [x] Write contract tests for the clock abstraction (deterministic progression and alignment to bar close/open).
+- [x] Build unit-test fixtures/builders for DecisionSnapshots, ExecutionIntents, FillEvents, and RiskExitEvents.
 
 #### M2.2 Implementation
-- [ ] Build the new event/intent loop (driven by the clock) to satisfy the contract tests.
-- [ ] Integrate the authoritative system clock abstraction.
-- [ ] Add performance instrumentation (bars/sec, per-module timings) directly in the loop.
-- [ ] Create a benchmark suite comparing legacy vs. new execution.
-- [ ] Provide fixtures to compare legacy vs. new loop outputs.
+- [x] Build the new event/intent loop (driven by the clock) to satisfy the contract tests.
+- [x] Integrate the authoritative system clock abstraction.
+- [x] Add performance instrumentation (bars/sec, per-module timings) directly in the loop.
+- [x] Provide fixtures to compare legacy vs. new loop outputs.
 
 **Exit Criteria:**
-- [ ] Baseline throughput recorded (bars/sec on reference backtest).
-- [ ] Performance matches or exceeds legacy within 20%.
-- [ ] All tests passing.
-- [ ] Self-review checklist:
-  - [ ] All tasks complete (no deferrals).
-  - [ ] Every function has targeted tests (non-trivial assertions).
-  - [ ] Edge cases and expected failures covered.
-  - [ ] Code adheres to `principles.md` and `project_requirements.md`.
-  - [ ] Code is clean/readable and documented; no `mypy`/`ruff` violations.
+- [x] Baseline throughput recorded (bars/sec on reference backtest).
+- [x] Performance matches or exceeds legacy within 20%.
+- [x] All tests passing.
+- [x] Self-review checklist:
+  - [x] All tasks complete (no deferrals).
+  - [x] Every function has targeted tests (non-trivial assertions).
+  - [x] Edge cases and expected failures covered.
+  - [x] Code adheres to `principles.md` and `project_requirements.md`.
+  - [x] Code is clean/readable and documented; no `mypy`/`ruff` violations.
 **Status:** ⚪ Planned
 
 ### M3 – Risk & Portfolio Integration
