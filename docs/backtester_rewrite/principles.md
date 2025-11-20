@@ -205,6 +205,11 @@ Portfolio Manager tracks a collection of these state machines (one per open inte
 - **[BT-10.21]** Public interfaces must have contract tests or fixtures that assert required fields and failure modes.
 - **[BT-10.25]** Any optimization relying on caching/batching/precomputation must include tests proving there is no look-ahead bias (results must match serial per-bar computation exactly).
 - **[BT-10.26]** Performance instrumentation (bars/sec, per-module timing) is part of the execution loop. Regression tests must fail if throughput drops >20% without documented justification.
+- **[BT-10.27]** Follow TDD principles: write failing tests before implementing new behavior, and keep the fast test suite green as you iterate.
+- **[BT-10.28]** Maintain 100% code coverage (line and branch) for backtester modules. Any exclusions must be explicitly justified and documented.
+- **[BT-10.29]** Tests must be non-trivial: make specific assertions proving correctness, not merely that functions run without error.
+- **[BT-10.30]** Tests must include edge cases and expected failures (e.g., None inputs, empty datasets, boundary conditions, invalid execution models).
+- **[BT-10.31]** Every test must document its intent (docstring or comment) describing what behavior is being verified and why it matters.
 
 ### Extensibility & Future-Proofing
 - **[BT-10.22]** Design workflows so multi-position support can be added without a wholesale rewrite (e.g., treat “position” as a collection).

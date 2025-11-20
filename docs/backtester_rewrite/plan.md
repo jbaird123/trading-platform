@@ -48,13 +48,32 @@ This document tracks the objectives, scope, and progress for the backtester rewr
 **Rollout Strategy:** Build the new engine on this branch, validate via golden tests/performance benchmarks, then merge into `main` and retire the legacy backtester. No feature flags or staged canaries are required since the system is not yet in production.
 
 **Exit Criteria:**
-- [ ] All M1.1–M1.3 tasks complete.
-- [ ] Interfaces have type-hinted signatures captured in repo.
-- [ ] Architecture & sequence diagrams checked in.
-- [ ] Rollout strategy documented (feature flag → cutover plan).
+- [x] All M1.1–M1.3 tasks complete.
+- [x] Interfaces have type-hinted signatures captured in repo.
+- [x] Architecture & sequence diagrams checked in.
+- [x] Rollout strategy documented (feature flag → cutover plan).
+
+## M1 Completion Checklist
+- [ ] Archive M1 artifacts under `docs/backtester_rewrite/completed/m1/`.
+- [ ] Document any deviations from the original plan (if none, state “None”).
+- [ ] Capture lessons learned / TODOs for M2 in `docs/backtester_rewrite/notes.md`.
 
 ### M2 – Execution Engine Implementation
-- [ ] Build the new event/intent loop with unit tests and contract tests.
+
+**Developer Mandates (apply to M2–M5):**
+- No bypassing static analysis (`mypy`, `ruff`) or coverage checks.
+- No deferrals or “TODO later” placeholders.
+- Follow fail-fast exception handling (`docs/coding_standards/exception_handling_policy.md`).
+- Adopt TDD: write failing tests first, then implement code.
+- Maintain 100% code coverage for new/changed modules.
+
+#### M2.1 Test Infrastructure
+- [ ] Write contract tests for the ExecutionEngine protocol (submit/advance behavior).
+- [ ] Write contract tests for the clock abstraction (deterministic progression and alignment to bar close/open).
+- [ ] Build unit-test fixtures/builders for DecisionSnapshots, ExecutionIntents, FillEvents, and RiskExitEvents.
+
+#### M2.2 Implementation
+- [ ] Build the new event/intent loop (driven by the clock) to satisfy the contract tests.
 - [ ] Integrate the authoritative system clock abstraction.
 - [ ] Add performance instrumentation (bars/sec, per-module timings) directly in the loop.
 - [ ] Create a benchmark suite comparing legacy vs. new execution.
@@ -64,7 +83,12 @@ This document tracks the objectives, scope, and progress for the backtester rewr
 - [ ] Baseline throughput recorded (bars/sec on reference backtest).
 - [ ] Performance matches or exceeds legacy within 20%.
 - [ ] All tests passing.
-- [ ] Self-review against `principles.md` completed.
+- [ ] Self-review checklist:
+  - [ ] All tasks complete (no deferrals).
+  - [ ] Every function has targeted tests (non-trivial assertions).
+  - [ ] Edge cases and expected failures covered.
+  - [ ] Code adheres to `principles.md` and `project_requirements.md`.
+  - [ ] Code is clean/readable and documented; no `mypy`/`ruff` violations.
 **Status:** ⚪ Planned
 
 ### M3 – Risk & Portfolio Integration
@@ -78,6 +102,12 @@ This document tracks the objectives, scope, and progress for the backtester rewr
 - [ ] Profiling identifies top three bottlenecks for future optimization.
 - [ ] Portfolio FSM documented with explicit states/transitions.
 - [ ] Tests covering intent → fill → trade lifecycle passing.
+- [ ] Self-review checklist:
+  - [ ] All tasks complete (no deferrals).
+  - [ ] Every function has targeted tests (non-trivial assertions).
+  - [ ] Edge cases and expected failures covered.
+  - [ ] Code adheres to `principles.md` and `project_requirements.md`.
+  - [ ] Code is clean/readable and documented; no `mypy`/`ruff` violations.
 **Status:** ⚪ Planned
 
 ### M4 – Context/Reporting & Validation Harness
@@ -91,6 +121,12 @@ This document tracks the objectives, scope, and progress for the backtester rewr
 - [ ] Golden comparison exporters produce explainable results (hash variances documented).
 - [ ] WFE/Monte Carlo caching strategy exercised.
 - [ ] Telemetry/logging validated for downstream consumers.
+- [ ] Self-review checklist:
+  - [ ] All tasks complete (no deferrals).
+  - [ ] Every function has targeted tests (non-trivial assertions).
+  - [ ] Edge cases and expected failures covered.
+  - [ ] Code adheres to `principles.md` and `project_requirements.md`.
+  - [ ] Code is clean/readable and documented; no `mypy`/`ruff` violations.
 **Status:** ⚪ Planned
 
 ### M5 – Full Validation & Cutover
@@ -104,28 +140,35 @@ This document tracks the objectives, scope, and progress for the backtester rewr
 - [ ] Legacy backtester gated behind feature flag or removed per plan.
 - [ ] Documentation updated (README/handbooks) to reflect new engine.
 - [ ] Post-cutover monitoring plan in place.
+- [ ] Self-review checklist:
+  - [ ] All tasks complete (no deferrals).
+  - [ ] Every function has targeted tests (non-trivial assertions).
+  - [ ] Edge cases and expected failures covered.
+  - [ ] Code adheres to `principles.md` and `project_requirements.md`.
+  - [ ] Code is clean/readable and documented; no `mypy`/`ruff` violations.
 **Status:** ⚪ Planned
 
 ## Current Focus
-- Draft requirements doc that enumerates all behavioral rules (entry timing, next-bar semantics, REM expectations, cache usage).
-- Identify pain points in the legacy code that the new design must avoid (e.g., implicit index shifting, duplicated context snapshots).
-- Decide on initial data structures (e.g., `DecisionSnapshot`, `ExecutionIntent`, `FillEvent`) so we can stub interfaces early.
-- [ ] Define performance targets, including:
+- [x] Draft requirements doc that enumerates all behavioral rules (entry timing, next-bar semantics, REM expectations, cache usage).
+- [x] Identify pain points in the legacy code that the new design must avoid (e.g., implicit index shifting, duplicated context snapshots).
+- [x] Decide on initial data structures (e.g., `DecisionSnapshot`, `ExecutionIntent`, `FillEvent`) so we can stub interfaces early.
+- [x] Define performance targets, including:
   - **Primary:** ≤ 2 minutes for a 2-year / 5-minute backtest on reference hardware (2021 MacBook Pro, M1 Pro, 32 GB RAM).
   - **Stretch:** ≤ 1 minute for the same workload.
   - **Minimum acceptable:** ≤ 3 minutes (50% slower than target) with a remediation plan.
   - **Measurement:** Average of three runs after warm-up (excluding first-time compilation).
-- [ ] Instrument the prototype loop with timing hooks so benchmarks are ready once code exists.
-- [ ] Emit performance telemetry (bars/sec, per-module timings) into structured logs so that historical runs can be inspected whenever a regression or negative user experience is reported.
-- [ ] Define global feature “profiles” (e.g., full_campaign, profitability_ml, diagnostics, minimal) and document how each scenario selects the appropriate bundle.
-- [ ] Ensure strategies/ML modules declare their feature dependencies so the chosen profile can validate that all required features are present.
+- [x] Instrument the prototype loop with timing hooks so benchmarks are ready once code exists.
+- [x] Emit performance telemetry (bars/sec, per-module timings) into structured logs so that historical runs can be inspected whenever a regression or negative user experience is reported.
+- [x] Define global feature “profiles” (e.g., full_campaign, profitability_ml, diagnostics, minimal) and document how each scenario selects the appropriate bundle.
+- [x] Ensure strategies/ML modules declare their feature dependencies so the chosen profile can validate that all required features are present.
+- [x] Reaffirm testing standards from `project_requirements.md`: adopt TDD, maintain 100% coverage, and require non-trivial tests that cover edge/failure cases.
 
 ## Notes / Open Questions
 
 ### Q1 – Rollout Strategy
-- **Question:** Feature flag vs. full cutover?
+- **Question:** How do we promote the new engine once validated?
 - **Decision Deadline:** Before M2 begins.
-- **Working Plan:** Feature flag → parallel comparison → default-on with escape hatch → remove legacy.
+- **Working Plan:** Build/validate on feature branch → once golden tests & benchmarks pass, merge into `main` and retire legacy code (no feature flag/canary needed).
 - **Owner:** Joe + architecture leads.
 
 ### Q2 – Strategy Config Compatibility
