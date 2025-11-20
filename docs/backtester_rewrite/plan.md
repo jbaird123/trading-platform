@@ -8,7 +8,7 @@ This document tracks the objectives, scope, and progress for the backtester rewr
 | M1 – Requirements & Architecture | ✅ Complete | Use checkboxes below to track completion |
 | M2 – Execution Engine | ✅ Complete | |
 | M3 – Risk & Portfolio | ✅ Complete | |
-| M4 – Context/Reporting & Validation | ⚪ Not Started | |
+| M4 – Context/Reporting & Validation | ✅ Complete | |
 | M5 – Full Validation & Cutover | ⚪ Not Started | |
 
 ## Guiding Goals
@@ -114,23 +114,28 @@ Performance & profiling notes (10k-bar micro-benchmark on 2021 M1 Pro):
 **Status:** ✅ Complete
 
 ### M4 – Context/Reporting & Validation Harness
-- [ ] Reconnect brief generation, analytics, and validation exporters to the new data flow.
-- [ ] Validate context snapshot schema with briefs and comparison exports.
-- [ ] Run smoke tests + targeted golden comparisons under feature flag.
-- [ ] Validate caching strategy for WFE/Monte Carlo reuse.
+- [x] Reconnect brief generation, analytics, and validation exporters to the new data flow.
+- [x] Validate context snapshot schema with briefs and comparison exports.
+- [x] Run smoke tests + targeted golden comparisons under feature flag.
+- [x] Validate caching strategy for WFE/Monte Carlo reuse.
 
 **Exit Criteria:**
-- [ ] Brief/reporting overhead measured and documented.
-- [ ] Golden comparison exporters produce explainable results (hash variances documented).
-- [ ] WFE/Monte Carlo caching strategy exercised.
-- [ ] Telemetry/logging validated for downstream consumers.
-- [ ] Self-review checklist:
-  - [ ] All tasks complete (no deferrals).
-  - [ ] Every function has targeted tests (non-trivial assertions).
-  - [ ] Edge cases and expected failures covered.
-  - [ ] Code adheres to `principles.md` and `project_requirements.md`.
-  - [ ] Code is clean/readable and documented; no `mypy`/`ruff` violations.
-**Status:** ⚪ Planned
+- [x] Brief/reporting overhead measured and documented.
+- [x] Golden comparison exporters produce explainable results (hash variances documented).
+- [x] WFE/Monte Carlo caching strategy exercised.
+- [x] Telemetry/logging validated for downstream consumers.
+- [x] Self-review checklist:
+  - [x] All tasks complete (no deferrals).
+  - [x] Every function has targeted tests (non-trivial assertions).
+  - [x] Edge cases and expected failures covered.
+  - [x] Code adheres to `principles.md` and `project_requirements.md`.
+  - [x] Code is clean/readable and documented; no `mypy`/`ruff` violations.
+**Status:** ✅ Complete
+
+Reporting notes:
+- `ReportingPipeline` now wraps `generate_brief` with telemetry + validation exports, and `RunArtifactCache` allows Monte Carlo/WFE replays without recomputing briefs. Hash-based `ValidationHarness` provides deterministic comparison output for golden CSVs.
+- Context builders were extracted into `backtester.context`, ensuring the new DecisionSnapshot flow shares the same timestamp/feature alignment as the legacy loop.
+- Brief generation benchmark: 250 trades complete in 0.76s on the reference M1 Pro (see `benchmarks.md`). Telemetry entries logging `brief_seconds` + trade counts are emitted for every report to aid downstream monitoring.
 
 ### M5 – Full Validation & Cutover
 - [ ] Execute entire validation suite with the new engine.
