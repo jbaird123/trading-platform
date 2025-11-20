@@ -9,13 +9,54 @@ This document tracks the objectives, scope, and progress for the backtester rewr
 - **Testability-first.** Unit and integration tests should cover each module independently before we wire them together. Golden validations remain the final gate, but not the only safety net.
 
 ## Milestones
-| Milestone | Description | Owner | Status |
-|-----------|-------------|-------|--------|
-| M1 | Capture detailed requirements & finalize target architecture diagram | Codex + Joe | ⚪ Planned |
-| M2 | Implement new execution engine (signal → intent → fill) with tests | Codex | ⚪ Planned |
-| M3 | Rebuild REM integration & gap handling on top of the new engine | Codex | ⚪ Planned |
-| M4 | Reconnect context/brief generation; prove parity on smoke tests | Codex | ⚪ Planned |
-| M5 | Re-enable full validation suite and retire legacy backtester code | Codex + Joe | ⚪ Planned |
+
+### M1 – Requirements & Architecture (Current)
+**Status:** 🟡 In Progress
+**Exit Criteria:** Behavioral requirements documented; interfaces defined with type hints; architecture & sequence diagrams approved; rollout decisions resolved.
+
+#### M1.1 Behavioral Requirements
+- [ ] Document entry/exit timing semantics (same-bar vs. next-bar-open).
+- [ ] Enumerate timestamp types (`decision_time`, `execution_time`, `stop_check_time`) and propagation rules.
+- [ ] Specify context snapshot contract (structure, schema versioning, immutability).
+- [ ] Define explicit portfolio/position state machine.
+- [ ] Document gap handling and tie-break policies.
+- [ ] Identify cost application points and supported cost models.
+
+#### M1.2 Interface Definitions
+- [ ] Draft `DecisionSnapshot` dataclass (fields + typing).
+- [ ] Draft `ExecutionIntent` model (intent type, execution model, risk metadata).
+- [ ] Draft `FillEvent` structure (timestamp, price, intent reference, costs).
+- [ ] Draft `RiskExitEvent` structure for REM outputs.
+- [ ] Define `ExecutionEngine` protocol (inputs, outputs, clock dependency).
+- [ ] Define `PortfolioManager` command API for intents/fills.
+
+#### M1.3 Architecture & Review
+- [ ] Component diagram showing flow from DataHandler → Strategy → Execution Engine → Portfolio → REM → Reporting.
+- [ ] Sequence diagrams for: next-bar-open entry, intrabar stop detection, gating rejection.
+- [ ] Review diagrams/requirements with team; capture feedback.
+- [ ] Finalize rollout strategy before M2 begins.
+
+### M2 – Execution Engine Implementation
+- Build the new event/intent loop with unit tests and contract tests.
+- Integrate the authoritative system clock abstraction.
+- Provide fixtures to compare legacy vs. new loop outputs.
+**Status:** ⚪ Planned
+
+### M3 – Risk & Portfolio Integration
+- Adapt REM to emit structured `RiskExitEvent`s and consume clock signals.
+- Wire the portfolio FSM to handle intents/fills and apply costs centrally.
+- Ensure entry window serialization works with new interfaces.
+**Status:** ⚪ Planned
+
+### M4 – Context/Reporting & Validation Harness
+- Reconnect brief generation, analytics, and validation exporters to the new data flow.
+- Run smoke tests + targeted golden comparisons under feature flag.
+**Status:** ⚪ Planned
+
+### M5 – Full Validation & Cutover
+- Execute entire validation suite with the new engine.
+- Roll through parallel → canary → default-on → legacy removal according to rollout plan.
+**Status:** ⚪ Planned
 
 ## Current Focus
 - Draft requirements doc that enumerates all behavioral rules (entry timing, next-bar semantics, REM expectations, cache usage).
@@ -23,8 +64,28 @@ This document tracks the objectives, scope, and progress for the backtester rewr
 - Decide on initial data structures (e.g., `DecisionSnapshot`, `ExecutionIntent`, `FillEvent`) so we can stub interfaces early.
 
 ## Notes / Open Questions
-- How should we version the new backtester during rollout (feature flag vs. full cut over)?
-- Do we maintain compatibility with existing strategy configs, or is a migration acceptable?
-- What telemetry or debugging hooks do we want baked in from day one?
+
+### Q1 – Rollout Strategy
+- **Question:** Feature flag vs. full cutover?
+- **Decision Deadline:** Before M2 begins.
+- **Working Plan:** Feature flag → parallel comparison → default-on with escape hatch → remove legacy.
+- **Owner:** Joe + architecture leads.
+
+### Q2 – Strategy Config Compatibility
+- **Question:** Maintain backward compatibility or allow breaking changes?
+- **Decision Deadline:** Before M2 begins.
+- **Working Plan:** Keep existing entry/exit rule syntax; allow documented changes for timing metadata with validation tooling to compare old/new outputs.
+- **Owner:** Strategy/platform owners.
+
+### Q3 – Telemetry & Debugging
+- **Question:** What observability is mandatory?
+- **Decision Deadline:** Before M2 implementation.
+- **Must-Haves:** Structured logs for decision→intent→fill, performance metrics, debug dumps of decision snapshots, hooks for legacy vs. new comparisons.
+- **Owner:** DevOps + lead developer.
+
+## Takeaways
+- Document everything: the existing system's behavior is complicated; capturing it now prevents re-learning later.
+- Keep requirements, design artifacts, and decisions in-repo for easy reference across sessions.
+- Plan incremental rollout steps (parallel run, canary, full cutover) early to avoid surprises.
 
 _(Update this plan as we make decisions, complete milestones, or discover new work.)_
