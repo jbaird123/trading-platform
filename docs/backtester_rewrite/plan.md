@@ -42,8 +42,10 @@ This document tracks the objectives, scope, and progress for the backtester rewr
 #### M1.3 Architecture & Review
 - [x] Component diagram showing flow from DataHandler → Strategy → Execution Engine → Portfolio → REM → Reporting.
 - [x] Sequence diagrams for: next-bar-open entry, intrabar stop detection, gating rejection.
-- [ ] Review diagrams/requirements with team; capture feedback.
-- [ ] Finalize rollout strategy before M2 begins.
+- [x] Review diagrams/requirements with team; capture feedback.
+- [x] Finalize rollout strategy before M2 begins.
+
+**Rollout Strategy:** Build the new engine on this branch, validate via golden tests/performance benchmarks, then merge into `main` and retire the legacy backtester. No feature flags or staged canaries are required since the system is not yet in production.
 
 **Exit Criteria:**
 - [ ] All M1.1–M1.3 tasks complete.
