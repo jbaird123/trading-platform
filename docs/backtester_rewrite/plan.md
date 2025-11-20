@@ -62,6 +62,7 @@ This document tracks the objectives, scope, and progress for the backtester rewr
 - Draft requirements doc that enumerates all behavioral rules (entry timing, next-bar semantics, REM expectations, cache usage).
 - Identify pain points in the legacy code that the new design must avoid (e.g., implicit index shifting, duplicated context snapshots).
 - Decide on initial data structures (e.g., `DecisionSnapshot`, `ExecutionIntent`, `FillEvent`) so we can stub interfaces early.
+- Define performance targets (e.g., ≤ 2 minutes for a 2-year / 5-minute run on reference hardware) and instrumentation strategy (bars/sec, module timings) so every change can be measured.
 
 ## Notes / Open Questions
 
@@ -87,5 +88,6 @@ This document tracks the objectives, scope, and progress for the backtester rewr
 - Document everything: the existing system's behavior is complicated; capturing it now prevents re-learning later.
 - Keep requirements, design artifacts, and decisions in-repo for easy reference across sessions.
 - Plan incremental rollout steps (parallel run, canary, full cutover) early to avoid surprises.
+- Performance is a first-class requirement: architectural choices must enable vectorization, caching, and parallel sweeps without introducing look-ahead bias. Every milestone should include performance instrumentation and benchmarks so regressions are caught immediately.
 
 _(Update this plan as we make decisions, complete milestones, or discover new work.)_
