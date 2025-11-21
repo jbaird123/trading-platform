@@ -58,9 +58,9 @@ def lookup_global_features_for_timestamp(
                     "Features at or above the execution timeframe must "
                     "be fully populated."
                 )
-            normalized_val: Any = None
-        else:
-            normalized_val = val
+            # Sub-execution timeframe features are allowed to be NaN; skip them.
+            continue
+        normalized_val = val
         if idx < len(global_feature_normalized_keys):
             key = global_feature_normalized_keys[idx]
         else:
