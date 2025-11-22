@@ -196,7 +196,7 @@ def test_sys_1_9_2_multi_year_backtest_performance():
     # Benchmark backtest execution
     start_time = time.time()
     result = run_backtest(
-        config,
+        config=config,
         market_data=df,
         strategy_path="config/strategy/ema_crossover.yaml",
     )
