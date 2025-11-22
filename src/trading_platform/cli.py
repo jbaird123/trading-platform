@@ -19,11 +19,11 @@ import pandas as pd
 
 from trading_platform.ai.data_curation import run_curation_pipeline
 from trading_platform.ai.models import ModelRegistry
+from trading_platform.backtester import run_backtest
 from trading_platform.backtester.orchestrator import (
     _infer_execution_timeframe,
     _resolve_strategy_features_for_warmup,
     ensure_market_data_with_warmup,
-    run_backtest,
 )
 from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
