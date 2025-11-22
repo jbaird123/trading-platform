@@ -20,11 +20,11 @@ import pandas as pd
 from trading_platform.ai.data_curation import run_curation_pipeline
 from trading_platform.ai.models import ModelRegistry
 from trading_platform.backtester import run_backtest
-from trading_platform.backtester.orchestrator import (
-    _infer_execution_timeframe,
-    _resolve_strategy_features_for_warmup,
+from trading_platform.backtester.warmup_helpers import (
+    ensure_market_data_with_warmup,
+    infer_execution_timeframe,
+    resolve_strategy_features_for_warmup,
 )
-from trading_platform.backtester.warmup_helpers import ensure_market_data_with_warmup
 from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
 from trading_platform.core.demo import generate_demo_run
@@ -327,7 +327,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         strat_cfg, strategy_params, strategy_overrides
     )
     warmup_strategy = compile_strategy(warmup_strategy_config)
-    warmup_strategy_features = _resolve_strategy_features_for_warmup(warmup_strategy)
+    warmup_strategy_features = resolve_strategy_features_for_warmup(warmup_strategy)
 
     exec_timeframe: str | None = None
 
@@ -372,7 +372,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         walk_forward_df = df
 
     if exec_timeframe is None:
-        exec_timeframe = _infer_execution_timeframe(cfg, df)
+        exec_timeframe = infer_execution_timeframe(cfg, df)
 
     if has_real_data_request:
         global_features_mode = getattr(cfg, "global_features_mode", "full")
