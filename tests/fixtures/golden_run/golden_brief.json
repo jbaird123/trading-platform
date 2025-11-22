@@ -86,12 +86,12 @@
   "feature_analysis": {},
   "checksums": {
     "instrument_defs_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-    "config_snapshot_hash": "a4d9098ea087b4e417a9c4ec547f5b0353c80324190e596b50ed7b88149d5b70"
+    "config_snapshot_hash": "e9bc46061c7c4f854e79067b2afb1f0903e1b2d51387ca29b2eca4dbeddd7cfb"
   },
   "meta": {
     "strategy_name": "Golden_EMA_Crossover",
     "run_id": "golden_run_test",
-    "git_commit": "9614d3d",
+    "git_commit": "edeb510",
     "run_seed": 42
   },
   "strategy_params": {},
@@ -246,9 +246,9 @@
     "take_profit_pips": "10000000000 pips"
   },
   "environment": {
-    "python_version": "3.13.8",
-    "platform": "macOS-26.0.1-arm64-arm-64bit-Mach-O",
-    "timezone": "EDT",
+    "python_version": "3.12.11",
+    "platform": "macOS-26.1-arm64-arm-64bit",
+    "timezone": "EST",
     "dependency_versions": {
       "pandas": "2.3.2",
       "pydantic": "2.11.9"
@@ -263,7 +263,7 @@
       "EURUSD"
     ],
     "app_version": "0.0.1",
-    "git_commit": "9614d3d",
+    "git_commit": "edeb510",
     "run_seed": 42
   },
   "artifacts": {},
@@ -453,14 +453,16 @@
           "sma_fast": 117.5,
           "sma_slow": 118.0
         },
-        "global_features": {}
+        "global_features": {},
+        "decision_time": "2023-01-02T09:00:00+00:00"
       },
       "context_at_exit": {
         "strategy_features": {
           "sma_fast": 111.5,
           "sma_slow": 115.9
         },
-        "global_features": {}
+        "global_features": {},
+        "decision_time": "2023-01-02T15:00:00+00:00"
       },
       "cost_breakdown": {
         "spread": 0.0,

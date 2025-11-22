@@ -92,7 +92,7 @@ def test_exit_fill_records_trade_and_clears_position() -> None:
     )
 
     assert isinstance(trade, Trade)
-    assert trade.exit_reason == "strategy_exit"
+    assert trade.exit_reason == "opposite_signal"
     assert not pm.active_positions
 
 
@@ -111,7 +111,7 @@ def test_risk_fill_without_intent_closes_position() -> None:
     )
 
     assert isinstance(trade, Trade)
-    assert trade.exit_reason == "stop_loss"
+    assert trade.exit_reason == "stop-loss"
     assert not pm.active_positions
 
 

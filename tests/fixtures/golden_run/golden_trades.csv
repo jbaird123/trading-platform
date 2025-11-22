@@ -1,0 +1,2 @@
+symbol,side,size,entry_time,exit_time,entry_price,exit_price,exit_reason,pnl,r_multiple,mfe_currency,mae_currency,bars_held,cost_currency,spread,commission,slippage,ctx_decision_time,ctx_strategy_features_sma_fast,ctx_strategy_features_sma_slow
+EURUSD,short,1.0,2023-01-02T09:00:00+00:00,2023-01-02T15:00:00+00:00,113.0,107.0,end_of_data,6.0,6e-06,7.0,1.0,6,0.0,0.0,0.0,0.0,2023-01-02T09:00:00+00:00,117.5,118.0
