@@ -5,25 +5,12 @@ from datetime import datetime, timedelta
 import pandas as pd
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
-from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
+from tests.backtester.dummy_objects import _dummy_strategy_cfg
 from tests.test_helpers import (
     get_empty_global_features_path,
     run_backtest_simulation,
 )
-
-
-def _dummy_strategy_cfg() -> CompiledStrategy:
-    return CompiledStrategy(
-        name="dummy",
-        features=[],
-        overlays=[],
-        long_entry_blocks=[],
-        long_exit_blocks=[],
-        short_entry_blocks=[],
-        short_exit_blocks=[],
-        parameters={},
-    )
 
 
 def _instrument(symbol: str = "EURUSD") -> dict[str, str]:

@@ -125,12 +125,14 @@ class PortfolioManager:
             "stop_loss",
             "take_profit",
             "trailing_stop",
+            "end_of_data",
         }:
             reason_map = {
                 "strategy_exit": "opposite_signal",
                 "stop_loss": "stop-loss",
                 "take_profit": "take-profit",
                 "trailing_stop": "stop-loss",
+                "end_of_data": "end_of_data",
             }
             exit_reason = reason_map.get(fill.reason, fill.reason)
             return self._handle_exit_fill(fill, exit_reason)
@@ -362,7 +364,11 @@ class PortfolioManager:
             cost_currency=total_cost,
             cost_breakdown=combined_breakdown,
             context_at_entry=pos.context_at_entry,
-            context_at_exit=fill.intent.decision.context if fill.intent else None,
+            context_at_exit=(
+                fill.intent.decision.context
+                if fill.intent
+                else (fill.decision.context if fill.decision else None)
+            ),
         )
         self.trades.append(trade)
         self._positions.pop(position_id, None)

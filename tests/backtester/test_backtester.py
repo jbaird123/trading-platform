@@ -13,15 +13,17 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pandas as pd
 import pytest
-from trading_platform.backtester.core import (
-    _execute_backtest_loop,
-    _simulate_counterfactual_exact,
-    _simulate_counterfactual_fast,
+from trading_platform.backtester.counterfactual import (
+    simulate_counterfactual_exact as _simulate_counterfactual_exact,
+)
+from trading_platform.backtester.counterfactual import (
+    simulate_counterfactual_fast as _simulate_counterfactual_fast,
 )
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
+from tests.backtester.dummy_objects import _dummy_strategy_cfg
 from tests.test_helpers import (
     get_empty_global_features_path,
     run_backtest_simulation,
@@ -46,19 +48,6 @@ TEST_INSTRUMENT = {
 def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
     """Helper to create instrument dict for RunConfig."""
     return {"symbol": symbol}
-
-
-def _dummy_strategy_cfg() -> CompiledStrategy:
-    return CompiledStrategy(
-        name="dummy",
-        features=[],
-        overlays=[],
-        long_entry_blocks=[],
-        long_exit_blocks=[],
-        short_entry_blocks=[],
-        short_exit_blocks=[],
-        parameters={},
-    )
 
 
 def test_run_backtest_uses_cached_global_features(
@@ -110,15 +99,8 @@ def test_run_backtest_uses_cached_global_features(
         fake_compute_features,
     )
 
-    feature_spec = {
-        "name": "1h_cached_rsi",
-        "type": "RSI",
-        "params": {"length": 2},
-        "timeframe": "1H",
-    }
-
     rem = RiskExitManager(config=None)
-    result = _execute_backtest_loop(
+    trades = run_backtest_simulation(
         market_data=market_data,
         signals=signals,
         strategy=strategy,
@@ -126,10 +108,8 @@ def test_run_backtest_uses_cached_global_features(
         rem=rem,
         data_handler=SimpleNamespace(data_root=tmp_path),
         global_features_config_path=tmp_path / "global.yaml",
-        global_feature_defs=[feature_spec],
     )
 
-    trades = result["trades"] if isinstance(result, dict) else result
     assert isinstance(trades, list)
 
 

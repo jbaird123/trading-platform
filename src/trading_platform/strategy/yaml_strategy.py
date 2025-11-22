@@ -391,6 +391,7 @@ def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
     ai_filter_config = cfg.pop("ai_filter", {})
 
     validate_strategy_config(cfg)
+    validated_cfg = StrategyConfig(**cfg).model_dump(exclude_none=True)
     name = str(cfg.get("strategy_name", "Strategy"))
     overlays = [str(x) for x in (cfg.get("overlays") or [])]
     features = list(cfg.get("features") or [])
@@ -409,7 +410,7 @@ def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
     lx = list(cfg.get("long_exit_rules") or [])
     se = list(cfg.get("short_entry_rules") or [])
     sx = list(cfg.get("short_exit_rules") or [])
-    return CompiledStrategy(
+    strategy = CompiledStrategy(
         name=name,
         overlays=overlays,
         features=features,
@@ -425,3 +426,6 @@ def compile_strategy(cfg: dict[str, Any]) -> CompiledStrategy:
         ai_confidence_threshold=ai_confidence_threshold,
         ai_input_features=ai_input_features,
     )
+    # Preserve validated config for downstream consumers (strict reuse)
+    object.__setattr__(strategy, "original_config", validated_cfg)
+    return strategy

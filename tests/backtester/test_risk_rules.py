@@ -7,35 +7,9 @@ import pandas as pd
 from pytest import approx
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
-from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
+from tests.backtester.dummy_objects import _dummy_strategy_cfg
 from tests.test_helpers import get_empty_global_features_path, run_backtest_simulation
-
-
-def _dummy_strategy_cfg() -> CompiledStrategy:
-    return CompiledStrategy(
-        name="dummy",
-        features=[],
-        overlays=[],
-        long_entry_blocks=[],
-        long_exit_blocks=[],
-        short_entry_blocks=[],
-        short_exit_blocks=[],
-        parameters={},
-    )
-
-
-def _dummy_strategy_with_sl(stop_loss_pips: float) -> CompiledStrategy:
-    return CompiledStrategy(
-        name="dummy_sl",
-        features=[],
-        overlays=[],
-        long_entry_blocks=[],
-        long_exit_blocks=[],
-        short_entry_blocks=[],
-        short_exit_blocks=[],
-        parameters={"stop_loss_pips": stop_loss_pips},
-    )
 
 
 def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
@@ -56,7 +30,7 @@ def test_daily_loss_cap_blocks_new_entries():
         },
         index=idx,
     )
-    strategy = _dummy_strategy_with_sl(10.0)
+    strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)  # Populate _feature_df for context lookups
     sig = pd.Series(["enter_long", "exit_long", "enter_long"], index=df.index)
     config = RunConfig(

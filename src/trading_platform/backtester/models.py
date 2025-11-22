@@ -60,4 +60,5 @@ class FillEvent:
         "stop_loss",
         "take_profit",
         "trailing_stop",
+        "end_of_data",
     ]
