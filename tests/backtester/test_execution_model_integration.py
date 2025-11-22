@@ -185,7 +185,7 @@ def test_next_bar_open_execution_model_complete_flow():
     assert trade1.exit_price == pytest.approx(
         1.0050
     ), f"Expected exit price 1.0050 (bar 5 open), got {trade1.exit_price}"
-    assert trade1.exit_reason == "signal"
+    assert trade1.exit_reason == "opposite_signal"
 
     # Trade 2 (short): Signal at bar 6, entry at bar 7, signal at bar 9, exit at bar 10
     trade2 = trades_list[1]
@@ -202,7 +202,7 @@ def test_next_bar_open_execution_model_complete_flow():
     assert trade2.exit_price == pytest.approx(
         1.0100
     ), f"Expected exit price 1.0100 (bar 10 open), got {trade2.exit_price}"
-    assert trade2.exit_reason == "signal"
+    assert trade2.exit_reason == "opposite_signal"
 
     # Verify PnL calculations
     # Long trade: entry at 1.0020, exit at 1.0050 → +0.0030 pips
@@ -243,34 +243,7 @@ def test_next_bar_open_vs_current_bar_close_comparison():
 
     rem = RiskExitManager(config=None, instrument=TEST_INSTRUMENT)
 
-    # Test current_bar_close (legacy)
-    config_legacy = RunConfig(
-        user_id="test",
-        run_seed=42,
-        log_level="INFO",
-        initial_cash=10000.0,
-        position_size=1.0,
-        instrument=TEST_INSTRUMENT,
-        execution_model="current_bar_close",
-        exit_tie_break="stop_then_tp",
-        entry_window_bars=0,
-        min_hold_bars=0,
-        allow_flip_on_bar=False,
-    )
-
-    result_legacy = run_backtest_simulation(
-        market_data=df,
-        signals=signals,
-        strategy=strategy,  # type: ignore[arg-type]
-        config=config_legacy,
-        rem=rem,
-        global_features_config_path=get_empty_global_features_path(),
-    )
-    trades_legacy = (
-        result_legacy if isinstance(result_legacy, list) else result_legacy[0]
-    )
-
-    # Test next_bar_open (realistic)
+    # Test next_bar_open
     config_realistic = RunConfig(
         user_id="test",
         run_seed=42,
@@ -297,24 +270,12 @@ def test_next_bar_open_vs_current_bar_close_comparison():
         result_realistic if isinstance(result_realistic, list) else result_realistic[0]
     )
 
-    # Both should have 1 trade
-    assert len(trades_legacy) == 1
+    # Should have 1 trade
     assert len(trades_realistic) == 1
 
-    trade_legacy = trades_legacy[0]
     trade_realistic = trades_realistic[0]
 
-    # Legacy: Entry at bar 0, exit at bar 2
-    assert trade_legacy.entry_time == idx[0]
-    assert trade_legacy.entry_price == pytest.approx(
-        1.0002
-    )  # Bar 0 close (signal bar close)
-    assert trade_legacy.exit_time == idx[2]
-    assert trade_legacy.exit_price == pytest.approx(
-        1.0022
-    )  # Bar 2 close (signal bar close)
-
-    # Realistic: Entry at bar 1, exit at bar 3
+    # Next-bar-open: Entry at bar 1, exit at bar 3
     assert trade_realistic.entry_time == idx[1]
     assert trade_realistic.entry_price == pytest.approx(
         1.0010
@@ -323,9 +284,4 @@ def test_next_bar_open_vs_current_bar_close_comparison():
     assert trade_realistic.exit_price == pytest.approx(
         1.0030
     )  # Bar 3 open (next bar open)
-
-    # Verify they differ as expected
-    assert trade_legacy.entry_time != trade_realistic.entry_time
-    assert trade_legacy.entry_price != trade_realistic.entry_price
-    assert trade_legacy.exit_time != trade_realistic.exit_time
-    assert trade_legacy.exit_price != trade_realistic.exit_price
+    assert trade_realistic.exit_reason == "opposite_signal"

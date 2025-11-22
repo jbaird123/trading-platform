@@ -170,6 +170,7 @@ def run_backtest(
         strategy_feature_df=feature_enriched_df,
         global_feature_df=global_feature_df,
         rmm_context=rmm_context,
+        rem_instance=rem_instance,
     )
 
     trades = result.trades
@@ -188,6 +189,7 @@ def run_backtest(
         or (strategy_cfg or {}).get("name")
         or getattr(compiled_strategy, "name", None),
         "compiled_strategy": compiled_strategy,
+        "feature_enriched_df": feature_enriched_df,
     }
     if skipped:
         payload["skipped"] = skipped

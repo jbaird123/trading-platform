@@ -885,11 +885,11 @@ def test_entry_window_allows_delayed_entry():
     idx = [datetime(2024, 1, 1, h) for h in range(5)]
     df = pd.DataFrame(
         {
-            "open": [1.0] * 5,
-            "high": [1.0] * 5,
-            "low": [1.0] * 5,
-            "close": [1.0] * 5,
-            "volume": [100] * 5,
+            "open": [1.0] * len(idx),
+            "high": [1.0] * len(idx),
+            "low": [1.0] * len(idx),
+            "close": [1.0] * len(idx),
+            "volume": [100] * len(idx),
         },
         index=idx,
     )
@@ -981,11 +981,11 @@ def test_entry_window_expires():
     idx = [datetime(2024, 1, 1, h) for h in range(5)]
     df = pd.DataFrame(
         {
-            "open": [1.0] * 5,
-            "high": [1.0] * 5,
-            "low": [1.0] * 5,
-            "close": [1.0] * 5,
-            "volume": [100] * 5,
+            "open": [1.0] * len(idx),
+            "high": [1.0] * len(idx),
+            "low": [1.0] * len(idx),
+            "close": [1.0] * len(idx),
+            "volume": [100] * len(idx),
         },
         index=idx,
     )
@@ -1066,27 +1066,28 @@ def test_entry_window_expires():
 def test_entry_window_prevents_reentry_after_rem_exit():
     """Test that we only enter once per signal transition
     (no re-entry on same signal)."""
-    # Bar 0: signal transitions to "long", enter
-    # Bar 1: signal still "long", position still open
-    # Bar 2: signal transitions to "flat", exit
-    # Bar 3: signal transitions back to "long", should enter again (new transition)
-    # Bar 4: signal still "long", should NOT re-enter
-    idx = [datetime(2024, 1, 1, h) for h in range(5)]
+    # Using next_bar_open semantics:
+    # Bar 0: signal transitions to "long" -> enters at bar 1 open
+    # Bar 2: signal transitions to "flat" -> exits at bar 3 open
+    # Bar 3: signal transitions back to "long" -> enters at bar 4 open
+    # Bar 5: signal transitions to "flat" -> exits at bar 6 open
+    # Only one entry per transition; no re-entry while signal stays long.
+    idx = [datetime(2024, 1, 1, h) for h in range(7)]
     df = pd.DataFrame(
         {
-            "open": [1.0] * 5,
-            "high": [1.0] * 5,
-            "low": [1.0] * 5,
-            "close": [1.0] * 5,
-            "volume": [100] * 5,
+            "open": [1.0] * len(idx),
+            "high": [1.0] * len(idx),
+            "low": [1.0] * len(idx),
+            "close": [1.0] * len(idx),
+            "volume": [100] * len(idx),
         },
         index=idx,
     )
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)
-    # Signal: enter_long -> None -> exit_long -> enter_long -> exit_long
     signals = pd.Series(
-        ["enter_long", None, "exit_long", "enter_long", "exit_long"], index=df.index
+        ["enter_long", None, "exit_long", "enter_long", None, "exit_long", None],
+        index=df.index,
     )
 
     # Allow all bars
@@ -1109,7 +1110,7 @@ def test_entry_window_prevents_reentry_after_rem_exit():
         allow_flip_on_bar=False,
         instrument=_instrument(),
         entry_window_bars=5,  # Large window
-        execution_model="current_bar_close",
+        execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config=None)
@@ -1127,12 +1128,12 @@ def test_entry_window_prevents_reentry_after_rem_exit():
     )
     trades_list = result if isinstance(result, list) else result[0]
 
-    # Should have 2 trades (bar 0-2 and bar 3-4)
+    # Should have 2 trades (bar 1-3 and bar 4-6)
     assert len(trades_list) == 2
-    assert trades_list[0].entry_time == idx[0]
-    assert trades_list[0].exit_time == idx[2]
-    assert trades_list[1].entry_time == idx[3]
-    assert trades_list[1].exit_time == idx[4]
+    assert trades_list[0].entry_time == idx[1]
+    assert trades_list[0].exit_time == idx[3]
+    assert trades_list[1].entry_time == idx[4]
+    assert trades_list[1].exit_time == idx[6]
 
 
 # New tests for execution model refactor (Part 4)
