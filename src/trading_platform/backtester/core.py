@@ -10,6 +10,11 @@ from typing import Any, Callable, Iterator, cast
 import numpy as np
 import pandas as pd
 
+from trading_platform.backtester.context import (
+    build_context_snapshot,
+    normalize_global_feature_key,
+    realign_context_snapshot,
+)
 from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
 from trading_platform.core.global_features_cache import load_cached_global_features
@@ -40,146 +45,6 @@ SimulationReturn = (
     | tuple[list[Trade], list[tuple[datetime, float]]]
     | tuple[list[Trade], list[tuple[datetime, float]], list[dict[str, Any]]]
 )
-
-GLOBAL_FEATURE_PREFIX = "context_at_entry_global_features_"
-
-
-def _normalize_global_feature_key(name: str) -> str:
-    """Strip canonical prefix so gating can reapply it consistently."""
-    if name.startswith(GLOBAL_FEATURE_PREFIX):
-        return name[len(GLOBAL_FEATURE_PREFIX) :]
-    return name
-
-
-def _extract_context_extras(context: dict[str, Any]) -> dict[str, Any]:
-    """Return a shallow copy of non-feature context fields (risk, gating, etc.)."""
-    protected = {"strategy_features", "global_features", "regime"}
-    return {k: v for k, v in context.items() if k not in protected}
-
-
-def _lookup_global_features_for_timestamp(
-    *,
-    timestamp: datetime,
-    global_feature_df: pd.DataFrame | None,
-    global_feature_normalized_keys: list[str],
-    global_feature_timeframes: dict[str, int],
-    execution_tf_minutes: int | None,
-) -> dict[str, Any]:
-    """Fetch cached global features for a specific timestamp."""
-
-    if global_feature_df is None:
-        return {}
-
-    if timestamp not in global_feature_df.index:
-        raise ValueError(
-            f"Timestamp {timestamp} not found in global features cache. "
-            "This should not happen if cache was built correctly."
-        )
-
-    feature_row = global_feature_df.loc[timestamp]
-    features: dict[str, Any] = {}
-    for idx, column in enumerate(global_feature_df.columns):
-        val = feature_row[column]
-        feature_minutes = global_feature_timeframes.get(column)
-        if pd.isna(val):
-            if (
-                execution_tf_minutes is not None
-                and feature_minutes is not None
-                and feature_minutes >= execution_tf_minutes
-            ):
-                raise ValueError(
-                    "Global feature "
-                    f"{column!r} is NaN at {timestamp}. "
-                    "Features at or above the execution timeframe must "
-                    "be fully populated."
-                )
-            normalized_val: Any = None
-        else:
-            normalized_val = val
-
-        if idx < len(global_feature_normalized_keys):
-            key = global_feature_normalized_keys[idx]
-        else:  # pragma: no cover - defensive guard
-            key = column
-        features[key] = normalized_val
-
-    return features
-
-
-def _build_context_snapshot(
-    *,
-    timestamp: datetime,
-    strategy_context: dict[str, Any],
-    rmm_context: dict[datetime, dict[str, Any]] | None,
-    regime_builder: Callable[[dict[str, Any] | None], dict[str, Any] | None] | None,
-    global_feature_df: pd.DataFrame | None,
-    global_feature_normalized_keys: list[str],
-    global_feature_timeframes: dict[str, int],
-    execution_tf_minutes: int | None,
-    extra_fields: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Assemble a full context blob aligned to a given timestamp."""
-
-    global_features = _lookup_global_features_for_timestamp(
-        timestamp=timestamp,
-        global_feature_df=global_feature_df,
-        global_feature_normalized_keys=global_feature_normalized_keys,
-        global_feature_timeframes=global_feature_timeframes,
-        execution_tf_minutes=execution_tf_minutes,
-    )
-
-    context: dict[str, Any] = {
-        "strategy_features": strategy_context,
-        "global_features": global_features,
-    }
-    context["decision_time"] = timestamp.isoformat()
-
-    if rmm_context is not None and regime_builder is not None:
-        regime_source = rmm_context.get(timestamp)
-        if regime_source is None and execution_tf_minutes:
-            lookback = pd.to_timedelta(f"{execution_tf_minutes}min")
-            regime_source = rmm_context.get(timestamp - lookback)
-        if regime_source is not None:
-            regime_data = regime_builder(regime_source)
-            if regime_data is not None:
-                context["regime"] = regime_data
-
-    if extra_fields:
-        context.update(extra_fields)
-
-    return context
-
-
-def _update_context_for_timestamp(
-    *,
-    base_context: dict[str, Any] | None,
-    timestamp: datetime,
-    rmm_context: dict[datetime, dict[str, Any]] | None,
-    regime_builder: Callable[[dict[str, Any] | None], dict[str, Any] | None] | None,
-    global_feature_df: pd.DataFrame | None,
-    global_feature_normalized_keys: list[str],
-    global_feature_timeframes: dict[str, int],
-    execution_tf_minutes: int | None,
-) -> dict[str, Any]:
-    """Rebuild an existing context so its globals/regime align to timestamp."""
-
-    strategy_context: dict[str, Any] = {}
-    extras: dict[str, Any] = {}
-    if base_context:
-        strategy_context = base_context.get("strategy_features") or {}
-        extras = _extract_context_extras(base_context)
-
-    return _build_context_snapshot(
-        timestamp=timestamp,
-        strategy_context=strategy_context,
-        rmm_context=rmm_context,
-        regime_builder=regime_builder,
-        global_feature_df=global_feature_df,
-        global_feature_normalized_keys=global_feature_normalized_keys,
-        global_feature_timeframes=global_feature_timeframes,
-        execution_tf_minutes=execution_tf_minutes,
-        extra_fields=extras,
-    )
 
 
 def _enrich_trades_with_post_exit_analysis(
@@ -866,7 +731,7 @@ def _execute_backtest_loop(
     if global_feature_columns and decision_feature_frame is not None:
         global_feature_df = decision_feature_frame.loc[:, global_feature_columns]
         global_feature_normalized_keys = [
-            _normalize_global_feature_key(column) for column in global_feature_columns
+            normalize_global_feature_key(column) for column in global_feature_columns
         ]
 
     # Use the complete instrument definition from config
@@ -1004,7 +869,7 @@ def _execute_backtest_loop(
                 datetime,
                 pending_exit.get("decision_time", decision_ts),
             )
-            exit_context = _update_context_for_timestamp(
+            exit_context = realign_context_snapshot(
                 base_context=pending_exit.get("context"),
                 timestamp=exit_decision_ts,
                 rmm_context=rmm_context,
@@ -1045,7 +910,7 @@ def _execute_backtest_loop(
                 datetime,
                 pending_entry.get("decision_time", decision_ts),
             )
-            entry_context = _update_context_for_timestamp(
+            entry_context = realign_context_snapshot(
                 base_context=pending_entry.get("context"),
                 timestamp=entry_decision_ts,
                 rmm_context=rmm_context,
@@ -1129,7 +994,7 @@ def _execute_backtest_loop(
         need_context = bool(portfolio.current_position) or not is_no_command
         context: dict[str, Any] | None = None
         if need_context:
-            context = _build_context_snapshot(
+            context = build_context_snapshot(
                 timestamp=decision_ts,
                 strategy_context=strategy_feature_context,
                 rmm_context=rmm_context,

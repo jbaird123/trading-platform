@@ -33,7 +33,9 @@ DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "workspace/golden_comparison"
 DEFAULT_DATA_ROOT = PROJECT_ROOT / "data/dvc/golden/ohlcv/tradingview"
 STRATEGY_ROOT = PROJECT_ROOT / "data/dvc/golden/strategies"
 CONFIG_ROOT = PROJECT_ROOT / "configs/golden_strategies"
-DEFAULT_INDEX = ["entry_time", "exit_time", "side", "entry_price", "exit_price"]
+# Use stable trade identifiers but avoid exit_price so tiny float drift doesn't
+# break key alignment.
+DEFAULT_INDEX = ["entry_time", "exit_time", "side", "entry_price"]
 
 STRATEGIES = {
     "ema_crossover/baseline": "ema_crossover_baseline_new_platform_trades.csv",
