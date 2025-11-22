@@ -460,12 +460,14 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         logger.info(msg)
         print(msg)
 
+    safe_data_request = data_req if isinstance(data_req, dict) else None
+
     df = ensure_market_data_with_warmup(
         market_data=df,
         execution_timeframe=exec_timeframe,
         strategy_features=warmup_strategy_features,
         global_features=warmup_global_defs,
-        data_request=getattr(cfg, "data_request", None),
+        data_request=safe_data_request,
         data_handler=data_handler,
     )
 

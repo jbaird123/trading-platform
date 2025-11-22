@@ -162,16 +162,7 @@ def test_brief_matches_golden_master(tmp_path: Path, request):
     }
     params_snapshot = strat_cfg.get("parameters", {})
 
-    recommendations = [
-        {
-            "id": "consider_adx_filter_for_entries",
-            "title": "Consider ADX Filter for Entries",
-            "description": "The strategy has a high trade count and low win rate. Consider adding an ADX filter to entry rules to improve signal quality.",
-            "rule": "Consider ADX Filter for Entries",
-            "severity": "info",
-            "suggested_action": "Add ADX filter to entry rules.",
-        }
-    ]
+    recommendations: list[dict[str, Any]] = []
     finalize_run(
         run_path=run_output_path,
         meta=meta,

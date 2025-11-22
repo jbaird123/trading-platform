@@ -47,11 +47,35 @@ def run_backtest(
     if precomputed_signals is not None and len(precomputed_signals) != len(market_data):
         raise ValueError("signals length mismatch")
     if precomputed_signals is not None:
+
+        def _is_blank(val: Any) -> bool:
+            pd_local: Any
+            try:
+                import pandas as pd_local
+            except ImportError:  # pragma: no cover
+                pd_local = None
+            if val is None:
+                return True
+            if pd_local is not None:
+                try:
+                    if pd_local.isna(val):
+                        return True
+                except Exception:
+                    pass
+            try:
+                import math
+
+                if isinstance(val, float) and math.isnan(val):
+                    return True
+            except Exception:
+                pass
+            return False
+
         bad = [
             v
             for v in list(precomputed_signals)
             if not (
-                v is None
+                _is_blank(v)
                 or (
                     isinstance(v, str)
                     and v in {"enter_long", "enter_short", "exit_long", "exit_short"}
