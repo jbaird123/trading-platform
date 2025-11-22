@@ -320,9 +320,10 @@ class PortfolioManager:
         size = state.decision.size
         if size <= 0:
             raise PortfolioStateError("Tracked position has invalid size.")
-        entry_mid = float(state.entry_mid_price or state.position.entry_mid_price)
+        pos = state.position
+        entry_mid = float(state.entry_mid_price or pos.entry_mid_price)
         exit_mid = float(fill.price)
-        exit_price = self._cost_model.get_exit_price(exit_mid, state.decision.side)
+        exit_price = self._cost_model.get_exit_price(exit_mid, pos.side)
         exit_cost, exit_breakdown = self._cost_model.compute_exit_cost(
             size=size, price=exit_mid, instrument=self._instrument
         )
@@ -345,18 +346,22 @@ class PortfolioManager:
             ),
         }
         trade = Trade(
-            symbol=state.position.symbol,
-            entry_time=state.position.entry_time,
+            symbol=pos.symbol,
+            entry_time=pos.entry_time,
             exit_time=fill.timestamp,
-            entry_price=state.position.entry_price,
+            entry_price=pos.entry_price,
             exit_price=exit_price,
-            side=state.position.side,
+            side=pos.side,
             size=size,
             pnl=net_pnl,
             exit_reason=reason,
+            mfe_currency=pos.mfe_currency,
+            mae_currency=pos.mae_currency,
+            bars_held=pos.bars_held,
+            initial_risk_ccy=pos.initial_risk_ccy,
             cost_currency=total_cost,
             cost_breakdown=combined_breakdown,
-            context_at_entry=state.position.context_at_entry,
+            context_at_entry=pos.context_at_entry,
             context_at_exit=fill.intent.decision.context if fill.intent else None,
         )
         self.trades.append(trade)
