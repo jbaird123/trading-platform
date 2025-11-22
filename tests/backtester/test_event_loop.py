@@ -37,25 +37,26 @@ def test_event_loop_yields_fill_on_next_bar() -> None:
     fills_first = list(loop.on_bar(bar1, intents=[intent]))
     fills_second = list(loop.on_bar(bar2))
 
-    assert fills_first == []
-    assert len(fills_second) == 1
-    assert fills_second[0].intent == intent
-    assert fills_second[0].timestamp == bar2["open_time"]
+    assert len(fills_first) == 1
+    assert fills_first[0].intent == intent
+    assert fills_first[0].timestamp == bar1["open_time"]
+    assert fills_second == []
 
 
 def test_event_loop_handles_multiple_intents() -> None:
     loop = EventLoop()
-    loop.on_bar(
-        bar_at(0),
-        intents=[intent_factory(side="long"), intent_factory(side="short")],
+    fills = list(
+        loop.on_bar(
+            bar_at(0),
+            intents=[intent_factory(side="long"), intent_factory(side="short")],
+        )
     )
-    fills = list(loop.on_bar(bar_at(1)))
-
     assert len(fills) == 2
     assert fills[0].intent is not None
     assert fills[0].intent.intent_type == "enter_long"
     assert fills[1].intent is not None
     assert fills[1].intent.intent_type == "enter_short"
+    assert list(loop.on_bar(bar_at(1))) == []
 
 
 def test_event_loop_applies_risk_events_immediately() -> None:
@@ -85,10 +86,10 @@ def test_sample_fixture_matches_expected_behavior() -> None:
     fills_1 = list(loop.on_bar(bars[1]))
     fills_2 = list(loop.on_bar(bars[2], risk_events=sample_risk_events()))
 
-    assert fills_0 == []
-    assert len(fills_1) == len(intents)
-    assert fills_1[0].intent == intents[0]
-    assert fills_1[1].intent == intents[1]
+    assert len(fills_0) == len(intents)
+    assert fills_0[0].intent == intents[0]
+    assert fills_0[1].intent == intents[1]
+    assert fills_1 == []
     # third bar should only produce the risk-event fill
-    assert len(fills_2) == 1
-    assert fills_2[0].intent is None
+    assert len(fills_2) == len(sample_risk_events())
+    assert all(fill.intent is None for fill in fills_2)

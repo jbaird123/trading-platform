@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Collection
 from dataclasses import asdict, dataclass, field, replace
 from typing import Any, Literal, Sequence
@@ -41,6 +42,9 @@ class PositionState:
     active_view: ActivePosition | None = None
 
 
+logger = logging.getLogger(__name__)
+
+
 class PortfolioManager:
     """Stateful portfolio manager built around explicit intents and fills."""
 
@@ -78,7 +82,7 @@ class PortfolioManager:
     # ------------------------------------------------------------------ #
     def on_clock_tick(self, frame: ClockFrame) -> None:
         """Advance bar counter and expire pending entries past their window."""
-        del frame  # frame used to keep signature consistent; reserved for future use
+        del frame  # reserved for future use
         self._bar_counter += 1
         expired: list[str] = []
         for position_id, state in self._positions.items():
@@ -245,6 +249,9 @@ class PortfolioManager:
         state = self._positions.get(position_id)
         if state is None or state.state != "ENTRY_PENDING":
             raise PortfolioStateError("Entry fill received for non-pending position.")
+        logger.debug(
+            "entry_fill position_id=%s side=%s", position_id, state.decision.side
+        )
         size = state.decision.size
         entry_mid = float(fill.price)
         entry_price = self._cost_model.get_entry_price(entry_mid, state.decision.side)
@@ -275,20 +282,37 @@ class PortfolioManager:
         self._open_views[state.position_id] = state.active_view
         return None
 
-    def _handle_exit_fill(self, fill: FillEvent, reason: str) -> Trade:
+    def _handle_exit_fill(self, fill: FillEvent, reason: str) -> Trade | None:
         position_id = None
         if fill.intent is not None:
             position_id = self._intent_lookup.pop(id(fill.intent), None)
         if position_id is None and fill.decision is not None:
             position_id = self._decision_lookup.get(self._decision_key(fill.decision))
         if position_id is None:
-            raise PortfolioStateError("Exit fill did not match any tracked position.")
-        try:
-            state = self._positions[position_id]
-        except KeyError as err:  # pragma: no cover - defensive
-            raise PortfolioStateError("Exit fill matched unknown position.") from err
+            logger.debug(
+                "exit_fill unmatched intent=%s decision=%s reason=%s",
+                bool(fill.intent),
+                bool(fill.decision),
+                reason,
+            )
+            return None
+        state = self._positions.get(position_id)
+        if state is None:
+            logger.debug(
+                "exit_fill stale position_id=%s reason=%s",
+                position_id,
+                reason,
+            )
+            self._remove_intent_mapping(position_id)
+            self._decision_lookup.pop(
+                self._decision_key(fill.decision) if fill.decision else (), None
+            )
+            return None
         if state.position is None:
             raise PortfolioStateError("Exit fill matched invalid position state.")
+        logger.debug(
+            "exit_fill position_id=%s side=%s", position_id, state.decision.side
+        )
         size = state.decision.size
         if size <= 0:
             raise PortfolioStateError("Tracked position has invalid size.")
@@ -335,6 +359,7 @@ class PortfolioManager:
         self._positions.pop(position_id, None)
         self._decision_lookup.pop(self._decision_key(state.decision), None)
         self._open_views.pop(position_id, None)
+        self._remove_intent_mapping(position_id)
         return trade
 
     def _allocate_position_id(self, side: str) -> str:
@@ -363,3 +388,79 @@ class PortfolioManager:
         for key, value in list(self._intent_lookup.items()):
             if value == position_id:
                 self._intent_lookup.pop(key, None)
+
+    def finalize_bar(self, bar: Any) -> None:
+        self._update_open_positions(bar)
+
+    def _update_open_positions(self, bar: Any) -> None:
+        if not self._open_views:
+            return
+        high = self._extract_price(bar, "high")
+        low = self._extract_price(bar, "low")
+        close = self._extract_price(bar, "close")
+        for state in self._positions.values():
+            if state.state != "OPEN" or state.position is None:
+                continue
+            pos = state.position
+            size = float(pos.size)
+            entry_price = float(pos.entry_price)
+            exit_mid = self._cost_model.get_exit_price(close, pos.side)
+            if pos.side == "long":
+                favorable = max(0.0, (high - entry_price) * size)
+                adverse = max(0.0, (entry_price - low) * size)
+                unrealized = (exit_mid - entry_price) * size
+            else:
+                favorable = max(0.0, (entry_price - low) * size)
+                adverse = max(0.0, (high - entry_price) * size)
+                unrealized = (entry_price - exit_mid) * size
+            updated = Position(
+                symbol=pos.symbol,
+                entry_time=pos.entry_time,
+                entry_price=pos.entry_price,
+                entry_mid_price=pos.entry_mid_price,
+                side=pos.side,
+                size=pos.size,
+                initial_risk_ccy=pos.initial_risk_ccy,
+                stop_loss=pos.stop_loss,
+                take_profit=pos.take_profit,
+                bars_held=pos.bars_held + 1,
+                mfe_currency=max(pos.mfe_currency, favorable),
+                mae_currency=max(pos.mae_currency, adverse),
+                unrealized_pnl=unrealized,
+                context_at_entry=pos.context_at_entry,
+            )
+            state.position = updated
+            if state.active_view is not None:
+                state.active_view = ActivePosition(
+                    position_id=state.position_id,
+                    decision=state.decision,
+                    position=updated,
+                    entry_cost=state.entry_cost,
+                    entry_cost_breakdown=dict(state.entry_cost_breakdown),
+                )
+                self._open_views[state.position_id] = state.active_view
+
+    @staticmethod
+    def _extract_price(bar: Any, field: str) -> float:
+        if bar is None:
+            return 0.0
+        if isinstance(bar, dict):
+            if field in bar and bar[field] is not None:
+                return float(bar[field])
+            nested = bar.get("bar")
+            if nested is not None:
+                return PortfolioManager._extract_price(nested, field)
+        value = getattr(bar, field, None)
+        if value is not None:
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                pass
+        if hasattr(bar, "get"):
+            value = bar.get(field)
+            if value is not None:
+                try:
+                    return float(value)
+                except (TypeError, ValueError):
+                    return 0.0
+        return 0.0

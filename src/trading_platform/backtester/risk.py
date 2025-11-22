@@ -38,6 +38,7 @@ class RiskExitAdapter:
         self._data_handler = data_handler
         self._bar_minutes = bar_minutes
         self._previous_bar: pd.Series | None = None
+        self._pending_bar: pd.Series | None = None
 
     def evaluate(
         self,
@@ -45,24 +46,31 @@ class RiskExitAdapter:
         frame: ClockFrame,
         positions: Collection[ActivePosition],
         current_bar: pd.Series | None = None,
+        commit: bool = True,
     ) -> list[RiskExitEvent]:
         if not positions:
-            self._previous_bar = self._coerce_series(
-                current_bar, fallback=self._previous_bar
-            )
+            series = self._coerce_series(current_bar, fallback=self._pending_bar)
+            if series is not None:
+                self._pending_bar = series
+                if commit:
+                    self.commit_pending_bar()
             return []
-        bar = self._coerce_series(current_bar, fallback=self._previous_bar)
+        fallback = (
+            self._pending_bar if self._pending_bar is not None else self._previous_bar
+        )
+        bar = self._coerce_series(current_bar, fallback=fallback)
         if bar is None:
             raise ValueError(
                 "RiskExitAdapter requires a pandas Series for REM evaluation."
             )
         events: list[RiskExitEvent] | None = None
+        prior_bar = self._previous_bar if self._previous_bar is not None else bar
         for active in positions:
             result = self._rem.check_exits(
                 active.position,
                 bar,
                 data_handler=self._data_handler,
-                prior_bar=self._previous_bar,
+                prior_bar=prior_bar,
                 bar_minutes=self._bar_minutes,
             )
             if not result:
@@ -82,7 +90,9 @@ class RiskExitAdapter:
                     details=result,
                 )
             )
-        self._previous_bar = bar
+        self._pending_bar = bar
+        if commit:
+            self.commit_pending_bar()
         return events or []
 
     @staticmethod
@@ -92,3 +102,8 @@ class RiskExitAdapter:
         if isinstance(series, pd.Series):
             return series
         return fallback
+
+    def commit_pending_bar(self) -> None:
+        if self._pending_bar is not None:
+            self._previous_bar = self._pending_bar
+            self._pending_bar = None

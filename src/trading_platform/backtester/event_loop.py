@@ -38,10 +38,9 @@ class EventLoop:
     ) -> Iterable[FillEvent]:
         """Process a new bar, returning any fills that occur."""
         frame = self._clock.advance(bar)  # validates ordering & timestamps
-        active_position_views = None
+        bar_series = self._extract_bar_series(bar)
         if self._portfolio:
             self._portfolio.on_clock_tick(frame)
-            active_position_views = self._portfolio.active_position_views()
         self._metrics["bars_processed"] += 1
         prepared_intents = list(intents or ())
         if self._portfolio:
@@ -51,16 +50,6 @@ class EventLoop:
         pending_events: list[RiskExitEvent] | None = None
         if risk_events:
             pending_events = list(risk_events)
-        if self._risk_adapter and self._portfolio and active_position_views:
-            auto_events = self._risk_adapter.evaluate(
-                frame=frame,
-                positions=active_position_views,
-                current_bar=self._extract_bar_series(bar),
-            )
-            if auto_events:
-                if pending_events is None:
-                    pending_events = []
-                pending_events.extend(auto_events)
         if pending_events:
             for event in pending_events:
                 self._engine.submit_risk_event(event)
@@ -68,6 +57,27 @@ class EventLoop:
         if self._portfolio:
             for fill in fills:
                 self._portfolio.apply_fill(fill)
+        risk_fills: list[FillEvent] = []
+        if self._risk_adapter and self._portfolio:
+            active_views = list(self._portfolio.active_position_views())
+            if active_views:
+                auto_events = self._risk_adapter.evaluate(
+                    frame=frame,
+                    positions=active_views,
+                    current_bar=bar_series,
+                    commit=True,
+                )
+                if auto_events:
+                    for event in auto_events:
+                        self._engine.submit_risk_event(event)
+                    risk_fills = list(self._engine.flush_risk_events())
+                    fills.extend(risk_fills)
+                    for fill in risk_fills:
+                        self._portfolio.apply_fill(fill)
+        if self._risk_adapter:
+            self._risk_adapter.commit_pending_bar()
+        if self._portfolio:
+            self._portfolio.finalize_bar(bar)
         self._metrics["fills_generated"] += len(fills)
         self._telemetry.record(
             bar_open_time=frame.open_time,

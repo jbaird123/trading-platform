@@ -20,13 +20,13 @@ class NextBarExecutionEngine:
     """Execution engine that fills intents on the next bar open."""
 
     def __init__(self) -> None:
-        self._pending_entries: deque[dict[str, Any]] = deque()
+        self._pending_entries: deque[ExecutionIntent] = deque()
         self._pending_risk_events: deque[RiskExitEvent] = deque()
         self._last_clock_time: datetime | None = None
 
     def submit_intent(self, intent: ExecutionIntent) -> None:
         self._validate_intent(intent)
-        self._pending_entries.append({"intent": intent, "ready": False})
+        self._pending_entries.append(intent)
 
     def submit_risk_event(self, event: RiskExitEvent) -> None:
         self._validate_risk_event(event)
@@ -42,48 +42,30 @@ class NextBarExecutionEngine:
         if "open" not in bar:
             raise ExecutionEngineError("Bar missing 'open' price required for fills.")
 
-        fills: list[FillEvent] = []
-
-        # Risk exits fire immediately on the same bar.
-        while self._pending_risk_events:
-            event = self._pending_risk_events.popleft()
-            fills.append(
-                FillEvent(
-                    intent=None,
-                    timestamp=event.timestamp,
-                    price=float(event.price),
-                    size=float(event.decision.size),
-                    decision=event.decision,
-                    costs={},
-                    reason=event.reason,
-                )
-            )
+        fills: list[FillEvent] = list(self._drain_risk_events())
 
         # Next-bar-open intents fill once they've survived one bar advance.
-        new_queue: deque[dict[str, Any]] = deque()
         while self._pending_entries:
-            entry = self._pending_entries.popleft()
-            if entry["ready"]:
-                intent = entry["intent"]
-                fills.append(
-                    FillEvent(
-                        intent=intent,
-                        timestamp=bar_open_time,
-                        price=float(bar["open"]),
-                        size=float(intent.decision.size),
-                        decision=intent.decision,
-                        costs={},
-                        reason="entry"
-                        if intent.intent_type in {"enter_long", "enter_short"}
-                        else "strategy_exit",
-                    )
+            intent = self._pending_entries.popleft()
+            fills.append(
+                FillEvent(
+                    intent=intent,
+                    timestamp=bar_open_time,
+                    price=float(bar["open"]),
+                    size=float(intent.decision.size),
+                    decision=intent.decision,
+                    costs={},
+                    reason="entry"
+                    if intent.intent_type in {"enter_long", "enter_short"}
+                    else "strategy_exit",
                 )
-            else:
-                entry["ready"] = True
-                new_queue.append(entry)
-        self._pending_entries = new_queue
+            )
         self._last_clock_time = bar_open_time
         return fills
+
+    def flush_risk_events(self) -> Iterable[FillEvent]:
+        """Flush any pending risk events without advancing the clock."""
+        return self._drain_risk_events()
 
     @staticmethod
     def _validate_intent(intent: ExecutionIntent) -> None:
@@ -119,3 +101,20 @@ class NextBarExecutionEngine:
         except ImportError:
             pass
         raise ExecutionEngineError(f"Unable to interpret datetime value: {value}")
+
+    def _drain_risk_events(self) -> Iterable[FillEvent]:
+        fills: list[FillEvent] = []
+        while self._pending_risk_events:
+            event = self._pending_risk_events.popleft()
+            fills.append(
+                FillEvent(
+                    intent=None,
+                    timestamp=event.timestamp,
+                    price=float(event.price),
+                    size=float(event.decision.size),
+                    decision=event.decision,
+                    costs={},
+                    reason=event.reason,
+                )
+            )
+        return fills

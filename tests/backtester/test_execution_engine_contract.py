@@ -64,15 +64,15 @@ def test_next_bar_fill_occurs_after_one_clock_advance() -> None:
     intent = make_intent("long")
 
     engine.submit_intent(intent)
-    assert list(engine.advance_clock(first_bar)) == []  # decision bar
-
-    fills = list(engine.advance_clock(second_bar))
+    fills = list(engine.advance_clock(first_bar))
 
     assert len(fills) == 1
     fill = fills[0]
     assert fill.intent == intent
-    assert fill.timestamp == second_bar["open_time"]
-    assert fill.price == second_bar["open"]
+    assert fill.timestamp == first_bar["open_time"]
+    assert fill.price == first_bar["open"]
+
+    assert list(engine.advance_clock(second_bar)) == []
 
 
 def test_multiple_intents_fill_fifo_on_next_bar() -> None:
@@ -84,11 +84,11 @@ def test_multiple_intents_fill_fifo_on_next_bar() -> None:
 
     engine.submit_intent(intent_long)
     engine.submit_intent(intent_short)
-    engine.advance_clock(bar1)
 
-    fills = list(engine.advance_clock(bar2))
+    fills = list(engine.advance_clock(bar1))
 
     assert [f.intent for f in fills] == [intent_long, intent_short]
+    assert list(engine.advance_clock(bar2)) == []
 
 
 def test_risk_event_generates_immediate_fill() -> None:

@@ -35,11 +35,11 @@ def test_event_loop_routes_fills_through_portfolio() -> None:
     loop = EventLoop(portfolio=pm)
     intent = intent_factory(bar_index=0)
 
-    fills = loop.on_bar(_bar(0), intents=[intent])
-    assert list(fills) == []
+    fills = list(loop.on_bar(_bar(0), intents=[intent]))
+    assert len(fills) == 1
+    assert len(pm.active_positions) == 1
 
     loop.on_bar(_bar(1))
-    assert len(pm.active_positions) == 1
 
     risk_event = risk_event_factory(decision=intent.decision, price=0.9950)
     loop.on_bar(_bar(2), risk_events=[risk_event])
