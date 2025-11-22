@@ -34,15 +34,19 @@ IMPORTANT:
 """
 
 import csv
+import sys
 from pathlib import Path
-from typing import cast
 
 import pandas as pd
 import yaml
-from trading_platform.backtester import run_backtest
-from trading_platform.core.config import RunConfig
 from trading_platform.data.handler import DataHandler
-from trading_platform.portfolio.trade import Trade
+
+from tests.validation.test_strategy_validation import load_platform_trades
+
+# Ensure project root on sys.path for direct execution
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 
 def generate_golden_trades_for_strategy(
@@ -91,11 +95,6 @@ def generate_golden_trades_for_strategy(
     ohlcv = pd.read_csv(ohlcv_path, index_col=0, parse_dates=True)
     ohlcv.index = pd.to_datetime(ohlcv.index, utc=True)
 
-    # Add volume column if missing (not needed for strategies but required
-    # by backtester). Use 1.0 to match conftest.py fixture behavior
-    if "volume" not in ohlcv.columns:
-        ohlcv["volume"] = 1.0
-
     # Load metadata for date range
     metadata_path = data_dir / "metadata.json"
     with open(metadata_path) as f:
@@ -105,12 +104,7 @@ def generate_golden_trades_for_strategy(
 
     date_range = metadata.get("date_range")
 
-    # Load strategy config first (needed for warmup calculation)
     strategy_dir = project_root / f"configs/golden_strategies/{strategy_name}"
-    strategy_path = strategy_dir / "strategy.yaml"
-
-    with open(strategy_path) as f:
-        strategy_config = yaml.safe_load(f)
 
     # Load REM config if exists
     rem_path = strategy_dir / "rem.yaml"
@@ -144,145 +138,44 @@ def generate_golden_trades_for_strategy(
     # Use resampled 1H data from DataHandler (includes actual volume)
     ohlcv_1h = data_handler.get_data(timeframe="1H")
 
-    # Calculate warmup period dynamically based on features
-    if date_range:
-        from datetime import timedelta
-
-        from trading_platform.backtester.warmup import calculate_warmup_start_date
-        from trading_platform.core.feature_resolver import resolve_global_features
-        from trading_platform.strategy.features import _resolve_parameter
-        from trading_platform.strategy.yaml_strategy import compile_strategy
-
-        # Get backtest start date from validation range
-        backtest_start_date = pd.to_datetime(date_range["start"], utc=True)
-        end_date = pd.to_datetime(date_range["end"], utc=True) + timedelta(
-            days=1, seconds=-1
-        )
-
-        # Load global features config to calculate warmup
-        golden_features_path = project_root / "data/dvc/golden/features/global.yaml"
-        execution_timeframe = run_config_dict.get("instrument", {}).get(
-            "timeframe", "1H"
-        )
-
-        # Resolve global features
-        resolved_global = resolve_global_features(
-            execution_timeframe, config_path=golden_features_path
-        )
-        global_features_list = [
-            {
-                "name": f.name,
-                "type": f.type,
-                "params": f.params,
-                "source": f.source,
-                "timeframe": f.timeframe,
-            }
-            for f in resolved_global
-        ]
-
-        # Compile strategy to get parameters
-        compiled_strategy = compile_strategy(strategy_config)
-
-        # Resolve parameter placeholders in strategy features
-        strategy_params = compiled_strategy.parameters or {}
-        resolved_strategy_features = []
-        for feature in compiled_strategy.features or []:
-            resolved_feature = feature.copy()
-            if "params" in resolved_feature:
-                resolved_params = {
-                    k: _resolve_parameter(v, strategy_params)
-                    for k, v in resolved_feature["params"].items()
-                }
-                resolved_feature["params"] = resolved_params
-            resolved_strategy_features.append(resolved_feature)
-
-        # Calculate warmup start date dynamically
-        warmup_start_date, warmup_info = calculate_warmup_start_date(
-            strategy_features=resolved_strategy_features,
-            global_features=global_features_list,
-            execution_timeframe=execution_timeframe,
-            market_data=ohlcv_1h,
-            backtest_start_date=backtest_start_date,
-        )
-
-        # Convert warmup_start_date to timestamp
-        warmup_start = pd.Timestamp(warmup_start_date, tz="UTC")
-
-        # Filter data from warmup start to validation end
-        ohlcv_filtered = ohlcv_1h[
-            (ohlcv_1h.index >= warmup_start) & (ohlcv_1h.index <= end_date)
-        ].copy()
-
-    else:
-        ohlcv_filtered = ohlcv_1h
-
-    # Create RunConfig
-    config = RunConfig.model_validate(run_config_dict)
-
-    # Run backtest with frozen golden features config
-    print(f"Running backtest with {len(ohlcv_filtered)} bars...")
-    golden_features_path = project_root / "data/dvc/golden/features/global.yaml"
-    results = run_backtest(
-        config=config,
-        market_data=ohlcv_filtered,
-        strategy_config=strategy_config,
+    # Run through the same backtester pipeline the tests use
+    print(f"Running backtest with {len(ohlcv_1h)} bars via load_platform_trades...")
+    trades = load_platform_trades(
+        strategy_name=strategy_name,
+        run_config=run_config_dict,
+        ohlcv_data=ohlcv,
         data_handler=data_handler,
-        global_features_config_path=golden_features_path,
+        date_range=date_range,
     )
-    assert isinstance(results, dict)
-    trades_source = cast(list[Trade], results["trades"])
 
-    # Filter trades to validation range
-    trades_list = []
-    if date_range:
-        val_start = pd.to_datetime(date_range["start"], utc=True)
-        val_end = pd.to_datetime(date_range["end"], utc=True) + timedelta(
-            days=1, seconds=-1
-        )
-
-        for trade in trades_source:
-            if trade.exit_reason == "end_of_data":
-                continue
-            if val_start <= trade.entry_time <= val_end:
-                trades_list.append(trade)
-    else:
-        trades_list = [t for t in trades_source if t.exit_reason != "end_of_data"]
-
-    print(f"Total trades after filtering: {len(trades_list)}")
+    print(f"Total trades after filtering: {len(trades)}")
 
     # Convert to dictionaries with all fields except excluded ones
     rows = []
-    for trade in trades_list:
+    for trade in trades:
         row = {
-            "symbol": trade.symbol,
-            "side": trade.side,
-            "size": trade.size,
-            "entry_time": trade.entry_time,
-            "exit_time": trade.exit_time,
-            "entry_price": trade.entry_price,
-            "exit_price": trade.exit_price,
-            "exit_reason": trade.exit_reason,
-            "pnl": trade.pnl,
-            "mfe_currency": trade.mfe_currency,
-            "mae_currency": trade.mae_currency,
-            "bars_held": trade.bars_held,
-            "cost_currency": trade.cost_currency,
+            "symbol": trade["symbol"],
+            "side": trade["side"],
+            "size": trade["size"],
+            "entry_time": trade["entry_time"],
+            "exit_time": trade["exit_time"],
+            "entry_price": trade["entry_price"],
+            "exit_price": trade["exit_price"],
+            "exit_reason": trade["exit_reason"],
+            "pnl": trade["pnl"],
+            "mfe_currency": trade["mfe_currency"],
+            "mae_currency": trade["mae_currency"],
+            "bars_held": trade["bars_held"],
+            "cost_currency": trade["cost_currency"],
+            "spread": trade.get("spread", 0.0),
+            "commission": trade.get("commission", 0.0),
+            "slippage": trade.get("slippage", 0.0),
         }
 
-        # Add cost breakdown fields
-        if trade.cost_breakdown:
-            row["spread"] = trade.cost_breakdown.get("spread", 0.0)
-            row["commission"] = trade.cost_breakdown.get("commission", 0.0)
-            row["slippage"] = trade.cost_breakdown.get("slippage", 0.0)
-        else:
-            row["spread"] = 0.0
-            row["commission"] = 0.0
-            row["slippage"] = 0.0
-
-        # Add context fields (flattened)
-        if trade.context_at_entry:
-            for key, value in _flatten_context(trade.context_at_entry).items():
-                row[f"ctx_{key}"] = value
+        # Add context fields (already flattened by load_platform_trades)
+        for key, value in trade.items():
+            if key.startswith("ctx_"):
+                row[key] = value
 
         rows.append(row)
 
