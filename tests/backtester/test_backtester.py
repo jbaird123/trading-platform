@@ -456,7 +456,7 @@ def test_counterfactual_exact_returns_empty_when_position_not_created(
         ) -> float | None:
             return None
 
-        def check_exits(self, position: Any, current_bar: pd.Series) -> None:
+        def check_exits(self, position: Any, current_bar: pd.Series, **_: Any) -> None:
             return None
 
     result = _simulate_counterfactual_exact(
