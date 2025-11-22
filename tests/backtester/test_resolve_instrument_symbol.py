@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from trading_platform.backtester.core import resolve_instrument_symbol
+from trading_platform.backtester.utils import resolve_instrument_symbol
 
 
 class _InstrumentObj:
@@ -25,7 +25,7 @@ def test_resolve_instrument_symbol_none_raises_value_error() -> None:
 
 
 def test_resolve_instrument_symbol_empty_symbol_raises() -> None:
-    with pytest.raises(ValueError, match="instrument with symbol is required"):
+    with pytest.raises(ValueError, match="instrument symbol is missing or empty"):
         resolve_instrument_symbol({"symbol": "   "})
 
 

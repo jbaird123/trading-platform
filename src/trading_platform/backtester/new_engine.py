@@ -8,10 +8,12 @@ from typing import Any, cast
 import pandas as pd
 
 from trading_platform.backtester.context import DecisionSnapshotFactory
-from trading_platform.backtester.core import _enrich_trades_with_post_exit_analysis
 from trading_platform.backtester.event_loop import EventLoop
 from trading_platform.backtester.models import ExecutionIntent
 from trading_platform.backtester.portfolio_manager import PortfolioManager
+from trading_platform.backtester.post_exit import (
+    enrich_trades_with_post_exit_analysis,
+)
 from trading_platform.backtester.risk import RiskExitAdapter
 from trading_platform.core.config import RunConfig
 from trading_platform.core.policy import TradingWindowPolicy
@@ -698,7 +700,7 @@ def run_event_loop_backtest(
     post_exit_cfg = getattr(config, "post_exit_analysis", None)
     if post_exit_cfg and post_exit_cfg.get("enabled"):
         horizons = post_exit_cfg.get("horizons", [10, 20, 50])
-        _enrich_trades_with_post_exit_analysis(
+        enrich_trades_with_post_exit_analysis(
             portfolio.trades,
             market_data,
             horizons,
