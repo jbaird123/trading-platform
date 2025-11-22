@@ -1,6 +1,6 @@
 outs:
-- md5: 306a7ed77d6be6df33127ca843ff3461.dir
+- md5: fc7735243356bc0020eae3692ff39f21.dir
   nfiles: 40
   hash: md5
   path: ema_crossover
-  size: 16318493
+  size: 16318545
