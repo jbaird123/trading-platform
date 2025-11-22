@@ -23,8 +23,8 @@ from trading_platform.backtester import run_backtest
 from trading_platform.backtester.orchestrator import (
     _infer_execution_timeframe,
     _resolve_strategy_features_for_warmup,
-    ensure_market_data_with_warmup,
 )
+from trading_platform.backtester.warmup_helpers import ensure_market_data_with_warmup
 from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
 from trading_platform.core.demo import generate_demo_run
