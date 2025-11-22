@@ -1034,7 +1034,7 @@ def test_compile_strategy_with_ai_inference():
 def test_compile_strategy_parameter_defaults():
     """Test compile_strategy with parameter defaults and edge cases."""
     # Test with minimal config - should use defaults but stay valid
-    strategy_config = {
+    strategy_config: dict[str, Any] = {
         "strategy_name": "Minimal",
         "long_entry_rules": [
             {
@@ -1069,7 +1069,7 @@ def test_compile_strategy_parameter_defaults():
 
 def test_compile_strategy_invalid_parameters():
     """Test compile_strategy with non-dict parameters. Covers parameter validation."""
-    strategy_config = {
+    strategy_config: dict[str, Any] = {
         "strategy_name": "TestStrategy",
         "parameters": "invalid_string_params",  # Should be dict
         "long_entry_rules": [

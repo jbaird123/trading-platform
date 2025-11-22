@@ -89,10 +89,7 @@ def test_run_backtest_uses_cached_global_features(
     def fake_compute_features(*_: Any, **__: Any) -> pd.DataFrame:
         raise AssertionError("compute_features should not run when cache is present")
 
-    monkeypatch.setattr(
-        "trading_platform.backtester.core.load_cached_global_features",
-        fake_load_cached,
-    )
+    # Cache path is no-op in new engine; ensure compute_features not invoked.
     monkeypatch.setattr(
         "trading_platform.strategy.features.compute_features",
         fake_compute_features,
@@ -433,7 +430,7 @@ def test_counterfactual_exact_returns_empty_when_position_not_created(
     )
 
     monkeypatch.setattr(
-        "trading_platform.backtester.core.PortfolioManager.create_new_position",
+        "trading_platform.backtester.portfolio_manager.PortfolioManager.create_new_position",
         lambda *args, **kwargs: None,
     )
 

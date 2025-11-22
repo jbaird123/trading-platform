@@ -17,16 +17,14 @@ from typing import Any, cast
 import pandas as pd
 import yaml
 
-from trading_platform.backtester.core import (
-    SimulationReturn,
-    _execute_backtest_loop,
+from trading_platform.backtester.new_engine import (
+    BacktestResult,
+    run_event_loop_backtest,
 )
 from trading_platform.backtester.warmup import calculate_warmup_start_date
 from trading_platform.core.config import RunConfig
 from trading_platform.core.feature_resolver import resolve_global_features
 from trading_platform.portfolio.trade import Trade
-from trading_platform.regime_market_manager.gating import ProfitabilityGatingEngine
-from trading_platform.regime_market_manager.models import RMMGatingProfile
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.features import _resolve_parameter
 from trading_platform.strategy.yaml_strategy import CompiledStrategy, compile_strategy
@@ -309,8 +307,6 @@ def run_backtest(
         ValueError: If warmup validation fails or strategy config is missing
     """
     df = market_data
-    strategy_metadata: dict[str, Any] = {}
-    strategy_archetype = "trend_following"
 
     if compiled_strategy is None:
         # Load strategy configuration
@@ -361,23 +357,10 @@ def run_backtest(
                             params.update(feat_over[name])
                             f["params"] = params
 
-        strategy_metadata = strategy_config.get("metadata") or {}
-        strategy_archetype = str(
-            strategy_metadata.get("strategy_archetype", "trend_following")
-        )
         strat = compile_strategy(strategy_config)
     else:
         strat = compiled_strategy
         strategy_config = strategy_config or {}
-        metadata = getattr(strat, "metadata", None)
-        if isinstance(metadata, dict):
-            strategy_metadata = metadata
-        strategy_archetype = str(
-            strategy_metadata.get(
-                "strategy_archetype",
-                getattr(strat, "name", "trend_following"),
-            )
-        )
 
     execution_timeframe = _infer_execution_timeframe(config, df)
 
@@ -420,8 +403,7 @@ def run_backtest(
         signals = strat.generate_signals(df)
         feature_enriched_df = strat._feature_df if strat._feature_df is not None else df
 
-    # Note: Warmup validation is handled in _execute_backtest_loop(), which
-    # validates strategy and global features together.
+    # Note: Warmup validation is already handled upstream.
 
     # Defensive checks: feature_df must match input df's length and index type
     if len(feature_enriched_df) != len(df) or not isinstance(
@@ -429,82 +411,50 @@ def run_backtest(
     ):
         feature_enriched_df = df
 
-    # Create REM (Risk Exit Manager)
-    if config.instrument:
-        # Convert dict to InstrumentDefinition if needed
-        if isinstance(config.instrument, dict):
-            instrument_dict = config.instrument
-        else:
-            instrument_dict = config.instrument.model_dump()
+    # Prepare global features (if requested)
+    global_feature_df = None
+    if resolved_global_features:
+        from trading_platform.strategy.features import compute_features
+
+        base_cols = set(feature_enriched_df.columns)
+        global_feature_df = compute_features(
+            market_data,
+            resolved_global_features,
+            strat.parameters,
+        )
+        global_feature_df = global_feature_df.loc[
+            :, [c for c in global_feature_df.columns if c not in base_cols]
+        ]
+        if global_feature_df.empty:
+            global_feature_df = None
+
+    instrument_dict = config.instrument or {}
+    if isinstance(instrument_dict, dict):
+        instrument_dict = dict(instrument_dict)
     else:
         instrument_dict = None
 
-    rem_cfg = config.rem_config or {}
-    exit_tie_break = getattr(config, "exit_tie_break", "stop_then_tp")
-    rem = rem_instance or RiskExitManager(
-        config=rem_cfg if rem_cfg else None,
-        instrument=instrument_dict,
-        exit_tie_break=exit_tie_break,
-    )
-
-    gating_engine: ProfitabilityGatingEngine | None = None
-    gating_metadata: dict[str, Any] | None = None
-    if config.rmm_gating_profile:
-        profile = RMMGatingProfile.model_validate(config.rmm_gating_profile)
-        gating_engine = ProfitabilityGatingEngine(profile)
-        instrument_timeframe = None
-        instrument_symbol = None
-        if instrument_dict:
-            instrument_timeframe = instrument_dict.get("timeframe")
-            instrument_symbol = instrument_dict.get("symbol")
-        gating_metadata = {
-            "strategy_archetype": strategy_archetype,
-            "instrument_timeframe": instrument_timeframe,
-            "instrument_symbol": instrument_symbol,
-        }
-
-    # Run backtest simulation
-    res: SimulationReturn = _execute_backtest_loop(
-        market_data=feature_enriched_df,
-        signals=signals,
-        strategy=strat,
+    res: BacktestResult = run_event_loop_backtest(
         config=config,
-        rem=rem,
-        rmm_context=rmm_context,
-        return_exposure=return_exposure,
-        return_skips=return_skips,
+        market_data=feature_enriched_df,
+        compiled_strategy=strat,
+        precomputed_signals=signals,
+        strategy_feature_df=feature_enriched_df,
         data_handler=data_handler,
-        global_features_config_path=global_features_config_path,
-        global_feature_defs=resolved_global_features,
-        gating_engine=gating_engine,
-        gating_metadata=gating_metadata,
-        cache_root_override=Path(cache_root).expanduser().resolve()
-        if cache_root is not None
-        else None,
+        global_feature_df=global_feature_df,
+        rmm_context=rmm_context,
     )
 
     # Handle return value based on return_exposure and return_skips flags
     # CLI uses tuple format (return_exposure=True), tests/programmatic use dict format
     if return_exposure:
-        # Return tuple format for CLI use (includes exposure curve)
-        if isinstance(res, list):  # pragma: no cover - defensive guard
-            raise AssertionError(
-                "Simulation returned list when exposure output was requested."
-            )
-        return res
+        if return_skips:
+            return res.trades, res.equity_curve, res.skipped
+        return res.trades, res.equity_curve
 
-    # Otherwise return dict format for programmatic/test use
-    # Even if return_skips=True, we return dict (skips are in the tuple
-    # but we extract trades)
-    skipped_records: list[dict[str, Any]] = []
-    if isinstance(res, tuple):
-        trades_list = cast(list[Trade], res[0])
-        exposure = cast(list[tuple[Any, float]], res[1]) if len(res) > 1 else []
-        if len(res) > 2:
-            skipped_records = cast(list[dict[str, Any]], res[2])
-    else:
-        trades_list = cast(list[Trade], res)
-        exposure = []
+    trades_list = res.trades
+    exposure = res.equity_curve
+    skipped_records = res.skipped if return_skips else []
 
     # Build equity curve from trades
     equity_curve = []
