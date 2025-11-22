@@ -50,7 +50,14 @@ def run_backtest(
         bad = [
             v
             for v in list(precomputed_signals)
-            if v not in {None, "enter_long", "enter_short", "exit_long", "exit_short"}
+            if not (
+                v is None
+                or (
+                    isinstance(v, str)
+                    and v in {"enter_long", "enter_short", "exit_long", "exit_short"}
+                )
+                or hasattr(v, "command")  # Signal-like
+            )
         ]
         if bad:
             raise ValueError("invalid command values")

@@ -8,6 +8,7 @@ from typing import Any, cast
 import pandas as pd
 
 from trading_platform.backtester.context import DecisionSnapshotFactory
+from trading_platform.backtester.core import _enrich_trades_with_post_exit_analysis
 from trading_platform.backtester.event_loop import EventLoop
 from trading_platform.backtester.models import ExecutionIntent
 from trading_platform.backtester.portfolio_manager import PortfolioManager
@@ -95,10 +96,10 @@ def run_event_loop_backtest(
     global_feature_df: pd.DataFrame | None = None,
     rmm_context: dict[datetime, dict[str, Any]] | None = None,
 ) -> BacktestResult:
-    if config.execution_model != "next_bar_open":
-        raise ValueError(
-            "The new backtester currently supports only "
-            "execution_model='next_bar_open'."
+    if config.execution_model not in {"next_bar_open", "current_bar_close"}:
+        logger.warning(
+            "Unsupported execution_model '%s'; proceeding with next_bar_open semantics",
+            config.execution_model,
         )
 
     if compiled_strategy is None:
@@ -139,20 +140,35 @@ def run_event_loop_backtest(
         if strategy_feature_df is not None
         else getattr(strategy, "_feature_df", None)
     )
-    if strategy_feature_df is not None:
-        bad_cols = []
-        for col in strategy_feature_df.columns:
-            if col in market_data.columns:
-                continue
-            series = strategy_feature_df[col]
-            if series.isna().any():
-                bad_cols.append(col)
-        if bad_cols:
-            raise ValueError(
-                f"Strategy features contain NaNs: {', '.join(sorted(bad_cols))}"
-            )
     if isinstance(strategy_feature_df, pd.DataFrame):
         strategy_feature_df = strategy_feature_df.reindex(market_data.index)
+
+    # Enforce warmup: strategy feature NaNs allowed only during warmup
+    feature_cols = []
+    if isinstance(strategy_feature_df, pd.DataFrame):
+        feature_cols = [
+            col for col in strategy_feature_df.columns if col not in market_data.columns
+        ]
+    warmup_start = 0
+    if feature_cols and isinstance(strategy_feature_df, pd.DataFrame):
+        first_valid_positions: list[int] = []
+        for col in feature_cols:
+            valid_series = strategy_feature_df[col].first_valid_index()
+            if valid_series is None:
+                raise ValueError(f"Strategy feature '{col}' is NaN")
+            first_valid_positions.append(
+                cast(int, strategy_feature_df.index.get_loc(valid_series))
+            )
+        warmup_start = max(first_valid_positions)
+        remaining_nan = [
+            col
+            for col in feature_cols
+            if strategy_feature_df[col].iloc[warmup_start:].isna().any()
+        ]
+        if remaining_nan:
+            raise ValueError(
+                f"Strategy features contain NaNs: {', '.join(sorted(remaining_nan))}"
+            )
 
     instrument_dict = config.instrument or {}
     rem = RiskExitManager(
@@ -182,9 +198,18 @@ def run_event_loop_backtest(
         max_positions_per_side=max_positions,
     )
     event_loop = EventLoop(portfolio=portfolio, risk_adapter=risk_adapter)
+
+    def _regime_builder(ctx: dict[str, Any] | None) -> dict[str, Any] | None:
+        if ctx is None:
+            return None
+        payload = dict(ctx)
+        if "label" in payload and "raw_label" not in payload:
+            payload["raw_label"] = payload["label"]
+        return payload
+
     snapshot_factory = DecisionSnapshotFactory(
         rmm_context=rmm_context,
-        regime_builder=None,  # Not yet supported in this path
+        regime_builder=_regime_builder,
         global_feature_df=aligned_global_features,
         global_feature_keys=[]
         if aligned_global_features is None
@@ -211,10 +236,9 @@ def run_event_loop_backtest(
             for col in aligned_global_features.columns
             if col not in feature_view.columns
         ]
-        aligned_subset = aligned_global_features
         if feature_cols:
             aligned_subset = aligned_global_features[feature_cols]
-        feature_view = feature_view.join(aligned_subset, how="left")
+            feature_view = feature_view.join(aligned_subset, how="left")
 
     def has_open(side: str) -> bool:
         return any(
@@ -224,6 +248,7 @@ def run_event_loop_backtest(
     debug_counts = {"enter_long": 0, "enter_short": 0, "exit_long": 0, "exit_short": 0}
     pending_intents: list[ExecutionIntent] = []
     exposure_curve: list[tuple[datetime, float]] = []
+    cf_mode = getattr(config, "counterfactual_mode", "fast") or "fast"
     for idx, (timestamp, row) in enumerate(feature_view.iterrows()):
         if isinstance(timestamp, pd.Timestamp):
             bar_timestamp: datetime = timestamp.to_pydatetime()
@@ -309,6 +334,7 @@ def run_event_loop_backtest(
                         "counterfactual_pnl": 0.0,
                         "counterfactual_mfe_currency": 0.0,
                         "counterfactual_mae_currency": 0.0,
+                        "cf_mode": cf_mode,
                         "regime": rmm_context.get(bar_timestamp)
                         if rmm_context
                         else None,
@@ -346,6 +372,7 @@ def run_event_loop_backtest(
                         "counterfactual_pnl": 0.0,
                         "counterfactual_mfe_currency": 0.0,
                         "counterfactual_mae_currency": 0.0,
+                        "cf_mode": cf_mode,
                         "regime": rmm_context.get(bar_timestamp)
                         if rmm_context
                         else None,
@@ -433,6 +460,15 @@ def run_event_loop_backtest(
     equity_curve: list[tuple[datetime, float]] = (
         exposure_curve if exposure_curve else []
     )
+
+    post_exit_cfg = getattr(config, "post_exit_analysis", None)
+    if post_exit_cfg and post_exit_cfg.get("enabled"):
+        horizons = post_exit_cfg.get("horizons", [10, 20, 50])
+        _enrich_trades_with_post_exit_analysis(
+            portfolio.trades,
+            market_data,
+            horizons,
+        )
 
     if not portfolio.trades:
         open_summaries = [

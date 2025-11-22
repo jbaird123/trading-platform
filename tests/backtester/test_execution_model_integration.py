@@ -14,6 +14,7 @@ import pytest
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 
+from tests.backtester.dummy_objects import _base_config
 from tests.test_helpers import (
     get_empty_global_features_path,
     run_backtest_simulation,
@@ -30,6 +31,7 @@ class DummyStrategy:
 
     def __init__(self):
         self.name = "dummy_strategy"
+        self.original_config = _base_config("dummy_strategy")
         self.features: list[dict[str, object]] = []
         self._feature_df = None
 

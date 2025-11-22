@@ -21,7 +21,6 @@ from trading_platform.backtester.counterfactual import (
 )
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
-from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
 from tests.backtester.dummy_objects import _dummy_strategy_cfg
 from tests.test_helpers import (
@@ -574,11 +573,13 @@ class TestBacktesterCoreCoverage:
 
     @pytest.fixture
     def mock_strategy(self):
-        strategy = MagicMock(spec=CompiledStrategy)
-        strategy.get_context.return_value = {"test": "context"}
-        strategy.features = []
-        strategy._feature_df = None
-        strategy.name = "mock_strategy"
+        strategy = _dummy_strategy_cfg("mock_strategy")
+        object.__setattr__(strategy, "_feature_df", None)
+        object.__setattr__(
+            strategy,
+            "get_context",
+            MagicMock(return_value={"test": "context"}),
+        )
         return strategy
 
     @pytest.fixture

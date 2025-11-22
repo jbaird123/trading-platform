@@ -35,10 +35,10 @@ def _base_config(name: str) -> dict:
     return validated.model_dump(exclude_none=True)
 
 
-def _dummy_strategy_cfg() -> CompiledStrategy:
+def _dummy_strategy_cfg(name: str = "dummy") -> CompiledStrategy:
     """Returns a minimal, validated CompiledStrategy for testing."""
     strat = CompiledStrategy(
-        name="dummy",
+        name=name,
         overlays=[],
         features=[],
         long_entry_blocks=[],
@@ -47,7 +47,7 @@ def _dummy_strategy_cfg() -> CompiledStrategy:
         short_exit_blocks=[],
         parameters={},
     )
-    object.__setattr__(strat, "original_config", _base_config("dummy"))
+    object.__setattr__(strat, "original_config", _base_config(name))
     return strat
 
 

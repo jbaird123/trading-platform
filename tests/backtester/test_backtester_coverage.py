@@ -19,7 +19,7 @@ from trading_platform.portfolio.trade import Trade
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
-from tests.backtester.dummy_objects import _dummy_strategy_cfg
+from tests.backtester.dummy_objects import _base_config, _dummy_strategy_cfg
 from tests.test_helpers import (
     get_empty_global_features_path,
     run_backtest_simulation,
@@ -775,6 +775,7 @@ def test_rmm_context_feature_rounding_with_strategy_features():
         short_exit_blocks=[],
         parameters={},
     )
+    object.__setattr__(strategy, "original_config", _base_config("test_strategy"))
     # Still need to call generate_signals to initialize _feature_df
     df = df.iloc[40:].copy()
     strategy.generate_signals(df)
