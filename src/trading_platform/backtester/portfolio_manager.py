@@ -126,9 +126,13 @@ class PortfolioManager:
             "take_profit",
             "trailing_stop",
         }:
-            exit_reason = (
-                "strategy_exit" if fill.reason == "strategy_exit" else fill.reason
-            )
+            reason_map = {
+                "strategy_exit": "opposite_signal",
+                "stop_loss": "stop-loss",
+                "take_profit": "take-profit",
+                "trailing_stop": "stop-loss",
+            }
+            exit_reason = reason_map.get(fill.reason, fill.reason)
             return self._handle_exit_fill(fill, exit_reason)
         raise PortfolioStateError(f"Unsupported fill reason '{fill.reason}'.")
 

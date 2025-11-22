@@ -58,22 +58,21 @@ class EventLoop:
             for fill in fills:
                 self._portfolio.apply_fill(fill)
         risk_fills: list[FillEvent] = []
-        if self._risk_adapter and self._portfolio:
+        if self._risk_adapter and self._portfolio and bar_series is not None:
             active_views = list(self._portfolio.active_position_views())
-            if active_views:
-                auto_events = self._risk_adapter.evaluate(
-                    frame=frame,
-                    positions=active_views,
-                    current_bar=bar_series,
-                    commit=True,
-                )
-                if auto_events:
-                    for event in auto_events:
-                        self._engine.submit_risk_event(event)
-                    risk_fills = list(self._engine.flush_risk_events())
-                    fills.extend(risk_fills)
-                    for fill in risk_fills:
-                        self._portfolio.apply_fill(fill)
+            auto_events = self._risk_adapter.evaluate(
+                frame=frame,
+                positions=active_views,
+                current_bar=bar_series,
+                commit=True,
+            )
+            if auto_events:
+                for event in auto_events:
+                    self._engine.submit_risk_event(event)
+                risk_fills = list(self._engine.flush_risk_events())
+                fills.extend(risk_fills)
+                for fill in risk_fills:
+                    self._portfolio.apply_fill(fill)
         if self._risk_adapter:
             self._risk_adapter.commit_pending_bar()
         if self._portfolio:
