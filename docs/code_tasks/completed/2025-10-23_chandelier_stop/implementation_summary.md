@@ -148,7 +148,7 @@ features:
 poetry run python -m trading_platform.cli backtest \
   --strategy config/strategy/trend_with_chandelier.yaml \
   --rem config/rem/chandelier_stop.yaml \
-  --instrument EUR_USD \
+  --instrument EURUSD \
   --start-date 2023-01-01 \
   --end-date 2023-12-31
 ```

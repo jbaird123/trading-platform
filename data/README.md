@@ -14,7 +14,7 @@ Catalog usage:
 - Point `config/data_catalog.yaml` symbol entries to files in one of these
   folders, for example:
 
-  EUR_USD:
+  EURUSD:
     csv_path: "data/samples/eurusd_m1_sample.csv"  # small sample
-  #EUR_USD:
+  #EURUSD:
   #  csv_path: "data/full/eurusd_m1_2010_2024.csv"  # large file, ignored by Git

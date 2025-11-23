@@ -15,7 +15,7 @@ cost_model:
 
 # Data - Just 1 year for testing
 data_request:
-  symbol: "EUR_USD"
+  symbol: "EURUSD"
   timeframe: "1H"
   start: "2024-01-01"
   end: "2025-01-01"

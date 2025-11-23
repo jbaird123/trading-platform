@@ -35,8 +35,8 @@ run_grid:
   date_ranges:
     - { start: "2018-01-01", end: "2023-12-31" }
   instruments:
-    - EUR_USD
-    - GBP_USD
+    - EURUSD
+    - GBPUSD
   execution_timeframes:
     - 1min
     - 5min
@@ -167,7 +167,7 @@ tp meta-campaign-plan --config config/meta_campaigns/my_research.yaml
 ls -l config/campaigns/generated/
 
 # 4. Run one campaign as a test
-tp campaign-run --campaign-id config/campaigns/generated/my_research_baseline_no_risk_EUR_USD_15min_00.yaml
+tp campaign-run --campaign-id config/campaigns/generated/my_research_baseline_no_risk_EURUSD_15min_00.yaml
 
 # 5. If successful, run all campaigns (loop or parallel)
 for f in config/campaigns/generated/my_research_*.yaml; do

@@ -25,20 +25,38 @@ def enrich_trades_with_post_exit_analysis(
     if not trades or not horizons:
         return
 
-    dt_index = market_data.index.tolist()
+    dt_index = market_data.index
+    max_horizon = max(horizons)
 
     for trade in trades:
         exit_time = getattr(trade, "exit_time", None)
         try:
-            exit_idx = dt_index.index(exit_time)
-        except ValueError:
+            loc = dt_index.get_loc(exit_time)
+            # get_loc can return int, slice, or boolean array
+            if isinstance(loc, int):
+                exit_idx = loc
+            elif isinstance(loc, slice):
+                # If duplicate timestamps, take the first occurrence
+                exit_idx = loc.start if loc.start is not None else 0
+            else:
+                # Boolean array case - find first True
+                import numpy as np
+
+                exit_idx = int(np.where(loc)[0][0])
+        except (KeyError, TypeError, ValueError, IndexError):
             continue
 
-        post_exit_data = market_data.iloc[exit_idx + 1 :]
-        if len(post_exit_data) == 0:
+        start = exit_idx + 1
+        if start >= len(market_data):
+            # No bars after exit; still attach empty analysis for consistency.
             post_exit_analysis = PostExitAnalysis(simulated_holds=[])
             object.__setattr__(trade, "post_exit_analysis", post_exit_analysis)
             continue
+
+        # Only slice the maximum horizon needed instead of the full tail;
+        # ensure at least one row is available for horizon=0 cases.
+        slice_len = max(max_horizon, 1)
+        post_exit_data = market_data.iloc[start : start + slice_len]
 
         simulated_holds = []
         for horizon in horizons:

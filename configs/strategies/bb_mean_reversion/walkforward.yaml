@@ -15,7 +15,7 @@ cost_model:
 
 # Data source - USD/JPY 5min
 data_request:
-  symbol: "USD_JPY"
+  symbol: "USDJPY"
   timeframe: "5min"
   start: "2020-01-01"
   end: "2025-09-26"

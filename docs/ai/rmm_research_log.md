@@ -92,7 +92,7 @@
          source = Path("data/dvc/processed/training_sets/master_trade_log.parquet")
          df = pd.read_parquet(source)
          mask = (
-             (df["symbol"] == "EUR_USD")
+             (df["symbol"] == "EURUSD")
              & (df["execution_timeframe"] == "5min")
              & (df["entry_time"] >= "2022-01-01")
              & (df["entry_time"] <= "2023-12-31")

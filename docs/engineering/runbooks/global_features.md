@@ -84,7 +84,7 @@ features_df, metadata = build_global_feature_frame(
 from trading_platform.core.global_features_cache import build_global_feature_caches
 
 descriptor = build_global_feature_caches(
-    symbol="EUR_USD",
+    symbol="EURUSD",
     data_root=data_root,
     config_path=manifest_path,
     timeframes=["5min", "15min", "1h"],
@@ -149,7 +149,7 @@ digest = compute_manifest_digest(manifest)
 ```bash
 # Rebuild all timeframes for a symbol
 poetry run python -m trading_platform.core.global_features_cache \
-    --symbol EUR_USD \
+    --symbol EURUSD \
     --config-path configs/global_features.yaml \
     --timeframes 5min 15min 1h 4h \
     --overwrite
@@ -157,7 +157,7 @@ poetry run python -m trading_platform.core.global_features_cache \
 
 **Error Message on Digest Mismatch:**
 ```
-ValueError: Manifest digest mismatch for EUR_USD/5min.
+ValueError: Manifest digest mismatch for EURUSD/5min.
 Cache was built with digest a3f2b8c1...,
 but current manifest has digest d4e5f6a7....
 Rebuild the cache with the current manifest.
@@ -179,7 +179,7 @@ The validation script verifies that cached features match freshly recomputed fea
 ```bash
 poetry run python scripts/validate_feature_cache.py \
     --cache-dir cache/global_features \
-    --symbol EUR_USD \
+    --symbol EURUSD \
     --timeframe 5min \
     --feature-config configs/global_features.yaml \
     --data-root data
@@ -190,7 +190,7 @@ poetry run python scripts/validate_feature_cache.py \
 # Validate 1000 random timestamps instead of all
 poetry run python scripts/validate_feature_cache.py \
     --cache-dir cache/global_features \
-    --symbol EUR_USD \
+    --symbol EURUSD \
     --timeframe 5min \
     --feature-config configs/global_features.yaml \
     --data-root data \
@@ -202,7 +202,7 @@ poetry run python scripts/validate_feature_cache.py \
 # Allow up to 1e-6 numeric drift (useful for cross-platform validation)
 poetry run python scripts/validate_feature_cache.py \
     --cache-dir cache/global_features \
-    --symbol EUR_USD \
+    --symbol EURUSD \
     --timeframe 5min \
     --feature-config configs/global_features.yaml \
     --data-root data \
@@ -221,7 +221,7 @@ poetry run python scripts/validate_feature_cache.py \
 Loading feature manifest from configs/global_features.yaml
 Manifest digest: a3f2b8c1d4e5f6a7...
 
-Loading cached features for EUR_USD/5min from cache/global_features
+Loading cached features for EURUSD/5min from cache/global_features
 Loaded 14400 rows, 12 columns
 Validating 14400 rows
 
@@ -243,7 +243,7 @@ Max drift tolerance: 1e-09
 Loading feature manifest from configs/global_features.yaml
 Manifest digest: a3f2b8c1d4e5f6a7...
 
-Loading cached features for EUR_USD/5min from cache/global_features
+Loading cached features for EURUSD/5min from cache/global_features
 Loaded 14400 rows, 12 columns
 Validating 14400 rows
 
@@ -287,7 +287,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        symbol: [EUR_USD, GBP_USD, USD_JPY]
+        symbol: [EURUSD, GBPUSD, USDJPY]
         timeframe: [5min, 15min, 1h]
 
     steps:
@@ -352,7 +352,7 @@ print(compute_manifest_digest(manifest))
 # 2. Validate with verbose output
 poetry run python scripts/validate_feature_cache.py \
     --cache-dir cache/global_features \
-    --symbol EUR_USD \
+    --symbol EURUSD \
     --timeframe 5min \
     --feature-config configs/global_features.yaml \
     --data-root data \
@@ -360,7 +360,7 @@ poetry run python scripts/validate_feature_cache.py \
 
 # 3. Rebuild cache and retry
 poetry run python -m trading_platform.core.global_features_cache \
-    --symbol EUR_USD \
+    --symbol EURUSD \
     --config-path configs/global_features.yaml \
     --timeframes 5min \
     --overwrite
@@ -368,7 +368,7 @@ poetry run python -m trading_platform.core.global_features_cache \
 
 ### Cache Loading Fails
 
-**Error:** `ValueError: No cache found for EUR_USD/5min`
+**Error:** `ValueError: No cache found for EURUSD/5min`
 
 **Solution:**
 1. Verify cache directory exists: `ls cache/global_features/eurusd/`

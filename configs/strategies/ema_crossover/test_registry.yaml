@@ -3,7 +3,7 @@
 # Updated by: tools/update_test_registry.py
 
 strategy: ema_crossover
-instrument: EUR_USD
+instrument: EURUSD
 timeframe: 1H
 
 # Test entries (newest first)

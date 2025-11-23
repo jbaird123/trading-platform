@@ -44,7 +44,7 @@
   - Assert dates are valid ISO format strings
 - Add test: `test_run_grid_instruments_validation()`
   - Verify `instruments` is a list of strings
-  - Assert instruments are valid (e.g., "EUR_USD", "GBP_USD")
+  - Assert instruments are valid (e.g., "EURUSD", "GBPUSD")
 - Add test: `test_run_grid_execution_timeframes_validation()`
   - Verify `execution_timeframes` is a list of strings
   - Assert timeframes are valid values: ["1min", "5min", "15min", "1H", "4H", "1D"]
@@ -120,8 +120,8 @@
     - `meta_campaign_id: str`
     - `profile_name: str`
 - Add test: `test_generate_campaign_filename()`
-  - Input: meta_campaign_id="trend_following_model_generation", profile_name="trend_with_risk", instrument="EUR_USD", timeframe="15min", param_index=0
-  - Expected output: "trend_following_model_generation_trend_with_risk_EUR_USD_15min_00.yaml"
+  - Input: meta_campaign_id="trend_following_model_generation", profile_name="trend_with_risk", instrument="EURUSD", timeframe="15min", param_index=0
+  - Expected output: "trend_following_model_generation_trend_with_risk_EURUSD_15min_00.yaml"
   - Assert filename matches expected pattern
 - Add test: `test_campaign_config_to_yaml_dict()`
   - Create campaign config dict
@@ -257,8 +257,8 @@
     date_ranges:
       - { start: "2018-01-01", end: "2023-12-31" }
     instruments:
-      - EUR_USD
-      - GBP_USD
+      - EURUSD
+      - GBPUSD
     execution_timeframes:
       - 1min
       - 5min

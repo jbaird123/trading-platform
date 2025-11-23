@@ -823,6 +823,23 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     # Optional parameter sweep (full re-runs for candidates)
     ps_cfg = cfg_raw.get("parameter_search") or {}
     ps_results = None
+
+    # Post-exit analysis is expensive; skip it when running sweeps/MC/WF
+    heavy_modes_enabled = False
+    if isinstance(ps_cfg, dict) and (ps_cfg.get("grid") or ps_cfg.get("random_space")):
+        heavy_modes_enabled = True
+    wf_cfg = cfg_raw.get("walk_forward") or {}
+    if isinstance(wf_cfg, dict) and wf_cfg.get("enabled"):
+        heavy_modes_enabled = True
+    mc_cfg = cfg_raw.get("monte_carlo") or {}
+    if isinstance(mc_cfg, dict) and str(mc_cfg.get("mode")) in {
+        "bar_resimulation",
+        "bar_bootstrap",
+    }:
+        heavy_modes_enabled = True
+    if heavy_modes_enabled:
+        cfg_raw["post_exit_analysis"] = {"enabled": False}
+
     if isinstance(ps_cfg, dict) and (ps_cfg.get("grid") or ps_cfg.get("random_space")):
         ps_results = run_parameter_sweep(
             analysis_df,
