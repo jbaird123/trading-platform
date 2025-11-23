@@ -17,7 +17,7 @@ def test_load_instrument_data_empty_base_file(tmp_path):
 
     # Should raise ValueError for empty data
     with pytest.raises(ValueError, match="Base data file is empty"):
-        load_instrument_data("EUR/USD", tmp_path)
+        load_instrument_data("EURUSD", tmp_path)
 
 
 def test_load_instrument_data_with_incremental_files(tmp_path):
@@ -44,7 +44,7 @@ def test_load_instrument_data_with_incremental_files(tmp_path):
         "2023-01-02 00:00:00+00:00,1.10,1.20,1.00,1.15,120\n"
     )
 
-    df, flags = load_instrument_data("EUR/USD", tmp_path)
+    df, flags = load_instrument_data("EURUSD", tmp_path)
 
     # Should have combined data
     assert len(df) == 3  # 2 base + 1 incremental
@@ -71,7 +71,7 @@ def test_load_instrument_data_skip_empty_incremental_files(tmp_path):
     empty_inc = inc_dir / "eurusd_interval_minute_1_20230102_20230102.csv"
     empty_inc.write_text("timestamp,open,high,low,close,volume\n")  # Header only
 
-    df, flags = load_instrument_data("EUR/USD", tmp_path)
+    df, flags = load_instrument_data("EURUSD", tmp_path)
 
     # Should only have base data (empty incremental skipped)
     assert len(df) == 1
@@ -98,7 +98,7 @@ def test_load_instrument_data_skip_corrupt_incremental_files(tmp_path):
     corrupt_inc = inc_dir / "eurusd_interval_minute_1_20230102_20230102.csv"
     corrupt_inc.write_text("corrupted,data,file\n")
 
-    df, flags = load_instrument_data("EUR/USD", tmp_path)
+    df, flags = load_instrument_data("EURUSD", tmp_path)
 
     # Should only have base data (corrupt incremental skipped)
     assert len(df) == 1
@@ -134,7 +134,7 @@ def test_load_instrument_data_multiple_dataframes_concat(tmp_path):
         "2023-01-03 00:00:00+00:00,1.15,1.25,1.05,1.20,130\n"
     )
 
-    df, flags = load_instrument_data("EUR/USD", tmp_path)
+    df, flags = load_instrument_data("EURUSD", tmp_path)
 
     # Should have all data concatenated and sorted
     assert len(df) == 3  # 1 base + 2 incremental

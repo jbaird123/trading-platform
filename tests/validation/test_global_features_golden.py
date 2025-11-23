@@ -50,7 +50,7 @@ PARQUET_FILENAMES = {
     "4H": "4h.parquet",
     "1D": "1d.parquet",
 }
-INSTRUMENT = get_instrument_definition("EUR/USD")
+INSTRUMENT = get_instrument_definition("EURUSD")
 SESSION = INSTRUMENT.sessions[0] if INSTRUMENT.sessions else None
 WARMUP_BARS = {
     "1H": 1000,
@@ -237,7 +237,7 @@ def rebuilt_test_cache(
     _write_platform_ohlc_dataset(data_root)
 
     descriptor = build_global_feature_caches(
-        symbol="EUR/USD",
+        symbol="EURUSD",
         data_root=data_root,
         config_path=GLOBAL_FEATURES_CONFIG,
         timeframes=list(PARQUET_FILENAMES.keys()),
@@ -911,7 +911,7 @@ def test_builder_cache_matches_calculated_indicators(tmp_path: Path) -> None:
     _write_platform_ohlc_dataset(data_root)
 
     descriptor = build_global_feature_caches(
-        symbol="EUR/USD",
+        symbol="EURUSD",
         data_root=data_root,
         config_path=GLOBAL_FEATURES_CONFIG,
         timeframes=["15min", "1H", "4H", "1D"],

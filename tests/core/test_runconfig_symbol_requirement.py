@@ -24,7 +24,7 @@ def test_runconfig_requires_instrument_symbol():
 
     # Test that a valid instrument passes and the symbol is normalized
     config = RunConfig.model_validate(
-        {"user_id": "test", "instrument": {"symbol": "EUR/USD"}}
+        {"user_id": "test", "instrument": {"symbol": "eurusd"}}
     )
     assert config.instrument is not None
     assert config.instrument["symbol"] == "EURUSD"
