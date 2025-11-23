@@ -5,7 +5,7 @@ from typing import Any, cast
 
 import pandas as pd
 
-from trading_platform.backtester.new_engine import run_event_loop_backtest
+from trading_platform.backtester.engine import run_event_loop_backtest
 from trading_platform.core.config import RunConfig
 from trading_platform.strategy.yaml_strategy import validate_strategy_config
 

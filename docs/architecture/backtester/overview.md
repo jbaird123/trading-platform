@@ -71,9 +71,9 @@ This document summarizes what the existing modules do today so we have a shared 
     1. Load/compile the strategy (or accept `CompiledStrategy`).
     2. Merge strategy parameter overrides and validate strategy config via `validate_strategy_config`.
     3. Resolve global feature definitions (`core.feature_resolver.resolve_global_features`) and compute global features via `compute_features`.
-    4. Delegate to `new_engine.run_event_loop_backtest` for execution.
+    4. Delegate to `engine.run_event_loop_backtest` for execution.
     5. Return result as dict or tuple format based on `return_exposure` flag.
-- **`new_engine.run_event_loop_backtest`**
+- **`engine.run_event_loop_backtest`**
   - Core execution engine responsible for:
     1. Compiling strategy and generating signals via `strategy.generate_signals`.
     2. Building `DecisionSnapshotFactory` to capture decision contexts (strategy features, global features, regime info, decision timestamps).

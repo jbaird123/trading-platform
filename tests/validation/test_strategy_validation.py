@@ -18,7 +18,7 @@ from typing import Any, cast
 
 import pandas as pd
 import pytest
-from trading_platform.backtester.new_engine import run_event_loop_backtest
+from trading_platform.backtester.engine import run_event_loop_backtest
 from trading_platform.core.global_features_cache import cache_covers_features
 from trading_platform.portfolio.trade import Trade
 

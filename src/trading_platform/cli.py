@@ -957,11 +957,17 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
             data_handler=data_handler,
         )
 
+    def _safe_len(obj: Any) -> int:
+        try:
+            return len(obj)
+        except Exception:
+            return 0
+
     # Stage: Write brief and final artifacts
     with profiler.stage(
         "write_brief_and_report",
         metadata={
-            "trade_count": len(trades),
+            "trade_count": _safe_len(trades),
             "has_parameter_search": ps_results is not None,
             "has_walk_forward": wf_results is not None,
             "has_monte_carlo": mc_results is not None,

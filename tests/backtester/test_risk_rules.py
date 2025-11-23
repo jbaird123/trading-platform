@@ -253,7 +253,7 @@ def test_position_cap_zero_blocks_new_entry():
     )
     trades, exposure, skipped = cast(tuple[list, list, list], result)
 
-    # With floor of one position per side in new engine, trade is allowed
+    # With floor of one position per side in the engine, trade is allowed
     assert len(trades) == 1
     assert trades[0].side == "long"
     assert trades[0].exit_reason == "end_of_data"

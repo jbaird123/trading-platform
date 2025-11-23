@@ -89,7 +89,7 @@ def test_run_backtest_uses_cached_global_features(
     def fake_compute_features(*_: Any, **__: Any) -> pd.DataFrame:
         raise AssertionError("compute_features should not run when cache is present")
 
-    # Cache path is no-op in new engine; ensure compute_features not invoked.
+    # Cache path is no-op in the engine; ensure compute_features not invoked.
     monkeypatch.setattr(
         "trading_platform.strategy.features.compute_features",
         fake_compute_features,

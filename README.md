@@ -149,7 +149,7 @@ The most critical design principle is the strict separation of the **Strategy En
 
 - `poetry run pytest tests/backtester -q` runs the fast unit suite for the event loop, context builders, and reporting pipeline.
 - `poetry run pytest tests/validation -k "export_exit_price or strategy_validation" -q` compares our platform trades against the TradingView reference datasets (exit prices, exit times, MFE/MAE). These tests **must pass** before releasing any change.
-- The hash-based tests in `tests/validation/test_strategy_validation.py` intentionally fail at the moment because the new engine records higher precision stop prices than the frozen CSVs. Do not regenerate the goldens yet—the failures remind us to bless the new output once stakeholders finish their review.
+- The hash-based tests in `tests/validation/test_strategy_validation.py` intentionally fail at the moment because the engine records higher precision stop prices than the frozen CSVs. Do not regenerate the goldens yet—the failures remind us to bless the new output once stakeholders finish their review.
 
 Every run produces a telemetry log entry with bars/sec, fills, and brief-generation timing. Enable additional logging with `REPORTING_TELEMETRY=1` to capture `brief_seconds` and `trade_count` for post-run analysis. The reporting pipeline lives in [`src/trading_platform/backtester/reporting_pipeline.py`](src/trading_platform/backtester/reporting_pipeline.py).
 
