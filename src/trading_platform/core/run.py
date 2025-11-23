@@ -4,7 +4,7 @@ import csv
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from trading_platform.core.config import RunConfig
 from trading_platform.core.robustness import (
@@ -69,6 +69,7 @@ def finalize_run(
     processed_data_path: Path | None = None,
     recommendations: list[dict[str, Any]] | None = None,
     field_definitions: dict[str, Any] | None = None,
+    artifact_mode: Literal["full", "minimal"] = "full",
 ) -> Path:
     """Generate and save a brief for this run under the run_path.
 
@@ -181,6 +182,10 @@ def finalize_run(
         recommendations=recommendations,
         field_definitions=field_definitions,
     )
+
+    if artifact_mode == "minimal":
+        return brief_path
+
     # Export parameter search results, if available
     try:
         ps = param_search_payload

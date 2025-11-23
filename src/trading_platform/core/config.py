@@ -144,6 +144,7 @@ class RunConfig(BaseModel):
     user_id: str = Field(
         "default_user", description="Identifier for the user or owner of the run."
     )
+    artifact_mode: Literal["full", "minimal"] = "full"
     run_id: str = Field(
         default_factory=gen_run_id, description="Unique identifier for the run."
     )

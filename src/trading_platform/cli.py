@@ -12,7 +12,7 @@ from copy import deepcopy
 from datetime import datetime
 from os import fspath
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Literal, cast
 from unittest.mock import Mock
 
 import pandas as pd
@@ -252,6 +252,8 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         setattr(cfg, "global_features_mode", "full")
     if not hasattr(cfg, "minimal_global_features_include"):
         setattr(cfg, "minimal_global_features_include", [])
+    if not hasattr(cfg, "artifact_mode"):
+        setattr(cfg, "artifact_mode", cfg_raw.get("artifact_mode", "full"))
     current_instrument = getattr(cfg, "instrument", None)
     if current_instrument is None or isinstance(current_instrument, Mock):
         setattr(cfg, "instrument", cfg_raw.get("instrument"))
@@ -771,37 +773,45 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         feature_enriched_df = strat._feature_df if strat._feature_df is not None else df
         strategy_name = strat.name
 
+    artifact_mode: Literal["full", "minimal"] = cast(
+        Literal["full", "minimal"], getattr(cfg, "artifact_mode", "full")
+    )
+
+    signals_path: Path | None = None
     # Stage: Write artifacts (signals, prices, features)
-    with profiler.stage("write_signals_and_features"):
-        # Persist raw signals for AI Lab analysis
-        try:
-            from trading_platform.core.signal import Signal
+    if artifact_mode != "minimal":
+        with profiler.stage("write_signals_and_features"):
+            # Persist raw signals for AI Lab analysis
+            try:
+                from trading_platform.core.signal import Signal
 
-            signals_path = run_path / "signals.parquet"
-            signals = strat.generate_signals(df)
-            # Ensure signals are saved with proper column name
-            if isinstance(signals, pd.Series):
-                # Extract command strings from Signal objects for serialization
-                signal_values = signals.apply(
-                    lambda x: x.command if isinstance(x, Signal) else x
-                )
-                signals_df = pd.DataFrame({"signal": signal_values})
-            else:
-                signals_df = pd.DataFrame(signals)
-            signals_df.to_parquet(signals_path)
-        except Exception as e:  # pragma: no cover
-            logger.warning(f"Failed to save signals.parquet for AI Lab: {e}")
+                signals_path = run_path / "signals.parquet"
+                signals = strat.generate_signals(df)
+                # Ensure signals are saved with proper column name
+                if isinstance(signals, pd.Series):
+                    # Extract command strings from Signal objects for serialization
+                    signal_values = signals.apply(
+                        lambda x: x.command if isinstance(x, Signal) else x
+                    )
+                    signals_df = pd.DataFrame({"signal": signal_values})
+                else:
+                    signals_df = pd.DataFrame(signals)
+                signals_df.to_parquet(signals_path)
+            except Exception as e:  # pragma: no cover
+                logger.warning(f"Failed to save signals.parquet for AI Lab: {e}")
 
-        # Persist prices and features for charts
-        try:
-            save_prices_csv(run_path / "prices.csv", df)
-        except Exception as e:  # pragma: no cover
-            logger.warning(f"Failed to save prices.csv: {e}")
-        try:
-            if feature_enriched_df is not None and hasattr(strat, "features"):
-                save_features_for_chart(run_path, feature_enriched_df, strat.features)
-        except Exception as e:  # pragma: no cover
-            logger.warning(f"Failed to save features: {e}")
+            # Persist prices and features for charts
+            try:
+                save_prices_csv(run_path / "prices.csv", df)
+            except Exception as e:  # pragma: no cover
+                logger.warning(f"Failed to save prices.csv: {e}")
+            try:
+                if feature_enriched_df is not None and hasattr(strat, "features"):
+                    save_features_for_chart(
+                        run_path, feature_enriched_df, strat.features
+                    )
+            except Exception as e:  # pragma: no cover
+                logger.warning(f"Failed to save features: {e}")
 
     meta = {
         "strategy_name": strategy_name,
@@ -843,6 +853,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     if heavy_modes_enabled:
         cfg_for_heavy_runs = copy.deepcopy(cfg_raw)
         cfg_for_heavy_runs["post_exit_analysis"] = {"enabled": False}
+        cfg_for_heavy_runs["artifact_mode"] = "minimal"
 
     if isinstance(ps_cfg, dict) and (ps_cfg.get("grid") or ps_cfg.get("random_space")):
         ps_results = run_parameter_sweep(
@@ -1010,22 +1021,25 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
             signals_path=signals_path,
             rmm_spans_path=rmm_spans_path,
             processed_data_path=processed_data_path,
+            artifact_mode=artifact_mode,
         )
 
     # Stop profiler and save performance data
     profiler.stop()
-    try:
-        profiler.write_json(run_path / "performance.json")
-        profiler.log_summary()
-    except Exception as e:  # pragma: no cover
-        logger.warning(f"Failed to save performance profile: {e}")
+    if artifact_mode != "minimal":
+        try:
+            profiler.write_json(run_path / "performance.json")
+            profiler.log_summary()
+        except Exception as e:  # pragma: no cover
+            logger.warning(f"Failed to save performance profile: {e}")
 
     # Generate equity curve chart
-    try:
-        save_equity_chart_from_brief(run_path)
-    except Exception as e:  # pragma: no cover
-        # Safe to continue: equity chart is optional visualization
-        logger.warning(f"Failed to generate equity chart: {e}")
+    if artifact_mode != "minimal":
+        try:
+            save_equity_chart_from_brief(run_path)
+        except Exception as e:  # pragma: no cover
+            # Safe to continue: equity chart is optional visualization
+            logger.warning(f"Failed to generate equity chart: {e}")
 
     print(f"Run created at: {run_path}")
     print(f"- Brief: {run_path / 'brief.json'}")
