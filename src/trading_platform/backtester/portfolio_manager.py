@@ -264,6 +264,20 @@ class PortfolioManager:
         entry_cost, breakdown = self._cost_model.compute_entry_cost(
             size=size, price=entry_mid, instrument=self._instrument
         )
+
+        # Calculate initial risk for R-multiple tracking
+        initial_risk_ccy = None
+        stop_loss_price = None
+        if state.decision.risk:
+            stop_loss_price = state.decision.risk.get("entry_stop_loss")
+            if stop_loss_price is not None:
+                if state.decision.side == "long":
+                    risk_distance = entry_mid - float(stop_loss_price)
+                else:
+                    risk_distance = float(stop_loss_price) - entry_mid
+                # Convert to currency using size
+                initial_risk_ccy = abs(risk_distance * size)
+
         state.entry_mid_price = entry_mid
         state.entry_cost = entry_cost
         state.entry_cost_breakdown = breakdown
@@ -276,6 +290,8 @@ class PortfolioManager:
             side=state.decision.side,
             size=size,
             context_at_entry=state.decision.context,
+            initial_risk_ccy=initial_risk_ccy,
+            stop_loss=stop_loss_price,
         )
         state.expiry_bar = None
         state.active_view = ActivePosition(
@@ -347,6 +363,12 @@ class PortfolioManager:
                 + exit_breakdown.get("slippage", 0.0)
             ),
         }
+
+        # Calculate R-multiple
+        r_multiple = None
+        if pos.initial_risk_ccy is not None and pos.initial_risk_ccy > 0:
+            r_multiple = net_pnl / pos.initial_risk_ccy
+
         trade = Trade(
             symbol=pos.symbol,
             entry_time=pos.entry_time,
@@ -361,6 +383,7 @@ class PortfolioManager:
             mae_currency=pos.mae_currency,
             bars_held=pos.bars_held,
             initial_risk_ccy=pos.initial_risk_ccy,
+            r_multiple=r_multiple,
             cost_currency=total_cost,
             cost_breakdown=combined_breakdown,
             context_at_entry=pos.context_at_entry,
