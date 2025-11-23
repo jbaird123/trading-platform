@@ -152,7 +152,7 @@ def update_registry(
         print("Creating new registry...")
         registry = {
             "strategy": strategy_name,
-            "instrument": "EUR_USD",
+            "instrument": "EURUSD",
             "timeframe": "1H",
             "tests": [],
             "last_updated": None,

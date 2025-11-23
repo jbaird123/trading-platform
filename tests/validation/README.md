@@ -116,7 +116,7 @@ plot(stop_price, "Stop", color=color.orange, style=plot.style_linebr)
 
 ### Step 3: Export TradingView Data
 
-1. **Run strategy** in TradingView on EUR/USD 1H chart
+1. **Run strategy** in TradingView on EURUSD 1H chart
 2. **Set timezone**: 'UTC (Reykjavik)' (NOT 'UTC (Azores)')
 3. **Set date range**: 2022-12-01 to 2024-12-31 (includes warmup period before validation range)
 4. **Export trades**: Strategy Tester → List of Trades → Export (CSV)
@@ -261,7 +261,7 @@ execution_model: "next_bar_open"  # Match TradingView
 exit_tie_break: "stop_then_tp"  # If both hit same bar
 
 instrument:
-  symbol: "EUR_USD"
+  symbol: "EURUSD"
   base_currency: "EUR"
   quote_currency: "USD"
   pip_location: -4
