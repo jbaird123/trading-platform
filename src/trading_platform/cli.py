@@ -668,7 +668,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     ret_exp = bool(cfg_raw.get("return_exposure", False))
     ret_skips = bool(cfg_raw.get("return_skips", True))
 
-    # Run backtest through the single entry point (orchestrator)
+    # Run backtest through the backtester entry point
     res = run_backtest(
         config=cfg,
         market_data=df,
@@ -684,9 +684,9 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         return_skips=ret_skips,
     )
 
-    # Extract results from orchestrator
-    # When return_exposure=True, orchestrator returns tuple: (trades, exposure, [skips])
-    # When return_exposure=False, orchestrator returns dict with full metadata
+    # Extract results from backtester
+    # When return_exposure=True, backtester returns tuple: (trades, exposure, [skips])
+    # When return_exposure=False, backtester returns dict with full metadata
     skips: list[dict[str, Any]] = []
     strat = None
     feature_enriched_df = None
@@ -702,7 +702,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
             trades = cast(list[Trade], res[0])
             exposure = cast(list[tuple[datetime, float]], res[1])
         # Note: In tuple format, we don't get back strat/feature_enriched_df
-        # The orchestrator already compiled the strategy internally
+        # The backtester already compiled the strategy internally
         # We'll need to recompile for saving features (not ideal, but temporary)
     else:
         # Dict format - extract all metadata
@@ -720,11 +720,11 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
             skips = result_dict.get("skipped", []) or []
 
     # For tuple format, we need strategy object for features/signals saving
-    # Recompile if needed (orchestrator already did this, but didn't return
+    # Recompile if needed (backtester already did this, but didn't return
     # it in tuple mode)
     if strat is None:
         strat = compile_strategy(strat_cfg)
-        # Generate signals to get feature_df (orchestrator already did this too)
+        # Generate signals to get feature_df (backtester already did this too)
         strat.generate_signals(df)
         feature_enriched_df = strat._feature_df if strat._feature_df is not None else df
         strategy_name = strat.name
