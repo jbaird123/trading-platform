@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
-from trading_platform.backtester.orchestrator import ensure_market_data_with_warmup
+from trading_platform.backtester.warmup_helpers import ensure_market_data_with_warmup
 
 
 class DummyHandler:

@@ -33,7 +33,7 @@ Interaction between entry window logic and position cap validation needs review:
 
 **Related Files:**
 - `src/trading_platform/portfolio/portfolio.py` - `process_command()` method
-- `src/trading_platform/backtester/core.py` - Skip logging mechanism
+- `src/trading_platform/backtester/event_loop.py` - Skip logging mechanism
 
 ---
 

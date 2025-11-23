@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 
 import pandas as pd
-from trading_platform.backtester.core import _simulate_counterfactual_exact
+from trading_platform.backtester.counterfactual import simulate_counterfactual_exact
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 
@@ -116,7 +116,7 @@ def test_counterfactual_exact_exit_kind_end() -> None:
     entry_index = 1
     entry_price = float(df.iloc[entry_index]["close"])
 
-    result = _simulate_counterfactual_exact(
+    result = simulate_counterfactual_exact(
         market_data=df,
         strategy=_dummy_strategy_cfg(),
         start_index=entry_index,

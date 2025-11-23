@@ -13,12 +13,13 @@ from datetime import datetime
 from typing import Any, cast
 
 import pandas as pd
-from trading_platform.backtester.core import _enrich_trades_with_post_exit_analysis
+from trading_platform.backtester.post_exit import enrich_trades_with_post_exit_analysis
 from trading_platform.core.config import RunConfig
 from trading_platform.portfolio.trade import Trade
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
+from tests.backtester.dummy_objects import _base_config, _dummy_strategy_cfg
 from tests.test_helpers import (
     get_empty_global_features_path,
     run_backtest_simulation,
@@ -30,21 +31,8 @@ def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
     return {"symbol": symbol}
 
 
-def _dummy_strategy_cfg() -> CompiledStrategy:
-    return CompiledStrategy(
-        name="dummy",
-        features=[],
-        overlays=[],
-        long_entry_blocks=[],
-        long_exit_blocks=[],
-        short_entry_blocks=[],
-        short_exit_blocks=[],
-        parameters={},
-    )
-
-
-def test_enrich_trades_with_post_exit_analysis_empty_trades():
-    """Test _enrich_trades_with_post_exit_analysis with empty trades list."""
+def testenrich_trades_with_post_exit_analysis_empty_trades():
+    """Test enrich_trades_with_post_exit_analysis with empty trades list."""
     # Validates: [REQ-BT-POST-001] Handle empty trades gracefully
     df = pd.DataFrame(
         {
@@ -58,11 +46,11 @@ def test_enrich_trades_with_post_exit_analysis_empty_trades():
     )
 
     # Should not raise error with empty list
-    _enrich_trades_with_post_exit_analysis([], df, [10, 20])
+    enrich_trades_with_post_exit_analysis([], df, [10, 20])
 
 
-def test_enrich_trades_with_post_exit_analysis_empty_horizons():
-    """Test _enrich_trades_with_post_exit_analysis with empty horizons."""
+def testenrich_trades_with_post_exit_analysis_empty_horizons():
+    """Test enrich_trades_with_post_exit_analysis with empty horizons."""
     # Validates: [REQ-BT-POST-002] Handle empty horizons gracefully
     df = pd.DataFrame(
         {
@@ -91,11 +79,11 @@ def test_enrich_trades_with_post_exit_analysis_empty_horizons():
     )
 
     # Should not raise error with empty horizons
-    _enrich_trades_with_post_exit_analysis([trade], df, [])
+    enrich_trades_with_post_exit_analysis([trade], df, [])
 
 
-def test_enrich_trades_with_post_exit_analysis_exit_time_not_found():
-    """Test _enrich_trades_with_post_exit_analysis when exit time not in data."""
+def testenrich_trades_with_post_exit_analysis_exit_time_not_found():
+    """Test enrich_trades_with_post_exit_analysis when exit time not in data."""
     # Validates: [REQ-BT-POST-003] Handle missing exit time in data
     df = pd.DataFrame(
         {
@@ -121,14 +109,14 @@ def test_enrich_trades_with_post_exit_analysis_exit_time_not_found():
     )
 
     # Should handle ValueError and skip this trade
-    _enrich_trades_with_post_exit_analysis([trade], df, [10])
+    enrich_trades_with_post_exit_analysis([trade], df, [10])
 
     # Trade should not have post_exit_analysis since exit time wasn't found
     assert not hasattr(trade, "post_exit_analysis") or trade.post_exit_analysis is None
 
 
-def test_enrich_trades_with_post_exit_analysis_no_data_after_exit():
-    """Test _enrich_trades_with_post_exit_analysis when no data after exit."""
+def testenrich_trades_with_post_exit_analysis_no_data_after_exit():
+    """Test enrich_trades_with_post_exit_analysis when no data after exit."""
     # Validates: [REQ-BT-POST-004] Handle no data after exit
     df = pd.DataFrame(
         {
@@ -153,7 +141,7 @@ def test_enrich_trades_with_post_exit_analysis_no_data_after_exit():
         pnl=6.0,
     )
 
-    _enrich_trades_with_post_exit_analysis([trade], df, [10])
+    enrich_trades_with_post_exit_analysis([trade], df, [10])
 
     # Should have post_exit_analysis (new PostExitAnalysis format)
     assert hasattr(trade, "post_exit_analysis")
@@ -162,8 +150,8 @@ def test_enrich_trades_with_post_exit_analysis_no_data_after_exit():
     assert len(trade.post_exit_analysis.simulated_holds) == 0
 
 
-def test_enrich_trades_with_post_exit_analysis_empty_post_bars():
-    """Test _enrich_trades_with_post_exit_analysis with empty slice."""
+def testenrich_trades_with_post_exit_analysis_empty_post_bars():
+    """Test enrich_trades_with_post_exit_analysis with empty slice."""
     # Validates: [REQ-BT-POST-005] Handle empty post-exit slice
     df = pd.DataFrame(
         {
@@ -188,7 +176,7 @@ def test_enrich_trades_with_post_exit_analysis_empty_post_bars():
         pnl=5.0,
     )
 
-    _enrich_trades_with_post_exit_analysis([trade], df, [0])
+    enrich_trades_with_post_exit_analysis([trade], df, [0])
 
     # Should have post_exit_analysis (new PostExitAnalysis format)
     assert hasattr(trade, "post_exit_analysis")
@@ -201,8 +189,8 @@ def test_enrich_trades_with_post_exit_analysis_empty_post_bars():
     assert sim.simulated_exit_bar_offset == 0
 
 
-def test_enrich_trades_with_post_exit_analysis_long_trade():
-    """Test _enrich_trades_with_post_exit_analysis for long trade."""
+def testenrich_trades_with_post_exit_analysis_long_trade():
+    """Test enrich_trades_with_post_exit_analysis for long trade."""
     # Validates: [REQ-BT-POST-006] Calculate MFE/MAE for long trades
     df = pd.DataFrame(
         {
@@ -226,7 +214,7 @@ def test_enrich_trades_with_post_exit_analysis_long_trade():
         pnl=5.0,
     )
 
-    _enrich_trades_with_post_exit_analysis([trade], df, [2])
+    enrich_trades_with_post_exit_analysis([trade], df, [2])
 
     # Long: MFE = max(high - exit_price) * size, MAE = min(low - exit_price) * size
     assert hasattr(trade, "post_exit_analysis")
@@ -238,8 +226,8 @@ def test_enrich_trades_with_post_exit_analysis_long_trade():
     assert sim.mae_during_hold < 0  # Price also dipped (adverse for long)
 
 
-def test_enrich_trades_with_post_exit_analysis_short_trade():
-    """Test _enrich_trades_with_post_exit_analysis for short trade."""
+def testenrich_trades_with_post_exit_analysis_short_trade():
+    """Test enrich_trades_with_post_exit_analysis for short trade."""
     # Validates: [REQ-BT-POST-007] Calculate MFE/MAE for short trades
     df = pd.DataFrame(
         {
@@ -263,7 +251,7 @@ def test_enrich_trades_with_post_exit_analysis_short_trade():
         pnl=-5.0,
     )
 
-    _enrich_trades_with_post_exit_analysis([trade], df, [2])
+    enrich_trades_with_post_exit_analysis([trade], df, [2])
 
     # Short: MFE = max(exit_price - low) * size, MAE = min(exit_price - high) * size
     assert hasattr(trade, "post_exit_analysis")
@@ -651,7 +639,7 @@ def test_post_exit_analysis_enabled_false():
     )
 
 
-def test_enrich_trades_with_post_exit_analysis_empty_slice_edge():
+def testenrich_trades_with_post_exit_analysis_empty_slice_edge():
     """Test post-exit analysis when slice is exactly at end boundary."""
     # Validates: [REQ-BT-POST-011] Handle edge case where slice is empty
     # due to end boundary
@@ -679,7 +667,7 @@ def test_enrich_trades_with_post_exit_analysis_empty_slice_edge():
     )
 
     # Horizon of 1 should get the last bar
-    _enrich_trades_with_post_exit_analysis([trade], df, [1, 2])
+    enrich_trades_with_post_exit_analysis([trade], df, [1, 2])
 
     # Should have data for horizon 1 (one bar after exit)
     assert hasattr(trade, "post_exit_analysis")
@@ -787,6 +775,7 @@ def test_rmm_context_feature_rounding_with_strategy_features():
         short_exit_blocks=[],
         parameters={},
     )
+    object.__setattr__(strategy, "original_config", _base_config("test_strategy"))
     # Still need to call generate_signals to initialize _feature_df
     df = df.iloc[40:].copy()
     strategy.generate_signals(df)

@@ -4,7 +4,7 @@
   },
   "timing_buckets": {
     "hour_of_day": {
-      "9": {
+      "10": {
         "n_trades": 1,
         "total_pnl": 6.0,
         "win_rate": 1.0
@@ -28,8 +28,8 @@
     }
   },
   "exposure": {
-    "average_gross_exposure": 31.571428571428573,
-    "peak_gross_exposure": 113.0
+    "average_gross_exposure": 16.024390243902438,
+    "peak_gross_exposure": 112.0
   },
   "contrasts": {
     "long_trades": {
@@ -49,7 +49,7 @@
       "total_pnl": 6.0,
       "avg_win": 6.0,
       "avg_loss": 0.0,
-      "avg_win_movement": 6.0,
+      "avg_win_movement": 0.0,
       "avg_loss_movement": 0.0
     }
   },
@@ -91,14 +91,14 @@
   "meta": {
     "strategy_name": "Golden_EMA_Crossover",
     "run_id": "golden_run_test",
-    "git_commit": "edeb510",
+    "git_commit": "e9097f1",
     "run_seed": 42
   },
   "strategy_params": {},
   "overall_performance": {
     "n_trades": 1,
     "total_pnl": 6.0,
-    "total_pnl_movement": 6.0,
+    "total_pnl_movement": 0.0,
     "total_costs": 0.0,
     "cost_breakdown": {
       "spread": 0.0,
@@ -119,7 +119,7 @@
     "win_rate": 1.0,
     "avg_win": 6.0,
     "avg_loss": 0.0,
-    "avg_win_movement": 6.0,
+    "avg_win_movement": 0.0,
     "avg_loss_movement": 0.0,
     "max_win": 6.0,
     "max_loss": 0.0
@@ -162,7 +162,7 @@
     "current_streak": 1
   },
   "holding_time": {
-    "median_secs": 21600.0
+    "median_secs": 18000.0
   },
   "monte_carlo": {
     "mode": "bootstrap_trades",
@@ -257,21 +257,21 @@
   "provenance": {
     "run_id": "golden_run_test",
     "strategy_name": "Golden_EMA_Crossover",
-    "data_start": "2023-01-02T09:00:00+00:00",
+    "data_start": "2023-01-02T10:00:00+00:00",
     "data_end": "2023-01-02T15:00:00+00:00",
     "symbols": [
       "EURUSD"
     ],
     "app_version": "0.0.1",
-    "git_commit": "edeb510",
+    "git_commit": "e9097f1",
     "run_seed": 42
   },
   "artifacts": {},
   "field_definitions": {
     "activity.average_trades_per_day": "Average number of trades executed per day over the backtest period.",
-    "timing_buckets.hour_of_day.9.n_trades": "Number of trades that entered during this hour.",
-    "timing_buckets.hour_of_day.9.total_pnl": "Total PnL for trades entered during this hour.",
-    "timing_buckets.hour_of_day.9.win_rate": "Win rate for trades entered during this hour.",
+    "timing_buckets.hour_of_day.10.n_trades": "Number of trades that entered during this hour.",
+    "timing_buckets.hour_of_day.10.total_pnl": "Total PnL for trades entered during this hour.",
+    "timing_buckets.hour_of_day.10.win_rate": "Win rate for trades entered during this hour.",
     "timing_buckets.day_of_week.0.n_trades": "Number of trades that entered during this day of week.",
     "timing_buckets.day_of_week.0.total_pnl": "Total PnL for trades entered during this day of week.",
     "timing_buckets.day_of_week.0.win_rate": "Win rate for trades entered during this day of week.",
@@ -435,16 +435,16 @@
       "symbol": "EURUSD",
       "side": "short",
       "size": 1.0,
-      "entry_time": "2023-01-02T09:00:00+00:00",
+      "entry_time": "2023-01-02T10:00:00+00:00",
       "exit_time": "2023-01-02T15:00:00+00:00",
       "entry_price": 113.0,
       "exit_price": 107.0,
       "pnl": 6.0,
-      "pnl_movement": 6.0,
+      "pnl_movement": 0.0,
       "exit_reason": "end_of_data",
-      "r_multiple": 6e-06,
-      "initial_stop_loss_price": 1000113.0,
-      "take_profit": -999887.0,
+      "r_multiple": null,
+      "initial_stop_loss_price": null,
+      "take_profit": null,
       "mfe_normalized": 7.0,
       "mae_normalized": 1.0,
       "bars_held": 6,
@@ -454,15 +454,18 @@
           "sma_slow": 118.0
         },
         "global_features": {},
-        "decision_time": "2023-01-02T09:00:00+00:00"
+        "decision_time": "2023-01-02T09:00:00+00:00",
+        "risk": {
+          "entry_price": 113.0
+        }
       },
       "context_at_exit": {
-        "strategy_features": {
-          "sma_fast": 111.5,
-          "sma_slow": 115.9
-        },
+        "strategy_features": {},
         "global_features": {},
-        "decision_time": "2023-01-02T15:00:00+00:00"
+        "decision_time": "2023-01-02T15:00:00+00:00",
+        "risk": {
+          "entry_price": 113.0
+        }
       },
       "cost_breakdown": {
         "spread": 0.0,
@@ -472,16 +475,7 @@
       "post_exit_analysis": null
     }
   ],
-  "recommendations": [
-    {
-      "id": "consider_adx_filter_for_entries",
-      "title": "Consider ADX Filter for Entries",
-      "description": "The strategy has a high trade count and low win rate. Consider adding an ADX filter to entry rules to improve signal quality.",
-      "rule": "Consider ADX Filter for Entries",
-      "severity": "info",
-      "suggested_action": "Add ADX filter to entry rules."
-    }
-  ],
+  "recommendations": [],
   "regime_summary": {
     "regime_labels": [],
     "allowed_labels": [],

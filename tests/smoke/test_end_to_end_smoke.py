@@ -57,6 +57,30 @@ def test_e2e_run_with_contextual_features(tmp_path):
         short_exit_blocks=[],
         parameters={},
     )
+    object.__setattr__(
+        strategy,
+        "original_config",
+        {
+            "strategy_name": "E2ETestStrategy",
+            "features": [],
+            "overlays": [],
+            "parameters": {},
+            "long_entry_rules": [
+                {
+                    "any_of": [
+                        {
+                            "condition": "is_above",
+                            "left": {"value": 1},
+                            "right": {"value": 0},
+                        }
+                    ]
+                }
+            ],
+            "long_exit_rules": [],
+            "short_entry_rules": [],
+            "short_exit_rules": [],
+        },
+    )
     strategy.generate_signals(market_data)
 
     # Generate signals with trades - enter after sufficient warmup
@@ -77,6 +101,7 @@ def test_e2e_run_with_contextual_features(tmp_path):
             "run_id": "ctx_features_test",
             "instrument": {
                 "symbol": "EURUSD",  # Use registered symbol
+                "timeframe": "1H",
             },
         }
     )

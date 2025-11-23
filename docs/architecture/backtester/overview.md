@@ -65,36 +65,61 @@ This document summarizes what the existing modules do today so we have a shared 
 **Purpose:** Orchestrate market data, strategies, risk management, gating, and portfolio state to produce finalized `Trade` objects, briefs, and diagnostics.
 
 **Key Components**
-- **`orchestrator.run_backtest`**
-  - Public entry point used by CLI, sweeps, and tests.
+- **`backtester.run_backtest`**
+  - Public entry point (compatibility wrapper) used by CLI, sweeps, and tests.
   - Steps:
     1. Load/compile the strategy (or accept `CompiledStrategy`).
-    2. Merge strategy parameter overrides, warmup requirements (`warmup.calculate_warmup_start_date`), and data request bounds to extend/resample market data via `DataHandler`.
-    3. Resolve global feature definitions (`core.feature_resolver.resolve_global_features`) and build `data_with_global_features`.
-    4. Instantiate `PortfolioManager`, `RiskExitManager`, and optional gating engine (`regime_market_manager`).
-    5. Call `_execute_backtest_loop` with market data, signals, REM, gating metadata, etc.
-    6. Assemble `equity_curve`, propagate skip records/exposure curves, and return a dict for reporting.
-- **`core._execute_backtest_loop`**
-  - Massive loop responsible for:
-    - Validating inputs (signals length, allowed commands, NaN checks).
-    - Creating fast row views (`_make_bar_factory`) for performance.
-    - Building decision contexts each bar via `_build_context_snapshot` (injects strategy features, global features, optional regime information, and the ISO decision timestamp).
-    - Managing `pending_entry`/`pending_exit` dicts for `next_bar_open` execution models, capturing snapshots of feature bars, contexts, and decision timestamps/prices.
-    - Running gating (`ProfitabilityGatingEngine`) before opening positions (records gating metadata into context and skip lists).
-    - Invoking REM each bar (`rem.check_exits_intrabar`) with optional 1-minute zoom to detect stop/tp hits.
-    - Delegating actual entry/exit decisions to `PortfolioManager.process_command`, then acting on returned descriptors (enter now vs. defer to next open vs. close immediately).
-    - Recording exposure points, skipped trades, counterfactual simulations, and post-exit analyses.
-  - Handles context re-alignment for deferred actions via `_update_context_for_timestamp`.
-  - Contains simulation utilities (`_simulate_counterfactual_fast/_exact`) used by validation tooling.
-- **`warmup.py`**
-  - Calculates how many bars to prepend based on feature lookbacks and global feature configs; used both by orchestrator and tests.
+    2. Merge strategy parameter overrides and validate strategy config via `validate_strategy_config`.
+    3. Resolve global feature definitions (`core.feature_resolver.resolve_global_features`) and compute global features via `compute_features`.
+    4. Delegate to `new_engine.run_event_loop_backtest` for execution.
+    5. Return result as dict or tuple format based on `return_exposure` flag.
+- **`new_engine.run_event_loop_backtest`**
+  - Core execution engine responsible for:
+    1. Compiling strategy and generating signals via `strategy.generate_signals`.
+    2. Building `DecisionSnapshotFactory` to capture decision contexts (strategy features, global features, regime info, decision timestamps).
+    3. Instantiating `PortfolioManager`, `RiskExitAdapter` (wrapping `RiskExitManager`), and `EventLoop`.
+    4. Processing each bar through the event loop:
+       - Advancing the system clock to bar close time.
+       - Extracting command from signals (string or `Signal` objects).
+       - Building `ExecutionIntent` objects with decision snapshots.
+       - Submitting intents to the event loop.
+       - Checking REM for stop/TP exits via `RiskExitAdapter.check_exits_for_bar`.
+       - Advancing event loop to process fills (deferred next-bar-open execution).
+       - Recording equity curve points.
+    5. Enriching completed trades with post-exit analysis via `enrich_trades_with_post_exit_analysis`.
+    6. Returning `BacktestResult` with trades, equity curve, and skip records.
+- **`event_loop.EventLoop`**
+  - State machine managing pending intents and deferred fills.
+  - `submit_intent` queues entry/exit intents and validates against gating policies.
+  - `submit_risk_exit` processes REM-triggered exits immediately (bypassing execution model).
+  - `advance_clock` processes pending fills that execute at the current bar (e.g., next-bar-open fills).
+  - Integrates with `PortfolioManager` to create/close positions and generate `Trade` objects.
+- **`context.DecisionSnapshotFactory`**
+  - Builds immutable decision snapshots capturing strategy features, global features, regime metadata, risk levels, and decision timestamps.
+  - Ensures all decision contexts conform to the contract required by briefs and validation tooling.
+- **`portfolio_manager.PortfolioManager`**
+  - Manages position state machine (EMPTY → ENTRY_PENDING → OPEN → EXIT_PENDING → EMPTY).
+  - Tracks single open position, applies cost model (spreads/commissions), and produces `Trade` objects.
+  - Updates position metrics (MFE/MAE, bars held, unrealized PnL) each bar.
+- **`risk.RiskExitAdapter`**
+  - Wraps `RiskExitManager` and provides bar-level exit checking interface for the event loop.
+  - Handles 1-minute zoom for ambiguous stop/TP scenarios via `DataHandler`.
+- **`warmup_helpers.py`**
+  - Calculates warmup start dates based on feature lookbacks and global feature configs.
+  - Infers execution timeframe from data or strategy config.
+  - Used by CLI, tests, and backtester to ensure sufficient historical data is loaded.
+- **`counterfactual.py`**
+  - Contains refactored `simulate_counterfactual_fast` and `simulate_counterfactual_exact` functions used by validation tooling.
+- **`post_exit.py`**
+  - Post-processing utilities (exit simulations, MFE/MAE analysis) invoked after the main loop to enrich trade records.
 - **`backtester/analysis`**
-  - Post-processing utilities (exit simulations, metrics) invoked after the main loop to enrich trade records.
+  - Additional post-processing utilities and metrics invoked after the main loop.
 
 **Observations / Constraints**
-- `_execute_backtest_loop` is the current “god function.” Responsibilities (data alignment, context capture, risk handling, gating, portfolio state) need to be split across smaller components in the rewrite.
-- Decision timestamps and the `context_at_entry` payload are critical for briefs and cache validation; their current shape (strategy + global features + `decision_time`) must stay traceable.
-- The pending entry/exit structures assume a single in-flight action per side and embed copies of feature rows—this is brittle and expensive; new design should stream well-defined events instead.
+- The new architecture separates concerns into focused modules: `EventLoop` manages execution flow, `PortfolioManager` handles position state, `DecisionSnapshotFactory` captures contexts, and `RiskExitAdapter` integrates REM.
+- Decision timestamps and the `context_at_entry` payload remain critical for briefs and cache validation; their shape (strategy + global features + `decision_time`) is preserved.
+- The event loop uses explicit `ExecutionIntent` objects instead of pending dicts, making the state machine more transparent and testable.
+- All timing logic flows through the system clock injected into components, ensuring deterministic sequencing.
 
 ---
 

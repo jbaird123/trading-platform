@@ -1,0 +1,203 @@
+from __future__ import annotations
+
+# ruff: noqa: TRY301
+import logging
+from datetime import timedelta
+from pathlib import Path
+from typing import Any, cast
+
+import pandas as pd
+
+from trading_platform.backtester.warmup import calculate_warmup_start_date
+from trading_platform.core.feature_resolver import resolve_global_features
+from trading_platform.strategy.features import _resolve_parameter
+
+logger = logging.getLogger(__name__)
+
+
+def infer_execution_timeframe(config: Any, market_data: pd.DataFrame) -> str:
+    instrument_cfg = getattr(config, "instrument", None) or {}
+    if isinstance(instrument_cfg, dict):
+        instrument_tf = instrument_cfg.get("timeframe")
+    else:
+        instrument_tf = getattr(instrument_cfg, "timeframe", None)
+    if instrument_tf:
+        return str(instrument_tf)
+
+    data_req_cfg = getattr(config, "data_request", None) or {}
+    if isinstance(data_req_cfg, dict):
+        data_req_tf = data_req_cfg.get("timeframe")
+    else:
+        data_req_tf = getattr(data_req_cfg, "timeframe", None)
+    if data_req_tf:
+        return str(data_req_tf)
+
+    if not market_data.empty:
+        diffs = market_data.index[1:] - market_data.index[:-1]
+        most_common = diffs.value_counts().idxmax()
+        minutes = int(pd.Timedelta(most_common).total_seconds() / 60)
+        mapping = {
+            1: "1min",
+            5: "5min",
+            15: "15min",
+            60: "1H",
+            240: "4H",
+            1440: "1D",
+            10080: "1W",
+        }
+        timeframe = mapping.get(minutes)
+        if timeframe:
+            return timeframe
+    raise ValueError("Execution timeframe is required.")
+
+
+def resolve_global_feature_defs(
+    execution_timeframe: str, config_path: Path | str | None
+) -> list[dict[str, Any]]:
+    if not config_path:
+        return []
+    path = Path(config_path)
+    resolved = resolve_global_features(execution_timeframe, config_path=path)
+    return [
+        {
+            "name": f.name,
+            "type": f.type,
+            "params": f.params,
+            "source": f.source,
+            "timeframe": f.timeframe,
+        }
+        for f in resolved
+    ]
+
+
+def _parse_data_request_bounds(
+    data_request: dict[str, Any] | None, market_data: pd.DataFrame
+) -> tuple[pd.Timestamp, pd.Timestamp, bool]:
+    if data_request is None:
+        data_request = {}
+
+    target_start = cast(pd.Timestamp, market_data.index.min())
+    target_end = cast(pd.Timestamp, market_data.index.max())
+    start_explicit = False
+
+    start_val = data_request.get("start")
+    if start_val is not None:
+        target_start = pd.to_datetime(start_val, utc=True)
+        start_explicit = True
+
+    end_val = data_request.get("end")
+    if end_val is not None:
+        end_ts = pd.to_datetime(end_val, utc=True)
+        if isinstance(end_val, str) and len(end_val) == 10:
+            end_ts = end_ts + timedelta(days=1) - timedelta(seconds=1)
+        target_end = end_ts
+
+    return target_start, target_end, start_explicit
+
+
+def resolve_strategy_features_for_warmup(strat: Any) -> list[dict[str, Any]]:
+    resolved_features: list[dict[str, Any]] = []
+    params = getattr(strat, "parameters", None) or {}
+    features = getattr(strat, "features", None) or []
+    for feature in features:
+        feature_copy = feature.copy()
+        feat_params = feature_copy.get("params")
+        if isinstance(feat_params, dict):
+            feature_copy["params"] = {
+                key: _resolve_parameter(value, params)
+                for key, value in feat_params.items()
+            }
+        resolved_features.append(feature_copy)
+    return resolved_features
+
+
+def ensure_market_data_with_warmup(
+    *,
+    market_data: pd.DataFrame,
+    execution_timeframe: str,
+    strategy_features: list[dict[str, Any]],
+    global_features: list[dict[str, Any]],
+    data_request: dict[str, Any] | None,
+    data_handler: Any | None = None,
+) -> pd.DataFrame:
+    if market_data.empty:
+        return market_data
+
+    target_start, target_end, start_explicit = _parse_data_request_bounds(
+        data_request, market_data
+    )
+
+    if not isinstance(market_data.index, pd.DatetimeIndex):
+        logger.warning("Market data index is not datetime; skipping warmup extension.")
+        return cast(pd.DataFrame, market_data.loc[target_start:target_end].copy())
+
+    if not strategy_features and not global_features:
+        return market_data.loc[target_start:target_end].copy()
+
+    working_data = market_data
+
+    def _calculate(start_data: pd.DataFrame) -> tuple[pd.Timestamp, dict[str, Any]]:
+        warmup_start_date, info = calculate_warmup_start_date(
+            strategy_features=strategy_features,
+            global_features=global_features,
+            execution_timeframe=execution_timeframe,
+            market_data=start_data,
+            backtest_start_date=target_start,
+        )
+        warmup_ts = pd.Timestamp(info.get("earliest_timestamp") or warmup_start_date)
+        if warmup_ts.tzinfo is None:
+            warmup_ts = warmup_ts.tz_localize("UTC")
+        else:
+            warmup_ts = warmup_ts.tz_convert("UTC")
+        return warmup_ts, info
+
+    def _fallback(reason: str) -> pd.DataFrame:
+        logger.debug(
+            "Warmup calculation could not extend data (%s); "
+            "falling back to requested window.",
+            reason,
+        )
+        return cast(pd.DataFrame, market_data.loc[target_start:target_end].copy())
+
+    try:
+        warmup_ts, _ = _calculate(working_data)
+    except ValueError as exc:
+        if not start_explicit or data_handler is None:
+            return _fallback(str(exc))
+        logger.debug(
+            "Warmup calculation failed (%s); requesting additional history.", exc
+        )
+        working_data = cast(
+            pd.DataFrame,
+            data_handler.get_data(
+                timeframe=execution_timeframe,
+                start=None,
+                end=None,
+            ),
+        )
+        try:
+            warmup_ts, _ = _calculate(working_data)
+        except ValueError as inner_exc:
+            return _fallback(str(inner_exc))
+    try:
+        idx = working_data.index.get_indexer([warmup_ts], method="bfill")[0]
+        if idx == -1:
+            raise KeyError
+        warmup_ts = cast(pd.Timestamp, working_data.index[idx])
+    except Exception:
+        warmup_ts = cast(pd.Timestamp, working_data.index.min())
+
+    if warmup_ts < working_data.index.min():
+        raise ValueError(  # noqa: TRY301
+            "Insufficient historical data to satisfy indicator warmup. "
+            f"Warmup requires data before {warmup_ts}, but market data "
+            f"starts at {working_data.index.min()}."
+        )
+
+    trimmed = working_data.loc[warmup_ts:target_end].copy()
+    if trimmed.empty:
+        raise ValueError(
+            "Warmup trimming removed all market data. "
+            "Verify data_request bounds and feature lookbacks."
+        )
+    return trimmed

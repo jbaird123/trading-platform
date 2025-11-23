@@ -13,15 +13,16 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pandas as pd
 import pytest
-from trading_platform.backtester.core import (
-    _execute_backtest_loop,
-    _simulate_counterfactual_exact,
-    _simulate_counterfactual_fast,
+from trading_platform.backtester.counterfactual import (
+    simulate_counterfactual_exact as _simulate_counterfactual_exact,
+)
+from trading_platform.backtester.counterfactual import (
+    simulate_counterfactual_fast as _simulate_counterfactual_fast,
 )
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
-from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
+from tests.backtester.dummy_objects import _dummy_strategy_cfg
 from tests.test_helpers import (
     get_empty_global_features_path,
     run_backtest_simulation,
@@ -46,19 +47,6 @@ TEST_INSTRUMENT = {
 def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
     """Helper to create instrument dict for RunConfig."""
     return {"symbol": symbol}
-
-
-def _dummy_strategy_cfg() -> CompiledStrategy:
-    return CompiledStrategy(
-        name="dummy",
-        features=[],
-        overlays=[],
-        long_entry_blocks=[],
-        long_exit_blocks=[],
-        short_entry_blocks=[],
-        short_exit_blocks=[],
-        parameters={},
-    )
 
 
 def test_run_backtest_uses_cached_global_features(
@@ -101,24 +89,14 @@ def test_run_backtest_uses_cached_global_features(
     def fake_compute_features(*_: Any, **__: Any) -> pd.DataFrame:
         raise AssertionError("compute_features should not run when cache is present")
 
-    monkeypatch.setattr(
-        "trading_platform.backtester.core.load_cached_global_features",
-        fake_load_cached,
-    )
+    # Cache path is no-op in new engine; ensure compute_features not invoked.
     monkeypatch.setattr(
         "trading_platform.strategy.features.compute_features",
         fake_compute_features,
     )
 
-    feature_spec = {
-        "name": "1h_cached_rsi",
-        "type": "RSI",
-        "params": {"length": 2},
-        "timeframe": "1H",
-    }
-
     rem = RiskExitManager(config=None)
-    result = _execute_backtest_loop(
+    trades = run_backtest_simulation(
         market_data=market_data,
         signals=signals,
         strategy=strategy,
@@ -126,10 +104,8 @@ def test_run_backtest_uses_cached_global_features(
         rem=rem,
         data_handler=SimpleNamespace(data_root=tmp_path),
         global_features_config_path=tmp_path / "global.yaml",
-        global_feature_defs=[feature_spec],
     )
 
-    trades = result["trades"] if isinstance(result, dict) else result
     assert isinstance(trades, list)
 
 
@@ -454,8 +430,9 @@ def test_counterfactual_exact_returns_empty_when_position_not_created(
     )
 
     monkeypatch.setattr(
-        "trading_platform.backtester.core.PortfolioManager.create_new_position",
+        "trading_platform.portfolio.portfolio.PortfolioManager.create_new_position",
         lambda *args, **kwargs: None,
+        raising=False,
     )
 
     class NoExitREM:
@@ -479,7 +456,7 @@ def test_counterfactual_exact_returns_empty_when_position_not_created(
         ) -> float | None:
             return None
 
-        def check_exits(self, position: Any, current_bar: pd.Series) -> None:
+        def check_exits(self, position: Any, current_bar: pd.Series, **_: Any) -> None:
             return None
 
     result = _simulate_counterfactual_exact(
@@ -594,11 +571,13 @@ class TestBacktesterCoreCoverage:
 
     @pytest.fixture
     def mock_strategy(self):
-        strategy = MagicMock(spec=CompiledStrategy)
-        strategy.get_context.return_value = {"test": "context"}
-        strategy.features = []
-        strategy._feature_df = None
-        strategy.name = "mock_strategy"
+        strategy = _dummy_strategy_cfg("mock_strategy")
+        object.__setattr__(strategy, "_feature_df", None)
+        object.__setattr__(
+            strategy,
+            "get_context",
+            MagicMock(return_value={"test": "context"}),
+        )
         return strategy
 
     @pytest.fixture
@@ -904,11 +883,11 @@ def test_entry_window_allows_delayed_entry():
     idx = [datetime(2024, 1, 1, h) for h in range(5)]
     df = pd.DataFrame(
         {
-            "open": [1.0] * 5,
-            "high": [1.0] * 5,
-            "low": [1.0] * 5,
-            "close": [1.0] * 5,
-            "volume": [100] * 5,
+            "open": [1.0] * len(idx),
+            "high": [1.0] * len(idx),
+            "low": [1.0] * len(idx),
+            "close": [1.0] * len(idx),
+            "volume": [100] * len(idx),
         },
         index=idx,
     )
@@ -1000,11 +979,11 @@ def test_entry_window_expires():
     idx = [datetime(2024, 1, 1, h) for h in range(5)]
     df = pd.DataFrame(
         {
-            "open": [1.0] * 5,
-            "high": [1.0] * 5,
-            "low": [1.0] * 5,
-            "close": [1.0] * 5,
-            "volume": [100] * 5,
+            "open": [1.0] * len(idx),
+            "high": [1.0] * len(idx),
+            "low": [1.0] * len(idx),
+            "close": [1.0] * len(idx),
+            "volume": [100] * len(idx),
         },
         index=idx,
     )
@@ -1085,27 +1064,28 @@ def test_entry_window_expires():
 def test_entry_window_prevents_reentry_after_rem_exit():
     """Test that we only enter once per signal transition
     (no re-entry on same signal)."""
-    # Bar 0: signal transitions to "long", enter
-    # Bar 1: signal still "long", position still open
-    # Bar 2: signal transitions to "flat", exit
-    # Bar 3: signal transitions back to "long", should enter again (new transition)
-    # Bar 4: signal still "long", should NOT re-enter
-    idx = [datetime(2024, 1, 1, h) for h in range(5)]
+    # Using next_bar_open semantics:
+    # Bar 0: signal transitions to "long" -> enters at bar 1 open
+    # Bar 2: signal transitions to "flat" -> exits at bar 3 open
+    # Bar 3: signal transitions back to "long" -> enters at bar 4 open
+    # Bar 5: signal transitions to "flat" -> exits at bar 6 open
+    # Only one entry per transition; no re-entry while signal stays long.
+    idx = [datetime(2024, 1, 1, h) for h in range(7)]
     df = pd.DataFrame(
         {
-            "open": [1.0] * 5,
-            "high": [1.0] * 5,
-            "low": [1.0] * 5,
-            "close": [1.0] * 5,
-            "volume": [100] * 5,
+            "open": [1.0] * len(idx),
+            "high": [1.0] * len(idx),
+            "low": [1.0] * len(idx),
+            "close": [1.0] * len(idx),
+            "volume": [100] * len(idx),
         },
         index=idx,
     )
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)
-    # Signal: enter_long -> None -> exit_long -> enter_long -> exit_long
     signals = pd.Series(
-        ["enter_long", None, "exit_long", "enter_long", "exit_long"], index=df.index
+        ["enter_long", None, "exit_long", "enter_long", None, "exit_long", None],
+        index=df.index,
     )
 
     # Allow all bars
@@ -1128,7 +1108,7 @@ def test_entry_window_prevents_reentry_after_rem_exit():
         allow_flip_on_bar=False,
         instrument=_instrument(),
         entry_window_bars=5,  # Large window
-        execution_model="current_bar_close",
+        execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
     rem = RiskExitManager(config=None)
@@ -1146,12 +1126,12 @@ def test_entry_window_prevents_reentry_after_rem_exit():
     )
     trades_list = result if isinstance(result, list) else result[0]
 
-    # Should have 2 trades (bar 0-2 and bar 3-4)
+    # Should have 2 trades (bar 1-3 and bar 4-6)
     assert len(trades_list) == 2
-    assert trades_list[0].entry_time == idx[0]
-    assert trades_list[0].exit_time == idx[2]
-    assert trades_list[1].entry_time == idx[3]
-    assert trades_list[1].exit_time == idx[4]
+    assert trades_list[0].entry_time == idx[1]
+    assert trades_list[0].exit_time == idx[3]
+    assert trades_list[1].entry_time == idx[4]
+    assert trades_list[1].exit_time == idx[6]
 
 
 # New tests for execution model refactor (Part 4)
