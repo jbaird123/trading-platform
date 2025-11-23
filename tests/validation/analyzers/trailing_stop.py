@@ -243,8 +243,10 @@ class TrailingStopDiscrepancyAnalyzer(AmbiguityAnalyzer):
             Category name (one of KNOWN_ACCEPTABLE_CATEGORIES or 'UNEXPLAINED')
         """
         # Determine exit types
-        platform_is_stop = "stop" in str(p_row.get("exit_reason", "")).lower()
-        tv_is_stop = "trail" in str(trade_info["tv_exit_reason"]).lower()
+        platform_reason = str(p_row.get("exit_reason", "")).lower()
+        tv_reason = str(trade_info["tv_exit_reason"]).lower()
+        platform_is_stop = "stop" in platform_reason
+        tv_is_stop = "trail" in tv_reason
 
         # CATEGORY 1: Same-bar entry/exit
         if entry_time == exit_time:
@@ -384,7 +386,9 @@ class TrailingStopDiscrepancyAnalyzer(AmbiguityAnalyzer):
         # Check if platform exited at TP while TV exited at trailing stop
         # This happens when both TP and trailing stop are within the same bar's range
         # but TP was hit first chronologically (detected via 1-minute zoom)
-        platform_is_tp = "take-profit" in str(p_row.get("exit_reason", "")).lower()
+        platform_is_tp = (
+            "take-profit" in platform_reason or "take_profit" in platform_reason
+        )
         if platform_is_tp and tv_is_stop and self.take_profit_pips is not None:
             # Calculate TP level
             if direction == "long":

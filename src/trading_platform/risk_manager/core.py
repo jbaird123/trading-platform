@@ -506,6 +506,7 @@ class RiskExitManager:
                         return {
                             "exit_price": result["exit_price"],
                             "reason": result["exit_reason"],
+                            "intrabar": True,
                         }
                     # If no exit in 1-minute data, return None (no exit)
                     # Don't fall through to OHLC checking - we've resolved the ambiguity
@@ -551,6 +552,7 @@ class RiskExitManager:
                 return {
                     "exit_price": result["exit_price"],
                     "reason": result["exit_reason"],
+                    "intrabar": True,
                 }
             # If no exit in 1-minute data, return None
             return None

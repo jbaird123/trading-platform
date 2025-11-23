@@ -14,8 +14,8 @@ import yaml
 from trading_platform.core.config import RunConfig
 from trading_platform.portfolio.trade import Trade
 from trading_platform.risk_manager.core import RiskExitManager
-from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
+from tests.backtester.dummy_objects import _dummy_strategy_cfg
 from tests.test_helpers import run_backtest_simulation
 
 
@@ -36,16 +36,7 @@ def test_backtester_adds_contextual_features_to_trade_context() -> None:
     df = df_full
 
     # Create a simple strategy that generates one trade
-    strategy = CompiledStrategy(
-        name="test_strategy",
-        features=[],
-        overlays=[],
-        long_entry_blocks=[],
-        long_exit_blocks=[],
-        short_entry_blocks=[],
-        short_exit_blocks=[],
-        parameters={},
-    )
+    strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)  # Initialize _feature_df on trimmed data
 
     # Create signals with one entry near the middle of the trimmed window
@@ -84,6 +75,7 @@ def test_backtester_adds_contextual_features_to_trade_context() -> None:
                         "symbol": "EURUSD",
                         "timeframe": "1H",
                     },
+                    "execution_model": "next_bar_open",
                 }
             )
 
@@ -148,16 +140,7 @@ def test_end_of_data_exit_preserves_context() -> None:
         index=idx,
     )
 
-    strategy = CompiledStrategy(
-        name="end_of_data_strategy",
-        features=[],
-        overlays=[],
-        long_entry_blocks=[],
-        long_exit_blocks=[],
-        short_entry_blocks=[],
-        short_exit_blocks=[],
-        parameters={},
-    )
+    strategy = _dummy_strategy_cfg()
     strategy.generate_signals(market)
 
     # Enter once and hold through the end of the dataset
@@ -194,6 +177,7 @@ def test_end_of_data_exit_preserves_context() -> None:
                         "symbol": "EURUSD",
                         "timeframe": "1H",
                     },
+                    "execution_model": "next_bar_open",
                 }
             )
             rem = RiskExitManager(config={})
@@ -235,16 +219,9 @@ def test_required_global_feature_missing_raises(
         index=idx,
     )
 
-    strategy = CompiledStrategy(
-        name="nan_guard_strategy",
-        features=[],
-        overlays=[],
-        long_entry_blocks=[],
-        long_exit_blocks=[],
-        short_entry_blocks=[],
-        short_exit_blocks=[],
-        parameters={},
-    )
+    strategy = _dummy_strategy_cfg()
+    if hasattr(strategy, "original_config"):
+        strategy.original_config["strategy_name"] = "nan_guard_strategy"
     strategy.generate_signals(market)
 
     signals = pd.Series([None] * len(market), index=market.index)
@@ -294,6 +271,7 @@ def test_required_global_feature_missing_raises(
                         "symbol": "EURUSD",
                         "timeframe": "1H",
                     },
+                    "execution_model": "next_bar_open",
                 }
             )
             rem = RiskExitManager(
@@ -336,16 +314,9 @@ def test_backtester_trade_context_with_multi_timeframe_at_entry_and_exit() -> No
     df = df_full
 
     # Create a simple strategy
-    strategy = CompiledStrategy(
-        name="test_mtf_strategy",
-        features=[],
-        overlays=[],
-        long_entry_blocks=[],
-        long_exit_blocks=[],
-        short_entry_blocks=[],
-        short_exit_blocks=[],
-        parameters={},
-    )
+    strategy = _dummy_strategy_cfg()
+    if hasattr(strategy, "original_config"):
+        strategy.original_config["strategy_name"] = "test_mtf_strategy"
     strategy.generate_signals(df)  # Initialize _feature_df on trimmed data
 
     warmup_bars = 56  # 14 hours * 4 bars/hour for 15min data
@@ -391,6 +362,7 @@ def test_backtester_trade_context_with_multi_timeframe_at_entry_and_exit() -> No
                         "symbol": "EURUSD",
                         "timeframe": "15min",
                     },
+                    "execution_model": "next_bar_open",
                 }
             )
 

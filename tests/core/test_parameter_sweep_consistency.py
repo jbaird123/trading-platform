@@ -110,10 +110,6 @@ def mock_load_and_extend_data(monkeypatch):
         "trading_platform.cli.select_minimal_global_features",
         _mock_select_minimal_global_features,
     )
-    monkeypatch.setattr(
-        "trading_platform.backtester.orchestrator._resolve_global_feature_defs",
-        lambda execution_timeframe, config_path: [],
-    )
 
 
 def _feature_series(series_list):

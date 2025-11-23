@@ -46,7 +46,9 @@ def ensure_index(df: pd.DataFrame, index_cols: list[str] | None) -> pd.DataFrame
         missing = [col for col in index_cols if col not in df.columns]
         if missing:
             raise ValueError(f"Missing index column(s) {missing} in dataframe")
-        return df.set_index(index_cols)
+        # Keep index columns in the dataframe so they’re still compared
+        # as value columns instead of being dropped after indexing.
+        return df.set_index(index_cols, drop=False)
     return df.set_index(pd.RangeIndex(len(df)))
 
 
@@ -236,8 +238,19 @@ def compare_frames(new_df: pd.DataFrame, golden_df: pd.DataFrame) -> None:
             print("  (No mismatch within preview window.)")
 
     aligned_index = new_idx.intersection(golden_idx)
-    aligned_new = new_df.loc[aligned_index, common_cols]
-    aligned_golden = golden_df.loc[aligned_index, common_cols]
+    # If indexes don't align (e.g., floating-point drift in index cols),
+    # fall back to positional comparison so every row/field still gets checked.
+    use_positional = len(new_df) == len(golden_df) and len(aligned_index) < len(new_df)
+    if use_positional:
+        print(
+            "\nIndex alignment dropped rows; using positional comparison for "
+            "per-column diff."
+        )
+        aligned_new = new_df.reset_index(drop=True)[common_cols]
+        aligned_golden = golden_df.reset_index(drop=True)[common_cols]
+    else:
+        aligned_new = new_df.loc[aligned_index, common_cols]
+        aligned_golden = golden_df.loc[aligned_index, common_cols]
 
     row_id_series: pd.Series | None = None
     if not aligned_new.empty:

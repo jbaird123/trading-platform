@@ -996,7 +996,17 @@ def test_compile_strategy_with_ai_inference():
     """Test compile_strategy with AI filter configuration. Covers AI filter logic."""
     strategy_config = {
         "strategy_name": "AIStrategy",
-        "long_entry_rules": [],
+        "long_entry_rules": [
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 0},
+                    }
+                ]
+            }
+        ],
         "long_exit_rules": [],
         "ai_filter": {
             "enabled": True,
@@ -1023,8 +1033,22 @@ def test_compile_strategy_with_ai_inference():
 
 def test_compile_strategy_parameter_defaults():
     """Test compile_strategy with parameter defaults and edge cases."""
-    # Test with minimal config - should use defaults
-    strategy_config: dict[str, list[str]] = {}
+    # Test with minimal config - should use defaults but stay valid
+    strategy_config: dict[str, Any] = {
+        "strategy_name": "Minimal",
+        "long_entry_rules": [
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 0},
+                    }
+                ]
+            }
+        ],
+        "long_exit_rules": [],
+    }
 
     with patch(
         "trading_platform.strategy.yaml_strategy.validate_strategy_config"
@@ -1035,7 +1059,7 @@ def test_compile_strategy_parameter_defaults():
         compiled = compile_strategy(strategy_config)
 
         assert compiled is not None
-        assert compiled.name == "Strategy"  # Default name
+        assert compiled.name == "Minimal"  # Uses provided name
         assert compiled.overlays == []
         assert compiled.features == []
         assert compiled.parameters == {}
@@ -1045,9 +1069,21 @@ def test_compile_strategy_parameter_defaults():
 
 def test_compile_strategy_invalid_parameters():
     """Test compile_strategy with non-dict parameters. Covers parameter validation."""
-    strategy_config = {
+    strategy_config: dict[str, Any] = {
         "strategy_name": "TestStrategy",
         "parameters": "invalid_string_params",  # Should be dict
+        "long_entry_rules": [
+            {
+                "any_of": [
+                    {
+                        "condition": "is_above",
+                        "left": {"field": "close"},
+                        "right": {"value": 0},
+                    }
+                ]
+            }
+        ],
+        "long_exit_rules": [],
     }
 
     with patch(
@@ -1055,11 +1091,9 @@ def test_compile_strategy_invalid_parameters():
     ) as mock_validate:
         mock_validate.return_value = None
 
-        # Should handle invalid parameters gracefully by using empty dict
-        compiled = compile_strategy(strategy_config)
-
-        assert compiled is not None
-        assert compiled.parameters == {}  # Should default to empty dict
+        # Should raise due to invalid parameters type
+        with pytest.raises(Exception):
+            compile_strategy(strategy_config)
 
 
 # --- test_yaml_strategy_full_coverage.py ---
@@ -2167,7 +2201,7 @@ def test_new_predicate_schema_validation():
                     {
                         "condition": "slope_is_above",
                         "left": {"ref": "ema_slope_14"},
-                        "right": -0.001,
+                        "right": {"value": -0.001},
                     }
                 ]
             }

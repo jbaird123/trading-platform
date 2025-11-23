@@ -86,7 +86,7 @@ def test_strategy_features_must_be_warmed() -> None:
         },
     )
 
-    with pytest.raises(ValueError, match="Strategy features"):
+    with pytest.raises(ValueError, match=r"Strategy feature 'sma_10' is NaN"):
         _run_with_config(
             df,
             strategy_config=strategy_config,
@@ -128,7 +128,7 @@ def test_global_features_must_be_warmed(tmp_path) -> None:
         '    timeframe: "1H"\n'
     )
 
-    with pytest.raises(ValueError, match="Global features"):
+    with pytest.raises(ValueError, match=r"Global feature '1h_sma_20' is NaN"):
         _run_with_config(
             df,
             strategy_config=strategy_config,

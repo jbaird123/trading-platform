@@ -367,7 +367,7 @@ def test_cmd_run_backtest_fast_mode_limit_and_exception(
 
     cfg = {
         "run_id": "rid_simple",
-        "data_request": {"symbol": "EURUSD"},
+        "data_request": {"symbol": "EURUSD", "timeframe": "1H"},
         "strategy": strategy_cfg,
     }
     cfg_path = tmp_path / "cfg_simple.json"

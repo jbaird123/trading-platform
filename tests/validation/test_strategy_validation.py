@@ -18,6 +18,7 @@ from typing import Any, cast
 
 import pandas as pd
 import pytest
+from trading_platform.backtester.new_engine import run_event_loop_backtest
 from trading_platform.core.global_features_cache import cache_covers_features
 from trading_platform.portfolio.trade import Trade
 
@@ -622,7 +623,6 @@ def load_platform_trades(
     from pathlib import Path
 
     import yaml
-    from trading_platform.backtester import run_backtest
     from trading_platform.core.config import RunConfig
 
     # Load strategy config
@@ -706,6 +706,7 @@ def load_platform_trades(
         ]
 
         use_cached_global = False
+        cached_global_df = None
         if feature_names and hasattr(data_handler, "data_root"):
             symbol_for_cache = instrument_cfg.get("symbol") or data_request.get(
                 "symbol"
@@ -718,6 +719,20 @@ def load_platform_trades(
                     timeframe=execution_timeframe,
                     feature_names=feature_names,
                 )
+                if use_cached_global:
+                    from trading_platform.core.global_features_cache import (
+                        load_cached_global_features,
+                    )
+
+                    cache_result = load_cached_global_features(
+                        symbol=symbol_for_cache,
+                        cache_root=GOLDEN_FEATURE_CACHE_ROOT,
+                        config_path=golden_features_path,
+                        timeframe=execution_timeframe,
+                        feature_names=feature_names,
+                    )
+                    if cache_result is not None:
+                        cached_global_df, _ = cache_result
 
         # Compile strategy to get parameters
         from trading_platform.strategy.features import _resolve_parameter
@@ -741,7 +756,7 @@ def load_platform_trades(
         # Calculate warmup start date
         warmup_start_date, warmup_info = calculate_warmup_start_date(
             strategy_features=resolved_strategy_features,
-            global_features=[] if use_cached_global else global_features_list,
+            global_features=global_features_list,
             execution_timeframe=execution_timeframe,
             market_data=ohlcv_1h,
             backtest_start_date=backtest_start_date,
@@ -771,16 +786,15 @@ def load_platform_trades(
     # Run backtest with 1-min data handler (for zoom capability)
     # Use frozen golden features config for golden validation tests
     golden_features_path = Path("data/dvc/golden/features/global.yaml")
-    results = run_backtest(
+    engine_result = run_event_loop_backtest(
         config=config,
         market_data=ohlcv_to_use,
         strategy_config=strategy_config,
         data_handler=data_handler,
-        global_features_config_path=golden_features_path,
-        cache_root=GOLDEN_TV_CACHE_ROOT,
+        global_feature_df=cached_global_df,
+        rmm_context=None,
     )
-    assert isinstance(results, dict)
-    trades_source = cast(list[Trade], results["trades"])
+    trades_source = cast(list[Trade], engine_result.trades)
 
     # Filter trades to validation range
     # Helper function to convert Trade object to dict with all fields

@@ -5,8 +5,8 @@ import pandas as pd
 import pytest
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
-from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
+from tests.backtester.dummy_objects import _dummy_strategy_cfg
 from tests.test_helpers import run_backtest_simulation
 
 
@@ -15,17 +15,9 @@ def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
     return {"symbol": symbol}
 
 
-def _dummy_strategy() -> CompiledStrategy:
-    return CompiledStrategy(
-        name="dummy",
-        features=[],
-        overlays=[],
-        long_entry_blocks=[],
-        long_exit_blocks=[],
-        short_entry_blocks=[],
-        short_exit_blocks=[],
-        parameters={},
-    )
+def _dummy_strategy():
+    strat = _dummy_strategy_cfg()
+    return strat
 
 
 def _mdf(n: int = 3) -> pd.DataFrame:
