@@ -824,7 +824,8 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     ps_cfg = cfg_raw.get("parameter_search") or {}
     ps_results = None
 
-    # Post-exit analysis is expensive; skip it when running sweeps/MC/WF
+    # Post-exit analysis is expensive; keep it for the main run if enabled,
+    # but force-disable it for any spawned sweeps / WF / MC runs.
     heavy_modes_enabled = False
     if isinstance(ps_cfg, dict) and (ps_cfg.get("grid") or ps_cfg.get("random_space")):
         heavy_modes_enabled = True
@@ -837,13 +838,16 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         "bar_bootstrap",
     }:
         heavy_modes_enabled = True
+
+    cfg_for_heavy_runs = cfg_raw
     if heavy_modes_enabled:
-        cfg_raw["post_exit_analysis"] = {"enabled": False}
+        cfg_for_heavy_runs = copy.deepcopy(cfg_raw)
+        cfg_for_heavy_runs["post_exit_analysis"] = {"enabled": False}
 
     if isinstance(ps_cfg, dict) and (ps_cfg.get("grid") or ps_cfg.get("random_space")):
         ps_results = run_parameter_sweep(
             analysis_df,
-            cfg_raw,
+            cfg_for_heavy_runs,
             strat_cfg,
             grid=ps_cfg.get("grid"),
             random_space=ps_cfg.get("random_space"),
@@ -873,7 +877,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                 grid_typed = cast(dict[str, list[Any]], grid_cfg)
                 wf_results = walk_forward_optimize_and_test(
                     df_full,
-                    cfg_raw,
+                    cfg_for_heavy_runs,
                     strat_cfg,
                     window=train_bars,
                     step=step_bars,
@@ -911,7 +915,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                         # Run WFE for this candidate
                         wfe = walk_forward_analysis(
                             df_full,
-                            cfg_raw,
+                            cfg_for_heavy_runs,
                             cand_strat_cfg,
                             train_bars=train_bars,
                             test_bars=test_bars,
@@ -937,7 +941,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
 
                 wf_results = walk_forward_analysis(
                     df_full,
-                    cfg_raw,
+                    cfg_for_heavy_runs,
                     strat_cfg,
                     train_bars=train_bars,
                     test_bars=test_bars,
@@ -964,7 +968,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
 
         mc_results = monte_carlo_resimulation(
             analysis_df,
-            cfg_raw,
+            cfg_for_heavy_runs,
             strat_cfg,
             trials=int(mc_cfg.get("trials", 100)),
             seed=mc_cfg.get("seed"),
