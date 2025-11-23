@@ -13,13 +13,13 @@ from trading_platform.data.instrument import (
 
 def test_get_instrument_definition_success():
     """Tests that a valid symbol returns the correct definition object."""
-    eur_usd_def = get_instrument_definition("EUR/USD")
-    assert eur_usd_def.asset_class == "Forex"
-    assert eur_usd_def.tick_size == 0.00001
+    eurusd_def = get_instrument_definition("EUR/USD")
+    assert eurusd_def.asset_class == "Forex"
+    assert eurusd_def.tick_size == 0.00001
 
-    gbp_jpy_def = get_instrument_definition("GBP/JPY")
-    assert gbp_jpy_def.asset_class == "Forex"
-    assert gbp_jpy_def.tick_size == 0.001
+    gbpjpy_def = get_instrument_definition("GBP/JPY")
+    assert gbpjpy_def.asset_class == "Forex"
+    assert gbpjpy_def.tick_size == 0.001
 
 
 def test_get_instrument_definition_not_found():
@@ -92,54 +92,54 @@ def test_forex_instruments_use_standard_session():
     expected_timezone = "America/New_York"
 
     # Test EURUSD
-    eur_usd_def = get_instrument_definition("EURUSD")
-    assert eur_usd_def.sessions[0].close_time == expected_close_time
-    assert eur_usd_def.sessions[0].close_timezone == expected_timezone
+    eurusd_def = get_instrument_definition("EURUSD")
+    assert eurusd_def.sessions[0].close_time == expected_close_time
+    assert eurusd_def.sessions[0].close_timezone == expected_timezone
 
     # Test GBPJPY
-    gbp_jpy_def = get_instrument_definition("GBPJPY")
-    assert gbp_jpy_def.sessions[0].close_time == expected_close_time
-    assert gbp_jpy_def.sessions[0].close_timezone == expected_timezone
+    gbpjpy_def = get_instrument_definition("GBPJPY")
+    assert gbpjpy_def.sessions[0].close_time == expected_close_time
+    assert gbpjpy_def.sessions[0].close_timezone == expected_timezone
 
 
 def test_get_instrument_definition_with_normalization():
     """Test that instrument definitions work with symbol normalization."""
     # Test that EUR/USD returns the correct definition without raising an error
-    eur_usd_slash = get_instrument_definition("EUR/USD")
-    assert eur_usd_slash.asset_class == "Forex"
-    assert eur_usd_slash.tick_size == 0.00001
+    eurusd_slash = get_instrument_definition("EUR/USD")
+    assert eurusd_slash.asset_class == "Forex"
+    assert eurusd_slash.tick_size == 0.00001
 
     # Test that EURUSD returns the exact same definition object
-    eur_usd_underscore = get_instrument_definition("EURUSD")
-    assert eur_usd_underscore.asset_class == "Forex"
-    assert eur_usd_underscore.tick_size == 0.00001
+    eurusd_nosep = get_instrument_definition("EURUSD")
+    assert eurusd_nosep.asset_class == "Forex"
+    assert eurusd_nosep.tick_size == 0.00001
 
     # For each of the calls above, assert that the returned InstrumentDefinition
     # object has its symbol attribute set to the canonical value: "EURUSD"
-    assert eur_usd_slash.symbol == "EURUSD"
-    assert eur_usd_underscore.symbol == "EURUSD"
+    assert eurusd_slash.symbol == "EURUSD"
+    assert eurusd_nosep.symbol == "EURUSD"
 
     # Verify they are functionally equivalent
-    assert eur_usd_slash.asset_class == eur_usd_underscore.asset_class
-    assert eur_usd_slash.tick_size == eur_usd_underscore.tick_size
-    assert eur_usd_slash.point_value == eur_usd_underscore.point_value
+    assert eurusd_slash.asset_class == eurusd_nosep.asset_class
+    assert eurusd_slash.tick_size == eurusd_nosep.tick_size
+    assert eurusd_slash.point_value == eurusd_nosep.point_value
 
 
 def test_get_instrument_definition_uses_asset_class_defaults():
     """Test that instrument definitions correctly use asset class defaults."""
     # Call get_instrument_definition for "EUR/USD"
-    eur_usd = get_instrument_definition("EUR/USD")
+    eurusd = get_instrument_definition("EUR/USD")
 
     # Assert that the returned object's asset_class is "Forex"
-    assert eur_usd.asset_class == "Forex"
+    assert eurusd.asset_class == "Forex"
 
     # Assert that the sessions property is not empty
-    assert eur_usd.sessions is not None
-    assert len(eur_usd.sessions) > 0
+    assert eurusd.sessions is not None
+    assert len(eurusd.sessions) > 0
 
     # Assert that the tick_size is 0.00001 (the instrument-specific override)
-    assert eur_usd.tick_size == 0.00001
+    assert eurusd.tick_size == 0.00001
 
     # Call get_instrument_definition for "EUR/JPY" and assert its tick_size
-    eur_jpy = get_instrument_definition("EUR/JPY")
-    assert eur_jpy.tick_size == 0.001
+    eurjpy = get_instrument_definition("EUR/JPY")
+    assert eurjpy.tick_size == 0.001
