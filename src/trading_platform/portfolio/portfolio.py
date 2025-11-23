@@ -612,6 +612,8 @@ class PortfolioManager:
             cost_currency=total_cost,
             cost_breakdown=cost_breakdown,
             r_multiple=r_multiple,
+            stop_loss=self._open_position.stop_loss,
+            take_profit=self._open_position.take_profit,
         )
         self.trades.append(trade)
         self.cash += pnl

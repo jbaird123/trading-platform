@@ -372,8 +372,11 @@ class PerformanceDiagnosticModel:
             if feat in df.columns:
                 features.append(feat)
 
-        # Return only extracted features
-        return df[features].copy()
+        # Return only numeric extracted features (drop datetime/object columns
+        # such as decision_time that break the imputer).
+        feature_df = df[features].copy()
+        numeric_df = feature_df.select_dtypes(include=["number"])
+        return numeric_df
 
     def _align_features(self, X: pd.DataFrame) -> pd.DataFrame:
         """Align features with training feature names.
