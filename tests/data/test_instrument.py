@@ -13,11 +13,11 @@ from trading_platform.data.instrument import (
 
 def test_get_instrument_definition_success():
     """Tests that a valid symbol returns the correct definition object."""
-    eurusd_def = get_instrument_definition("EUR/USD")
+    eurusd_def = get_instrument_definition("EURUSD")
     assert eurusd_def.asset_class == "Forex"
     assert eurusd_def.tick_size == 0.00001
 
-    gbpjpy_def = get_instrument_definition("GBP/JPY")
+    gbpjpy_def = get_instrument_definition("GBPJPY")
     assert gbpjpy_def.asset_class == "Forex"
     assert gbpjpy_def.tick_size == 0.001
 
@@ -31,7 +31,7 @@ def test_get_instrument_definition_not_found():
 
 
 def test_instrument_definition_to_dict_defaults():
-    definition = get_instrument_definition("EUR/USD")
+    definition = get_instrument_definition("EURUSD")
     result = definition.to_dict()
     assert result["asset_class"] == "Forex"
     assert result["tick_size"] == 0.00001
@@ -40,7 +40,7 @@ def test_instrument_definition_to_dict_defaults():
 
 
 def test_instrument_definition_to_dict_with_overrides():
-    definition = get_instrument_definition("EUR/USD")
+    definition = get_instrument_definition("EURUSD")
     definition.base_ccy = "EUR"
     definition.quote_ccy = "USD"
     result = definition.to_dict()
@@ -102,33 +102,38 @@ def test_forex_instruments_use_standard_session():
     assert gbpjpy_def.sessions[0].close_timezone == expected_timezone
 
 
-def test_get_instrument_definition_with_normalization():
-    """Test that instrument definitions work with symbol normalization."""
-    # Test that EUR/USD returns the correct definition without raising an error
-    eurusd_slash = get_instrument_definition("EUR/USD")
-    assert eurusd_slash.asset_class == "Forex"
-    assert eurusd_slash.tick_size == 0.00001
+def test_get_instrument_definition_with_strict_validation():
+    """Test that instrument definitions enforce strict symbol validation."""
+    # Test that EURUSD (uppercase) works
+    eurusd_upper = get_instrument_definition("EURUSD")
+    assert eurusd_upper.asset_class == "Forex"
+    assert eurusd_upper.tick_size == 0.00001
+    assert eurusd_upper.symbol == "EURUSD"
 
-    # Test that EURUSD returns the exact same definition object
-    eurusd_nosep = get_instrument_definition("EURUSD")
-    assert eurusd_nosep.asset_class == "Forex"
-    assert eurusd_nosep.tick_size == 0.00001
-
-    # For each of the calls above, assert that the returned InstrumentDefinition
-    # object has its symbol attribute set to the canonical value: "EURUSD"
-    assert eurusd_slash.symbol == "EURUSD"
-    assert eurusd_nosep.symbol == "EURUSD"
+    # Test that eurusd (lowercase) works and gets uppercased
+    eurusd_lower = get_instrument_definition("eurusd")
+    assert eurusd_lower.asset_class == "Forex"
+    assert eurusd_lower.tick_size == 0.00001
+    assert eurusd_lower.symbol == "EURUSD"
 
     # Verify they are functionally equivalent
-    assert eurusd_slash.asset_class == eurusd_nosep.asset_class
-    assert eurusd_slash.tick_size == eurusd_nosep.tick_size
-    assert eurusd_slash.point_value == eurusd_nosep.point_value
+    assert eurusd_upper.asset_class == eurusd_lower.asset_class
+    assert eurusd_upper.tick_size == eurusd_lower.tick_size
+    assert eurusd_upper.point_value == eurusd_lower.point_value
+
+    # Test that EUR/USD (with separator) is rejected
+    with pytest.raises(ValueError, match="Invalid symbol.*must contain only letters"):
+        get_instrument_definition("EUR/USD")
+
+    # Test that EUR_USD (with underscore) is rejected
+    with pytest.raises(ValueError, match="Invalid symbol.*must contain only letters"):
+        get_instrument_definition("EUR_USD")
 
 
 def test_get_instrument_definition_uses_asset_class_defaults():
     """Test that instrument definitions correctly use asset class defaults."""
-    # Call get_instrument_definition for "EUR/USD"
-    eurusd = get_instrument_definition("EUR/USD")
+    # Call get_instrument_definition for "EURUSD"
+    eurusd = get_instrument_definition("EURUSD")
 
     # Assert that the returned object's asset_class is "Forex"
     assert eurusd.asset_class == "Forex"
@@ -140,6 +145,6 @@ def test_get_instrument_definition_uses_asset_class_defaults():
     # Assert that the tick_size is 0.00001 (the instrument-specific override)
     assert eurusd.tick_size == 0.00001
 
-    # Call get_instrument_definition for "EUR/JPY" and assert its tick_size
-    eurjpy = get_instrument_definition("EUR/JPY")
+    # Call get_instrument_definition for "EURJPY" and assert its tick_size
+    eurjpy = get_instrument_definition("EURJPY")
     assert eurjpy.tick_size == 0.001

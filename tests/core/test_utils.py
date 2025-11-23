@@ -39,24 +39,40 @@ def test_get_logger_with_level():
 @pytest.mark.parametrize(
     "input_symbol,expected_output",
     [
-        ("EUR/USD", "EURUSD"),
+        # Valid symbols (alphanumeric only)
         ("EURUSD", "EURUSD"),
-        ("eur-jpy", "EURJPY"),
+        ("eurusd", "EURUSD"),  # Lowercase gets uppercased
         ("SPY", "SPY"),
-        ("EURUSD", "EURUSD"),
-        ("gbp/usd", "GBPUSD"),
-        ("USD-CAD", "USDCAD"),
-        ("usd_jpy", "USDJPY"),
-        ("NZD/USD", "NZDUSD"),
-        ("AUD_JPY", "AUDJPY"),
-        ("EUR.GBP", "EURGBP"),  # Test dot separator
-        ("ESZ24", "ESZ24"),  # Test numbers preserved
-        ("CLV24/NYM", "CLV24NYM"),  # Test numbers with separators
-        ("BTC-USD", "BTCUSD"),
-        ("eth_usdt", "ETHUSDT"),
+        ("ESZ24", "ESZ24"),  # Numbers preserved
+        ("BTCUSD", "BTCUSD"),
+        ("ETHUSDT", "ETHUSDT"),
+        ("gbpusd", "GBPUSD"),
+        ("  EURUSD  ", "EURUSD"),  # Whitespace trimmed
     ],
 )
-def test_normalize_symbol(input_symbol: str, expected_output: str) -> None:
-    """Test normalize_symbol function with comprehensive input variations."""
+def test_normalize_symbol_valid(input_symbol: str, expected_output: str) -> None:
+    """Test normalize_symbol function with valid input symbols."""
     result = normalize_symbol(input_symbol)
     assert result == expected_output
+
+
+@pytest.mark.parametrize(
+    "invalid_symbol",
+    [
+        "EUR/USD",  # Slash separator
+        "eur-jpy",  # Dash separator
+        "USD-CAD",  # Dash separator
+        "usd_jpy",  # Underscore separator
+        "NZD/USD",  # Slash separator
+        "AUD_JPY",  # Underscore separator
+        "EUR.GBP",  # Dot separator
+        "CLV24/NYM",  # Slash separator with numbers
+        "BTC-USD",  # Dash separator
+        "eth_usdt",  # Underscore separator
+        "EUR USD",  # Space separator
+    ],
+)
+def test_normalize_symbol_invalid(invalid_symbol: str) -> None:
+    """Test normalize_symbol function rejects symbols with separators."""
+    with pytest.raises(ValueError, match="Invalid symbol.*must contain only letters"):
+        normalize_symbol(invalid_symbol)
