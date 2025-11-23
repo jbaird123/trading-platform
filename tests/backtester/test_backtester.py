@@ -430,7 +430,7 @@ def test_counterfactual_exact_returns_empty_when_position_not_created(
     )
 
     monkeypatch.setattr(
-        "trading_platform.backtester.portfolio_manager.PortfolioManager.create_new_position",
+        "trading_platform.portfolio.portfolio.PortfolioManager.create_new_position",
         lambda *args, **kwargs: None,
         raising=False,
     )
