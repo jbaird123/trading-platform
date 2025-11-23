@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
+from time import perf_counter
 from typing import Any, cast
 
 import pandas as pd
@@ -14,6 +15,7 @@ from trading_platform.backtester.portfolio_manager import PortfolioManager
 from trading_platform.backtester.post_exit import (
     enrich_trades_with_post_exit_analysis,
 )
+from trading_platform.backtester.profiler import PerformanceProfiler
 from trading_platform.backtester.risk import RiskExitAdapter
 from trading_platform.core.config import RunConfig
 from trading_platform.core.policy import TradingWindowPolicy
@@ -30,6 +32,7 @@ class BacktestResult:
     trades: list[Trade]
     equity_curve: list[tuple[datetime, float]]
     skipped: list[dict[str, Any]]
+    profiler: PerformanceProfiler | None = None
 
 
 def _infer_minutes(index: pd.Index) -> int | None:
@@ -99,13 +102,20 @@ def run_event_loop_backtest(
     global_feature_df: pd.DataFrame | None = None,
     rmm_context: dict[datetime, dict[str, Any]] | None = None,
     rem_instance: RiskExitManager | None = None,
+    profiler: PerformanceProfiler | None = None,
 ) -> BacktestResult:
+    # Initialize profiler if not provided
+    if profiler is None:
+        profiler = PerformanceProfiler()
+
     if config.execution_model not in {"next_bar_open", "current_bar_close"}:
         logger.warning(
             "Unsupported execution_model '%s'; proceeding with next_bar_open semantics",
             config.execution_model,
         )
 
+    # Stage 1: Compile strategy
+    t_compile_start = perf_counter()
     if compiled_strategy is None:
         if strategy_config is None:
             raise ValueError(
@@ -114,7 +124,10 @@ def run_event_loop_backtest(
         strategy = compile_strategy(strategy_config)
     else:
         strategy = compiled_strategy
+    t_compile_ms = (perf_counter() - t_compile_start) * 1000
 
+    # Stage 2: Generate/process signals
+    t_signals_start = perf_counter()
     if precomputed_signals is not None:
         if isinstance(precomputed_signals, pd.Series):
             signals = precomputed_signals
@@ -132,7 +145,10 @@ def run_event_loop_backtest(
         signals = strategy.generate_signals(market_data)
         if len(signals) != len(market_data):
             signals = signals.reindex(market_data.index, method="ffill")
+    t_signals_ms = (perf_counter() - t_signals_start) * 1000
 
+    # Stage 3: Prepare features
+    t_features_start = perf_counter()
     aligned_global_features = (
         global_feature_df.reindex(market_data.index)
         if global_feature_df is not None
@@ -173,7 +189,10 @@ def run_event_loop_backtest(
             raise ValueError(
                 f"Strategy features contain NaNs: {', '.join(sorted(remaining_nan))}"
             )
+    t_features_ms = (perf_counter() - t_features_start) * 1000
 
+    # Stage 4: Setup components (REM, portfolio, event loop, policies)
+    t_setup_start = perf_counter()
     instrument_dict = config.instrument or {}
     rem = rem_instance or RiskExitManager(
         config=config.rem_config or {},
@@ -206,6 +225,7 @@ def run_event_loop_backtest(
         blackout_utc=config.blackout_utc or [],
         blackout_events=config.blackout_events or [],
     )
+    t_setup_ms = (perf_counter() - t_setup_start) * 1000
 
     def _extract_take_profit(side: str) -> dict[str, Any] | None:
         """Extract the first take-profit block for the given side."""
@@ -344,7 +364,13 @@ def run_event_loop_backtest(
     pending_entries: list[dict[str, Any]] = []
     exposure_curve: list[tuple[datetime, float]] = []
     cf_mode = getattr(config, "counterfactual_mode", "fast") or "fast"
-    for idx, (timestamp, row) in enumerate(feature_view.iterrows()):
+
+    # Stage 5: Main event loop
+    t_loop_start = perf_counter()
+    bars_processed = len(feature_view[warmup_start:])
+    for idx in range(len(feature_view)):
+        row = feature_view.iloc[idx]
+        timestamp = feature_view.index[idx]
         if isinstance(timestamp, pd.Timestamp):
             bar_timestamp: datetime = timestamp.to_pydatetime()
         else:
@@ -690,6 +716,7 @@ def run_event_loop_backtest(
             )
             portfolio.apply_fill(fill)
         exposure_curve.append((last_time, 0.0))
+    t_loop_ms = (perf_counter() - t_loop_start) * 1000
 
     # Build equity curve
     # Exposure curve is returned as equity_curve for compatibility with callers
@@ -697,6 +724,8 @@ def run_event_loop_backtest(
         exposure_curve if exposure_curve else []
     )
 
+    # Stage 6: Post-exit analysis
+    t_post_exit_start = perf_counter()
     post_exit_cfg = getattr(config, "post_exit_analysis", None)
     if post_exit_cfg and post_exit_cfg.get("enabled"):
         horizons = post_exit_cfg.get("horizons", [10, 20, 50])
@@ -705,6 +734,56 @@ def run_event_loop_backtest(
             market_data,
             horizons,
         )
+    t_post_exit_ms = (perf_counter() - t_post_exit_start) * 1000
+
+    # Record all timing data to profiler
+    if profiler.enabled:
+        # Record individual stages (without using context managers, just set directly)
+        from trading_platform.backtester.profiler import StageMetrics
+
+        profiler._stages["compile_strategy"] = StageMetrics(
+            duration_ms=t_compile_ms,
+            metadata={"strategy_type": type(strategy).__name__},
+        )
+
+        profiler._stages["generate_signals"] = StageMetrics(
+            duration_ms=t_signals_ms, metadata={"signal_count": len(signals)}
+        )
+
+        profiler._stages["prepare_features"] = StageMetrics(
+            duration_ms=t_features_ms,
+            metadata={
+                "warmup_bars": warmup_start,
+                "total_bars": len(feature_view),
+            },
+        )
+
+        profiler._stages["setup_components"] = StageMetrics(
+            duration_ms=t_setup_ms, metadata={}
+        )
+
+        # Record backtest metrics with bars/sec
+        profiler.record_backtest_metrics(
+            duration_ms=t_loop_ms,
+            bars_processed=bars_processed,
+        )
+
+        profiler._stages["post_exit_analysis"] = StageMetrics(
+            duration_ms=t_post_exit_ms,
+            metadata={
+                "enabled": post_exit_cfg.get("enabled") if post_exit_cfg else False
+            },
+        )
+
+        # Calculate total duration (sum of all stages)
+        profiler._total_duration = (
+            t_compile_ms
+            + t_signals_ms
+            + t_features_ms
+            + t_setup_ms
+            + t_loop_ms
+            + t_post_exit_ms
+        ) / 1000.0
 
     if not portfolio.trades:
         open_summaries = [
@@ -734,4 +813,5 @@ def run_event_loop_backtest(
         trades=list(portfolio.trades),
         equity_curve=equity_curve,
         skipped=skipped,
+        profiler=profiler,
     )

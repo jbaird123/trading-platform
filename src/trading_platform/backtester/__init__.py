@@ -30,6 +30,7 @@ def run_backtest(
     feature_enriched_df: pd.DataFrame | None = None,
     rem_instance: Any | None = None,
     cache_root: Path | str | None = None,
+    profiler: Any | None = None,
 ) -> (
     dict[str, Any]
     | tuple[list[Any], list[tuple[Any, float]]]
@@ -134,7 +135,68 @@ def run_backtest(
                         f["params"] = params
 
     global_feature_df = None
-    if global_features_config_path is not None:
+    if (
+        global_features_config_path is not None
+        and profiler is not None
+        and profiler.enabled
+    ):
+        with profiler.stage(
+            "compute_global_features",
+            metadata={
+                "config_path": str(global_features_config_path),
+            },
+        ):
+            from trading_platform.core.feature_resolver import resolve_global_features
+            from trading_platform.strategy.features import compute_features
+
+            tf = None
+            if config.instrument and isinstance(config.instrument, dict):
+                tf = config.instrument.get("timeframe")
+            tf_str = str(tf) if tf is not None else ""
+            resolved = resolve_global_features(
+                execution_timeframe=tf_str,
+                config_path=Path(global_features_config_path),
+            )
+            if not resolved:
+                global_feature_df = None
+            else:
+                specs = [
+                    {
+                        "name": f.name,
+                        "type": f.type,
+                        "params": f.params,
+                        "source": f.source,
+                        **(
+                            {}
+                            if f.timeframe == tf
+                            else {"timeframe": f.timeframe}
+                            if f.timeframe
+                            else {}
+                        ),
+                    }
+                    for f in resolved
+                ]
+                global_feature_df = compute_features(
+                    market_data, specs, strategy_cfg.get("parameters")
+                )
+                base_cols = set(market_data.columns)
+                global_feature_df = global_feature_df.loc[
+                    :, [c for c in global_feature_df.columns if c not in base_cols]
+                ]
+                if global_feature_df.empty:
+                    global_feature_df = None
+                if global_feature_df is not None:
+                    for col in global_feature_df.columns:
+                        series = global_feature_df[col]
+                        first_valid = series.first_valid_index()
+                        if first_valid is None:
+                            raise ValueError(f"Global feature '{col}' is NaN")
+                        first_valid_idx = cast(Any, first_valid)
+                        if pd.isna(series.loc[first_valid_idx:]).any():
+                            raise ValueError(f"Global feature '{col}' is NaN")
+                    global_feature_df = global_feature_df.ffill().bfill()
+    elif global_features_config_path is not None:
+        # Profiler not enabled or not provided - run without timing
         from trading_platform.core.feature_resolver import resolve_global_features
         from trading_platform.strategy.features import compute_features
 
@@ -195,6 +257,7 @@ def run_backtest(
         global_feature_df=global_feature_df,
         rmm_context=rmm_context,
         rem_instance=rem_instance,
+        profiler=profiler,
     )
 
     trades = result.trades
@@ -214,6 +277,7 @@ def run_backtest(
         or getattr(compiled_strategy, "name", None),
         "compiled_strategy": compiled_strategy,
         "feature_enriched_df": feature_enriched_df,
+        "profiler": result.profiler,
     }
     if skipped:
         payload["skipped"] = skipped
