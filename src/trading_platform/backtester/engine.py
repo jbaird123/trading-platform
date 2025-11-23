@@ -359,6 +359,41 @@ def run_event_loop_backtest(
             view.decision.side == side for view in portfolio.active_position_views()
         )
 
+    prior_bar = None
+
+    def _entry_risk_fields(
+        side: str,
+        entry_price: float,
+        bar_series: pd.Series,
+        signal_context: dict[str, Any],
+        prior_bar_series: pd.Series | None,
+    ) -> dict[str, Any]:
+        risk_fields: dict[str, Any] = {"entry_price": entry_price}
+        if rem is None:
+            return risk_fields
+        stop_price = rem.calculate_initial_stop_price(
+            entry_price=entry_price,
+            side=side,
+            entry_bar=bar_series,
+            signal_context=signal_context,
+            prior_bar=prior_bar_series,
+        )
+        take_profit = rem.calculate_initial_take_profit_price(
+            entry_price=entry_price,
+            side=side,
+            entry_bar=bar_series,
+            signal_context=signal_context,
+            prior_bar=prior_bar_series,
+        )
+        if stop_price is not None:
+            risk_fields["entry_stop_loss"] = stop_price
+            risk_fields["initial_risk_ccy"] = abs(
+                entry_price - float(stop_price)
+            ) * float(config.position_size)
+        if take_profit is not None:
+            risk_fields["entry_take_profit"] = take_profit
+        return risk_fields
+
     debug_counts = {"enter_long": 0, "enter_short": 0, "exit_long": 0, "exit_short": 0}
     pending_intents: list[ExecutionIntent] = []
     pending_entries: list[dict[str, Any]] = []
@@ -375,6 +410,7 @@ def run_event_loop_backtest(
             bar_timestamp: datetime = timestamp.to_pydatetime()
         else:
             bar_timestamp = cast(datetime, timestamp)
+        close_price = float(row.get("close", 0.0))
         bar_payload = _build_bar_payload(bar_timestamp, row, bar_delta)
         # Process pending entries (e.g., RMM blocked earlier) before new signals
         updated_pending: list[dict[str, Any]] = []
@@ -405,12 +441,10 @@ def run_event_loop_backtest(
                     },
                     "notes": None,
                     "entry_index": origin_idx,
-                    "entry_price": float(row.get("close", 0.0)),
+                    "entry_price": close_price,
                 }
                 skip_entry.update(
-                    _counterfactual_from_rules(
-                        side, float(row.get("close", 0.0)), bar_timestamp
-                    )
+                    _counterfactual_from_rules(side, close_price, bar_timestamp)
                 )
                 skipped.append(skip_entry)
                 updated_pending.append(pending)
@@ -434,12 +468,10 @@ def run_event_loop_backtest(
                     else {},
                     "notes": None,
                     "entry_index": origin_idx,
-                    "entry_price": float(row.get("close", 0.0)),
+                    "entry_price": close_price,
                 }
                 skip_entry.update(
-                    _counterfactual_from_rules(
-                        side, float(row.get("close", 0.0)), bar_timestamp
-                    )
+                    _counterfactual_from_rules(side, close_price, bar_timestamp)
                 )
                 skipped.append(skip_entry)
                 updated_pending.append(pending)
@@ -473,11 +505,13 @@ def run_event_loop_backtest(
             )
         intents: list[ExecutionIntent] = []
 
-        def build_snapshot(side: str) -> ExecutionIntent:
-            risk_fields = {"entry_price": float(row.get("close", 0.0))}
+        def build_snapshot(
+            side: str, risk_fields: dict[str, Any] | None = None
+        ) -> ExecutionIntent:
+            risk_fields = risk_fields or {"entry_price": close_price}
             snapshot = snapshot_factory.create(
                 timestamp=bar_timestamp,
-                price=float(row.get("close", 0.0)),
+                price=close_price,
                 side=side,
                 size=float(config.position_size),
                 bar_index=idx,
@@ -493,7 +527,7 @@ def run_event_loop_backtest(
         def build_exit_snapshot(side: str) -> ExecutionIntent:
             snapshot = snapshot_factory.create(
                 timestamp=bar_timestamp,
-                price=float(row.get("close", 0.0)),
+                price=close_price,
                 side=side,
                 size=float(config.position_size),
                 bar_index=idx,
@@ -527,12 +561,10 @@ def run_event_loop_backtest(
                     },
                     "notes": None,
                     "entry_index": idx,
-                    "entry_price": float(row.get("close", 0.0)),
+                    "entry_price": close_price,
                 }
                 skip_entry.update(
-                    _counterfactual_from_rules(
-                        "long", float(row.get("close", 0.0)), bar_timestamp
-                    )
+                    _counterfactual_from_rules("long", close_price, bar_timestamp)
                 )
                 skipped.append(skip_entry)
                 continue
@@ -555,19 +587,20 @@ def run_event_loop_backtest(
                     else {},
                     "notes": None,
                     "entry_index": idx,
-                    "entry_price": float(row.get("close", 0.0)),
+                    "entry_price": close_price,
                 }
                 skip_entry.update(
-                    _counterfactual_from_rules(
-                        "long", float(row.get("close", 0.0)), bar_timestamp
-                    )
+                    _counterfactual_from_rules("long", close_price, bar_timestamp)
                 )
                 skipped.append(skip_entry)
                 expiry_idx = idx + max(0, int(config.entry_window_bars or 0))
+                risk_fields = _entry_risk_fields(
+                    "long", close_price, row, context or {}, prior_bar
+                )
                 pending_entries.append(
                     {
                         "side": "long",
-                        "intent": build_snapshot("long"),
+                        "intent": build_snapshot("long", risk_fields),
                         "expiry": expiry_idx,
                         "origin_index": idx,
                     }
@@ -581,7 +614,10 @@ def run_event_loop_backtest(
                         idx,
                     )
                     intents.append(build_exit_snapshot("short"))
-                intents.append(build_snapshot("long"))
+                risk_fields = _entry_risk_fields(
+                    "long", close_price, row, context or {}, prior_bar
+                )
+                intents.append(build_snapshot("long", risk_fields))
         elif command == "enter_short":
             if _blackout_blocked(bar_timestamp):
                 skip_entry = {
@@ -603,12 +639,10 @@ def run_event_loop_backtest(
                     },
                     "notes": None,
                     "entry_index": idx,
-                    "entry_price": float(row.get("close", 0.0)),
+                    "entry_price": close_price,
                 }
                 skip_entry.update(
-                    _counterfactual_from_rules(
-                        "short", float(row.get("close", 0.0)), bar_timestamp
-                    )
+                    _counterfactual_from_rules("short", close_price, bar_timestamp)
                 )
                 skipped.append(skip_entry)
                 continue
@@ -631,19 +665,20 @@ def run_event_loop_backtest(
                     else {},
                     "notes": None,
                     "entry_index": idx,
-                    "entry_price": float(row.get("close", 0.0)),
+                    "entry_price": close_price,
                 }
                 skip_entry.update(
-                    _counterfactual_from_rules(
-                        "short", float(row.get("close", 0.0)), bar_timestamp
-                    )
+                    _counterfactual_from_rules("short", close_price, bar_timestamp)
                 )
                 skipped.append(skip_entry)
                 expiry_idx = idx + max(0, int(config.entry_window_bars or 0))
+                risk_fields = _entry_risk_fields(
+                    "short", close_price, row, context or {}, prior_bar
+                )
                 pending_entries.append(
                     {
                         "side": "short",
-                        "intent": build_snapshot("short"),
+                        "intent": build_snapshot("short", risk_fields),
                         "expiry": expiry_idx,
                         "origin_index": idx,
                     }
@@ -657,7 +692,10 @@ def run_event_loop_backtest(
                         idx,
                     )
                     intents.append(build_exit_snapshot("long"))
-                intents.append(build_snapshot("short"))
+                risk_fields = _entry_risk_fields(
+                    "short", close_price, row, context or {}, prior_bar
+                )
+                intents.append(build_snapshot("short", risk_fields))
         elif command == "exit_long":
             intents.append(build_exit_snapshot("long"))
         elif command == "exit_short":
@@ -676,10 +714,11 @@ def run_event_loop_backtest(
         exposure_val = 0.0
         if portfolio.active_positions:
             exposure_val = sum(
-                abs(view.position.size) * float(row.get("close", 0.0))
+                abs(view.position.size) * close_price
                 for view in portfolio.active_positions
             )
         exposure_curve.append((bar_timestamp, exposure_val))
+        prior_bar = row
 
     # Force-close any remaining open positions at end of data
     if portfolio.active_positions:
