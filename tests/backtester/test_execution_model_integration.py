@@ -22,7 +22,7 @@ from tests.test_helpers import (
 
 # Test instrument
 TEST_INSTRUMENT = {
-    "symbol": "EUR_USD",  # Use registered instrument name
+    "symbol": "EURUSD",  # Use registered instrument name
 }
 
 

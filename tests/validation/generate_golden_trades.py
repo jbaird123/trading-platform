@@ -131,7 +131,7 @@ def generate_golden_trades_for_strategy(
         raise FileNotFoundError(f"Data root not found: {data_root}")
 
     data_handler = DataHandler(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         data_root=data_root,
     )
 

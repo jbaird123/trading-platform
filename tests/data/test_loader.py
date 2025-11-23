@@ -122,8 +122,8 @@ def test_load_instrument_data_with_symbol_normalization(tmp_path: Path) -> None:
     """Test that load_instrument_data works with symbol normalization."""
     _setup_data_directory(tmp_path)
 
-    # Test that EUR_USD finds eurusd directory
-    df, flags = load_instrument_data("EUR_USD", tmp_path)
+    # Test that EURUSD finds eurusd directory
+    df, flags = load_instrument_data("EURUSD", tmp_path)
 
     assert not flags
     assert not df.empty

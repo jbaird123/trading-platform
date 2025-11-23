@@ -110,7 +110,7 @@ def _setup_mocks_and_run(
     manifest_digest = compute_manifest_digest(manifest_data)
 
     _create_minimal_cache(
-        cache_root, "EUR_USD", "5min", config_hash, manifest_digest, sample_feature_data
+        cache_root, "EURUSD", "5min", config_hash, manifest_digest, sample_feature_data
     )
 
     # Create mock market data (matching the cached feature timestamps)
@@ -131,7 +131,7 @@ def _setup_mocks_and_run(
         "--cache-dir",
         str(cache_root),
         "--symbol",
-        "EUR_USD",
+        "EURUSD",
         "--timeframe",
         "5min",
         "--feature-config",

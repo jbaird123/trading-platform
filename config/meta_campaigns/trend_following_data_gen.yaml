@@ -7,7 +7,7 @@ run_grid:
   date_ranges:
     - { start: "2018-01-01", end: "2023-12-31" }
   instruments:
-    - EUR_USD
+    - EURUSD
   execution_timeframes:
     - 5min
     - 15min

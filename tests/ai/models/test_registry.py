@@ -27,7 +27,7 @@ def sample_trades_df():
             "context_at_entry_rsi": [50.0] * 200,
             "context_at_entry_atr": [0.001] * 200,
             "side": ["long", "short"] * 100,
-            "symbol": ["EUR_USD"] * 200,
+            "symbol": ["EURUSD"] * 200,
             "entry_time": pd.date_range("2024-01-01", periods=200, freq="1h"),
             # Target and risk data
             "pnl": [10.0, -5.0] * 100,  # Alternating profitable/unprofitable
@@ -199,7 +199,7 @@ class TestModelRegistry:
                 "strategy_archetype": ["trend_following"] * 10,
                 "context_at_entry_rsi": [50.0] * 10,
                 "side": ["long"] * 10,
-                "symbol": ["EUR_USD"] * 10,
+                "symbol": ["EURUSD"] * 10,
                 "entry_time": pd.date_range("2024-01-01", periods=10, freq="1h"),
                 "pnl": [10.0] * 10,
                 "r_multiple": [0.5] * 10,
@@ -232,7 +232,7 @@ class TestModelRegistry:
                 "context_at_entry_rsi": np.random.uniform(30, 70, 5),
                 "context_at_entry_atr": np.random.uniform(0.0005, 0.002, 5),
                 "side": ["long", "short", "long", "short", "long"],
-                "symbol": ["EUR_USD"] * 5,
+                "symbol": ["EURUSD"] * 5,
                 "entry_time": pd.date_range(
                     "2025-01-01", periods=5, freq="1h"
                 ),  # Future data
@@ -356,7 +356,7 @@ class TestModelRegistry:
                 "strategy_archetype": ["trend_following"] * 100,
                 "context_at_entry_rsi": np.random.uniform(30, 70, 100),
                 "side": ["long", "short"] * 50,
-                "symbol": ["EUR_USD"] * 100,
+                "symbol": ["EURUSD"] * 100,
                 "entry_time": pd.date_range("2024-01-01", periods=100, freq="1h"),
                 "pnl": np.random.uniform(-50, 100, 100),
                 "r_multiple": np.random.uniform(-2, 5, 100),  # Has risk data
@@ -370,7 +370,7 @@ class TestModelRegistry:
                 "strategy_archetype": ["trend_following"] * 50,
                 "context_at_entry_rsi": np.random.uniform(30, 70, 50),
                 "side": ["long", "short"] * 25,
-                "symbol": ["EUR_USD"] * 50,
+                "symbol": ["EURUSD"] * 50,
                 "entry_time": pd.date_range("2024-05-01", periods=50, freq="1h"),
                 "pnl": np.random.uniform(-50, 100, 50),
                 "r_multiple": np.full(50, np.nan),  # No risk data (explicit float NaN)
@@ -421,7 +421,7 @@ class TestModelRegistry:
                 "strategy_archetype": ["trend_following"] * 100,
                 "context_at_entry_rsi": np.random.uniform(30, 70, 100),
                 "side": ["long", "short"] * 50,
-                "symbol": ["EUR_USD"] * 100,
+                "symbol": ["EURUSD"] * 100,
                 "entry_time": pd.date_range("2024-01-01", periods=100, freq="1h"),
                 "pnl": np.random.uniform(-50, 100, 100),
                 "r_multiple": np.random.uniform(-2, 5, 100),
@@ -465,7 +465,7 @@ class TestModelRegistry:
                 "strategy_archetype": ["trend_following"] * 100,
                 "context_at_entry_rsi": np.random.uniform(30, 70, 100),
                 "side": ["long", "short"] * 50,
-                "symbol": ["EUR_USD"] * 100,
+                "symbol": ["EURUSD"] * 100,
                 "entry_time": pd.date_range("2024-01-01", periods=100, freq="1h"),
                 "pnl": np.random.uniform(-50, 100, 100),
                 "r_multiple": np.random.uniform(-2, 5, 100),
@@ -484,7 +484,7 @@ class TestModelRegistry:
                 "strategy_archetype": ["trend_following"] * 5,
                 "context_at_entry_rsi": np.random.uniform(30, 70, 5),
                 "side": ["long"] * 5,
-                "symbol": ["EUR_USD"] * 5,
+                "symbol": ["EURUSD"] * 5,
                 "entry_time": pd.date_range(
                     "2024-01-03", periods=5, freq="1h"
                 ),  # Overlaps!
@@ -511,7 +511,7 @@ class TestModelRegistry:
                 "strategy_archetype": ["trend_following"] * 100,
                 "context_at_entry_rsi": np.random.uniform(30, 70, 100),
                 "side": ["long", "short"] * 50,
-                "symbol": ["EUR_USD"] * 100,
+                "symbol": ["EURUSD"] * 100,
                 "entry_time": pd.date_range("2024-01-01", periods=100, freq="1h"),
                 "pnl": np.random.uniform(-50, 100, 100),
                 "r_multiple": np.random.uniform(-2, 5, 100),
@@ -534,7 +534,7 @@ class TestModelRegistry:
                 "strategy_archetype": ["trend_following"] * 5,
                 "context_at_entry_rsi": np.random.uniform(30, 70, 5),
                 "side": ["long"] * 5,
-                "symbol": ["EUR_USD"] * 5,
+                "symbol": ["EURUSD"] * 5,
                 "entry_time": pd.date_range(
                     "2024-01-02", periods=5, freq="1h"
                 ),  # Overlaps!

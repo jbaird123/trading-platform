@@ -201,7 +201,7 @@ def main() -> None:
         else None
     )
 
-    data_handler = DataHandler(symbol="EUR_USD", data_root=DEFAULT_TV_DATA_ROOT)
+    data_handler = DataHandler(symbol="EURUSD", data_root=DEFAULT_TV_DATA_ROOT)
     specs = [
         GoldenSpec(
             name="Platform trade hashes",

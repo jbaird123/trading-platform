@@ -5,25 +5,25 @@ strategy_archetype: trend_following
 description: 'Meta-campaign: trend_following_model_generation, Profile: baseline_no_risk,
   Timeframe: 4H'
 run_matrix:
-- instrument: EUR_USD
+- instrument: EURUSD
   start_date: '2018-01-01'
   end_date: '2023-12-31'
   param_overrides:
     fast_length: 9
     slow_length: 21
-- instrument: EUR_USD
+- instrument: EURUSD
   start_date: '2018-01-01'
   end_date: '2023-12-31'
   param_overrides:
     fast_length: 15
     slow_length: 45
-- instrument: EUR_USD
+- instrument: EURUSD
   start_date: '2018-01-01'
   end_date: '2023-12-31'
   param_overrides:
     fast_length: 12
     slow_length: 26
-- instrument: EUR_USD
+- instrument: EURUSD
   start_date: '2018-01-01'
   end_date: '2023-12-31'
   param_overrides:

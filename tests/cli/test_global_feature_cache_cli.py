@@ -48,7 +48,7 @@ def test_precompute_global_features_cli_builds_cache(tmp_path) -> None:
 
     cache_root = tmp_path / "cache"
     args = argparse.Namespace(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         data_root=str(data_root),
         config=str(global_yaml),
         timeframes=["5min"],

@@ -18,7 +18,7 @@ def test_run_config_auto_populate_instrument_from_data_request() -> None:
     config = RunConfig.model_validate(
         {
             "run_id": "test",
-            "data_request": {"symbol": "EUR_USD", "timeframe": "1H"},
+            "data_request": {"symbol": "EURUSD", "timeframe": "1H"},
         }
     )
 

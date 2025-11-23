@@ -64,7 +64,7 @@ def test_core_calculations_match_manual_csv():
         initial_cash=initial_cash,
         position_size=1.0,
         instrument={
-            "symbol": "EUR_USD",  # Use registered instrument
+            "symbol": "EURUSD",  # Use registered instrument
         },
         # Critical: Add blackout rule for 08:00-10:00 UTC
         blackout_utc=[("08:00", "10:00")],

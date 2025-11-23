@@ -620,7 +620,7 @@ def shared_data_handler(
     # Create DataHandler - this loads the 1-minute CSV once
     # The DataHandler's internal cache will persist for the entire test session
     data_handler = DataHandler(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         data_root=data_root,
     )
     setattr(data_handler, "cache_root", GOLDEN_FEATURE_CACHE_ROOT)

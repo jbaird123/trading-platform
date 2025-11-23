@@ -30,7 +30,7 @@ run_grid:
   date_ranges:
     - { start: "2020-01-01", end: "2020-12-31" }
   instruments:
-    - EUR_USD
+    - EURUSD
   execution_timeframes:
     - 15min
 
@@ -83,7 +83,7 @@ run_grid:
   date_ranges:
     - { start: "2020-01-01", end: "2020-12-31" }
   instruments:
-    - EUR_USD
+    - EURUSD
   execution_timeframes:
     - 15min
 
@@ -150,7 +150,7 @@ run_grid:
   date_ranges:
     - { start: "2020-01-01", end: "2020-12-31" }
   instruments:
-    - EUR_USD
+    - EURUSD
   execution_timeframes:
     - 15min
 
@@ -197,7 +197,7 @@ run_grid:
   date_ranges:
     - { start: "2020-01-01", end: "2020-12-31" }
   instruments:
-    - EUR_USD
+    - EURUSD
   execution_timeframes:
     - 15min
 
@@ -270,7 +270,7 @@ run_grid:
   date_ranges:
     - { start: "2020-01-01", end: "2020-12-31" }
   instruments:
-    - EUR_USD
+    - EURUSD
   execution_timeframes:
     - 15min
 

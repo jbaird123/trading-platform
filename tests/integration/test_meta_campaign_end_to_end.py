@@ -25,8 +25,8 @@ run_grid:
   date_ranges:
     - { start: "2018-01-01", end: "2023-12-31" }
   instruments:
-    - EUR_USD
-    - GBP_USD
+    - EURUSD
+    - GBPUSD
   execution_timeframes:
     - 1min
     - 5min
@@ -145,7 +145,7 @@ def test_campaign_config_to_yaml_conversion(tmp_path: Path) -> None:
         "meta_campaign_id": "test_campaign",
         "profile_name": "test_profile",
         "date_range": {"start": "2020-01-01", "end": "2020-12-31"},
-        "instrument": "EUR_USD",
+        "instrument": "EURUSD",
         "execution_timeframe": "15min",
         "strategy_path": str(strategy_file),
         "rem_path": str(rem_file),

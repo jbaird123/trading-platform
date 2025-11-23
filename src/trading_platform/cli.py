@@ -2064,7 +2064,7 @@ def _validate_data_logic(args: argparse.Namespace) -> int:
         # Scan directory for all instruments
         instruments = []
         for file in data_dir.glob("*.parquet"):
-            # Extract instrument from filename (e.g., EUR_USD_1H.parquet -> EUR_USD)
+            # Extract instrument from filename (e.g., EURUSD_1H.parquet -> EURUSD)
             parts = file.stem.split("_")
             if len(parts) >= 2:
                 instrument = "_".join(parts[:2])  # Take first two parts
@@ -2119,7 +2119,7 @@ def _validate_data_logic(args: argparse.Namespace) -> int:
 def _precompute_global_features_logic(args: argparse.Namespace) -> int:
     """Precompute global feature caches for the requested symbol."""
 
-    symbol = args.symbol or "EUR_USD"
+    symbol = args.symbol or "EURUSD"
     data_root = Path(args.data_root or paths.RAW_DATA_DIR).expanduser().resolve()
 
     config_arg = args.config
@@ -2593,7 +2593,7 @@ def main() -> int:
         "precompute-global-features",
         help="Precompute cached global feature matrices for a symbol",
     )
-    pgfc.add_argument("--symbol", default="EUR_USD", help="Instrument symbol")
+    pgfc.add_argument("--symbol", default="EURUSD", help="Instrument symbol")
     pgfc.add_argument(
         "--data-root",
         default=str(paths.RAW_DATA_DIR),

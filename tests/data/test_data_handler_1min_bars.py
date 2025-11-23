@@ -58,7 +58,7 @@ def mock_data_root(tmp_path):
 
 def test_get_1min_bars_for_hour_returns_correct_shape(mock_data_root):
     """Test that get_1min_bars_for_hour returns up to 60 bars for a full hour."""
-    handler = DataHandler("EUR_USD", mock_data_root)
+    handler = DataHandler("EURUSD", mock_data_root)
 
     # Get bars for the first hour (00:00-01:00)
     timestamp = pd.Timestamp("2023-01-01 00:30:00", tz="UTC")
@@ -72,7 +72,7 @@ def test_get_1min_bars_for_hour_returns_correct_shape(mock_data_root):
 
 def test_get_1min_bars_for_hour_with_timestamp_at_hour_start(mock_data_root):
     """Test retrieval when timestamp is exactly at hour start."""
-    handler = DataHandler("EUR_USD", mock_data_root)
+    handler = DataHandler("EURUSD", mock_data_root)
 
     timestamp = pd.Timestamp("2023-01-01 01:00:00", tz="UTC")
     bars = get_1min_bars_for_hour(handler, timestamp)
@@ -85,7 +85,7 @@ def test_get_1min_bars_for_hour_with_timestamp_at_hour_start(mock_data_root):
 
 def test_get_1min_bars_for_hour_with_timestamp_at_hour_end(mock_data_root):
     """Test retrieval when timestamp is at the end of an hour."""
-    handler = DataHandler("EUR_USD", mock_data_root)
+    handler = DataHandler("EURUSD", mock_data_root)
 
     timestamp = pd.Timestamp("2023-01-01 00:59:00", tz="UTC")
     bars = get_1min_bars_for_hour(handler, timestamp)
@@ -98,7 +98,7 @@ def test_get_1min_bars_for_hour_with_timestamp_at_hour_end(mock_data_root):
 
 def test_get_1min_bars_for_hour_returns_correct_columns(mock_data_root):
     """Test that returned DataFrame has correct OHLCV columns."""
-    handler = DataHandler("EUR_USD", mock_data_root)
+    handler = DataHandler("EURUSD", mock_data_root)
 
     timestamp = pd.Timestamp("2023-01-01 00:00:00", tz="UTC")
     bars = get_1min_bars_for_hour(handler, timestamp)
@@ -132,7 +132,7 @@ def test_get_1min_bars_for_hour_with_missing_data(mock_data_root):
     data_file = data_dir / "gbpusd_1min.csv"
     data.to_csv(data_file, index=False)
 
-    handler_with_gaps = DataHandler("GBP_USD", mock_data_root)
+    handler_with_gaps = DataHandler("GBPUSD", mock_data_root)
     timestamp = pd.Timestamp("2023-01-01 00:15:00", tz="UTC")
     bars = get_1min_bars_for_hour(handler_with_gaps, timestamp)
 
@@ -144,7 +144,7 @@ def test_get_1min_bars_for_hour_with_missing_data(mock_data_root):
 
 def test_get_1min_bars_for_hour_with_partial_hour_at_end(mock_data_root):
     """Test handling when requesting the last partial hour in dataset."""
-    handler = DataHandler("EUR_USD", mock_data_root)
+    handler = DataHandler("EURUSD", mock_data_root)
 
     # Request the last hour which only has data until 03:00
     timestamp = pd.Timestamp("2023-01-01 03:00:00", tz="UTC")
@@ -157,7 +157,7 @@ def test_get_1min_bars_for_hour_with_partial_hour_at_end(mock_data_root):
 
 def test_get_1min_bars_for_hour_uses_cached_data(mock_data_root):
     """Test that no disk reads occur - data is already cached."""
-    handler = DataHandler("EUR_USD", mock_data_root)
+    handler = DataHandler("EURUSD", mock_data_root)
 
     # First call - data is already loaded in __init__
     timestamp1 = pd.Timestamp("2023-01-01 00:00:00", tz="UTC")
@@ -182,7 +182,7 @@ def test_get_1min_bars_for_hour_uses_cached_data(mock_data_root):
 
 def test_get_1min_bars_for_hour_with_timezone_aware_timestamp(mock_data_root):
     """Test that timezone-aware timestamps are handled correctly."""
-    handler = DataHandler("EUR_USD", mock_data_root)
+    handler = DataHandler("EURUSD", mock_data_root)
 
     timestamp = pd.Timestamp("2023-01-01 00:00:00", tz="UTC")
     bars = get_1min_bars_for_hour(handler, timestamp)
@@ -195,7 +195,7 @@ def test_get_1min_bars_for_hour_with_timezone_aware_timestamp(mock_data_root):
 
 def test_get_1min_bars_for_hour_consecutive_hours(mock_data_root):
     """Test retrieving bars from consecutive hours returns distinct data."""
-    handler = DataHandler("EUR_USD", mock_data_root)
+    handler = DataHandler("EURUSD", mock_data_root)
 
     # Get bars for hour 0
     hour0 = get_1min_bars_for_hour(

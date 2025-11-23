@@ -17,7 +17,7 @@ def test_cli_data_request_with_all_filters(tmp_path):
     )
     mock_run_config = {
         "data_request": {
-            "symbol": "EUR_USD",
+            "symbol": "EURUSD",
             "timeframe": "1H",
             "start": "2023-01-02",
             "end": "2023-01-02",

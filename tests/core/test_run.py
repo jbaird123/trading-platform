@@ -46,7 +46,7 @@ def test_finalize_run_monte_carlo_exception_propagates():
     """
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",
@@ -102,7 +102,7 @@ def test_finalize_run_walk_forward_exception_handling_line_127():
     """Test walk_forward handling - WFE now runs in CLI, not finalize_run."""
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",
@@ -168,7 +168,7 @@ def test_finalize_run_walk_forward_invalid_config_branch_121_to_130():
     """Test walk_forward with config passthrough - WFE validation now in CLI."""
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",
@@ -239,7 +239,7 @@ def test_finalize_run_parameter_search_exception_propagates():
     """
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",
@@ -293,7 +293,7 @@ def test_finalize_run_parameter_search_csv_export_lines_212_213():
     """Test parameter_search CSV export to hit lines 212-213."""
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",
@@ -369,7 +369,7 @@ def test_finalize_run_parameter_search_csv_export_exception_branch_200_to_215():
     """Test parameter_search CSV export exception handling to hit branch 200->215."""
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",
@@ -416,7 +416,7 @@ def test_finalize_run_parameter_search_no_results():
     """Test parameter_search with no results to skip CSV export."""
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",
@@ -463,7 +463,7 @@ def test_finalize_run_empty_parameter_search_results():
     """Test parameter_search with empty results list to skip CSV export."""
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",
@@ -510,7 +510,7 @@ def test_finalize_run_walk_forward_non_dict_config():
     """Test walk_forward config passthrough - empty config means no WFE run."""
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",
@@ -565,7 +565,7 @@ def test_finalize_run_walk_forward_param_not_none():
     """Test walk_forward with explicit param passthrough."""
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",
@@ -680,7 +680,7 @@ def test_finalize_run_monte_carlo_enabled():
     # Create sample trades
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",
@@ -746,7 +746,7 @@ def test_finalize_run_walk_forward_enabled():
     # Create sample trades
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",
@@ -801,7 +801,7 @@ def test_finalize_run_parameter_search_enabled():
     # Create sample trades
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",
@@ -811,7 +811,7 @@ def test_finalize_run_parameter_search_enabled():
             pnl=50.0,
         ),
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 11, 0),
             exit_time=datetime(2024, 1, 1, 12, 0),
             side="short",
@@ -878,7 +878,7 @@ def test_finalize_run_parameter_search_random_space():
     """Random-space parameter search should respect config seed and space."""
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",
@@ -941,7 +941,7 @@ def test_finalize_run_parameter_search_export_csv():
     """Test finalize_run exports parameter search results CSV. Covers lines 185-206."""
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",
@@ -1010,7 +1010,7 @@ def test_finalize_run_exception_handling():
     """Test finalize_run handles exceptions gracefully. Covers exception branches."""
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",
@@ -1065,7 +1065,7 @@ def test_finalize_run_parameter_search_csv_export_exception():
     """CSV export errors should be swallowed and logged."""
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",
@@ -1137,7 +1137,7 @@ def test_valid_run_configs_pydantic():
     """
     # Minimal valid config
     config1 = RunConfig(  # type: ignore[call-arg]
-        instrument=_instrument("EUR_USD"),
+        instrument=_instrument("EURUSD"),
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
@@ -1151,7 +1151,7 @@ def test_valid_run_configs_pydantic():
         run_seed=42,
         initial_cash=10000.0,
         position_size=100.0,
-        instrument=_instrument("GBP_JPY"),
+        instrument=_instrument("GBPJPY"),
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
         entry_window_bars=3,
@@ -1382,7 +1382,7 @@ def _dummy_strategy() -> CompiledStrategy:
 
 def _t(ts: datetime, pnl: float) -> Trade:
     return Trade(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         entry_time=ts,
         exit_time=ts + timedelta(hours=1),
         entry_price=1.0,

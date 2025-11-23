@@ -76,7 +76,7 @@ def test_contextual_rem_with_order_block_strategy():
     # EUR/USD instrument
     # When passing to REM directly, include pip_location for pip calculations
     instrument_for_rem = {
-        "symbol": "EUR_USD",
+        "symbol": "EURUSD",
         "pip_location": 0.0001,  # EUR/USD has 4 decimal places
     }
 
@@ -105,7 +105,7 @@ def test_contextual_rem_with_order_block_strategy():
         run_seed=42,
         log_level="INFO",
         allow_flip_on_bar=False,
-        instrument={"symbol": "EUR_USD"},  # Only symbol, no pip_location
+        instrument={"symbol": "EURUSD"},  # Only symbol, no pip_location
         initial_cash=10000,
         position_size=1000,
         execution_model="next_bar_open",

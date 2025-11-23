@@ -6,7 +6,7 @@ from trading_platform.core.research_profiles import make_research_config
 def test_make_research_config_creates_minimal_sections():
     cfg = make_research_config(
         strategy_path="config/strategy/ema_crossover.yaml",
-        symbol="EUR_USD",
+        symbol="EURUSD",
         timeframe="1H",
         start="2023-01-01",
         end="2023-03-01",

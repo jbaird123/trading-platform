@@ -872,7 +872,7 @@ class TestTrainModelFlag:
                     }
                 ],
                 "metrics": {"total_pnl": 100, "win_rate": 1.0},
-                "config": {"instrument": {"symbol": "EUR_USD"}},
+                "config": {"instrument": {"symbol": "EURUSD"}},
             },
         }
         brief_path.write_text(json.dumps(brief_data))

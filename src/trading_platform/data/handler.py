@@ -111,7 +111,7 @@ class DataHandler:
         """Initialize DataHandler.
 
         Args:
-            symbol: Financial instrument symbol (e.g., "EUR_USD")
+            symbol: Financial instrument symbol (e.g., "EURUSD")
             data_root: Root directory containing data files
             instrument: Instrument definition for session-aware resampling
         """

@@ -22,7 +22,7 @@ def test_monte_carlo_block_bootstrap_zero_block_len():
     """Test block_bootstrap mode with b <= 0 to hit line 36."""
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",
@@ -33,7 +33,7 @@ def test_monte_carlo_block_bootstrap_zero_block_len():
             exit_reason="signal",
         ),
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 12, 0),
             exit_time=datetime(2024, 1, 1, 13, 0),
             side="short",
@@ -68,7 +68,7 @@ def test_monte_carlo_block_bootstrap_negative_block_len():
     """Test block_bootstrap mode with negative block_len to hit line 36."""
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",
@@ -79,7 +79,7 @@ def test_monte_carlo_block_bootstrap_negative_block_len():
             exit_reason="signal",
         ),
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 12, 0),
             exit_time=datetime(2024, 1, 1, 13, 0),
             side="short",
@@ -111,7 +111,7 @@ def test_monte_carlo_block_bootstrap_empty_block_line_43():
     # Create a single trade to force edge case in block sampling
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",
@@ -151,7 +151,7 @@ def test_monte_carlo_percentile_calculation_f_equals_c():
     # Create trades that will result in percentile calculation where f == c
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",
@@ -190,7 +190,7 @@ def test_monte_carlo_single_value_percentiles():
     # Single trade, single trial to ensure f == c in percentile calculation
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",
@@ -228,7 +228,7 @@ def test_walk_forward_empty_oos_windows():
     # Create trades that will result in empty OOS windows for some splits
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",
@@ -239,7 +239,7 @@ def test_walk_forward_empty_oos_windows():
             exit_reason="signal",
         ),
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 5, 10, 0),  # Large gap
             exit_time=datetime(2024, 1, 5, 11, 0),
             side="short",
@@ -300,7 +300,7 @@ def test_walk_forward_single_trade_edge_cases():
     """Test walk forward with edge cases in trade handling."""
     # Single trade to test edge cases in split processing
     trade = Trade(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         entry_time=datetime(2024, 1, 1, 10, 0),
         exit_time=datetime(2024, 1, 1, 11, 0),
         side="long",
@@ -324,7 +324,7 @@ def test_monte_carlo_edge_case_max_start_negative():
     # Create scenario where m < b to test max_start calculation
     trades = [
         Trade(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=datetime(2024, 1, 1, 10, 0),
             exit_time=datetime(2024, 1, 1, 11, 0),
             side="long",

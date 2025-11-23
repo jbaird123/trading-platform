@@ -43,7 +43,7 @@ def parse_args() -> argparse.Namespace:
         help="Root directory of the global feature cache",
     )
     parser.add_argument(
-        "--symbol", type=str, required=True, help="Symbol to validate (e.g., EUR_USD)"
+        "--symbol", type=str, required=True, help="Symbol to validate (e.g., EURUSD)"
     )
     parser.add_argument(
         "--timeframe",

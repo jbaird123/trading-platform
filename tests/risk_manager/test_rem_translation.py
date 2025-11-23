@@ -17,7 +17,7 @@ def test_rem_translates_pips_rule_for_long_position():
     rem = RiskExitManager(config=rem_config, instrument=instrument)
 
     position = Position(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         side="long",
         entry_price=1.20000,
         entry_mid_price=1.20000,
@@ -25,7 +25,7 @@ def test_rem_translates_pips_rule_for_long_position():
         entry_time=datetime.now(UTC),
     )
 
-    # Pip size for EUR_USD is 0.0001. 50 pips = 0.0050
+    # Pip size for EURUSD is 0.0001. 50 pips = 0.0050
     expected_stop_price = 1.20000 - 0.0050  # 1.19500
 
     # 2. Create a bar where the low hits the stop price exactly
@@ -57,7 +57,7 @@ def test_rem_translates_pips_rule_for_short_position():
     rem = RiskExitManager(config=rem_config, instrument=instrument)
 
     position = Position(
-        symbol="USD_JPY",
+        symbol="USDJPY",
         side="short",
         entry_price=110.00,
         entry_mid_price=110.00,
@@ -65,7 +65,7 @@ def test_rem_translates_pips_rule_for_short_position():
         entry_time=datetime.now(UTC),
     )
 
-    # Pip size for USD_JPY is 0.01. 50 pips = 0.50
+    # Pip size for USDJPY is 0.01. 50 pips = 0.50
     expected_stop_price = 110.00 + 0.50  # 110.50
 
     # 2. Create a bar where the high hits the stop price exactly

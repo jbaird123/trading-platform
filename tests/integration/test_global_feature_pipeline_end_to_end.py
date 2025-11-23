@@ -98,7 +98,7 @@ def test_global_feature_pipeline_end_to_end(tmp_path: Path) -> None:
 
     # ==================== Step 1: Build Cache ====================
     descriptor = build_global_feature_caches(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         data_root=data_root,
         config_path=manifest_path,
         timeframes=["5min", "15min"],
@@ -121,7 +121,7 @@ def test_global_feature_pipeline_end_to_end(tmp_path: Path) -> None:
     # ==================== Step 2: Load and Verify Cache ====================
     # Test 5min timeframe
     result_5min = load_cached_global_features(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         timeframe="5min",
         cache_root=cache_root,
         config_path=manifest_path,
@@ -138,7 +138,7 @@ def test_global_feature_pipeline_end_to_end(tmp_path: Path) -> None:
 
     # Test 15min timeframe
     result_15min = load_cached_global_features(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         timeframe="15min",
         cache_root=cache_root,
         config_path=manifest_path,
@@ -188,7 +188,7 @@ def test_global_feature_pipeline_end_to_end(tmp_path: Path) -> None:
             "--cache-dir",
             str(cache_root),
             "--symbol",
-            "EUR_USD",
+            "EURUSD",
             "--timeframe",
             "5min",
             "--feature-config",
@@ -223,7 +223,7 @@ def test_global_feature_pipeline_end_to_end(tmp_path: Path) -> None:
             "--cache-dir",
             str(cache_root),
             "--symbol",
-            "EUR_USD",
+            "EURUSD",
             "--timeframe",
             "15min",
             "--feature-config",
@@ -259,7 +259,7 @@ def test_global_feature_pipeline_end_to_end(tmp_path: Path) -> None:
     # Attempt to load should raise ValueError
     with pytest.raises(ValueError, match="[Mm]anifest.*digest"):
         load_cached_global_features(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             timeframe="5min",
             cache_root=cache_root,
             config_path=manifest_path,
@@ -272,7 +272,7 @@ def test_global_feature_pipeline_end_to_end(tmp_path: Path) -> None:
 
     # Should load successfully again
     result_after_restore = load_cached_global_features(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         timeframe="5min",
         cache_root=cache_root,
         config_path=manifest_path,
@@ -297,7 +297,7 @@ def test_pipeline_detects_manifest_changes(tmp_path: Path) -> None:
 
     # Build initial cache
     descriptor = build_global_feature_caches(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         data_root=data_root,
         config_path=manifest_path,
         timeframes=["5min"],
@@ -307,7 +307,7 @@ def test_pipeline_detects_manifest_changes(tmp_path: Path) -> None:
 
     # Load successfully
     result_initial = load_cached_global_features(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         timeframe="5min",
         cache_root=cache_root,
         config_path=manifest_path,
@@ -324,7 +324,7 @@ def test_pipeline_detects_manifest_changes(tmp_path: Path) -> None:
     # Should detect mismatch
     with pytest.raises(ValueError, match="[Mm]anifest.*digest"):
         load_cached_global_features(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             timeframe="5min",
             cache_root=cache_root,
             config_path=manifest_path,

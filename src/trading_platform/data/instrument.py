@@ -65,7 +65,7 @@ _ASSET_CLASS_DEFAULTS: dict[str, dict[str, Any]] = {
 }
 
 # Define instrument-specific overrides and properties.
-# Keys use canonical normalized format (e.g., "EURUSD" not "EUR/USD" or "EUR_USD")
+# Keys use canonical normalized format (e.g., "EURUSD" not "EUR/USD" or "EURUSD")
 _INSTRUMENT_DEFINITIONS: dict[str, dict[str, Any]] = {
     "AUDUSD": {
         "asset_class": "Forex",

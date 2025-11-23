@@ -91,13 +91,13 @@ def test_forex_instruments_use_standard_session():
     expected_close_time = time(17, 0)
     expected_timezone = "America/New_York"
 
-    # Test EUR_USD
-    eur_usd_def = get_instrument_definition("EUR_USD")
+    # Test EURUSD
+    eur_usd_def = get_instrument_definition("EURUSD")
     assert eur_usd_def.sessions[0].close_time == expected_close_time
     assert eur_usd_def.sessions[0].close_timezone == expected_timezone
 
-    # Test GBP_JPY
-    gbp_jpy_def = get_instrument_definition("GBP_JPY")
+    # Test GBPJPY
+    gbp_jpy_def = get_instrument_definition("GBPJPY")
     assert gbp_jpy_def.sessions[0].close_time == expected_close_time
     assert gbp_jpy_def.sessions[0].close_timezone == expected_timezone
 
@@ -109,8 +109,8 @@ def test_get_instrument_definition_with_normalization():
     assert eur_usd_slash.asset_class == "Forex"
     assert eur_usd_slash.tick_size == 0.00001
 
-    # Test that EUR_USD returns the exact same definition object
-    eur_usd_underscore = get_instrument_definition("EUR_USD")
+    # Test that EURUSD returns the exact same definition object
+    eur_usd_underscore = get_instrument_definition("EURUSD")
     assert eur_usd_underscore.asset_class == "Forex"
     assert eur_usd_underscore.tick_size == 0.00001
 

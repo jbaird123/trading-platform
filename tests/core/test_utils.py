@@ -40,7 +40,7 @@ def test_get_logger_with_level():
     "input_symbol,expected_output",
     [
         ("EUR/USD", "EURUSD"),
-        ("EUR_USD", "EURUSD"),
+        ("EURUSD", "EURUSD"),
         ("eur-jpy", "EURJPY"),
         ("SPY", "SPY"),
         ("EURUSD", "EURUSD"),

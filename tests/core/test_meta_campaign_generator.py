@@ -20,8 +20,8 @@ run_grid:
   date_ranges:
     - { start: "2020-01-01", end: "2020-12-31" }
   instruments:
-    - EUR_USD
-    - GBP_USD
+    - EURUSD
+    - GBPUSD
   execution_timeframes:
     - 15min
     - 1H
@@ -55,7 +55,7 @@ run_grid:
   date_ranges:
     - { start: "2020-01-01", end: "2020-12-31" }
   instruments:
-    - EUR_USD
+    - EURUSD
   execution_timeframes:
     - 15min
 
@@ -99,7 +99,7 @@ run_grid:
   date_ranges:
     - { start: "2020-01-01", end: "2020-12-31" }
   instruments:
-    - EUR_USD
+    - EURUSD
   execution_timeframes:
     - 15min
 
@@ -125,7 +125,7 @@ strategy_profiles:
     assert "date_range" in campaign
     assert campaign["date_range"]["start"] == "2020-01-01"
     assert campaign["date_range"]["end"] == "2020-12-31"
-    assert campaign["instrument"] == "EUR_USD"
+    assert campaign["instrument"] == "EURUSD"
     assert campaign["execution_timeframe"] == "15min"
     assert campaign["strategy_path"] == "config/strategy/test.yaml"
     assert campaign["rem_path"] == "config/rem/test.yaml"
@@ -141,14 +141,14 @@ def test_generate_campaign_filename() -> None:
     filename = generate_campaign_filename(
         meta_campaign_id="trend_following_model_generation",
         profile_name="trend_with_risk",
-        instrument="EUR_USD",
+        instrument="EURUSD",
         timeframe="15min",
         param_index=0,
     )
 
     assert (
         filename
-        == "trend_following_model_generation_trend_with_risk_EUR_USD_15min_00.yaml"
+        == "trend_following_model_generation_trend_with_risk_EURUSD_15min_00.yaml"
     )
 
 
@@ -157,12 +157,12 @@ def test_generate_campaign_filename_with_larger_index() -> None:
     filename = generate_campaign_filename(
         meta_campaign_id="test_campaign",
         profile_name="test_profile",
-        instrument="GBP_USD",
+        instrument="GBPUSD",
         timeframe="1H",
         param_index=23,
     )
 
-    assert filename == "test_campaign_test_profile_GBP_USD_1H_23.yaml"
+    assert filename == "test_campaign_test_profile_GBPUSD_1H_23.yaml"
 
 
 def test_campaign_config_to_yaml_dict(tmp_path: Path) -> None:
@@ -178,7 +178,7 @@ def test_campaign_config_to_yaml_dict(tmp_path: Path) -> None:
         "meta_campaign_id": "test_campaign",
         "profile_name": "test_profile",
         "date_range": {"start": "2020-01-01", "end": "2020-12-31"},
-        "instrument": "EUR_USD",
+        "instrument": "EURUSD",
         "execution_timeframe": "15min",
         "strategy_path": str(strategy_path),
         "rem_path": str(rem_path),
@@ -195,7 +195,7 @@ def test_campaign_config_to_yaml_dict(tmp_path: Path) -> None:
     assert "end_date" in yaml_dict
     assert yaml_dict["end_date"] == "2020-12-31"
     assert "instrument" in yaml_dict
-    assert yaml_dict["instrument"] == "EUR_USD"
+    assert yaml_dict["instrument"] == "EURUSD"
     assert "execution_timeframe" in yaml_dict
     assert yaml_dict["execution_timeframe"] == "15min"
     assert "strategy" in yaml_dict
@@ -217,7 +217,7 @@ def test_campaign_config_to_yaml_dict_without_rem(tmp_path: Path) -> None:
         "meta_campaign_id": "test_campaign",
         "profile_name": "baseline_no_risk",
         "date_range": {"start": "2020-01-01", "end": "2020-12-31"},
-        "instrument": "EUR_USD",
+        "instrument": "EURUSD",
         "execution_timeframe": "15min",
         "strategy_path": str(strategy_path),
         "rem_path": None,
@@ -240,7 +240,7 @@ def test_campaign_config_to_yaml_dict_with_nonexistent_files(tmp_path: Path) -> 
         "meta_campaign_id": "test_campaign",
         "profile_name": "test_profile",
         "date_range": {"start": "2020-01-01", "end": "2020-12-31"},
-        "instrument": "EUR_USD",
+        "instrument": "EURUSD",
         "execution_timeframe": "15min",
         "strategy_path": str(tmp_path / "nonexistent_strategy.yaml"),
         "rem_path": str(tmp_path / "nonexistent_rem.yaml"),
@@ -266,7 +266,7 @@ def test_campaign_config_to_yaml_dict_with_nonexistent_strategy_only(
         "meta_campaign_id": "test_campaign",
         "profile_name": "test_profile",
         "date_range": {"start": "2020-01-01", "end": "2020-12-31"},
-        "instrument": "EUR_USD",
+        "instrument": "EURUSD",
         "execution_timeframe": "15min",
         "strategy_path": str(tmp_path / "nonexistent_strategy.yaml"),
         "rem_path": None,

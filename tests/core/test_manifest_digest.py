@@ -64,7 +64,7 @@ def test_build_global_feature_cache_writes_manifest_digest(tmp_path):
 
     # Build the cache
     descriptor = build_global_feature_caches(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         data_root=data_root,
         config_path=manifest_path,
         timeframes=["5min"],
@@ -103,7 +103,7 @@ def test_load_cached_features_raises_on_digest_mismatch(tmp_path):
 
     cache_root = tmp_path / "cache"
     descriptor = build_global_feature_caches(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         data_root=data_root,
         config_path=manifest_path,
         timeframes=["5min"],
@@ -122,7 +122,7 @@ def test_load_cached_features_raises_on_digest_mismatch(tmp_path):
     # Attempt to load with mismatched manifest should raise
     with pytest.raises(ValueError, match="[Mm]anifest.*digest"):
         load_cached_global_features(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             timeframe="5min",
             cache_root=cache_root,
             config_path=manifest_path,
@@ -148,7 +148,7 @@ def test_load_cached_features_error_message_includes_digests(tmp_path):
 
     cache_root = tmp_path / "cache"
     descriptor = build_global_feature_caches(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         data_root=data_root,
         config_path=manifest_path,
         timeframes=["5min"],
@@ -169,7 +169,7 @@ def test_load_cached_features_error_message_includes_digests(tmp_path):
     # Error should include both digests
     with pytest.raises(ValueError) as exc_info:
         load_cached_global_features(
-            symbol="EUR_USD",
+            symbol="EURUSD",
             timeframe="5min",
             cache_root=cache_root,
             config_path=manifest_path,
@@ -200,7 +200,7 @@ def test_load_cached_features_succeeds_with_matching_digest(tmp_path):
 
     cache_root = tmp_path / "cache"
     _ = build_global_feature_caches(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         data_root=data_root,
         config_path=manifest_path,
         timeframes=["5min"],
@@ -210,7 +210,7 @@ def test_load_cached_features_succeeds_with_matching_digest(tmp_path):
 
     # Load with the same manifest should succeed
     result = load_cached_global_features(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         timeframe="5min",
         cache_root=cache_root,
         config_path=manifest_path,

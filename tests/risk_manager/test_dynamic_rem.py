@@ -36,7 +36,7 @@ def test_breakeven_trigger():
 
     # Create a long position
     position = Position(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         entry_time=datetime(2024, 1, 1, 10, 0),
         entry_price=1.1000,
         entry_mid_price=1.1000,
@@ -88,7 +88,7 @@ def test_partial_profit_trigger():
 
     # Create a long position
     position = Position(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         entry_time=datetime(2024, 1, 1, 10, 0),
         entry_price=1.1000,
         entry_mid_price=1.1000,
@@ -135,7 +135,7 @@ def test_atr_trailing_stop_after_partial_exit():
 
     # Create a long position
     position = Position(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         entry_time=datetime(2024, 1, 1, 10, 0),
         entry_price=1.1000,
         entry_mid_price=1.1000,
@@ -189,7 +189,7 @@ def test_stop_tightens_on_falling_adx():
 
     # Create a long position in profit
     position = Position(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         entry_time=datetime(2024, 1, 1, 10, 0),
         entry_price=1.1000,
         entry_mid_price=1.1000,
@@ -241,7 +241,7 @@ def test_partial_exit_fires_only_once():
     rem = DynamicREM(config)
 
     position = Position(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         entry_time=datetime(2024, 1, 1, 10, 0),
         entry_price=1.1000,
         entry_mid_price=1.1000,
@@ -293,7 +293,7 @@ def test_stop_tightens_when_adx_is_zero():
     rem = DynamicREM(config)
 
     position = Position(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         entry_time=datetime(2024, 1, 1, 10, 0),
         entry_price=1.1000,
         entry_mid_price=1.1000,

@@ -71,7 +71,7 @@ def test_gating_engine_allows_when_probability_and_alignment_pass():
         timeframe="5min",
         archetype="trend_following",
         side="long",
-        symbol="EUR_USD",
+        symbol="EURUSD",
         entry_time=pd.Timestamp("2024-01-01", tz="UTC"),
         context=context,
     )
@@ -94,7 +94,7 @@ def test_gating_engine_blocks_when_probability_below_threshold():
         timeframe="5min",
         archetype="trend_following",
         side="long",
-        symbol="EUR_USD",
+        symbol="EURUSD",
         entry_time=pd.Timestamp("2024-01-01", tz="UTC"),
         context=context,
     )
@@ -111,7 +111,7 @@ def test_gating_engine_raises_when_classifier_missing():
             timeframe="5min",
             archetype="trend_following",
             side="long",
-            symbol="EUR_USD",
+            symbol="EURUSD",
             entry_time=pd.Timestamp("2024-01-01", tz="UTC"),
             context={},
         )

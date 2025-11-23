@@ -96,7 +96,7 @@ def test_serialize_trade_with_post_exit_dict() -> None:
     # Create a trade with post_exit_analysis
     entry_time = datetime(2024, 1, 1, 10, 0, 0)
     trade = Trade(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         entry_time=entry_time,
         exit_time=entry_time + timedelta(hours=2),
         entry_price=1.1000,
@@ -177,7 +177,7 @@ def test_generate_brief_with_rem_policy() -> None:
     """
     entry_time = datetime(2024, 1, 1, 10, 0, 0)
     trade = Trade(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         entry_time=entry_time,
         exit_time=entry_time + timedelta(hours=1),
         entry_price=1.1000,
@@ -219,7 +219,7 @@ def test_generate_brief_without_rem_policy() -> None:
     """
     entry_time = datetime(2024, 1, 1, 10, 0, 0)
     trade = Trade(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         entry_time=entry_time,
         exit_time=entry_time + timedelta(hours=1),
         entry_price=1.1000,
