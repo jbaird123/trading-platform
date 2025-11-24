@@ -541,6 +541,9 @@ def run_event_loop_backtest(
             )
 
         if command == "enter_long":
+            risk_fields_long = _entry_risk_fields(
+                "long", close_price, row, context or {}, prior_bar
+            )
             if _blackout_blocked(bar_timestamp):
                 skip_entry = {
                     "entry_time": bar_timestamp.isoformat(),
@@ -594,13 +597,10 @@ def run_event_loop_backtest(
                 )
                 skipped.append(skip_entry)
                 expiry_idx = idx + max(0, int(config.entry_window_bars or 0))
-                risk_fields = _entry_risk_fields(
-                    "long", close_price, row, context or {}, prior_bar
-                )
                 pending_entries.append(
                     {
                         "side": "long",
-                        "intent": build_snapshot("long", risk_fields),
+                        "intent": build_snapshot("long", risk_fields_long),
                         "expiry": expiry_idx,
                         "origin_index": idx,
                     }
@@ -614,11 +614,11 @@ def run_event_loop_backtest(
                         idx,
                     )
                     intents.append(build_exit_snapshot("short"))
-                risk_fields = _entry_risk_fields(
-                    "long", close_price, row, context or {}, prior_bar
-                )
-                intents.append(build_snapshot("long", risk_fields))
+                intents.append(build_snapshot("long", risk_fields_long))
         elif command == "enter_short":
+            risk_fields_short = _entry_risk_fields(
+                "short", close_price, row, context or {}, prior_bar
+            )
             if _blackout_blocked(bar_timestamp):
                 skip_entry = {
                     "entry_time": bar_timestamp.isoformat(),
@@ -672,13 +672,10 @@ def run_event_loop_backtest(
                 )
                 skipped.append(skip_entry)
                 expiry_idx = idx + max(0, int(config.entry_window_bars or 0))
-                risk_fields = _entry_risk_fields(
-                    "short", close_price, row, context or {}, prior_bar
-                )
                 pending_entries.append(
                     {
                         "side": "short",
-                        "intent": build_snapshot("short", risk_fields),
+                        "intent": build_snapshot("short", risk_fields_short),
                         "expiry": expiry_idx,
                         "origin_index": idx,
                     }
@@ -692,10 +689,7 @@ def run_event_loop_backtest(
                         idx,
                     )
                     intents.append(build_exit_snapshot("long"))
-                risk_fields = _entry_risk_fields(
-                    "short", close_price, row, context or {}, prior_bar
-                )
-                intents.append(build_snapshot("short", risk_fields))
+                intents.append(build_snapshot("short", risk_fields_short))
         elif command == "exit_long":
             intents.append(build_exit_snapshot("long"))
         elif command == "exit_short":
