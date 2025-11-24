@@ -190,7 +190,9 @@ class ProfitabilityClassifierModel:
             df["day_of_week"] = pd.to_datetime(df["entry_time"]).dt.dayofweek
             features.extend(["hour_of_day", "day_of_week"])
 
-        return df[features].copy()
+        feature_df = df[features].copy()
+        numeric_df = feature_df.select_dtypes(include=["number"])
+        return numeric_df
 
     def _align_features(self, X: pd.DataFrame) -> pd.DataFrame:
         names = self._required_feature_names()
