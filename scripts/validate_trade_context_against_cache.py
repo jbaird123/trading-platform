@@ -116,6 +116,19 @@ def get_cache_record(
     return None
 
 
+def _resolve_lookup_timestamp(
+    trade_row: pd.Series, decision_time_col: str, fallback_col: str
+) -> pd.Timestamp:
+    """Prefer decision_time column when present; fall back to original timestamp."""
+    decision_val = trade_row.get(decision_time_col)
+    if pd.notna(decision_val):
+        try:
+            return pd.to_datetime(decision_val)
+        except Exception:
+            pass
+    return pd.to_datetime(trade_row[fallback_col])
+
+
 def compare_features(
     trade_features: dict[str, Any],
     cache_record: pd.Series,
@@ -225,8 +238,12 @@ def validate_trades(
         description="Validating trades",
     ):
         timeframe = trade["execution_timeframe"]
-        entry_time = pd.to_datetime(trade["entry_time"])
-        exit_time = pd.to_datetime(trade["exit_time"])
+        entry_time = _resolve_lookup_timestamp(
+            trade, "context_at_entry.decision_time", "entry_time"
+        )
+        exit_time = _resolve_lookup_timestamp(
+            trade, "context_at_exit.decision_time", "exit_time"
+        )
 
         trade_result = {
             "trade_idx": idx,
