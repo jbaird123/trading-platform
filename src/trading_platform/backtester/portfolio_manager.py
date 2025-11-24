@@ -392,6 +392,8 @@ class PortfolioManager:
                 if fill.intent
                 else (fill.decision.context if fill.decision else None)
             ),
+            stop_loss=pos.stop_loss,
+            take_profit=pos.take_profit,
         )
         self.trades.append(trade)
         self._positions.pop(position_id, None)
