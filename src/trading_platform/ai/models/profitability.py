@@ -383,8 +383,11 @@ class ProfitabilityModel:
             df["day_of_week"] = pd.to_datetime(df["entry_time"]).dt.dayofweek
             features.extend(["hour_of_day", "day_of_week"])
 
-        # Return only extracted features
-        return df[features].copy()
+        # Return only numeric extracted features (drop datetime/object columns
+        # such as decision_time that break the imputer).
+        feature_df = df[features].copy()
+        numeric_df = feature_df.select_dtypes(include=["number"])
+        return numeric_df
 
     def _align_features(self, X: pd.DataFrame) -> pd.DataFrame:
         """Align features with training feature names.
