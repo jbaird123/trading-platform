@@ -1072,6 +1072,19 @@ def verify_golden_trades_hash(
                 "%Y-%m-%d %H:%M:%S%z"
             )
 
+    # Save a copy of the platform trades to workspace/golden_comparison
+    try:
+        comparison_dir = Path("workspace") / "golden_comparison"
+        comparison_dir.mkdir(parents=True, exist_ok=True)
+        comparison_path = (
+            comparison_dir
+            / f"{strategy_name.replace('/', '_')}_new_platform_trades.csv"
+        )
+        platform_df.to_csv(comparison_path, index=False, float_format="%.10f")
+    except Exception:
+        # Non-fatal: if the copy fails, continue with hash verification
+        pass
+
     # Write current trades to temp file
     with tempfile.NamedTemporaryFile(
         mode="w", delete=False, newline="", suffix=".csv"
