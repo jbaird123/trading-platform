@@ -25,7 +25,7 @@ TEST_INSTRUMENT = {
 
 
 def test_run_backtest_returns_trades_and_exposure_only() -> None:
-    idx = pd.date_range("2024-01-01", periods=4, freq="h")
+    idx = pd.date_range("2024-01-01", periods=4, freq="h", tz="UTC")
     df = pd.DataFrame(
         {
             "open": [1.0, 1.01, 1.02, 1.03],
@@ -102,7 +102,7 @@ class _NeverExitREM:
 
 
 def test_counterfactual_exact_exit_kind_end() -> None:
-    idx = pd.date_range("2024-02-01", periods=4, freq="h")
+    idx = pd.date_range("2024-02-01", periods=4, freq="h", tz="UTC")
     df = pd.DataFrame(
         {
             "open": [100.0, 101.0, 102.0, 103.0],

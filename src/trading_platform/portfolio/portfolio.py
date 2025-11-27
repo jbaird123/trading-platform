@@ -600,6 +600,8 @@ class PortfolioManager:
         # Remove Position-only fields (not needed in Trade)
         pos_dict.pop("entry_mid_price", None)
         pos_dict.pop("unrealized_pnl", None)
+        pos_dict.pop("stop_loss", None)
+        pos_dict.pop("take_profit", None)
 
         trade = Trade(
             **pos_dict,

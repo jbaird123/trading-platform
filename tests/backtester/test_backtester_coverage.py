@@ -751,7 +751,7 @@ def test_skipped_entry_index_invalid_conversion():
 def test_rmm_context_feature_rounding_with_strategy_features():
     """Test _round_feature function with strategy that has features."""
     # Validates: [REQ-BT-RMM-003] Test _round_feature with actual strategy features
-    idx = pd.date_range("2024-01-01", periods=100, freq="h")
+    idx = pd.date_range("2024-01-01", periods=100, freq="h", tz="UTC")
     df = pd.DataFrame(
         {
             "open": [1.0 + i * 0.001 for i in range(100)],

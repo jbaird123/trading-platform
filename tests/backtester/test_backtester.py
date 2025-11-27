@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -52,7 +52,7 @@ def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
 def test_run_backtest_uses_cached_global_features(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    idx = [datetime(2024, 1, 1, h) for h in range(4)]
+    idx = [datetime(2024, 1, 1, h, tzinfo=timezone.utc) for h in range(4)]
     market_data = pd.DataFrame(
         {
             "open": [1.0] * 4,
@@ -77,7 +77,9 @@ def test_run_backtest_uses_cached_global_features(
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
     )
-    cache_idx = market_data.index.tolist() + [datetime(2024, 1, 1, 4)]
+    cache_idx = market_data.index.tolist() + [
+        datetime(2024, 1, 1, 4, tzinfo=timezone.utc)
+    ]
     cache_df = pd.DataFrame(
         {"1h_cached_rsi": [50.0] * len(cache_idx)},
         index=pd.DatetimeIndex(cache_idx),
@@ -111,7 +113,7 @@ def test_run_backtest_uses_cached_global_features(
 
 def test_rmm_blocks_signal_not_in_allowed_sides():
     """Test RMM blocking when command not in allowed sides."""
-    idx = [datetime(2024, 1, 1, h) for h in range(5)]
+    idx = [datetime(2024, 1, 1, h, tzinfo=timezone.utc) for h in range(5)]
     df = pd.DataFrame(
         {
             "open": [1.005] * 5,
@@ -266,7 +268,7 @@ def test_return_skips_only():
 
 def test_counterfactual_fast_invalid_start_index():
     """Test counterfactual fast with invalid start index."""
-    idx = [datetime(2024, 1, 1, h) for h in range(5)]
+    idx = [datetime(2024, 1, 1, h, tzinfo=timezone.utc) for h in range(5)]
     df = pd.DataFrame(
         {
             "open": [1.005] * 5,
@@ -293,7 +295,7 @@ def test_counterfactual_fast_invalid_start_index():
 
 def test_counterfactual_fast_short_side():
     """Test counterfactual fast simulation with short side."""
-    idx = [datetime(2024, 1, 1, h) for h in range(5)]
+    idx = [datetime(2024, 1, 1, h, tzinfo=timezone.utc) for h in range(5)]
     df = pd.DataFrame(
         {
             "open": [1.0] * 5,
@@ -321,7 +323,7 @@ def test_counterfactual_fast_short_side():
 
 def test_counterfactual_exact_invalid_start_index():
     """Test counterfactual exact with invalid start index."""
-    idx = [datetime(2024, 1, 1, h) for h in range(5)]
+    idx = [datetime(2024, 1, 1, h, tzinfo=timezone.utc) for h in range(5)]
     df = pd.DataFrame(
         {
             "open": [1.005] * 5,
@@ -880,7 +882,7 @@ def test_entry_window_allows_delayed_entry():
     # Bar 1: signal="long", RMM blocks
     # Bar 2: signal="long", RMM allows → should enter (within 3-bar window)
     # Bar 3: signal="flat" → exits
-    idx = [datetime(2024, 1, 1, h) for h in range(5)]
+    idx = [datetime(2024, 1, 1, h, tzinfo=timezone.utc) for h in range(5)]
     df = pd.DataFrame(
         {
             "open": [1.0] * len(idx),
@@ -976,7 +978,7 @@ def test_entry_window_expires():
     # Bar 1: signal="long", RMM blocks
     # Bar 2: signal="long", RMM blocks (window=1, expires after bar 1)
     # Bar 3: signal="long", RMM allows → should NOT enter (window expired)
-    idx = [datetime(2024, 1, 1, h) for h in range(5)]
+    idx = [datetime(2024, 1, 1, h, tzinfo=timezone.utc) for h in range(5)]
     df = pd.DataFrame(
         {
             "open": [1.0] * len(idx),
@@ -1070,7 +1072,7 @@ def test_entry_window_prevents_reentry_after_rem_exit():
     # Bar 3: signal transitions back to "long" -> enters at bar 4 open
     # Bar 5: signal transitions to "flat" -> exits at bar 6 open
     # Only one entry per transition; no re-entry while signal stays long.
-    idx = [datetime(2024, 1, 1, h) for h in range(7)]
+    idx = [datetime(2024, 1, 1, h, tzinfo=timezone.utc) for h in range(7)]
     df = pd.DataFrame(
         {
             "open": [1.0] * len(idx),
@@ -1147,7 +1149,7 @@ def test_backtester_executes_pending_exit_at_next_bar_open():
     - Exit price matches bar 3 open (not bar 2 close)
     """
     # Create 5 bars with distinct prices
-    idx = [datetime(2024, 1, 1, h) for h in range(5)]
+    idx = [datetime(2024, 1, 1, h, tzinfo=timezone.utc) for h in range(5)]
     df = pd.DataFrame(
         {
             "open": [1.0000, 1.0010, 1.0020, 1.0030, 1.0040],
@@ -1226,7 +1228,7 @@ def test_backtester_handles_flip_with_next_bar_open():
     - Both trades execute at the same bar's open price
     """
     # Create 5 bars with distinct prices
-    idx = [datetime(2024, 1, 1, h) for h in range(5)]
+    idx = [datetime(2024, 1, 1, h, tzinfo=timezone.utc) for h in range(5)]
     df = pd.DataFrame(
         {
             "open": [1.0000, 1.0010, 1.0020, 1.0030, 1.0040],

@@ -110,6 +110,18 @@ def run_event_loop_backtest(
     rem_instance: RiskExitManager | None = None,
     profiler: PerformanceProfiler | None = None,
 ) -> BacktestResult:
+    # Normalize market data to tz-aware UTC
+    md_idx = market_data.index
+    if isinstance(md_idx, pd.DatetimeIndex) and md_idx.tz is None:
+        market_data = market_data.copy()
+        market_data.index = md_idx.tz_localize("UTC")
+
+    # Normalize RMM context keys to tz-aware UTC
+    if rmm_context:
+        rmm_context = {
+            pd.to_datetime(ts, utc=True): ctx for ts, ctx in rmm_context.items()
+        }
+
     # Initialize profiler if not provided
     if profiler is None:
         profiler = PerformanceProfiler()

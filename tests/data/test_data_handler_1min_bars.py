@@ -19,9 +19,24 @@ def get_1min_bars_for_hour(
 
     This replicates the removed get_1min_bars_for_hour() method for testing.
     """
-    hour_start = timestamp.floor("h")
-    hour_end = hour_start + pd.Timedelta(hours=1) - pd.Timedelta(1, unit="ns")
-    return handler.get_data(timeframe="1min", start=hour_start, end=hour_end)
+    hour_start = pd.to_datetime(timestamp).floor("h").tz_convert("UTC")
+    hour_end = hour_start + pd.Timedelta(hours=1)
+    bars = handler.get_data(timeframe="1min")
+    # Ensure tz-aware UTC
+    bars_idx = pd.DatetimeIndex(bars.index)
+    if bars_idx.tz is None:
+        bars = bars.copy()
+        bars.index = bars_idx.tz_localize("UTC")
+    # Use bar_open for slicing to capture the exact hour
+    if "bar_open" in bars.columns:
+        bar_open = pd.DatetimeIndex(bars["bar_open"]).tz_convert("UTC")
+    else:
+        bar_open = pd.DatetimeIndex(bars.index)
+    mask = (bar_open >= hour_start) & (bar_open < hour_end)
+    bars = bars.loc[mask].copy()
+    bars.index = bar_open[mask]
+    cols = [c for c in ["open", "high", "low", "close", "volume"] if c in bars.columns]
+    return bars[cols]
 
 
 @pytest.fixture

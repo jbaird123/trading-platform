@@ -42,7 +42,9 @@ def sample_trades_df():
         # Entry metadata
         "side": np.random.choice(["long", "short"], n_trades),
         "symbol": np.random.choice(["EURUSD", "GBPUSD"], n_trades),
-        "entry_time": pd.date_range("2024-01-01", periods=n_trades, freq="1h"),
+        "entry_time": pd.date_range(
+            "2024-01-01", periods=n_trades, freq="1h", tz="UTC"
+        ),
         "entry_price": np.random.uniform(1.10, 1.30, n_trades),
         # Exit features (lookahead - should NOT be used)
         "context_at_exit_strategy_features_ema_fast": np.random.uniform(

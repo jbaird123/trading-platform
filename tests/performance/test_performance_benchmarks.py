@@ -108,7 +108,7 @@ def test_sys_1_9_1_batch_io_performance():
     """
     # Generate 2 years of minute data (~1M bars)
     periods = 1_051_200  # 2 years
-    index = pd.date_range("2022-01-01", periods=periods, freq="1min")
+    index = pd.date_range("2022-01-01", periods=periods, freq="1min", tz="UTC")
 
     close = 100.0 + (pd.Series(range(periods)) * 0.01 % 10)
     df = pd.DataFrame(
@@ -243,7 +243,7 @@ def test_sys_1_9_2_memory_efficiency():
 
     # Generate 500K bars
     periods = 500_000
-    index = pd.date_range("2020-01-01", periods=periods, freq="1min")
+    index = pd.date_range("2020-01-01", periods=periods, freq="1min", tz="UTC")
     close = 1.1000 + (pd.Series(range(periods)) * 0.0001 % 0.01)
 
     df = pd.DataFrame(
@@ -284,7 +284,7 @@ def test_indicator_computation_speed():
     """
     # 100K bars dataset
     periods = 100_000
-    index = pd.date_range("2023-01-01", periods=periods, freq="1min")
+    index = pd.date_range("2023-01-01", periods=periods, freq="1min", tz="UTC")
     close = 1.1000 + (pd.Series(range(periods)) * 0.0001 % 0.01)
 
     df = pd.DataFrame(
@@ -338,7 +338,7 @@ def test_backtest_execution_time_1m_bars():
     """
     # Generate 1M bars
     periods = 50_000  # Reduced for CI, represents 1M bar performance
-    index = pd.date_range("2020-01-01", periods=periods, freq="5min")
+    index = pd.date_range("2020-01-01", periods=periods, freq="5min", tz="UTC")
 
     close = 100.0 + (pd.Series(range(periods), index=index) * 0.01 % 10)
     df = pd.DataFrame(
@@ -415,7 +415,7 @@ def test_memory_usage_profiling():
 
     # Generate data
     periods = 100_000
-    index = pd.date_range("2023-01-01", periods=periods, freq="1min")
+    index = pd.date_range("2023-01-01", periods=periods, freq="1min", tz="UTC")
     close = 1.1 + (pd.Series(range(periods)) * 0.0001 % 0.01)
     df = pd.DataFrame(
         {

@@ -13,6 +13,8 @@ from typing import Any, TypeAlias, cast
 import pandas as pd
 from trading_platform.backtester import run_backtest
 from trading_platform.core.config import RunConfig
+from trading_platform.data.resample import timeframe_to_timedelta
+from trading_platform.data.session_metadata import ALIGNED_TO_CLOSE_ATTR
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
@@ -34,6 +36,69 @@ def run_backtest_simulation(
 ) -> BacktestResult:
     """Backtest helper that mirrors the legacy core simulation semantics."""
 
+    def _to_utc_index(idx: pd.DatetimeIndex) -> pd.DatetimeIndex:
+        if idx.tz is None:
+            return idx.tz_localize("UTC")
+        return idx.tz_convert("UTC")
+
+    # Normalize all time axes to UTC to avoid naive/aware comparison errors.
+    md_idx = cast(pd.DatetimeIndex, market_data.index)
+    if not md_idx.tz:
+        market_data = market_data.copy()
+        market_data.index = _to_utc_index(md_idx)
+    else:
+        market_data = market_data.tz_convert("UTC")
+
+    if getattr(signals, "index", None) is not None:
+        sig_idx = cast(pd.DatetimeIndex, signals.index)
+        if sig_idx.tz is None:
+            signals = signals.copy()
+            signals.index = _to_utc_index(sig_idx)
+        else:
+            signals = signals.tz_convert("UTC")
+
+    normalized_rmm: dict[datetime, dict[str, Any]] | None = None
+    if rmm_context is not None:
+        normalized_rmm = {}
+        for k, v in rmm_context.items():
+            ts = pd.Timestamp(k)
+            ts = ts.tz_localize("UTC") if ts.tz is None else ts.tz_convert("UTC")
+            normalized_rmm[ts.to_pydatetime()] = v
+    else:
+        normalized_rmm = rmm_context
+
+    # Shift signals/RMM/feature_df to bar_close timestamps when the market data
+    # index represents bar_open (default when ALIGNED_TO_CLOSE_ATTR is absent).
+    bar_close_index = None
+    if not market_data.attrs.get(ALIGNED_TO_CLOSE_ATTR, False):
+        if len(market_data.index) >= 2:
+            bar_close_index = market_data.index + (
+                market_data.index[1] - market_data.index[0]
+            )
+        else:
+            tf = getattr(config.instrument or {}, "get", lambda *_: None)("timeframe")
+            if tf:
+                bar_close_index = market_data.index + timeframe_to_timedelta(str(tf))
+
+    feature_df = getattr(strategy, "_feature_df", None)
+    if feature_df is not None:
+        feature_df = feature_df.copy()
+        feature_df.index = _to_utc_index(feature_df.index)
+
+    if bar_close_index is not None:
+        if signals.index.equals(market_data.index):
+            signals = signals.copy()
+            signals.index = bar_close_index
+        if feature_df is not None and feature_df.index.equals(market_data.index):
+            feature_df.index = bar_close_index
+        if normalized_rmm:
+            delta = bar_close_index[0] - market_data.index[0]
+            shifted: dict[datetime, dict[str, Any]] = {}
+            for k, v in normalized_rmm.items():
+                ts = pd.Timestamp(k)
+                ts = ts.tz_localize("UTC") if ts.tz is None else ts.tz_convert("UTC")
+                shifted[(ts + delta).to_pydatetime()] = v
+            normalized_rmm = shifted
     result = cast(
         BacktestResult,
         run_backtest(
@@ -41,10 +106,10 @@ def run_backtest_simulation(
             market_data=market_data,
             compiled_strategy=strategy,
             precomputed_signals=signals,
-            feature_enriched_df=getattr(strategy, "_feature_df", None),
+            feature_enriched_df=feature_df,
             data_handler=data_handler,
             global_features_config_path=global_features_config_path,
-            rmm_context=rmm_context,
+            rmm_context=normalized_rmm,
             return_exposure=return_exposure,
             return_skips=return_skips,
             rem_instance=rem,

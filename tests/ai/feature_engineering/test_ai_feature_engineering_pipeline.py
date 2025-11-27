@@ -36,7 +36,7 @@ def sample_dataframe():
     df = pd.DataFrame(
         data, columns=["timestamp", "open", "high", "low", "close", "volume"]
     )
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
     return df.set_index("timestamp")
 
 

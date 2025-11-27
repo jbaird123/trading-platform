@@ -143,8 +143,9 @@ class ProfitabilityModel:
             )
 
         # Record training date range (for lookahead bias prevention)
-        self.training_start_date_ = pd.to_datetime(df["entry_time"]).min()
-        self.training_end_date_ = pd.to_datetime(df["entry_time"]).max()
+        entry_times = pd.to_datetime(df["entry_time"], utc=True)
+        self.training_start_date_ = entry_times.min()
+        self.training_end_date_ = entry_times.max()
 
         # Drop global features below execution timeframe
         df = drop_lower_timeframe_global_features(df, self.timeframe)
@@ -386,6 +387,9 @@ class ProfitabilityModel:
         # Return only numeric extracted features (drop datetime/object columns
         # such as decision_time that break the imputer).
         feature_df = df[features].copy()
+        bool_cols = feature_df.select_dtypes(include=["bool"]).columns
+        if len(bool_cols) > 0:
+            feature_df[bool_cols] = feature_df[bool_cols].astype(int)
         numeric_df = feature_df.select_dtypes(include=["number"])
         return numeric_df
 

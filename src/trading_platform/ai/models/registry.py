@@ -443,7 +443,7 @@ class ModelRegistry:
         # Lookahead bias prevention: Check if prediction data overlaps with
         # training period
         if "entry_time" in X.columns and model.training_start_date_ is not None:
-            input_times = pd.to_datetime(X["entry_time"])
+            input_times = pd.to_datetime(X["entry_time"], utc=True)
             input_start = input_times.min()
             input_end = input_times.max()
 
@@ -489,7 +489,7 @@ class ModelRegistry:
         # Lookahead bias prevention: Check if prediction data overlaps with
         # training period
         if "entry_time" in X.columns and model.training_start_date_ is not None:
-            input_times = pd.to_datetime(X["entry_time"])
+            input_times = pd.to_datetime(X["entry_time"], utc=True)
             input_start = input_times.min()
             input_end = input_times.max()
 

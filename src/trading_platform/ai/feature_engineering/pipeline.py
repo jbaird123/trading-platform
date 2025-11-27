@@ -58,6 +58,12 @@ class FeatureEngineeringPipeline:
         """
         print(f"Running feature engineering for {len(feature_configs)} " f"features...")
 
+        # No features to compute: just drop NaNs and return input as-is.
+        if not feature_configs:
+            self.df = self.df.dropna()
+            print("Feature engineering complete.")
+            return self.df
+
         # Convert all configs to specs format
         specs = []
         for config in feature_configs:

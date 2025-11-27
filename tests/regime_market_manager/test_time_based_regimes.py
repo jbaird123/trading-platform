@@ -15,7 +15,7 @@ from trading_platform.regime_market_manager.models import RMMConfig
 def test_hour_is_in_predicate() -> None:
     """Test that hour_is_in condition correctly filters by hour."""
     # Create sample data covering a full day (24 hours)
-    dates = pd.date_range("2024-01-01 00:00", "2024-01-01 23:00", freq="1h")
+    dates = pd.date_range("2024-01-01 00:00", "2024-01-01 23:00", freq="1h", tz="UTC")
     df = pd.DataFrame(
         {
             "open": [100.0] * len(dates),
@@ -59,7 +59,7 @@ def test_day_of_week_is_in_predicate() -> None:
     """Test that day_of_week_is_in filters by day (Mon=0, Sun=6)."""
     # Create sample data covering a full week
     dates = pd.date_range(
-        "2024-01-01", "2024-01-07", freq="1D"
+        "2024-01-01", "2024-01-07", freq="1D", tz="UTC"
     )  # Jan 1, 2024 is a Monday
     df = pd.DataFrame(
         {
@@ -103,7 +103,7 @@ def test_day_of_week_is_in_predicate() -> None:
 def test_combined_time_and_indicator_regime() -> None:
     """Test combining time-based and indicator-based conditions."""
     # Create sample data with a simple custom column
-    dates = pd.date_range("2024-01-01 00:00", "2024-01-01 23:00", freq="1h")
+    dates = pd.date_range("2024-01-01 00:00", "2024-01-01 23:00", freq="1h", tz="UTC")
     df = pd.DataFrame(
         {
             "open": [100.0] * len(dates),

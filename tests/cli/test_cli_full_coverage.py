@@ -218,7 +218,7 @@ def test_cmd_run_backtest_fast_mode_last_days_and_overrides(
             self.data_quality_flags = []
 
         def get_data(self, timeframe=None, start=None, end=None):
-            idx = pd.date_range("2024-01-01", periods=4, freq="h")
+            idx = pd.date_range("2024-01-01", periods=4, freq="h", tz="UTC")
             return pd.DataFrame({"close": [1.0, 2.0, 3.0, 4.0]}, index=idx)
 
     monkeypatch.setattr("trading_platform.cli.DataHandler", MockDataHandler)
