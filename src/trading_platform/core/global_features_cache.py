@@ -349,9 +349,16 @@ def build_global_feature_caches(
         df = handler.get_data(timeframe=timeframe)
         raw_index = pd.DatetimeIndex(df.index)
         session = df.attrs.get(SESSION_ATTR) or default_session
+        aligned_to_close = bool(df.attrs.get(ALIGNED_TO_CLOSE_ATTR, False))
+
+        if aligned_to_close:
+            delta = timeframe_to_timedelta(timeframe)
+            open_index = raw_index - delta
+        else:
+            open_index = raw_index
 
         bar_open, bar_close, bar_lookup = _compute_bar_windows_for_cache(
-            raw_index,
+            open_index,
             timeframe,
             session,
         )
