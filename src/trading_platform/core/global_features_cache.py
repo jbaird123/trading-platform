@@ -27,7 +27,7 @@ from trading_platform.data.bar_windows import compute_bar_window_columns
 from trading_platform.data.handler import DataHandler
 from trading_platform.data.instrument import InstrumentDefinition, SessionDefinition
 from trading_platform.data.resample import timeframe_to_timedelta
-from trading_platform.data.session_metadata import SESSION_ATTR
+from trading_platform.data.session_metadata import ALIGNED_TO_CLOSE_ATTR, SESSION_ATTR
 from trading_platform.data.timeframe_aliases import (
     canonicalize_column_name,
     normalize_name_sequence,
@@ -349,9 +349,21 @@ def build_global_feature_caches(
         df = handler.get_data(timeframe=timeframe)
         raw_index = pd.DatetimeIndex(df.index)
         session = df.attrs.get(SESSION_ATTR) or default_session
+
+        bar_open, bar_close, bar_lookup = _compute_bar_windows_for_cache(
+            raw_index,
+            timeframe,
+            session,
+        )
+        df_aligned = df.copy()
+        df_aligned.index = bar_close
+        if session is not None:
+            df_aligned.attrs[SESSION_ATTR] = session
+        df_aligned.attrs[ALIGNED_TO_CLOSE_ATTR] = True
+
         specs = [feature_to_dict(feature) for feature in resolved_features]
         feature_df, feature_metadata = build_global_feature_frame(
-            market_data=df,
+            market_data=df_aligned,
             feature_defs=specs,
             execution_timeframe=timeframe,
             strategy_parameters={},
@@ -365,12 +377,6 @@ def build_global_feature_caches(
             continue
 
         feature_df.attrs.pop(SESSION_ATTR, None)
-        bar_open, bar_close, bar_lookup = _compute_bar_windows_for_cache(
-            raw_index,
-            timeframe,
-            session,
-        )
-
         feature_df = normalize_timeframe_columns(feature_df)
         feature_columns = normalize_name_sequence(feature_columns)
 
@@ -413,7 +419,7 @@ def build_global_feature_caches(
     if not raw_frames:
         raise RuntimeError("No valid frames were produced; check config inputs.")
 
-    dependencies = _build_timeframe_dependencies(tf_list)
+    dependencies = {tf: [tf] for tf in tf_list}
 
     for timeframe in tf_list:
         output_frame = _merge_timeframes_for_output(

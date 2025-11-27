@@ -121,7 +121,12 @@ def build_global_feature_frame(
             try:
                 session = market_data.attrs.get(SESSION_ATTR)
                 df_for_group = resample_data(
-                    market_data, rule=timeframe, session=session
+                    market_data,
+                    rule=timeframe,
+                    session=session,
+                    align_to_close=bool(
+                        market_data.attrs.get(ALIGNED_TO_CLOSE_ATTR, False)
+                    ),
                 )
             except Exception as e:
                 raise ValueError(

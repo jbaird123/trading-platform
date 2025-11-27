@@ -177,7 +177,9 @@ def run_backtest(
                     for f in resolved
                 ]
                 global_feature_df = compute_features(
-                    market_data, specs, strategy_cfg.get("parameters")
+                    market_data,
+                    specs,
+                    strategy_cfg.get("parameters"),
                 )
                 base_cols = set(market_data.columns)
                 global_feature_df = global_feature_df.loc[
@@ -227,7 +229,9 @@ def run_backtest(
                 for f in resolved
             ]
             global_feature_df = compute_features(
-                market_data, specs, strategy_cfg.get("parameters")
+                market_data,
+                specs,
+                strategy_cfg.get("parameters"),
             )
             base_cols = set(market_data.columns)
             global_feature_df = global_feature_df.loc[

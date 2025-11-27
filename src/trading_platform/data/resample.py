@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 import warnings
-from typing import Mapping, cast
+from typing import Literal, Mapping, cast
 
 import pandas as pd
 from pandas.tseries.frequencies import to_offset
@@ -64,6 +64,7 @@ def resample_data(
     data: pd.DataFrame,
     rule: str,
     session: SessionDefinition | None = None,
+    align_to_close: bool | None = None,
 ) -> pd.DataFrame:
     """Resample OHLCV data to a higher timeframe.
 
@@ -92,6 +93,9 @@ def resample_data(
     if not isinstance(data.index, pd.DatetimeIndex):
         raise TypeError(f"Data index must be a DatetimeIndex, got {type(data.index)}")
 
+    if align_to_close is None:
+        align_to_close = bool(data.attrs.get(ALIGNED_TO_CLOSE_ATTR, False))
+
     resolved_session = session
     if resolved_session is None:
         try:
@@ -101,8 +105,15 @@ def resample_data(
 
     agg_logic = _build_agg_logic(data)
     if resolved_session is None:
-        return _naive_resample(data, rule, agg_logic)
-    return _session_resample(data, rule, agg_logic, resolved_session)
+        result = _naive_resample(data, rule, agg_logic, align_to_close)
+    else:
+        result = _session_resample(
+            data, rule, agg_logic, resolved_session, align_to_close
+        )
+
+    if align_to_close:
+        result.attrs[ALIGNED_TO_CLOSE_ATTR] = True
+    return result
 
 
 def _build_agg_logic(df: pd.DataFrame) -> dict[str, str]:
@@ -127,6 +138,7 @@ def _session_resample(
     rule: str,
     agg_logic: dict[str, str],
     session: SessionDefinition,
+    align_to_close: bool,
 ) -> pd.DataFrame:
     try:
         offset = _timeframe_to_offset(rule)
@@ -149,7 +161,11 @@ def _session_resample(
     shifted.index = pd.DatetimeIndex(shifted.index - session_offset)
 
     agg_mapping = cast("Mapping[str, str]", agg_logic)
-    resampled = shifted.resample(freqstr, closed="left", label="left").agg(agg_mapping)  # type: ignore[arg-type]
+    label_side: Literal["right", "left"] = "right" if align_to_close else "left"
+    close_side: Literal["right", "left"] = "right" if align_to_close else "left"
+    resampled = shifted.resample(freqstr, closed=close_side, label=label_side).agg(
+        agg_mapping  # type: ignore[arg-type]
+    )
     resampled = resampled.dropna(how="any")
 
     resampled_index = pd.DatetimeIndex(resampled.index + session_offset)
@@ -168,7 +184,8 @@ def _session_resample(
             resampled = resampled.iloc[:-1]
 
     annotate_session(resampled, session)
-    resampled.attrs[ALIGNED_TO_CLOSE_ATTR] = True
+    if align_to_close:
+        resampled.attrs[ALIGNED_TO_CLOSE_ATTR] = True
     return resampled
 
 
@@ -176,6 +193,7 @@ def _naive_resample(
     data: pd.DataFrame,
     rule: str,
     agg_logic: dict[str, str],
+    align_to_close: bool,
 ) -> pd.DataFrame:
     try:
         offset = _timeframe_to_offset(rule)
@@ -183,7 +201,11 @@ def _naive_resample(
         raise ValueError(f"Invalid frequency rule: {rule}") from exc
     freqstr = offset.freqstr
     agg_mapping = cast("Mapping[str, str]", agg_logic)
-    resampled = data.resample(freqstr, closed="left", label="left").agg(agg_mapping)  # type: ignore[arg-type]
+    label_side: Literal["right", "left"] = "right" if align_to_close else "left"
+    close_side: Literal["right", "left"] = "right" if align_to_close else "left"
+    resampled = data.resample(freqstr, closed=close_side, label=label_side).agg(
+        agg_mapping  # type: ignore[arg-type]
+    )
     resampled = resampled.dropna(how="any")
     if len(resampled) > 0 and len(data) > 1:
         source_freq = data.index[1] - data.index[0]

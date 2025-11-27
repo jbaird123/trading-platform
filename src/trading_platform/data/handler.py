@@ -20,7 +20,11 @@ from trading_platform.data.instrument import (
     InstrumentDefinition,
     get_instrument_definition,
 )
-from trading_platform.data.session_metadata import annotate_session
+from trading_platform.data.session_metadata import (
+    ALIGNED_TO_CLOSE_ATTR,
+    SESSION_ATTR,
+    annotate_session,
+)
 
 from .loader import load_instrument_data
 from .schema import resample_ohlc
@@ -161,7 +165,16 @@ class DataHandler:
             annotate_session(cached.raw_data, self._session)
 
         # Load raw data once (shared across handler instances)
-        self._raw_data = cached.raw_data
+        # Ensure the base data is explicitly aligned to bar_close and carries
+        # bar_open/bar_close columns so downstream consumers never need to
+        # infer timestamps.
+        aligned_base = self._ensure_close_aligned(
+            cached.raw_data, cached.base_timeframe, cached.base_minutes
+        )
+        cached.raw_data = aligned_base
+        cached.cache[cached.base_timeframe] = aligned_base
+
+        self._raw_data = aligned_base
         self.data_quality_flags = cached.data_quality_flags
 
         # Cache: timeframe_str -> full_dataframe (shared per instrument)
@@ -217,6 +230,16 @@ class DataHandler:
 
             df = self._cache[timeframe]
 
+        # Normalize to explicit bar_open/bar_close with bar_close index
+        df = self._ensure_close_aligned(
+            df,
+            timeframe if timeframe is not None else self._base_timeframe,
+            None,
+        )
+        # Persist normalized view in cache for reuse
+        cache_key = timeframe if timeframe is not None else self._base_timeframe
+        self._cache[cache_key] = df
+
         # Apply date filtering if requested
         if start is not None:
             start_ts = pd.to_datetime(start, utc=True)
@@ -226,7 +249,6 @@ class DataHandler:
             end_ts = pd.to_datetime(end, utc=True)
             df = df.loc[:end_ts]
 
-        annotate_session(df, self._session)
         return df
 
     @staticmethod
@@ -418,3 +440,67 @@ class DataHandler:
             self._cache = {}
         # Always clear RMM cache when clearing
         self._rmm_cache = {}
+
+    def _ensure_close_aligned(
+        self,
+        df: pd.DataFrame,
+        timeframe: str,
+        minutes: int | None = None,
+    ) -> pd.DataFrame:
+        """Return a copy of df with explicit bar_open/bar_close and bar_close index."""
+        if df.empty:
+            return df
+
+        base_minutes_attr = getattr(self, "_base_minutes", None)
+        base_minutes = (
+            int(base_minutes_attr) if isinstance(base_minutes_attr, int) else None
+        )
+        tf_minutes: int
+        try:
+            parsed_tf = _parse_timeframe_to_minutes(timeframe)
+        except Exception:
+            parsed_tf = None
+        if minutes is not None:
+            tf_minutes = int(minutes)
+        elif parsed_tf is not None:
+            tf_minutes = int(parsed_tf)
+        elif base_minutes is not None:
+            tf_minutes = int(base_minutes)
+        else:
+            idx = pd.DatetimeIndex(df.index)
+            if len(idx) >= 2:
+                tf_minutes = int((idx[1] - idx[0]).total_seconds() / 60)
+            else:
+                tf_minutes = 0
+        delta = pd.Timedelta(minutes=tf_minutes)
+        session = self._session
+
+        # Work on a copy to avoid mutating shared cache unexpectedly
+        result = df.copy()
+
+        has_open = "bar_open" in result.columns
+        has_close = "bar_close" in result.columns
+
+        if has_open and has_close:
+            bar_open = pd.DatetimeIndex(pd.to_datetime(result["bar_open"], utc=True))
+            bar_close = pd.DatetimeIndex(pd.to_datetime(result["bar_close"], utc=True))
+        else:
+            idx = pd.DatetimeIndex(result.index)
+            aligned_to_close = bool(result.attrs.get(ALIGNED_TO_CLOSE_ATTR, False))
+            if aligned_to_close:
+                bar_close = idx
+                bar_open = idx - delta
+            else:
+                bar_open = idx
+                bar_close = idx + delta
+
+        result["bar_open"] = bar_open
+        result["bar_close"] = bar_close
+        result["open_time"] = bar_open
+        result["close_time"] = bar_close
+        # Name the index to avoid clashing with bar_close column label
+        result.index = pd.DatetimeIndex(bar_close, name="timestamp")
+        result.attrs[ALIGNED_TO_CLOSE_ATTR] = True
+        if session is not None:
+            result.attrs[SESSION_ATTR] = session
+        return result

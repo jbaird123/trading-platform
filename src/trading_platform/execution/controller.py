@@ -155,7 +155,9 @@ def run_live_controller(
 
         if global_features_list:
             data_with_global_features = compute_features(
-                market_data, global_features_list, strategy_parameters={}
+                market_data,
+                global_features_list,
+                strategy_parameters={},
             )
             # Store as dict for easy access
             from typing import cast

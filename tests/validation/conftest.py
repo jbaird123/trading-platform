@@ -381,12 +381,14 @@ def tradingview_trades(
         # Drop the temporary filter column
         df = df.drop(columns=["_filter_time"])
 
+    # Shift to bar close based on strategy timeframe
     return df
 
 
 @pytest.fixture
 def tradingview_ohlcv(
     golden_strategy_paths: dict[str, Path],
+    golden_metadata: dict[str, Any],
     ensure_dvc_data_pulled: bool,
 ) -> pd.DataFrame:
     """Loads TradingView OHLCV export CSV.

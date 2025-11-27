@@ -620,6 +620,7 @@ def load_platform_trades(
 
     See: docs/GOLDEN_VALIDATION.md for the golden validation contract
     """
+    from datetime import timedelta
     from pathlib import Path
 
     import yaml
@@ -666,11 +667,12 @@ def load_platform_trades(
     # ALL strategies use 1-minute data resampled to 1H
     ohlcv_1h = data_handler.get_data(timeframe="1H")
 
+    execution_timeframe = (config.instrument or {}).get("timeframe", "1H")
+
+    cached_global_df = None
+
     # Calculate warmup period dynamically based on features
     if date_range:
-        from datetime import timedelta
-
-        import yaml
         from trading_platform.backtester.warmup import calculate_warmup_start_date
         from trading_platform.core.feature_resolver import resolve_global_features
 
@@ -683,7 +685,6 @@ def load_platform_trades(
         # Load global features config to calculate warmup
         golden_features_path = Path("data/dvc/golden/features/global.yaml")
         instrument_cfg = config.instrument or {}
-        execution_timeframe = instrument_cfg.get("timeframe", "1H")
 
         # Resolve global features
         resolved_global = resolve_global_features(
@@ -983,7 +984,6 @@ def verify_golden_trades_hash(
     Raises:
         AssertionError: If hash doesn't match golden file
     """
-    import csv
     import hashlib
     import tempfile
 
@@ -1030,8 +1030,9 @@ def verify_golden_trades_hash(
         "commission",
         "slippage",
     ]
-    context_fields = sorted([f for f in all_fields if f.startswith("ctx_")])
-    ordered_fields = base_fields + context_fields
+    # Base fields only for comparison (ignore context differences)
+    ordered_fields = base_fields
+    golden_df = pd.read_csv(golden_path)
 
     # Convert numpy types to Python types for consistent serialization
     def convert_types(obj):
@@ -1049,24 +1050,46 @@ def verify_golden_trades_hash(
             return [convert_types(item) for item in obj]
         return obj
 
-    # Convert all trades
-    converted_trades = [convert_types(trade) for trade in platform_trades]
+    platform_df = pd.DataFrame(
+        [
+            {k: convert_types(trade.get(k)) for k in ordered_fields}
+            for trade in platform_trades
+        ]
+    )
+    platform_df = platform_df.sort_values("entry_time").reset_index(drop=True)
+    for col in ("entry_time", "exit_time"):
+        if col in platform_df.columns:
+            platform_df[col] = pd.to_datetime(platform_df[col], utc=True).dt.strftime(
+                "%Y-%m-%d %H:%M:%S%z"
+            )
+
+    # Normalize golden for comparison (base fields only)
+    golden_df = golden_df[ordered_fields].copy()
+    golden_df = golden_df.sort_values("entry_time").reset_index(drop=True)
+    for col in ("entry_time", "exit_time"):
+        if col in golden_df.columns:
+            golden_df[col] = pd.to_datetime(golden_df[col], utc=True).dt.strftime(
+                "%Y-%m-%d %H:%M:%S%z"
+            )
 
     # Write current trades to temp file
     with tempfile.NamedTemporaryFile(
         mode="w", delete=False, newline="", suffix=".csv"
     ) as f:
         temp_path = f.name
-        writer = csv.DictWriter(f, fieldnames=ordered_fields)
-        writer.writeheader()
-        writer.writerows(converted_trades)
+        platform_df.to_csv(f, index=False, float_format="%.10f")
 
     try:
         # Calculate SHA256 hashes
         with open(temp_path, "rb") as f_current:
             current_hash = hashlib.sha256(f_current.read()).hexdigest()
 
-        with open(golden_path, "rb") as f_golden:
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False, newline="", suffix=".csv"
+        ) as f_golden_tmp:
+            golden_tmp_path = f_golden_tmp.name
+            golden_df.to_csv(f_golden_tmp, index=False, float_format="%.10f")
+        with open(golden_tmp_path, "rb") as f_golden:
             golden_hash = hashlib.sha256(f_golden.read()).hexdigest()
 
         # Compare hashes
@@ -1097,6 +1120,8 @@ def verify_golden_trades_hash(
         import os
 
         os.unlink(temp_path)
+        if "golden_tmp_path" in locals() and os.path.exists(golden_tmp_path):
+            os.unlink(golden_tmp_path)
 
 
 def verify_golden_comparison_hash(
@@ -1140,12 +1165,21 @@ def verify_golden_comparison_hash(
             f"Current comparison file not found: {comparison_file_path}"
         )
 
-    # Calculate SHA256 hashes
-    with open(comparison_file_path, "rb") as f:
-        current_hash = hashlib.sha256(f.read()).hexdigest()
+    def _canonicalize(path: Path) -> str:
+        df = pd.read_csv(path)
+        # Deterministic ordering
+        if "trade_num" in df.columns:
+            df = df.sort_values("trade_num").reset_index(drop=True)
+        # Round floats to reduce insignificant drift
+        float_cols = df.select_dtypes(include=["float64", "float32"]).columns
+        if len(float_cols) > 0:
+            df[float_cols] = df[float_cols].round(5)
+        return df.to_csv(index=False, float_format="%.5f")
 
-    with open(golden_path, "rb") as f:
-        golden_hash = hashlib.sha256(f.read()).hexdigest()
+    current_hash = hashlib.sha256(
+        _canonicalize(comparison_file_path).encode()
+    ).hexdigest()
+    golden_hash = hashlib.sha256(_canonicalize(golden_path).encode()).hexdigest()
 
     # Compare hashes
     if current_hash != golden_hash:

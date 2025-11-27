@@ -27,8 +27,6 @@ from trading_platform.core.global_features_cache import (
     load_cached_global_features,
 )
 from trading_platform.data.handler import DataHandler
-from trading_platform.data.resample import timeframe_to_timedelta
-from trading_platform.data.timeframe_aliases import canonicalize_timeframe
 
 
 def parse_args() -> argparse.Namespace:
@@ -135,9 +133,13 @@ def main() -> None:
     except ValueError as e:
         print(f"ERROR: Failed to load cache: {e}")
         sys.exit(1)
+    except FileNotFoundError as e:
+        print(f"ERROR: {e}")
+        sys.exit(1)
 
     if cache_result is None:
         print(f"ERROR: No cache found for {args.symbol}/{args.timeframe}")
+        print(f"Searched cache root: {args.cache_dir}")
         sys.exit(1)
 
     cached_df, feature_mapping = cache_result
@@ -183,6 +185,21 @@ def main() -> None:
 
     print(f"Loaded {len(market_data)} rows of market data at {args.timeframe}")
 
+    # Align market data to bar close (matches cache builder and compute_features)
+    from trading_platform.data.bar_windows import compute_bar_close_index
+    from trading_platform.data.session_metadata import (
+        ALIGNED_TO_CLOSE_ATTR,
+        SESSION_ATTR,
+    )
+
+    session = market_data.attrs.get(SESSION_ATTR)
+    close_index = compute_bar_close_index(market_data.index, args.timeframe, session)
+    market_data = market_data.copy()
+    market_data.index = close_index
+    if session is not None:
+        market_data.attrs[SESSION_ATTR] = session
+    market_data.attrs[ALIGNED_TO_CLOSE_ATTR] = True
+
     # Recompute features using canonical pipeline (same as cache builder)
     try:
         from trading_platform.core.global_feature_pipeline import (
@@ -206,24 +223,8 @@ def main() -> None:
 
     valid_start_map: dict[str, pd.Timestamp] = cached_df.attrs.get("valid_start", {})
 
-    # Align recomputed data to cached timestamps (each column uses its own timeframe)
-    shifted_columns: dict[str, pd.Series] = {}
-    for col in recomputed_df.columns:
-        prefix = col.split("_", 1)[0]
-        column_timeframe = canonicalize_timeframe(prefix) or args.timeframe
-        try:
-            delta = timeframe_to_timedelta(column_timeframe)
-        except ValueError:
-            delta = timeframe_to_timedelta(args.timeframe)
-        series = recomputed_df[col].copy()
-        series.index = series.index + delta
-        shifted_columns[col] = series
-
-    recomputed_shifted = (
-        pd.DataFrame(shifted_columns) if shifted_columns else pd.DataFrame()
-    )
-
-    recomputed_subset = recomputed_shifted.reindex(validation_df.index, method="ffill")
+    # Align recomputed data to cached timestamps
+    recomputed_subset = recomputed_df.reindex(validation_df.index, method="ffill")
     validation_subset = validation_df
 
     for col in validation_subset.columns:
