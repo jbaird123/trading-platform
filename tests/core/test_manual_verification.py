@@ -102,13 +102,15 @@ def test_core_calculations_match_manual_csv():
     completed_trades = [t for t in trades if t.exit_time is not None]
 
     # 9. Expected values - Core calculations that must be verified
-    # Note: Values updated for ta/TA-Lib library migration.
+    # Note: Values updated for ta/TA-Lib library migration and warmup skip change.
     # ta 0.11.0 and TA-Lib 0.6.7 calculate SMA slightly differently,
     # resulting in crossovers at different bars and different trade prices.
+    # The warmup skip change (commit 0374d01) affects which bars are processed,
+    # resulting in 4 trades instead of 3 (total PnL unchanged).
     expected_total_pnl = 8.0  # Core PnL calculation
     expected_final_equity = 100008.0  # Core equity (initial_cash + pnl)
-    expected_win_rate = 2 / 3  # Core win rate (2 wins out of 3 trades)
-    expected_n_trades = 3  # Total number of executed trades
+    expected_win_rate = 0.5  # Core win rate (2 wins out of 4 trades)
+    expected_n_trades = 4  # Total number of executed trades
     expected_blackout_reason = "blackout_static"  # Blackout working
 
     # 10. CORE ASSERTIONS: Validate the essential calculations

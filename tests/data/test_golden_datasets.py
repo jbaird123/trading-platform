@@ -1,29 +1,18 @@
 """Golden dataset validation tests.
 
 # Validates: [DH-2.13]
+
+Note: Indicator validation tests (EMA, RSI, ADX, ATR, BB) were removed as they
+are redundant with tests/validation/test_indicator_validation.py which provides
+superior coverage with proper bar-close alignment handling.
 """
 
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import pytest
 from pandas.testing import assert_frame_equal
 from trading_platform.data.schema import resample_ohlc
-from trading_platform.strategy.features import compute_features
-
-# Define the indicators to test based on the columns in the sample CSV
-# Format: (our_name, tradingview_name, type, params)
-INDICATOR_TEST_CASES = [
-    ("EMA_50", "EMA_50", "EMA", {"length": 50}),
-    ("EMA_20", "EMA_20", "EMA", {"length": 20}),
-    ("RSI_14", "RSI_14", "RSI", {"length": 14}),
-    ("ADX_14", "ADX_14_14", "ADX", {"length": 14}),
-    ("ATR_14", "ATR_14_RMA", "ATR", {"length": 14}),
-    ("BB_MIDDLE", "BB_Basis", "BB", {"length": 20, "ndev": 2.0}),
-    ("BB_UPPER", "BB_Upper", "BB", {"length": 20, "ndev": 2.0}),
-    ("BB_LOWER", "BB_Lower", "BB", {"length": 20, "ndev": 2.0}),
-]
 
 SAMPLE_1H_FILE = (
     Path(__file__).parent.parent.parent
@@ -35,23 +24,6 @@ SAMPLE_1MIN_FILE = (
 )
 
 
-# Most indicators have a "warm-up" period where their values can differ
-# between libraries. We'll skip this many initial bars before comparing.
-WARMUP_PERIOD = 100
-
-# Certain indicators (like RSI, ADX) use different smoothing methods (EMA vs. RMA)
-# between libraries, so we allow a slightly higher tolerance for them.
-# pandas-ta may calculate indicators slightly differently than TradingView.
-TOLERANCES = {
-    "RSI_14": {"rtol": 1e-3},
-    "ADX_14": {"rtol": 1e-2},  # ADX has a more complex calculation
-    "ATR_14": {"rtol": 1e-3},
-    "BB_UPPER": {"rtol": 2e-4},  # pandas-ta BB calculations
-    "BB_MIDDLE": {"rtol": 2e-4},
-    "BB_LOWER": {"rtol": 2e-4},
-}
-
-
 def _load_and_prep_dataframe(file_path: Path) -> pd.DataFrame:
     """Loads and prepares a dataframe from a TradingView CSV."""
     df = pd.read_csv(file_path)
@@ -61,84 +33,15 @@ def _load_and_prep_dataframe(file_path: Path) -> pd.DataFrame:
     return df
 
 
-@pytest.fixture(scope="module")
-def golden_data_1h():
-    """Loads and prepares the 1-hour golden dataset."""
-    return _load_and_prep_dataframe(SAMPLE_1H_FILE)
-
-
-@pytest.fixture(scope="module")
-def calculated_data(golden_data_1h):
-    """Calculates indicators using our platform's code on the 1h data."""
-    feature_specs = [
-        {"name": our_name, "type": type, "params": params}
-        for our_name, _, type, params in INDICATOR_TEST_CASES
-        if type not in ["BB", "ADX"]  # Handle BB and ADX separately
-    ]
-    feature_specs.append(
-        {"name": "BB", "type": "BB", "params": {"length": 20, "ndev": 2.0}}
-    )
-    # ADX needs special handling - we only want to test the ADX column, not DI+/DI-
-    feature_specs.append(
-        {"name": "ADX_14_base", "type": "ADX", "params": {"length": 14}}
-    )
-    base_inputs = golden_data_1h[["open", "high", "low", "close", "volume"]].copy()
-    calculated_df = compute_features(base_inputs, feature_specs).rename(
-        columns={
-            "BB_middle": "BB_MIDDLE",
-            "BB_upper": "BB_UPPER",
-            "BB_lower": "BB_LOWER",
-            "ADX_14_base_ADX": "ADX_14",  # Rename ADX column to match test expectation
-        }
-    )
-    calculated_df = calculated_df.drop(
-        columns=["open", "high", "low", "close", "volume"], errors="ignore"
-    )
-    return calculated_df
-
-
-@pytest.mark.parametrize("our_name, tradingview_name, _, __", INDICATOR_TEST_CASES)
-def test_indicator_matches_tradingview(
-    golden_data_1h,
-    calculated_data,
-    our_name,
-    tradingview_name,
-    _,
-    __,
-):
-    # Validates: [DH-2.11], [SE-3.6]
-    """
-    Compares indicator values calculated by our platform against the golden
-    dataset from TradingView to ensure they are numerically consistent.
-    """
-    golden_series = golden_data_1h[tradingview_name].dropna()
-    calculated_series = calculated_data[our_name].dropna()
-    aligned_golden, aligned_calculated = golden_series.align(
-        calculated_series, join="inner"
-    )
-    aligned_golden = aligned_golden.iloc[WARMUP_PERIOD:]
-    aligned_calculated = aligned_calculated.iloc[WARMUP_PERIOD:]
-
-    assert not aligned_golden.empty, f"No overlapping data for {our_name}"
-    assert not aligned_calculated.empty, f"No overlapping data for {our_name}"
-
-    tolerance = TOLERANCES.get(our_name, {"rtol": 1e-5, "atol": 1e-8})
-    rtol = float(tolerance.get("rtol", 1e-5))
-    atol = float(tolerance.get("atol", 1e-8))
-    assert np.allclose(
-        aligned_golden,
-        aligned_calculated,
-        rtol=rtol,
-        atol=atol,
-    ), f"Indicator '{our_name}' failed validation against TradingView data."
-
-
-def test_resampling_1min_to_1h_matches_golden_data(golden_data_1h):
+def test_resampling_1min_to_1h_matches_golden_data():
     # Validates: [DH-2.5]
     """
     Ensures that resampling 1-minute data to a 1-hour timeframe produces
     OHLCV data that is identical to the golden 1-hour dataset.
     """
+    # Load the golden 1H data
+    golden_data_1h = _load_and_prep_dataframe(SAMPLE_1H_FILE)
+
     # Load the 1-minute data that will be resampled
     df_1min = _load_and_prep_dataframe(SAMPLE_1MIN_FILE)
 

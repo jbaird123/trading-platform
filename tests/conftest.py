@@ -7,6 +7,7 @@ from datetime import datetime
 import pandas as pd
 from pytest_bdd import given, parsers, when
 from sklearn.exceptions import UndefinedMetricWarning
+from trading_platform.data.session_metadata import ALIGNED_TO_CLOSE_ATTR
 
 from tests.backtester.dummy_objects import (
     _dummy_strategy_cfg,
@@ -49,6 +50,7 @@ def market_data(columns: str) -> dict:
     for raw in columns.split(", "):
         col = raw.strip().strip('"')
         df[col] = 100.0
+    df.attrs[ALIGNED_TO_CLOSE_ATTR] = True  # Index represents bar-close times
     signals: pd.Series = pd.Series(None, index=idx)
     return {"market_data": df, "signals": signals}
 
@@ -151,6 +153,7 @@ def a_market_data_series_with_indicators() -> dict:
     freq = pd.to_timedelta("1h")
     idx = pd.date_range(start, end, freq=freq)
     md: pd.DataFrame = pd.DataFrame(index=idx)
+    md.attrs[ALIGNED_TO_CLOSE_ATTR] = True  # Index represents bar-close times
     sig: pd.Series = pd.Series("flat", index=idx)
     return {"market_data": md, "signals": sig}
 

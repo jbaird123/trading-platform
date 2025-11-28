@@ -13,8 +13,6 @@ from typing import Any, TypeAlias, cast
 import pandas as pd
 from trading_platform.backtester import run_backtest
 from trading_platform.core.config import RunConfig
-from trading_platform.data.resample import timeframe_to_timedelta
-from trading_platform.data.session_metadata import ALIGNED_TO_CLOSE_ATTR
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
@@ -67,38 +65,11 @@ def run_backtest_simulation(
     else:
         normalized_rmm = rmm_context
 
-    # Shift signals/RMM/feature_df to bar_close timestamps when the market data
-    # index represents bar_open (default when ALIGNED_TO_CLOSE_ATTR is absent).
-    bar_close_index = None
-    if not market_data.attrs.get(ALIGNED_TO_CLOSE_ATTR, False):
-        if len(market_data.index) >= 2:
-            bar_close_index = market_data.index + (
-                market_data.index[1] - market_data.index[0]
-            )
-        else:
-            tf = getattr(config.instrument or {}, "get", lambda *_: None)("timeframe")
-            if tf:
-                bar_close_index = market_data.index + timeframe_to_timedelta(str(tf))
-
+    # All data must be bar-close aligned - no backward compatibility for bar-open data.
     feature_df = getattr(strategy, "_feature_df", None)
     if feature_df is not None:
         feature_df = feature_df.copy()
-        feature_df.index = _to_utc_index(feature_df.index)
-
-    if bar_close_index is not None:
-        if signals.index.equals(market_data.index):
-            signals = signals.copy()
-            signals.index = bar_close_index
-        if feature_df is not None and feature_df.index.equals(market_data.index):
-            feature_df.index = bar_close_index
-        if normalized_rmm:
-            delta = bar_close_index[0] - market_data.index[0]
-            shifted: dict[datetime, dict[str, Any]] = {}
-            for k, v in normalized_rmm.items():
-                ts = pd.Timestamp(k)
-                ts = ts.tz_localize("UTC") if ts.tz is None else ts.tz_convert("UTC")
-                shifted[(ts + delta).to_pydatetime()] = v
-            normalized_rmm = shifted
+        feature_df.index = _to_utc_index(cast(pd.DatetimeIndex, feature_df.index))
     result = cast(
         BacktestResult,
         run_backtest(

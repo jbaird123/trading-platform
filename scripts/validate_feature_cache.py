@@ -185,20 +185,27 @@ def main() -> None:
 
     print(f"Loaded {len(market_data)} rows of market data at {args.timeframe}")
 
-    # Align market data to bar close (matches cache builder and compute_features)
-    from trading_platform.data.bar_windows import compute_bar_close_index
+    # The DataHandler already returns bar-close aligned data with
+    # ALIGNED_TO_CLOSE_ATTR=True. No shift needed - would cause double-shift.
     from trading_platform.data.session_metadata import (
         ALIGNED_TO_CLOSE_ATTR,
         SESSION_ATTR,
     )
 
-    session = market_data.attrs.get(SESSION_ATTR)
-    close_index = compute_bar_close_index(market_data.index, args.timeframe, session)
-    market_data = market_data.copy()
-    market_data.index = close_index
-    if session is not None:
-        market_data.attrs[SESSION_ATTR] = session
-    market_data.attrs[ALIGNED_TO_CLOSE_ATTR] = True
+    # Verify data is already bar-close aligned (DataHandler guarantees this)
+    if not market_data.attrs.get(ALIGNED_TO_CLOSE_ATTR, False):
+        # Fallback: shift to bar-close if not already aligned (should not happen)
+        from trading_platform.data.bar_windows import compute_bar_close_index
+
+        session = market_data.attrs.get(SESSION_ATTR)
+        close_index = compute_bar_close_index(
+            market_data.index, args.timeframe, session
+        )
+        market_data = market_data.copy()
+        market_data.index = close_index
+        if session is not None:
+            market_data.attrs[SESSION_ATTR] = session
+        market_data.attrs[ALIGNED_TO_CLOSE_ATTR] = True
 
     # Recompute features using canonical pipeline (same as cache builder)
     try:
@@ -260,9 +267,11 @@ def main() -> None:
             )
 
             # Show first few mismatches for debugging
+            # Get the filtered index (timestamps where valid_mask is True)
+            filtered_index = validation_subset.index[valid_mask]
             mismatch_indices = np.where(~close_mask)[0][:3]
             for idx in mismatch_indices:
-                timestamp = validation_subset.index[idx]
+                timestamp = filtered_index[idx]
                 cached_val = cached_values[idx]
                 recomputed_val = recomputed_values[idx]
                 diff = abs(cached_val - recomputed_val)

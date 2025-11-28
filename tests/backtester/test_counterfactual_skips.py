@@ -1,7 +1,7 @@
 # Validates: [BT-7.11]
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, cast
 
 import pandas as pd
@@ -26,12 +26,15 @@ def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
 
 
 def _mk_df() -> pd.DataFrame:
+    # Timestamps represent bar-close times (all data must be bar-close aligned)
+    from trading_platform.data.session_metadata import ALIGNED_TO_CLOSE_ATTR
+
     idx = [
-        datetime(2023, 1, 1, 0, 0),
-        datetime(2023, 1, 1, 1, 0),
-        datetime(2023, 1, 1, 2, 0),
+        datetime(2023, 1, 1, 0, 0, tzinfo=timezone.utc),
+        datetime(2023, 1, 1, 1, 0, tzinfo=timezone.utc),
+        datetime(2023, 1, 1, 2, 0, tzinfo=timezone.utc),
     ]
-    return pd.DataFrame(
+    df = pd.DataFrame(
         {
             "open": [100.0, 100.0, 100.0],
             "high": [100.0, 103.0, 104.0],
@@ -41,6 +44,8 @@ def _mk_df() -> pd.DataFrame:
         },
         index=idx,
     )
+    df.attrs[ALIGNED_TO_CLOSE_ATTR] = True
+    return df
 
 
 @pytest.mark.req_BT_7_11

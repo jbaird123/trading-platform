@@ -6,6 +6,7 @@ from typing import cast
 import pandas as pd
 from pytest import approx
 from trading_platform.core.config import RunConfig
+from trading_platform.data.session_metadata import ALIGNED_TO_CLOSE_ATTR
 from trading_platform.risk_manager.core import RiskExitManager
 
 from tests.backtester.dummy_objects import _dummy_strategy_cfg
@@ -78,6 +79,7 @@ def test_exposure_curve_tracks_gross_notional():
         },
         index=idx,
     )
+    df.attrs[ALIGNED_TO_CLOSE_ATTR] = True  # Index represents bar-close times
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)  # Populate _feature_df for context lookups
     sig = pd.Series([None, "enter_long", None, "exit_long"], index=df.index)
@@ -173,6 +175,7 @@ def test_position_cap_not_reached_when_already_open():
         },
         index=idx,
     )
+    df.attrs[ALIGNED_TO_CLOSE_ATTR] = True  # Index represents bar-close times
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)  # Populate _feature_df for context lookups
     sig = pd.Series(["enter_long", None], index=df.index)
@@ -224,6 +227,7 @@ def test_position_cap_zero_blocks_new_entry():
         },
         index=idx,
     )
+    df.attrs[ALIGNED_TO_CLOSE_ATTR] = True  # Index represents bar-close times
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)  # Populate _feature_df for context lookups
     sig = pd.Series(["enter_long", None], index=df.index)
@@ -273,6 +277,7 @@ def test_rmm_blocks_disallowed_side():
         },
         index=idx,
     )
+    df.attrs[ALIGNED_TO_CLOSE_ATTR] = True  # Index represents bar-close times
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)  # Populate _feature_df for context lookups
     sig = pd.Series(["enter_long", "exit_long"], index=df.index)

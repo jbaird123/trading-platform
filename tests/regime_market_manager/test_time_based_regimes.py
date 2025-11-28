@@ -44,15 +44,26 @@ def test_hour_is_in_predicate() -> None:
     result = engine.classify_regime(df, already_resampled=True)
 
     # Assert that only hours 9, 10, 11 have the trading_hours label
-    assert result.loc["2024-01-01 09:00", "label"] == "trading_hours"
-    assert result.loc["2024-01-01 10:00", "label"] == "trading_hours"
-    assert result.loc["2024-01-01 11:00", "label"] == "trading_hours"
+    # Note: RMM shifts by 1 bar to prevent lookahead bias, so the index starts
+    # at 01:00 (not 00:00), but the hour check uses the shifted index's hour.
+    assert (
+        result.loc[pd.Timestamp("2024-01-01 09:00", tz="UTC"), "label"]
+        == "trading_hours"
+    )
+    assert (
+        result.loc[pd.Timestamp("2024-01-01 10:00", tz="UTC"), "label"]
+        == "trading_hours"
+    )
+    assert (
+        result.loc[pd.Timestamp("2024-01-01 11:00", tz="UTC"), "label"]
+        == "trading_hours"
+    )
 
     # All other hours should be "unknown"
-    assert result.loc["2024-01-01 08:00", "label"] == "unknown"
-    assert result.loc["2024-01-01 12:00", "label"] == "unknown"
-    assert result.loc["2024-01-01 00:00", "label"] == "unknown"
-    assert result.loc["2024-01-01 23:00", "label"] == "unknown"
+    assert result.loc[pd.Timestamp("2024-01-01 08:00", tz="UTC"), "label"] == "unknown"
+    assert result.loc[pd.Timestamp("2024-01-01 12:00", tz="UTC"), "label"] == "unknown"
+    assert result.loc[pd.Timestamp("2024-01-01 01:00", tz="UTC"), "label"] == "unknown"
+    assert result.loc[pd.Timestamp("2024-01-01 23:00", tz="UTC"), "label"] == "unknown"
 
 
 def test_day_of_week_is_in_predicate() -> None:
@@ -88,16 +99,21 @@ def test_day_of_week_is_in_predicate() -> None:
     engine = RMMEngine(config=RMMConfig(**config))  # type: ignore[arg-type]
     result = engine.classify_regime(df, already_resampled=True)
 
-    # Assert Mon (Jan 1) and Wed (Jan 3) have weekday_trading label
-    assert result.loc["2024-01-01", "label"] == "weekday_trading"
-    assert result.loc["2024-01-03", "label"] == "weekday_trading"
+    # Assert Mon (day_of_week=0) and Wed (day_of_week=2) have weekday_trading label
+    # Note: RMM shifts by 1 bar. Jan 1 2024 is Monday (day 0).
+    # After shift: Jan 1 (Mon) data appears at Jan 2 index, etc.
+    # But the day_of_week check is on the shifted row's actual day value.
+    # So Jan 3 (Wed) shows weekday_trading because Wed is day_of_week=2.
+    assert (
+        result.loc[pd.Timestamp("2024-01-03", tz="UTC"), "label"] == "weekday_trading"
+    )  # Wed
 
-    # All other days should be "unknown"
-    assert result.loc["2024-01-02", "label"] == "unknown"  # Tue
-    assert result.loc["2024-01-04", "label"] == "unknown"  # Thu
-    assert result.loc["2024-01-05", "label"] == "unknown"  # Fri
-    assert result.loc["2024-01-06", "label"] == "unknown"  # Sat
-    assert result.loc["2024-01-07", "label"] == "unknown"  # Sun
+    # All other days should be "unknown" (shifted, so Jan 1 Mon is not in result)
+    assert result.loc[pd.Timestamp("2024-01-02", tz="UTC"), "label"] == "unknown"  # Tue
+    assert result.loc[pd.Timestamp("2024-01-04", tz="UTC"), "label"] == "unknown"  # Thu
+    assert result.loc[pd.Timestamp("2024-01-05", tz="UTC"), "label"] == "unknown"  # Fri
+    assert result.loc[pd.Timestamp("2024-01-06", tz="UTC"), "label"] == "unknown"  # Sat
+    assert result.loc[pd.Timestamp("2024-01-07", tz="UTC"), "label"] == "unknown"  # Sun
 
 
 def test_combined_time_and_indicator_regime() -> None:
@@ -144,12 +160,21 @@ def test_combined_time_and_indicator_regime() -> None:
     result = engine.classify_regime(df, already_resampled=True)
 
     # Hours 14, 15, 16 with strength > 50 should be labeled
-    assert result.loc["2024-01-01 14:00", "label"] == "strong_trend_hours"
-    assert result.loc["2024-01-01 15:00", "label"] == "strong_trend_hours"
-    assert result.loc["2024-01-01 16:00", "label"] == "strong_trend_hours"
+    assert (
+        result.loc[pd.Timestamp("2024-01-01 14:00", tz="UTC"), "label"]
+        == "strong_trend_hours"
+    )
+    assert (
+        result.loc[pd.Timestamp("2024-01-01 15:00", tz="UTC"), "label"]
+        == "strong_trend_hours"
+    )
+    assert (
+        result.loc[pd.Timestamp("2024-01-01 16:00", tz="UTC"), "label"]
+        == "strong_trend_hours"
+    )
 
     # Hour 10 has low strength, so should be unknown
-    assert result.loc["2024-01-01 10:00", "label"] == "unknown"
+    assert result.loc[pd.Timestamp("2024-01-01 10:00", tz="UTC"), "label"] == "unknown"
 
     # Hour 20 has high strength but wrong time, so should be unknown
-    assert result.loc["2024-01-01 20:00", "label"] == "unknown"
+    assert result.loc[pd.Timestamp("2024-01-01 20:00", tz="UTC"), "label"] == "unknown"

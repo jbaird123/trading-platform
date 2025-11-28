@@ -21,9 +21,14 @@ def test_same_timeframe_no_forward_fill():
 
     Expected: Features computed on bar N should only be available at bar N,
     not forward-filled to bar N+1.
+
+    Note: compute_features applies bar-close alignment (shifts index by timeframe),
+    so the result index will be shifted by 15min from the input.
     """
-    # Create 15min data
-    timestamps = pd.date_range(start="2024-01-01 09:00:00", periods=8, freq="15min")
+    # Create 15min data with UTC timestamps
+    timestamps = pd.date_range(
+        start="2024-01-01 09:00:00", periods=8, freq="15min", tz="UTC"
+    )
     closes = [100.0, 101.0, 102.0, 103.0, 104.0, 105.0, 106.0, 107.0]
 
     df = pd.DataFrame(
@@ -49,6 +54,9 @@ def test_same_timeframe_no_forward_fill():
 
     result = compute_features(df, feature_configs)
 
+    # Verify the result has bar-close aligned index (shifted by 15min from input)
+    assert result.index[0] == pd.Timestamp("2024-01-01 09:15:00", tz="UTC")
+
     # Manually calculate expected EMA
     from trading_platform.strategy.indicators_registry import INDICATORS
 
@@ -56,10 +64,10 @@ def test_same_timeframe_no_forward_fill():
     ema_impl = ema_indicator["implementation"]
     expected_ema = ema_impl(df, {"length": 3}, "close", None)
 
-    # The computed features should match exactly (no shift, no forward-fill)
+    # Compare values only (indices differ due to bar-close alignment)
     pd.testing.assert_series_equal(
-        result["15min_ema_3"],
-        expected_ema,
+        result["15min_ema_3"].reset_index(drop=True),
+        expected_ema.reset_index(drop=True),
         check_names=False,
         rtol=1e-10,
     )

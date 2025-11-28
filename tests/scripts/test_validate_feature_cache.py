@@ -30,13 +30,11 @@ def _create_minimal_cache(
     cache_dir = cache_root / symbol.lower().replace("_", "") / config_hash
     cache_dir.mkdir(parents=True, exist_ok=True)
 
-    # Shift feature data forward one row to match cache semantics
-    cache_ready = feature_data.copy().shift(1)
+    # Use feature data as-is (indexed by bar-close time, matching real cache builder)
+    cache_ready = feature_data.copy()
 
-    # Write metadata.json
-    first_valid_index = (
-        feature_data.index[1] if len(feature_data) > 1 else feature_data.index[0]
-    )
+    # Write metadata.json - first valid index is where feature values start being valid
+    first_valid_index = feature_data.index[0]
 
     metadata = {
         "symbol": symbol,
@@ -143,6 +141,9 @@ def _setup_mocks_and_run(
         base_args.extend(extra_args)
 
     # Mock DataHandler to return deterministic market data
+    # The real DataHandler sets ALIGNED_TO_CLOSE_ATTR=True after _ensure_close_aligned
+    from trading_platform.data.session_metadata import ALIGNED_TO_CLOSE_ATTR
+
     class FakeDataHandler:
         def __init__(self, symbol: str, data_root: Path):
             self.symbol = symbol
@@ -150,7 +151,9 @@ def _setup_mocks_and_run(
 
         def get_data(self, timeframe: str) -> pd.DataFrame:
             assert timeframe == "5min"
-            return mock_market_data.copy()
+            result = mock_market_data.copy()
+            result.attrs[ALIGNED_TO_CLOSE_ATTR] = True
+            return result
 
     # Mock build_global_feature_frame to return recomputed data aligned to cache index
     def mock_build_fn(*args, **kwargs):
