@@ -452,8 +452,21 @@ def test_indicator_matches_tradingview_comprehensive(
         )
 
     tradingview_series = batch_df[tradingview_column.lower()].dropna()
+
+    # Prefer the base OHLC timeframe for sparse series (Swing High/Low) so we
+    # don’t infer a huge gap from widely spaced swing points.
+    base_freq = pd.infer_freq(batch_df.index)
+    if base_freq:
+        base_delta = timeframe_to_timedelta(base_freq)
+    elif len(batch_df.index) >= 2:
+        base_delta = batch_df.index[1] - batch_df.index[0]
+    else:
+        pytest.fail("Not enough OHLC data to infer base timeframe.")
+
     inferred_freq = pd.infer_freq(tradingview_series.index)
-    if inferred_freq:
+    if feature_type in {"SWING_HIGH", "SWING_LOW"}:
+        delta = base_delta
+    elif inferred_freq:
         delta = timeframe_to_timedelta(inferred_freq)
     else:
         if len(tradingview_series.index) < 2:
