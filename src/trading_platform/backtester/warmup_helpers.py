@@ -20,33 +20,46 @@ def infer_execution_timeframe(config: Any, market_data: pd.DataFrame) -> str:
         instrument_tf = instrument_cfg.get("timeframe")
     else:
         instrument_tf = getattr(instrument_cfg, "timeframe", None)
-    if instrument_tf:
-        return str(instrument_tf)
-
     data_req_cfg = getattr(config, "data_request", None) or {}
     if isinstance(data_req_cfg, dict):
         data_req_tf = data_req_cfg.get("timeframe")
     else:
         data_req_tf = getattr(data_req_cfg, "timeframe", None)
+
+    # If insufficient bars to infer, fall back to configured timeframe(s)
+    if len(market_data.index) < 2:
+        if instrument_tf:
+            return str(instrument_tf)
+        if data_req_tf:
+            return str(data_req_tf)
+        return "1min"
+
+    if instrument_tf:
+        return str(instrument_tf)
+
     if data_req_tf:
         return str(data_req_tf)
 
     if not market_data.empty:
         diffs = market_data.index[1:] - market_data.index[:-1]
-        most_common = diffs.value_counts().idxmax()
-        minutes = int(pd.Timedelta(most_common).total_seconds() / 60)
-        mapping = {
-            1: "1min",
-            5: "5min",
-            15: "15min",
-            60: "1H",
-            240: "4H",
-            1440: "1D",
-            10080: "1W",
-        }
-        timeframe = mapping.get(minutes)
-        if timeframe:
-            return timeframe
+        if not diffs.empty:
+            most_common = diffs.value_counts().idxmax()
+            minutes = int(pd.Timedelta(most_common).total_seconds() / 60)
+            mapping = {
+                1: "1min",
+                5: "5min",
+                15: "15min",
+                60: "1H",
+                240: "4H",
+                1440: "1D",
+                10080: "1W",
+            }
+            timeframe = mapping.get(minutes)
+            if timeframe:
+                return timeframe
+            if minutes > 0:
+                # Fallback to a generic minutes label if not in mapping
+                return f"{minutes}min"
     raise ValueError("Execution timeframe is required.")
 
 

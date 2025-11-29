@@ -6,6 +6,12 @@ from typing import Any, cast
 import pandas as pd
 
 from trading_platform.backtester.engine import run_event_loop_backtest
+from trading_platform.backtester.warmup_helpers import (
+    ensure_market_data_with_warmup,
+    infer_execution_timeframe,
+    resolve_global_feature_defs,
+    resolve_strategy_features_for_warmup,
+)
 from trading_platform.core.config import RunConfig
 from trading_platform.strategy.yaml_strategy import validate_strategy_config
 
@@ -134,7 +140,36 @@ def run_backtest(
                         params.update(feat_over[name])
                         f["params"] = params
 
+    # Enforce warmup inside the backtester: always include earliest available data.
+    execution_timeframe = infer_execution_timeframe(config, market_data)
+    # Resolve strategy/global feature defs for potential future use; the warmup
+    # helper now always uses earliest bar but accepts these for consistency.
+    if compiled_strategy is not None:
+        strategy_features = resolve_strategy_features_for_warmup(compiled_strategy)
+    else:
+        strategy_features = (
+            strategy_cfg.get("features", []) if isinstance(strategy_cfg, dict) else []
+        )
+    try:
+        global_feature_defs = resolve_global_feature_defs(
+            execution_timeframe, global_features_config_path
+        )
+    except FileNotFoundError:
+        # If a custom global features config is not present, treat as no globals.
+        global_feature_defs = []
+    market_data = ensure_market_data_with_warmup(
+        market_data=market_data,
+        execution_timeframe=execution_timeframe,
+        strategy_features=strategy_features,
+        global_features=global_feature_defs,
+        data_request=getattr(config, "data_request", None),
+        data_handler=data_handler,
+    )
+
     global_feature_df = None
+    instrument_tf = None
+    if config.instrument and isinstance(config.instrument, dict):
+        instrument_tf = config.instrument.get("timeframe")
     if (
         global_features_config_path is not None
         and profiler is not None
@@ -149,10 +184,8 @@ def run_backtest(
             from trading_platform.core.feature_resolver import resolve_global_features
             from trading_platform.strategy.features import compute_features
 
-            tf = None
-            if config.instrument and isinstance(config.instrument, dict):
-                tf = config.instrument.get("timeframe")
-            tf_str = str(tf) if tf is not None else ""
+            tf = instrument_tf or execution_timeframe
+            tf_str = str(tf) if tf else ""
             resolved = resolve_global_features(
                 execution_timeframe=tf_str,
                 config_path=Path(global_features_config_path),
@@ -202,10 +235,8 @@ def run_backtest(
         from trading_platform.core.feature_resolver import resolve_global_features
         from trading_platform.strategy.features import compute_features
 
-        tf = None
-        if config.instrument and isinstance(config.instrument, dict):
-            tf = config.instrument.get("timeframe")
-        tf_str = str(tf) if tf is not None else ""
+        tf = instrument_tf or execution_timeframe
+        tf_str = str(tf) if tf else ""
         resolved = resolve_global_features(
             execution_timeframe=tf_str, config_path=Path(global_features_config_path)
         )
