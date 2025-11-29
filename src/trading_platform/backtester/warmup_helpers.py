@@ -8,7 +8,6 @@ from typing import Any, cast
 
 import pandas as pd
 
-from trading_platform.backtester.warmup import calculate_warmup_start_date
 from trading_platform.core.feature_resolver import resolve_global_features
 from trading_platform.strategy.features import _resolve_parameter
 
@@ -123,78 +122,18 @@ def ensure_market_data_with_warmup(
     if market_data.empty:
         return market_data
 
-    target_start, target_end, start_explicit = _parse_data_request_bounds(
-        data_request, market_data
-    )
+    target_start, target_end, _ = _parse_data_request_bounds(data_request, market_data)
 
     if not isinstance(market_data.index, pd.DatetimeIndex):
         logger.warning("Market data index is not datetime; skipping warmup extension.")
         return cast(pd.DataFrame, market_data.loc[target_start:target_end].copy())
 
-    if not strategy_features and not global_features:
-        return market_data.loc[target_start:target_end].copy()
+    # System-wide warmup: always include data from the earliest available bar.
+    # This avoids per-strategy dynamic warmup variability and keeps cumulative
+    # indicators (EMA/OBV/etc.) consistent with the feature cache.
+    warmup_ts = cast(pd.Timestamp, market_data.index.min())
 
-    working_data = market_data
-
-    def _calculate(start_data: pd.DataFrame) -> tuple[pd.Timestamp, dict[str, Any]]:
-        warmup_start_date, info = calculate_warmup_start_date(
-            strategy_features=strategy_features,
-            global_features=global_features,
-            execution_timeframe=execution_timeframe,
-            market_data=start_data,
-            backtest_start_date=target_start,
-        )
-        warmup_ts = pd.Timestamp(info.get("earliest_timestamp") or warmup_start_date)
-        if warmup_ts.tzinfo is None:
-            warmup_ts = warmup_ts.tz_localize("UTC")
-        else:
-            warmup_ts = warmup_ts.tz_convert("UTC")
-        return warmup_ts, info
-
-    def _fallback(reason: str) -> pd.DataFrame:
-        logger.debug(
-            "Warmup calculation could not extend data (%s); "
-            "falling back to requested window.",
-            reason,
-        )
-        return cast(pd.DataFrame, market_data.loc[target_start:target_end].copy())
-
-    try:
-        warmup_ts, _ = _calculate(working_data)
-    except ValueError as exc:
-        if not start_explicit or data_handler is None:
-            return _fallback(str(exc))
-        logger.debug(
-            "Warmup calculation failed (%s); requesting additional history.", exc
-        )
-        working_data = cast(
-            pd.DataFrame,
-            data_handler.get_data(
-                timeframe=execution_timeframe,
-                start=None,
-                end=None,
-            ),
-        )
-        try:
-            warmup_ts, _ = _calculate(working_data)
-        except ValueError as inner_exc:
-            return _fallback(str(inner_exc))
-    try:
-        idx = working_data.index.get_indexer([warmup_ts], method="bfill")[0]
-        if idx == -1:
-            raise KeyError
-        warmup_ts = cast(pd.Timestamp, working_data.index[idx])
-    except Exception:
-        warmup_ts = cast(pd.Timestamp, working_data.index.min())
-
-    if warmup_ts < working_data.index.min():
-        raise ValueError(  # noqa: TRY301
-            "Insufficient historical data to satisfy indicator warmup. "
-            f"Warmup requires data before {warmup_ts}, but market data "
-            f"starts at {working_data.index.min()}."
-        )
-
-    trimmed = working_data.loc[warmup_ts:target_end].copy()
+    trimmed = market_data.loc[warmup_ts:target_end].copy()
     if trimmed.empty:
         raise ValueError(
             "Warmup trimming removed all market data. "

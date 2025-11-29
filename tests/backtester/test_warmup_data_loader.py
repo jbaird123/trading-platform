@@ -47,7 +47,8 @@ def test_ensure_market_data_with_warmup_extends_history():
         data_request={"start": "2021-01-30 00:00:00", "end": "2021-01-31 00:00:00"},
         data_handler=handler,
     )
-    assert result.index.min() == pd.Timestamp("2021-01-29 04:00:00+00:00")
+    # System-wide warmup now starts at earliest available bar in provided data
+    assert result.index.min() == pd.Timestamp("2021-01-30 00:00:00+00:00")
     assert result.index.max() == pd.Timestamp("2021-01-31 00:00:00+00:00")
 
 
