@@ -18,7 +18,7 @@ from typing import Any, cast
 
 import pandas as pd
 import pytest
-from trading_platform.backtester.engine import run_event_loop_backtest
+from trading_platform.backtester._testing import run_backtest_with_synthetic_data
 from trading_platform.core.global_features_cache import cache_covers_features
 from trading_platform.portfolio.trade import Trade
 
@@ -787,7 +787,7 @@ def load_platform_trades(
     # Run backtest with 1-min data handler (for zoom capability)
     # Use frozen golden features config for golden validation tests
     golden_features_path = Path("data/dvc/golden/features/global.yaml")
-    engine_result = run_event_loop_backtest(
+    engine_result = run_backtest_with_synthetic_data(
         config=config,
         market_data=ohlcv_to_use,
         strategy_config=strategy_config,

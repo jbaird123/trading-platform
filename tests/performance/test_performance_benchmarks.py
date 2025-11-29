@@ -14,7 +14,7 @@ from datetime import datetime
 
 import pandas as pd
 import pytest
-from trading_platform.backtester import run_backtest
+from trading_platform.backtester._testing import run_backtest_with_synthetic_data
 from trading_platform.core.config import RunConfig
 from trading_platform.strategy.features import compute_features
 
@@ -193,19 +193,28 @@ def test_sys_1_9_2_multi_year_backtest_performance():
         entry_window_bars=0,
     )
 
-    # Benchmark backtest execution
+    # Load strategy config
+    from pathlib import Path
+
+    import yaml
+
+    strategy_path = Path("config/strategy/ema_crossover.yaml")
+    with open(strategy_path) as f:
+        strategy_config = yaml.safe_load(f)
+
+    # Benchmark backtest execution using synthetic data
     start_time = time.time()
-    result = run_backtest(
+    result = run_backtest_with_synthetic_data(
         config=config,
         market_data=df,
-        strategy_path="config/strategy/ema_crossover.yaml",
+        strategy_config=strategy_config,
     )
     elapsed = time.time() - start_time
 
-    # Verify backtest completed
+    # Verify backtest completed (result is now BacktestResult dataclass)
     assert result is not None
-    assert "trades" in result
-    assert "equity_curve" in result
+    assert hasattr(result, "trades")
+    assert hasattr(result, "equity_curve")
 
     # Performance target: Process 200K bars in under 30 seconds
     # (scales to ~1M bars in 150 seconds on laptop)
@@ -365,11 +374,20 @@ def test_backtest_execution_time_1m_bars():
         entry_window_bars=0,
     )
 
+    # Load strategy config
+    from pathlib import Path
+
+    import yaml
+
+    strategy_path_file = Path("config/strategy/ema_crossover.yaml")
+    with open(strategy_path_file) as f:
+        strategy_config = yaml.safe_load(f)
+
     start_time = time.time()
-    result = run_backtest(
-        config,
+    result = run_backtest_with_synthetic_data(
+        config=config,
         market_data=df,
-        strategy_path="config/strategy/ema_crossover.yaml",
+        strategy_config=strategy_config,
     )
     elapsed = time.time() - start_time
 

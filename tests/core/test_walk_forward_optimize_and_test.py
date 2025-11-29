@@ -98,7 +98,8 @@ def test_walk_forward_optimize_and_test_returns_payload():
         "position_size": 10000.0,
         "tie_break_policy": {"rule": "stop_then_tp"},
         "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
-        "instrument": {"symbol": "EURUSD"},
+        "instrument": {"symbol": "EURUSD", "timeframe": "1H"},
+        "data_request": {"symbol": "EURUSD", "timeframe": "1H"},
     }
     strat_cfg = _strategy_cfg()
     out = walk_forward_optimize_and_test(

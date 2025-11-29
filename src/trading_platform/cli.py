@@ -711,22 +711,26 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     ret_skips = bool(cfg_raw.get("return_skips", True))
 
     # Run backtest through the backtester entry point
+    # run_backtest() now owns data loading - no market_data/data_handler needed
     # (profiler already initialized earlier)
     res = run_backtest(
         config=cfg,
-        market_data=df,
         strategy_config=strat_cfg,
         strategy_path=None,  # Already loaded into strat_cfg
         strategy_params=strategy_params,
         strategy_overrides=strategy_overrides,
-        data_handler=data_handler,
         global_features_config_path=cfg_global_features_path,
-        global_feature_defs=global_feature_defs,
         rmm_context=rmm_context,
         return_exposure=ret_exp,
         return_skips=ret_skips,
         profiler=profiler,
     )
+
+    # Extract market data and data_handler from result for downstream use
+    # (RMM, parameter sweep, walk-forward, etc.)
+    if isinstance(res, dict):
+        df = res.get("market_data", df)
+        data_handler = res.get("data_handler", data_handler)
 
     # Extract results from backtester
     # When return_exposure=True, backtester returns tuple: (trades, exposure, [skips])
@@ -1862,6 +1866,7 @@ def cmd_ai_validate_rmm_candidates(args: argparse.Namespace) -> int:
         start = data_request.get("start")
         end = data_request.get("end")
 
+        # Load data for RMM context computation
         instrument_def = get_instrument_definition(symbol)
         data_handler = DataHandler(
             symbol=symbol,
@@ -1880,13 +1885,12 @@ def cmd_ai_validate_rmm_candidates(args: argparse.Namespace) -> int:
             logger.warning("Failed to compute RMM context for %s: %s", candidate, exc)
             rmm_ctx = None
 
+        # run_backtest() now owns data loading - it will load from cfg.data_request
         result = run_backtest(
-            cfg,
-            market_data,
+            config=cfg,
             strategy_config=strategy_cfg,
             strategy_params=strategy_params,
             strategy_overrides=strategy_overrides,
-            data_handler=data_handler,
             global_features_config_path=global_feat_path,
             rmm_context=rmm_ctx,
             return_skips=True,

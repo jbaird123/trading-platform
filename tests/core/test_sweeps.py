@@ -1885,7 +1885,8 @@ def test_run_parameter_sweep_returns_top_and_results():
         "position_size": 10000.0,
         "tie_break_policy": {"rule": "stop_then_tp"},
         "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
-        "instrument": {"symbol": "EURUSD"},
+        "instrument": {"symbol": "EURUSD", "timeframe": "1H"},
+        "data_request": {"symbol": "EURUSD", "timeframe": "1H"},
     }
     strat_cfg = _strategy_cfg()
     out = run_parameter_sweep(
@@ -1908,7 +1909,8 @@ def test_parameter_sweep_pnl_minus_dd_objective():
         "position_size": 10000.0,
         "tie_break_policy": {"rule": "stop_then_tp"},
         "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
-        "instrument": {"symbol": "EURUSD"},
+        "instrument": {"symbol": "EURUSD", "timeframe": "1H"},
+        "data_request": {"symbol": "EURUSD", "timeframe": "1H"},
     }
     strat_cfg = _strategy_cfg()
     out = run_parameter_sweep(
@@ -1929,7 +1931,8 @@ def test_parameter_sweep_pnl_dd_vol_objective():
         "position_size": 10000.0,
         "tie_break_policy": {"rule": "stop_then_tp"},
         "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
-        "instrument": {"symbol": "EURUSD"},
+        "instrument": {"symbol": "EURUSD", "timeframe": "1H"},
+        "data_request": {"symbol": "EURUSD", "timeframe": "1H"},
     }
     strat_cfg = _strategy_cfg()
     out = run_parameter_sweep(

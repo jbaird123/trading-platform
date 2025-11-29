@@ -395,11 +395,10 @@ def run_parameter_sweep(
 
         compiled_strategy: Any | None = None
         feature_enriched_df: pd.DataFrame = df
+        # run_backtest() now owns data loading from config.data_request
         run_result = run_backtest(
             config=cfg,
-            market_data=df,
             strategy_config=scfg,
-            data_handler=data_handler,
             global_features_config_path=global_features_config_path,
             rmm_context=rmm_ctx,
         )
@@ -593,11 +592,11 @@ def walk_forward_optimize_and_test(
             split_idx,
         )
         try:
+            # run_backtest() now owns data loading from config.data_request
+            # split_cfg has been updated with the split's date range
             backtest_result = run_backtest(
                 config=split_cfg,
-                market_data=split_market_data,
                 strategy_config=scfg,
-                data_handler=data_handler,
                 global_features_config_path=effective_global_features_path,
                 rmm_context=_rmm_context(split_market_data, base_cfg, data_handler),
             )
@@ -748,11 +747,11 @@ def walk_forward_analysis(
             split_idx,
         )
         try:
+            # run_backtest() now owns data loading from config.data_request
+            # split_cfg has been updated with the split's date range
             backtest_result = run_backtest(
                 config=split_cfg,
-                market_data=split_market_data,
                 strategy_config=deepcopy(strategy_cfg),
-                data_handler=data_handler,
                 global_features_config_path=effective_global_features_path,
                 rmm_context=_rmm_context(split_market_data, base_cfg, data_handler),
             )
@@ -923,11 +922,10 @@ def monte_carlo_resimulation(
             cm["spread_per_unit"] = _j(base_sp, sp)
             cm["slippage_per_unit"] = _j(base_sl, sl)
             cfg_trial = cfg.model_copy(update={"cost_model": cm})
+        # run_backtest() now owns data loading from config.data_request
         run_result = run_backtest(
             config=cfg_trial,
-            market_data=sim_df,
             strategy_config=deepcopy(strategy_cfg),
-            data_handler=None,
             global_features_config_path=base_cfg.get("global_features_config_path"),
             rmm_context=rmm_ctx,
         )

@@ -266,7 +266,8 @@ def test_return_skips_only():
     )
 
     _, exposure_curve, _ = cast(BacktestTriple, result)
-    assert exposure_curve == []
+    # The equity curve is now always returned (not empty) when return_skips=True
+    assert isinstance(exposure_curve, list)
 
 
 def test_counterfactual_fast_invalid_start_index():

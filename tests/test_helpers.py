@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, TypeAlias, cast
 
 import pandas as pd
-from trading_platform.backtester import run_backtest
+from trading_platform.backtester._testing import run_backtest_with_synthetic_data
 from trading_platform.core.config import RunConfig
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
@@ -70,37 +70,88 @@ def run_backtest_simulation(
     if feature_df is not None:
         feature_df = feature_df.copy()
         feature_df.index = _to_utc_index(cast(pd.DatetimeIndex, feature_df.index))
-    result = cast(
-        BacktestResult,
-        run_backtest(
-            config=config,
-            market_data=market_data,
-            compiled_strategy=strategy,
-            precomputed_signals=signals,
-            feature_enriched_df=feature_df,
-            data_handler=data_handler,
-            global_features_config_path=global_features_config_path,
-            rmm_context=normalized_rmm,
-            return_exposure=return_exposure,
-            return_skips=return_skips,
-            rem_instance=rem,
-        ),
+
+    # Compute global features if config path provided
+    global_feature_df = None
+    if global_features_config_path is not None:
+        from trading_platform.core.feature_resolver import resolve_global_features
+        from trading_platform.strategy.features import compute_features
+
+        # Get execution timeframe from config
+        instrument = getattr(config, "instrument", None)
+        exec_tf = None
+        if isinstance(instrument, dict):
+            exec_tf = instrument.get("timeframe")
+        if exec_tf is None:
+            exec_tf = "1H"
+
+        resolved = resolve_global_features(
+            execution_timeframe=exec_tf,
+            config_path=Path(global_features_config_path),
+        )
+        if resolved:
+            specs = [
+                {
+                    "name": f.name,
+                    "type": f.type,
+                    "params": f.params,
+                    "source": f.source,
+                    **(
+                        {}
+                        if f.timeframe == exec_tf
+                        else {"timeframe": f.timeframe}
+                        if f.timeframe
+                        else {}
+                    ),
+                }
+                for f in resolved
+            ]
+            global_feature_df = compute_features(
+                market_data,
+                specs,
+                None,
+            )
+            base_cols = set(market_data.columns)
+            global_feature_df = global_feature_df.loc[
+                :, [c for c in global_feature_df.columns if c not in base_cols]
+            ]
+            if global_feature_df.empty:
+                global_feature_df = None
+            elif global_feature_df is not None:
+                # Validate no NaNs in valid range (same as production code)
+                import pandas as pd_check
+
+                for col in global_feature_df.columns:
+                    series = global_feature_df[col]
+                    first_valid = series.first_valid_index()
+                    if first_valid is None:
+                        raise ValueError(f"Global feature '{col}' is NaN")
+                    first_valid_idx = cast(pd.Timestamp, first_valid)
+                    if pd_check.isna(series.loc[first_valid_idx:]).any():
+                        raise ValueError(f"Global feature '{col}' is NaN")
+                global_feature_df = global_feature_df.ffill().bfill()
+
+    # Use the internal testing function for synthetic data
+    result = run_backtest_with_synthetic_data(
+        config=config,
+        market_data=market_data,
+        compiled_strategy=strategy,
+        precomputed_signals=signals,
+        strategy_feature_df=feature_df,
+        data_handler=data_handler,
+        global_feature_df=global_feature_df,
+        rmm_context=normalized_rmm,
+        rem_instance=rem,
     )
 
+    # result is a BacktestResult dataclass
+    if return_exposure and return_skips:
+        return (result.trades, result.equity_curve, result.skipped)
     if return_exposure:
-        return result
+        return (result.trades, result.equity_curve)
     if return_skips:
-        if isinstance(result, dict):
-            trades_out = cast(list[Any], result.get("trades", []))
-            skipped = cast(list[dict[str, Any]], result.get("skipped", []))
-        else:
-            trades_out = cast(list[Any], result)
-            skipped = []
-        empty_curve: list[tuple[datetime, float]] = []
-        return (trades_out, empty_curve, skipped)
-    if isinstance(result, dict):
-        return cast(list[Any], result.get("trades", []))
-    return result
+        return (result.trades, result.equity_curve, result.skipped)
+    return result.trades
 
 
 def create_market_data_with_warmup(

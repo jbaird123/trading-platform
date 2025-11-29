@@ -110,6 +110,25 @@ def run_event_loop_backtest(
     rem_instance: RiskExitManager | None = None,
     profiler: PerformanceProfiler | None = None,
 ) -> BacktestResult:
+    # Enforce that this function is only called from authorized entry points
+    import inspect
+
+    caller_frame = inspect.stack()[1]
+    caller_file = caller_frame.filename
+
+    allowed_callers = [
+        "backtester/__init__.py",
+        "backtester/_testing.py",
+    ]
+
+    if not any(allowed in caller_file for allowed in allowed_callers):
+        raise RuntimeError(
+            "run_event_loop_backtest() cannot be called directly. "
+            "Use run_backtest() from trading_platform.backtester for production, "
+            "or run_backtest_with_synthetic_data() from "
+            "trading_platform.backtester._testing for tests with synthetic data."
+        )
+
     # Normalize market data to tz-aware UTC
     md_idx = market_data.index
     if isinstance(md_idx, pd.DatetimeIndex) and md_idx.tz is None:

@@ -59,9 +59,16 @@ def test_cmd_compare_missing_inputs(tmp_path: Path) -> None:
 def test_cmd_run_backtest_reads_csv_path(
     tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
+    """Test CLI can run backtest and produce artifacts.
+
+    Note: run_backtest() now owns data loading from data_request.
+    This test mocks run_backtest to focus on CLI artifact generation.
+    """
+    from unittest.mock import MagicMock, patch
+
     monkeypatch.setattr("trading_platform.core.paths.RUNS_DIR", tmp_path)
-    # Prepare a tiny OHLCV CSV
-    csv = tmp_path / "data.csv"
+
+    # Create a sample DataFrame for the mock
     df = pd.DataFrame(
         {
             "open": [1, 2, 3],
@@ -69,16 +76,21 @@ def test_cmd_run_backtest_reads_csv_path(
             "low": [1, 2, 3],
             "close": [1, 2, 3],
             "volume": [1, 1, 1],
-        }
+        },
+        index=pd.date_range("2024-01-01", periods=3, freq="h", tz="UTC"),
     )
-    df.to_csv(csv, index_label="ts")
 
     cfg = {
         "user_id": "cli_csv",
         "runs_dir": str(tmp_path),
         "initial_cash": 1000,
-        "instrument": {"symbol": "EURUSD"},
-        "data": {"csv_path": str(csv)},
+        "instrument": {"symbol": "EURUSD", "timeframe": "1H"},
+        "data_request": {
+            "symbol": "EURUSD",
+            "timeframe": "1H",
+            "start": "2024-01-01",
+            "end": "2024-01-02",
+        },
         "strategy": {
             "strategy_name": "TestStrat",
             "long_entry_rules": [
@@ -108,11 +120,33 @@ def test_cmd_run_backtest_reads_csv_path(
     cfg_path = tmp_path / "cfg.json"
     cfg_path.write_text(json.dumps(cfg))
     ns = Namespace(demo=False, user="cli_csv", config=str(cfg_path))
-    # Ensure parameters field exists
-    strategy_dict = cfg["strategy"]
-    if isinstance(strategy_dict, dict):
-        strategy_dict["parameters"] = strategy_dict.get("parameters", {})
-    rc = cmd_run_backtest(ns)
+
+    # Mock run_backtest to return expected structure
+    mock_strat = MagicMock()
+    mock_strat.name = "TestStrat"
+    mock_strat._feature_df = df
+    mock_strat.generate_signals.return_value = pd.Series(
+        [None, None, None], index=df.index
+    )
+
+    with patch("trading_platform.cli.run_backtest") as mock_backtest, patch(
+        "trading_platform.cli.compile_strategy"
+    ) as mock_compile:
+        mock_compile.return_value = mock_strat
+        mock_backtest.return_value = {
+            "trades": [],
+            "equity_curve": [],
+            "skipped": [],
+            "strategy_name": "TestStrat",
+            "initial_capital": 1000,
+            "compiled_strategy": mock_strat,
+            "feature_enriched_df": df,
+            "market_data": df,
+            "data_handler": None,
+        }
+
+        rc = cmd_run_backtest(ns)
+
     assert rc == 0
     # Ensure prices.csv and charts.html exist under the run directory
     runs_root = tmp_path / "cli_csv"
