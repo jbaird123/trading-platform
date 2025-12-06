@@ -28,7 +28,7 @@
     }
   },
   "exposure": {
-    "average_gross_exposure": 29.863636363636363,
+    "average_gross_exposure": 15.642857142857142,
     "peak_gross_exposure": 112.0
   },
   "contrasts": {
@@ -86,12 +86,12 @@
   "feature_analysis": {},
   "checksums": {
     "instrument_defs_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-    "config_snapshot_hash": "fbcdaa432fe947bdf1fb24498414dfb1d617fbcdedde0dff53209c913e7448a9"
+    "config_snapshot_hash": "819424fa337ebdec1fe062361a57601cdc5843b6ddaf4879ab6cccde8fd0e124"
   },
   "meta": {
     "strategy_name": "Golden_EMA_Crossover",
     "run_id": "golden_run_test",
-    "git_commit": "48f989a",
+    "git_commit": "a091534",
     "run_seed": 42
   },
   "strategy_params": {},
@@ -263,7 +263,7 @@
       "EURUSD"
     ],
     "app_version": "0.0.1",
-    "git_commit": "48f989a",
+    "git_commit": "a091534",
     "run_seed": 42
   },
   "artifacts": {},

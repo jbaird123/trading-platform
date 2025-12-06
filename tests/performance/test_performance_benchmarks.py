@@ -180,6 +180,8 @@ def test_sys_1_9_2_multi_year_backtest_performance():
     )
 
     # Simple EMA crossover strategy config
+    # Trading starts after warmup period (EMA slow length is 26)
+    trading_start = start + pd.Timedelta(minutes=30)
     config = RunConfig(
         user_id="test_user",
         run_seed=42,
@@ -188,7 +190,11 @@ def test_sys_1_9_2_multi_year_backtest_performance():
         allow_flip_on_bar=False,
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
-        data_request={"symbol": "EURUSD", "timeframe": "1min"},
+        data_request={
+            "symbol": "EURUSD",
+            "timeframe": "1min",
+            "start": trading_start.isoformat(),
+        },
         initial_cash=100000,
         entry_window_bars=0,
     )
@@ -347,7 +353,8 @@ def test_backtest_execution_time_1m_bars():
     """
     # Generate 1M bars
     periods = 50_000  # Reduced for CI, represents 1M bar performance
-    index = pd.date_range("2020-01-01", periods=periods, freq="5min", tz="UTC")
+    start = pd.Timestamp("2020-01-01", tz="UTC")
+    index = pd.date_range(start, periods=periods, freq="5min", tz="UTC")
 
     close = 100.0 + (pd.Series(range(periods), index=index) * 0.01 % 10)
     df = pd.DataFrame(
@@ -361,6 +368,8 @@ def test_backtest_execution_time_1m_bars():
         index=index,
     )
 
+    # Trading starts after warmup period (EMA slow length is 26)
+    trading_start = start + pd.Timedelta(minutes=150)  # 30 bars at 5min
     config = RunConfig(
         user_id="test_user",
         run_seed=42,
@@ -369,7 +378,11 @@ def test_backtest_execution_time_1m_bars():
         allow_flip_on_bar=False,
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
-        data_request={"symbol": "EURUSD", "timeframe": "5min"},
+        data_request={
+            "symbol": "EURUSD",
+            "timeframe": "5min",
+            "start": trading_start.isoformat(),
+        },
         initial_cash=100000,
         entry_window_bars=0,
     )

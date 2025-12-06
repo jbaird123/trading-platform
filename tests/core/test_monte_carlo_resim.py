@@ -5,18 +5,23 @@ from datetime import datetime, timedelta
 import pandas as pd
 from trading_platform.core.sweeps import monte_carlo_resimulation
 
+# Trading window start date - used for data_request.start
+TRADING_START = datetime(2024, 1, 1)
+
 
 def _df() -> pd.DataFrame:
-    start = datetime(2024, 1, 1)
-    idx = [start + timedelta(hours=i) for i in range(48)]
-    close = [1.0 + 0.0008 * ((i % 12) - 6) for i in range(48)]
+    # Add warmup period before trading start (EMA slow=7, need ~10 bars warmup)
+    warmup_start = TRADING_START - timedelta(hours=20)
+    trading_end = TRADING_START + timedelta(hours=48)
+    idx = pd.date_range(warmup_start, trading_end, freq="1h")
+    close = [1.0 + 0.0008 * ((i % 12) - 6) for i in range(len(idx))]
     return pd.DataFrame(
         {
             "open": close,
             "high": [c + 0.0006 for c in close],
             "low": [c - 0.0006 for c in close],
             "close": close,
-            "volume": [1] * 48,
+            "volume": [1] * len(idx),
         },
         index=idx,
     )
@@ -97,7 +102,7 @@ def test_monte_carlo_resimulation_returns_distributions_and_exemplars():
         "initial_cash": 100000.0,
         "position_size": 10000.0,
         "instrument": {"symbol": "EURUSD", "timeframe": "1H"},
-        "data_request": {"symbol": "EURUSD", "timeframe": "1H"},
+        "data_request": {"symbol": "EURUSD", "timeframe": "1H", "start": "2024-01-01"},
         "tie_break_policy": {"rule": "stop_then_tp"},
         "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
     }
@@ -124,7 +129,7 @@ def test_monte_carlo_resimulation_with_jitter_and_perturbation():
         "initial_cash": 100000.0,
         "position_size": 10000.0,
         "instrument": {"symbol": "EURUSD", "timeframe": "1H"},
-        "data_request": {"symbol": "EURUSD", "timeframe": "1H"},
+        "data_request": {"symbol": "EURUSD", "timeframe": "1H", "start": "2024-01-01"},
         "tie_break_policy": {"rule": "stop_then_tp"},
         "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
         "cost_model": {"spread_per_unit": 0.0, "slippage_per_unit": 0.0},
@@ -154,7 +159,7 @@ def test_monte_carlo_resimulation_block_perturbation():
         "initial_cash": 100000.0,
         "position_size": 10000.0,
         "instrument": {"symbol": "EURUSD", "timeframe": "1H"},
-        "data_request": {"symbol": "EURUSD", "timeframe": "1H"},
+        "data_request": {"symbol": "EURUSD", "timeframe": "1H", "start": "2024-01-01"},
         "tie_break_policy": {"rule": "stop_then_tp"},
         "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
     }

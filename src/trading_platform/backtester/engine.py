@@ -232,32 +232,6 @@ def run_event_loop_backtest(
     if isinstance(strategy_feature_df, pd.DataFrame):
         strategy_feature_df = strategy_feature_df.reindex(close_aligned.index)
 
-    # Enforce warmup: strategy feature NaNs allowed only during warmup
-    feature_cols = []
-    if isinstance(strategy_feature_df, pd.DataFrame):
-        feature_cols = [
-            col for col in strategy_feature_df.columns if col not in market_data.columns
-        ]
-    warmup_start = 0
-    if feature_cols and isinstance(strategy_feature_df, pd.DataFrame):
-        first_valid_positions: list[int] = []
-        for col in feature_cols:
-            valid_series = strategy_feature_df[col].first_valid_index()
-            if valid_series is None:
-                raise ValueError(f"Strategy feature '{col}' is NaN")
-            first_valid_positions.append(
-                cast(int, strategy_feature_df.index.get_loc(valid_series))
-            )
-        warmup_start = max(first_valid_positions)
-        remaining_nan = [
-            col
-            for col in feature_cols
-            if strategy_feature_df[col].iloc[warmup_start:].isna().any()
-        ]
-        if remaining_nan:
-            raise ValueError(
-                f"Strategy features contain NaNs: {', '.join(sorted(remaining_nan))}"
-            )
     t_features_ms = (perf_counter() - t_features_start) * 1000
 
     # Stage 4: Setup components (REM, portfolio, event loop, policies)
@@ -472,8 +446,50 @@ def run_event_loop_backtest(
 
     # Stage 5: Main event loop
     t_loop_start = perf_counter()
-    bars_processed = len(feature_view[warmup_start:])
-    for i in range(len(feature_view)):
+
+    # Determine trading window start from config.data_request
+    data_request = getattr(config, "data_request", None) or {}
+    trading_start_val = data_request.get("start")
+    trading_start_idx = 0  # Default to beginning if no start specified
+    if trading_start_val is not None:
+        trading_start_ts = pd.to_datetime(trading_start_val, utc=True)
+        # Find the index position of the trading window start
+        idx_positions = feature_view.index.get_indexer(
+            [trading_start_ts], method="bfill"
+        )
+        if idx_positions[0] >= 0:
+            trading_start_idx = idx_positions[0]
+
+    # Validate no NaNs in feature columns within the trading window
+    # Features before trading_start_idx are warmup data and may contain NaNs
+    base_market_cols = {
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "open_time",
+        "close_time",
+        "bar_open",
+        "bar_close",
+    }
+    feature_cols_to_check = [
+        col for col in feature_view.columns if col not in base_market_cols
+    ]
+    if feature_cols_to_check:
+        trading_window = feature_view.iloc[trading_start_idx:]
+        nan_cols = [
+            col for col in feature_cols_to_check if trading_window[col].isna().any()
+        ]
+        if nan_cols:
+            raise ValueError(
+                f"Features contain NaNs: {', '.join(sorted(nan_cols))}. "
+                "Ensure all features are fully populated before the backtest starts."
+            )
+
+    # Start loop at trading window start
+    bars_processed = len(feature_view) - trading_start_idx
+    for i in range(trading_start_idx, len(feature_view)):
         row = feature_view.iloc[i]
         timestamp = feature_view.index[i]
         if isinstance(timestamp, pd.Timestamp):
@@ -482,8 +498,6 @@ def run_event_loop_backtest(
             bar_timestamp = cast(datetime, timestamp)
         close_price = float(row.get("close", 0.0))
         bar_payload = _build_bar_payload(bar_timestamp, row, bar_delta)
-        if i < warmup_start:
-            continue
         # Process pending entries (e.g., RMM blocked earlier) before new signals
         updated_pending: list[dict[str, Any]] = []
         for pending in pending_entries:
@@ -858,8 +872,8 @@ def run_event_loop_backtest(
         profiler._stages["prepare_features"] = StageMetrics(
             duration_ms=t_features_ms,
             metadata={
-                "warmup_bars": warmup_start,
                 "total_bars": len(feature_view),
+                "trading_start_idx": trading_start_idx,
             },
         )
 

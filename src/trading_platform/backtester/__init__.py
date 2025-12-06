@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import pandas as pd
 
@@ -16,6 +16,37 @@ from trading_platform.core.config import RunConfig
 from trading_platform.strategy.yaml_strategy import validate_strategy_config
 
 __all__ = ["run_backtest"]
+
+
+# Global feature cache: keyed by (config_path, timeframe, data_range)
+# This avoids recomputing identical global features across repeated run_backtest calls
+# (e.g., in parameter sweeps, monte carlo, walk-forward optimization)
+_GLOBAL_FEATURE_CACHE: dict[tuple[str, str, str], pd.DataFrame] = {}
+
+
+def _make_global_feature_cache_key(
+    config_path: Path | str,
+    execution_timeframe: str | None,
+    instrument_tf: str | None,
+    market_data: pd.DataFrame,
+) -> tuple[str, str, str]:
+    """Create a cache key for global features.
+
+    Note: Global features are defined in config/features/global.yaml and do NOT
+    use strategy parameter references (${param}). Therefore, the cache key does
+    not include strategy_params - the same global features are valid across all
+    parameter combinations in a sweep.
+    """
+    # Resolve config path to absolute for consistent keying
+    resolved_path = str(Path(config_path).resolve())
+
+    # Timeframe used for feature resolution
+    tf = instrument_tf or execution_timeframe or ""
+
+    # Data range - use start/end timestamps and length
+    data_range = f"{market_data.index[0]}_{market_data.index[-1]}_{len(market_data)}"
+
+    return (resolved_path, tf, data_range)
 
 
 def run_backtest(
@@ -183,22 +214,42 @@ def run_backtest(
         data_handler=data_handler,
     )
 
-    # Compute global features (not using cache for now - future change)
+    # Compute global features with caching
+    # Cache avoids recomputing identical features in sweeps/monte carlo/walk-forward
     global_feature_df = None
     instrument_tf = None
     if config.instrument and isinstance(config.instrument, dict):
         instrument_tf = config.instrument.get("timeframe")
-    if (
-        global_features_config_path is not None
-        and profiler is not None
-        and profiler.enabled
-    ):
-        with profiler.stage(
-            "compute_global_features",
-            metadata={
-                "config_path": str(global_features_config_path),
-            },
-        ):
+
+    if global_features_config_path is not None:
+        # Check cache first
+        cache_key = _make_global_feature_cache_key(
+            config_path=global_features_config_path,
+            execution_timeframe=execution_timeframe,
+            instrument_tf=instrument_tf,
+            market_data=market_data,
+        )
+        cached_df = _GLOBAL_FEATURE_CACHE.get(cache_key)
+
+        if cached_df is not None:
+            global_feature_df = cached_df
+        elif profiler is not None and profiler.enabled:
+            with profiler.stage(
+                "compute_global_features",
+                metadata={
+                    "config_path": str(global_features_config_path),
+                },
+            ):
+                global_feature_df = _compute_global_features(
+                    market_data=market_data,
+                    global_features_config_path=global_features_config_path,
+                    execution_timeframe=execution_timeframe,
+                    instrument_tf=instrument_tf,
+                    strategy_params=strategy_cfg.get("parameters"),
+                )
+            if global_feature_df is not None:
+                _GLOBAL_FEATURE_CACHE[cache_key] = global_feature_df
+        else:
             global_feature_df = _compute_global_features(
                 market_data=market_data,
                 global_features_config_path=global_features_config_path,
@@ -206,14 +257,8 @@ def run_backtest(
                 instrument_tf=instrument_tf,
                 strategy_params=strategy_cfg.get("parameters"),
             )
-    elif global_features_config_path is not None:
-        global_feature_df = _compute_global_features(
-            market_data=market_data,
-            global_features_config_path=global_features_config_path,
-            execution_timeframe=execution_timeframe,
-            instrument_tf=instrument_tf,
-            strategy_params=strategy_cfg.get("parameters"),
-        )
+            if global_feature_df is not None:
+                _GLOBAL_FEATURE_CACHE[cache_key] = global_feature_df
 
     # Run the backtest engine
     result = run_event_loop_backtest(
@@ -317,14 +362,14 @@ def _compute_global_features(
     if global_feature_df.empty:
         return None
 
-    # Validate no NaNs in valid range
-    for col in global_feature_df.columns:
-        series = global_feature_df[col]
-        first_valid = series.first_valid_index()
-        if first_valid is None:
-            raise ValueError(f"Global feature '{col}' is NaN")
-        first_valid_idx = cast(Any, first_valid)
-        if pd.isna(series.loc[first_valid_idx:]).any():
-            raise ValueError(f"Global feature '{col}' is NaN")
+    # Validate no NaNs - all global features must be fully populated
+    nan_cols = [
+        col for col in global_feature_df.columns if global_feature_df[col].isna().any()
+    ]
+    if nan_cols:
+        raise ValueError(
+            f"Global features contain NaNs: {', '.join(sorted(nan_cols))}. "
+            "Ensure all features are fully populated."
+        )
 
-    return global_feature_df.ffill().bfill()
+    return global_feature_df

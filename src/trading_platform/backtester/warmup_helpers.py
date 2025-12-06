@@ -142,8 +142,8 @@ def ensure_market_data_with_warmup(
         return cast(pd.DataFrame, market_data.loc[target_start:target_end].copy())
 
     # System-wide warmup: always include data from the earliest available bar.
-    # This avoids per-strategy dynamic warmup variability and keeps cumulative
-    # indicators (EMA/OBV/etc.) consistent with the feature cache.
+    # This ensures cumulative indicators (EMA/OBV/etc.) have full history.
+    # The engine will skip to trading_window_start for trade execution.
     warmup_ts = cast(pd.Timestamp, market_data.index.min())
 
     trimmed = market_data.loc[warmup_ts:target_end].copy()
