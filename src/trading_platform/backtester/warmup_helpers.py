@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 def infer_execution_timeframe(config: Any, market_data: pd.DataFrame) -> str:
+    from trading_platform.data.timeframe_aliases import canonicalize_timeframe
+
     instrument_cfg = getattr(config, "instrument", None) or {}
     if isinstance(instrument_cfg, dict):
         instrument_tf = instrument_cfg.get("timeframe")
@@ -29,16 +31,16 @@ def infer_execution_timeframe(config: Any, market_data: pd.DataFrame) -> str:
     # If insufficient bars to infer, fall back to configured timeframe(s)
     if len(market_data.index) < 2:
         if instrument_tf:
-            return str(instrument_tf)
+            return canonicalize_timeframe(str(instrument_tf)) or str(instrument_tf)
         if data_req_tf:
-            return str(data_req_tf)
+            return canonicalize_timeframe(str(data_req_tf)) or str(data_req_tf)
         return "1min"
 
     if instrument_tf:
-        return str(instrument_tf)
+        return canonicalize_timeframe(str(instrument_tf)) or str(instrument_tf)
 
     if data_req_tf:
-        return str(data_req_tf)
+        return canonicalize_timeframe(str(data_req_tf)) or str(data_req_tf)
 
     if not market_data.empty:
         diffs = market_data.index[1:] - market_data.index[:-1]
@@ -49,10 +51,10 @@ def infer_execution_timeframe(config: Any, market_data: pd.DataFrame) -> str:
                 1: "1min",
                 5: "5min",
                 15: "15min",
-                60: "1H",
-                240: "4H",
-                1440: "1D",
-                10080: "1W",
+                60: "1h",
+                240: "4h",
+                1440: "1d",
+                10080: "1w",
             }
             timeframe = mapping.get(minutes)
             if timeframe:

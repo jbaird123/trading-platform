@@ -12,7 +12,12 @@ from trading_platform.backtester.warmup_helpers import (
     resolve_global_feature_defs,
     resolve_strategy_features_for_warmup,
 )
+from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
+from trading_platform.core.global_features_cache import (
+    cache_covers_features,
+    load_cached_global_features,
+)
 from trading_platform.strategy.yaml_strategy import validate_strategy_config
 
 __all__ = ["run_backtest"]
@@ -95,7 +100,6 @@ def run_backtest(
     Raises:
         ValueError: If config.data_request is missing or incomplete
     """
-    from trading_platform.core import paths
     from trading_platform.data.handler import DataHandler
     from trading_platform.data.instrument import get_instrument_definition
 
@@ -222,7 +226,7 @@ def run_backtest(
         instrument_tf = config.instrument.get("timeframe")
 
     if global_features_config_path is not None:
-        # Check cache first
+        # Check in-memory cache first
         cache_key = _make_global_feature_cache_key(
             config_path=global_features_config_path,
             execution_timeframe=execution_timeframe,
@@ -233,32 +237,69 @@ def run_backtest(
 
         if cached_df is not None:
             global_feature_df = cached_df
-        elif profiler is not None and profiler.enabled:
-            with profiler.stage(
-                "compute_global_features",
-                metadata={
-                    "config_path": str(global_features_config_path),
-                },
-            ):
-                global_feature_df = _compute_global_features(
-                    market_data=market_data,
-                    global_features_config_path=global_features_config_path,
-                    execution_timeframe=execution_timeframe,
-                    instrument_tf=instrument_tf,
-                    strategy_params=strategy_cfg.get("parameters"),
-                )
-            if global_feature_df is not None:
-                _GLOBAL_FEATURE_CACHE[cache_key] = global_feature_df
         else:
-            global_feature_df = _compute_global_features(
-                market_data=market_data,
-                global_features_config_path=global_features_config_path,
-                execution_timeframe=execution_timeframe,
-                instrument_tf=instrument_tf,
-                strategy_params=strategy_cfg.get("parameters"),
+            # Try file-based cache before computing
+            file_cache_loaded = False
+            instrument_dict = config.instrument or {}
+            symbol = instrument_dict.get("symbol") or (
+                data_request.get("symbol") if data_request else None
             )
-            if global_feature_df is not None:
-                _GLOBAL_FEATURE_CACHE[cache_key] = global_feature_df
+            if symbol and execution_timeframe:
+                # Get feature names from global feature defs
+                feature_names = [
+                    f["name"]
+                    for f in global_feature_defs
+                    if isinstance(f.get("name"), str)
+                ]
+                config_path_resolved = Path(global_features_config_path)
+                if feature_names and cache_covers_features(
+                    symbol=symbol,
+                    cache_root=paths.GLOBAL_FEATURE_CACHE_DIR,
+                    config_path=config_path_resolved,
+                    timeframe=execution_timeframe,
+                    feature_names=feature_names,
+                ):
+                    cache_result = load_cached_global_features(
+                        symbol=symbol,
+                        cache_root=paths.GLOBAL_FEATURE_CACHE_DIR,
+                        config_path=config_path_resolved,
+                        timeframe=execution_timeframe,
+                        feature_names=feature_names,
+                    )
+                    if cache_result is not None:
+                        global_feature_df, _ = cache_result
+                        file_cache_loaded = True
+                        # Store in in-memory cache for future calls
+                        _GLOBAL_FEATURE_CACHE[cache_key] = global_feature_df
+
+            # Compute if not loaded from file cache
+            if not file_cache_loaded:
+                if profiler is not None and profiler.enabled:
+                    with profiler.stage(
+                        "compute_global_features",
+                        metadata={
+                            "config_path": str(global_features_config_path),
+                        },
+                    ):
+                        global_feature_df = _compute_global_features(
+                            market_data=market_data,
+                            global_features_config_path=global_features_config_path,
+                            execution_timeframe=execution_timeframe,
+                            instrument_tf=instrument_tf,
+                            strategy_params=strategy_cfg.get("parameters"),
+                        )
+                    if global_feature_df is not None:
+                        _GLOBAL_FEATURE_CACHE[cache_key] = global_feature_df
+                else:
+                    global_feature_df = _compute_global_features(
+                        market_data=market_data,
+                        global_features_config_path=global_features_config_path,
+                        execution_timeframe=execution_timeframe,
+                        instrument_tf=instrument_tf,
+                        strategy_params=strategy_cfg.get("parameters"),
+                    )
+                    if global_feature_df is not None:
+                        _GLOBAL_FEATURE_CACHE[cache_key] = global_feature_df
 
     # Run the backtest engine
     result = run_event_loop_backtest(

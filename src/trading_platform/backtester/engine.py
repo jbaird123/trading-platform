@@ -168,7 +168,7 @@ def run_event_loop_backtest(
         (config.instrument or {}).get("timeframe")
         or f"{_infer_minutes(market_data.index)}min"
         if _infer_minutes(market_data.index)
-        else "1H"
+        else "1h"
     )
     tf_delta = timeframe_to_timedelta(tf_str)
     session = market_data.attrs.get(SESSION_ATTR)
@@ -460,8 +460,8 @@ def run_event_loop_backtest(
         if idx_positions[0] >= 0:
             trading_start_idx = idx_positions[0]
 
-    # Validate no NaNs in feature columns within the trading window
-    # Features before trading_start_idx are warmup data and may contain NaNs
+    # Validate no NaNs in strategy feature columns within the trading window
+    # (Global features are already validated in _compute_global_features)
     base_market_cols = {
         "open",
         "high",
@@ -473,8 +473,16 @@ def run_event_loop_backtest(
         "bar_open",
         "bar_close",
     }
+    # Only check strategy features (global validated in _compute_global_features)
+    global_feature_cols = (
+        set(aligned_global_features.columns)
+        if aligned_global_features is not None
+        else set()
+    )
     feature_cols_to_check = [
-        col for col in feature_view.columns if col not in base_market_cols
+        col
+        for col in feature_view.columns
+        if col not in base_market_cols and col not in global_feature_cols
     ]
     if feature_cols_to_check:
         trading_window = feature_view.iloc[trading_start_idx:]

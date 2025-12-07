@@ -36,6 +36,37 @@ from trading_platform.data.timeframe_aliases import (
 
 logger = logging.getLogger(__name__)
 
+
+def _get_timeframe_metadata(
+    timeframes_obj: dict[str, object] | None, timeframe: str
+) -> dict[str, object] | None:
+    """Get metadata for a timeframe, trying both lowercase and uppercase keys.
+
+    Cache metadata may have been written with uppercase keys (e.g., "1H") but
+    we now use lowercase (e.g., "1h"). This function tries both to ensure
+    backwards compatibility.
+    """
+    if not isinstance(timeframes_obj, dict):
+        return None
+
+    # Try exact match first
+    candidate = timeframes_obj.get(timeframe)
+    if isinstance(candidate, dict):
+        return candidate
+
+    # Try uppercase if lowercase didn't match
+    candidate = timeframes_obj.get(timeframe.upper())
+    if isinstance(candidate, dict):
+        return candidate
+
+    # Try lowercase if uppercase didn't match
+    candidate = timeframes_obj.get(timeframe.lower())
+    if isinstance(candidate, dict):
+        return candidate
+
+    return None
+
+
 _CACHE_SUBDIR = ""
 _DEFAULT_TIMEFRAMES: tuple[str, ...] = ("5min", "15min", "1H", "4H", "1D")
 
@@ -547,12 +578,9 @@ def load_cached_global_features(
                     f"Rebuild the cache with the current manifest."
                 )
 
-    frame_meta: dict[str, object] | None = None
     timeframes_obj = metadata.get("timeframes") if metadata else None
-    if isinstance(timeframes_obj, dict):
-        candidate = timeframes_obj.get(timeframe)
-        if isinstance(candidate, dict):
-            frame_meta = candidate
+    timeframes_dict = timeframes_obj if isinstance(timeframes_obj, dict) else None
+    frame_meta = _get_timeframe_metadata(timeframes_dict, timeframe)
     if frame_meta is None:
         return None
 
@@ -613,12 +641,9 @@ def cache_covers_features(
         return False
 
     metadata = _load_metadata(descriptor)
-    frame_meta: dict[str, object] | None = None
     timeframes_obj = metadata.get("timeframes") if metadata else None
-    if isinstance(timeframes_obj, dict):
-        candidate = timeframes_obj.get(timeframe)
-        if isinstance(candidate, dict):
-            frame_meta = candidate
+    timeframes_dict = timeframes_obj if isinstance(timeframes_obj, dict) else None
+    frame_meta = _get_timeframe_metadata(timeframes_dict, timeframe)
     if frame_meta is None:
         return False
 
