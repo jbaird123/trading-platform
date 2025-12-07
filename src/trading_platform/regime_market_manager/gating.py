@@ -19,8 +19,8 @@ from trading_platform.regime_market_manager.models import (
 )
 
 ALIGNMENT_COLUMN_MAP = {
-    "5min": "context_at_entry_global_features_15min_trend_alignment_full_alignment",
-    "15min": "context_at_entry_global_features_1h_trend_alignment_full_alignment",
+    "5min": "context_at_entry_global_features_5min_trend_alignment_full_alignment",
+    "15min": "context_at_entry_global_features_15min_trend_alignment_full_alignment",
 }
 
 

@@ -2567,3 +2567,192 @@
 - **Trades Published**: 116746
 - **Master Log Path**: /Users/jbaird/Documents/other/trading-platform/data/dvc/processed/training_sets/master_trade_log.parquet
 - **Checksum**: 1de457d942698dde8dde5a2654a90b36cdbba8f5efcbdf0216378b08cec624d9
+
+## 2025-12-07T15:11:11.424395+00:00
+
+- **Action**: Validation
+- **Campaign ID**: trend_following_model_generation_baseline_no_risk_15min
+- **Total Candidates**: 4
+- **Passed**: 4
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-07T15:11:19.943345+00:00
+
+- **Action**: Validation
+- **Campaign ID**: trend_following_model_generation_baseline_no_risk_1H
+- **Total Candidates**: 4
+- **Passed**: 4
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-07T15:11:27.302949+00:00
+
+- **Action**: Validation
+- **Campaign ID**: trend_following_model_generation_baseline_no_risk_4H
+- **Total Candidates**: 4
+- **Passed**: 4
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-07T15:11:34.085451+00:00
+
+- **Action**: Validation
+- **Campaign ID**: trend_following_model_generation_baseline_no_risk_1D
+- **Total Candidates**: 4
+- **Passed**: 4
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-07T15:12:08.639147+00:00
+
+- **Action**: Validation
+- **Campaign ID**: trend_following_model_generation_baseline_no_risk_5min
+- **Total Candidates**: 4
+- **Passed**: 4
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-07T15:12:27.528399+00:00
+
+- **Action**: Validation
+- **Campaign ID**: trend_following_model_generation_trend_with_risk_15min
+- **Total Candidates**: 7
+- **Passed**: 7
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-07T15:12:39.197581+00:00
+
+- **Action**: Validation
+- **Campaign ID**: trend_following_model_generation_trend_with_risk_1H
+- **Total Candidates**: 7
+- **Passed**: 7
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-07T15:12:49.378833+00:00
+
+- **Action**: Validation
+- **Campaign ID**: trend_following_model_generation_trend_with_risk_4H
+- **Total Candidates**: 7
+- **Passed**: 7
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-07T15:12:58.435882+00:00
+
+- **Action**: Validation
+- **Campaign ID**: trend_following_model_generation_trend_with_risk_1D
+- **Total Candidates**: 7
+- **Passed**: 7
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-07T15:13:48.721549+00:00
+
+- **Action**: Validation
+- **Campaign ID**: trend_following_model_generation_trend_with_risk_5min
+- **Total Candidates**: 7
+- **Passed**: 7
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-07T15:27:48.309911+00:00
+
+- **Action**: Publish
+- **Campaign ID**: trend_following_model_generation_baseline_no_risk_15min
+- **Trades Published**: 25113
+- **Master Log Path**: /Users/jbaird/Documents/other/trading-platform/data/dvc/processed/training_sets/master_trade_log.parquet
+- **Checksum**: a281902b74b1d0025f2f92ea5a8154830612b182e410b781fb583ee670425407
+
+
+## 2025-12-07T15:28:01.996517+00:00
+
+- **Action**: Publish
+- **Campaign ID**: trend_following_model_generation_baseline_no_risk_1H
+- **Trades Published**: 5910
+- **Master Log Path**: /Users/jbaird/Documents/other/trading-platform/data/dvc/processed/training_sets/master_trade_log.parquet
+- **Checksum**: 13567bbf120ecbe5f3d3ace3f5c452849f84862114264a2f30b6462c756d514d
+
+
+## 2025-12-07T15:28:16.327426+00:00
+
+- **Action**: Publish
+- **Campaign ID**: trend_following_model_generation_baseline_no_risk_4H
+- **Trades Published**: 1502
+- **Master Log Path**: /Users/jbaird/Documents/other/trading-platform/data/dvc/processed/training_sets/master_trade_log.parquet
+- **Checksum**: 1e56c678ccc6028f2bdce558867db98fe1e30bec43f2f04679e70b045d16273d
+
+
+## 2025-12-07T15:28:30.987540+00:00
+
+- **Action**: Publish
+- **Campaign ID**: trend_following_model_generation_baseline_no_risk_1D
+- **Trades Published**: 254
+- **Master Log Path**: /Users/jbaird/Documents/other/trading-platform/data/dvc/processed/training_sets/master_trade_log.parquet
+- **Checksum**: bd7a5a309de74e177bb31d5519db46fcfa5a20fb4c9471d7d1718034105a0a4a
+
+
+## 2025-12-07T15:28:46.492126+00:00
+
+- **Action**: Publish
+- **Campaign ID**: trend_following_model_generation_baseline_no_risk_5min
+- **Trades Published**: 78440
+- **Master Log Path**: /Users/jbaird/Documents/other/trading-platform/data/dvc/processed/training_sets/master_trade_log.parquet
+- **Checksum**: e786032f72e4393ca5f9ca6b05bcb51f3af2342610350022d8ec6b00bd317c18
+
+
+## 2025-12-07T15:29:02.254665+00:00
+
+- **Action**: Publish
+- **Campaign ID**: trend_following_model_generation_trend_with_risk_15min
+- **Trades Published**: 37279
+- **Master Log Path**: /Users/jbaird/Documents/other/trading-platform/data/dvc/processed/training_sets/master_trade_log.parquet
+- **Checksum**: 47fdd74e56e2246836271af33424a60889e3492766cbf81e30a0ad2b7e75fcf4
+
+
+## 2025-12-07T15:29:18.300814+00:00
+
+- **Action**: Publish
+- **Campaign ID**: trend_following_model_generation_trend_with_risk_1H
+- **Trades Published**: 8843
+- **Master Log Path**: /Users/jbaird/Documents/other/trading-platform/data/dvc/processed/training_sets/master_trade_log.parquet
+- **Checksum**: 90b0fbc1d4d09a855123cecf9c7bd5673da3cdabe95d3ac40f20a708c0b20434
+
+
+## 2025-12-07T15:29:34.160337+00:00
+
+- **Action**: Publish
+- **Campaign ID**: trend_following_model_generation_trend_with_risk_4H
+- **Trades Published**: 2318
+- **Master Log Path**: /Users/jbaird/Documents/other/trading-platform/data/dvc/processed/training_sets/master_trade_log.parquet
+- **Checksum**: ad49f4e8467bca93bf64dab3e962a9341bea799d421eecde5d3c277a4049c5b8
+
+
+## 2025-12-07T15:29:49.959562+00:00
+
+- **Action**: Publish
+- **Campaign ID**: trend_following_model_generation_trend_with_risk_1D
+- **Trades Published**: 372
+- **Master Log Path**: /Users/jbaird/Documents/other/trading-platform/data/dvc/processed/training_sets/master_trade_log.parquet
+- **Checksum**: 8c00ef79e70ec6dcd40e9afdbc347656078489c91bfc395e904943e9668e579a
+
+
+## 2025-12-07T15:30:07.496995+00:00
+
+- **Action**: Publish
+- **Campaign ID**: trend_following_model_generation_trend_with_risk_5min
+- **Trades Published**: 116746
+- **Master Log Path**: /Users/jbaird/Documents/other/trading-platform/data/dvc/processed/training_sets/master_trade_log.parquet
+- **Checksum**: 5fe86e49aeafe5361714216b1cc5fd804cc419bb544f8bc9da4601bc55f523fd

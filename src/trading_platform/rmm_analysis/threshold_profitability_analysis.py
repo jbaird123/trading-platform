@@ -15,9 +15,13 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 from trading_platform.rmm_analysis.grid_feature_pattern_search import (
+    DEFAULT_TEST_START,
+    DEFAULT_TRAIN_END,
+    DEFAULT_TRAIN_START,
     _prepare_xy,
     collect_patterns,
     load_data,
+    set_date_range,
     split_data,
 )
 from trading_platform.rmm_analysis.threshold_sweep_selected_groups import (
@@ -93,6 +97,24 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         type=int,
         default=42,
         help="Random seed for reproducibility (default: 42).",
+    )
+    parser.add_argument(
+        "--train-start",
+        type=str,
+        default=None,
+        help=f"Inclusive training start date (default: {DEFAULT_TRAIN_START}).",
+    )
+    parser.add_argument(
+        "--train-end",
+        type=str,
+        default=None,
+        help=f"Inclusive training end date (default: {DEFAULT_TRAIN_END}).",
+    )
+    parser.add_argument(
+        "--test-start",
+        type=str,
+        default=None,
+        help=f"Inclusive test start date (default: {DEFAULT_TEST_START}).",
     )
     return parser.parse_args(argv)
 
@@ -196,6 +218,12 @@ def _probabilities_for_model(
 
 def main(argv: Sequence[str] | None = None) -> None:
     args = parse_args(argv)
+    # Apply date overrides if provided
+    set_date_range(
+        train_start=args.train_start,
+        train_end=args.train_end,
+        test_start=args.test_start,
+    )
     thresholds = _parse_thresholds(args.thresholds)
     combos = _parse_combos(args.group_combo)
     df = load_data(args.enriched_data)

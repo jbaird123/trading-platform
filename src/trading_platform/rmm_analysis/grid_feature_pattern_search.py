@@ -34,11 +34,37 @@ from trading_platform.ai.models.feature_groups import (
     collect_group_patterns,
 )
 
-TRAIN_START = "2018-01-01"
-TRAIN_END = "2021-12-31"
-TEST_START = "2022-01-01"
+DEFAULT_TRAIN_START = "2018-01-01"
+DEFAULT_TRAIN_END = "2021-12-31"
+DEFAULT_TEST_START = "2022-01-01"
+
+# Module-level defaults (can be overridden via set_date_range)
+TRAIN_START = DEFAULT_TRAIN_START
+TRAIN_END = DEFAULT_TRAIN_END
+TEST_START = DEFAULT_TEST_START
 
 DEFAULT_GROUPS = ENGINEERED_GROUP_PATTERNS
+
+
+def set_date_range(
+    train_start: str | None = None,
+    train_end: str | None = None,
+    test_start: str | None = None,
+) -> None:
+    """Override the module-level date range constants.
+
+    Args:
+        train_start: Inclusive start date for training data (e.g., '2018-01-01').
+        train_end: Inclusive end date for training data (e.g., '2021-12-31').
+        test_start: Inclusive start date for test data (e.g., '2022-01-01').
+    """
+    global TRAIN_START, TRAIN_END, TEST_START
+    if train_start is not None:
+        TRAIN_START = train_start
+    if train_end is not None:
+        TRAIN_END = train_end
+    if test_start is not None:
+        TEST_START = test_start
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -93,6 +119,24 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--write-importances",
         action="store_true",
         help="Write per-context feature importance CSVs for each combination.",
+    )
+    parser.add_argument(
+        "--train-start",
+        type=str,
+        default=None,
+        help=f"Inclusive training start date (default: {DEFAULT_TRAIN_START}).",
+    )
+    parser.add_argument(
+        "--train-end",
+        type=str,
+        default=None,
+        help=f"Inclusive training end date (default: {DEFAULT_TRAIN_END}).",
+    )
+    parser.add_argument(
+        "--test-start",
+        type=str,
+        default=None,
+        help=f"Inclusive test start date (default: {DEFAULT_TEST_START}).",
     )
     return parser.parse_args(argv)
 
@@ -254,6 +298,12 @@ def collect_patterns(group_names: Iterable[str]) -> list[str]:
 
 def main(argv: Sequence[str] | None = None) -> None:
     args = parse_args(argv)
+    # Apply date overrides if provided
+    set_date_range(
+        train_start=args.train_start,
+        train_end=args.train_end,
+        test_start=args.test_start,
+    )
     missing_groups = [name for name in args.groups if name not in DEFAULT_GROUPS]
     if missing_groups:
         raise ValueError(f"Unknown group names: {missing_groups}")
@@ -317,9 +367,13 @@ def main(argv: Sequence[str] | None = None) -> None:
 
 __all__ = [
     "DEFAULT_GROUPS",
+    "DEFAULT_TRAIN_START",
+    "DEFAULT_TRAIN_END",
+    "DEFAULT_TEST_START",
     "TRAIN_START",
     "TRAIN_END",
     "TEST_START",
+    "set_date_range",
     "parse_args",
     "load_data",
     "split_data",

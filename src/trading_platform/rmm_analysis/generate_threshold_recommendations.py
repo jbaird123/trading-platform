@@ -11,6 +11,11 @@ import pandas as pd
 
 from trading_platform.rmm_analysis import threshold_profitability_analysis as tpa
 from trading_platform.rmm_analysis import threshold_recommendation_report as trr
+from trading_platform.rmm_analysis.grid_feature_pattern_search import (
+    DEFAULT_TEST_START,
+    DEFAULT_TRAIN_END,
+    DEFAULT_TRAIN_START,
+)
 
 DEFAULT_THRESHOLDS = "0.3,0.4,0.5,0.53,0.6,0.7"
 
@@ -88,6 +93,24 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         type=int,
         default=42,
         help="Random seed for reproducibility (default: 42).",
+    )
+    parser.add_argument(
+        "--train-start",
+        type=str,
+        default=None,
+        help=f"Inclusive training start date (default: {DEFAULT_TRAIN_START}).",
+    )
+    parser.add_argument(
+        "--train-end",
+        type=str,
+        default=None,
+        help=f"Inclusive training end date (default: {DEFAULT_TRAIN_END}).",
+    )
+    parser.add_argument(
+        "--test-start",
+        type=str,
+        default=None,
+        help=f"Inclusive test start date (default: {DEFAULT_TEST_START}).",
     )
     return parser.parse_args(argv)
 
@@ -203,6 +226,12 @@ def main(argv: Sequence[str] | None = None) -> None:
         "--random-state",
         str(args.random_state),
     ]
+    if args.train_start:
+        profit_args.extend(["--train-start", args.train_start])
+    if args.train_end:
+        profit_args.extend(["--train-end", args.train_end])
+    if args.test_start:
+        profit_args.extend(["--test-start", args.test_start])
     if args.context_model:
         for override in args.context_model:
             profit_args.extend(["--context-model", override])

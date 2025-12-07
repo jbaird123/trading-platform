@@ -367,6 +367,12 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
         --context-output
         15min_trend_following=structure+momentum:gb_weighted:0.53
     )
+    if [ -n "$TRAIN_PROFITABILITY_START" ]; then
+        THRESH_CMD+=(--train-start "$TRAIN_PROFITABILITY_START")
+    fi
+    if [ -n "$TRAIN_PROFITABILITY_END" ]; then
+        THRESH_CMD+=(--train-end "$TRAIN_PROFITABILITY_END")
+    fi
     "${THRESH_CMD[@]}"
     PROFITABILITY_COUNT=$(
         find data/dvc/ml/models/profitability -name "*.pkl" 2>/dev/null \

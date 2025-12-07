@@ -9,9 +9,13 @@ from typing import Iterable, Sequence
 import pandas as pd
 
 from trading_platform.rmm_analysis.grid_feature_pattern_search import (
+    DEFAULT_TEST_START,
+    DEFAULT_TRAIN_END,
+    DEFAULT_TRAIN_START,
     collect_patterns,
     evaluate_context,
     load_data,
+    set_date_range,
     split_data,
 )
 
@@ -81,6 +85,24 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
             "each combination."
         ),
     )
+    parser.add_argument(
+        "--train-start",
+        type=str,
+        default=None,
+        help=f"Inclusive training start date (default: {DEFAULT_TRAIN_START}).",
+    )
+    parser.add_argument(
+        "--train-end",
+        type=str,
+        default=None,
+        help=f"Inclusive training end date (default: {DEFAULT_TRAIN_END}).",
+    )
+    parser.add_argument(
+        "--test-start",
+        type=str,
+        default=None,
+        help=f"Inclusive test start date (default: {DEFAULT_TEST_START}).",
+    )
     return parser.parse_args(argv)
 
 
@@ -120,6 +142,12 @@ def _resolve_contexts(
 
 def main(argv: Sequence[str] | None = None) -> None:
     args = parse_args(argv)
+    # Apply date overrides if provided
+    set_date_range(
+        train_start=args.train_start,
+        train_end=args.train_end,
+        test_start=args.test_start,
+    )
     combos = _parse_combos(args.group_combo)
     df = load_data(args.enriched_data)
     train_df, test_df = split_data(df)
