@@ -497,6 +497,9 @@ def run_event_loop_backtest(
 
     # Start loop at trading window start
     bars_processed = len(feature_view) - trading_start_idx
+    # Initialize prior_bar so indicator-based stops can compute on first entry
+    if trading_start_idx > 0:
+        prior_bar = feature_view.iloc[trading_start_idx - 1]
     for i in range(trading_start_idx, len(feature_view)):
         row = feature_view.iloc[i]
         timestamp = feature_view.index[i]
