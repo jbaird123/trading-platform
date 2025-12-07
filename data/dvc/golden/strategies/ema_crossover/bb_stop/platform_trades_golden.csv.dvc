@@ -1,0 +1,5 @@
+outs:
+- md5: bf5020ff9cf5831016781afb7015edaa
+  size: 72929
+  hash: md5
+  path: platform_trades_golden.csv
