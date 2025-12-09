@@ -11,13 +11,13 @@ contexts:
   - timeframe: "5min"
     archetype: "trend_following"
     classifier_model: "gb_weighted"
-    feature_group: "structure+momentum"
-    probability_threshold: 0.53
+    feature_group: "calendar"
+    probability_threshold: 0.70
     gating_expression: "alignment_full"
-    expected_coverage: 0.2142   # ≈ 21.4% after probability + alignment gate
-    expected_mean_r: 0.0383     # replayed on 2022-2023 trades
-    expected_sum_r: 44.07
-    commentary: "Gradient boosting classifier with alignment_full gate; combined gate keeps ~21% of trades with improved mean R."
+    expected_coverage: 0.013    # ≈ 1.3% after probability + alignment gate (very selective)
+    expected_mean_r: 1.1459     # from 5min_profitable analysis 2025-12-09
+    expected_sum_r: 119.13      # estimated based on coverage
+    commentary: "Calendar-based GB classifier with high threshold for 4x ATR + slow EMA configs. Very selective but highly profitable."
 
   - timeframe: "15min"
     archetype: "trend_following"
