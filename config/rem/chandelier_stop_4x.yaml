@@ -1,0 +1,25 @@
+# Chandelier Stop - 4x ATR Multiplier (Wide)
+#
+# Uses standard 22-period lookback but wider 4.0x ATR multiplier.
+# Designed for testing wider stops on shorter timeframes like 5min.
+
+name: "Chandelier Stop (4.0x ATR, 22 period)"
+description: >
+  Wider Chandelier Stop using 4.0x ATR multiplier with standard
+  22-period lookback. Gives trades more room to breathe on
+  shorter timeframes where noise is higher.
+
+stop_loss:
+  type: indicator
+  indicator: chandelier
+  params:
+    multiplier: 4.0      # Wider multiplier (more room)
+    length: 22           # Standard HHV/LLV period
+    atr_length: 14       # Standard ATR period
+
+take_profit: null
+
+# Note: Strategy must include:
+#   - atr_14
+#   - hhv_22 with source: high
+#   - llv_22 with source: low
