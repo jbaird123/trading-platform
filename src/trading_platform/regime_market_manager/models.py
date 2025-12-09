@@ -239,6 +239,20 @@ class RMMGatingContext(BaseModel):
             description="Probability threshold required to enable trades.",
         ),
     ]
+    allowed_hours: list[int] | None = Field(
+        default=None,
+        description=(
+            "Optional list of UTC hours (0-23) during which trading is allowed. "
+            "If None, all hours are allowed."
+        ),
+    )
+    allowed_days: list[int] | None = Field(
+        default=None,
+        description=(
+            "Optional list of days of week (Monday=0, Sunday=6) during which "
+            "trading is allowed. If None, all days are allowed."
+        ),
+    )
     gating_expression: str = Field(
         default="true",
         description="Boolean expression that must evaluate to True for gating.",

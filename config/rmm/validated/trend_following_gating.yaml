@@ -11,13 +11,15 @@ contexts:
   - timeframe: "5min"
     archetype: "trend_following"
     classifier_model: "gb_weighted"
-    feature_group: "structure+momentum"
-    probability_threshold: 0.53
-    gating_expression: "alignment_full"
-    expected_coverage: 0.2142   # ≈ 21.4% after probability + alignment gate
-    expected_mean_r: 0.0383     # replayed on 2022-2023 trades
-    expected_sum_r: 44.07
-    commentary: "Gradient boosting classifier with alignment_full gate; combined gate keeps ~21% of trades with improved mean R."
+    feature_group: "calendar"
+    probability_threshold: 0.50
+    allowed_hours: [8, 9, 10, 11, 12, 13, 14, 15]  # UTC hours
+    allowed_days: [1, 2, 3]  # Tue=1, Wed=2, Thu=3
+    gating_expression: "true"
+    expected_coverage: 0.22     # ~22% of all signals (327/1455 in test)
+    expected_mean_r: 0.0460     # from master trade log analysis 2025-12-09
+    expected_sum_r: 147.06      # from master trade log analysis 2025-12-09
+    commentary: "Time-based filter (UTC 8-15, Tue-Thu only) provides robust profitability across both trending (2022) and choppy (2023) markets."
 
   - timeframe: "15min"
     archetype: "trend_following"

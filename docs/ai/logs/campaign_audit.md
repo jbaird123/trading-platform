@@ -2945,3 +2945,21 @@
 - **Trades Published**: 142532
 - **Master Log Path**: /Users/jbaird/Documents/other/trading-platform/data/dvc/processed/training_sets/master_trade_log.parquet
 - **Checksum**: 32798c009f4884f50bff39c4b6f41028860dbf33d9c21255e1e726bf9eb396a0
+
+## 2025-12-09T03:27:22.246390+00:00
+
+- **Action**: Validation
+- **Campaign ID**: 5min_profitable_profitable_5min_5min
+- **Total Candidates**: 3
+- **Passed**: 3
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-09T03:28:23.522143+00:00
+
+- **Action**: Publish
+- **Campaign ID**: 5min_profitable_profitable_5min_5min
+- **Trades Published**: 25786
+- **Master Log Path**: /Users/jbaird/Documents/other/trading-platform/data/dvc/processed/training_sets/master_trade_log.parquet
+- **Checksum**: 9dbedbe46652ecc698639845802e275ae640ab1b5887136c1de4d00ac779b7b0
