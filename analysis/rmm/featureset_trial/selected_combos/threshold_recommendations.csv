@@ -1,2 +1,6 @@
-context,group_combo,model,threshold,selected_fraction,mean_r_multiple_selected,win_rate_selected,lift_mean_r_multiple,lift_win_rate
-1H_trend_following,calendar,logistic,0.6,0.03099173553719,0.1743002155620019,0.3333333333333333,1.8240919147901664,0.0337465564738291
+context,group_combo,model,threshold,selected_fraction,mean_r_multiple_selected,win_rate_selected,lift_mean_r_multiple,lift_win_rate,gating_expression
+15min_trend_following,structure+momentum,gb_weighted,0.53,0.311094851669549,0.2030427925620216,0.3570664956168484,0.1454743623848351,0.0344643937144937,alignment_full
+1D_trend_following,volatility,logistic,0.7,0.1951219512195122,0.9136186328233142,0.5833333333333334,0.7030274443791997,0.1524390243902439,true
+1H_trend_following,volatility,logistic,0.6,0.0302462526766595,0.1991810666251696,0.3805309734513274,1.0859821030004382,0.0721797957211347,true
+4H_trend_following,alignment+structure,logistic,0.4,0.2948979591836734,0.2073587109102687,0.3321799307958477,0.110867453787819,0.0148329920203375,true
+5min_trend_following,volatility,gb_weighted,0.53,0.3016547550061168,-0.0090675810752046,0.3639985770188545,0.0175937249567819,0.0514838215834886,alignment_full
