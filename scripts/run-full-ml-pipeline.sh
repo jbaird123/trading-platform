@@ -113,23 +113,12 @@ fi
 CURRENT_STAGE=0
 
 # --- Campaign List ---
-CAMPAIGNS=(
-    "trend_following_model_generation_baseline_no_risk_15min"
-    "trend_following_model_generation_baseline_no_risk_1H"
-    "trend_following_model_generation_baseline_no_risk_4H"
-    "trend_following_model_generation_baseline_no_risk_1D"
-    "trend_following_model_generation_baseline_no_risk_5min"
-    "trend_following_model_generation_trend_with_risk_15min"
-    "trend_following_model_generation_trend_with_risk_1H"
-    "trend_following_model_generation_trend_with_risk_4H"
-    "trend_following_model_generation_trend_with_risk_1D"
-    "trend_following_model_generation_trend_with_risk_5min"
-)
+# Dynamically populated after meta-campaign generation
+CAMPAIGNS=()
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}ML Training Pipeline${NC}"
 echo -e "${BLUE}========================================${NC}"
-echo -e "Campaigns:       ${GREEN}${#CAMPAIGNS[@]}${NC}"
 echo -e "Working dir:     $(pwd)"
 echo -e "Skip cleanup:    $SKIP_CLEANUP"
 echo -e "Start from:      $START_STAGE (Stage $START_STAGE_NUM)"
@@ -175,6 +164,15 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
     done
     echo -e "${GREEN}✓ Generated configs from ${META_COUNT} meta-campaign(s)${NC}"
     echo ""
+
+    # Dynamically discover generated campaign configs
+    for config_file in config/campaigns/generated/*.yaml; do
+        if [ -f "$config_file" ]; then
+            campaign_name=$(basename "$config_file" .yaml)
+            CAMPAIGNS+=("$campaign_name")
+        fi
+    done
+    echo -e "  Discovered ${#CAMPAIGNS[@]} campaign(s): ${CAMPAIGNS[*]}"
 fi
 ((CURRENT_STAGE++))
 
