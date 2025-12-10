@@ -1,0 +1,68 @@
+campaign_id: trend_following_model_generation_trend_with_risk_15min
+strategy_path: config/master_data_generation/strategies/ema_crossover_v1.yaml
+execution_timeframe: 15min
+strategy_archetype: trend_following
+description: 'Meta-campaign: trend_following_model_generation, Profile: trend_with_risk,
+  Timeframe: 15min'
+run_matrix:
+- instrument: EURUSD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    fast_length: 5
+    slow_length: 20
+- instrument: EURUSD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    fast_length: 12
+    slow_length: 26
+- instrument: EURUSD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    fast_length: 10
+    slow_length: 20
+- instrument: EURUSD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    fast_length: 10
+    slow_length: 20
+- instrument: EURUSD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    fast_length: 20
+    slow_length: 50
+- instrument: EURUSD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    fast_length: 20
+    slow_length: 80
+- instrument: EURUSD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    fast_length: 20
+    slow_length: 80
+- instrument: EURUSD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    fast_length: 12
+    slow_length: 80
+- instrument: EURUSD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    fast_length: 10
+    slow_length: 80
+- instrument: EURUSD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    fast_length: 12
+    slow_length: 40
+rem_path: config/master_data_generation/rem/chandelier_stop_v1.yaml

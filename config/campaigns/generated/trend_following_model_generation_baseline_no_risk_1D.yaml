@@ -1,0 +1,31 @@
+campaign_id: trend_following_model_generation_baseline_no_risk_1D
+strategy_path: config/master_data_generation/strategies/ema_crossover_v1.yaml
+execution_timeframe: 1D
+strategy_archetype: trend_following
+description: 'Meta-campaign: trend_following_model_generation, Profile: baseline_no_risk,
+  Timeframe: 1D'
+run_matrix:
+- instrument: EURUSD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    fast_length: 9
+    slow_length: 21
+- instrument: EURUSD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    fast_length: 15
+    slow_length: 45
+- instrument: EURUSD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    fast_length: 12
+    slow_length: 26
+- instrument: EURUSD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    fast_length: 5
+    slow_length: 20
