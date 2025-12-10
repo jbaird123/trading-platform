@@ -1354,3 +1354,18 @@
 - **Trades Added**: 25786
 - **Checksum**: 9dbedbe46652ecc698639845802e275ae640ab1b5887136c1de4d00ac779b7b0
 - **Actor**: campaign-runner
+
+## 2025-12-10T01:44:30.374688+00:00
+
+- **Campaign ID**: trend_following_model_generation_baseline_no_risk_1H
+- **Trades Added**: 1295
+- **Checksum**: 0cea1ea6657156ae4161a7eee912eab729d9d5bb69c17514f2639f9e54d44100
+- **Actor**: campaign-runner
+
+
+## 2025-12-10T01:44:41.668241+00:00
+
+- **Campaign ID**: trend_following_model_generation_trend_with_risk_1H
+- **Trades Added**: 2862
+- **Checksum**: ce24e6e9929b36449259c8b5687ed0c91f4ac99269565cda217ab83bd6982692
+- **Actor**: campaign-runner
