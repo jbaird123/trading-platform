@@ -1,0 +1,34 @@
+# Fixed ATR Stop - Simple Volatility-Based Stop
+#
+# A fixed stop at X multiples of ATR from entry price.
+# Unlike chandelier stops, this does NOT trail - it stays fixed
+# at the entry-time calculated level.
+#
+# Ideal for mean reversion strategies where:
+# - You want defined risk per trade
+# - If price moves too far against you, your thesis is wrong
+# - No need for trailing (exit signal handles profit taking)
+#
+# Default parameters:
+# - Multiplier: 2.0x ATR (tighter than trend following)
+# - ATR Length: 14 periods
+#
+# Requirements:
+# Strategy MUST include:
+#   - ATR(14) or ATR with matching atr_length
+
+name: "ATR Stop (2.0x ATR)"
+description: >
+  Fixed volatility-based stop loss at entry. Stop is calculated
+  as ATR * multiplier from entry price and does not trail.
+  Suitable for mean reversion strategies with defined risk.
+
+stop_loss:
+  type: indicator
+  indicator: atr
+  params:
+    multiplier: 2.0      # ATR multiplier (1.5 = tighter, 2.5 = wider)
+    length: 14           # ATR calculation period
+
+# No take-profit - let exit signal handle it
+take_profit: null

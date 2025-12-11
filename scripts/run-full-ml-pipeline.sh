@@ -41,6 +41,7 @@ TOTAL_STAGES=10
 
 META_CAMPAIGN_CONFIGS=(
     "config/meta_campaigns/trend_following_data_gen.yaml"
+    "config/meta_campaigns/mean_reversion_data_gen.yaml"
 )
 
 # Profitability training date overrides (set env vars to enable)
@@ -150,16 +151,27 @@ fi
 if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
     echo -e "${YELLOW}[${CURRENT_STAGE}/${TOTAL_STAGES}] Generating campaign configs from meta-campaigns...${NC}"
     META_COUNT=0
+    FIRST_META=true
     for meta_config in "${META_CAMPAIGN_CONFIGS[@]}"; do
         if [ ! -f "$meta_config" ]; then
             echo -e "${RED}Error: Meta-campaign config not found: $meta_config${NC}"
             exit 1
         fi
         echo "  Meta-campaign: $meta_config"
-        poetry run tp meta-campaign-plan \
-            --config "$meta_config" \
-            --output-dir "config/campaigns/generated" \
-            --force
+        if [ "$FIRST_META" = true ]; then
+            # First meta-campaign: use --force to clear existing files
+            poetry run tp meta-campaign-plan \
+                --config "$meta_config" \
+                --output-dir "config/campaigns/generated" \
+                --force
+            FIRST_META=false
+        else
+            # Subsequent meta-campaigns: use --append to add to existing
+            poetry run tp meta-campaign-plan \
+                --config "$meta_config" \
+                --output-dir "config/campaigns/generated" \
+                --append
+        fi
         META_COUNT=$((META_COUNT + 1))
     done
     echo -e "${GREEN}✓ Generated configs from ${META_COUNT} meta-campaign(s)${NC}"

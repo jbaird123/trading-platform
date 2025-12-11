@@ -1,0 +1,62 @@
+campaign_id: mean_reversion_model_generation_bb_with_risk_5min
+strategy_path: config/master_data_generation/strategies/bb_mean_reversion_v1.yaml
+execution_timeframe: 5min
+strategy_archetype: mean_reversion
+description: 'Meta-campaign: mean_reversion_model_generation, Profile: bb_with_risk,
+  Timeframe: 5min'
+run_matrix:
+- instrument: EURUSD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    bb_length: 20
+    bb_std_dev: 2.0
+- instrument: EURUSD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    bb_length: 20
+    bb_std_dev: 2.0
+- instrument: EURUSD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    bb_length: 20
+    bb_std_dev: 2.0
+- instrument: EURUSD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    bb_length: 20
+    bb_std_dev: 2.5
+- instrument: EURUSD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    bb_length: 20
+    bb_std_dev: 1.5
+- instrument: EURUSD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    bb_length: 10
+    bb_std_dev: 2.0
+- instrument: EURUSD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    bb_length: 10
+    bb_std_dev: 2.0
+- instrument: EURUSD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    bb_length: 30
+    bb_std_dev: 2.0
+- instrument: EURUSD
+  start_date: '2018-01-01'
+  end_date: '2023-12-31'
+  param_overrides:
+    bb_length: 30
+    bb_std_dev: 2.5
+rem_path: config/master_data_generation/rem/atr_stop_v1.yaml

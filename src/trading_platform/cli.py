@@ -2051,16 +2051,18 @@ def _meta_campaign_plan_logic(args: argparse.Namespace) -> int:
     output_dir = Path(args.output_dir if args.output_dir else default_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Check for existing files
-    should_proceed, existing_files = _check_output_directory(output_dir, args.force)
-    if not should_proceed:
-        return 1
+    # Check for existing files (skip check if --append is set)
+    append_mode = getattr(args, "append", False)
+    if not append_mode:
+        should_proceed, existing_files = _check_output_directory(output_dir, args.force)
+        if not should_proceed:
+            return 1
 
-    # Clear directory if --force is set
-    if args.force and existing_files:
-        for file in existing_files:
-            file.unlink()
-        print(f"Cleared {len(existing_files)} file(s) from {output_dir}")
+        # Clear directory if --force is set
+        if args.force and existing_files:
+            for file in existing_files:
+                file.unlink()
+            print(f"Cleared {len(existing_files)} file(s) from {output_dir}")
 
     # Print generation info
     print(f"Generating campaigns from: {config_path}")
@@ -2610,7 +2612,12 @@ def main() -> int:
     pmcp.add_argument(
         "--force",
         action="store_true",
-        help="Overwrite existing files in output directory",
+        help="Clear and overwrite existing files in output directory",
+    )
+    pmcp.add_argument(
+        "--append",
+        action="store_true",
+        help="Append to existing files in output directory (don't clear)",
     )
     pmcp.set_defaults(func=_meta_campaign_plan_logic)
 
