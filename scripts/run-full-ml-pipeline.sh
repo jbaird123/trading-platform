@@ -40,7 +40,7 @@ NC='\033[0m' # No Color
 TOTAL_STAGES=10
 
 META_CAMPAIGN_CONFIGS=(
-    "config/meta_campaigns/trend_following_data_gen.yaml"
+    # "config/meta_campaigns/trend_following_data_gen.yaml"  # Temporarily disabled
     "config/meta_campaigns/mean_reversion_data_gen.yaml"
 )
 
@@ -158,20 +158,20 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
             exit 1
         fi
         echo "  Meta-campaign: $meta_config"
-        if [ "$FIRST_META" = true ]; then
-            # First meta-campaign: use --force to clear existing files
+        if [ "$FIRST_META" = true ] && [ "$SKIP_CLEANUP" = false ]; then
+            # First meta-campaign with cleanup: use --force to clear existing files
             poetry run tp meta-campaign-plan \
                 --config "$meta_config" \
                 --output-dir "config/campaigns/generated" \
                 --force
-            FIRST_META=false
         else
-            # Subsequent meta-campaigns: use --append to add to existing
+            # Subsequent meta-campaigns OR skip-cleanup mode: use --append
             poetry run tp meta-campaign-plan \
                 --config "$meta_config" \
                 --output-dir "config/campaigns/generated" \
                 --append
         fi
+        FIRST_META=false
         META_COUNT=$((META_COUNT + 1))
     done
     echo -e "${GREEN}✓ Generated configs from ${META_COUNT} meta-campaign(s)${NC}"
