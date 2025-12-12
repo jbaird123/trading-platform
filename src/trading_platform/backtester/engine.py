@@ -393,19 +393,23 @@ def run_event_loop_backtest(
         risk_fields: dict[str, Any] = {"entry_price": entry_price}
         if rem is None:
             return risk_fields
+        # For initial stop, use signal bar (bar_series) as the "prior bar" because
+        # we want the stop based on the bar where the signal occurred. The context
+        # contains features (ATR, etc.) from the signal bar, so we need close from
+        # the same bar for consistency. Trailing updates use the actual prior bar.
         stop_price = rem.calculate_initial_stop_price(
             entry_price=entry_price,
             side=side,
             entry_bar=bar_series,
             signal_context=signal_context,
-            prior_bar=prior_bar_series,
+            prior_bar=bar_series,  # Use signal bar, not prior bar
         )
         take_profit = rem.calculate_initial_take_profit_price(
             entry_price=entry_price,
             side=side,
             entry_bar=bar_series,
             signal_context=signal_context,
-            prior_bar=prior_bar_series,
+            prior_bar=bar_series,  # Use signal bar, not prior bar
         )
         if stop_price is not None:
             risk_fields["entry_stop_loss"] = stop_price
