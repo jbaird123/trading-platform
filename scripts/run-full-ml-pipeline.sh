@@ -40,7 +40,7 @@ NC='\033[0m' # No Color
 TOTAL_STAGES=10
 
 META_CAMPAIGN_CONFIGS=(
-    # "config/meta_campaigns/trend_following_data_gen.yaml"  # Temporarily disabled
+    "config/meta_campaigns/trend_following_data_gen.yaml"
     "config/meta_campaigns/mean_reversion_data_gen.yaml"
 )
 
@@ -315,11 +315,31 @@ fi
 # Stage 8: Publish to Master Trade Log
 if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
     echo -e "${YELLOW}[${CURRENT_STAGE}/${TOTAL_STAGES}] Publishing to master trade log...${NC}"
+    PUBLISH_COUNT=0
+    SKIP_COUNT=0
     for campaign in "${CAMPAIGNS[@]}"; do
-        echo "  Publishing: $campaign"
-        poetry run tp campaign-publish --campaign-id "$campaign"
+        # Check if enriched data exists for this campaign
+        ENRICHED_FILE="data/enriched/${campaign}/rich_trades.parquet"
+        if [ -f "$ENRICHED_FILE" ]; then
+            # Check if file has actual data (not empty)
+            FILE_SIZE=$(stat -f%z "$ENRICHED_FILE" 2>/dev/null || stat -c%s "$ENRICHED_FILE" 2>/dev/null || echo "0")
+            if [ "$FILE_SIZE" -gt 1000 ]; then
+                echo "  Publishing: $campaign"
+                poetry run tp campaign-publish --campaign-id "$campaign"
+                PUBLISH_COUNT=$((PUBLISH_COUNT + 1))
+            else
+                echo "  Skipping: $campaign (empty enriched data)"
+                SKIP_COUNT=$((SKIP_COUNT + 1))
+            fi
+        else
+            echo "  Skipping: $campaign (no enriched data file)"
+            SKIP_COUNT=$((SKIP_COUNT + 1))
+        fi
     done
-    echo -e "${GREEN}✓ All campaigns published to master trade log${NC}"
+    echo -e "${GREEN}✓ Published ${PUBLISH_COUNT} campaigns to master trade log${NC}"
+    if [ $SKIP_COUNT -gt 0 ]; then
+        echo -e "${YELLOW}  Skipped ${SKIP_COUNT} campaigns with no enriched data${NC}"
+    fi
     echo ""
 fi
 ((CURRENT_STAGE++))

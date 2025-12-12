@@ -1448,3 +1448,42 @@
 - **Trades Added**: 142532
 - **Checksum**: c2ff2cb7f23dba4d76aa7a7b9da3a4fc9258c6580f53e018b1311c41b245bdaf
 - **Actor**: campaign-runner
+
+## 2025-12-12T01:53:52.639626+00:00
+
+- **Campaign ID**: mean_reversion_model_generation_bb_no_risk_15min
+- **Trades Added**: 24512
+- **Checksum**: 449a9fc6a06346bb2f922583eb142184080d9108e642e31eeae89e7c8b866632
+- **Actor**: campaign-runner
+
+
+## 2025-12-12T01:54:06.969202+00:00
+
+- **Campaign ID**: mean_reversion_model_generation_bb_no_risk_1D
+- **Trades Added**: 231
+- **Checksum**: 37f738220bda8386b139d6c8fdc73e54eb5d513e2a84303388bb36b46985044f
+- **Actor**: campaign-runner
+
+
+## 2025-12-12T01:54:20.921610+00:00
+
+- **Campaign ID**: mean_reversion_model_generation_bb_no_risk_1H
+- **Trades Added**: 6393
+- **Checksum**: c59f593c103fbb465a35ec53d4753f7061d026654de3e765ff026b036c54bcf3
+- **Actor**: campaign-runner
+
+
+## 2025-12-12T01:54:35.188461+00:00
+
+- **Campaign ID**: mean_reversion_model_generation_bb_no_risk_4H
+- **Trades Added**: 1442
+- **Checksum**: b3938a93058ae6dbaf345b3d39ce39b187cc66679ec12c198c24d9cc305f08ce
+- **Actor**: campaign-runner
+
+
+## 2025-12-12T01:54:50.721198+00:00
+
+- **Campaign ID**: mean_reversion_model_generation_bb_no_risk_5min
+- **Trades Added**: 71220
+- **Checksum**: be6a70da3ea1039b3cce964a8c43aa27b5137bcd1ef83b4d3243616547a2ccec
+- **Actor**: campaign-runner

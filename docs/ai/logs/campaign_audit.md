@@ -3189,3 +3189,257 @@
 - **Trades Published**: 142532
 - **Master Log Path**: /Users/jbaird/Documents/other/trading-platform/data/dvc/processed/training_sets/master_trade_log.parquet
 - **Checksum**: c2ff2cb7f23dba4d76aa7a7b9da3a4fc9258c6580f53e018b1311c41b245bdaf
+
+## 2025-12-12T01:29:11.797567+00:00
+
+- **Action**: Validation
+- **Campaign ID**: mean_reversion_model_generation_bb_no_risk_15min
+- **Total Candidates**: 4
+- **Passed**: 4
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-12T01:29:19.417814+00:00
+
+- **Action**: Validation
+- **Campaign ID**: mean_reversion_model_generation_bb_no_risk_1D
+- **Total Candidates**: 4
+- **Passed**: 4
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-12T01:29:28.883057+00:00
+
+- **Action**: Validation
+- **Campaign ID**: mean_reversion_model_generation_bb_no_risk_1H
+- **Total Candidates**: 4
+- **Passed**: 4
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-12T01:29:37.049286+00:00
+
+- **Action**: Validation
+- **Campaign ID**: mean_reversion_model_generation_bb_no_risk_4H
+- **Total Candidates**: 4
+- **Passed**: 4
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-12T01:30:09.088775+00:00
+
+- **Action**: Validation
+- **Campaign ID**: mean_reversion_model_generation_bb_no_risk_5min
+- **Total Candidates**: 4
+- **Passed**: 4
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-12T01:30:36.212274+00:00
+
+- **Action**: Validation
+- **Campaign ID**: mean_reversion_model_generation_bb_with_risk_15min
+- **Total Candidates**: 9
+- **Passed**: 0
+- **Failed**: 0
+- **Warnings**: 9
+
+
+## 2025-12-12T01:30:44.086701+00:00
+
+- **Action**: Validation
+- **Campaign ID**: mean_reversion_model_generation_bb_with_risk_1D
+- **Total Candidates**: 9
+- **Passed**: 0
+- **Failed**: 0
+- **Warnings**: 9
+
+
+## 2025-12-12T01:30:56.301950+00:00
+
+- **Action**: Validation
+- **Campaign ID**: mean_reversion_model_generation_bb_with_risk_1H
+- **Total Candidates**: 9
+- **Passed**: 0
+- **Failed**: 0
+- **Warnings**: 9
+
+
+## 2025-12-12T01:31:04.683275+00:00
+
+- **Action**: Validation
+- **Campaign ID**: mean_reversion_model_generation_bb_with_risk_4H
+- **Total Candidates**: 9
+- **Passed**: 0
+- **Failed**: 0
+- **Warnings**: 9
+
+
+## 2025-12-12T01:32:16.895092+00:00
+
+- **Action**: Validation
+- **Campaign ID**: mean_reversion_model_generation_bb_with_risk_5min
+- **Total Candidates**: 9
+- **Passed**: 0
+- **Failed**: 0
+- **Warnings**: 9
+
+
+## 2025-12-12T01:32:33.406038+00:00
+
+- **Action**: Validation
+- **Campaign ID**: trend_following_model_generation_baseline_no_risk_15min
+- **Total Candidates**: 4
+- **Passed**: 4
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-12T01:32:40.939231+00:00
+
+- **Action**: Validation
+- **Campaign ID**: trend_following_model_generation_baseline_no_risk_1D
+- **Total Candidates**: 4
+- **Passed**: 4
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-12T01:32:50.244544+00:00
+
+- **Action**: Validation
+- **Campaign ID**: trend_following_model_generation_baseline_no_risk_1H
+- **Total Candidates**: 4
+- **Passed**: 4
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-12T01:32:57.975368+00:00
+
+- **Action**: Validation
+- **Campaign ID**: trend_following_model_generation_baseline_no_risk_4H
+- **Total Candidates**: 4
+- **Passed**: 4
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-12T01:33:32.837038+00:00
+
+- **Action**: Validation
+- **Campaign ID**: trend_following_model_generation_baseline_no_risk_5min
+- **Total Candidates**: 4
+- **Passed**: 4
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-12T01:33:54.873623+00:00
+
+- **Action**: Validation
+- **Campaign ID**: trend_following_model_generation_trend_with_risk_15min
+- **Total Candidates**: 10
+- **Passed**: 10
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-12T01:34:02.776959+00:00
+
+- **Action**: Validation
+- **Campaign ID**: trend_following_model_generation_trend_with_risk_1D
+- **Total Candidates**: 10
+- **Passed**: 6
+- **Failed**: 0
+- **Warnings**: 4
+
+
+## 2025-12-12T01:34:13.442239+00:00
+
+- **Action**: Validation
+- **Campaign ID**: trend_following_model_generation_trend_with_risk_1H
+- **Total Candidates**: 10
+- **Passed**: 10
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-12T01:34:21.530597+00:00
+
+- **Action**: Validation
+- **Campaign ID**: trend_following_model_generation_trend_with_risk_4H
+- **Total Candidates**: 10
+- **Passed**: 10
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-12T01:35:19.930399+00:00
+
+- **Action**: Validation
+- **Campaign ID**: trend_following_model_generation_trend_with_risk_5min
+- **Total Candidates**: 10
+- **Passed**: 10
+- **Failed**: 0
+- **Warnings**: 0
+
+
+## 2025-12-12T01:53:52.639626+00:00
+
+- **Action**: Publish
+- **Campaign ID**: mean_reversion_model_generation_bb_no_risk_15min
+- **Trades Published**: 24512
+- **Master Log Path**: /Users/jbaird/Documents/other/trading-platform/data/dvc/processed/training_sets/master_trade_log.parquet
+- **Checksum**: 449a9fc6a06346bb2f922583eb142184080d9108e642e31eeae89e7c8b866632
+
+
+## 2025-12-12T01:54:06.969202+00:00
+
+- **Action**: Publish
+- **Campaign ID**: mean_reversion_model_generation_bb_no_risk_1D
+- **Trades Published**: 231
+- **Master Log Path**: /Users/jbaird/Documents/other/trading-platform/data/dvc/processed/training_sets/master_trade_log.parquet
+- **Checksum**: 37f738220bda8386b139d6c8fdc73e54eb5d513e2a84303388bb36b46985044f
+
+
+## 2025-12-12T01:54:20.921610+00:00
+
+- **Action**: Publish
+- **Campaign ID**: mean_reversion_model_generation_bb_no_risk_1H
+- **Trades Published**: 6393
+- **Master Log Path**: /Users/jbaird/Documents/other/trading-platform/data/dvc/processed/training_sets/master_trade_log.parquet
+- **Checksum**: c59f593c103fbb465a35ec53d4753f7061d026654de3e765ff026b036c54bcf3
+
+
+## 2025-12-12T01:54:35.188461+00:00
+
+- **Action**: Publish
+- **Campaign ID**: mean_reversion_model_generation_bb_no_risk_4H
+- **Trades Published**: 1442
+- **Master Log Path**: /Users/jbaird/Documents/other/trading-platform/data/dvc/processed/training_sets/master_trade_log.parquet
+- **Checksum**: b3938a93058ae6dbaf345b3d39ce39b187cc66679ec12c198c24d9cc305f08ce
+
+
+## 2025-12-12T01:54:50.721198+00:00
+
+- **Action**: Publish
+- **Campaign ID**: mean_reversion_model_generation_bb_no_risk_5min
+- **Trades Published**: 71220
+- **Master Log Path**: /Users/jbaird/Documents/other/trading-platform/data/dvc/processed/training_sets/master_trade_log.parquet
+- **Checksum**: be6a70da3ea1039b3cce964a8c43aa27b5137bcd1ef83b4d3243616547a2ccec
+
+
+## 2025-12-12T02:04:34.104278+00:00
+
+- **Action**: Validation
+- **Campaign ID**: mean_reversion_model_generation_bb_with_risk_1H
+- **Total Candidates**: 9
+- **Passed**: 0
+- **Failed**: 0
+- **Warnings**: 9
