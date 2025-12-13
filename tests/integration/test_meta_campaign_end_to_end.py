@@ -68,12 +68,15 @@ strategy_profiles:
     campaigns = calculate_cartesian_product(config)
 
     # Accept either expanded (60) or consolidated (24/25) count
+    # With 10 trend_with_risk param sets + 4 baseline_no_risk param sets = 14 total
+    # 14 param sets × 5 timeframes = 70 campaigns
     assert len(campaigns) > 0, "Should generate at least some campaigns"
     assert len(campaigns) in [
         24,
         25,
         55,
         60,
+        70,
     ], f"Unexpected campaign count: {len(campaigns)}"
 
     # Verify campaigns have unique combinations
