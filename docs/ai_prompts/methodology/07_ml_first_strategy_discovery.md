@@ -4,10 +4,15 @@
 
 Your mission is to discover a consistent, low-drawdown trading system using the platform's ML infrastructure. Unlike previous methodologies that relied on manual iteration and qualitative analysis, this approach uses **trained ML models as the primary source of insight**.
 
-The key constraint is **no long drawdowns** - consistency matters more than maximum returns. The goal is to find a system that:
-- Avoids extended losing periods (drawdown duration < 2 weeks)
+The key constraint is **minimizing drawdown duration** - consistency matters more than maximum returns. The goal is to find a system that:
+- Minimizes the length of losing periods (target: ~2 weeks, but this is a guideline, not a hard rule)
 - Produces steady, predictable returns
 - Can combine multiple strategies (trend-following + mean-reversion) based on market regime
+
+**Important Note on Drawdown Duration Target**: The ~14 day target comes from general day trading guidance suggesting drawdowns shouldn't extend beyond 2 weeks. However, this is a soft target based on common advice, not a scientifically validated threshold. The real goal is to **minimize drawdown duration relative to what's achievable** with the strategy type and market conditions. A 15 or 20 day drawdown may be perfectly acceptable if that represents strong performance for the approach. During analysis, compare drawdown durations against:
+- Historical norms for similar strategies
+- What the data shows is realistically achievable
+- Whether shorter drawdowns come at an unacceptable cost (e.g., drastically reduced returns)
 
 ---
 
@@ -343,11 +348,13 @@ def calculate_drawdown_metrics(equity_curve: pd.Series) -> dict:
 
 #### Step 4.2: Optimize for Duration, Not Depth
 
-Traditional optimization targets Sharpe or total return. Instead:
+Traditional optimization targets Sharpe or total return. Instead, prioritize:
 
-1. **Primary target**: `max_drawdown_duration_days < 14`
-2. **Secondary target**: `time_in_drawdown_pct < 30%`
-3. **Tertiary target**: Positive expectancy (R-multiple > 0)
+1. **Primary focus**: Minimize `max_drawdown_duration_days` (target ~14 days, but evaluate in context)
+2. **Secondary focus**: Minimize `time_in_drawdown_pct` (target < 40%)
+3. **Constraint**: Positive expectancy (R-multiple > 0)
+
+Remember: The goal isn't hitting arbitrary thresholds - it's finding the best achievable balance between drawdown duration and returns.
 
 #### Step 4.3: Use Simulated Hold Analysis
 
@@ -361,23 +368,36 @@ The `post_exit_analysis_simulated_holds` data shows what would have happened if 
 
 ## 5. Success Criteria
 
-A system is successful when it meets ALL of these criteria:
+A system is successful when it demonstrates strong performance across these dimensions. These are **guidelines for evaluation**, not hard pass/fail thresholds.
 
-### Primary Criteria (Must Have)
-- **Max Drawdown Duration < 14 days** over 3+ years of data
-- **Time in Drawdown < 40%** of total period
-- **Positive Total PnL** over full backtest period
+### Primary Goal: Minimize Drawdown Duration
+The core objective is minimizing how long the strategy stays in drawdown. Evaluate against:
+- **Target**: ~2 weeks (14 days) max drawdown duration
+- **Acceptable**: Up to 3-4 weeks if returns justify it
+- **Context matters**: Compare against baseline strategy without ML filtering
 
-### Secondary Criteria (Should Have)
-- **Win Rate > 45%** (consistency indicator)
-- **Profit Factor > 1.2** (edge indicator)
-- **Average R-Multiple > 0.1** (positive expectancy)
-- **Sharpe Ratio > 0.5** (risk-adjusted returns)
+**Key insight**: A strategy with 20-day max drawdown but 2x the returns of a 14-day max drawdown strategy may be the better choice. The goal is optimal risk/reward, not arbitrary thresholds.
+
+### Profitability Criteria
+- **Positive Total PnL** over full backtest period (required)
+- **Time in Drawdown < 50%** of total period (guideline)
+- **Profit Factor > 1.1** (indicates edge exists)
+
+### Consistency Indicators
+- **Win Rate > 40%** (varies by strategy type - trend following often lower)
+- **Average R-Multiple > 0** (positive expectancy)
+- **Sharpe Ratio > 0.3** (basic risk-adjusted returns)
 
 ### Robustness Criteria
-- **Walk-Forward: >60% profitable windows**
-- **Performance degradation < 40%** (in-sample vs out-of-sample)
-- **Consistent across instruments** (if multi-instrument)
+- **Walk-Forward: >50% profitable windows** (shows generalization)
+- **Performance degradation < 50%** (in-sample vs out-of-sample)
+- **No catastrophic losing periods** (single window shouldn't wipe out gains)
+
+### Reality Check
+Before finalizing, ask:
+1. Are these results realistic given transaction costs and slippage?
+2. Would I actually trade this with real money?
+3. How does this compare to simply holding the instrument?
 
 ---
 
@@ -496,9 +516,10 @@ A system is successful when it meets ALL of these criteria:
 | Time in DD | | | |
 
 ## Verdict
-- [ ] Ensemble outperforms single strategies
-- [ ] Max DD duration < 14 days
+- [ ] Ensemble outperforms single strategies on risk-adjusted basis
+- [ ] Max DD duration is acceptable (target ~14 days, evaluate in context)
 - [ ] Robust across walk-forward windows
+- [ ] Returns justify the drawdown characteristics
 ```
 
 ---
