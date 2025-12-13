@@ -130,6 +130,7 @@ def execute_campaign_runs(
                 "run_id": run.run_id,
                 "user_id": "campaign_runner",
                 "runs_dir": str(runs_dir.parent),
+                "artifact_mode": "minimal",
                 "data_request": {
                     "symbol": run.instrument,
                     "timeframe": canonical_execution_timeframe,

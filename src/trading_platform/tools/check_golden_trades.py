@@ -166,7 +166,7 @@ def main() -> None:
             "first."
         )
 
-    handler = DataHandler(symbol="EUR_USD", data_root=args.data_root)
+    handler = DataHandler(symbol="EURUSD", data_root=args.data_root)
     selected = args.strategies or list(STRATEGIES.keys())
 
     for strategy in selected:

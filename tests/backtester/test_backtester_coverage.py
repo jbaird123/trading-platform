@@ -15,6 +15,7 @@ from typing import Any, cast
 import pandas as pd
 from trading_platform.backtester.post_exit import enrich_trades_with_post_exit_analysis
 from trading_platform.core.config import RunConfig
+from trading_platform.data.session_metadata import ALIGNED_TO_CLOSE_ATTR
 from trading_platform.portfolio.trade import Trade
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
@@ -278,6 +279,7 @@ def test_post_exit_analysis_integration():
         },
         index=idx,
     )
+    df.attrs[ALIGNED_TO_CLOSE_ATTR] = True  # Index represents bar-close times
 
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)
@@ -336,6 +338,7 @@ def test_rmm_context_feature_rounding():
         },
         index=idx,
     )
+    df.attrs[ALIGNED_TO_CLOSE_ATTR] = True  # Index represents bar-close times
 
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)
@@ -417,6 +420,7 @@ def test_rmm_context_feature_rounding_edge_cases():
         },
         index=idx,
     )
+    df.attrs[ALIGNED_TO_CLOSE_ATTR] = True  # Index represents bar-close times
 
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)
@@ -482,6 +486,7 @@ def test_skipped_entry_index_conversion_error():
         },
         index=idx,
     )
+    df.attrs[ALIGNED_TO_CLOSE_ATTR] = True  # Index represents bar-close times
 
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)
@@ -547,6 +552,7 @@ def test_post_exit_analysis_disabled():
         },
         index=idx,
     )
+    df.attrs[ALIGNED_TO_CLOSE_ATTR] = True  # Index represents bar-close times
 
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)
@@ -600,6 +606,7 @@ def test_post_exit_analysis_enabled_false():
         },
         index=idx,
     )
+    df.attrs[ALIGNED_TO_CLOSE_ATTR] = True  # Index represents bar-close times
 
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)
@@ -693,6 +700,7 @@ def test_skipped_entry_index_invalid_conversion():
         },
         index=idx,
     )
+    df.attrs[ALIGNED_TO_CLOSE_ATTR] = True  # Index represents bar-close times
 
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)
@@ -751,7 +759,7 @@ def test_skipped_entry_index_invalid_conversion():
 def test_rmm_context_feature_rounding_with_strategy_features():
     """Test _round_feature function with strategy that has features."""
     # Validates: [REQ-BT-RMM-003] Test _round_feature with actual strategy features
-    idx = pd.date_range("2024-01-01", periods=100, freq="h")
+    idx = pd.date_range("2024-01-01", periods=100, freq="h", tz="UTC")
     df = pd.DataFrame(
         {
             "open": [1.0 + i * 0.001 for i in range(100)],
@@ -849,6 +857,7 @@ def test_counterfactual_with_manual_invalid_entry_index():
         },
         index=idx,
     )
+    df.attrs[ALIGNED_TO_CLOSE_ATTR] = True  # Index represents bar-close times
 
     strategy = _dummy_strategy_cfg()
     strategy.generate_signals(df)

@@ -3,6 +3,7 @@ from typing import Any, cast
 
 import pandas as pd
 from trading_platform.core.config import RunConfig
+from trading_platform.data.session_metadata import ALIGNED_TO_CLOSE_ATTR
 from trading_platform.risk_manager.core import RiskExitManager
 
 from tests.backtester.dummy_objects import _dummy_strategy_cfg as dummy_strategy
@@ -25,6 +26,7 @@ def test_backtester_uses_provided_instrument_symbol():
         },
         index=idx,
     )
+    df.attrs[ALIGNED_TO_CLOSE_ATTR] = True  # Index represents bar-close times
     strategy = dummy_strategy()
     strategy.generate_signals(df)  # Populate _feature_df for context lookups
     signals = pd.Series(["enter_long", "exit_long"], index=df.index)

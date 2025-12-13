@@ -116,6 +116,23 @@ def get_cache_record(
     return None
 
 
+def _decision_timestamp(
+    trade_row: pd.Series, decision_time_cols: tuple[str, ...]
+) -> pd.Timestamp | None:
+    """Return parsed decision_time from provided columns, else None."""
+    decision_val = None
+    for col in decision_time_cols:
+        if col in trade_row and pd.notna(trade_row[col]):
+            decision_val = trade_row[col]
+            break
+    if pd.isna(decision_val):
+        return None
+    try:
+        return pd.to_datetime(decision_val)
+    except Exception:
+        return None
+
+
 def compare_features(
     trade_features: dict[str, Any],
     cache_record: pd.Series,
@@ -225,8 +242,14 @@ def validate_trades(
         description="Validating trades",
     ):
         timeframe = trade["execution_timeframe"]
-        entry_time = pd.to_datetime(trade["entry_time"])
-        exit_time = pd.to_datetime(trade["exit_time"])
+        entry_time = _decision_timestamp(
+            trade,
+            ("context_at_entry.decision_time", "context_at_entry_decision_time"),
+        )
+        exit_time = _decision_timestamp(
+            trade,
+            ("context_at_exit.decision_time", "context_at_exit_decision_time"),
+        )
 
         trade_result = {
             "trade_idx": idx,
@@ -240,10 +263,18 @@ def validate_trades(
         }
 
         # Validate entry context
-        entry_cache = get_cache_record(caches, timeframe, entry_time)
+        entry_cache = (
+            get_cache_record(caches, timeframe, entry_time)
+            if entry_time is not None
+            else None
+        )
         if entry_cache is None:
             results["entry_missing_cache"] += 1
-            trade_result["entry_error"] = "Cache record not found"
+            trade_result["entry_error"] = (
+                "decision_time missing/invalid"
+                if entry_time is None
+                else "Cache record not found"
+            )
         else:
             trade_features = {k: v for k, v in trade.items() if "context_at_entry" in k}
             matches, total, mismatches = compare_features(
@@ -257,10 +288,18 @@ def validate_trades(
             trade_result["entry_mismatches"] = mismatches
 
         # Validate exit context
-        exit_cache = get_cache_record(caches, timeframe, exit_time)
+        exit_cache = (
+            get_cache_record(caches, timeframe, exit_time)
+            if exit_time is not None
+            else None
+        )
         if exit_cache is None:
             results["exit_missing_cache"] += 1
-            trade_result["exit_error"] = "Cache record not found"
+            trade_result["exit_error"] = (
+                "decision_time missing/invalid"
+                if exit_time is None
+                else "Cache record not found"
+            )
         else:
             trade_features = {k: v for k, v in trade.items() if "context_at_exit" in k}
             matches, total, mismatches = compare_features(

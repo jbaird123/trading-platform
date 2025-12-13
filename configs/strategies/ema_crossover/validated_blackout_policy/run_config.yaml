@@ -5,7 +5,7 @@ tie_break_policy:
   rule: "stop_then_tp"
 
 instrument:
-  symbol: "EUR_USD"
+  symbol: "EURUSD"
   timeframe: "1H"
 
 # Transaction costs (realistic retail spreads)
@@ -13,7 +13,7 @@ cost_model:
   spread_per_unit: 0.00015  # 1.5 pips for EUR/USD (1 pip = 0.0001)
 
 data_request:
-  symbol: "EUR_USD"
+  symbol: "EURUSD"
   timeframe: "1H"
   start: "2013-01-01"
   end: "2025-09-26"

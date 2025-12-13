@@ -97,7 +97,7 @@ def test_open_and_close_short_position_with_loss():
 
     # Open a short position
     portfolio.create_new_position(
-        symbol="USD_JPY",
+        symbol="USDJPY",
         entry_time=entry_time,
         entry_price=150.0,
         side="short",
@@ -141,7 +141,7 @@ def test_cannot_open_position_if_one_is_already_open():
 
     # Attempt to open another position
     portfolio.create_new_position(
-        symbol="USD_JPY",
+        symbol="USDJPY",
         entry_time=datetime.now(),
         entry_price=150.0,
         side="short",

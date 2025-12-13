@@ -11,9 +11,12 @@ import yaml
 from pandas.testing import assert_series_equal
 from trading_platform.core.global_features_cache import build_global_feature_caches
 from trading_platform.data.bar_windows import compute_bar_window_columns
+from trading_platform.data.handler import DataHandler
 from trading_platform.data.instrument import get_instrument_definition
 from trading_platform.data.resample import resample_data, timeframe_to_timedelta
-from trading_platform.data.session_metadata import annotate_session
+from trading_platform.data.session_metadata import (
+    annotate_session,
+)
 from trading_platform.data.timeframe_aliases import (
     canonicalize_column_name,
     normalize_timeframe_columns,
@@ -50,7 +53,7 @@ PARQUET_FILENAMES = {
     "4H": "4h.parquet",
     "1D": "1d.parquet",
 }
-INSTRUMENT = get_instrument_definition("EUR/USD")
+INSTRUMENT = get_instrument_definition("EURUSD")
 SESSION = INSTRUMENT.sessions[0] if INSTRUMENT.sessions else None
 WARMUP_BARS = {
     "1H": 1000,
@@ -237,7 +240,7 @@ def rebuilt_test_cache(
     _write_platform_ohlc_dataset(data_root)
 
     descriptor = build_global_feature_caches(
-        symbol="EUR/USD",
+        symbol="EURUSD",
         data_root=data_root,
         config_path=GLOBAL_FEATURES_CONFIG,
         timeframes=list(PARQUET_FILENAMES.keys()),
@@ -704,11 +707,16 @@ def test_bar_metadata_alignment(
 
                 if mismatch_mask.any():
                     first_mismatch_idx = int(mismatch_mask.idxmax())
+                    avail_at = builder_df[CACHE_TIMESTAMP_COLUMN].iloc[
+                        first_mismatch_idx
+                    ]
+                    builder_val = builder_series.iloc[first_mismatch_idx]
+                    golden_val = golden_series.iloc[first_mismatch_idx]
                     raise AssertionError(
                         f"{timeframe} {col}: Mismatch at row {first_mismatch_idx} "
-                        f"(available_at={builder_df[CACHE_TIMESTAMP_COLUMN].iloc[first_mismatch_idx]})\n"
-                        f"  Builder: {builder_series.iloc[first_mismatch_idx]}\n"
-                        f"  Golden:  {golden_series.iloc[first_mismatch_idx]}"
+                        f"(available_at={avail_at})\n"
+                        f"  Builder: {builder_val}\n"
+                        f"  Golden:  {golden_val}"
                     )
             else:
                 # For lookup_key columns (strings), check exact match
@@ -725,11 +733,16 @@ def test_bar_metadata_alignment(
 
                 if mismatch_mask.any():
                     first_mismatch_idx = int(mismatch_mask.idxmax())
+                    avail_at = builder_df[CACHE_TIMESTAMP_COLUMN].iloc[
+                        first_mismatch_idx
+                    ]
+                    builder_val = builder_series.iloc[first_mismatch_idx]
+                    golden_val = golden_series.iloc[first_mismatch_idx]
                     raise AssertionError(
                         f"{timeframe} {col}: Mismatch at row {first_mismatch_idx} "
-                        f"(available_at={builder_df[CACHE_TIMESTAMP_COLUMN].iloc[first_mismatch_idx]})\n"
-                        f"  Builder: {builder_series.iloc[first_mismatch_idx]}\n"
-                        f"  Golden:  {golden_series.iloc[first_mismatch_idx]}"
+                        f"(available_at={avail_at})\n"
+                        f"  Builder: {builder_val}\n"
+                        f"  Golden:  {golden_val}"
                     )
 
 
@@ -911,7 +924,7 @@ def test_builder_cache_matches_calculated_indicators(tmp_path: Path) -> None:
     _write_platform_ohlc_dataset(data_root)
 
     descriptor = build_global_feature_caches(
-        symbol="EUR/USD",
+        symbol="EURUSD",
         data_root=data_root,
         config_path=GLOBAL_FEATURES_CONFIG,
         timeframes=["15min", "1H", "4H", "1D"],
@@ -919,21 +932,9 @@ def test_builder_cache_matches_calculated_indicators(tmp_path: Path) -> None:
         include_bar_windows=True,
     )
 
-    # Load 15min OHLCV data
-    source_csv = (
-        PROJECT_ROOT
-        / "data"
-        / "dvc"
-        / "golden"
-        / "ohlcv"
-        / "trading_platform"
-        / "eurusd_15min_ohlcv.csv"
-    )
-    df_15min = pd.read_csv(source_csv, parse_dates=["timestamp"])
-    df_15min = df_15min.set_index("timestamp").sort_index()
-    df_15min.index = pd.to_datetime(df_15min.index, utc=True)
-    if SESSION:
-        annotate_session(df_15min, SESSION)
+    # Load 15min OHLCV data via DataHandler to mirror builder input
+    handler = DataHandler(symbol="EURUSD", data_root=data_root, instrument=INSTRUMENT)
+    df_15min = handler.get_data(timeframe="15min").sort_index()
 
     # Load global features config
     config = yaml.safe_load(GLOBAL_FEATURES_CONFIG.read_text())
@@ -1027,7 +1028,6 @@ def test_builder_cache_matches_calculated_indicators(tmp_path: Path) -> None:
         )
 
         test_config = test_configs[timeframe]
-        bar_lookup_key: str = test_config["bar_lookup_key"]  # type: ignore[assignment]
         indicators: list[str] = test_config["indicators"]  # type: ignore[assignment]
 
         # Check all indicators (skip volume indicators that use hardcoded values)
@@ -1035,75 +1035,24 @@ def test_builder_cache_matches_calculated_indicators(tmp_path: Path) -> None:
             # Skip volume indicators that are known to have hardcoded values in builder
             if indicator in EXPORT_SKIP_COLUMNS:
                 continue
-            matches = 0
-            mismatches = 0
-            skipped = 0
-            first_mismatch = None
+            builder_series = builder_cache.set_index("available_at")[indicator]
+            calc_indicator = column_mapping.get(indicator, indicator)
+            calc_series = df_with_features[calc_indicator]
 
-            for idx, row in builder_cache.iterrows():
-                lookup_key = row[bar_lookup_key]
+            # Align indices and drop NaNs/warmup
+            calc_aligned = calc_series.reindex(builder_series.index, method="ffill")
+            mask = builder_series.notna() & calc_aligned.notna()
+            if not mask.any():
+                continue
 
-                if pd.isna(lookup_key) or lookup_key is None or lookup_key == "None":
-                    skipped += 1
-                    continue
-
-                # Parse lookup key (format: "2021-12-30T02:00:00Z")
-                lookup_ts = pd.Timestamp(lookup_key)
-
-                if lookup_ts not in df_with_features.index:
-                    skipped += 1
-                    continue
-
-                calc_row = df_with_features.loc[lookup_ts]
-
-                builder_val = row[indicator]
-                # Map builder column name to calculated column name
-                calc_indicator = column_mapping.get(indicator, indicator)
-                calc_val = calc_row[calc_indicator]
-
-                # Both NaN = match
-                if pd.isna(builder_val) and pd.isna(calc_val):
-                    matches += 1
-                    continue
-
-                # One NaN = mismatch
-                if pd.isna(builder_val) or pd.isna(calc_val):
-                    mismatches += 1
-                    if first_mismatch is None:
-                        first_mismatch = {
-                            "idx": idx,
-                            "available_at": row["available_at"],
-                            "lookup_key": lookup_key,
-                            "builder_val": builder_val,
-                            "calc_val": calc_val,
-                        }
-                    continue
-
-                # Both have values - compare
-                if abs(builder_val - calc_val) < 1e-10:
-                    matches += 1
-                else:
-                    mismatches += 1
-                    if first_mismatch is None:
-                        first_mismatch = {
-                            "idx": idx,
-                            "available_at": row["available_at"],
-                            "lookup_key": lookup_key,
-                            "builder_val": builder_val,
-                            "calc_val": calc_val,
-                        }
-
-            total = matches + mismatches
-
-            if mismatches > 0 and first_mismatch:
+            diffs = (builder_series[mask] - calc_aligned[mask]).abs()
+            if not (diffs < 1e-10).all():
+                first_bad = diffs[diffs >= 1e-10].index[0]
                 raise AssertionError(
                     f"{timeframe} {indicator}: "
-                    f"Builder cache mismatch with calculated values\n"
-                    f"  Matches: {matches}/{total}\n"
-                    f"  Mismatches: {mismatches}/{total}\n"
-                    f"  First mismatch at row {first_mismatch['idx']}:\n"
-                    f"    available_at: {first_mismatch['available_at']}\n"
-                    f"    lookup_key: {first_mismatch['lookup_key']}\n"
-                    f"    Builder: {first_mismatch['builder_val']}\n"
-                    f"    Calculated: {first_mismatch['calc_val']}"
+                    "Builder cache mismatch with calculated values\n"
+                    f"  Mismatches: {(diffs >= 1e-10).sum()}/{mask.sum()}\n"
+                    f"  First mismatch at {first_bad}:\n"
+                    f"    Builder: {builder_series.loc[first_bad]}\n"
+                    f"    Calculated: {calc_aligned.loc[first_bad]}"
                 )

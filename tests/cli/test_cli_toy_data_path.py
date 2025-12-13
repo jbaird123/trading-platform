@@ -22,12 +22,36 @@ def _dummy_strategy() -> CompiledStrategy:
     )
 
 
-def test_cmd_run_backtest_toy_data_path(tmp_path: Path) -> None:
+def test_cmd_run_backtest_toy_data_path(tmp_path: Path, monkeypatch) -> None:
+    """Test CLI can run backtest with config.
+
+    Note: run_backtest() now owns data loading from config.data_request.
+    This test mocks run_backtest to focus on CLI artifact generation.
+    """
+    from unittest.mock import MagicMock, patch
+
+    import pandas as pd
+
+    monkeypatch.setattr("trading_platform.core.paths.RUNS_DIR", tmp_path)
+
+    # Create mock data
+    mock_df = pd.DataFrame(
+        {
+            "open": [1, 2],
+            "high": [1, 2],
+            "low": [1, 2],
+            "close": [1, 2],
+            "volume": [1, 1],
+        },
+        index=pd.date_range("2024-01-01", periods=2, freq="h", tz="UTC"),
+    )
+
     cfg = {
         "user_id": "toy_user",
         "runs_dir": str(tmp_path),
         "initial_cash": 1000,
-        "instrument": {"symbol": "EURUSD"},
+        "instrument": {"symbol": "EURUSD", "timeframe": "1H"},
+        "data_request": {"symbol": "EURUSD", "timeframe": "1H"},
         "strategy": {
             "strategy_name": "S",
             "long_entry_rules": [
@@ -57,11 +81,31 @@ def test_cmd_run_backtest_toy_data_path(tmp_path: Path) -> None:
     p = tmp_path / "cfg.json"
     p.write_text(json.dumps(cfg))
     ns = Namespace(demo=False, user="toy_user", config=str(p))
-    # Ensure parameters field exists
-    strategy_dict = cfg["strategy"]
-    if isinstance(strategy_dict, dict):
-        strategy_dict["parameters"] = strategy_dict.get("parameters", {})
-    rc = cmd_run_backtest(ns)
+
+    # Mock run_backtest to return expected structure
+    mock_strat = MagicMock()
+    mock_strat.name = "S"
+    mock_strat._feature_df = mock_df
+    mock_strat.generate_signals.return_value = pd.Series(
+        [None, None], index=mock_df.index
+    )
+
+    with patch("trading_platform.cli.run_backtest") as mock_backtest, patch(
+        "trading_platform.cli.compile_strategy"
+    ) as mock_compile:
+        mock_compile.return_value = mock_strat
+        mock_backtest.return_value = {
+            "trades": [],
+            "equity_curve": [],
+            "skipped": [],
+            "strategy_name": "S",
+            "initial_capital": 1000,
+            "compiled_strategy": mock_strat,
+            "feature_enriched_df": mock_df,
+            "market_data": mock_df,
+            "data_handler": None,
+        }
+        rc = cmd_run_backtest(ns)
     assert rc == 0
 
 

@@ -54,7 +54,7 @@ def test_build_global_feature_caches_creates_outputs(tmp_path) -> None:
 
     cache_root = tmp_path / "cache"
     descriptor = build_global_feature_caches(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         data_root=data_root,
         config_path=global_yaml,
         timeframes=["5min", "15min"],
@@ -84,7 +84,7 @@ def test_build_global_feature_caches_is_idempotent(tmp_path) -> None:
 
     cache_root = tmp_path / "cache"
     descriptor = build_global_feature_caches(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         data_root=data_root,
         config_path=global_yaml,
         timeframes=["5min"],
@@ -94,7 +94,7 @@ def test_build_global_feature_caches_is_idempotent(tmp_path) -> None:
     first_metadata = descriptor.metadata_path().stat().st_mtime
 
     descriptor_repeat = build_global_feature_caches(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         data_root=data_root,
         config_path=global_yaml,
         timeframes=["5min"],
@@ -118,7 +118,7 @@ def test_available_at_matches_bar_close(tmp_path) -> None:
 
     cache_root = tmp_path / "cache"
     descriptor = build_global_feature_caches(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         data_root=data_root,
         config_path=global_yaml,
         timeframes=["5min"],
@@ -147,7 +147,7 @@ def test_build_global_feature_caches_includes_bar_windows(tmp_path) -> None:
 
     cache_root = tmp_path / "cache"
     descriptor = build_global_feature_caches(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         data_root=data_root,
         config_path=global_yaml,
         timeframes=["5min"],
@@ -192,7 +192,7 @@ def test_cache_covers_features_detects_available_columns(tmp_path) -> None:
 
     cache_root = tmp_path / "cache"
     build_global_feature_caches(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         data_root=data_root,
         config_path=global_yaml,
         timeframes=["5min"],
@@ -201,14 +201,14 @@ def test_cache_covers_features_detects_available_columns(tmp_path) -> None:
     )
 
     assert cache_covers_features(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         cache_root=cache_root,
         config_path=global_yaml,
         timeframe="5min",
         feature_names=["5min_test_ema"],
     )
     assert not cache_covers_features(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         cache_root=cache_root,
         config_path=global_yaml,
         timeframe="5min",

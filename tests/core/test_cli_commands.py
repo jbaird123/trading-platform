@@ -33,13 +33,19 @@ def test_cmd_run_backtest_demo(tmp_path: Path, monkeypatch: MonkeyPatch) -> None
 def test_cmd_run_backtest_config_minimal(
     tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
+    """Test CLI with minimal config - mock run_backtest for data loading."""
+    from unittest.mock import MagicMock, patch
+
+    import pandas as pd
+
     monkeypatch.setattr("trading_platform.core.paths.RUNS_DIR", tmp_path)
     cfg_path = tmp_path / "cfg.json"
     cfg_obj = {
         "user_id": "cli_cfg",
         "runs_dir": str(tmp_path),
         "initial_cash": 1000,
-        "instrument": {"symbol": "EURUSD"},
+        "instrument": {"symbol": "EURUSD", "timeframe": "1H"},
+        "data_request": {"symbol": "EURUSD", "timeframe": "1H"},
         "strategy": {
             "strategy_name": "TestStrat",
             "long_entry_rules": [
@@ -68,11 +74,42 @@ def test_cmd_run_backtest_config_minimal(
     }
     cfg_path.write_text(json.dumps(cfg_obj))
     ns = Namespace(demo=False, user="cli_cfg", config=str(cfg_path))
-    # Ensure parameters field exists
-    strategy_dict = cfg_obj["strategy"]
-    if isinstance(strategy_dict, dict):
-        strategy_dict["parameters"] = strategy_dict.get("parameters", {})
-    rc = cmd_run_backtest(ns)
+
+    # Mock run_backtest and compile_strategy
+    mock_df = pd.DataFrame(
+        {
+            "open": [1, 2],
+            "high": [1, 2],
+            "low": [1, 2],
+            "close": [1, 2],
+            "volume": [1, 1],
+        },
+        index=pd.date_range("2024-01-01", periods=2, freq="h", tz="UTC"),
+    )
+    mock_strat = MagicMock()
+    mock_strat.name = "TestStrat"
+    mock_strat._feature_df = mock_df
+    mock_strat.generate_signals.return_value = pd.Series(
+        [None, None], index=mock_df.index
+    )
+
+    with patch("trading_platform.cli.run_backtest") as mock_backtest, patch(
+        "trading_platform.cli.compile_strategy"
+    ) as mock_compile:
+        mock_compile.return_value = mock_strat
+        mock_backtest.return_value = {
+            "trades": [],
+            "equity_curve": [],
+            "skipped": [],
+            "strategy_name": "TestStrat",
+            "initial_capital": 1000,
+            "compiled_strategy": mock_strat,
+            "feature_enriched_df": mock_df,
+            "market_data": mock_df,
+            "data_handler": None,
+        }
+        rc = cmd_run_backtest(ns)
+
     assert rc == 0
     # Verify artifacts exist
     # run_id folder is dynamic; check brief presence under user dir
@@ -86,12 +123,18 @@ def test_cmd_run_backtest_config_minimal(
 def test_cmd_run_backtest_saves_signals_artifact(
     tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
+    """Test CLI saves signals artifact - mock run_backtest for data loading."""
+    from unittest.mock import MagicMock, patch
+
+    import pandas as pd
+
     monkeypatch.setattr("trading_platform.core.paths.RUNS_DIR", tmp_path)
     cfg_path = tmp_path / "cfg.json"
     cfg_obj = {
         "user_id": "cli_cfg_signals",
         "runs_dir": str(tmp_path),
-        "instrument": {"symbol": "EURUSD"},
+        "instrument": {"symbol": "EURUSD", "timeframe": "1H"},
+        "data_request": {"symbol": "EURUSD", "timeframe": "1H"},
         "strategy": {
             "strategy_name": "TestStrat",
             "long_entry_rules": [
@@ -120,11 +163,42 @@ def test_cmd_run_backtest_saves_signals_artifact(
     }
     cfg_path.write_text(json.dumps(cfg_obj))
     ns = Namespace(demo=False, user="cli_cfg_signals", config=str(cfg_path))
-    # Ensure parameters field exists
-    strategy_dict = cfg_obj["strategy"]
-    if isinstance(strategy_dict, dict):
-        strategy_dict["parameters"] = strategy_dict.get("parameters", {})
-    rc = cmd_run_backtest(ns)
+
+    # Mock run_backtest and compile_strategy
+    mock_df = pd.DataFrame(
+        {
+            "open": [1, 2],
+            "high": [1, 2],
+            "low": [1, 2],
+            "close": [1, 2],
+            "volume": [1, 1],
+        },
+        index=pd.date_range("2024-01-01", periods=2, freq="h", tz="UTC"),
+    )
+    mock_strat = MagicMock()
+    mock_strat.name = "TestStrat"
+    mock_strat._feature_df = mock_df
+    mock_strat.generate_signals.return_value = pd.Series(
+        ["enter_long", None], index=mock_df.index
+    )
+
+    with patch("trading_platform.cli.run_backtest") as mock_backtest, patch(
+        "trading_platform.cli.compile_strategy"
+    ) as mock_compile:
+        mock_compile.return_value = mock_strat
+        mock_backtest.return_value = {
+            "trades": [],
+            "equity_curve": [],
+            "skipped": [],
+            "strategy_name": "TestStrat",
+            "initial_capital": 1000,
+            "compiled_strategy": mock_strat,
+            "feature_enriched_df": mock_df,
+            "market_data": mock_df,
+            "data_handler": None,
+        }
+        rc = cmd_run_backtest(ns)
+
     assert rc == 0
 
     user_dir = tmp_path / "cli_cfg_signals"
@@ -145,12 +219,18 @@ def test_cmd_run_backtest_saves_signals_artifact(
 def test_cmd_run_backtest_saves_rmm_spans_artifact(
     tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
+    """Test CLI saves RMM spans artifact - mock run_backtest for data loading."""
+    from unittest.mock import MagicMock, patch
+
+    import pandas as pd
+
     monkeypatch.setattr("trading_platform.core.paths.RUNS_DIR", tmp_path)
     cfg_path = tmp_path / "cfg.json"
     cfg_obj = {
         "user_id": "cli_cfg_rmm_spans",
         "runs_dir": str(tmp_path),
-        "instrument": {"symbol": "EURUSD"},
+        "instrument": {"symbol": "EURUSD", "timeframe": "1H"},
+        "data_request": {"symbol": "EURUSD", "timeframe": "1H"},
         "strategy": {
             "strategy_name": "TestStrat",
             "long_entry_rules": [
@@ -193,11 +273,42 @@ def test_cmd_run_backtest_saves_rmm_spans_artifact(
     }
     cfg_path.write_text(json.dumps(cfg_obj))
     ns = Namespace(demo=False, user="cli_cfg_rmm_spans", config=str(cfg_path))
-    # Ensure parameters field exists
-    strategy_dict = cfg_obj["strategy"]
-    if isinstance(strategy_dict, dict):
-        strategy_dict["parameters"] = strategy_dict.get("parameters", {})
-    rc = cmd_run_backtest(ns)
+
+    # Mock run_backtest and compile_strategy
+    mock_df = pd.DataFrame(
+        {
+            "open": [1, 2],
+            "high": [1, 2],
+            "low": [1, 2],
+            "close": [1, 2],
+            "volume": [1, 1],
+        },
+        index=pd.date_range("2024-01-01", periods=2, freq="h", tz="UTC"),
+    )
+    mock_strat = MagicMock()
+    mock_strat.name = "TestStrat"
+    mock_strat._feature_df = mock_df
+    mock_strat.generate_signals.return_value = pd.Series(
+        [None, None], index=mock_df.index
+    )
+
+    with patch("trading_platform.cli.run_backtest") as mock_backtest, patch(
+        "trading_platform.cli.compile_strategy"
+    ) as mock_compile:
+        mock_compile.return_value = mock_strat
+        mock_backtest.return_value = {
+            "trades": [],
+            "equity_curve": [],
+            "skipped": [],
+            "strategy_name": "TestStrat",
+            "initial_capital": 1000,
+            "compiled_strategy": mock_strat,
+            "feature_enriched_df": mock_df,
+            "market_data": mock_df,
+            "data_handler": None,
+        }
+        rc = cmd_run_backtest(ns)
+
     assert rc == 0
 
     user_dir = tmp_path / "cli_cfg_rmm_spans"

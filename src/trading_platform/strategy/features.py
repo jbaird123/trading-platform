@@ -11,6 +11,11 @@ from typing import Any
 import pandas as pd
 from pandas.tseries.frequencies import to_offset
 
+from trading_platform.data.bar_windows import compute_bar_close_index
+from trading_platform.data.session_metadata import (
+    ALIGNED_TO_CLOSE_ATTR,
+    SESSION_ATTR,
+)
 from trading_platform.data.timeframe_aliases import canonicalize_timeframe
 from trading_platform.strategy import indicator_implementations as _impl
 from trading_platform.strategy.indicator_implementations import (
@@ -87,17 +92,18 @@ def compute_features(
         strategy_parameters = {}
 
     execution_timeframe = _infer_execution_timeframe(df.index)
+    df_aligned = _align_index_to_bar_close(df, execution_timeframe)
 
     from trading_platform.core.global_feature_pipeline import build_global_feature_frame
 
     features_df, _ = build_global_feature_frame(
-        market_data=df,
+        market_data=df_aligned,
         feature_defs=specs,
         execution_timeframe=execution_timeframe,
         strategy_parameters=strategy_parameters,
     )
 
-    return df.join(features_df, how="left")
+    return df_aligned.join(features_df, how="left")
 
 
 _MINUTE_TO_TIMEFRAME = {
@@ -137,6 +143,17 @@ def _infer_execution_timeframe(index: pd.Index) -> str:
         except (ValueError, TypeError):
             pass
 
+    # Fall back to the most common delta between consecutive bars
+    if isinstance(index, pd.DatetimeIndex) and len(index) > 1:
+        deltas = pd.Series(index[1:] - index[:-1])
+        deltas = deltas[deltas > pd.Timedelta(0)]
+        if not deltas.empty:
+            mode_delta = deltas.value_counts().index[0]
+            minutes = int(mode_delta.total_seconds() // 60)
+            tf = _MINUTE_TO_TIMEFRAME.get(minutes)
+            if tf:
+                return tf
+
     try:
         delta = index[1] - index[0]
         minutes = int(delta.total_seconds() // 60)
@@ -147,3 +164,30 @@ def _infer_execution_timeframe(index: pd.Index) -> str:
         pass
 
     return canonicalize_timeframe("1min") or "1min"
+
+
+def _align_index_to_bar_close(
+    df: pd.DataFrame,
+    execution_timeframe: str,
+) -> pd.DataFrame:
+    """
+    Shift the index to bar close timestamps so feature availability matches cache.
+    """
+    if df.attrs.get(ALIGNED_TO_CLOSE_ATTR):
+        return df
+
+    if not isinstance(df.index, pd.DatetimeIndex) or df.empty:
+        return df
+
+    session = df.attrs.get(SESSION_ATTR)
+    try:
+        close_index = compute_bar_close_index(df.index, execution_timeframe, session)
+    except Exception:
+        return df
+
+    aligned = df.copy()
+    aligned.index = close_index
+    if session is not None:
+        aligned.attrs[SESSION_ATTR] = session
+    aligned.attrs[ALIGNED_TO_CLOSE_ATTR] = True
+    return aligned

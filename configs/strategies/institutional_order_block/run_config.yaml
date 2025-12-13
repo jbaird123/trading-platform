@@ -5,7 +5,7 @@ description: "Binds the IOB strategy with its contextual REM for a backtest run 
 # --- Data Request ---
 # The system uses this block to fetch data and auto-populate the instrument definition.
 data_request:
-  symbol: 'EUR_USD'
+  symbol: 'EURUSD'
   timeframe: '1H'
   start: '2022-01-01'
   end: '2023-01-01'

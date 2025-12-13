@@ -1,6 +1,6 @@
 # Backtester Runbook
 
-This document captures the operational facts you need when working with the new backtester: what guarantees it provides, how we validate it, and where to look when something breaks. It replaces the temporary rewrite-plan diary; only the current system’s behavior is described here.
+This document captures the operational facts you need when working with the backtester: what guarantees it provides, how we validate it, and where to look when something breaks. It replaces the temporary rewrite-plan diary; only the current system’s behavior is described here.
 
 ## Contracts & Guardrails
 
@@ -14,7 +14,7 @@ This document captures the operational facts you need when working with the new 
 
 1. `poetry run pytest tests/backtester -q` — fast unit/regression suite for the event loop, context builders, and reporting pipeline.
 2. `poetry run pytest tests/validation -k "export_exit_price or strategy_validation" -q` — TradingView comparisons; these must pass before we bless any change.
-3. Hash-based tests in `tests/validation/test_strategy_validation.py` — **currently red by design.** The new engine records higher precision stop prices so the serialized trade CSVs no longer match the frozen hashes. Once the team signs off we’ll regenerate those goldens.
+3. Hash-based tests in `tests/validation/test_strategy_validation.py` — **currently red by design.** The engine records higher precision stop prices so the serialized trade CSVs no longer match the frozen hashes. Once the team signs off we’ll regenerate those goldens.
 
 Document the result of every validation run (pass/fail plus git SHA) in your PR description. If a TradingView comparison fails, do **not** update the golden file—fix the engine.
 

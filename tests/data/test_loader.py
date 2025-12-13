@@ -52,7 +52,7 @@ def test_load_instrument_data_basic_loading(tmp_path: Path) -> None:
     _setup_data_directory(tmp_path)
 
     # The new function signature is: load_instrument_data(symbol, data_root)
-    df, flags = load_instrument_data("EUR/USD", tmp_path)
+    df, flags = load_instrument_data("EURUSD", tmp_path)
 
     assert flags == []
     assert list(df.columns) == ["open", "high", "low", "close", "volume"]
@@ -82,7 +82,7 @@ def test_loader_empty_data_from_csv(tmp_path: Path) -> None:
     csv_file.write_text("timestamp,open,high,low,close,volume\n")
 
     with pytest.raises(ValueError, match="Base data file is empty"):
-        load_instrument_data("EUR/USD", tmp_path)
+        load_instrument_data("EURUSD", tmp_path)
 
 
 # --- Additional behavioural branches --------------------------------------------
@@ -100,7 +100,7 @@ def test_loader_with_minute_data(tmp_path: Path) -> None:
         "2023-01-01 00:01:00+00:00,1.05,1.15,0.95,1.10,1100\n"
     )
 
-    df, flags = load_instrument_data("EUR/USD", tmp_path)
+    df, flags = load_instrument_data("EURUSD", tmp_path)
 
     assert not flags
     assert not df.empty
@@ -111,7 +111,7 @@ def test_loader_returns_original_rows(tmp_path: Path) -> None:
     """Test loader returns original rows intact."""
     _setup_data_directory(tmp_path)
 
-    df, flags = load_instrument_data("EUR/USD", tmp_path)
+    df, flags = load_instrument_data("EURUSD", tmp_path)
 
     assert not flags
     assert len(df) == 3  # no resampling, original rows retained
@@ -122,15 +122,15 @@ def test_load_instrument_data_with_symbol_normalization(tmp_path: Path) -> None:
     """Test that load_instrument_data works with symbol normalization."""
     _setup_data_directory(tmp_path)
 
-    # Test that EUR_USD finds eurusd directory
-    df, flags = load_instrument_data("EUR_USD", tmp_path)
+    # Test that EURUSD finds eurusd directory
+    df, flags = load_instrument_data("EURUSD", tmp_path)
 
     assert not flags
     assert not df.empty
     assert list(df.columns) == ["open", "high", "low", "close", "volume"]
 
-    # Test that EUR/USD (another format) also works
-    df2, flags2 = load_instrument_data("EUR/USD", tmp_path)
+    # Test that eurusd (lowercase) also works
+    df2, flags2 = load_instrument_data("eurusd", tmp_path)
 
     assert not flags2
     assert not df2.empty

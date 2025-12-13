@@ -72,8 +72,24 @@ def add_normalized_risk_features(df: pd.DataFrame) -> pd.DataFrame:
     entry_abs = df["entry_price"].abs().replace(0, np.nan)
     df["risk_distance_pct_entry"] = np.divide(risk_distance, entry_abs)
 
-    if "context_at_entry_strategy_features_atr_14" in df.columns:
-        atr = df["context_at_entry_strategy_features_atr_14"].replace(0, np.nan)
+    # Try to find ATR from global features based on execution timeframe
+    atr_col = None
+    if "execution_timeframe" in df.columns:
+        # Map execution_timeframe to global feature timeframe format
+        tf_map = {"5min": "5min", "15min": "15min", "1H": "1h", "4H": "4h", "1D": "1d"}
+        # Get the first non-null execution_timeframe to determine ATR column
+        first_tf = (
+            df["execution_timeframe"].dropna().iloc[0]
+            if not df["execution_timeframe"].dropna().empty
+            else None
+        )
+        if first_tf and first_tf in tf_map:
+            candidate = f"context_at_entry_global_features_{tf_map[first_tf]}_atr_14"
+            if candidate in df.columns:
+                atr_col = candidate
+
+    if atr_col is not None:
+        atr = df[atr_col].replace(0, np.nan)
         df["risk_distance_atr_ratio"] = np.divide(risk_distance, atr)
     else:
         df["risk_distance_atr_ratio"] = np.nan

@@ -17,7 +17,7 @@ def test_cli_data_request_with_start_end_filtering(tmp_path):
     # Mock run config (no strategy embedded)
     mock_run_config = {
         "data_request": {
-            "symbol": "EUR_USD",
+            "symbol": "EURUSD",
             "start": "2023-01-01",
             "end": "2023-01-02",  # This should trigger the line 96 branch
         },
@@ -25,7 +25,7 @@ def test_cli_data_request_with_start_end_filtering(tmp_path):
         "runs_dir": "runs",
         "initial_cash": 100000,
         "position_size": 1000,
-        "instrument": {"symbol": "EUR_USD"},
+        "instrument": {"symbol": "EURUSD"},
         "strategy_path": "config/strategy/ema_crossover.yaml",
     }
 

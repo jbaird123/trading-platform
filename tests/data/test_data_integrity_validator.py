@@ -78,7 +78,7 @@ def test_validate_parquet_file(tmp_path: Path) -> None:
 def test_validate_all_instruments(tmp_path: Path) -> None:
     """Test validation across multiple instruments."""
     # Create multiple parquet files
-    for instrument in ["EUR_USD", "GBP_USD"]:
+    for instrument in ["EURUSD", "GBPUSD"]:
         df = pd.DataFrame(
             {
                 "timestamp": pd.date_range("2020-01-01", periods=100, freq="1h"),
@@ -88,7 +88,7 @@ def test_validate_all_instruments(tmp_path: Path) -> None:
         parquet_file = tmp_path / f"{instrument}.parquet"
         df.to_parquet(parquet_file)
 
-    summary = validate_all_data(tmp_path, ["EUR_USD", "GBP_USD"])
+    summary = validate_all_data(tmp_path, ["EURUSD", "GBPUSD"])
 
     assert "total_files" in summary
     assert summary["total_files"] == 2

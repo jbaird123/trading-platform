@@ -6,12 +6,12 @@ tie_break_policy:
 
 # Instrument configuration (required for validation)
 instrument:
-  symbol: "EUR_USD"
+  symbol: "EURUSD"
   timeframe: "1H"
 
 # Data source (delegated to Data Handler via catalog)
 data_request:
-  symbol: "EUR_USD"
+  symbol: "EURUSD"
   timeframe: "1H"
   start: "2024-01-01"
   end: "2025-09-26"

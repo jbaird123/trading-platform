@@ -122,6 +122,12 @@ def test_brief_matches_golden_master(tmp_path: Path, request):
     cfg_for_validation["rem_config"] = rem_cfg
     cfg_for_validation["run_id"] = "golden_run_test"  # Use a different run_id
     cfg_for_validation["initial_cash"] = initial_cash
+    # Set data_request.start to the trading window start (after warmup)
+    cfg_for_validation["data_request"] = {
+        "symbol": "EURUSD",
+        "timeframe": "1H",
+        "start": cfg_raw["data"]["start_date"],
+    }
     # Keep the original instrument from config (don't override symbol)
     # The symbol from the fixture config file will be used
     run_config = RunConfig.model_validate(cfg_for_validation)

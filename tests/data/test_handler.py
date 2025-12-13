@@ -231,16 +231,20 @@ def test_get_data_with_date_filtering(tmp_path: Path) -> None:
         handler = DataHandler(symbol="TEST", data_root=tmp_path)
 
         # Test start filter
+        # With bar-close alignment: 10 raw bars (Jan 1-10 open) become Jan 2-11 close.
+        # Filter start="2024-01-05" gets bars closing >= Jan 5 → Jan 5-11 = 7 bars.
         result = handler.get_data(start="2024-01-05")
-        assert len(result) == 6  # Days 5-10
+        assert len(result) == 7
 
         # Test end filter
+        # Filter end="2024-01-03" gets bars closing <= Jan 3 → Jan 2-3 = 2 bars.
         result = handler.get_data(end="2024-01-03")
-        assert len(result) == 3  # Days 1-3
+        assert len(result) == 2
 
         # Test both
+        # Filter start="2024-01-03", end="2024-01-07" → bars Jan 3-7 = 5 bars.
         result = handler.get_data(start="2024-01-03", end="2024-01-07")
-        assert len(result) == 5  # Days 3-7
+        assert len(result) == 5
 
 
 def test_find_best_resample_source_uses_base_data_when_no_better_match(

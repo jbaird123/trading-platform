@@ -171,6 +171,7 @@ def test_ai_validate_rmm_candidates_command(tmp_path: Path) -> None:
         "data_request": {
             "symbol": "EURUSD",
             "timeframe": "1H",
+            "start": "2024-01-01T15:00:00",  # After SMA warmup period (12 bars)
         },
         "strategy_path": str(strategy_file),
         "rem_config": {},

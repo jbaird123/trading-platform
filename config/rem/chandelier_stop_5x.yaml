@@ -1,0 +1,25 @@
+# Chandelier Stop - 5x ATR Multiplier (Extra Wide)
+#
+# Uses standard 22-period lookback but extra wide 5.0x ATR multiplier.
+# Designed for testing very wide stops on shorter timeframes with slow EMAs.
+
+name: "Chandelier Stop (5.0x ATR, 22 period)"
+description: >
+  Extra wide Chandelier Stop using 5.0x ATR multiplier with standard
+  22-period lookback. For use with slow trend signals where trades
+  need maximum room to develop.
+
+stop_loss:
+  type: indicator
+  indicator: chandelier
+  params:
+    multiplier: 5.0      # Extra wide multiplier
+    length: 22           # Standard HHV/LLV period
+    atr_length: 14       # Standard ATR period
+
+take_profit: null
+
+# Note: Strategy must include:
+#   - atr_14
+#   - hhv_22 with source: high
+#   - llv_22 with source: low

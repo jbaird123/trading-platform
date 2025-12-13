@@ -145,7 +145,7 @@ poetry run tp analyze-regime \
 - **Context features**: All `context_at_entry_*` columns
 - **Risk parameter**: `initial_stop_loss_pips` (known at entry)
 - **Side**: One-hot encoded (`side_long`, `side_short`)
-- **Symbol**: One-hot encoded (e.g., `symbol_EUR_USD`)
+- **Symbol**: One-hot encoded (e.g., `symbol_EURUSD`)
 - **Temporal features**:
   - `hour_of_day` (0-23)
   - `day_of_week` (0-6, Monday=0)

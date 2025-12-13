@@ -31,7 +31,7 @@ tp validate-data --data-dir data/historical/
 **Expected Output:**
 ```
 Validating data in: data/historical/
-Instruments: EUR_USD, GBP_USD
+Instruments: EURUSD, GBPUSD
 
 Total files checked: 2
 Files with issues: 0
@@ -66,8 +66,8 @@ run_grid:
   date_ranges:
     - { start: "2020-01-01", end: "2023-12-31" }
   instruments:
-    - EUR_USD
-    - GBP_USD
+    - EURUSD
+    - GBPUSD
   execution_timeframes:
     - 1H
     - 4H
@@ -207,7 +207,7 @@ tp campaign-review --campaign-id my_first_campaign_trend_with_risk_1H
 
 # Approve individual runs
 tp campaign-approve --campaign-id my_first_campaign_trend_with_risk_1H \
-  --run-id my_first_campaign_trend_with_risk_1H_0000_EUR_USD \
+  --run-id my_first_campaign_trend_with_risk_1H_0000_EURUSD \
   --notes "Good performance metrics"
 ```
 
@@ -339,7 +339,7 @@ The meta-campaign generator creates **one campaign config per (profile, timefram
 
 **Important Note**: The campaign runner spawns a separate subprocess for each backtest run, which means:
 - Price data is loaded from CSV **once per run** (not cached across runs)
-- For 30 runs testing EUR_USD, the EUR_USD CSV is loaded 30 times
+- For 30 runs testing EURUSD, the EURUSD CSV is loaded 30 times
 - Each CSV load takes ~0.5 seconds
 - Total overhead: ~15-30 seconds across all runs
 

@@ -326,6 +326,17 @@ class RMMEngine:
         #   - With shift: uses regime from 09:45 bar (closed at 10:00) ✅
         daily_shifted = daily.shift(1)
 
+        # Normalize timezone awareness: both indices must have the same tz
+        daily_idx = daily_shifted.index
+        if isinstance(daily_idx, pd.DatetimeIndex) and isinstance(
+            target_index, pd.DatetimeIndex
+        ):
+            if daily_idx.tz is None and target_index.tz is not None:
+                daily_shifted = daily_shifted.copy()
+                daily_shifted.index = daily_idx.tz_localize(target_index.tz)
+            elif daily_idx.tz is not None and target_index.tz is None:
+                target_index = target_index.tz_localize(daily_idx.tz)
+
         # Reindex with forward-fill to align to target_index boundaries
         # This preserves all columns including regime features
         aligned = (

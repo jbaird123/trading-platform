@@ -218,7 +218,7 @@ def test_cmd_run_backtest_fast_mode_last_days_and_overrides(
             self.data_quality_flags = []
 
         def get_data(self, timeframe=None, start=None, end=None):
-            idx = pd.date_range("2024-01-01", periods=4, freq="h")
+            idx = pd.date_range("2024-01-01", periods=4, freq="h", tz="UTC")
             return pd.DataFrame({"close": [1.0, 2.0, 3.0, 4.0]}, index=idx)
 
     monkeypatch.setattr("trading_platform.cli.DataHandler", MockDataHandler)
@@ -321,9 +321,8 @@ def test_cmd_run_backtest_fast_mode_last_days_and_overrides(
     )
     spans = json.loads((run_path / "rmm_spans.json").read_text())
     assert {item["mode"] for item in spans} >= {"both", "long_only", "short_only"}
-    market_data = calls["run_backtest"]["market_data"]
-    assert isinstance(market_data.index, pd.DatetimeIndex)
-    # fast_mode removed - no longer filtering by last_days
+    # market_data is no longer passed to run_backtest - it now loads data internally
+    assert "market_data" not in calls["run_backtest"]
     assert "rmm_transition" in calls
 
 
@@ -375,8 +374,8 @@ def test_cmd_run_backtest_fast_mode_limit_and_exception(
     ns = Namespace(demo=False, user="user", config=str(cfg_path))
     assert cli.cmd_run_backtest(ns) == 0
 
-    market_data = calls["run_backtest"]["market_data"]
-    assert len(market_data) == 6  # No filtering without fast_mode
+    # market_data is no longer passed to run_backtest - it now loads data internally
+    assert "market_data" not in calls["run_backtest"]
 
 
 def test_cmd_run_backtest_tuple_variants(cli_stubs, tmp_path, monkeypatch):
@@ -701,7 +700,7 @@ def test_cmd_run_backtest_with_paths_and_failures(tmp_path, monkeypatch):
     state: dict[str, Any] = {}
 
     def run_backtest(**kwargs):
-        state["market_len"] = len(kwargs["market_data"])
+        # market_data is no longer passed - run_backtest owns data loading
         state["strategy_overrides"] = kwargs.get("strategy_overrides", {})
         return (
             [SimpleNamespace(entry=datetime(2024, 1, 1))],
@@ -717,7 +716,6 @@ def test_cmd_run_backtest_with_paths_and_failures(tmp_path, monkeypatch):
 
     ns = Namespace(demo=False, user="user", config=str(cfg_path))
     assert cli.cmd_run_backtest(ns) == 0
-    assert state["market_len"] == 6  # No filtering without fast_mode
     assert state["params"] == {"length": 1}
     # Check that strategy_overrides were passed to orchestrator
     assert state["strategy_overrides"]["features"]["ema"]["length"] == 2

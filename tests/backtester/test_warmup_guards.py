@@ -86,7 +86,7 @@ def test_strategy_features_must_be_warmed() -> None:
         },
     )
 
-    with pytest.raises(ValueError, match=r"Strategy feature 'sma_10' is NaN"):
+    with pytest.raises(ValueError, match=r"Features contain NaNs: sma_10"):
         _run_with_config(
             df,
             strategy_config=strategy_config,

@@ -480,10 +480,9 @@ class RiskExitManager:
                 ):
                     bar_timestamp = cast(pd.Timestamp, current_bar.name)
                     window_minutes = max(1, int(bar_minutes or 60))
-                    start = bar_timestamp
-                    end = bar_timestamp + pd.Timedelta(
-                        minutes=max(0, window_minutes - 1)
-                    )
+                    # Cover the entire bar (open->close) using minute closes
+                    start = bar_timestamp - pd.Timedelta(minutes=window_minutes - 1)
+                    end = bar_timestamp
                     bars_1min = data_handler.get_data(
                         timeframe="1min", start=start, end=end
                     )
@@ -534,8 +533,8 @@ class RiskExitManager:
             # data_handler is available - zoom to 1-minute resolution
             bar_timestamp = cast(pd.Timestamp, current_bar.name)
             window_minutes = max(1, int(bar_minutes or 60))
-            start = bar_timestamp
-            end = bar_timestamp + pd.Timedelta(minutes=max(0, window_minutes - 1))
+            start = bar_timestamp - pd.Timedelta(minutes=window_minutes - 1)
+            end = bar_timestamp
             bars_1min = data_handler.get_data(timeframe="1min", start=start, end=end)
 
             # Process 1-minute bars

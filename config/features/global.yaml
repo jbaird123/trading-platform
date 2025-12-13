@@ -753,6 +753,14 @@ features:
 
   # --- Volatility Indicators ---
   # Measure the magnitude of price fluctuations.
+  - name: "5min_atr_14"
+    type: "ATR"
+    params: { "length": 14 }
+    timeframe: "5min"
+  - name: "5min_atr_pct"
+    type: "ATRPercent"
+    params: { "length": 14 }
+    timeframe: "5min"
   - name: "15min_atr_14"
     type: "ATR"
     params: { "length": 14 }

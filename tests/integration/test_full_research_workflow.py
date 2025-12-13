@@ -14,7 +14,7 @@ def test_phase0_data_validation_workflow(tmp_path: Path) -> None:
     data_dir.mkdir()
 
     # Create sample data files
-    for instrument in ["EUR_USD", "GBP_USD"]:
+    for instrument in ["EURUSD", "GBPUSD"]:
         file_path = data_dir / f"{instrument}_1H.parquet"
         dates = pd.date_range("2020-01-01", periods=1000, freq="h")
         df = pd.DataFrame(
@@ -30,7 +30,7 @@ def test_phase0_data_validation_workflow(tmp_path: Path) -> None:
         df.to_parquet(file_path)
 
     # Phase 0: Validate data
-    results = validate_all_data(data_dir, ["EUR_USD", "GBP_USD"])
+    results = validate_all_data(data_dir, ["EURUSD", "GBPUSD"])
 
     # Assert validation succeeds
     assert results["total_files"] == 2
@@ -54,7 +54,7 @@ run_grid:
   date_ranges:
     - { start: "2020-01-01", end: "2020-12-31" }
   instruments:
-    - EUR_USD
+    - EURUSD
   execution_timeframes:
     - 1H
 
@@ -76,7 +76,7 @@ strategy_profiles:
 
     # Should generate 1 campaign (1 date × 1 instrument × 1 timeframe × 1 param set)
     assert len(campaigns) == 1
-    assert campaigns[0]["instrument"] == "EUR_USD"
+    assert campaigns[0]["instrument"] == "EURUSD"
     assert campaigns[0]["execution_timeframe"] == "1H"
 
 

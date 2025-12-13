@@ -41,6 +41,7 @@ TOTAL_STAGES=10
 
 META_CAMPAIGN_CONFIGS=(
     "config/meta_campaigns/trend_following_data_gen.yaml"
+    "config/meta_campaigns/mean_reversion_data_gen.yaml"
 )
 
 # Profitability training date overrides (set env vars to enable)
@@ -113,23 +114,18 @@ fi
 CURRENT_STAGE=0
 
 # --- Campaign List ---
-CAMPAIGNS=(
-    "trend_following_model_generation_baseline_no_risk_15min"
-    "trend_following_model_generation_baseline_no_risk_1H"
-    "trend_following_model_generation_baseline_no_risk_4H"
-    "trend_following_model_generation_baseline_no_risk_1D"
-    "trend_following_model_generation_baseline_no_risk_5min"
-    "trend_following_model_generation_trend_with_risk_15min"
-    "trend_following_model_generation_trend_with_risk_1H"
-    "trend_following_model_generation_trend_with_risk_4H"
-    "trend_following_model_generation_trend_with_risk_1D"
-    "trend_following_model_generation_trend_with_risk_5min"
-)
+# Discover existing campaigns from generated configs (for --start-from scenarios)
+CAMPAIGNS=()
+for config_file in config/campaigns/generated/*.yaml; do
+    if [ -f "$config_file" ]; then
+        campaign_name=$(basename "$config_file" .yaml)
+        CAMPAIGNS+=("$campaign_name")
+    fi
+done
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}ML Training Pipeline${NC}"
 echo -e "${BLUE}========================================${NC}"
-echo -e "Campaigns:       ${GREEN}${#CAMPAIGNS[@]}${NC}"
 echo -e "Working dir:     $(pwd)"
 echo -e "Skip cleanup:    $SKIP_CLEANUP"
 echo -e "Start from:      $START_STAGE (Stage $START_STAGE_NUM)"
@@ -161,20 +157,41 @@ fi
 if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
     echo -e "${YELLOW}[${CURRENT_STAGE}/${TOTAL_STAGES}] Generating campaign configs from meta-campaigns...${NC}"
     META_COUNT=0
+    FIRST_META=true
     for meta_config in "${META_CAMPAIGN_CONFIGS[@]}"; do
         if [ ! -f "$meta_config" ]; then
             echo -e "${RED}Error: Meta-campaign config not found: $meta_config${NC}"
             exit 1
         fi
         echo "  Meta-campaign: $meta_config"
-        poetry run tp meta-campaign-plan \
-            --config "$meta_config" \
-            --output-dir "config/campaigns/generated" \
-            --force
+        if [ "$FIRST_META" = true ] && [ "$SKIP_CLEANUP" = false ]; then
+            # First meta-campaign with cleanup: use --force to clear existing files
+            poetry run tp meta-campaign-plan \
+                --config "$meta_config" \
+                --output-dir "config/campaigns/generated" \
+                --force
+        else
+            # Subsequent meta-campaigns OR skip-cleanup mode: use --append
+            poetry run tp meta-campaign-plan \
+                --config "$meta_config" \
+                --output-dir "config/campaigns/generated" \
+                --append
+        fi
+        FIRST_META=false
         META_COUNT=$((META_COUNT + 1))
     done
     echo -e "${GREEN}✓ Generated configs from ${META_COUNT} meta-campaign(s)${NC}"
     echo ""
+
+    # Re-discover generated campaign configs (may have changed)
+    CAMPAIGNS=()
+    for config_file in config/campaigns/generated/*.yaml; do
+        if [ -f "$config_file" ]; then
+            campaign_name=$(basename "$config_file" .yaml)
+            CAMPAIGNS+=("$campaign_name")
+        fi
+    done
+    echo -e "  Discovered ${#CAMPAIGNS[@]} campaign(s): ${CAMPAIGNS[*]}"
 fi
 ((CURRENT_STAGE++))
 
@@ -291,8 +308,8 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
         OUTPUT=$(poetry run tp campaign-enrich --campaign-id "$campaign" 2>&1)
         echo "$OUTPUT"
 
-        # Extract trade count from output
-        TRADES=$(echo "$OUTPUT" | grep -o 'Enriched [0-9]* trades' | grep -o '[0-9]*' || echo "0")
+        # Extract trade count from output (format: "X trades enriched")
+        TRADES=$(echo "$OUTPUT" | grep -o '[0-9]* trades enriched' | grep -o '[0-9]*' || echo "0")
         if [ -n "$TRADES" ]; then
             TOTAL_TRADES=$((TOTAL_TRADES + TRADES))
         fi
@@ -305,11 +322,31 @@ fi
 # Stage 8: Publish to Master Trade Log
 if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
     echo -e "${YELLOW}[${CURRENT_STAGE}/${TOTAL_STAGES}] Publishing to master trade log...${NC}"
+    PUBLISH_COUNT=0
+    SKIP_COUNT=0
     for campaign in "${CAMPAIGNS[@]}"; do
-        echo "  Publishing: $campaign"
-        poetry run tp campaign-publish --campaign-id "$campaign"
+        # Check if enriched data exists for this campaign
+        ENRICHED_FILE="data/enriched/${campaign}/rich_trades.parquet"
+        if [ -f "$ENRICHED_FILE" ]; then
+            # Check if file has actual data (not empty)
+            FILE_SIZE=$(stat -f%z "$ENRICHED_FILE" 2>/dev/null || stat -c%s "$ENRICHED_FILE" 2>/dev/null || echo "0")
+            if [ "$FILE_SIZE" -gt 1000 ]; then
+                echo "  Publishing: $campaign"
+                poetry run tp campaign-publish --campaign-id "$campaign"
+                PUBLISH_COUNT=$((PUBLISH_COUNT + 1))
+            else
+                echo "  Skipping: $campaign (empty enriched data)"
+                SKIP_COUNT=$((SKIP_COUNT + 1))
+            fi
+        else
+            echo "  Skipping: $campaign (no enriched data file)"
+            SKIP_COUNT=$((SKIP_COUNT + 1))
+        fi
     done
-    echo -e "${GREEN}✓ All campaigns published to master trade log${NC}"
+    echo -e "${GREEN}✓ Published ${PUBLISH_COUNT} campaigns to master trade log${NC}"
+    if [ $SKIP_COUNT -gt 0 ]; then
+        echo -e "${YELLOW}  Skipped ${SKIP_COUNT} campaigns with no enriched data${NC}"
+    fi
     echo ""
 fi
 ((CURRENT_STAGE++))
@@ -367,6 +404,12 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
         --context-output
         15min_trend_following=structure+momentum:gb_weighted:0.53
     )
+    if [ -n "$TRAIN_PROFITABILITY_START" ]; then
+        THRESH_CMD+=(--train-start "$TRAIN_PROFITABILITY_START")
+    fi
+    if [ -n "$TRAIN_PROFITABILITY_END" ]; then
+        THRESH_CMD+=(--train-end "$TRAIN_PROFITABILITY_END")
+    fi
     "${THRESH_CMD[@]}"
     PROFITABILITY_COUNT=$(
         find data/dvc/ml/models/profitability -name "*.pkl" 2>/dev/null \

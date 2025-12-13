@@ -467,7 +467,7 @@ def create_config_files(
 exit_tie_break: "stop_then_tp"  # If both hit same bar
 
 instrument:
-  symbol: "EUR_USD"
+  symbol: "EURUSD"
   base_currency: "EUR"
   quote_currency: "USD"
   pip_location: -4

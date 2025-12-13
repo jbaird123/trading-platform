@@ -12,6 +12,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+from trading_platform.data.resample import timeframe_to_timedelta
 from trading_platform.strategy.features import compute_features
 
 # Test data location (DVC-tracked)
@@ -245,7 +246,10 @@ INDICATOR_TOLERANCES = {
         "rtol": 1e-7,
         "atol": 1e-8,
     },  # Pivot detection - should match exactly
-    "SWING_LOW": {"rtol": 1e-7, "atol": 1e-8},  # Pivot detection - should match exactly
+    "SWING_LOW": {
+        "rtol": 1e-7,
+        "atol": 1e-8,
+    },  # Pivot detection - should match exactly
     "ATRPercentile": {
         "rtol": 1e-3,
         "atol": 1e-8,
@@ -449,6 +453,27 @@ def test_indicator_matches_tradingview_comprehensive(
 
     tradingview_series = batch_df[tradingview_column.lower()].dropna()
 
+    # Prefer the base OHLC timeframe for sparse series (Swing High/Low) so we
+    # don’t infer a huge gap from widely spaced swing points.
+    base_freq = pd.infer_freq(batch_df.index)
+    if base_freq:
+        base_delta = timeframe_to_timedelta(base_freq)
+    elif len(batch_df.index) >= 2:
+        base_delta = batch_df.index[1] - batch_df.index[0]
+    else:
+        pytest.fail("Not enough OHLC data to infer base timeframe.")
+
+    inferred_freq = pd.infer_freq(tradingview_series.index)
+    if feature_type in {"SWING_HIGH", "SWING_LOW"}:
+        delta = base_delta
+    elif inferred_freq:
+        delta = timeframe_to_timedelta(inferred_freq)
+    else:
+        if len(tradingview_series.index) < 2:
+            pytest.fail("Not enough data to infer timeframe for TradingView series.")
+        delta = tradingview_series.index[1] - tradingview_series.index[0]
+    tradingview_series.index = tradingview_series.index + delta
+
     # Get our calculated data
     # Special handling for PSAR: merge PSAR_up and PSAR_down into single series
 
@@ -558,39 +583,33 @@ def test_indicator_matches_tradingview_comprehensive(
     aligned_tv, aligned_calc = tradingview_series.align(calculated_series, join="inner")
 
     # Skip warmup period
-    aligned_tv = aligned_tv.iloc[WARMUP_PERIOD:]
-    aligned_calc = aligned_calc.iloc[WARMUP_PERIOD:]
+    if feature_type in {"SWING_HIGH", "SWING_LOW"}:
+        warmup_len = 0
+    else:
+        warmup_len = min(
+            WARMUP_PERIOD, max(len(aligned_tv) - 1, 0), max(len(aligned_calc) - 1, 0)
+        )
+    aligned_tv = aligned_tv.iloc[warmup_len:]
+    aligned_calc = aligned_calc.iloc[warmup_len:]
 
     # For PSAR, detect TradingView reversals and exclude divergence windows
     if our_name == "PSAR":
-        # Get OHLC data to determine if SAR is above/below price
-        ohlc_aligned = batch_data_cache[batch_file][["high", "low"]].reindex(
-            aligned_tv.index
-        )
+        ohlc_aligned = batch_data_cache[batch_file][["high", "low"]].copy()
+        ohlc_aligned.index = ohlc_aligned.index + delta
+        ohlc_aligned = ohlc_aligned.reindex(aligned_tv.index)
 
-        # Detect TradingView reversal: SAR position relative to price changes
-        # When SHORT: SAR > price (above), When LONG: SAR < price (below)
         tv_is_long = aligned_tv < ohlc_aligned["low"]  # SAR below price low
         tv_reversals = tv_is_long != tv_is_long.shift(1)
 
-        # Detect our platform reversals (already calculated)
         platform_is_long = psarl.reindex(aligned_calc.index).notna()
         platform_reversals_aligned = platform_is_long != platform_is_long.shift(1)
 
-        # Create mask for divergence windows
-        # Mark all bars between when either system reverses until both are aligned again
         divergence_mask = pd.Series(False, index=aligned_tv.index)
-
-        # Find all reversal points from both systems
         all_reversals = platform_reversals_aligned | tv_reversals
         reversal_indices = all_reversals[all_reversals].index
 
         for rev_idx in reversal_indices:
-            # Find the position in the series
             idx_pos = aligned_tv.index.get_loc(rev_idx)
-
-            # Check if systems are in same state after this reversal
-            # If not, mark bars until they align
             for i in range(idx_pos, len(aligned_tv)):
                 check_idx = aligned_tv.index[i]
                 platform_state = (
@@ -602,17 +621,14 @@ def test_indicator_matches_tradingview_comprehensive(
                     tv_is_long.loc[check_idx] if check_idx in tv_is_long.index else None
                 )
 
-                # Mark as divergence if states differ
                 if platform_state is not None and tv_state is not None:
                     if platform_state != tv_state:
                         divergence_mask.loc[check_idx] = True
                     else:
-                        # Both in same state, stop looking forward from this reversal
                         break
                 else:
                     break
 
-        # Filter out divergence windows
         aligned_tv = aligned_tv[~divergence_mask]
         aligned_calc = aligned_calc[~divergence_mask]
 
@@ -761,7 +777,8 @@ def test_indicator_matches_tradingview_comprehensive(
     if our_name == "OBV" and not close_match:
         # Get close prices from batch3 to identify flat bars
         ohlcv_data = batch_data_cache["batch3"]
-        close_prices = ohlcv_data["close"]
+        close_prices = ohlcv_data["close"].copy()
+        close_prices.index = close_prices.index + delta
 
         # Calculate first-order differences (bar-to-bar changes)
         tv_changes = aligned_tv.diff()

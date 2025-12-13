@@ -44,6 +44,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from trading_platform.data.resample import timeframe_to_timedelta
 
 
 class GoldenValidationError(Exception):
@@ -115,6 +116,7 @@ def load_and_validate_ohlcv(
     file_path: Path,
     validation_range: dict[str, str] | None = None,
     warmup_start: pd.Timestamp = WARMUP_START_HOURLY,
+    timeframe: str | None = None,
 ) -> pd.DataFrame:
     """Loads OHLCV data with explicit UTC validation and filtering.
 
@@ -147,6 +149,9 @@ def load_and_validate_ohlcv(
     df = df.set_index("time")
     df.index.name = "timestamp"
 
+    if timeframe:
+        df.index = df.index + timeframe_to_timedelta(timeframe)
+
     # Add volume column if missing (some exports don't include it)
     if "volume" not in df.columns:
         df["volume"] = 1.0
@@ -172,6 +177,7 @@ def load_and_validate_ohlcv(
 def load_and_validate_tradingview_trades(
     file_path: Path,
     validation_range: dict[str, str] | None = None,
+    timeframe: str | None = None,
 ) -> pd.DataFrame:
     """Loads TradingView trades with filtering.
 
@@ -326,6 +332,7 @@ def load_and_prepare_trade_data(
     strategy_name: str,
     platform_trades: list[dict],
     golden_metadata: dict,
+    timeframe: str | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Load and prepare both platform and TradingView trades for comparison.
 
@@ -358,8 +365,9 @@ def load_and_prepare_trade_data(
     # Load TradingView trades
     strategy_dir = Path("data/dvc/golden/strategies") / strategy_name
     tv_trades_path = strategy_dir / "trades.csv"
+    effective_tf = timeframe or golden_metadata.get("timeframe")
     tv_df = load_and_validate_tradingview_trades(
-        tv_trades_path, validation_range=date_range
+        tv_trades_path, validation_range=date_range, timeframe=effective_tf
     )
 
     # Convert platform trades to DataFrame

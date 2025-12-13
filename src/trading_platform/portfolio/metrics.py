@@ -11,7 +11,11 @@ def calculate_equity_curve(
     """
     Calculates the equity curve from a list of trades and initial cash.
     """
-    equity_curve = [(datetime(1, 1, 1), initial_cash)]  # Placeholder for initial equity
+    if not trades:
+        return []
+    # Use first trade's entry time as the starting point for the equity curve
+    start_time = trades[0].entry_time
+    equity_curve: list[tuple[datetime, float]] = [(start_time, initial_cash)]
     current_equity = initial_cash
     for trade in trades:
         current_equity += trade.pnl

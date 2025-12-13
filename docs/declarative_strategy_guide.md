@@ -44,7 +44,7 @@ This is the master file that binds all other components together for a single, r
 ```yaml
 name: "My EMA Crossover Backtest"
 data_request:
-  symbol: 'EUR_USD'
+  symbol: 'EURUSD'
   timeframe: '1H'
   start: '2022-01-01'
   end: '2023-01-01'

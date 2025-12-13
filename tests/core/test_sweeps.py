@@ -1793,11 +1793,17 @@ def test_parameter_sweep_random_space():
 def _df() -> pd.DataFrame:
     start = datetime(2024, 1, 1)
     end = datetime(2024, 1, 3, 12)  # 60 hours
+    # Strategy features for warmup calculation (max EMA length is 9 in tests)
+    strategy_features = [
+        {"name": "ema_fast", "type": "EMA", "params": {"length": 5}, "source": "close"},
+        {"name": "ema_slow", "type": "EMA", "params": {"length": 9}, "source": "close"},
+    ]
     df = create_market_data_with_warmup(
         start_date=start,
         end_date=end,
         freq="1H",
         include_global_features=False,
+        strategy_features=strategy_features,
     )
     # Simple wave to induce a few crosses
     close = [1.0 + 0.001 * ((i % 10) - 5) for i in range(len(df))]
@@ -1885,7 +1891,8 @@ def test_run_parameter_sweep_returns_top_and_results():
         "position_size": 10000.0,
         "tie_break_policy": {"rule": "stop_then_tp"},
         "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
-        "instrument": {"symbol": "EURUSD"},
+        "instrument": {"symbol": "EURUSD", "timeframe": "1H"},
+        "data_request": {"symbol": "EURUSD", "timeframe": "1H", "start": "2024-01-01"},
     }
     strat_cfg = _strategy_cfg()
     out = run_parameter_sweep(
@@ -1908,7 +1915,8 @@ def test_parameter_sweep_pnl_minus_dd_objective():
         "position_size": 10000.0,
         "tie_break_policy": {"rule": "stop_then_tp"},
         "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
-        "instrument": {"symbol": "EURUSD"},
+        "instrument": {"symbol": "EURUSD", "timeframe": "1H"},
+        "data_request": {"symbol": "EURUSD", "timeframe": "1H", "start": "2024-01-01"},
     }
     strat_cfg = _strategy_cfg()
     out = run_parameter_sweep(
@@ -1929,7 +1937,8 @@ def test_parameter_sweep_pnl_dd_vol_objective():
         "position_size": 10000.0,
         "tie_break_policy": {"rule": "stop_then_tp"},
         "rem_config": {"stop_loss": {"type": "offset", "price_offset": 0.002}},
-        "instrument": {"symbol": "EURUSD"},
+        "instrument": {"symbol": "EURUSD", "timeframe": "1H"},
+        "data_request": {"symbol": "EURUSD", "timeframe": "1H", "start": "2024-01-01"},
     }
     strat_cfg = _strategy_cfg()
     out = run_parameter_sweep(

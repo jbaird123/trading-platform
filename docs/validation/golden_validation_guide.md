@@ -96,14 +96,14 @@ feature values.
 ```bash
 # Raw Dukascopy data (used by backtests / campaigns)
 poetry run trading-platform precompute-global-features \
-  --symbol EUR_USD \
+  --symbol EURUSD \
   --data-root data/dvc/raw \
   --config config/features/global.yaml \
   --timeframes 5min 15min 1H 4H 1D
 
 # TradingView golden data (used by tests/validation)
 poetry run trading-platform precompute-global-features \
-  --symbol EUR_USD \
+  --symbol EURUSD \
   --data-root data/dvc/golden/ohlcv/tradingview \
   --config data/dvc/golden/features/global.yaml \
   --timeframes 1H

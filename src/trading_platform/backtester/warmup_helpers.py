@@ -8,7 +8,6 @@ from typing import Any, cast
 
 import pandas as pd
 
-from trading_platform.backtester.warmup import calculate_warmup_start_date
 from trading_platform.core.feature_resolver import resolve_global_features
 from trading_platform.strategy.features import _resolve_parameter
 
@@ -16,38 +15,53 @@ logger = logging.getLogger(__name__)
 
 
 def infer_execution_timeframe(config: Any, market_data: pd.DataFrame) -> str:
+    from trading_platform.data.timeframe_aliases import canonicalize_timeframe
+
     instrument_cfg = getattr(config, "instrument", None) or {}
     if isinstance(instrument_cfg, dict):
         instrument_tf = instrument_cfg.get("timeframe")
     else:
         instrument_tf = getattr(instrument_cfg, "timeframe", None)
-    if instrument_tf:
-        return str(instrument_tf)
-
     data_req_cfg = getattr(config, "data_request", None) or {}
     if isinstance(data_req_cfg, dict):
         data_req_tf = data_req_cfg.get("timeframe")
     else:
         data_req_tf = getattr(data_req_cfg, "timeframe", None)
+
+    # If insufficient bars to infer, fall back to configured timeframe(s)
+    if len(market_data.index) < 2:
+        if instrument_tf:
+            return canonicalize_timeframe(str(instrument_tf)) or str(instrument_tf)
+        if data_req_tf:
+            return canonicalize_timeframe(str(data_req_tf)) or str(data_req_tf)
+        return "1min"
+
+    if instrument_tf:
+        return canonicalize_timeframe(str(instrument_tf)) or str(instrument_tf)
+
     if data_req_tf:
-        return str(data_req_tf)
+        return canonicalize_timeframe(str(data_req_tf)) or str(data_req_tf)
 
     if not market_data.empty:
         diffs = market_data.index[1:] - market_data.index[:-1]
-        most_common = diffs.value_counts().idxmax()
-        minutes = int(pd.Timedelta(most_common).total_seconds() / 60)
-        mapping = {
-            1: "1min",
-            5: "5min",
-            15: "15min",
-            60: "1H",
-            240: "4H",
-            1440: "1D",
-            10080: "1W",
-        }
-        timeframe = mapping.get(minutes)
-        if timeframe:
-            return timeframe
+        if not diffs.empty:
+            most_common = diffs.value_counts().idxmax()
+            minutes = int(pd.Timedelta(most_common).total_seconds() / 60)
+            mapping = {
+                1: "1min",
+                5: "5min",
+                15: "15min",
+                60: "1h",
+                240: "4h",
+                1440: "1d",
+                10080: "1w",
+            }
+            timeframe = mapping.get(minutes)
+            if timeframe:
+                return timeframe
+            if minutes > 0:
+                # Fallback to a generic minutes label if not in mapping
+                return f"{minutes}min"
     raise ValueError("Execution timeframe is required.")
 
 
@@ -123,78 +137,18 @@ def ensure_market_data_with_warmup(
     if market_data.empty:
         return market_data
 
-    target_start, target_end, start_explicit = _parse_data_request_bounds(
-        data_request, market_data
-    )
+    target_start, target_end, _ = _parse_data_request_bounds(data_request, market_data)
 
     if not isinstance(market_data.index, pd.DatetimeIndex):
         logger.warning("Market data index is not datetime; skipping warmup extension.")
         return cast(pd.DataFrame, market_data.loc[target_start:target_end].copy())
 
-    if not strategy_features and not global_features:
-        return market_data.loc[target_start:target_end].copy()
+    # System-wide warmup: always include data from the earliest available bar.
+    # This ensures cumulative indicators (EMA/OBV/etc.) have full history.
+    # The engine will skip to trading_window_start for trade execution.
+    warmup_ts = cast(pd.Timestamp, market_data.index.min())
 
-    working_data = market_data
-
-    def _calculate(start_data: pd.DataFrame) -> tuple[pd.Timestamp, dict[str, Any]]:
-        warmup_start_date, info = calculate_warmup_start_date(
-            strategy_features=strategy_features,
-            global_features=global_features,
-            execution_timeframe=execution_timeframe,
-            market_data=start_data,
-            backtest_start_date=target_start,
-        )
-        warmup_ts = pd.Timestamp(info.get("earliest_timestamp") or warmup_start_date)
-        if warmup_ts.tzinfo is None:
-            warmup_ts = warmup_ts.tz_localize("UTC")
-        else:
-            warmup_ts = warmup_ts.tz_convert("UTC")
-        return warmup_ts, info
-
-    def _fallback(reason: str) -> pd.DataFrame:
-        logger.debug(
-            "Warmup calculation could not extend data (%s); "
-            "falling back to requested window.",
-            reason,
-        )
-        return cast(pd.DataFrame, market_data.loc[target_start:target_end].copy())
-
-    try:
-        warmup_ts, _ = _calculate(working_data)
-    except ValueError as exc:
-        if not start_explicit or data_handler is None:
-            return _fallback(str(exc))
-        logger.debug(
-            "Warmup calculation failed (%s); requesting additional history.", exc
-        )
-        working_data = cast(
-            pd.DataFrame,
-            data_handler.get_data(
-                timeframe=execution_timeframe,
-                start=None,
-                end=None,
-            ),
-        )
-        try:
-            warmup_ts, _ = _calculate(working_data)
-        except ValueError as inner_exc:
-            return _fallback(str(inner_exc))
-    try:
-        idx = working_data.index.get_indexer([warmup_ts], method="bfill")[0]
-        if idx == -1:
-            raise KeyError
-        warmup_ts = cast(pd.Timestamp, working_data.index[idx])
-    except Exception:
-        warmup_ts = cast(pd.Timestamp, working_data.index.min())
-
-    if warmup_ts < working_data.index.min():
-        raise ValueError(  # noqa: TRY301
-            "Insufficient historical data to satisfy indicator warmup. "
-            f"Warmup requires data before {warmup_ts}, but market data "
-            f"starts at {working_data.index.min()}."
-        )
-
-    trimmed = working_data.loc[warmup_ts:target_end].copy()
+    trimmed = market_data.loc[warmup_ts:target_end].copy()
     if trimmed.empty:
         raise ValueError(
             "Warmup trimming removed all market data. "

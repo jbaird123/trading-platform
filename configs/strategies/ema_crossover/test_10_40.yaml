@@ -13,7 +13,7 @@ cost_model:
     value: 0.0
 
 data_request:
-  symbol: "EUR_USD"
+  symbol: "EURUSD"
   timeframe: "1H"
   start: "2024-01-01"
   end: "2024-12-31"

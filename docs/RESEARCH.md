@@ -23,7 +23,7 @@ tool. The output is a YAML file you can run immediately.
 2) Generate a config:
    python tools/make_research_config.py \
      --strategy config/strategy/ema_crossover.yaml \
-     --symbol EUR_USD \
+     --symbol EURUSD \
      --timeframe 1H \
      --start 2023-01-01 \
      --end 2023-03-01 \

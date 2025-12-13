@@ -587,11 +587,16 @@ EQUITY_CHART_TMPL = r"""<!doctype html>
       const container = document.getElementById('chart-container');
       const rawEq = JSON.parse(document.getElementById('equity').textContent || '[]');
 
-      // Convert equity data to chart format
-      const equity = rawEq.map(([iso, v]) => ({
-        time: Math.floor(Date.parse(iso)/1000),
-        value: v
-      }));
+      // Convert equity data to chart format, deduplicating timestamps
+      // (keep last value per timestamp = final equity after all trades)
+      const timeMap = new Map();
+      rawEq.forEach(([iso, v]) => {
+        const time = Math.floor(Date.parse(iso)/1000);
+        timeMap.set(time, v);
+      });
+      const equity = Array.from(timeMap.entries())
+        .map(([time, value]) => ({time, value}))
+        .sort((a, b) => a.time - b.time);
 
       // Create chart
       const chart = LightweightCharts.createChart(container, {

@@ -38,7 +38,7 @@ def test_data_request_with_symbol_auto_populates_instrument() -> None:
         allow_flip_on_bar=False,
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
-        data_request={"symbol": "EUR_USD", "timeframe": "1H"},
+        data_request={"symbol": "EURUSD", "timeframe": "1H"},
     )
 
     # instrument should be auto-populated (symbol gets normalized to remove underscores)

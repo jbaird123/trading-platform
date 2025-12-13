@@ -1,0 +1,2 @@
+context,group_combo,model,threshold,selected_fraction,mean_r_multiple_selected,win_rate_selected,lift_mean_r_multiple,lift_win_rate,gating_expression
+5min_trend_following,calendar,gb_weighted,0.7,0.0125105256826657,1.1459437724073689,0.3557692307692308,1.1426549130237555,0.0219547233711795,alignment_full

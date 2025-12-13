@@ -71,8 +71,9 @@ class ProfitabilityClassifierModel:
                 f"{missing} missing r_multiple values."
             )
 
-        self.training_start_date_ = pd.to_datetime(df["entry_time"]).min()
-        self.training_end_date_ = pd.to_datetime(df["entry_time"]).max()
+        entry_times = pd.to_datetime(df["entry_time"], utc=True)
+        self.training_start_date_ = entry_times.min()
+        self.training_end_date_ = entry_times.max()
 
         df = drop_lower_timeframe_global_features(df, self.timeframe)
 
@@ -190,7 +191,12 @@ class ProfitabilityClassifierModel:
             df["day_of_week"] = pd.to_datetime(df["entry_time"]).dt.dayofweek
             features.extend(["hour_of_day", "day_of_week"])
 
-        return df[features].copy()
+        feature_df = df[features].copy()
+        bool_cols = feature_df.select_dtypes(include=["bool"]).columns
+        if len(bool_cols) > 0:
+            feature_df[bool_cols] = feature_df[bool_cols].astype(int)
+        numeric_df = feature_df.select_dtypes(include=["number"])
+        return numeric_df
 
     def _align_features(self, X: pd.DataFrame) -> pd.DataFrame:
         names = self._required_feature_names()

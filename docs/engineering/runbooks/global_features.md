@@ -32,6 +32,7 @@ src/trading_platform/core/global_feature_pipeline.py
    - Validates execution timeframe against supported timeframes (1min, 5min, 15min, 30min, 1h, 2h, 4h, 1d, 1w)
    - Canonicalizes timeframe aliases (e.g., "1H" → "1h", "5T" → "5min")
    - Raises `ValueError` for unsupported timeframes
+   - See [Canonical Timeframes](#canonical-timeframes) section below for complete mapping
 
 2. **Efficient Timeframe Grouping**
    - Groups features by timeframe to minimize resampling operations
@@ -84,7 +85,7 @@ features_df, metadata = build_global_feature_frame(
 from trading_platform.core.global_features_cache import build_global_feature_caches
 
 descriptor = build_global_feature_caches(
-    symbol="EUR_USD",
+    symbol="EURUSD",
     data_root=data_root,
     config_path=manifest_path,
     timeframes=["5min", "15min", "1h"],
@@ -149,7 +150,7 @@ digest = compute_manifest_digest(manifest)
 ```bash
 # Rebuild all timeframes for a symbol
 poetry run python -m trading_platform.core.global_features_cache \
-    --symbol EUR_USD \
+    --symbol EURUSD \
     --config-path configs/global_features.yaml \
     --timeframes 5min 15min 1h 4h \
     --overwrite
@@ -157,7 +158,7 @@ poetry run python -m trading_platform.core.global_features_cache \
 
 **Error Message on Digest Mismatch:**
 ```
-ValueError: Manifest digest mismatch for EUR_USD/5min.
+ValueError: Manifest digest mismatch for EURUSD/5min.
 Cache was built with digest a3f2b8c1...,
 but current manifest has digest d4e5f6a7....
 Rebuild the cache with the current manifest.
@@ -179,7 +180,7 @@ The validation script verifies that cached features match freshly recomputed fea
 ```bash
 poetry run python scripts/validate_feature_cache.py \
     --cache-dir cache/global_features \
-    --symbol EUR_USD \
+    --symbol EURUSD \
     --timeframe 5min \
     --feature-config configs/global_features.yaml \
     --data-root data
@@ -190,7 +191,7 @@ poetry run python scripts/validate_feature_cache.py \
 # Validate 1000 random timestamps instead of all
 poetry run python scripts/validate_feature_cache.py \
     --cache-dir cache/global_features \
-    --symbol EUR_USD \
+    --symbol EURUSD \
     --timeframe 5min \
     --feature-config configs/global_features.yaml \
     --data-root data \
@@ -202,7 +203,7 @@ poetry run python scripts/validate_feature_cache.py \
 # Allow up to 1e-6 numeric drift (useful for cross-platform validation)
 poetry run python scripts/validate_feature_cache.py \
     --cache-dir cache/global_features \
-    --symbol EUR_USD \
+    --symbol EURUSD \
     --timeframe 5min \
     --feature-config configs/global_features.yaml \
     --data-root data \
@@ -221,7 +222,7 @@ poetry run python scripts/validate_feature_cache.py \
 Loading feature manifest from configs/global_features.yaml
 Manifest digest: a3f2b8c1d4e5f6a7...
 
-Loading cached features for EUR_USD/5min from cache/global_features
+Loading cached features for EURUSD/5min from cache/global_features
 Loaded 14400 rows, 12 columns
 Validating 14400 rows
 
@@ -243,7 +244,7 @@ Max drift tolerance: 1e-09
 Loading feature manifest from configs/global_features.yaml
 Manifest digest: a3f2b8c1d4e5f6a7...
 
-Loading cached features for EUR_USD/5min from cache/global_features
+Loading cached features for EURUSD/5min from cache/global_features
 Loaded 14400 rows, 12 columns
 Validating 14400 rows
 
@@ -287,7 +288,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        symbol: [EUR_USD, GBP_USD, USD_JPY]
+        symbol: [EURUSD, GBPUSD, USDJPY]
         timeframe: [5min, 15min, 1h]
 
     steps:
@@ -319,6 +320,145 @@ jobs:
 - [ ] Validation passes for all symbols/timeframes
 - [ ] No digest mismatch errors in logs
 - [ ] Test coverage ≥ 100% (per `[SYS-1.10.2]`)
+
+## Canonical Timeframes
+
+### Overview
+
+The trading platform normalizes all timeframe strings and column prefixes to canonical pandas-style labels. This ensures consistency across:
+- Configuration files (`data_request.timeframe`)
+- Feature definitions (`feature.timeframe`)
+- Column names (`5min_rsi_14`, `1h_ema_20`)
+- Cache directories and metadata
+
+### Canonical Timeframe Mapping
+
+| Canonical | Legacy Aliases | Description |
+|-----------|----------------|-------------|
+| `1min`    | `m1`, `M1`, `1T` | 1-minute bars |
+| `5min`    | `m5`, `M5`, `5T` | 5-minute bars |
+| `15min`   | `m15`, `M15`, `15T` | 15-minute bars |
+| `30min`   | `m30`, `M30`, `30T` | 30-minute bars |
+| `1h`      | `h1`, `H1`, `1H` | 1-hour bars |
+| `2h`      | `h2`, `H2`, `2H` | 2-hour bars |
+| `4h`      | `h4`, `H4`, `4H` | 4-hour bars |
+| `1d`      | `d1`, `D1`, `1D` | 1-day bars |
+| `1w`      | `w1`, `W1`, `1W` | 1-week bars |
+
+**Note:** All comparisons are case-insensitive. Input like `"1H"`, `"h1"`, or `"H1"` all canonicalize to `"1h"`.
+
+### How Canonicalization is Enforced
+
+1. **Timeframe Canonicalization** (`canonicalize_timeframe()`)
+   - Defined in: `src/trading_platform/data/timeframe_aliases.py`
+   - Converts any timeframe string to canonical form
+   - Used for: config validation, data requests, feature definitions
+
+2. **Column Name Canonicalization** (`canonicalize_column_name()`)
+   - Normalizes feature column prefixes (e.g., `m5_rsi` → `5min_rsi`)
+   - Applied to: cached features, backtest contexts, reports
+   - Ensures all column names use canonical timeframe prefixes
+
+3. **Feature Manifest Validation**
+   - `GlobalFeatureSetConfig` validators enforce canonical timeframe prefixes
+   - Invalid prefixes are rejected at config load time
+   - See: `src/trading_platform/config/features.py`
+
+4. **Test Coverage**
+   - `tests/data/test_canonical_timeframes.py` ensures no legacy prefixes leak through
+   - Validates caches and contexts only expose canonical names
+
+### Usage Examples
+
+**Configuration Files:**
+```yaml
+# config/strategies/ema_crossover/backtest.yaml
+data_request:
+  symbol: "EURUSD"
+  timeframe: "1h"  # Use canonical form
+  start: "2023-01-01"
+  end: "2023-12-31"
+
+# NOT: timeframe: "1H" or "h1" (though these work, prefer canonical)
+```
+
+**Feature Definitions:**
+```yaml
+# config/features/global.yaml
+features:
+  - name: "5min_ema_20"      # Canonical prefix
+    type: "EMA"
+    timeframe: "5min"        # Canonical timeframe
+    params:
+      length: 20
+
+  # NOT: "m5_ema_20" or "M5_ema_20"
+```
+
+**Python Code:**
+```python
+from trading_platform.data.timeframe_aliases import (
+    canonicalize_timeframe,
+    canonicalize_column_name
+)
+
+# Timeframe canonicalization
+assert canonicalize_timeframe("1H") == "1h"
+assert canonicalize_timeframe("m5") == "5min"
+assert canonicalize_timeframe("D1") == "1d"
+
+# Column name canonicalization
+assert canonicalize_column_name("m5_rsi_14") == "5min_rsi_14"
+assert canonicalize_column_name("h1_ema_20") == "1h_ema_20"
+```
+
+### Adding New Timeframes
+
+If you need to add support for a new timeframe (e.g., `10min`):
+
+1. **Add to Timeframe Aliases:**
+   ```python
+   # src/trading_platform/data/timeframe_aliases.py
+   TIMEFRAME_PREFIX_RENAMES: OrderedDict[str, str] = OrderedDict([
+       # ... existing entries ...
+       ("m10", "10min"),  # Add new alias
+   ])
+   ```
+
+2. **Update Timeframe Ranking:**
+   ```python
+   # src/trading_platform/data/timeframe_utils.py
+   TIMEFRAME_RANKS = {
+       "1min": 1,
+       "5min": 5,
+       "10min": 10,  # Add to ranking
+       "15min": 15,
+       # ... rest ...
+   }
+   ```
+
+3. **Update Feature Config Validators:**
+   ```python
+   # src/trading_platform/config/features.py
+   # Add "10min" to allowed timeframe list in validators
+   ```
+
+4. **Add Test Coverage:**
+   - Update `tests/data/test_canonical_timeframes.py`
+   - Verify canonicalization works for new timeframe
+
+### Rationale
+
+**Why normalize timeframe labels?**
+
+1. **Consistency**: Prevents bugs from mixing `"1H"` and `"1h"` in different parts of codebase
+2. **Readability**: Pandas-style labels (`5min`, `1h`) are more intuitive than legacy (`m5`, `h1`)
+3. **Cache Keys**: Canonical names ensure cache directories are predictable
+4. **Feature Matching**: ML models and validators can rely on consistent column names
+
+**Why pandas-style?**
+
+Pandas uses labels like `"5min"`, `"1h"`, `"1d"` in its frequency strings, making them familiar to Python users and compatible with pandas resample operations.
 
 ## Troubleshooting
 
@@ -352,7 +492,7 @@ print(compute_manifest_digest(manifest))
 # 2. Validate with verbose output
 poetry run python scripts/validate_feature_cache.py \
     --cache-dir cache/global_features \
-    --symbol EUR_USD \
+    --symbol EURUSD \
     --timeframe 5min \
     --feature-config configs/global_features.yaml \
     --data-root data \
@@ -360,7 +500,7 @@ poetry run python scripts/validate_feature_cache.py \
 
 # 3. Rebuild cache and retry
 poetry run python -m trading_platform.core.global_features_cache \
-    --symbol EUR_USD \
+    --symbol EURUSD \
     --config-path configs/global_features.yaml \
     --timeframes 5min \
     --overwrite
@@ -368,7 +508,7 @@ poetry run python -m trading_platform.core.global_features_cache \
 
 ### Cache Loading Fails
 
-**Error:** `ValueError: No cache found for EUR_USD/5min`
+**Error:** `ValueError: No cache found for EURUSD/5min`
 
 **Solution:**
 1. Verify cache directory exists: `ls cache/global_features/eurusd/`

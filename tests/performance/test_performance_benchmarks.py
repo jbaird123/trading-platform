@@ -14,7 +14,7 @@ from datetime import datetime
 
 import pandas as pd
 import pytest
-from trading_platform.backtester import run_backtest
+from trading_platform.backtester._testing import run_backtest_with_synthetic_data
 from trading_platform.core.config import RunConfig
 from trading_platform.strategy.features import compute_features
 
@@ -108,7 +108,7 @@ def test_sys_1_9_1_batch_io_performance():
     """
     # Generate 2 years of minute data (~1M bars)
     periods = 1_051_200  # 2 years
-    index = pd.date_range("2022-01-01", periods=periods, freq="1min")
+    index = pd.date_range("2022-01-01", periods=periods, freq="1min", tz="UTC")
 
     close = 100.0 + (pd.Series(range(periods)) * 0.01 % 10)
     df = pd.DataFrame(
@@ -180,6 +180,8 @@ def test_sys_1_9_2_multi_year_backtest_performance():
     )
 
     # Simple EMA crossover strategy config
+    # Trading starts after warmup period (EMA slow length is 26)
+    trading_start = start + pd.Timedelta(minutes=30)
     config = RunConfig(
         user_id="test_user",
         run_seed=42,
@@ -188,24 +190,37 @@ def test_sys_1_9_2_multi_year_backtest_performance():
         allow_flip_on_bar=False,
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
-        data_request={"symbol": "EURUSD", "timeframe": "1min"},
+        data_request={
+            "symbol": "EURUSD",
+            "timeframe": "1min",
+            "start": trading_start.isoformat(),
+        },
         initial_cash=100000,
         entry_window_bars=0,
     )
 
-    # Benchmark backtest execution
+    # Load strategy config
+    from pathlib import Path
+
+    import yaml
+
+    strategy_path = Path("config/strategy/ema_crossover.yaml")
+    with open(strategy_path) as f:
+        strategy_config = yaml.safe_load(f)
+
+    # Benchmark backtest execution using synthetic data
     start_time = time.time()
-    result = run_backtest(
+    result = run_backtest_with_synthetic_data(
         config=config,
         market_data=df,
-        strategy_path="config/strategy/ema_crossover.yaml",
+        strategy_config=strategy_config,
     )
     elapsed = time.time() - start_time
 
-    # Verify backtest completed
+    # Verify backtest completed (result is now BacktestResult dataclass)
     assert result is not None
-    assert "trades" in result
-    assert "equity_curve" in result
+    assert hasattr(result, "trades")
+    assert hasattr(result, "equity_curve")
 
     # Performance target: Process 200K bars in under 30 seconds
     # (scales to ~1M bars in 150 seconds on laptop)
@@ -243,7 +258,7 @@ def test_sys_1_9_2_memory_efficiency():
 
     # Generate 500K bars
     periods = 500_000
-    index = pd.date_range("2020-01-01", periods=periods, freq="1min")
+    index = pd.date_range("2020-01-01", periods=periods, freq="1min", tz="UTC")
     close = 1.1000 + (pd.Series(range(periods)) * 0.0001 % 0.01)
 
     df = pd.DataFrame(
@@ -284,7 +299,7 @@ def test_indicator_computation_speed():
     """
     # 100K bars dataset
     periods = 100_000
-    index = pd.date_range("2023-01-01", periods=periods, freq="1min")
+    index = pd.date_range("2023-01-01", periods=periods, freq="1min", tz="UTC")
     close = 1.1000 + (pd.Series(range(periods)) * 0.0001 % 0.01)
 
     df = pd.DataFrame(
@@ -338,7 +353,8 @@ def test_backtest_execution_time_1m_bars():
     """
     # Generate 1M bars
     periods = 50_000  # Reduced for CI, represents 1M bar performance
-    index = pd.date_range("2020-01-01", periods=periods, freq="5min")
+    start = pd.Timestamp("2020-01-01", tz="UTC")
+    index = pd.date_range(start, periods=periods, freq="5min", tz="UTC")
 
     close = 100.0 + (pd.Series(range(periods), index=index) * 0.01 % 10)
     df = pd.DataFrame(
@@ -352,6 +368,8 @@ def test_backtest_execution_time_1m_bars():
         index=index,
     )
 
+    # Trading starts after warmup period (EMA slow length is 26)
+    trading_start = start + pd.Timedelta(minutes=150)  # 30 bars at 5min
     config = RunConfig(
         user_id="test_user",
         run_seed=42,
@@ -360,16 +378,29 @@ def test_backtest_execution_time_1m_bars():
         allow_flip_on_bar=False,
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
-        data_request={"symbol": "EURUSD", "timeframe": "5min"},
+        data_request={
+            "symbol": "EURUSD",
+            "timeframe": "5min",
+            "start": trading_start.isoformat(),
+        },
         initial_cash=100000,
         entry_window_bars=0,
     )
 
+    # Load strategy config
+    from pathlib import Path
+
+    import yaml
+
+    strategy_path_file = Path("config/strategy/ema_crossover.yaml")
+    with open(strategy_path_file) as f:
+        strategy_config = yaml.safe_load(f)
+
     start_time = time.time()
-    result = run_backtest(
-        config,
+    result = run_backtest_with_synthetic_data(
+        config=config,
         market_data=df,
-        strategy_path="config/strategy/ema_crossover.yaml",
+        strategy_config=strategy_config,
     )
     elapsed = time.time() - start_time
 
@@ -415,7 +446,7 @@ def test_memory_usage_profiling():
 
     # Generate data
     periods = 100_000
-    index = pd.date_range("2023-01-01", periods=periods, freq="1min")
+    index = pd.date_range("2023-01-01", periods=periods, freq="1min", tz="UTC")
     close = 1.1 + (pd.Series(range(periods)) * 0.0001 % 0.01)
     df = pd.DataFrame(
         {

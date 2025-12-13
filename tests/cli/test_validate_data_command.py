@@ -27,7 +27,7 @@ def test_validate_data_prints_summary(
     data_dir.mkdir()
 
     # Create valid parquet file
-    valid_file = data_dir / "EUR_USD_1H.parquet"
+    valid_file = data_dir / "EURUSD_1H.parquet"
     df_valid = pd.DataFrame(
         {
             "timestamp": pd.date_range("2020-01-01", periods=100, freq="h"),
@@ -41,7 +41,7 @@ def test_validate_data_prints_summary(
     df_valid.to_parquet(valid_file)
 
     # Create file with gaps (24+ hour gap)
-    gap_file = data_dir / "GBP_USD_1H.parquet"
+    gap_file = data_dir / "GBPUSD_1H.parquet"
     timestamps_with_gap = list(pd.date_range("2020-01-01", periods=50, freq="h"))
     timestamps_with_gap.extend(pd.date_range("2020-01-05", periods=50, freq="h"))
     df_gap = pd.DataFrame(
@@ -76,7 +76,7 @@ def test_validate_data_returns_nonzero_if_issues_found(tmp_path: Path) -> None:
     data_dir.mkdir()
 
     # Create file with gaps
-    gap_file = data_dir / "EUR_USD_1H.parquet"
+    gap_file = data_dir / "EURUSD_1H.parquet"
     timestamps_with_gap = list(pd.date_range("2020-01-01", periods=50, freq="h"))
     # Add a 3-day gap
     timestamps_with_gap.extend(pd.date_range("2020-01-05", periods=50, freq="h"))

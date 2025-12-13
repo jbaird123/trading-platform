@@ -27,8 +27,6 @@ from trading_platform.core.global_features_cache import (
     load_cached_global_features,
 )
 from trading_platform.data.handler import DataHandler
-from trading_platform.data.resample import timeframe_to_timedelta
-from trading_platform.data.timeframe_aliases import canonicalize_timeframe
 
 
 def parse_args() -> argparse.Namespace:
@@ -43,7 +41,7 @@ def parse_args() -> argparse.Namespace:
         help="Root directory of the global feature cache",
     )
     parser.add_argument(
-        "--symbol", type=str, required=True, help="Symbol to validate (e.g., EUR_USD)"
+        "--symbol", type=str, required=True, help="Symbol to validate (e.g., EURUSD)"
     )
     parser.add_argument(
         "--timeframe",
@@ -135,9 +133,13 @@ def main() -> None:
     except ValueError as e:
         print(f"ERROR: Failed to load cache: {e}")
         sys.exit(1)
+    except FileNotFoundError as e:
+        print(f"ERROR: {e}")
+        sys.exit(1)
 
     if cache_result is None:
         print(f"ERROR: No cache found for {args.symbol}/{args.timeframe}")
+        print(f"Searched cache root: {args.cache_dir}")
         sys.exit(1)
 
     cached_df, feature_mapping = cache_result
@@ -183,6 +185,28 @@ def main() -> None:
 
     print(f"Loaded {len(market_data)} rows of market data at {args.timeframe}")
 
+    # The DataHandler already returns bar-close aligned data with
+    # ALIGNED_TO_CLOSE_ATTR=True. No shift needed - would cause double-shift.
+    from trading_platform.data.session_metadata import (
+        ALIGNED_TO_CLOSE_ATTR,
+        SESSION_ATTR,
+    )
+
+    # Verify data is already bar-close aligned (DataHandler guarantees this)
+    if not market_data.attrs.get(ALIGNED_TO_CLOSE_ATTR, False):
+        # Fallback: shift to bar-close if not already aligned (should not happen)
+        from trading_platform.data.bar_windows import compute_bar_close_index
+
+        session = market_data.attrs.get(SESSION_ATTR)
+        close_index = compute_bar_close_index(
+            market_data.index, args.timeframe, session
+        )
+        market_data = market_data.copy()
+        market_data.index = close_index
+        if session is not None:
+            market_data.attrs[SESSION_ATTR] = session
+        market_data.attrs[ALIGNED_TO_CLOSE_ATTR] = True
+
     # Recompute features using canonical pipeline (same as cache builder)
     try:
         from trading_platform.core.global_feature_pipeline import (
@@ -206,24 +230,8 @@ def main() -> None:
 
     valid_start_map: dict[str, pd.Timestamp] = cached_df.attrs.get("valid_start", {})
 
-    # Align recomputed data to cached timestamps (each column uses its own timeframe)
-    shifted_columns: dict[str, pd.Series] = {}
-    for col in recomputed_df.columns:
-        prefix = col.split("_", 1)[0]
-        column_timeframe = canonicalize_timeframe(prefix) or args.timeframe
-        try:
-            delta = timeframe_to_timedelta(column_timeframe)
-        except ValueError:
-            delta = timeframe_to_timedelta(args.timeframe)
-        series = recomputed_df[col].copy()
-        series.index = series.index + delta
-        shifted_columns[col] = series
-
-    recomputed_shifted = (
-        pd.DataFrame(shifted_columns) if shifted_columns else pd.DataFrame()
-    )
-
-    recomputed_subset = recomputed_shifted.reindex(validation_df.index, method="ffill")
+    # Align recomputed data to cached timestamps
+    recomputed_subset = recomputed_df.reindex(validation_df.index, method="ffill")
     validation_subset = validation_df
 
     for col in validation_subset.columns:
@@ -259,9 +267,11 @@ def main() -> None:
             )
 
             # Show first few mismatches for debugging
+            # Get the filtered index (timestamps where valid_mask is True)
+            filtered_index = validation_subset.index[valid_mask]
             mismatch_indices = np.where(~close_mask)[0][:3]
             for idx in mismatch_indices:
-                timestamp = validation_subset.index[idx]
+                timestamp = filtered_index[idx]
                 cached_val = cached_values[idx]
                 recomputed_val = recomputed_values[idx]
                 diff = abs(cached_val - recomputed_val)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
+from time import perf_counter
 from typing import Any, cast
 
 import pandas as pd
@@ -14,10 +15,17 @@ from trading_platform.backtester.portfolio_manager import PortfolioManager
 from trading_platform.backtester.post_exit import (
     enrich_trades_with_post_exit_analysis,
 )
+from trading_platform.backtester.profiler import PerformanceProfiler
 from trading_platform.backtester.risk import RiskExitAdapter
 from trading_platform.core.config import RunConfig
 from trading_platform.core.policy import TradingWindowPolicy
 from trading_platform.core.signal import Signal
+from trading_platform.data.bar_windows import compute_bar_close_index
+from trading_platform.data.resample import timeframe_to_timedelta
+from trading_platform.data.session_metadata import (
+    ALIGNED_TO_CLOSE_ATTR,
+    SESSION_ATTR,
+)
 from trading_platform.portfolio.trade import Trade
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy, compile_strategy
@@ -30,6 +38,7 @@ class BacktestResult:
     trades: list[Trade]
     equity_curve: list[tuple[datetime, float]]
     skipped: list[dict[str, Any]]
+    profiler: PerformanceProfiler | None = None
 
 
 def _infer_minutes(index: pd.Index) -> int | None:
@@ -65,8 +74,8 @@ def _build_bar_payload(
     row: pd.Series,
     fallback_open_delta: timedelta | None,
 ) -> dict[str, Any]:
-    open_time = row.get("open_time")
-    close_time = row.get("close_time")
+    open_time = row.get("bar_open", row.get("open_time"))
+    close_time = row.get("bar_close", row.get("close_time"))
     if open_time is None:
         open_time = timestamp
     if close_time is None:
@@ -75,8 +84,8 @@ def _build_bar_payload(
         else:
             close_time = timestamp
     payload = {
-        "open_time": open_time,
-        "close_time": close_time,
+        "open_time": pd.to_datetime(open_time).to_pydatetime(),
+        "close_time": pd.to_datetime(close_time).to_pydatetime(),
         "open": float(row.get("open", row.get("close", 0.0))),
         "high": float(row.get("high", row.get("close", 0.0))),
         "low": float(row.get("low", row.get("close", 0.0))),
@@ -99,13 +108,51 @@ def run_event_loop_backtest(
     global_feature_df: pd.DataFrame | None = None,
     rmm_context: dict[datetime, dict[str, Any]] | None = None,
     rem_instance: RiskExitManager | None = None,
+    profiler: PerformanceProfiler | None = None,
 ) -> BacktestResult:
+    # Enforce that this function is only called from authorized entry points
+    import inspect
+
+    caller_frame = inspect.stack()[1]
+    caller_file = caller_frame.filename
+
+    allowed_callers = [
+        "backtester/__init__.py",
+        "backtester/_testing.py",
+    ]
+
+    if not any(allowed in caller_file for allowed in allowed_callers):
+        raise RuntimeError(
+            "run_event_loop_backtest() cannot be called directly. "
+            "Use run_backtest() from trading_platform.backtester for production, "
+            "or run_backtest_with_synthetic_data() from "
+            "trading_platform.backtester._testing for tests with synthetic data."
+        )
+
+    # Normalize market data to tz-aware UTC
+    md_idx = market_data.index
+    if isinstance(md_idx, pd.DatetimeIndex) and md_idx.tz is None:
+        market_data = market_data.copy()
+        market_data.index = md_idx.tz_localize("UTC")
+
+    # Normalize RMM context keys to tz-aware UTC
+    if rmm_context:
+        rmm_context = {
+            pd.to_datetime(ts, utc=True): ctx for ts, ctx in rmm_context.items()
+        }
+
+    # Initialize profiler if not provided
+    if profiler is None:
+        profiler = PerformanceProfiler()
+
     if config.execution_model not in {"next_bar_open", "current_bar_close"}:
         logger.warning(
             "Unsupported execution_model '%s'; proceeding with next_bar_open semantics",
             config.execution_model,
         )
 
+    # Stage 1: Compile strategy
+    t_compile_start = perf_counter()
     if compiled_strategy is None:
         if strategy_config is None:
             raise ValueError(
@@ -114,27 +161,65 @@ def run_event_loop_backtest(
         strategy = compile_strategy(strategy_config)
     else:
         strategy = compiled_strategy
+    t_compile_ms = (perf_counter() - t_compile_start) * 1000
 
+    # Stage 1.5: Align market data to explicit bar_open/bar_close
+    tf_str = (
+        (config.instrument or {}).get("timeframe")
+        or f"{_infer_minutes(market_data.index)}min"
+        if _infer_minutes(market_data.index)
+        else "1h"
+    )
+    tf_delta = timeframe_to_timedelta(tf_str)
+    session = market_data.attrs.get(SESSION_ATTR)
+    has_bar_times = {"bar_open", "bar_close"}.issubset(market_data.columns)
+    if has_bar_times:
+        bar_open = pd.DatetimeIndex(pd.to_datetime(market_data["bar_open"], utc=True))
+        bar_close = pd.DatetimeIndex(pd.to_datetime(market_data["bar_close"], utc=True))
+    else:
+        aligned_to_close = bool(market_data.attrs.get(ALIGNED_TO_CLOSE_ATTR, False))
+        base_index = pd.DatetimeIndex(market_data.index)
+        if aligned_to_close:
+            bar_close = base_index
+            bar_open = base_index - tf_delta
+        else:
+            bar_open = base_index
+            bar_close = compute_bar_close_index(bar_open, tf_str, session=session)
+    close_aligned = market_data.copy()
+    close_aligned.index = bar_close
+    close_aligned["open_time"] = bar_open
+    close_aligned["close_time"] = bar_close
+    close_aligned["bar_open"] = bar_open
+    close_aligned["bar_close"] = bar_close
+    if session is not None:
+        close_aligned.attrs[SESSION_ATTR] = session
+    close_aligned.attrs[ALIGNED_TO_CLOSE_ATTR] = True
+
+    # Stage 2: Generate/process signals
+    t_signals_start = perf_counter()
     if precomputed_signals is not None:
         if isinstance(precomputed_signals, pd.Series):
             signals = precomputed_signals
-            if not signals.index.equals(market_data.index):
-                signals = signals.reindex(market_data.index, method="ffill")
+            if not signals.index.equals(close_aligned.index):
+                signals = signals.reindex(close_aligned.index, method="ffill")
             else:
                 signals = signals.copy()
         else:
             raw_signals = list(precomputed_signals)
             signals = pd.Series(
-                raw_signals, index=market_data.index[: len(raw_signals)]
+                raw_signals, index=close_aligned.index[: len(raw_signals)]
             )
-            signals = signals.reindex(market_data.index, method="ffill")
+            signals = signals.reindex(close_aligned.index, method="ffill")
     else:
-        signals = strategy.generate_signals(market_data)
-        if len(signals) != len(market_data):
-            signals = signals.reindex(market_data.index, method="ffill")
+        signals = strategy.generate_signals(close_aligned)
+        if len(signals) != len(close_aligned):
+            signals = signals.reindex(close_aligned.index, method="ffill")
+    t_signals_ms = (perf_counter() - t_signals_start) * 1000
 
+    # Stage 3: Prepare features
+    t_features_start = perf_counter()
     aligned_global_features = (
-        global_feature_df.reindex(market_data.index)
+        global_feature_df.reindex(close_aligned.index)
         if global_feature_df is not None
         else None
     )
@@ -145,42 +230,19 @@ def run_event_loop_backtest(
         else getattr(strategy, "_feature_df", None)
     )
     if isinstance(strategy_feature_df, pd.DataFrame):
-        strategy_feature_df = strategy_feature_df.reindex(market_data.index)
+        strategy_feature_df = strategy_feature_df.reindex(close_aligned.index)
 
-    # Enforce warmup: strategy feature NaNs allowed only during warmup
-    feature_cols = []
-    if isinstance(strategy_feature_df, pd.DataFrame):
-        feature_cols = [
-            col for col in strategy_feature_df.columns if col not in market_data.columns
-        ]
-    warmup_start = 0
-    if feature_cols and isinstance(strategy_feature_df, pd.DataFrame):
-        first_valid_positions: list[int] = []
-        for col in feature_cols:
-            valid_series = strategy_feature_df[col].first_valid_index()
-            if valid_series is None:
-                raise ValueError(f"Strategy feature '{col}' is NaN")
-            first_valid_positions.append(
-                cast(int, strategy_feature_df.index.get_loc(valid_series))
-            )
-        warmup_start = max(first_valid_positions)
-        remaining_nan = [
-            col
-            for col in feature_cols
-            if strategy_feature_df[col].iloc[warmup_start:].isna().any()
-        ]
-        if remaining_nan:
-            raise ValueError(
-                f"Strategy features contain NaNs: {', '.join(sorted(remaining_nan))}"
-            )
+    t_features_ms = (perf_counter() - t_features_start) * 1000
 
+    # Stage 4: Setup components (REM, portfolio, event loop, policies)
+    t_setup_start = perf_counter()
     instrument_dict = config.instrument or {}
     rem = rem_instance or RiskExitManager(
         config=config.rem_config or {},
         instrument=instrument_dict if instrument_dict else None,
         exit_tie_break=config.exit_tie_break,
     )
-    execution_minutes = _infer_minutes(market_data.index)
+    execution_minutes = _infer_minutes(close_aligned.index)
     bar_delta = (
         timedelta(minutes=execution_minutes) if execution_minutes is not None else None
     )
@@ -206,6 +268,7 @@ def run_event_loop_backtest(
         blackout_utc=config.blackout_utc or [],
         blackout_events=config.blackout_events or [],
     )
+    t_setup_ms = (perf_counter() - t_setup_start) * 1000
 
     def _extract_take_profit(side: str) -> dict[str, Any] | None:
         """Extract the first take-profit block for the given side."""
@@ -313,7 +376,58 @@ def run_event_loop_backtest(
     )
     skipped: list[dict[str, Any]] = []
 
-    feature_view = market_data
+    def has_open(side: str) -> bool:
+        return any(
+            view.decision.side == side for view in portfolio.active_position_views()
+        )
+
+    prior_bar = None
+
+    def _entry_risk_fields(
+        side: str,
+        entry_price: float,
+        bar_series: pd.Series,
+        signal_context: dict[str, Any],
+        prior_bar_series: pd.Series | None,
+    ) -> dict[str, Any]:
+        risk_fields: dict[str, Any] = {"entry_price": entry_price}
+        if rem is None:
+            return risk_fields
+        # For initial stop, use signal bar (bar_series) as the "prior bar" because
+        # we want the stop based on the bar where the signal occurred. The context
+        # contains features (ATR, etc.) from the signal bar, so we need close from
+        # the same bar for consistency. Trailing updates use the actual prior bar.
+        stop_price = rem.calculate_initial_stop_price(
+            entry_price=entry_price,
+            side=side,
+            entry_bar=bar_series,
+            signal_context=signal_context,
+            prior_bar=bar_series,  # Use signal bar, not prior bar
+        )
+        take_profit = rem.calculate_initial_take_profit_price(
+            entry_price=entry_price,
+            side=side,
+            entry_bar=bar_series,
+            signal_context=signal_context,
+            prior_bar=bar_series,  # Use signal bar, not prior bar
+        )
+        if stop_price is not None:
+            risk_fields["entry_stop_loss"] = stop_price
+            risk_fields["initial_risk_ccy"] = abs(
+                entry_price - float(stop_price)
+            ) * float(config.position_size)
+        if take_profit is not None:
+            risk_fields["entry_take_profit"] = take_profit
+        return risk_fields
+
+    debug_counts = {"enter_long": 0, "enter_short": 0, "exit_long": 0, "exit_short": 0}
+    pending_intents: list[ExecutionIntent] = []
+    pending_entries: list[dict[str, Any]] = []
+    exposure_curve: list[tuple[datetime, float]] = []
+    cf_mode = getattr(config, "counterfactual_mode", "fast") or "fast"
+
+    # Stage 4.5: Use aligned view with explicit bar timing
+    feature_view = close_aligned
     if isinstance(strategy_feature_df, pd.DataFrame):
         strat_cols = [
             col
@@ -334,21 +448,70 @@ def run_event_loop_backtest(
             aligned_subset = aligned_global_features[feature_cols]
             feature_view = feature_view.join(aligned_subset, how="left")
 
-    def has_open(side: str) -> bool:
-        return any(
-            view.decision.side == side for view in portfolio.active_position_views()
-        )
+    # Stage 5: Main event loop
+    t_loop_start = perf_counter()
 
-    debug_counts = {"enter_long": 0, "enter_short": 0, "exit_long": 0, "exit_short": 0}
-    pending_intents: list[ExecutionIntent] = []
-    pending_entries: list[dict[str, Any]] = []
-    exposure_curve: list[tuple[datetime, float]] = []
-    cf_mode = getattr(config, "counterfactual_mode", "fast") or "fast"
-    for idx, (timestamp, row) in enumerate(feature_view.iterrows()):
+    # Determine trading window start from config.data_request
+    data_request = getattr(config, "data_request", None) or {}
+    trading_start_val = data_request.get("start")
+    trading_start_idx = 0  # Default to beginning if no start specified
+    if trading_start_val is not None:
+        trading_start_ts = pd.to_datetime(trading_start_val, utc=True)
+        # Find the index position of the trading window start
+        idx_positions = feature_view.index.get_indexer(
+            [trading_start_ts], method="bfill"
+        )
+        if idx_positions[0] >= 0:
+            trading_start_idx = idx_positions[0]
+
+    # Validate no NaNs in strategy feature columns within the trading window
+    # (Global features are already validated in _compute_global_features)
+    base_market_cols = {
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "open_time",
+        "close_time",
+        "bar_open",
+        "bar_close",
+    }
+    # Only check strategy features (global validated in _compute_global_features)
+    global_feature_cols = (
+        set(aligned_global_features.columns)
+        if aligned_global_features is not None
+        else set()
+    )
+    feature_cols_to_check = [
+        col
+        for col in feature_view.columns
+        if col not in base_market_cols and col not in global_feature_cols
+    ]
+    if feature_cols_to_check:
+        trading_window = feature_view.iloc[trading_start_idx:]
+        nan_cols = [
+            col for col in feature_cols_to_check if trading_window[col].isna().any()
+        ]
+        if nan_cols:
+            raise ValueError(
+                f"Features contain NaNs: {', '.join(sorted(nan_cols))}. "
+                "Ensure all features are fully populated before the backtest starts."
+            )
+
+    # Start loop at trading window start
+    bars_processed = len(feature_view) - trading_start_idx
+    # Initialize prior_bar so indicator-based stops can compute on first entry
+    if trading_start_idx > 0:
+        prior_bar = feature_view.iloc[trading_start_idx - 1]
+    for i in range(trading_start_idx, len(feature_view)):
+        row = feature_view.iloc[i]
+        timestamp = feature_view.index[i]
         if isinstance(timestamp, pd.Timestamp):
             bar_timestamp: datetime = timestamp.to_pydatetime()
         else:
             bar_timestamp = cast(datetime, timestamp)
+        close_price = float(row.get("close", 0.0))
         bar_payload = _build_bar_payload(bar_timestamp, row, bar_delta)
         # Process pending entries (e.g., RMM blocked earlier) before new signals
         updated_pending: list[dict[str, Any]] = []
@@ -357,7 +520,7 @@ def run_event_loop_backtest(
             expiry = pending["expiry"]
             origin_idx = pending["origin_index"]
             intent = pending["intent"]
-            if idx > expiry:
+            if i > expiry:
                 continue
             if _blackout_blocked(bar_timestamp):
                 skip_entry = {
@@ -379,12 +542,10 @@ def run_event_loop_backtest(
                     },
                     "notes": None,
                     "entry_index": origin_idx,
-                    "entry_price": float(row.get("close", 0.0)),
+                    "entry_price": close_price,
                 }
                 skip_entry.update(
-                    _counterfactual_from_rules(
-                        side, float(row.get("close", 0.0)), bar_timestamp
-                    )
+                    _counterfactual_from_rules(side, close_price, bar_timestamp)
                 )
                 skipped.append(skip_entry)
                 updated_pending.append(pending)
@@ -408,12 +569,10 @@ def run_event_loop_backtest(
                     else {},
                     "notes": None,
                     "entry_index": origin_idx,
-                    "entry_price": float(row.get("close", 0.0)),
+                    "entry_price": close_price,
                 }
                 skip_entry.update(
-                    _counterfactual_from_rules(
-                        side, float(row.get("close", 0.0)), bar_timestamp
-                    )
+                    _counterfactual_from_rules(side, close_price, bar_timestamp)
                 )
                 skipped.append(skip_entry)
                 updated_pending.append(pending)
@@ -427,34 +586,36 @@ def run_event_loop_backtest(
         if pending_intents and logger.isEnabledFor(logging.DEBUG):
             logger.debug(
                 "bar %s processing %s pending intents",
-                idx,
+                i,
                 len(pending_intents),
             )
         event_loop.on_bar(bar_payload, intents=pending_intents)
         pending_intents = []
 
-        signal_obj = signals.iloc[idx] if idx < len(signals) else None
-        command, context = _merge_strategy_context(strategy, idx, signal_obj)
+        signal_obj = signals.iloc[i] if i < len(signals) else None
+        command, context = _merge_strategy_context(strategy, i, signal_obj)
         if command in debug_counts:
             debug_counts[command] += 1
-        if logger.isEnabledFor(logging.DEBUG) and (idx < 20 or 90 <= idx <= 110):
+        if logger.isEnabledFor(logging.DEBUG) and (i < 20 or 90 <= i <= 110):
             logger.debug(
                 "bar %s command=%s has_open_long=%s has_open_short=%s",
-                idx,
+                i,
                 command,
                 has_open("long"),
                 has_open("short"),
             )
         intents: list[ExecutionIntent] = []
 
-        def build_snapshot(side: str) -> ExecutionIntent:
-            risk_fields = {"entry_price": float(row.get("close", 0.0))}
+        def build_snapshot(
+            side: str, risk_fields: dict[str, Any] | None = None
+        ) -> ExecutionIntent:
+            risk_fields = risk_fields or {"entry_price": close_price}
             snapshot = snapshot_factory.create(
                 timestamp=bar_timestamp,
-                price=float(row.get("close", 0.0)),
+                price=close_price,
                 side=side,
                 size=float(config.position_size),
-                bar_index=idx,
+                bar_index=i,
                 strategy_context=context or {},
                 extra_fields={"risk": risk_fields},
             )
@@ -467,10 +628,10 @@ def run_event_loop_backtest(
         def build_exit_snapshot(side: str) -> ExecutionIntent:
             snapshot = snapshot_factory.create(
                 timestamp=bar_timestamp,
-                price=float(row.get("close", 0.0)),
+                price=close_price,
                 side=side,
                 size=float(config.position_size),
-                bar_index=idx,
+                bar_index=i,
                 strategy_context=context or {},
                 extra_fields={"risk": {"exit_command": command}},
             )
@@ -481,6 +642,9 @@ def run_event_loop_backtest(
             )
 
         if command == "enter_long":
+            risk_fields_long = _entry_risk_fields(
+                "long", close_price, row, context or {}, prior_bar
+            )
             if _blackout_blocked(bar_timestamp):
                 skip_entry = {
                     "entry_time": bar_timestamp.isoformat(),
@@ -500,13 +664,11 @@ def run_event_loop_backtest(
                         "blackout_events": config.blackout_events or [],
                     },
                     "notes": None,
-                    "entry_index": idx,
-                    "entry_price": float(row.get("close", 0.0)),
+                    "entry_index": i,
+                    "entry_price": close_price,
                 }
                 skip_entry.update(
-                    _counterfactual_from_rules(
-                        "long", float(row.get("close", 0.0)), bar_timestamp
-                    )
+                    _counterfactual_from_rules("long", close_price, bar_timestamp)
                 )
                 skipped.append(skip_entry)
                 continue
@@ -528,22 +690,20 @@ def run_event_loop_backtest(
                     if rmm_context
                     else {},
                     "notes": None,
-                    "entry_index": idx,
-                    "entry_price": float(row.get("close", 0.0)),
+                    "entry_index": i,
+                    "entry_price": close_price,
                 }
                 skip_entry.update(
-                    _counterfactual_from_rules(
-                        "long", float(row.get("close", 0.0)), bar_timestamp
-                    )
+                    _counterfactual_from_rules("long", close_price, bar_timestamp)
                 )
                 skipped.append(skip_entry)
-                expiry_idx = idx + max(0, int(config.entry_window_bars or 0))
+                expiry_idx = i + max(0, int(config.entry_window_bars or 0))
                 pending_entries.append(
                     {
                         "side": "long",
-                        "intent": build_snapshot("long"),
+                        "intent": build_snapshot("long", risk_fields_long),
                         "expiry": expiry_idx,
-                        "origin_index": idx,
+                        "origin_index": i,
                     }
                 )
             else:
@@ -552,11 +712,14 @@ def run_event_loop_backtest(
                 if has_open("short"):
                     logger.debug(
                         "Enqueue exit_short before enter_long at idx %s",
-                        idx,
+                        i,
                     )
                     intents.append(build_exit_snapshot("short"))
-                intents.append(build_snapshot("long"))
+                intents.append(build_snapshot("long", risk_fields_long))
         elif command == "enter_short":
+            risk_fields_short = _entry_risk_fields(
+                "short", close_price, row, context or {}, prior_bar
+            )
             if _blackout_blocked(bar_timestamp):
                 skip_entry = {
                     "entry_time": bar_timestamp.isoformat(),
@@ -576,13 +739,11 @@ def run_event_loop_backtest(
                         "blackout_events": config.blackout_events or [],
                     },
                     "notes": None,
-                    "entry_index": idx,
-                    "entry_price": float(row.get("close", 0.0)),
+                    "entry_index": i,
+                    "entry_price": close_price,
                 }
                 skip_entry.update(
-                    _counterfactual_from_rules(
-                        "short", float(row.get("close", 0.0)), bar_timestamp
-                    )
+                    _counterfactual_from_rules("short", close_price, bar_timestamp)
                 )
                 skipped.append(skip_entry)
                 continue
@@ -604,22 +765,20 @@ def run_event_loop_backtest(
                     if rmm_context
                     else {},
                     "notes": None,
-                    "entry_index": idx,
-                    "entry_price": float(row.get("close", 0.0)),
+                    "entry_index": i,
+                    "entry_price": close_price,
                 }
                 skip_entry.update(
-                    _counterfactual_from_rules(
-                        "short", float(row.get("close", 0.0)), bar_timestamp
-                    )
+                    _counterfactual_from_rules("short", close_price, bar_timestamp)
                 )
                 skipped.append(skip_entry)
-                expiry_idx = idx + max(0, int(config.entry_window_bars or 0))
+                expiry_idx = i + max(0, int(config.entry_window_bars or 0))
                 pending_entries.append(
                     {
                         "side": "short",
-                        "intent": build_snapshot("short"),
+                        "intent": build_snapshot("short", risk_fields_short),
                         "expiry": expiry_idx,
-                        "origin_index": idx,
+                        "origin_index": i,
                     }
                 )
             else:
@@ -628,19 +787,19 @@ def run_event_loop_backtest(
                 if has_open("long"):
                     logger.debug(
                         "Enqueue exit_long before enter_short at idx %s",
-                        idx,
+                        i,
                     )
                     intents.append(build_exit_snapshot("long"))
-                intents.append(build_snapshot("short"))
+                intents.append(build_snapshot("short", risk_fields_short))
         elif command == "exit_long":
             intents.append(build_exit_snapshot("long"))
         elif command == "exit_short":
             intents.append(build_exit_snapshot("short"))
 
-        if logger.isEnabledFor(logging.DEBUG) and (idx < 20 or 90 <= idx <= 110):
+        if logger.isEnabledFor(logging.DEBUG) and (i < 20 or 90 <= i <= 110):
             logger.debug(
                 "bar %s queued %s new intents",
-                idx,
+                i,
                 len(intents),
             )
 
@@ -650,10 +809,11 @@ def run_event_loop_backtest(
         exposure_val = 0.0
         if portfolio.active_positions:
             exposure_val = sum(
-                abs(view.position.size) * float(row.get("close", 0.0))
+                abs(view.position.size) * close_price
                 for view in portfolio.active_positions
             )
         exposure_curve.append((bar_timestamp, exposure_val))
+        prior_bar = row
 
     # Force-close any remaining open positions at end of data
     if portfolio.active_positions:
@@ -690,6 +850,7 @@ def run_event_loop_backtest(
             )
             portfolio.apply_fill(fill)
         exposure_curve.append((last_time, 0.0))
+    t_loop_ms = (perf_counter() - t_loop_start) * 1000
 
     # Build equity curve
     # Exposure curve is returned as equity_curve for compatibility with callers
@@ -697,6 +858,8 @@ def run_event_loop_backtest(
         exposure_curve if exposure_curve else []
     )
 
+    # Stage 6: Post-exit analysis
+    t_post_exit_start = perf_counter()
     post_exit_cfg = getattr(config, "post_exit_analysis", None)
     if post_exit_cfg and post_exit_cfg.get("enabled"):
         horizons = post_exit_cfg.get("horizons", [10, 20, 50])
@@ -705,6 +868,56 @@ def run_event_loop_backtest(
             market_data,
             horizons,
         )
+    t_post_exit_ms = (perf_counter() - t_post_exit_start) * 1000
+
+    # Record all timing data to profiler
+    if profiler.enabled:
+        # Record individual stages (without using context managers, just set directly)
+        from trading_platform.backtester.profiler import StageMetrics
+
+        profiler._stages["compile_strategy"] = StageMetrics(
+            duration_ms=t_compile_ms,
+            metadata={"strategy_type": type(strategy).__name__},
+        )
+
+        profiler._stages["generate_signals"] = StageMetrics(
+            duration_ms=t_signals_ms, metadata={"signal_count": len(signals)}
+        )
+
+        profiler._stages["prepare_features"] = StageMetrics(
+            duration_ms=t_features_ms,
+            metadata={
+                "total_bars": len(feature_view),
+                "trading_start_idx": trading_start_idx,
+            },
+        )
+
+        profiler._stages["setup_components"] = StageMetrics(
+            duration_ms=t_setup_ms, metadata={}
+        )
+
+        # Record backtest metrics with bars/sec
+        profiler.record_backtest_metrics(
+            duration_ms=t_loop_ms,
+            bars_processed=bars_processed,
+        )
+
+        profiler._stages["post_exit_analysis"] = StageMetrics(
+            duration_ms=t_post_exit_ms,
+            metadata={
+                "enabled": post_exit_cfg.get("enabled") if post_exit_cfg else False
+            },
+        )
+
+        # Calculate total duration (sum of all stages)
+        profiler._total_duration = (
+            t_compile_ms
+            + t_signals_ms
+            + t_features_ms
+            + t_setup_ms
+            + t_loop_ms
+            + t_post_exit_ms
+        ) / 1000.0
 
     if not portfolio.trades:
         open_summaries = [
@@ -734,4 +947,5 @@ def run_event_loop_backtest(
         trades=list(portfolio.trades),
         equity_curve=equity_curve,
         skipped=skipped,
+        profiler=profiler,
     )

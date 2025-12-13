@@ -20,7 +20,7 @@ from trading_platform.risk_manager.core import RiskExitManager
 @pytest.fixture
 def mock_instrument():
     """Create mock instrument with EUR/USD parameters."""
-    return {"pip_location": 0.0001, "symbol": "EUR_USD"}
+    return {"pip_location": 0.0001, "symbol": "EURUSD"}
 
 
 @pytest.fixture
@@ -36,7 +36,7 @@ def test_rem_detects_trailing_stop_ambiguity_and_zooms_to_1min(
     """Test that REM detects ambiguity and zooms to 1-minute resolution."""
     # Long position at 1.0600 with 20-pip trailing stop
     position = Position(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         entry_time=pd.Timestamp("2023-01-01 10:00:00", tz="UTC"),
         entry_price=1.0600,
         entry_mid_price=1.0600,
@@ -98,7 +98,7 @@ def test_rem_zooms_and_detects_trailing_stop_hit_on_1min_bar(
 ):
     """Test that REM zooms to 1-min and correctly detects stop hit."""
     position = Position(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         entry_time=pd.Timestamp("2023-01-01 10:00:00", tz="UTC"),
         entry_price=1.0600,
         entry_mid_price=1.0600,
@@ -162,7 +162,7 @@ def test_rem_zooms_and_detects_trailing_stop_hit_on_1min_bar(
 def test_rem_does_not_zoom_when_no_ambiguity(mock_instrument, mock_data_handler):
     """Test that REM does NOT zoom to 1-min when no ambiguity exists."""
     position = Position(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         entry_time=pd.Timestamp("2023-01-01 10:00:00", tz="UTC"),
         entry_price=1.0600,
         entry_mid_price=1.0600,
@@ -205,7 +205,7 @@ def test_trailing_stop_with_bar_update_skips_intrabar_zoom(
 ):
     """Trailing stops configured for bar updates should not trigger zoom."""
     position = Position(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         entry_time=pd.Timestamp("2023-01-01 10:00:00", tz="UTC"),
         entry_price=1.0600,
         entry_mid_price=1.0600,
@@ -247,7 +247,7 @@ def test_rem_trailing_stop_with_favorable_movement_zooms_correctly(
 ):
     """Test that REM correctly handles trailing stop with favorable movement."""
     position = Position(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         entry_time=pd.Timestamp("2023-01-01 10:00:00", tz="UTC"),
         entry_price=1.0600,
         entry_mid_price=1.0600,
@@ -311,7 +311,7 @@ def test_rem_trailing_stop_with_favorable_movement_zooms_correctly(
 def test_rem_short_position_trailing_stop_zoom(mock_instrument, mock_data_handler):
     """Test 1-minute zoom for short position with trailing stop."""
     position = Position(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         entry_time=pd.Timestamp("2023-01-01 10:00:00", tz="UTC"),
         entry_price=1.0600,
         entry_mid_price=1.0600,
@@ -377,7 +377,7 @@ def test_rem_fixed_stop_and_tp_both_ambiguous_zooms_to_1min(
 ):
     """Test that REM zooms when both fixed stop and TP are in bar's range."""
     position = Position(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         entry_time=pd.Timestamp("2023-01-01 10:00:00", tz="UTC"),
         entry_price=1.0600,
         entry_mid_price=1.0600,
@@ -440,7 +440,7 @@ def test_rem_fixed_stop_and_tp_both_ambiguous_zooms_to_1min(
 def test_rem_fixed_stop_tp_ambiguous_tp_hits_first(mock_instrument, mock_data_handler):
     """Test that REM correctly detects TP hit first when both are ambiguous."""
     position = Position(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         entry_time=pd.Timestamp("2023-01-01 10:00:00", tz="UTC"),
         entry_price=1.0600,
         entry_mid_price=1.0600,

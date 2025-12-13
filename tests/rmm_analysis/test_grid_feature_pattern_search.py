@@ -66,6 +66,12 @@ def _build_context_dataframe() -> pd.DataFrame:
         1.5,
         size,
     )
+    # Add global ATR feature for 15min timeframe (needed for risk_distance_atr_ratio)
+    frame["context_at_entry_global_features_15min_atr_14"] = np.linspace(
+        0.5,
+        1.5,
+        size,
+    )
     for pattern in collect_patterns(["alignment"]):
         column = f"context_at_entry_global_features_{pattern}"
         frame[column] = np.linspace(0.1, 0.9, size)

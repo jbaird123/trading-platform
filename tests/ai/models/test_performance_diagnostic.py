@@ -23,8 +23,8 @@ def sample_trades_df():
             "context_at_entry_rsi": np.random.uniform(30, 70, 60),
             "context_at_entry_atr": np.random.uniform(0.0005, 0.002, 60),
             "side": ["long", "short"] * 30,
-            "symbol": ["EUR_USD"] * 60,
-            "entry_time": pd.date_range("2024-01-01", periods=60, freq="1h"),
+            "symbol": ["EURUSD"] * 60,
+            "entry_time": pd.date_range("2024-01-01", periods=60, freq="1h", tz="UTC"),
             # Exit features (lookahead)
             "context_at_exit_rsi": np.random.uniform(30, 70, 60),
             "context_at_exit_atr": np.random.uniform(0.0005, 0.002, 60),

@@ -225,7 +225,7 @@ def test_parameter_sweep_matches_standalone(tmp_path, monkeypatch):
         "global_features_mode": "minimal",
         "minimal_global_features_include": ["5min_rsi_14"],
         "data_request": {
-            "symbol": "EUR_USD",
+            "symbol": "EURUSD",
             "timeframe": "1H",
             "start": "2024-01-01",
             "end": "2024-03-31",
@@ -252,7 +252,7 @@ def test_parameter_sweep_matches_standalone(tmp_path, monkeypatch):
         "global_features_mode": "minimal",
         "minimal_global_features_include": ["5min_rsi_14"],
         "data_request": {
-            "symbol": "EUR_USD",
+            "symbol": "EURUSD",
             "timeframe": "1H",
             "start": "2024-01-01",
             "end": "2024-03-31",
@@ -440,7 +440,7 @@ def test_strategy_params_override_file_defaults(tmp_path, monkeypatch):
         "global_features_mode": "minimal",
         "minimal_global_features_include": ["5min_rsi_14"],
         "data_request": {
-            "symbol": "EUR_USD",
+            "symbol": "EURUSD",
             "timeframe": "1H",
             "start": "2024-01-01",
             "end": "2024-02-29",

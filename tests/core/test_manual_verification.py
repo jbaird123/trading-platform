@@ -64,7 +64,12 @@ def test_core_calculations_match_manual_csv():
         initial_cash=initial_cash,
         position_size=1.0,
         instrument={
-            "symbol": "EUR_USD",  # Use registered instrument
+            "symbol": "EURUSD",  # Use registered instrument
+        },
+        data_request={
+            "symbol": "EURUSD",
+            "timeframe": "1H",
+            "start": "2023-01-01",
         },
         # Critical: Add blackout rule for 08:00-10:00 UTC
         blackout_utc=[("08:00", "10:00")],
@@ -102,13 +107,14 @@ def test_core_calculations_match_manual_csv():
     completed_trades = [t for t in trades if t.exit_time is not None]
 
     # 9. Expected values - Core calculations that must be verified
-    # Note: Values updated for ta/TA-Lib library migration.
-    # ta 0.11.0 and TA-Lib 0.6.7 calculate SMA slightly differently,
-    # resulting in crossovers at different bars and different trade prices.
-    expected_total_pnl = 8.0  # Core PnL calculation
-    expected_final_equity = 100008.0  # Core equity (initial_cash + pnl)
-    expected_win_rate = 2 / 3  # Core win rate (2 wins out of 3 trades)
-    expected_n_trades = 3  # Total number of executed trades
+    # Note: Values updated after adding warmup data to fixtures and requiring
+    # explicit data_request.start for trading window.
+    # With warmup data before 2023-01-01, the trading window starts at 2023-01-01
+    # and produces 6 trades with total PnL of 10.0.
+    expected_total_pnl = 10.0  # Core PnL calculation
+    expected_final_equity = 100010.0  # Core equity (initial_cash + pnl)
+    expected_win_rate = 0.5  # Core win rate (3 wins out of 6 trades)
+    expected_n_trades = 6  # Total number of executed trades
     expected_blackout_reason = "blackout_static"  # Blackout working
 
     # 10. CORE ASSERTIONS: Validate the essential calculations

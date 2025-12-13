@@ -7,11 +7,12 @@ Tests the complete next_bar_open execution flow to ensure that:
 4. Multiple trades execute correctly with the deferred model
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pandas as pd
 import pytest
 from trading_platform.core.config import RunConfig
+from trading_platform.data.session_metadata import ALIGNED_TO_CLOSE_ATTR
 from trading_platform.risk_manager.core import RiskExitManager
 
 from tests.backtester.dummy_objects import _base_config
@@ -22,7 +23,7 @@ from tests.test_helpers import (
 
 # Test instrument
 TEST_INSTRUMENT = {
-    "symbol": "EUR_USD",  # Use registered instrument name
+    "symbol": "EURUSD",  # Use registered instrument name
 }
 
 
@@ -56,7 +57,7 @@ def test_next_bar_open_execution_model_complete_flow():
     correctly for realistic trading scenarios.
     """
     # Create 11 bars (0-10) with distinct prices for each bar
-    idx = [datetime(2024, 1, 1, h) for h in range(11)]
+    idx = [datetime(2024, 1, 1, h, tzinfo=timezone.utc) for h in range(11)]
     df = pd.DataFrame(
         {
             "open": [
@@ -115,6 +116,8 @@ def test_next_bar_open_execution_model_complete_flow():
         },
         index=idx,
     )
+    # Mark as bar-close aligned (timestamps represent bar-close times)
+    df.attrs[ALIGNED_TO_CLOSE_ATTR] = True
 
     # Create strategy
     strategy = DummyStrategy()
@@ -172,33 +175,46 @@ def test_next_bar_open_execution_model_complete_flow():
     # Should have 2 trades
     assert len(trades_list) == 2, f"Expected 2 trades, got {len(trades_list)}"
 
-    # Trade 1 (long): Signal at bar 1, entry at bar 2, signal at bar 4, exit at bar 5
+    # With bar-close aligned data: timestamps represent bar close times.
+    # idx[N] is bar N's close time. The "open" price at idx[N] is bar N's open.
+    # Signal at idx[1] → execution at "next bar open" = bar 2's open.
+    # Entry/exit TIME reported is idx[N+1], PRICE is open[N+1].
+
+    # Trade 1 (long): Signal at idx[1], entry at bar 2 open
     trade1 = trades_list[0]
     assert trade1.side == "long"
+    # Entry time is idx[1] (bar 1 close = bar 2 open time)
     assert (
-        trade1.entry_time == idx[2]
-    ), f"Expected entry at bar 2, got {trade1.entry_time}"
+        trade1.entry_time == idx[1]
+    ), f"Expected entry at idx[1], got {trade1.entry_time}"
+    # Entry price is bar 2's open price = open[idx[2]] = 1.0020
     assert trade1.entry_price == pytest.approx(
         1.0020
     ), f"Expected entry price 1.0020 (bar 2 open), got {trade1.entry_price}"
-    assert trade1.exit_time == idx[5], f"Expected exit at bar 5, got {trade1.exit_time}"
+    # Exit time is idx[4] (bar 4 close = bar 5 open time)
+    assert (
+        trade1.exit_time == idx[4]
+    ), f"Expected exit at idx[4], got {trade1.exit_time}"
+    # Exit price is bar 5's open price = open[idx[5]] = 1.0050
     assert trade1.exit_price == pytest.approx(
         1.0050
     ), f"Expected exit price 1.0050 (bar 5 open), got {trade1.exit_price}"
     assert trade1.exit_reason == "opposite_signal"
 
-    # Trade 2 (short): Signal at bar 6, entry at bar 7, signal at bar 9, exit at bar 10
+    # Trade 2 (short): Signal at idx[6], entry at bar 7 open
     trade2 = trades_list[1]
     assert trade2.side == "short"
     assert (
-        trade2.entry_time == idx[7]
-    ), f"Expected entry at bar 7, got {trade2.entry_time}"
+        trade2.entry_time == idx[6]
+    ), f"Expected entry at idx[6], got {trade2.entry_time}"
+    # Entry price is bar 7's open price = open[idx[7]] = 1.0070
     assert trade2.entry_price == pytest.approx(
         1.0070
     ), f"Expected entry price 1.0070 (bar 7 open), got {trade2.entry_price}"
     assert (
-        trade2.exit_time == idx[10]
-    ), f"Expected exit at bar 10, got {trade2.exit_time}"
+        trade2.exit_time == idx[9]
+    ), f"Expected exit at idx[9], got {trade2.exit_time}"
+    # Exit price is bar 10's open price = open[idx[10]] = 1.0100
     assert trade2.exit_price == pytest.approx(
         1.0100
     ), f"Expected exit price 1.0100 (bar 10 open), got {trade2.exit_price}"
@@ -224,7 +240,7 @@ def test_next_bar_open_vs_current_bar_close_comparison():
     entry/exit times and prices as expected.
     """
     # Create 5 bars with distinct prices
-    idx = [datetime(2024, 1, 1, h) for h in range(5)]
+    idx = [datetime(2024, 1, 1, h, tzinfo=timezone.utc) for h in range(5)]
     df = pd.DataFrame(
         {
             "open": [1.0000, 1.0010, 1.0020, 1.0030, 1.0040],
@@ -235,6 +251,8 @@ def test_next_bar_open_vs_current_bar_close_comparison():
         },
         index=idx,
     )
+    # Mark as bar-close aligned (timestamps represent bar-close times)
+    df.attrs[ALIGNED_TO_CLOSE_ATTR] = True
 
     strategy = DummyStrategy()
 
@@ -275,13 +293,12 @@ def test_next_bar_open_vs_current_bar_close_comparison():
 
     trade_realistic = trades_realistic[0]
 
-    # Next-bar-open: Entry at bar 1, exit at bar 3
-    assert trade_realistic.entry_time == idx[1]
-    assert trade_realistic.entry_price == pytest.approx(
-        1.0010
-    )  # Bar 1 open (next bar open)
-    assert trade_realistic.exit_time == idx[3]
-    assert trade_realistic.exit_price == pytest.approx(
-        1.0030
-    )  # Bar 3 open (next bar open)
+    # With bar-close aligned data: signal at idx[0] (bar 0 close) → entry at bar 1 open
+    # Signal at idx[2] (bar 2 close) → exit at bar 3 open
+    # Entry TIME is idx[0], entry PRICE is open[idx[1]] = 1.0010
+    assert trade_realistic.entry_time == idx[0]
+    assert trade_realistic.entry_price == pytest.approx(1.0010)  # Bar 1's open price
+    # Exit TIME is idx[2], exit PRICE is open[idx[3]] = 1.0030
+    assert trade_realistic.exit_time == idx[2]
+    assert trade_realistic.exit_price == pytest.approx(1.0030)  # Bar 3's open price
     assert trade_realistic.exit_reason == "opposite_signal"

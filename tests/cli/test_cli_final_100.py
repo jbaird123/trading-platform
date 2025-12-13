@@ -189,7 +189,7 @@ class TestCmdCompareLastFlag:
             "backtest": {
                 "trades": [],
                 "metrics": {"total_pnl": 100},
-                "config": {"instrument": {"symbol": "EUR_USD"}},
+                "config": {"instrument": {"symbol": "EURUSD"}},
             },
         }
         brief_data2 = {
@@ -197,7 +197,7 @@ class TestCmdCompareLastFlag:
             "backtest": {
                 "trades": [],
                 "metrics": {"total_pnl": 200},
-                "config": {"instrument": {"symbol": "EUR_USD"}},
+                "config": {"instrument": {"symbol": "EURUSD"}},
             },
         }
 
@@ -231,7 +231,7 @@ class TestCmdCompareLastFlag:
             "backtest": {
                 "trades": [],
                 "metrics": {"total_pnl": 100},
-                "config": {"instrument": {"symbol": "EUR_USD"}},
+                "config": {"instrument": {"symbol": "EURUSD"}},
             },
         }
         brief1.write_text(json.dumps(brief_data))
@@ -266,7 +266,7 @@ class TestCmdOpenChartWithOpen:
             "backtest": {
                 "run_id": "run1",
                 "trades": [],
-                "config": {"instrument": {"symbol": "EUR_USD"}},
+                "config": {"instrument": {"symbol": "EURUSD"}},
             },
         }
         brief.write_text(json.dumps(brief_data))
@@ -300,7 +300,7 @@ class TestCmdOpenChartWithOpen:
             "backtest": {
                 "run_id": "run1",
                 "trades": [],
-                "config": {"instrument": {"symbol": "EUR_USD"}},
+                "config": {"instrument": {"symbol": "EURUSD"}},
             },
         }
         brief.write_text(json.dumps(brief_data))
@@ -331,7 +331,7 @@ class TestAIDiagnoseQualitativeReport:
                 "run_id": "test",
                 "trades": [],
                 "metrics": {"total_pnl": -100},
-                "config": {"instrument": {"symbol": "EUR_USD"}},
+                "config": {"instrument": {"symbol": "EURUSD"}},
             },
         }
         brief_path.write_text(json.dumps(brief_data))
@@ -367,7 +367,7 @@ class TestAIDiagnoseQualitativeReport:
                 "run_id": "test",
                 "trades": [],
                 "metrics": {"total_pnl": -100},
-                "config": {"instrument": {"symbol": "EUR_USD"}},
+                "config": {"instrument": {"symbol": "EURUSD"}},
             },
         }
         brief_path.write_text(json.dumps(brief_data))

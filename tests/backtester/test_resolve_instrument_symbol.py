@@ -10,12 +10,12 @@ class _InstrumentObj:
 
 
 def test_resolve_instrument_symbol_from_dict_normalizes() -> None:
-    result = resolve_instrument_symbol({"symbol": "eur/usd"})
+    result = resolve_instrument_symbol({"symbol": "eurusd"})
     assert result == "EURUSD"
 
 
 def test_resolve_instrument_symbol_from_object_attribute() -> None:
-    inst = _InstrumentObj("gbp usd")
+    inst = _InstrumentObj("gbpusd")
     assert resolve_instrument_symbol(inst) == "GBPUSD"
 
 

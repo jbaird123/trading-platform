@@ -12,7 +12,7 @@ from copy import deepcopy
 from datetime import datetime
 from os import fspath
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Literal, cast
 from unittest.mock import Mock
 
 import pandas as pd
@@ -20,6 +20,7 @@ import pandas as pd
 from trading_platform.ai.data_curation import run_curation_pipeline
 from trading_platform.ai.models import ModelRegistry
 from trading_platform.backtester import run_backtest
+from trading_platform.backtester.profiler import PerformanceProfiler
 from trading_platform.backtester.warmup_helpers import (
     ensure_market_data_with_warmup,
     infer_execution_timeframe,
@@ -251,6 +252,8 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         setattr(cfg, "global_features_mode", "full")
     if not hasattr(cfg, "minimal_global_features_include"):
         setattr(cfg, "minimal_global_features_include", [])
+    if not hasattr(cfg, "artifact_mode"):
+        setattr(cfg, "artifact_mode", cfg_raw.get("artifact_mode", "full"))
     current_instrument = getattr(cfg, "instrument", None)
     if current_instrument is None or isinstance(current_instrument, Mock):
         setattr(cfg, "instrument", cfg_raw.get("instrument"))
@@ -336,26 +339,49 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     df: pd.DataFrame
     dq_flags: list[str] = []
     instrument_def = None  # Will be set if data_request present
+    # Initialize performance profiler early
+    profiler = PerformanceProfiler()
+    profiler.start()
+
     data_req_raw = cfg_raw.get("data_request")
     has_real_data_request = isinstance(data_req_raw, dict)
     data_req: dict[str, Any] | None = data_req_raw if has_real_data_request else None
     if has_real_data_request and data_req is not None:
-        # Create DataHandler - loads raw data once, handles all resampling/caching
-        instrument_def = get_instrument_definition(data_req["symbol"])
-        data_handler = DataHandler(
-            symbol=data_req["symbol"],
-            data_root=paths.RAW_DATA_DIR,
-            instrument=instrument_def,
-        )
-        dq_flags = data_handler.data_quality_flags
+        # Stage: Initialize DataHandler and load/cache raw 1min data
+        with profiler.stage(
+            "load_and_cache_1min_data",
+            metadata={
+                "symbol": data_req["symbol"],
+                "source": "DataHandler",
+                "data_root": str(paths.RAW_DATA_DIR),
+            },
+        ):
+            # Create DataHandler - loads raw data once from CSV
+            # (or retrieves from cache)
+            instrument_def = get_instrument_definition(data_req["symbol"])
+            data_handler = DataHandler(
+                symbol=data_req["symbol"],
+                data_root=paths.RAW_DATA_DIR,
+                instrument=instrument_def,
+            )
+            dq_flags = data_handler.data_quality_flags
 
-        # Get data for requested timeframe and date range
-        df = data_handler.get_data(
-            timeframe=data_req.get("timeframe"),
-            start=data_req.get("start"),
-            end=data_req.get("end"),
-        )
-        walk_forward_df = data_handler.get_data(timeframe=data_req.get("timeframe"))
+        # Stage: Resample to target timeframe
+        with profiler.stage(
+            "resample_to_timeframe",
+            metadata={
+                "target_timeframe": data_req.get("timeframe"),
+                "start": data_req.get("start"),
+                "end": data_req.get("end"),
+            },
+        ):
+            # Get data for requested timeframe and date range (resamples if needed)
+            df = data_handler.get_data(
+                timeframe=data_req.get("timeframe"),
+                start=data_req.get("start"),
+                end=data_req.get("end"),
+            )
+            walk_forward_df = data_handler.get_data(timeframe=data_req.get("timeframe"))
     else:
         idx = pd.date_range("2024-01-01", periods=5, freq="h")
         vals = [1.0, 2.0, 3.0, 2.0, 1.0]
@@ -462,14 +488,23 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
 
     safe_data_request = data_req if isinstance(data_req, dict) else None
 
-    df = ensure_market_data_with_warmup(
-        market_data=df,
-        execution_timeframe=exec_timeframe,
-        strategy_features=warmup_strategy_features,
-        global_features=warmup_global_defs,
-        data_request=safe_data_request,
-        data_handler=data_handler,
-    )
+    # Stage: Load warmup data for strategy/global features
+    with profiler.stage(
+        "load_warmup_data",
+        metadata={
+            "has_strategy_features": len(warmup_strategy_features) > 0,
+            "has_global_features": len(warmup_global_defs) > 0,
+            "execution_timeframe": exec_timeframe or "unknown",
+        },
+    ):
+        df = ensure_market_data_with_warmup(
+            market_data=df,
+            execution_timeframe=exec_timeframe,
+            strategy_features=warmup_strategy_features,
+            global_features=warmup_global_defs,
+            data_request=safe_data_request,
+            data_handler=data_handler,
+        )
 
     df_full = walk_forward_df
     analysis_df = df
@@ -536,27 +571,34 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     rmm_cfg: dict[str, Any] | None = cfg_raw.get("rmm_config")
     rmm_spans_path: Path | None = None
     if isinstance(rmm_cfg, dict) and rmm_cfg:
-        # Validate and create the RMM engine using the Pydantic model
-        rmm_config = RMMConfig(**rmm_cfg)
-        rmm_engine = RMMEngine(config=rmm_config)
+        # Stage: Process RMM (regime classification and projection)
+        with profiler.stage(
+            "process_rmm_regimes",
+            metadata={
+                "has_rmm": True,
+            },
+        ):
+            # Validate and create the RMM engine using the Pydantic model
+            rmm_config = RMMConfig(**rmm_cfg)
+            rmm_engine = RMMEngine(config=rmm_config)
 
-        regime_timeframe = rmm_config.timeframe or "1D"
-        classify_regime = getattr(rmm_engine, "classify_regime", None)
-        if callable(classify_regime):
-            regimes = classify_regime(df, timeframe=regime_timeframe)
-        else:
-            # This path is for legacy compatibility, can be removed later
-            classify_daily = getattr(rmm_engine, "classify_daily", None)
-            if not callable(classify_daily):
-                raise SystemExit(
-                    "RMM engine must implement classify_regime or classify_daily"
-                )
-            regimes = classify_daily(df)
+            regime_timeframe = rmm_config.timeframe or "1D"
+            classify_regime = getattr(rmm_engine, "classify_regime", None)
+            if callable(classify_regime):
+                regimes = classify_regime(df, timeframe=regime_timeframe)
+            else:
+                # This path is for legacy compatibility, can be removed later
+                classify_daily = getattr(rmm_engine, "classify_daily", None)
+                if not callable(classify_daily):
+                    raise SystemExit(
+                        "RMM engine must implement classify_regime or classify_daily"
+                    )
+                regimes = classify_daily(df)
 
-        rmm_policy = rmm_config.policy.model_dump() if rmm_config.policy else {}
-        per_bar = rmm_engine.project_to_index(
-            regimes, cast(pd.DatetimeIndex, df.index), policy=rmm_policy
-        )
+            rmm_policy = rmm_config.policy.model_dump() if rmm_config.policy else {}
+            per_bar = rmm_engine.project_to_index(
+                regimes, cast(pd.DatetimeIndex, df.index), policy=rmm_policy
+            )
         # Extract regime feature names from config
         feature_names = (
             [f.name for f in rmm_config.features if f.name]
@@ -669,20 +711,26 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     ret_skips = bool(cfg_raw.get("return_skips", True))
 
     # Run backtest through the backtester entry point
+    # run_backtest() now owns data loading - no market_data/data_handler needed
+    # (profiler already initialized earlier)
     res = run_backtest(
         config=cfg,
-        market_data=df,
         strategy_config=strat_cfg,
         strategy_path=None,  # Already loaded into strat_cfg
         strategy_params=strategy_params,
         strategy_overrides=strategy_overrides,
-        data_handler=data_handler,
         global_features_config_path=cfg_global_features_path,
-        global_feature_defs=global_feature_defs,
         rmm_context=rmm_context,
         return_exposure=ret_exp,
         return_skips=ret_skips,
+        profiler=profiler,
     )
+
+    # Extract market data and data_handler from result for downstream use
+    # (RMM, parameter sweep, walk-forward, etc.)
+    if isinstance(res, dict):
+        df = res.get("market_data", df)
+        data_handler = res.get("data_handler", data_handler)
 
     # Extract results from backtester
     # When return_exposure=True, backtester returns tuple: (trades, exposure, [skips])
@@ -729,35 +777,45 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         feature_enriched_df = strat._feature_df if strat._feature_df is not None else df
         strategy_name = strat.name
 
-    # Persist raw signals for AI Lab analysis
-    try:
-        from trading_platform.core.signal import Signal
+    artifact_mode: Literal["full", "minimal"] = cast(
+        Literal["full", "minimal"], getattr(cfg, "artifact_mode", "full")
+    )
 
-        signals_path = run_path / "signals.parquet"
-        signals = strat.generate_signals(df)
-        # Ensure signals are saved with proper column name
-        if isinstance(signals, pd.Series):
-            # Extract command strings from Signal objects for serialization
-            signal_values = signals.apply(
-                lambda x: x.command if isinstance(x, Signal) else x
-            )
-            signals_df = pd.DataFrame({"signal": signal_values})
-        else:
-            signals_df = pd.DataFrame(signals)
-        signals_df.to_parquet(signals_path)
-    except Exception as e:  # pragma: no cover
-        logger.warning(f"Failed to save signals.parquet for AI Lab: {e}")
+    signals_path: Path | None = None
+    # Stage: Write artifacts (signals, prices, features)
+    if artifact_mode != "minimal":
+        with profiler.stage("write_signals_and_features"):
+            # Persist raw signals for AI Lab analysis
+            try:
+                from trading_platform.core.signal import Signal
 
-    # Persist prices and features for charts
-    try:
-        save_prices_csv(run_path / "prices.csv", df)
-    except Exception as e:  # pragma: no cover
-        logger.warning(f"Failed to save prices.csv: {e}")
-    try:
-        if feature_enriched_df is not None and hasattr(strat, "features"):
-            save_features_for_chart(run_path, feature_enriched_df, strat.features)
-    except Exception as e:  # pragma: no cover
-        logger.warning(f"Failed to save features: {e}")
+                signals_path = run_path / "signals.parquet"
+                signals = strat.generate_signals(df)
+                # Ensure signals are saved with proper column name
+                if isinstance(signals, pd.Series):
+                    # Extract command strings from Signal objects for serialization
+                    signal_values = signals.apply(
+                        lambda x: x.command if isinstance(x, Signal) else x
+                    )
+                    signals_df = pd.DataFrame({"signal": signal_values})
+                else:
+                    signals_df = pd.DataFrame(signals)
+                signals_df.to_parquet(signals_path)
+            except Exception as e:  # pragma: no cover
+                logger.warning(f"Failed to save signals.parquet for AI Lab: {e}")
+
+            # Persist prices and features for charts
+            try:
+                save_prices_csv(run_path / "prices.csv", df)
+            except Exception as e:  # pragma: no cover
+                logger.warning(f"Failed to save prices.csv: {e}")
+            try:
+                if feature_enriched_df is not None and hasattr(strat, "features"):
+                    save_features_for_chart(
+                        run_path, feature_enriched_df, strat.features
+                    )
+            except Exception as e:  # pragma: no cover
+                logger.warning(f"Failed to save features: {e}")
 
     meta = {
         "strategy_name": strategy_name,
@@ -779,10 +837,32 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     # Optional parameter sweep (full re-runs for candidates)
     ps_cfg = cfg_raw.get("parameter_search") or {}
     ps_results = None
+
+    # Post-exit analysis is expensive; keep it for the main run if enabled,
+    # but force-disable it for any spawned sweeps / WF / MC runs.
+    heavy_modes_enabled = False
+    if isinstance(ps_cfg, dict) and (ps_cfg.get("grid") or ps_cfg.get("random_space")):
+        heavy_modes_enabled = True
+    wf_cfg = cfg_raw.get("walk_forward") or {}
+    if isinstance(wf_cfg, dict) and wf_cfg.get("enabled"):
+        heavy_modes_enabled = True
+    mc_cfg = cfg_raw.get("monte_carlo") or {}
+    if isinstance(mc_cfg, dict) and str(mc_cfg.get("mode")) in {
+        "bar_resimulation",
+        "bar_bootstrap",
+    }:
+        heavy_modes_enabled = True
+
+    cfg_for_heavy_runs = cfg_raw
+    if heavy_modes_enabled:
+        cfg_for_heavy_runs = copy.deepcopy(cfg_raw)
+        cfg_for_heavy_runs["post_exit_analysis"] = {"enabled": False}
+        cfg_for_heavy_runs["artifact_mode"] = "minimal"
+
     if isinstance(ps_cfg, dict) and (ps_cfg.get("grid") or ps_cfg.get("random_space")):
         ps_results = run_parameter_sweep(
             analysis_df,
-            cfg_raw,
+            cfg_for_heavy_runs,
             strat_cfg,
             grid=ps_cfg.get("grid"),
             random_space=ps_cfg.get("random_space"),
@@ -812,7 +892,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                 grid_typed = cast(dict[str, list[Any]], grid_cfg)
                 wf_results = walk_forward_optimize_and_test(
                     df_full,
-                    cfg_raw,
+                    cfg_for_heavy_runs,
                     strat_cfg,
                     window=train_bars,
                     step=step_bars,
@@ -850,7 +930,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                         # Run WFE for this candidate
                         wfe = walk_forward_analysis(
                             df_full,
-                            cfg_raw,
+                            cfg_for_heavy_runs,
                             cand_strat_cfg,
                             train_bars=train_bars,
                             test_bars=test_bars,
@@ -876,7 +956,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
 
                 wf_results = walk_forward_analysis(
                     df_full,
-                    cfg_raw,
+                    cfg_for_heavy_runs,
                     strat_cfg,
                     train_bars=train_bars,
                     test_bars=test_bars,
@@ -903,7 +983,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
 
         mc_results = monte_carlo_resimulation(
             analysis_df,
-            cfg_raw,
+            cfg_for_heavy_runs,
             strat_cfg,
             trials=int(mc_cfg.get("trials", 100)),
             seed=mc_cfg.get("seed"),
@@ -913,30 +993,57 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
             data_handler=data_handler,
         )
 
-    finalize_run(
-        run_path,
-        meta=meta,
-        params=params_snapshot,
-        trades=trades,
-        initial_cash=float(cfg_raw.get("initial_cash", 100000.0)),
-        config=cfg,
-        exposure_curve=exposure,
-        data_quality=dq,
-        skipped_trades=skips,
-        parameter_search=ps_results,
-        walk_forward=wf_results,
-        monte_carlo=mc_results,
-        signals_path=signals_path,
-        rmm_spans_path=rmm_spans_path,
-        processed_data_path=processed_data_path,
-    )
+    def _safe_len(obj: Any) -> int:
+        try:
+            return len(obj)
+        except Exception:
+            return 0
+
+    # Stage: Write brief and final artifacts
+    with profiler.stage(
+        "write_brief_and_report",
+        metadata={
+            "trade_count": _safe_len(trades),
+            "has_parameter_search": ps_results is not None,
+            "has_walk_forward": wf_results is not None,
+            "has_monte_carlo": mc_results is not None,
+        },
+    ):
+        finalize_run(
+            run_path,
+            meta=meta,
+            params=params_snapshot,
+            trades=trades,
+            initial_cash=float(cfg_raw.get("initial_cash", 100000.0)),
+            config=cfg,
+            exposure_curve=exposure,
+            data_quality=dq,
+            skipped_trades=skips,
+            parameter_search=ps_results,
+            walk_forward=wf_results,
+            monte_carlo=mc_results,
+            signals_path=signals_path,
+            rmm_spans_path=rmm_spans_path,
+            processed_data_path=processed_data_path,
+            artifact_mode=artifact_mode,
+        )
+
+    # Stop profiler and save performance data
+    profiler.stop()
+    if artifact_mode != "minimal":
+        try:
+            profiler.write_json(run_path / "performance.json")
+            profiler.log_summary()
+        except Exception as e:  # pragma: no cover
+            logger.warning(f"Failed to save performance profile: {e}")
 
     # Generate equity curve chart
-    try:
-        save_equity_chart_from_brief(run_path)
-    except Exception as e:  # pragma: no cover
-        # Safe to continue: equity chart is optional visualization
-        logger.warning(f"Failed to generate equity chart: {e}")
+    if artifact_mode != "minimal":
+        try:
+            save_equity_chart_from_brief(run_path)
+        except Exception as e:  # pragma: no cover
+            # Safe to continue: equity chart is optional visualization
+            logger.warning(f"Failed to generate equity chart: {e}")
 
     print(f"Run created at: {run_path}")
     print(f"- Brief: {run_path / 'brief.json'}")
@@ -944,6 +1051,8 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
     print(f"- Trades: {run_path / 'trades.csv'}")
     print(f"- Chart: {run_path / 'chart.html'}")
     print(f"- Equity: {run_path / 'equity_chart.html'}")
+    if profiler.enabled:
+        print(f"- Performance: {run_path / 'performance.json'}")
     return 0
 
 
@@ -1757,6 +1866,7 @@ def cmd_ai_validate_rmm_candidates(args: argparse.Namespace) -> int:
         start = data_request.get("start")
         end = data_request.get("end")
 
+        # Load data for RMM context computation
         instrument_def = get_instrument_definition(symbol)
         data_handler = DataHandler(
             symbol=symbol,
@@ -1775,13 +1885,12 @@ def cmd_ai_validate_rmm_candidates(args: argparse.Namespace) -> int:
             logger.warning("Failed to compute RMM context for %s: %s", candidate, exc)
             rmm_ctx = None
 
+        # run_backtest() now owns data loading - it will load from cfg.data_request
         result = run_backtest(
-            cfg,
-            market_data,
+            config=cfg,
             strategy_config=strategy_cfg,
             strategy_params=strategy_params,
             strategy_overrides=strategy_overrides,
-            data_handler=data_handler,
             global_features_config_path=global_feat_path,
             rmm_context=rmm_ctx,
             return_skips=True,
@@ -1942,16 +2051,18 @@ def _meta_campaign_plan_logic(args: argparse.Namespace) -> int:
     output_dir = Path(args.output_dir if args.output_dir else default_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Check for existing files
-    should_proceed, existing_files = _check_output_directory(output_dir, args.force)
-    if not should_proceed:
-        return 1
+    # Check for existing files (skip check if --append is set)
+    append_mode = getattr(args, "append", False)
+    if not append_mode:
+        should_proceed, existing_files = _check_output_directory(output_dir, args.force)
+        if not should_proceed:
+            return 1
 
-    # Clear directory if --force is set
-    if args.force and existing_files:
-        for file in existing_files:
-            file.unlink()
-        print(f"Cleared {len(existing_files)} file(s) from {output_dir}")
+        # Clear directory if --force is set
+        if args.force and existing_files:
+            for file in existing_files:
+                file.unlink()
+            print(f"Cleared {len(existing_files)} file(s) from {output_dir}")
 
     # Print generation info
     print(f"Generating campaigns from: {config_path}")
@@ -1994,7 +2105,7 @@ def _validate_data_logic(args: argparse.Namespace) -> int:
         # Scan directory for all instruments
         instruments = []
         for file in data_dir.glob("*.parquet"):
-            # Extract instrument from filename (e.g., EUR_USD_1H.parquet -> EUR_USD)
+            # Extract instrument from filename (e.g., EURUSD_1H.parquet -> EURUSD)
             parts = file.stem.split("_")
             if len(parts) >= 2:
                 instrument = "_".join(parts[:2])  # Take first two parts
@@ -2049,7 +2160,7 @@ def _validate_data_logic(args: argparse.Namespace) -> int:
 def _precompute_global_features_logic(args: argparse.Namespace) -> int:
     """Precompute global feature caches for the requested symbol."""
 
-    symbol = args.symbol or "EUR_USD"
+    symbol = args.symbol or "EURUSD"
     data_root = Path(args.data_root or paths.RAW_DATA_DIR).expanduser().resolve()
 
     config_arg = args.config
@@ -2501,7 +2612,12 @@ def main() -> int:
     pmcp.add_argument(
         "--force",
         action="store_true",
-        help="Overwrite existing files in output directory",
+        help="Clear and overwrite existing files in output directory",
+    )
+    pmcp.add_argument(
+        "--append",
+        action="store_true",
+        help="Append to existing files in output directory (don't clear)",
     )
     pmcp.set_defaults(func=_meta_campaign_plan_logic)
 
@@ -2523,7 +2639,7 @@ def main() -> int:
         "precompute-global-features",
         help="Precompute cached global feature matrices for a symbol",
     )
-    pgfc.add_argument("--symbol", default="EUR_USD", help="Instrument symbol")
+    pgfc.add_argument("--symbol", default="EURUSD", help="Instrument symbol")
     pgfc.add_argument(
         "--data-root",
         default=str(paths.RAW_DATA_DIR),

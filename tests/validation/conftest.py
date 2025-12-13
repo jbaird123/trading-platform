@@ -381,12 +381,14 @@ def tradingview_trades(
         # Drop the temporary filter column
         df = df.drop(columns=["_filter_time"])
 
+    # Shift to bar close based on strategy timeframe
     return df
 
 
 @pytest.fixture
 def tradingview_ohlcv(
     golden_strategy_paths: dict[str, Path],
+    golden_metadata: dict[str, Any],
     ensure_dvc_data_pulled: bool,
 ) -> pd.DataFrame:
     """Loads TradingView OHLCV export CSV.
@@ -620,7 +622,7 @@ def shared_data_handler(
     # Create DataHandler - this loads the 1-minute CSV once
     # The DataHandler's internal cache will persist for the entire test session
     data_handler = DataHandler(
-        symbol="EUR_USD",
+        symbol="EURUSD",
         data_root=data_root,
     )
     setattr(data_handler, "cache_root", GOLDEN_FEATURE_CACHE_ROOT)

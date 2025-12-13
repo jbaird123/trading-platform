@@ -1,0 +1,35 @@
+# config/meta_campaigns/5min_profitable_only.yaml
+#
+# Targeted meta-campaign for 5min timeframe using ONLY the profitable
+# configuration discovered through parameter sweep testing:
+# - 4.0x ATR chandelier stop
+# - Slow EMAs (80 period)
+# - Fast EMAs (10, 12, 20)
+
+meta_campaign_id: 5min_profitable
+description: "5min-only campaign using profitable 4x ATR + slow EMA configs"
+
+run_grid:
+  date_ranges:
+    - { start: "2018-01-01", end: "2023-12-31" }
+  instruments:
+    - EURUSD
+  execution_timeframes:
+    - 5min
+
+strategy_profiles:
+  # Only the profitable 4x ATR + slow EMA combinations
+  - name: profitable_5min
+    strategy_path: config/master_data_generation/strategies/ema_crossover_v1.yaml
+    rem_path: config/master_data_generation/rem/chandelier_stop_v1.yaml
+    archetype: trend_following
+    param_grid:
+      # Best performer: +$1,833 in testing
+      - strategy_params: { fast_length: 20, slow_length: 80 }
+        rem_params: { atr_length: 14, atr_multiplier: 4.0 }
+      # Second best: +$874 in testing
+      - strategy_params: { fast_length: 12, slow_length: 80 }
+        rem_params: { atr_length: 14, atr_multiplier: 4.0 }
+      # Third best: +$786 in testing
+      - strategy_params: { fast_length: 10, slow_length: 80 }
+        rem_params: { atr_length: 14, atr_multiplier: 4.0 }

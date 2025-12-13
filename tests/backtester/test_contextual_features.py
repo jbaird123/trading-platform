@@ -300,7 +300,7 @@ def test_backtester_trade_context_with_multi_timeframe_at_entry_and_exit() -> No
     """
     # Create 15-minute data for 20 hours (80 bars) to get 20 1H bars
     # RSI(14) needs 14 bars, so we need at least 15 1H bars for valid RSI
-    idx = pd.date_range(start="2024-01-01 00:00:00", periods=80, freq="15min")
+    idx = pd.date_range(start="2024-01-01 00:00:00", periods=80, freq="15min", tz="UTC")
     df_full = pd.DataFrame(
         {
             "open": [100.0 + i * 0.1 for i in range(80)],

@@ -83,8 +83,15 @@ def enrich_campaign_dataset(campaign_id: str) -> EnrichmentResult:
 
     df = unpack_simulated_holds(df)
 
+    # Remove strategy features - they are either redundant with global features
+    # (atr_14) or strategy-specific and don't generalize across archetypes
+    # (ema_fast, ema_slow, hhv_22, llv_22 for trend_following; BB features for
+    # mean_reversion). The ML models should use only global features.
+    strategy_feature_cols = [col for col in df.columns if "strategy_features" in col]
+    if strategy_feature_cols:
+        df = df.drop(columns=strategy_feature_cols)
+
     # Drop redundant columns that were flattened by json_normalize
-    # (data is preserved in flattened columns like context_at_exit_strategy_features_*)
     columns_to_drop = [
         col for col in ["context_at_exit", "post_exit_analysis"] if col in df.columns
     ]

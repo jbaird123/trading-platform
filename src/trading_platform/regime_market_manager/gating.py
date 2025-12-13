@@ -19,8 +19,8 @@ from trading_platform.regime_market_manager.models import (
 )
 
 ALIGNMENT_COLUMN_MAP = {
-    "5min": "context_at_entry_global_features_15min_trend_alignment_full_alignment",
-    "15min": "context_at_entry_global_features_1h_trend_alignment_full_alignment",
+    "5min": "context_at_entry_global_features_5min_trend_alignment_full_alignment",
+    "15min": "context_at_entry_global_features_15min_trend_alignment_full_alignment",
 }
 
 
@@ -107,13 +107,20 @@ class ProfitabilityGatingEngine:
             except Exception:
                 probability = float(proba[0])
         expression_passed = self._evaluate_expression(ctx_cfg, row)
-        allowed = probability >= ctx_cfg.probability_threshold and expression_passed
+        time_filter_passed = self._check_time_filters(ctx_cfg, row)
+        allowed = (
+            probability >= ctx_cfg.probability_threshold
+            and expression_passed
+            and time_filter_passed
+        )
         reason = None
         if not allowed:
             if probability < ctx_cfg.probability_threshold:
                 reason = "probability_below_threshold"
             elif not expression_passed:
                 reason = "gating_expression_failed"
+            elif not time_filter_passed:
+                reason = "time_filter_failed"
         return GatingDecision(
             allowed=allowed,
             probability=probability,
@@ -205,12 +212,40 @@ class ProfitabilityGatingEngine:
         row = row.fillna(0.0)
         return row
 
+    def _check_time_filters(self, ctx_cfg: RMMGatingContext, row: pd.DataFrame) -> bool:
+        """Check if trade passes allowed_hours and allowed_days filters."""
+        # Check allowed_hours
+        if ctx_cfg.allowed_hours is not None:
+            hour = row.iloc[0].get("hour_of_day")
+            if hour is None:
+                return False
+            try:
+                if int(hour) not in ctx_cfg.allowed_hours:
+                    return False
+            except (TypeError, ValueError):
+                return False
+
+        # Check allowed_days
+        if ctx_cfg.allowed_days is not None:
+            dow = row.iloc[0].get("day_of_week")
+            if dow is None:
+                return False
+            try:
+                if int(dow) not in ctx_cfg.allowed_days:
+                    return False
+            except (TypeError, ValueError):
+                return False
+
+        return True
+
     def _evaluate_expression(
         self, ctx_cfg: RMMGatingContext, row: pd.DataFrame
     ) -> bool:
+        """Evaluate the gating_expression field."""
         expr = ctx_cfg.gating_expression.strip().lower()
         if not expr or expr == "true":
             return True
+
         if expr == "alignment_full":
             column = ALIGNMENT_COLUMN_MAP.get(ctx_cfg.timeframe)
             if not column:
@@ -222,6 +257,7 @@ class ProfitabilityGatingEngine:
                 return float(value) > 0.0
             except (TypeError, ValueError):
                 return False
+
         # Unsupported expressions default to False to avoid false positives
         self._logger.warning(
             "Unsupported gating_expression '%s' for timeframe %s",
