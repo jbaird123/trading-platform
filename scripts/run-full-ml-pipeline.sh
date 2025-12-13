@@ -114,8 +114,14 @@ fi
 CURRENT_STAGE=0
 
 # --- Campaign List ---
-# Dynamically populated after meta-campaign generation
+# Discover existing campaigns from generated configs (for --start-from scenarios)
 CAMPAIGNS=()
+for config_file in config/campaigns/generated/*.yaml; do
+    if [ -f "$config_file" ]; then
+        campaign_name=$(basename "$config_file" .yaml)
+        CAMPAIGNS+=("$campaign_name")
+    fi
+done
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}ML Training Pipeline${NC}"
@@ -177,7 +183,8 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
     echo -e "${GREEN}✓ Generated configs from ${META_COUNT} meta-campaign(s)${NC}"
     echo ""
 
-    # Dynamically discover generated campaign configs
+    # Re-discover generated campaign configs (may have changed)
+    CAMPAIGNS=()
     for config_file in config/campaigns/generated/*.yaml; do
         if [ -f "$config_file" ]; then
             campaign_name=$(basename "$config_file" .yaml)
@@ -301,8 +308,8 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
         OUTPUT=$(poetry run tp campaign-enrich --campaign-id "$campaign" 2>&1)
         echo "$OUTPUT"
 
-        # Extract trade count from output
-        TRADES=$(echo "$OUTPUT" | grep -o 'Enriched [0-9]* trades' | grep -o '[0-9]*' || echo "0")
+        # Extract trade count from output (format: "X trades enriched")
+        TRADES=$(echo "$OUTPUT" | grep -o '[0-9]* trades enriched' | grep -o '[0-9]*' || echo "0")
         if [ -n "$TRADES" ]; then
             TOTAL_TRADES=$((TOTAL_TRADES + TRADES))
         fi
