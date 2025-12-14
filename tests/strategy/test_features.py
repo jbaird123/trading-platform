@@ -856,36 +856,3 @@ def test_prior_return_indicator():
 
     result = compute_features(df, specs)
     assert "prior_return_1" in result.columns
-
-
-def test_calendar_sessions_indicator():
-    """Ensure CalendarSessions indicator yields session columns."""
-
-    df = pd.DataFrame(
-        {
-            "open": [10, 11, 12],
-            "high": [10.5, 11.5, 12.5],
-            "low": [9.5, 10.5, 11.5],
-            "close": [10, 11, 12],
-            "volume": [100, 100, 100],
-        },
-        index=pd.date_range("2024-01-01", periods=3, freq="1h"),
-    )
-
-    specs = [
-        {
-            "name": "session_features",
-            "type": "CalendarSessions",
-            "params": {},
-        }
-    ]
-
-    result = compute_features(df, specs)
-
-    expected = [
-        "session_features_session_asia",
-        "session_features_session_london",
-        "session_features_session_newyork",
-    ]
-    for column in expected:
-        assert column in result.columns

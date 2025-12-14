@@ -18,7 +18,6 @@ Returns:
 
 from __future__ import annotations
 
-import warnings
 import weakref
 from typing import Any, Callable, cast
 
@@ -846,43 +845,6 @@ def compute_prior_return(
     with np.errstate(divide="ignore", invalid="ignore"):
         returns = price.pct_change(periods=window)
     return returns.replace([np.inf, -np.inf], np.nan)
-
-
-def compute_calendar_sessions(
-    df: pd.DataFrame,
-    params: dict[str, Any],
-    source: str = "close",
-    source_ref: str | None = None,
-) -> dict[str, pd.Series]:
-    """Encode trading sessions (Asia/London/New York) based on entry_time.
-
-    DEPRECATED: Use SessionService features instead (e.g. forex_session_london).
-    This function assumes static UTC hours which are incorrect for DST.
-    """
-    warnings.warn(
-        "compute_calendar_sessions is deprecated. Use SessionService features.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    index = df.index
-    if not isinstance(index, pd.DatetimeIndex):
-        empty = _empty_series(df)
-        return {
-            "session_asia": empty,
-            "session_london": empty,
-            "session_newyork": empty,
-        }
-
-    hours = index.hour
-    asia = ((hours >= 0) & (hours < 8)).astype(float)
-    london = ((hours >= 8) & (hours < 16)).astype(float)
-    newyork = ((hours >= 13) & (hours < 21)).astype(float)
-
-    return {
-        "session_asia": pd.Series(asia, index=index, dtype="float64"),
-        "session_london": pd.Series(london, index=index, dtype="float64"),
-        "session_newyork": pd.Series(newyork, index=index, dtype="float64"),
-    }
 
 
 def compute_day_of_week_onehot(

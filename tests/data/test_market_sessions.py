@@ -127,7 +127,7 @@ class TestSessionServiceIsSessionOpen:
 
         result = SessionService.is_session_open(utc_index, london_def)
 
-        assert result.iloc[0] is True
+        assert result.iloc[0] == True  # noqa: E712 (pandas returns np.True_)
 
     def test_london_closed_before_open_winter(self):
         """London session should be closed before 8 AM GMT in winter."""
@@ -137,7 +137,7 @@ class TestSessionServiceIsSessionOpen:
 
         result = SessionService.is_session_open(utc_index, london_def)
 
-        assert result.iloc[0] is False
+        assert result.iloc[0] == False  # noqa: E712 (pandas returns np.False_)
 
     def test_london_open_during_summer_dst(self):
         """London session should be open 8 AM - 5 PM BST in summer."""
@@ -148,7 +148,7 @@ class TestSessionServiceIsSessionOpen:
 
         result = SessionService.is_session_open(utc_index, london_def)
 
-        assert result.iloc[0] is True
+        assert result.iloc[0] == True  # noqa: E712 (pandas returns np.True_)
 
     def test_london_closed_before_open_summer(self):
         """London session should be closed before 8 AM BST in summer."""
@@ -159,7 +159,7 @@ class TestSessionServiceIsSessionOpen:
 
         result = SessionService.is_session_open(utc_index, london_def)
 
-        assert result.iloc[0] is False
+        assert result.iloc[0] == False  # noqa: E712 (pandas returns np.False_)
 
     def test_newyork_open_during_winter(self):
         """NY session should be open 8 AM - 5 PM EST in winter."""
@@ -170,7 +170,7 @@ class TestSessionServiceIsSessionOpen:
 
         result = SessionService.is_session_open(utc_index, ny_def)
 
-        assert result.iloc[0] is True
+        assert result.iloc[0] == True  # noqa: E712 (pandas returns np.True_)
 
     def test_newyork_open_during_summer_dst(self):
         """NY session should be open 8 AM - 5 PM EDT in summer."""
@@ -181,7 +181,7 @@ class TestSessionServiceIsSessionOpen:
 
         result = SessionService.is_session_open(utc_index, ny_def)
 
-        assert result.iloc[0] is True
+        assert result.iloc[0] == True  # noqa: E712 (pandas returns np.True_)
 
     def test_asia_tokyo_no_dst(self):
         """Tokyo session should not change between summer and winter (no DST)."""
@@ -196,8 +196,8 @@ class TestSessionServiceIsSessionOpen:
         summer_result = SessionService.is_session_open(summer_index, asia_def)
 
         # Both should be True - Tokyo doesn't observe DST
-        assert winter_result.iloc[0] is True
-        assert summer_result.iloc[0] is True
+        assert winter_result.iloc[0] == True  # noqa: E712 (pandas returns np.True_)
+        assert summer_result.iloc[0] == True  # noqa: E712 (pandas returns np.True_)
 
     def test_crypto_always_open(self):
         """Crypto 'always' session should be open 24/7."""
@@ -216,7 +216,7 @@ class TestSessionServiceIsSessionOpen:
 
         result = SessionService.is_session_open(utc_index, crypto_def)
 
-        assert result.all() is True
+        assert result.all() == True  # noqa: E712 (pandas returns np.True_)
 
     def test_returns_series_with_correct_index(self):
         """is_session_open should return Series with same index as input."""
