@@ -11,6 +11,8 @@ __all__ = [
     "threshold_sweep_selected_groups",
     "generate_threshold_recommendations",
     "threshold_recommendation_report",
+    "threshold_drawdown_analysis",
+    "threshold_drawdown_recommendation_report",
     "run_rmm_optimization",
     "evaluate_5min_model_variants",
     "two_stage_threshold_analysis",

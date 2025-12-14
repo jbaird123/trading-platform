@@ -9,6 +9,10 @@ from typing import Sequence
 
 import pandas as pd
 
+from trading_platform.rmm_analysis import threshold_drawdown_analysis as tda
+from trading_platform.rmm_analysis import (
+    threshold_drawdown_recommendation_report as tdrr,
+)
 from trading_platform.rmm_analysis import threshold_profitability_analysis as tpa
 from trading_platform.rmm_analysis import threshold_recommendation_report as trr
 from trading_platform.rmm_analysis.grid_feature_pattern_search import (
@@ -278,6 +282,38 @@ def main(argv: Sequence[str] | None = None) -> None:
                 )
 
     recommendations_df.to_csv(recommendations_csv, index=False)
+
+    # Run drawdown-based recommendation analysis (alongside R-multiple recommendations)
+    drawdown_csv = args.output_dir / "threshold_drawdown.csv"
+    drawdown_recommendations_csv = (
+        args.output_dir / "threshold_recommendations_drawdown.csv"
+    )
+
+    print("\n--- Drawdown Analysis ---")
+    predictions_csv = args.output_dir / "threshold_predictions.csv"
+
+    tda_args = [
+        "--predictions-csv",
+        str(predictions_csv),
+        "--profitability-csv",
+        str(profitability_csv),
+        "--output-path",
+        str(drawdown_csv),
+    ]
+    try:
+        tda.main(tda_args)
+
+        # Generate drawdown-based recommendations
+        tdrr_args = [
+            "--drawdown-csv",
+            str(drawdown_csv),
+            "--output-csv",
+            str(drawdown_recommendations_csv),
+        ]
+        tdrr.main(tdrr_args)
+    except Exception as e:
+        print(f"Warning: Drawdown analysis failed: {e}", file=sys.stderr)
+        print("R-multiple recommendations were still generated successfully.")
 
 
 __all__ = [
