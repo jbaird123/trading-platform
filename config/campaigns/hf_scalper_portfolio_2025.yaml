@@ -1,4 +1,5 @@
 meta_campaign_id: hf_scalper_portfolio_2025
+global_features_config_path: config/features/minimal_global.yaml
 description: "Multi-Pair High-Frequency Scalper Portfolio (28-Day DD Verif)"
 run_grid:
   date_ranges:
