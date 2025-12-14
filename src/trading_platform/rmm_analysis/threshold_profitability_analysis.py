@@ -248,7 +248,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             ]
             if len(train_subset) < 50 or len(test_subset) < 30:
                 continue
-            X_train, X_test, y_train, y_test, test_indices = _prepare_xy(
+            X_train, X_test, y_train, y_test, _ = _prepare_xy(
                 train_subset,
                 test_subset,
                 patterns,
@@ -264,16 +264,12 @@ def main(argv: Sequence[str] | None = None) -> None:
             )
 
             # Collect predictions for downstream analysis (e.g. drawdown)
-            # Use test_indices to link back to original trade data if needed,
-            # but simpler to just store what we have here.
-            # _prepare_xy returns the index of the test subset.
-            test_trades = test_subset.loc[test_indices]
+            # Probabilities align 1-to-1 with test_subset
             for idx, prob, actual in zip(
-                test_trades.index, probabilities, y_test, strict=False
+                test_subset.index, probabilities, y_test, strict=False
             ):
                 # Retrieve original row data for context
-                # Assuming test_trades still has columns like run_id, entry_time
-                original_row = test_trades.loc[idx]
+                original_row = test_subset.loc[idx]
                 prediction_rows.append(
                     {
                         "run_id": original_row["run_id"],
