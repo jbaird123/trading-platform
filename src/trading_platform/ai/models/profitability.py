@@ -14,6 +14,9 @@ import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.impute import SimpleImputer
 
+from trading_platform.data.instrument import get_instrument_definition
+from trading_platform.data.market_sessions import SessionService
+
 from ._timeframe_utils import drop_lower_timeframe_global_features
 from .feature_groups import (
     ENGINEERED_GROUP_PATTERNS,
@@ -379,9 +382,42 @@ class ProfitabilityModel:
             features.extend(symbol_dummies.columns.tolist())
 
         # Temporal: Derived from entry_time
+        # Temporal: Derived from entry_time
         if "entry_time" in df.columns:
-            df["hour_of_day"] = pd.to_datetime(df["entry_time"]).dt.hour
-            df["day_of_week"] = pd.to_datetime(df["entry_time"]).dt.dayofweek
+            if "symbol" in df.columns:
+                # Initialize columns
+                df["hour_of_day"] = 0
+                df["day_of_week"] = 0
+
+                # Ensure UTC
+                times = pd.to_datetime(df["entry_time"], utc=True)
+
+                # Vectorized conversion per symbol/timezone
+                # This is much faster than row-by-row
+                unique_symbols = df["symbol"].unique()
+                for sym in unique_symbols:
+                    try:
+                        inst = get_instrument_definition(sym)
+                        group = inst.session_group
+                    except Exception:
+                        group = "forex"
+
+                    mask = df["symbol"] == sym
+                    # Use SessionService.get_local_times on the subset
+                    local_subset = SessionService.get_local_times(
+                        pd.DatetimeIndex(times[mask]), group
+                    )
+
+                    df.loc[mask, "hour_of_day"] = local_subset.hour.values
+                    df.loc[mask, "day_of_week"] = local_subset.dayofweek.values
+            else:
+                # Fallback if symbol is missing (unlikely in valid usage)
+                # Default to NY time (forex) for consistency
+                times = pd.to_datetime(df["entry_time"], utc=True)
+                local = SessionService.get_local_times(pd.DatetimeIndex(times), "forex")
+                df["hour_of_day"] = local.hour
+                df["day_of_week"] = local.dayofweek
+
             features.extend(["hour_of_day", "day_of_week"])
 
         # Return only numeric extracted features (drop datetime/object columns

@@ -124,10 +124,10 @@ def _gating_frame(df: pd.DataFrame) -> pd.DataFrame:
             "context_at_entry_global_features_15min_" "atr_percentile_100"
         ],
         "session_london": (
-            df["context_at_entry_global_features_15min_calendar_session_london"] > 0.0
+            df["context_at_entry_global_features_15min_forex_session_london"] > 0.0
         ),
         "session_newyork": (
-            df["context_at_entry_global_features_15min_calendar_session_newyork"] > 0.0
+            df["context_at_entry_global_features_15min_forex_session_newyork"] > 0.0
         ),
         "alignment_score": df[
             "context_at_entry_global_features_15min_trend_" "alignment_stack_score"

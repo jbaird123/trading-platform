@@ -290,6 +290,7 @@ def test_percentile_and_streaks_additional_branches():
 def test_brief_includes_instrument_snapshot_when_provided():
     instr = InstrumentDefinition(
         symbol="EURUSD",
+        session_group="forex",
         tick_size=0.0001,
         pip_location=0.0001,
         base_ccy="EUR",
@@ -1006,10 +1007,16 @@ def test_brief_activity_empty_with_no_trades():
 
 def test_brief_includes_timing_buckets():
     """Test that generate_brief includes timing buckets analysis."""
-    # Create trades at different times
+    import pytz
+
+    # Create trades at different times (timezone-aware for SessionService)
     trades = [
-        _trade(100.0, ts=datetime(2024, 1, 1, 10, 0, 0)),  # Monday 10am
-        _trade(-50.0, ts=datetime(2024, 1, 2, 14, 0, 0)),  # Tuesday 2pm
+        _trade(
+            100.0, ts=datetime(2024, 1, 1, 10, 0, 0, tzinfo=pytz.UTC)
+        ),  # Monday 10am UTC
+        _trade(
+            -50.0, ts=datetime(2024, 1, 2, 14, 0, 0, tzinfo=pytz.UTC)
+        ),  # Tuesday 2pm UTC
     ]
 
     field_definitions = {

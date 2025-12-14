@@ -127,6 +127,7 @@ def test_load_cached_features_raises_on_digest_mismatch(tmp_path):
             cache_root=cache_root,
             config_path=manifest_path,
             feature_names=["5min_test_ema"],  # Added required arg
+            session_group="forex",
         )
 
 
@@ -174,6 +175,7 @@ def test_load_cached_features_error_message_includes_digests(tmp_path):
             cache_root=cache_root,
             config_path=manifest_path,
             feature_names=["5min_test_ema"],
+            session_group="forex",
         )
 
     error_message = str(exc_info.value)
@@ -215,6 +217,7 @@ def test_load_cached_features_succeeds_with_matching_digest(tmp_path):
         cache_root=cache_root,
         config_path=manifest_path,
         feature_names=["5min_test_ema"],  # Added required arg
+        session_group="forex",
     )
 
     assert result is not None

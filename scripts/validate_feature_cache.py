@@ -27,6 +27,7 @@ from trading_platform.core.global_features_cache import (
     load_cached_global_features,
 )
 from trading_platform.data.handler import DataHandler
+from trading_platform.data.instrument import get_instrument_definition
 
 
 def parse_args() -> argparse.Namespace:
@@ -123,12 +124,14 @@ def main() -> None:
     feature_names: list[str] = [str(f["name"]) for f in feature_defs if "name" in f]
 
     try:
+        instrument = get_instrument_definition(args.symbol)
         cache_result = load_cached_global_features(
             symbol=args.symbol,
             timeframe=args.timeframe,
             cache_root=args.cache_dir,
             config_path=args.feature_config,
             feature_names=feature_names,
+            session_group=instrument.session_group,
         )
     except ValueError as e:
         print(f"ERROR: Failed to load cache: {e}")

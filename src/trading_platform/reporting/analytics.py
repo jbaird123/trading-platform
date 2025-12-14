@@ -7,6 +7,11 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+import pandas as pd
+
+from trading_platform.data.instrument import get_instrument_definition
+from trading_platform.data.market_sessions import SessionService
+
 if TYPE_CHECKING:
     from trading_platform.portfolio.trade import Trade
 
@@ -179,10 +184,29 @@ def compute_timing_buckets(trades: list[Trade]) -> dict:
             lambda: {"trades": [], "total_pnl": 0.0}
         )
 
+        # Cache session groups to minimize lookups
+        symbol_groups: dict[str, str] = {}
+
+        def get_session_group(symbol: str) -> str:
+            if symbol not in symbol_groups:
+                try:
+                    inst = get_instrument_definition(symbol)
+                    symbol_groups[symbol] = inst.session_group
+                except Exception:
+                    # Fallback for synthetic/unknown symbols
+                    symbol_groups[symbol] = "forex"
+            return symbol_groups[symbol]
+
         # Group trades by time buckets
         for trade in trades:
-            hour = trade.entry_time.hour
-            day_of_week = trade.entry_time.weekday()  # Monday = 0, Sunday = 6
+            ts = trade.entry_time
+            ts_pd = pd.Timestamp(ts)
+            if ts_pd.tzinfo is None:
+                ts_pd = ts_pd.tz_localize("UTC")
+
+            group = get_session_group(trade.symbol)
+            hour = SessionService.get_local_hour(ts_pd, group)
+            day_of_week = SessionService.get_local_day_of_week(ts_pd, group)
 
             hour_buckets[hour]["trades"].append(trade)
             hour_buckets[hour]["total_pnl"] += trade.pnl
@@ -218,7 +242,6 @@ def compute_timing_buckets(trades: list[Trade]) -> dict:
         }
 
     except Exception as e:
-        # Safe to continue: timing bucket analysis is optional
         logger.debug(f"Failed to compute timing buckets: {e}")
         return {}
 

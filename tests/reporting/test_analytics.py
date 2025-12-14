@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+import pytz
 from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.analytics import compute_stationarity
 from trading_platform.reporting.models.exit_analysis import (
@@ -17,7 +18,9 @@ from trading_platform.reporting.models.exit_analysis import (
 
 def _mock_trade(pnl: float, ts: datetime | None = None) -> Trade:
     """Helper to create mock Trade objects for testing."""
-    entry_time = ts or datetime(2024, 1, 1)
+    import pytz
+
+    entry_time = ts or datetime(2024, 1, 1, tzinfo=pytz.UTC)
     return Trade(
         symbol="TEST",
         entry_time=entry_time,
@@ -203,10 +206,11 @@ def test_compute_feature_analysis_handles_pandas_errors(monkeypatch):
 
 def test_compute_activity():
     """Test compute_activity calculates average trades per day."""
+    # Create trades over 4 days (3 trades total = 0.75 trades/day)
+    import pytz
     from trading_platform.reporting.analytics import compute_activity
 
-    # Create trades over 4 days (3 trades total = 0.75 trades/day)
-    base_time = datetime(2024, 1, 1, 10, 0, 0)
+    base_time = datetime(2024, 1, 1, 10, 0, 0, tzinfo=pytz.UTC)
     trades = [
         _mock_trade(100.0, base_time),  # Day 1
         _mock_trade(200.0, base_time + timedelta(days=1)),  # Day 2
@@ -267,13 +271,21 @@ def test_compute_timing_buckets():
     # Create trades at different hours and days of week
     trades = [
         # Monday (weekday 0), 10 AM
-        _mock_trade(100.0, datetime(2024, 1, 1, 10, 0, 0)),  # Monday 10am +100
+        _mock_trade(
+            100.0, datetime(2024, 1, 1, 10, 0, 0, tzinfo=pytz.UTC)
+        ),  # Monday 10am +100
         # Tuesday (weekday 1), 2 PM
-        _mock_trade(-50.0, datetime(2024, 1, 2, 14, 0, 0)),  # Tuesday 2pm -50
+        _mock_trade(
+            -50.0, datetime(2024, 1, 2, 14, 0, 0, tzinfo=pytz.UTC)
+        ),  # Tuesday 2pm -50
         # Wednesday (weekday 2), 10 AM
-        _mock_trade(200.0, datetime(2024, 1, 3, 10, 0, 0)),  # Wednesday 10am +200
+        _mock_trade(
+            200.0, datetime(2024, 1, 3, 10, 0, 0, tzinfo=pytz.UTC)
+        ),  # Wednesday 10am +200
         # Friday (weekday 4), 2 PM
-        _mock_trade(-25.0, datetime(2024, 1, 5, 14, 0, 0)),  # Friday 2pm -25
+        _mock_trade(
+            -25.0, datetime(2024, 1, 5, 14, 0, 0, tzinfo=pytz.UTC)
+        ),  # Friday 2pm -25
     ]
 
     result = compute_timing_buckets(trades)
@@ -284,18 +296,18 @@ def test_compute_timing_buckets():
 
     # Check hour buckets
     hour_buckets = result["hour_of_day"]
-    assert 10 in hour_buckets  # 10 AM bucket
-    assert 14 in hour_buckets  # 2 PM bucket
+    assert 5 in hour_buckets  # 10 AM UTC -> 5 AM NY
+    assert 9 in hour_buckets  # 2 PM UTC -> 9 AM NY
 
-    # Hour 10: 2 trades, total PnL = +300, win_rate = 1.0 (both wins)
-    assert hour_buckets[10]["n_trades"] == 2
-    assert hour_buckets[10]["total_pnl"] == 300.0
-    assert hour_buckets[10]["win_rate"] == 1.0
+    # Hour 5 (10 AM UTC): 2 trades, total PnL = +300
+    assert hour_buckets[5]["n_trades"] == 2
+    assert hour_buckets[5]["total_pnl"] == 300.0
+    assert hour_buckets[5]["win_rate"] == 1.0
 
-    # Hour 14: 2 trades, total PnL = -75, win_rate = 0.0 (both losses)
-    assert hour_buckets[14]["n_trades"] == 2
-    assert hour_buckets[14]["total_pnl"] == -75.0
-    assert hour_buckets[14]["win_rate"] == 0.0
+    # Hour 9 (2 PM UTC): 2 trades, total PnL = -75
+    assert hour_buckets[9]["n_trades"] == 2
+    assert hour_buckets[9]["total_pnl"] == -75.0
+    assert hour_buckets[9]["win_rate"] == 0.0
 
     # Check day buckets
     day_buckets = result["day_of_week"]
@@ -339,7 +351,9 @@ def test_brief_integration_with_contrasts():
 
     # Create trades with specific sides using helper function
     def _mock_trade_with_side(pnl: float, side: str) -> Trade:
-        entry_time = datetime.datetime(2024, 1, 1)
+        import pytz
+
+        entry_time = datetime.datetime(2024, 1, 1, tzinfo=pytz.UTC)
         return Trade(
             symbol="TEST",
             entry_time=entry_time,
@@ -385,7 +399,9 @@ def test_compute_stop_tp_candidates():
 
     # Create trades with MFE and MAE values for helper function
     def _mock_trade_with_mfe_mae(pnl: float, mfe: float, mae: float) -> Trade:
-        entry_time = datetime(2024, 1, 1)
+        import pytz
+
+        entry_time = datetime(2024, 1, 1, tzinfo=pytz.UTC)
         return Trade(
             symbol="TEST",
             entry_time=entry_time,
@@ -444,7 +460,9 @@ def test_brief_integration_with_stop_tp_candidates():
 
     # Create trades with MFE and MAE values for helper function
     def _mock_trade_with_mfe_mae(pnl: float, mfe: float, mae: float) -> Trade:
-        entry_time = datetime.datetime(2024, 1, 1)
+        import pytz
+
+        entry_time = datetime.datetime(2024, 1, 1, tzinfo=pytz.UTC)
         return Trade(
             symbol="TEST",
             entry_time=entry_time,
@@ -503,8 +521,8 @@ def test_brief_integration_with_timing_buckets():
     trades = [
         Trade(
             symbol="TEST",
-            entry_time=datetime.datetime(2024, 1, 1, 9, 30, 0),
-            exit_time=datetime.datetime(2024, 1, 1, 10, 30, 0),
+            entry_time=datetime.datetime(2024, 1, 1, 9, 30, 0, tzinfo=pytz.UTC),
+            exit_time=datetime.datetime(2024, 1, 1, 10, 30, 0, tzinfo=pytz.UTC),
             entry_price=1.0,
             exit_price=1.01,
             side="long",
@@ -541,7 +559,9 @@ def test_compute_contrasts():
 
     # Create trades with specific sides using helper function
     def _mock_trade_with_side(pnl: float, side: str) -> Trade:
-        entry_time = datetime(2024, 1, 1)
+        import pytz
+
+        entry_time = datetime(2024, 1, 1, tzinfo=pytz.UTC)
         return Trade(
             symbol="TEST",
             entry_time=entry_time,
@@ -711,7 +731,9 @@ def test_compute_exit_efficiency_no_post_exit_data() -> None:
     from dataclasses import replace
     from datetime import datetime
 
-    trade = _mock_trade(100.0, datetime(2024, 1, 1))
+    import pytz
+
+    trade = _mock_trade(100.0, datetime(2024, 1, 1, tzinfo=pytz.UTC))
     trade = replace(trade, exit_reason="signal", post_exit_analysis=None)
 
     from trading_platform.reporting.analytics import compute_exit_efficiency
@@ -726,7 +748,9 @@ def test_compute_exit_efficiency_take_profit_premature() -> None:
     from dataclasses import replace
     from datetime import datetime
 
-    trade = _mock_trade(100.0, datetime(2024, 1, 1))
+    import pytz
+
+    trade = _mock_trade(100.0, datetime(2024, 1, 1, tzinfo=pytz.UTC))
     trade = replace(
         trade,
         exit_reason="take_profit",
@@ -777,7 +801,9 @@ def test_compute_exit_efficiency_stop_loss_false() -> None:
     from dataclasses import replace
     from datetime import datetime
 
-    trade = _mock_trade(-50.0, datetime(2024, 1, 1))
+    import pytz
+
+    trade = _mock_trade(-50.0, datetime(2024, 1, 1, tzinfo=pytz.UTC))
     trade = replace(
         trade,
         exit_reason="stop_loss",

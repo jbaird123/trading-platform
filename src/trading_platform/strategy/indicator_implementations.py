@@ -18,6 +18,7 @@ Returns:
 
 from __future__ import annotations
 
+import warnings
 import weakref
 from typing import Any, Callable, cast
 
@@ -853,7 +854,16 @@ def compute_calendar_sessions(
     source: str = "close",
     source_ref: str | None = None,
 ) -> dict[str, pd.Series]:
-    """Encode trading sessions (Asia/London/New York) based on entry_time."""
+    """Encode trading sessions (Asia/London/New York) based on entry_time.
+
+    DEPRECATED: Use SessionService features instead (e.g. forex_session_london).
+    This function assumes static UTC hours which are incorrect for DST.
+    """
+    warnings.warn(
+        "compute_calendar_sessions is deprecated. Use SessionService features.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     index = df.index
     if not isinstance(index, pd.DatetimeIndex):
         empty = _empty_series(df)

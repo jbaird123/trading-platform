@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import time
 
 import pytest
+from pydantic import ValidationError
 from trading_platform.data.instrument import (
     InstrumentDefinition,
     SessionDefinition,
@@ -63,6 +64,7 @@ def test_instrument_and_session_models():
     valid_sessions = [session]
     instrument = InstrumentDefinition(
         asset_class="Forex",
+        session_group="forex",
         point_value=1.0,
         tick_size=0.00001,
         pip_location=0.0001,
@@ -148,3 +150,46 @@ def test_get_instrument_definition_uses_asset_class_defaults():
     # Call get_instrument_definition for "EURJPY" and assert its tick_size
     eurjpy = get_instrument_definition("EURJPY")
     assert eurjpy.tick_size == 0.001
+
+
+def test_forex_instrument_has_session_group():
+    """Forex instruments should have session_group='forex' by default."""
+    instrument = get_instrument_definition("EURUSD")
+    assert instrument.session_group == "forex"
+
+
+def test_all_forex_instruments_have_session_group():
+    """All defined forex instruments should inherit session_group from defaults."""
+    forex_symbols = [
+        "EURUSD",
+        "GBPUSD",
+        "USDJPY",
+        "AUDUSD",
+        "USDCAD",
+        "USDCHF",
+        "NZDUSD",
+        "EURGBP",
+        "EURJPY",
+        "GBPJPY",
+    ]
+    for symbol in forex_symbols:
+        instrument = get_instrument_definition(symbol)
+        assert instrument.session_group == "forex", f"{symbol} missing session_group"
+
+
+def test_session_group_is_required():
+    """InstrumentDefinition should require session_group field."""
+    with pytest.raises(ValidationError):
+        InstrumentDefinition(  # type: ignore[call-arg]
+            asset_class="Forex",
+            point_value=1.0,
+            tick_size=0.00001,
+            pip_location=0.0001,
+            commission_model={"type": "spread"},
+            sessions=[
+                SessionDefinition(
+                    close_time=time(17, 0), close_timezone="America/New_York"
+                )
+            ],
+            # session_group intentionally omitted
+        )
