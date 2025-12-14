@@ -57,6 +57,232 @@ Before starting this workflow, ensure:
 
 ---
 
+## 3A. Reproducibility and Audit Requirements
+
+### All Analysis Must Be Script-Based
+
+**CRITICAL: Do not perform calculations or analysis manually.** All analysis must be performed by scripts that are saved as artifacts for independent review.
+
+#### Why This Matters
+
+1. **Reproducibility**: Anyone should be able to re-run the analysis and get identical results
+2. **Auditability**: Scripts can be reviewed for bugs and logical errors
+3. **Transparency**: It's clear exactly how each number was computed
+4. **Version Control**: Scripts can be tracked in git for history and accountability
+
+#### Required Workflow
+
+For every analysis step:
+
+1. **Write a standalone script** in the research directory (e.g., `analysis/ml_first_discovery/{date}/scripts/`)
+2. **Save outputs** (CSVs, plots, summaries) to the research directory
+3. **Document in run_summary.md** which script produced which results
+4. **Include the script path** next to any numbers or conclusions
+
+#### Script Naming Convention
+
+```
+{date}/scripts/
+  ├── 01_feature_importance_analysis.py
+  ├── 02_quintile_trade_analysis.py
+  ├── 03_regime_correlation_analysis.py
+  ├── 04_classifier_calibration_analysis.py
+  ├── 05_markov_sequence_analysis.py
+  ├── 06_regime_clustering.py
+  └── ...
+```
+
+#### Documentation Format
+
+In `run_summary.md`, always cite the source script:
+
+```markdown
+## Phase 1.1: Feature Importance Analysis
+
+**Script**: `scripts/01_feature_importance_analysis.py`
+**Output**: `artifacts/feature_importances.csv`
+
+### Key Findings
+
+| Feature | Importance |
+|---------|------------|
+| atr_percentile | 0.032 |
+| ... | ... |
+
+*Source: Line 45-60 of 01_feature_importance_analysis.py*
+```
+
+#### Script Requirements
+
+Each analysis script must:
+
+1. **Be self-contained**: Can be run independently with `poetry run python scripts/XX_name.py`
+2. **Print clear output**: Show what it's computing and the results
+3. **Save artifacts**: Write CSV/parquet files for any data used in the summary
+4. **Include comments**: Explain the methodology and any assumptions
+5. **Handle the data hierarchy correctly**: Filter by `run_id`, exclude `no_risk` runs (see Section 3B)
+
+#### Example Script Template
+
+```python
+#!/usr/bin/env python3
+"""
+Phase 1.1: Feature Importance Analysis
+
+This script extracts feature importances from diagnostic models
+to understand what conditions predict winning trades.
+
+Output:
+  - artifacts/feature_importances.csv
+  - artifacts/feature_importances_entry_only.csv
+"""
+
+import pandas as pd
+import numpy as np
+from pathlib import Path
+
+# Configuration
+OUTPUT_DIR = Path("analysis/ml_first_discovery/2025-XX-XX/artifacts")
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+def main():
+    print("=" * 80)
+    print("PHASE 1.1: FEATURE IMPORTANCE ANALYSIS")
+    print("=" * 80)
+
+    # Load data
+    trades = pd.read_parquet("data/dvc/processed/training_sets/master_trade_log.parquet")
+
+    # Filter to with_risk run_ids only
+    valid_run_ids = [r for r in trades["run_id"].unique() if "with_risk" in r]
+    trades = trades[trades["run_id"].isin(valid_run_ids)]
+    print(f"Analyzing {len(trades):,} trades from {len(valid_run_ids)} run_ids")
+
+    # ... analysis code ...
+
+    # Save results
+    results_df.to_csv(OUTPUT_DIR / "feature_importances.csv", index=False)
+    print(f"\nSaved: {OUTPUT_DIR / 'feature_importances.csv'}")
+
+if __name__ == "__main__":
+    main()
+```
+
+#### What NOT To Do
+
+```markdown
+❌ WRONG: "I calculated the win rate to be 45.2%"
+   (No script, no audit trail, could be a calculation error)
+
+✅ CORRECT: "Win rate: 45.2% (see scripts/05_markov_analysis.py, line 87)"
+   (Traceable, reproducible, auditable)
+```
+
+---
+
+## 3B. Critical Data Structure Understanding
+
+### Master Trade Log Structure
+
+The `master_trade_log.parquet` contains trades from **multiple independent backtests**. The data has a hierarchical structure:
+
+```
+campaign_id (20 unique)
+  └── run_id (135 unique total, 4-10 per campaign)
+        └── trades (individual trade records)
+```
+
+**Each `run_id` represents an independent backtest and must be analyzed separately.**
+
+#### Data Hierarchy
+
+| Level | Column | Description | Example |
+|-------|--------|-------------|---------|
+| Campaign | `campaign_id` | Strategy + variant + timeframe | `trend_following_model_generation_trend_with_risk_5min` |
+| Run | `run_id` | Individual backtest within a campaign | `trend_following_model_generation_trend_with_risk_5min_0000_EURUSD` |
+
+#### Run ID Structure
+
+Run IDs follow the naming convention:
+```
+{campaign_id}_{run_number}_{symbol}
+```
+
+Examples:
+- `trend_following_model_generation_trend_with_risk_5min_0000_EURUSD`
+- `mean_reversion_model_generation_bb_with_risk_15min_0003_EURUSD`
+
+Each campaign typically has 4-10 run_ids representing different backtest configurations or time windows.
+
+#### Risk Management Variants
+
+**CRITICAL DISTINCTION:**
+
+| Variant | Description | Has r_multiple | Has stop_loss | Use for Analysis |
+|---------|-------------|----------------|---------------|------------------|
+| `with_risk` | Backtest **with** stop loss configured | ✅ Yes | ✅ Yes | ✅ Use for Markov, streak, and performance analysis |
+| `no_risk` | Backtest **without** stop loss configured | ❌ NaN/0 | ❌ NaN | ❌ Skip - no meaningful r_multiple |
+
+- **`with_risk` campaigns/runs**: Have a stop loss configured, so `r_multiple`, `initial_risk_ccy`, and stop loss values are populated. These are the **only runs suitable for profitability analysis**.
+
+- **`no_risk` campaigns/runs**: Have **no stop loss** configured (hence "no risk management"). The `r_multiple` column will be NaN or 0 for all trades. **Do not include these in Markov analysis, streak analysis, or any performance metrics** - they will show 0% win rate and distort results.
+
+#### Why Analysis Must Be Done Per run_id
+
+When trades from multiple run_ids are combined (even within the same campaign), you get **incorrect results**:
+
+1. **Parallel Execution**: Multiple runs within a campaign may cover the same time period with different parameters
+2. **False Streaks**: A "131-trade losing streak" might actually be trades from multiple run_ids occurring during the same market event
+3. **Parameter Variations**: Different run_ids may have different strategy parameters being tested
+4. **Overlapping Trades**: The same market event may generate trades in multiple runs
+
+**Correct Approach:**
+```python
+# WRONG - Aggregates all run_ids together (even within a campaign)
+trades = pd.read_parquet("master_trade_log.parquet")
+campaign_trades = trades[trades["campaign_id"] == "some_campaign"]
+campaign_trades = campaign_trades.sort_values("entry_time")  # ❌ Mixes run_ids
+markov_analysis(campaign_trades["is_win"])  # ❌ Meaningless results
+
+# CORRECT - Analyze each run_id separately
+trades = pd.read_parquet("master_trade_log.parquet")
+
+# Filter to only with_risk run_ids
+valid_run_ids = [r for r in trades["run_id"].unique() if "with_risk" in r]
+
+for run_id in valid_run_ids:
+    run_trades = trades[trades["run_id"] == run_id].sort_values("entry_time")
+    results = markov_analysis(run_trades["is_win"])
+    # Report results per run_id
+```
+
+#### Verification Checks
+
+Before any analysis, verify data integrity:
+
+```python
+# Check for no_risk run_ids (should be excluded)
+for run_id in trades["run_id"].unique():
+    if "no_risk" in run_id:
+        run_trades = trades[trades["run_id"] == run_id]
+        win_rate = (run_trades["r_multiple"] > 0).mean()
+        print(f"WARNING: {run_id} has win_rate={win_rate:.1%} - exclude from analysis")
+
+# Check run_id distribution
+print(f"Total run_ids: {trades['run_id'].nunique()}")
+print(f"with_risk run_ids: {len([r for r in trades['run_id'].unique() if 'with_risk' in r])}")
+print(f"no_risk run_ids: {len([r for r in trades['run_id'].unique() if 'no_risk' in r])}")
+
+# Verify no duplicate timestamps within a single run_id
+for run_id in trades["run_id"].unique():
+    run_trades = trades[trades["run_id"] == run_id]
+    dup_times = run_trades["entry_time"].duplicated().sum()
+    if dup_times > 0:
+        print(f"WARNING: {run_id} has {dup_times} duplicate entry_times - investigate!")
+```
+
+---
+
 ## 4. The ML-First Workflow
 
 ### Phase 1: Interrogate the Trained Models
@@ -228,6 +454,8 @@ EOF
 
 Winning and losing trades are NOT independent. Analyze trade sequences to understand streak patterns.
 
+**CRITICAL: Analyze each run_id separately - see Section 3B for why.**
+
 ```bash
 poetry run python << 'EOF'
 import pandas as pd
@@ -235,12 +463,7 @@ import numpy as np
 from pathlib import Path
 
 trades = pd.read_parquet("data/dvc/processed/training_sets/master_trade_log.parquet")
-trades = trades.sort_values("entry_time")
 
-# Create win/loss sequence
-trades["is_win"] = trades["r_multiple"] > 0
-
-# Calculate transition probabilities
 def markov_analysis(sequence):
     """Analyze Markov transition probabilities for trade outcomes."""
     transitions = {"WW": 0, "WL": 0, "LW": 0, "LL": 0}
@@ -250,7 +473,6 @@ def markov_analysis(sequence):
         next_ = "W" if sequence.iloc[i + 1] else "L"
         transitions[curr + next_] += 1
 
-    # Calculate conditional probabilities
     p_win_given_win = transitions["WW"] / (transitions["WW"] + transitions["WL"]) if (transitions["WW"] + transitions["WL"]) > 0 else 0
     p_win_given_loss = transitions["LW"] / (transitions["LW"] + transitions["LL"]) if (transitions["LW"] + transitions["LL"]) > 0 else 0
 
@@ -261,19 +483,80 @@ def markov_analysis(sequence):
         "momentum_effect": p_win_given_win - p_win_given_loss
     }
 
-# Analyze by strategy archetype
-for archetype in trades["strategy_archetype"].unique():
-    arch_trades = trades[trades["strategy_archetype"] == archetype]
-    results = markov_analysis(arch_trades["is_win"])
+def calc_max_streak(arr, value):
+    """Calculate maximum consecutive streak of a value."""
+    max_len = 0
+    current = 0
+    for v in arr:
+        if v == value:
+            current += 1
+            max_len = max(max_len, current)
+        else:
+            current = 0
+    return max_len
 
-    print(f"\n=== {archetype} ===")
-    for key, val in results.items():
-        print(f"  {key}: {val:.3f}")
+# Filter to only with_risk run_ids (no_risk runs have no r_multiple)
+valid_run_ids = [r for r in trades["run_id"].unique() if "with_risk" in r]
 
-# Key insights:
-# - If P(win|prev_win) > P(win|prev_loss): positive momentum (stay aggressive after wins)
-# - If P(win|prev_loss) > P(win|prev_win): mean reversion (stay aggressive after losses)
-# - If equal: trades are independent (classic assumption holds)
+print("=" * 80)
+print("MARKOV ANALYSIS BY RUN_ID (with_risk only)")
+print("=" * 80)
+
+results = []
+for run_id in valid_run_ids:
+    run_trades = trades[trades["run_id"] == run_id].sort_values("entry_time")
+    is_win = run_trades["r_multiple"] > 0
+
+    markov = markov_analysis(is_win)
+    max_loss_streak = calc_max_streak(is_win.values, False)
+    max_win_streak = calc_max_streak(is_win.values, True)
+
+    # Expected max streak if independent: ~log(n) / log(1/p)
+    n = len(run_trades)
+    p_loss = 1 - is_win.mean()
+    expected_max_loss = np.log(n) / np.log(1/p_loss) if 0 < p_loss < 1 else 0
+
+    results.append({
+        "run_id": run_id,
+        "campaign_id": run_trades["campaign_id"].iloc[0],
+        "n_trades": n,
+        "win_rate": is_win.mean(),
+        "max_loss_streak": max_loss_streak,
+        "expected_max_loss": expected_max_loss,
+        "streak_ratio": max_loss_streak / expected_max_loss if expected_max_loss > 0 else 0,
+        **markov
+    })
+
+    print(f"\n--- {run_id} ---")
+    print(f"  N: {n:,}, Win Rate: {is_win.mean():.1%}")
+    print(f"  Max loss streak: {max_loss_streak} (expected: {expected_max_loss:.0f})")
+    print(f"  P(W|W): {markov['P(win|prev_win)']:.1%}, P(W|L): {markov['P(win|prev_loss)']:.1%}")
+    print(f"  Momentum effect: {markov['momentum_effect']:+.1%}")
+
+# Summary across valid run_ids
+df = pd.DataFrame(results)
+print("\n" + "=" * 80)
+print("SUMMARY ACROSS ALL with_risk RUN_IDs")
+print("=" * 80)
+print(f"Total run_ids analyzed: {len(df)}")
+print(f"Avg max loss streak: {df['max_loss_streak'].mean():.0f}")
+print(f"Max max loss streak: {df['max_loss_streak'].max():.0f}")
+print(f"Avg P(W|W): {df['P(win|prev_win)'].mean():.1%}")
+print(f"Avg P(W|L): {df['P(win|prev_loss)'].mean():.1%}")
+print(f"Avg momentum effect: {df['momentum_effect'].mean():+.1%}")
+
+# Group by campaign for summary
+print("\n" + "=" * 80)
+print("SUMMARY BY CAMPAIGN (aggregated from run_ids)")
+print("=" * 80)
+campaign_summary = df.groupby("campaign_id").agg({
+    "n_trades": "sum",
+    "max_loss_streak": "max",
+    "P(win|prev_win)": "mean",
+    "P(win|prev_loss)": "mean",
+    "momentum_effect": "mean"
+}).round(3)
+print(campaign_summary.to_string())
 EOF
 ```
 
@@ -281,6 +564,7 @@ EOF
 - If losing streaks cluster, consider pausing after N consecutive losses
 - If winning streaks cluster, consider increasing size during winning periods
 - Helps estimate realistic max drawdown durations
+- **Remember**: Compare streak metrics within a single run_id, not across run_ids or campaigns
 
 ---
 
@@ -981,6 +1265,27 @@ ADX > 25 vs ADX < 25 creates a boundary where a tiny change flips the entire str
 
 ### Pitfall 8: Ignoring Calibration
 If your classifier says 70% and actual win rate is 55%, your threshold selection is based on wrong assumptions. Always check calibration before threshold optimization.
+
+### Pitfall 9: Aggregating Multiple Backtests (run_ids)
+The master trade log contains trades from **135 independent backtests** (`run_id`s) across 20 campaigns. Common errors:
+
+1. **Sorting all trades by entry_time**: Creates false sequences where trades from different run_ids interleave
+2. **Analyzing at campaign level instead of run_id level**: Even within a campaign, multiple run_ids may overlap in time
+3. **Computing "max losing streak" across aggregated trades**: May report 131 trades when the actual max streak per run_id is 30
+4. **Including no_risk run_ids**: These have NaN/0 r_multiple and will show 0% win rate
+5. **Mixing timeframes**: A Markov chain combining 5min and 1D trades is meaningless
+
+**Always filter to `with_risk` run_ids and analyze each run_id separately.** See Section 3B for the correct approach.
+
+### Pitfall 10: Manual Calculations Without Scripts
+Never perform analysis manually or report numbers without a traceable script. Common errors:
+
+1. **Mental math or spreadsheet calculations**: Results can't be verified or reproduced
+2. **Inline code in chat**: Analysis is lost when the conversation ends
+3. **Missing artifact files**: Numbers in the summary can't be traced to source data
+4. **Undocumented methodology**: Unclear what filters, aggregations, or assumptions were used
+
+**Always write a script, save it to the research directory, and cite it in the summary.** See Section 3A for the required workflow.
 
 ---
 
