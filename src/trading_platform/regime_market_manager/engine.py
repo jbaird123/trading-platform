@@ -5,6 +5,7 @@ from typing import Any
 
 import pandas as pd
 
+from trading_platform.data.market_sessions import SessionService
 from trading_platform.data.schema import resample_ohlc
 from trading_platform.regime_market_manager.models import RMMConfig
 from trading_platform.strategy.features import compute_features
@@ -21,7 +22,7 @@ def _op_series(df: pd.DataFrame, operand: Any) -> pd.Series:
     return pd.Series([0.0] * len(df), index=df.index)
 
 
-def _eval_pred(df: pd.DataFrame, pred: dict[str, Any]) -> pd.Series:
+def _eval_pred(df: pd.DataFrame, pred: dict[str, Any], session_group: str) -> pd.Series:
     cond = str(pred.get("condition"))
     left = _op_series(df, pred.get("left"))
     right = _op_series(df, pred.get("right"))
@@ -52,20 +53,24 @@ def _eval_pred(df: pd.DataFrame, pred: dict[str, Any]) -> pd.Series:
     if cond == "hour_is_in":
         values = set(pred.get("values", []))
         dt_index = pd.DatetimeIndex(df.index)
-        return pd.Series(dt_index.hour.isin(values), index=df.index)
+        local_times = SessionService.get_local_times(dt_index, session_group)
+        return pd.Series(local_times.hour.isin(values), index=df.index)
     if cond == "hour_is_not_in":
         values = set(pred.get("values", []))
         dt_index = pd.DatetimeIndex(df.index)
-        return pd.Series(~dt_index.hour.isin(values), index=df.index)
+        local_times = SessionService.get_local_times(dt_index, session_group)
+        return pd.Series(~local_times.hour.isin(values), index=df.index)
     if cond == "day_of_week_is_in":
         # Monday=0, Sunday=6
         values = set(pred.get("values", []))
         dt_index = pd.DatetimeIndex(df.index)
-        return pd.Series(dt_index.dayofweek.isin(values), index=df.index)
+        local_times = SessionService.get_local_times(dt_index, session_group)
+        return pd.Series(local_times.dayofweek.isin(values), index=df.index)
     if cond == "day_of_week_is_not_in":
         values = set(pred.get("values", []))
         dt_index = pd.DatetimeIndex(df.index)
-        return pd.Series(~dt_index.dayofweek.isin(values), index=df.index)
+        local_times = SessionService.get_local_times(dt_index, session_group)
+        return pd.Series(~local_times.dayofweek.isin(values), index=df.index)
     if cond == "percentile_is_above":
         # For percentile predicates, left is already a percentile (0-100)
         # right is the threshold percentile value
@@ -84,16 +89,18 @@ def _eval_pred(df: pd.DataFrame, pred: dict[str, Any]) -> pd.Series:
     )
 
 
-def _eval_block(df: pd.DataFrame, block: dict[str, Any]) -> pd.Series:
+def _eval_block(
+    df: pd.DataFrame, block: dict[str, Any], session_group: str
+) -> pd.Series:
     if "all_of" in block:
         out = pd.Series([True] * len(df), index=df.index)
         for p in block.get("all_of") or []:
-            out = out & _eval_pred(df, p)
+            out = out & _eval_pred(df, p, session_group)
         return out
     if "any_of" in block:
         out = pd.Series([False] * len(df), index=df.index)
         for p in block.get("any_of") or []:
-            out = out | _eval_pred(df, p)
+            out = out | _eval_pred(df, p, session_group)
         return out
     return pd.Series([False] * len(df), index=df.index)
 
@@ -107,6 +114,7 @@ class RMMEngine:
         df_data: pd.DataFrame,
         timeframe: str | None = None,
         already_resampled: bool = False,
+        session_group: str = "forex",
     ) -> pd.DataFrame:
         """Return regime labels/confidence based on RMM config rules.
 
@@ -117,7 +125,7 @@ class RMMEngine:
                 specified.
             already_resampled: If True, assumes df_data is already at the target
                 timeframe. Used when DataHandler provides pre-resampled data for
-                performance.
+            session_group: Session group for local time conversion (default "forex").
 
         Returns:
             DataFrame with: label, confidence, and all computed regime features.
@@ -146,7 +154,9 @@ class RMMEngine:
         # Evaluate each regime's conditions as vectorized boolean masks
         for r in regimes:
             conds = r.get("conditions") or {}
-            mask = _eval_block(df, conds)  # Returns boolean Series for all bars
+            mask = _eval_block(
+                df, conds, session_group
+            )  # Returns boolean Series for all bars
             label = str(r.get("label"))
             confidence = float(r.get("confidence", 0.0))
 

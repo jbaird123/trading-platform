@@ -61,6 +61,7 @@ def cli_stubs(monkeypatch, tmp_path):
 
         return InstrumentDefinition(
             asset_class="Forex",
+            session_group="forex",
             point_value=1.0,
             tick_size=0.00001,
             pip_location=0.0001,

@@ -76,3 +76,22 @@ def test_select_minimal_global_features_uses_classifier_metadata(
     )
 
     assert [feature.name for feature in subset] == ["1h_atr_14"]
+
+
+def test_calendar_sessions_not_in_global_yaml():
+    """Calendar session features should not be in global.yaml (computed at runtime)."""
+    import yaml
+    from trading_platform.core.paths import PROJECT_ROOT
+
+    config_path = PROJECT_ROOT / "config" / "features" / "global.yaml"
+    config = yaml.safe_load(config_path.read_text())
+
+    feature_names = [f["name"] for f in config.get("features", [])]
+
+    # These should NOT exist - sessions are computed at runtime
+    calendar_features = [f for f in feature_names if "calendar" in f.lower()]
+
+    assert calendar_features == [], (
+        f"Calendar features should not be in global.yaml: {calendar_features}. "
+        "Session features are computed at runtime by SessionService."
+    )

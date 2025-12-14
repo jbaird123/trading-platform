@@ -13,6 +13,8 @@ import pandas as pd
 
 from trading_platform.ai.models import ModelRegistry
 from trading_platform.core import paths
+from trading_platform.data.instrument import get_instrument_definition
+from trading_platform.data.market_sessions import SessionService
 from trading_platform.regime_market_manager.models import (
     RMMGatingContext,
     RMMGatingProfile,
@@ -198,8 +200,21 @@ class ProfitabilityGatingEngine:
         if ts.tzinfo is None:
             ts = ts.tz_localize("UTC")
         flat["entry_time"] = ts
-        flat["hour_of_day"] = ts.tz_convert("UTC").hour
-        flat["day_of_week"] = ts.tz_convert("UTC").dayofweek
+
+        # Use session-aware local time
+        try:
+            instrument = get_instrument_definition(symbol)
+            session_group = instrument.session_group
+        except Exception:
+            # Fallback for synthetic/unknown symbols in tests
+            session_group = "forex"  # Default to NY time for consistency
+
+        flat["hour_of_day"] = SessionService.get_local_hour(
+            ts.tz_convert("UTC"), session_group
+        )
+        flat["day_of_week"] = SessionService.get_local_day_of_week(
+            ts.tz_convert("UTC"), session_group
+        )
 
         risk_ctx = context.get("risk")
         if isinstance(risk_ctx, dict):

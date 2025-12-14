@@ -646,6 +646,9 @@ def load_platform_trades(
     # Create RunConfig from run_config dict
     config_dict = run_config.copy()
 
+    # Import locally to avoid circular imports if at top level
+    from trading_platform.data.instrument import get_instrument_definition
+
     # Add REM config if available
     if rem_config:
         config_dict["rem_config"] = rem_config
@@ -706,6 +709,9 @@ def load_platform_trades(
                         config_path=golden_features_path,
                         timeframe=execution_timeframe,
                         feature_names=feature_names,
+                        session_group=get_instrument_definition(
+                            symbol_for_cache
+                        ).session_group,
                     )
                     if cache_result is not None:
                         cached_global_df, _ = cache_result

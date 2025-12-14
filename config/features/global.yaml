@@ -102,10 +102,7 @@ features:
     type: "ADXStrength"
     params: { "length": 14 }
     timeframe: "5min"
-  - name: "5min_calendar"
-    type: "CalendarSessions"
-    params: {}
-    timeframe: "5min"
+
   - name: "5min_day_of_week"
     type: "DayOfWeekOneHot"
     params: {}
@@ -214,10 +211,7 @@ features:
     type: "PriorReturn"
     params: { "window": 5 }
     timeframe: "15min"
-  - name: "15min_calendar"
-    type: "CalendarSessions"
-    params: {}
-    timeframe: "15min"
+
   - name: "15min_day_of_week"
     type: "DayOfWeekOneHot"
     params: {}
@@ -323,10 +317,7 @@ features:
     type: "PriorReturn"
     params: { "window": 5 }
     timeframe: "1H"
-  - name: "1h_calendar"
-    type: "CalendarSessions"
-    params: {}
-    timeframe: "1H"
+
   - name: "1h_day_of_week"
     type: "DayOfWeekOneHot"
     params: {}
@@ -442,10 +433,7 @@ features:
     type: "PriorReturn"
     params: { "window": 5 }
     timeframe: "4H"
-  - name: "4h_calendar"
-    type: "CalendarSessions"
-    params: {}
-    timeframe: "4H"
+
   - name: "4h_day_of_week"
     type: "DayOfWeekOneHot"
     params: {}
@@ -551,10 +539,7 @@ features:
     type: "PriorReturn"
     params: { "window": 5 }
     timeframe: "1D"
-  - name: "1d_calendar"
-    type: "CalendarSessions"
-    params: {}
-    timeframe: "1D"
+
   - name: "1d_day_of_week"
     type: "DayOfWeekOneHot"
     params: {}
@@ -651,10 +636,7 @@ features:
     type: "PriorReturn"
     params: { "window": 5 }
     timeframe: "1W"
-  - name: "1w_calendar"
-    type: "CalendarSessions"
-    params: {}
-    timeframe: "1W"
+
   - name: "1w_day_of_week"
     type: "DayOfWeekOneHot"
     params: {}

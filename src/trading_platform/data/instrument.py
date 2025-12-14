@@ -19,6 +19,7 @@ class InstrumentDefinition(BaseModel):
     """Defines the metadata for a financial instrument."""
 
     asset_class: str
+    session_group: str  # Required: "forex", "crypto", "us_equity", etc.
     point_value: float
     tick_size: float
     pip_location: float | None = None  # Required for Forex, forbidden for others
@@ -57,6 +58,7 @@ _FOREX_SESSION = [
 _ASSET_CLASS_DEFAULTS: dict[str, dict[str, Any]] = {
     "Forex": {
         "asset_class": "Forex",
+        "session_group": "forex",
         "point_value": 1.0,
         "pip_location": 0.0001,  # Default for most forex pairs (4 decimal places)
         "commission_model": {"type": "spread"},

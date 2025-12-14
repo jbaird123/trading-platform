@@ -212,10 +212,10 @@ def _gating_frame(df: pd.DataFrame) -> pd.DataFrame:
         f"context_at_entry_global_features_{prefix}_trend_alignment_full_alignment"
     )
     session_london_col = (
-        f"context_at_entry_global_features_{prefix}_calendar_session_london"
+        f"context_at_entry_global_features_{prefix}_forex_session_london"
     )
     session_newyork_col = (
-        f"context_at_entry_global_features_{prefix}_calendar_session_newyork"
+        f"context_at_entry_global_features_{prefix}_forex_session_newyork"
     )
 
     columns = {

@@ -26,6 +26,7 @@ from trading_platform.core.utils import normalize_symbol
 from trading_platform.data.bar_windows import compute_bar_window_columns
 from trading_platform.data.handler import DataHandler
 from trading_platform.data.instrument import InstrumentDefinition, SessionDefinition
+from trading_platform.data.market_sessions import SessionService
 from trading_platform.data.resample import timeframe_to_timedelta
 from trading_platform.data.session_metadata import ALIGNED_TO_CLOSE_ATTR, SESSION_ATTR
 from trading_platform.data.timeframe_aliases import (
@@ -543,6 +544,7 @@ def load_cached_global_features(
     config_path: Path,
     timeframe: str,
     feature_names: Sequence[str],
+    session_group: str,
 ) -> tuple[pd.DataFrame, dict[str, list[str]]] | None:
     """
     Load cached global features for the requested execution timeframe.
@@ -617,6 +619,16 @@ def load_cached_global_features(
             valid_start_attr[canonical_name] = pd.to_datetime(ts_str, utc=True)
         if valid_start_attr:
             df.attrs["valid_start"] = valid_start_attr
+
+    # Inject session features (computed at runtime, not cached)
+    # Ensure index is treated as DatetimeIndex (it is, per line 610-611)
+    from typing import cast
+
+    session_flags = SessionService.get_session_flags(
+        cast(pd.DatetimeIndex, df.index), session_group
+    )
+    df = pd.concat([df, session_flags], axis=1)
+
     return df, mapping
 
 

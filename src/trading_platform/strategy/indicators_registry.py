@@ -429,15 +429,6 @@ INDICATORS: dict[str, dict] = {
         "implementation": impl.compute_prior_return,
         "ta": {"module": "", "class": ""},  # custom implementation
     },
-    "CalendarSessions": {
-        "display": "Calendar Sessions",
-        "category": "time",
-        "description": "Session one-hot encoding for Asia/London/NY.",
-        "params": [],
-        "safety": "validated",
-        "implementation": impl.compute_calendar_sessions,
-        "ta": {"module": "", "class": ""},  # custom implementation
-    },
     "DayOfWeekOneHot": {
         "display": "Day Of Week One-Hot",
         "category": "time",

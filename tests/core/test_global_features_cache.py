@@ -3,10 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+import pytest
 from pandas.testing import assert_series_equal
 from trading_platform.core.global_features_cache import (
     build_global_feature_caches,
     cache_covers_features,
+    load_cached_global_features,
 )
 
 
@@ -214,3 +216,122 @@ def test_cache_covers_features_detects_available_columns(tmp_path) -> None:
         timeframe="5min",
         feature_names=["missing_feature"],
     )
+
+
+def test_load_cached_global_features_includes_session_flags(
+    tmp_path: Path,
+):
+    """Loading cached features should include session flags from SessionService."""
+    # Setup: Create a minimal cache
+    data_root = tmp_path / "data_root"
+    csv_dir = data_root / "full" / "eurusd"
+    csv_dir.mkdir(parents=True)
+    csv_path = csv_dir / "eurusd_1min.csv"
+    _write_sample_csv(csv_path)
+    global_yaml = tmp_path / "global.yaml"
+    _write_sample_global_yaml(global_yaml)
+
+    cache_root = tmp_path / "cache"
+    build_global_feature_caches(
+        symbol="EURUSD",
+        data_root=data_root,
+        config_path=global_yaml,
+        timeframes=["5min"],
+        overwrite=True,
+        cache_root=cache_root,
+    )
+
+    # Note: validation will fail until session_group is added to signature
+    # But for now, check that it FAILS if we don't pass it (once implemented)
+    # OR pass it and check results if we implement it together.
+    # The prompt says implementation plan: write tests first.
+    # So I will write call with session_group="forex" and expect TypeError currently.
+
+    # Actually, fail-fast means tests should FAIL first.
+    # Current signature doesn't have session_group.
+    # Calling with it will raise TypeError.
+    # Calling WITHOUT it will not inject flags.
+
+    # Now that it's implemented, verify session columns are present
+    result = load_cached_global_features(
+        symbol="EURUSD",
+        cache_root=cache_root,
+        config_path=global_yaml,
+        timeframe="5min",
+        feature_names=["5min_test_ema"],
+        session_group="forex",
+    )
+    assert result is not None, "load_cached_global_features returned None"
+    df, _ = result
+
+    # Check for session columns
+    assert "forex_session_asia" in df.columns
+    assert "forex_session_london" in df.columns
+    assert "forex_session_newyork" in df.columns
+    assert "forex_session_overlap_asia_london" in df.columns
+
+
+def test_load_cached_global_features_session_group_required(
+    tmp_path: Path,
+):
+    """session_group parameter should be required."""
+    # Setup
+    data_root = tmp_path / "data_root"
+    csv_dir = data_root / "full" / "eurusd"
+    csv_dir.mkdir(parents=True)
+    _write_sample_csv(csv_dir / "eurusd_1min.csv")
+    global_yaml = tmp_path / "global.yaml"
+    _write_sample_global_yaml(global_yaml)
+    cache_root = tmp_path / "cache"
+    build_global_feature_caches(
+        symbol="EURUSD",
+        data_root=data_root,
+        config_path=global_yaml,
+        timeframes=["5min"],
+        overwrite=True,
+        cache_root=cache_root,
+    )
+
+    with pytest.raises(
+        TypeError, match="missing 1 required keyword-only argument: 'session_group'"
+    ):
+        load_cached_global_features(  # type: ignore[call-arg]
+            symbol="EURUSD",
+            cache_root=cache_root,
+            config_path=global_yaml,
+            timeframe="5min",
+            feature_names=["5min_test_ema"],
+            # session_group intentionally omitted
+        )
+
+
+def test_load_cached_global_features_invalid_session_group_raises(
+    tmp_path: Path,
+):
+    """Invalid session_group should raise ValueError."""
+    # Setup
+    data_root = tmp_path / "data_root"
+    csv_dir = data_root / "full" / "eurusd"
+    csv_dir.mkdir(parents=True)
+    _write_sample_csv(csv_dir / "eurusd_1min.csv")
+    global_yaml = tmp_path / "global.yaml"
+    _write_sample_global_yaml(global_yaml)
+    cache_root = tmp_path / "cache"
+    build_global_feature_caches(
+        symbol="EURUSD",
+        data_root=data_root,
+        config_path=global_yaml,
+        timeframes=["5min"],
+        overwrite=True,
+        cache_root=cache_root,
+    )
+
+    with pytest.raises(ValueError, match="Unknown session group"):
+        load_cached_global_features(
+            symbol="EURUSD",
+            cache_root=cache_root,
+            config_path=global_yaml,
+            timeframe="5min",
+            feature_names=["5min_test_ema"],
+            session_group="invalid_group",
+        )

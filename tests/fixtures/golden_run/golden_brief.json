@@ -4,7 +4,7 @@
   },
   "timing_buckets": {
     "hour_of_day": {
-      "10": {
+      "5": {
         "n_trades": 1,
         "total_pnl": 6.0,
         "win_rate": 1.0
@@ -269,9 +269,9 @@
   "artifacts": {},
   "field_definitions": {
     "activity.average_trades_per_day": "Average number of trades executed per day over the backtest period.",
-    "timing_buckets.hour_of_day.10.n_trades": "Number of trades that entered during this hour.",
-    "timing_buckets.hour_of_day.10.total_pnl": "Total PnL for trades entered during this hour.",
-    "timing_buckets.hour_of_day.10.win_rate": "Win rate for trades entered during this hour.",
+    "timing_buckets.hour_of_day.5.n_trades": "Number of trades that entered during this hour.",
+    "timing_buckets.hour_of_day.5.total_pnl": "Total PnL for trades entered during this hour.",
+    "timing_buckets.hour_of_day.5.win_rate": "Win rate for trades entered during this hour.",
     "timing_buckets.day_of_week.0.n_trades": "Number of trades that entered during this day of week.",
     "timing_buckets.day_of_week.0.total_pnl": "Total PnL for trades entered during this day of week.",
     "timing_buckets.day_of_week.0.win_rate": "Win rate for trades entered during this day of week.",

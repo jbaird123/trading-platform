@@ -259,12 +259,14 @@ def run_backtest(
                     timeframe=execution_timeframe,
                     feature_names=feature_names,
                 ):
+                    instrument_def = get_instrument_definition(symbol)
                     cache_result = load_cached_global_features(
                         symbol=symbol,
                         cache_root=paths.GLOBAL_FEATURE_CACHE_DIR,
                         config_path=config_path_resolved,
                         timeframe=execution_timeframe,
                         feature_names=feature_names,
+                        session_group=instrument_def.session_group,
                     )
                     if cache_result is not None:
                         global_feature_df, _ = cache_result

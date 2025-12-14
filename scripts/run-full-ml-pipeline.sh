@@ -142,7 +142,9 @@ if [ $CURRENT_STAGE -ge $START_STAGE_NUM ]; then
         rm -rf data/enriched
         rm -rf data/campaigns
         rm -rf workspace/runs/campaign_runner
-        rm -rf data/dvc/ml
+        # Clean ML artifacts but preserve .dvc files for DVC tracking
+        find data/dvc/ml -type f ! -name "*.dvc" -delete 2>/dev/null || true
+        find data/dvc/ml -type d -empty -delete 2>/dev/null || true
         rm -f data/dvc/processed/training_sets/master_trade_log.parquet
         echo -e "${GREEN}✓ Cleanup complete${NC}"
         echo ""

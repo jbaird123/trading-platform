@@ -179,6 +179,7 @@ def test_resample_ohlc_with_daily_session_offset() -> None:
     # Create a mock instrument definition with 17:00 session close time
     mock_instrument = InstrumentDefinition(
         asset_class="Forex",
+        session_group="forex",
         point_value=1.0,
         tick_size=0.00001,
         pip_location=0.0001,
@@ -244,6 +245,7 @@ def test_resample_ohlc_with_non_daily_rule_and_instrument() -> None:
     # Create a mock instrument definition
     mock_instrument = InstrumentDefinition(
         asset_class="Forex",
+        session_group="forex",
         point_value=1.0,
         tick_size=0.00001,
         pip_location=0.0001,
@@ -282,6 +284,7 @@ def test_resample_ohlc_daily_with_multiple_days_edge_case() -> None:
     # Create a mock instrument with 17:00 session close
     mock_instrument = InstrumentDefinition(
         asset_class="Forex",
+        session_group="forex",
         point_value=1.0,
         tick_size=0.00001,
         pip_location=0.0001,
@@ -321,6 +324,7 @@ def test_resample_ohlc_daily_with_empty_sessions() -> None:
     # Create instrument without sessions
     mock_instrument = InstrumentDefinition(
         asset_class="Stock",
+        session_group="us_equity",
         point_value=1.0,
         tick_size=0.01,
         commission_model={"type": "fixed"},
@@ -356,6 +360,7 @@ def test_resample_ohlc_direct_timestamp_normalization_branches() -> None:
     # a scenario that might hit both the if and else branches
     mock_instrument = InstrumentDefinition(
         asset_class="Forex",
+        session_group="forex",
         point_value=1.0,
         tick_size=0.00001,
         pip_location=0.0001,
@@ -399,6 +404,7 @@ def test_resample_ohlc_timestamp_normalization_edge_case() -> None:
     # Create mock instrument
     mock_instrument = InstrumentDefinition(
         asset_class="Forex",
+        session_group="forex",
         point_value=1.0,
         tick_size=0.00001,
         pip_location=0.0001,

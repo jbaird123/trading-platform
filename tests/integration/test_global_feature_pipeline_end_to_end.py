@@ -126,6 +126,7 @@ def test_global_feature_pipeline_end_to_end(tmp_path: Path) -> None:
         cache_root=cache_root,
         config_path=manifest_path,
         feature_names=["5min_ema_10", "5min_rsi_14"],
+        session_group="forex",
     )
 
     assert result_5min is not None, "5min cache should load successfully"
@@ -143,6 +144,7 @@ def test_global_feature_pipeline_end_to_end(tmp_path: Path) -> None:
         cache_root=cache_root,
         config_path=manifest_path,
         feature_names=["15min_ema_20", "15min_atr_14"],
+        session_group="forex",
     )
 
     assert result_15min is not None, "15min cache should load successfully"
@@ -264,6 +266,7 @@ def test_global_feature_pipeline_end_to_end(tmp_path: Path) -> None:
             cache_root=cache_root,
             config_path=manifest_path,
             feature_names=["5min_ema_10", "5min_rsi_14"],
+            session_group="forex",
         )
 
     # Restore original digest
@@ -277,6 +280,7 @@ def test_global_feature_pipeline_end_to_end(tmp_path: Path) -> None:
         cache_root=cache_root,
         config_path=manifest_path,
         feature_names=["5min_ema_10", "5min_rsi_14"],
+        session_group="forex",
     )
     assert result_after_restore is not None, "Should load after digest restored"
 
@@ -312,6 +316,7 @@ def test_pipeline_detects_manifest_changes(tmp_path: Path) -> None:
         cache_root=cache_root,
         config_path=manifest_path,
         feature_names=["5min_ema_10"],
+        session_group="forex",
     )
     assert result_initial is not None
 
@@ -329,4 +334,5 @@ def test_pipeline_detects_manifest_changes(tmp_path: Path) -> None:
             cache_root=cache_root,
             config_path=manifest_path,
             feature_names=["5min_ema_10"],
+            session_group="forex",
         )

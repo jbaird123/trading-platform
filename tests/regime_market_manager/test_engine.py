@@ -82,6 +82,7 @@ def test_eval_pred_known_conditions() -> None:
             "left": {"ref": "price"},
             "right": {"ref": "threshold"},
         },
+        session_group="forex",
     )
     pd.testing.assert_series_equal(
         result, pd.Series([False, True, True, True], index=df.index)
@@ -94,6 +95,7 @@ def test_eval_pred_known_conditions() -> None:
             "left": {"ref": "price"},
             "right": {"ref": "threshold"},
         },
+        session_group="forex",
     )
     pd.testing.assert_series_equal(
         result, pd.Series([True, False, False, False], index=df.index)
@@ -106,6 +108,7 @@ def test_eval_pred_known_conditions() -> None:
             "left": {"ref": "price"},
             "right": {"ref": "threshold"},
         },
+        session_group="forex",
     )
     pd.testing.assert_series_equal(
         result, pd.Series([False, True, False, False], index=df.index)
@@ -118,6 +121,7 @@ def test_eval_pred_known_conditions() -> None:
             "left": {"ref": "price"},
             "right": {"ref": "threshold"},
         },
+        session_group="forex",
     )
     pd.testing.assert_series_equal(
         result, pd.Series([False, False, False, False], index=df.index)
@@ -136,10 +140,14 @@ def test_eval_pred_unknown_condition_defaults_false() -> None:
     }
     # Implementation raises ValueError for safety (fail loudly)
     with pytest.raises(ValueError, match="Unrecognized RMM condition"):
-        _eval_pred(df, pred)
+        _eval_pred(df, pred, session_group="forex")
     # Missing condition key also raises
     with pytest.raises(ValueError, match="Unrecognized RMM condition"):
-        _eval_pred(df, {"left": {"ref": "price"}, "right": {"ref": "threshold"}})
+        _eval_pred(
+            df,
+            {"left": {"ref": "price"}, "right": {"ref": "threshold"}},
+            session_group="forex",
+        )
 
 
 def test_eval_block_any_of() -> None:
@@ -161,7 +169,7 @@ def test_eval_block_any_of() -> None:
             },
         ]
     }
-    result = _eval_block(df, block)
+    result = _eval_block(df, block, session_group="forex")
     pd.testing.assert_series_equal(result, pd.Series([True, True], index=df.index))
 
 
@@ -170,7 +178,7 @@ def test_eval_block_empty_conditions() -> None:
         {"value": [1.0, 2.0]}, index=pd.date_range("2024-01-01", periods=2)
     )
     pd.testing.assert_series_equal(
-        _eval_block(df, {"other_field": []}),
+        _eval_block(df, {"other_field": []}, session_group="forex"),
         pd.Series([False, False], index=df.index),
     )
 

@@ -1,0 +1,6 @@
+outs:
+- md5: 20302041b498e41cf62d73f2e346b70c.dir
+  size: 804715127
+  nfiles: 10
+  hash: md5
+  path: diagnostic

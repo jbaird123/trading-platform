@@ -56,6 +56,7 @@ def mock_load_and_extend_data(monkeypatch):
         "trading_platform.data.handler.get_instrument_definition",
         lambda symbol: InstrumentDefinition(
             asset_class="Synthetic",
+            session_group="forex",
             point_value=1.0,
             tick_size=0.0001,
             pip_location=None,

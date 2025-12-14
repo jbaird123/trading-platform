@@ -3,6 +3,7 @@ from typing import Sequence, cast
 import pandas as pd
 import pytest
 from trading_platform.ai.models.registry import ModelRegistry
+from trading_platform.data.instrument import InstrumentDefinition
 from trading_platform.regime_market_manager.gating import (
     GatingDecision,
     ProfitabilityGatingEngine,
@@ -57,7 +58,28 @@ def _build_profile():
     )
 
 
-def test_gating_engine_allows_when_probability_and_alignment_pass():
+@pytest.fixture
+def mock_instrument(monkeypatch):
+    """Mock get_instrument_definition to return a predictable session group."""
+
+    def _mock_get(symbol):
+        return InstrumentDefinition(
+            symbol=symbol,
+            asset_class="forex",
+            session_group="forex",
+            point_value=1.0,
+            tick_size=0.00001,
+            commission_model={"type": "spread"},
+            sessions=[],
+        )
+
+    monkeypatch.setattr(
+        "trading_platform.regime_market_manager.gating.get_instrument_definition",
+        _mock_get,
+    )
+
+
+def test_gating_engine_allows_when_probability_and_alignment_pass(mock_instrument):
     profile = _build_profile()
     registry = DummyRegistry({"5min_trend_following": DummyClassifier(0.8)})
     engine = ProfitabilityGatingEngine(profile, registry=cast(ModelRegistry, registry))
@@ -80,7 +102,7 @@ def test_gating_engine_allows_when_probability_and_alignment_pass():
     assert decision.probability == 0.8
 
 
-def test_gating_engine_blocks_when_probability_below_threshold():
+def test_gating_engine_blocks_when_probability_below_threshold(mock_instrument):
     profile = _build_profile()
     registry = DummyRegistry({"5min_trend_following": DummyClassifier(0.2)})
     engine = ProfitabilityGatingEngine(profile, registry=cast(ModelRegistry, registry))
@@ -102,7 +124,7 @@ def test_gating_engine_blocks_when_probability_below_threshold():
     assert decision.reason == "probability_below_threshold"
 
 
-def test_gating_engine_raises_when_classifier_missing():
+def test_gating_engine_raises_when_classifier_missing(mock_instrument):
     profile = _build_profile()
     registry = DummyRegistry({})
     engine = ProfitabilityGatingEngine(profile, registry=cast(ModelRegistry, registry))
@@ -117,7 +139,7 @@ def test_gating_engine_raises_when_classifier_missing():
         )
 
 
-def test_gating_engine_builds_prefixed_feature_row():
+def test_gating_engine_builds_prefixed_feature_row(mock_instrument):
     required = [
         "context_at_entry_strategy_features_ema_fast",
         "context_at_entry_strategy_features_atr_14",

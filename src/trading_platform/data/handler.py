@@ -129,6 +129,7 @@ class DataHandler:
             except ValueError:
                 instrument = InstrumentDefinition(
                     asset_class="Synthetic",
+                    session_group="forex",
                     point_value=1.0,
                     tick_size=0.00001,
                     pip_location=None,

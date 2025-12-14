@@ -41,7 +41,8 @@ def test_hour_is_in_predicate() -> None:
     }
 
     engine = RMMEngine(config=RMMConfig(**config))  # type: ignore[arg-type]
-    result = engine.classify_regime(df, already_resampled=True)
+    # Use crypto (UTC) so input UTC hours match local hours
+    result = engine.classify_regime(df, already_resampled=True, session_group="crypto")
 
     # Assert that only hours 9, 10, 11 have the trading_hours label
     # Note: RMM shifts by 1 bar to prevent lookahead bias, so the index starts
@@ -97,7 +98,8 @@ def test_day_of_week_is_in_predicate() -> None:
     }
 
     engine = RMMEngine(config=RMMConfig(**config))  # type: ignore[arg-type]
-    result = engine.classify_regime(df, already_resampled=True)
+    # Use crypto (UTC) so we don't worry about timezone offsets changing the day
+    result = engine.classify_regime(df, already_resampled=True, session_group="crypto")
 
     # Assert Mon (day_of_week=0) and Wed (day_of_week=2) have weekday_trading label
     # Note: RMM shifts by 1 bar. Jan 1 2024 is Monday (day 0).
@@ -157,7 +159,7 @@ def test_combined_time_and_indicator_regime() -> None:
     }
 
     engine = RMMEngine(config=RMMConfig(**config))  # type: ignore[arg-type]
-    result = engine.classify_regime(df, already_resampled=True)
+    result = engine.classify_regime(df, already_resampled=True, session_group="crypto")
 
     # Hours 14, 15, 16 with strength > 50 should be labeled
     assert (
