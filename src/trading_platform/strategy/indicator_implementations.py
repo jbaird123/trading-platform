@@ -319,6 +319,32 @@ def compute_rsi(
     return rsi(_price_series(df, source), length)
 
 
+def compute_rsi_sma(
+    df: pd.DataFrame,
+    params: dict[str, Any],
+    source: str = "close",
+    source_ref: str | None = None,
+) -> pd.Series:
+    """Compute RSI using Simple Moving Average (Cutler's RSI).
+
+    Matches the customized logic used in the HF Scalper Research Prototype.
+    """
+    length = int(params.get("length", 14))
+    series = _price_series(df, source)
+
+    delta = series.diff().astype(float)
+    # Use fillna(0) for safe rolling calculation
+    gain = (delta.where(delta > 0, 0.0)).rolling(window=length).mean()
+    loss = (-delta.where(delta < 0, 0.0)).rolling(window=length).mean()
+
+    # Avoid division by zero
+    rs = gain / loss
+    rsi_val = 100 - (100 / (1 + rs))
+
+    # Fill NaN caused by initial rolling window
+    return rsi_val.fillna(50.0)
+
+
 def compute_atr(
     df: pd.DataFrame,
     params: dict[str, Any],

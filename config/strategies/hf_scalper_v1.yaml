@@ -1,7 +1,7 @@
 strategy_name: HF_Scalper_V1
 features:
   - name: rsi_2
-    type: RSI
+    type: RSI_SMA
     params:
       length: 2
   - name: bb_20_3

@@ -13,15 +13,19 @@ from pathlib import Path
 
 import pandas as pd
 
+# Directory where tp campaign-run outputs results
+# Platform redirects output to workspace/runs/campaign_runner by default
+RUNS_DIR = Path("workspace/runs/campaign_runner")
+
 
 def load_campaign_runs(campaign_id: str):
-    campaign_dir = Path("data/campaigns") / campaign_id / "runs"
-    if not campaign_dir.exists():
-        print(f"Error: Campaign directory not found: {campaign_dir}")
+    if not RUNS_DIR.exists():
+        print(f"Error: Runs directory not found: {RUNS_DIR}")
         sys.exit(1)
 
+    print(f"Scanning {RUNS_DIR} for campaign {campaign_id}...")
+    run_dirs = list(RUNS_DIR.glob(f"{campaign_id}*"))
     all_trades = []
-    run_dirs = [d for d in campaign_dir.iterdir() if d.is_dir()]
 
     print(f"Found {len(run_dirs)} runs in {campaign_id}")
 

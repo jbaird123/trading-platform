@@ -159,6 +159,15 @@ INDICATORS: dict[str, dict] = {
             "function": "rsi",
         },
     },
+    "RSI_SMA": {
+        "display": "RSI (SMA/Cutler's)",
+        "category": "momentum",
+        "description": "RSI calculated using Simple Moving Average (Research Logic).",
+        "params": [{"name": "length", "type": "int", "default": 14}],
+        "safety": "validated",
+        "implementation": impl.compute_rsi_sma,
+        "ta": {"module": "", "class": ""},  # custom implementation
+    },
     "RSIBias": {
         "display": "RSI Bias",
         "category": "momentum",
