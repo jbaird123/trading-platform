@@ -62,10 +62,37 @@ After correcting for lookahead bias and in-sample evaluation:
 
 ### Base Strategy Performance (Out-of-Sample)
 
-| Archetype | N Trades | Win Rate | Avg R | Max DD |
-|-----------|----------|----------|-------|--------|
+| Archetype | N Trades | Win Rate | Avg R | Max DD (R) |
+|-----------|----------|----------|-------|------------|
 | Mean Reversion | 88,926 | 61.5% | 0.0753 | -470 R |
 | Trend Following | 66,600 | 31.5% | 0.0019 | -935 R |
+
+### Drawdown Duration Analysis (Out-of-Sample)
+**Script**: `13_drawdown_duration_analysis.py`
+**Output**: `artifacts/drawdown_duration_by_run.csv`, `artifacts/drawdown_duration_summary.csv`
+
+| Archetype | Max DD Duration (Days) | Avg Max DD Duration (Days) | Time in Drawdown | vs 14-Day Target |
+|-----------|------------------------|----------------------------|------------------|------------------|
+| Mean Reversion | 381 | 216 | 84% | **0% meet target** |
+| Trend Following | 728 | 428 | 95% | **0% meet target** |
+
+**Critical Finding**: The methodology document targets ~14 days max drawdown duration. Reality:
+- **Zero runs** meet the 14-day target
+- **Zero runs** even meet a 30-day threshold
+- Strategies spend 84-95% of time underwater
+
+**Aggregate Drawdown (All OOS Trades Combined)**:
+
+| Archetype | Max DD Duration | Time Underwater | DD Periods |
+|-----------|-----------------|-----------------|------------|
+| Mean Reversion | 41 days / 5,025 trades | 91.5% | 590 |
+| Trend Following | 396 days / 36,498 trades | 99.6% | 59 |
+
+**Implication**: These are NOT day-trading strategies. Extended drawdown periods require:
+- Significant capital reserves
+- Strong psychological tolerance
+- Position sizing adjustments
+- Or acceptance as swing/position trading systems
 
 ---
 
@@ -176,6 +203,17 @@ Questions to explore:
 - Are features not predictive, or is model architecture wrong?
 - Would simpler models (logistic regression) perform better?
 
+### 5. Accept Extended Drawdown Duration
+The 14-day max drawdown target from methodology is unrealistic with current strategies:
+- Mean Reversion avg max DD: 216 days (84% time underwater)
+- Trend Following avg max DD: 428 days (95% time underwater)
+
+Options:
+- **Accept longer timeframes**: Treat as swing/position trading, not day trading
+- **Reduce position sizes**: Allow for extended underwater periods
+- **Add regime filters**: Pause trading in unfavorable market conditions
+- **Revise targets**: Update methodology to realistic 60-90 day max DD targets
+
 ---
 
 ## Scripts Reference
@@ -195,6 +233,7 @@ Questions to explore:
 | 10_drawdown_optimization.py | Drawdown analysis | **FLAWED** - outcome-based selection |
 | 11_realistic_gating_simulation.py | Imperfect classifier sim | **INFORMATIVE** - shows theoretical bounds |
 | 12_corrected_classifier_evaluation.py | **CORRECT** out-of-sample eval | **VALID** - proper methodology |
+| 13_drawdown_duration_analysis.py | Drawdown duration analysis | **VALID** - OOS evaluation |
 
 ---
 
