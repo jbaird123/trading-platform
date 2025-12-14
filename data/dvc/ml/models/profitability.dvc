@@ -1,0 +1,6 @@
+outs:
+- md5: 4621d94acbbed808df6f4a7c558afffd.dir
+  size: 1362628349
+  nfiles: 10
+  hash: md5
+  path: profitability

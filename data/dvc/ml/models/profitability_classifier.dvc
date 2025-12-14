@@ -1,0 +1,6 @@
+outs:
+- md5: ea6c166eed50ad7356859f249891aed1.dir
+  size: 296076
+  nfiles: 2
+  hash: md5
+  path: profitability_classifier
