@@ -1,0 +1,29 @@
+strategy_name: HF_Scalper_V1
+features:
+  - name: rsi_2
+    type: RSI
+    params:
+      length: 2
+  - name: bb_20_3
+    type: BB
+    params:
+      length: 20
+      std: 3.0
+long_entry_rules:
+  - all_of:
+      - condition: is_below
+        left: close
+        right: {ref: bb_20_3_lower}
+      - condition: is_below
+        left: {ref: rsi_2}
+        right: 5
+long_exit_rules:
+  - any_of:
+      - condition: is_above
+        left: close
+        right: {ref: bb_20_3_middle}
+overlays:
+  - bb_20_3_upper
+  - bb_20_3_lower
+  - bb_20_3_middle
+parameters: {}
