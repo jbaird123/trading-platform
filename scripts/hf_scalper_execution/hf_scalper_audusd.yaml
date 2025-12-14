@@ -1,0 +1,13 @@
+run_id: hf_scalper_audusd_2022
+strategy_path: config/strategies/hf_scalper_v1.yaml
+rem_path: config/rem/fixed_stop_10pips.yaml
+global_features_config_path: config/features/minimal_global.yaml
+artifact_mode: full
+data_request:
+  symbol: AUDUSD
+  timeframe: 1min
+  start: "2022-01-01"
+  end: "2022-10-31"
+initial_cash: 10000
+runs_dir: workspace/runs/hf_scalper_portfolio
+position_size: 10000

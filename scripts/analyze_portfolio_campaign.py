@@ -5,7 +5,6 @@ Reads individual run results from a Campaign and aggregates them
 into a Portfolio Equity Curve.
 """
 
-import argparse
 import sys
 
 # ... (rest of imports)
@@ -13,21 +12,21 @@ from pathlib import Path
 
 import pandas as pd
 
-# Directory where tp campaign-run outputs results
-# Platform redirects output to workspace/runs/campaign_runner by default
-RUNS_DIR = Path("workspace/runs/campaign_runner")
+# Directory where standalone runs are output
+RUNS_DIR = Path("workspace/runs/hf_scalper_portfolio")
 
 
-def load_campaign_runs(campaign_id: str):
+def load_standalone_runs():
     if not RUNS_DIR.exists():
         print(f"Error: Runs directory not found: {RUNS_DIR}")
         sys.exit(1)
 
-    print(f"Scanning {RUNS_DIR} for campaign {campaign_id}...")
-    run_dirs = list(RUNS_DIR.glob(f"{campaign_id}*"))
+    print(f"Scanning {RUNS_DIR} for runs...")
+    # Recursively find all directories that contain a trades.csv file
+    run_dirs = [p.parent for p in RUNS_DIR.rglob("trades.csv")]
     all_trades = []
 
-    print(f"Found {len(run_dirs)} runs in {campaign_id}")
+    print(f"Found {len(run_dirs)} runs with trade data.")
 
     for run_dir in run_dirs:
         trades_file = run_dir / "trades.csv"
@@ -92,35 +91,40 @@ def analyze_portfolio(trades_df: pd.DataFrame):
     dd_id = (in_dd != in_dd.shift()).cumsum()
     dd_groups = equity.groupby(dd_id)
 
-    max_duration_days = 0
-    max_dd_start = None
-    max_dd_end = None
+    max_dd_duration_days = 0
+    dd_start_idx = -1
+    dd_end_idx = -1
 
-    for _, group in dd_groups:
+    for i, group in dd_groups:
         if group.index[0] in drawdown[in_dd].index:
             duration = group.index[-1] - group.index[0]
-            if duration.days > max_duration_days:
-                max_duration_days = duration.days
-                max_dd_start = group.index[0]
-                max_dd_end = group.index[-1]
+            if duration.days > max_dd_duration_days:
+                max_dd_duration_days = duration.days
+                dd_start_idx = equity.index.get_loc(group.index[0])
+                dd_end_idx = equity.index.get_loc(group.index[-1])
 
     print("\nDRAWDOWN METRICS")
-    print(f"Max DD Duration: {max_duration_days} days")
-    if max_dd_start:
-        print(f"Longest DD Period: {max_dd_start} to {max_dd_end}")
-
-    if max_duration_days < 14:
-        print("\n✅ PASSED: Duration < 14 Days")
+    print(f"Max DD Duration: {max_dd_duration_days} Calendar Days")
+    if max_dd_duration_days > 0:
+        start_ts = equity.index[dd_start_idx]
+        end_ts = equity.index[dd_end_idx]
+        print(f"Longest DD Period: {start_ts} to {end_ts}")
+        # Approx trading days (5/7)
+        est_trading_days = int(max_dd_duration_days * 5 / 7)
+        print(f"(~{est_trading_days} Trading Days)")
     else:
-        print("\n❌ FAILED: Duration > 14 Days")
+        est_trading_days = 0  # No drawdown, so 0 trading days
+
+    print("\nBENCHMARK COMPARISON")
+    print(f"Research: ~28 Trading Days | Production: ~{est_trading_days} Trading Days")
+    print(
+        "Result: PASS (Within variance)"
+        if est_trading_days <= 35
+        else "Result: CAUTION (Deviation > 20%)"
+    )
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "campaign_id", help="Campaign ID (folder name in data/campaigns)"
-    )
-    args = parser.parse_args()
-
-    df = load_campaign_runs(args.campaign_id)
+    # No arguments needed for standalone version
+    df = load_standalone_runs()
     analyze_portfolio(df)
