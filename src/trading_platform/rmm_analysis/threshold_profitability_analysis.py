@@ -231,6 +231,8 @@ def main(argv: Sequence[str] | None = None) -> None:
     contexts = _resolve_contexts(df, args.context)
     overrides = _parse_overrides(args.context_model)
 
+    prediction_rows: list[dict[str, object]] = []
+
     rows: list[dict[str, object]] = []
     for combo in combos:
         patterns = collect_patterns(combo)
@@ -260,6 +262,29 @@ def main(argv: Sequence[str] | None = None) -> None:
                 y_train,
                 random_state=args.random_state,
             )
+
+            # Collect predictions for downstream analysis (e.g. drawdown)
+            # Probabilities align 1-to-1 with test_subset
+            for idx, prob, actual in zip(
+                test_subset.index, probabilities, y_test, strict=False
+            ):
+                # Retrieve original row data for context
+                original_row = test_subset.loc[idx]
+                prediction_rows.append(
+                    {
+                        "run_id": original_row["run_id"],
+                        "entry_time": original_row["entry_time"],
+                        "pnl": original_row["pnl"],
+                        "r_multiple": original_row["r_multiple"],
+                        "execution_timeframe": timeframe,
+                        "strategy_archetype": archetype,
+                        "context": context_key,
+                        "probability": float(prob),
+                        "actual_profit": float(actual),
+                        "model": model_name,
+                    }
+                )
+
             metrics = compute_profitability_metrics(y_test, probabilities, thresholds)
             for metric in metrics:
                 row: dict[str, object] = {
@@ -280,6 +305,11 @@ def main(argv: Sequence[str] | None = None) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(rows).to_csv(output_path, index=False)
     print(f"Wrote profitability threshold metrics to {output_path}")
+
+    if prediction_rows:
+        predictions_path = output_path.parent / "threshold_predictions.csv"
+        pd.DataFrame(prediction_rows).to_csv(predictions_path, index=False)
+        print(f"Wrote predictions to {predictions_path}")
 
 
 __all__ = [

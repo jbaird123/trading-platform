@@ -146,6 +146,244 @@ Identify if winning trades cluster in specific market conditions.
 - Session/hour distributions
 - Higher timeframe trend direction
 
+#### Step 1.4: Classifier Calibration Analysis
+
+Before using classifier probability for gating, verify the model is well-calibrated.
+
+A calibrated model means: when it predicts 60% probability, the trade wins ~60% of the time.
+
+```bash
+poetry run python << 'EOF'
+import pandas as pd
+import numpy as np
+import joblib
+from pathlib import Path
+
+def analyze_calibration(model_path: Path, trades: pd.DataFrame):
+    """Analyze calibration of a profitability classifier."""
+    payload = joblib.load(model_path)
+    model = payload.get("model")
+    feature_names = payload.get("feature_names", [])
+
+    # Extract features from trades (adjust column names as needed)
+    feature_cols = [c for c in trades.columns if c in feature_names]
+    X = trades[feature_cols].dropna()
+    y = (trades.loc[X.index, "r_multiple"] > 0).astype(int)
+
+    # Get predicted probabilities
+    probabilities = model.predict_proba(X)[:, 1]
+
+    # Bin predictions and compare to actuals
+    bins = [0.0, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 1.0]
+    bin_labels = ["<45%", "45-50%", "50-55%", "55-60%", "60-65%", "65-70%", "70-75%", "75%+"]
+
+    results = []
+    for i in range(len(bins) - 1):
+        mask = (probabilities >= bins[i]) & (probabilities < bins[i + 1])
+        if mask.sum() > 0:
+            mean_pred = probabilities[mask].mean()
+            mean_actual = y[mask].mean()
+            gap = mean_actual - mean_pred
+            results.append({
+                "bin": bin_labels[i],
+                "n_trades": mask.sum(),
+                "mean_predicted": mean_pred,
+                "actual_win_rate": mean_actual,
+                "calibration_gap": gap
+            })
+
+    return pd.DataFrame(results)
+
+# Run calibration analysis
+trades = pd.read_parquet("data/dvc/processed/training_sets/master_trade_log.parquet")
+clf_path = Path("data/dvc/ml/models/profitability_classifier")
+
+for model_file in clf_path.glob("*.pkl"):
+    print(f"\n=== {model_file.stem} ===")
+    try:
+        df = analyze_calibration(model_file, trades)
+        print(df.to_string(index=False))
+
+        # Interpretation
+        avg_gap = df["calibration_gap"].mean()
+        if abs(avg_gap) < 0.03:
+            print("\nCalibration: GOOD (gaps < 3%)")
+        elif avg_gap > 0:
+            print(f"\nCalibration: UNDER-CONFIDENT (actual > predicted by {avg_gap:.1%})")
+        else:
+            print(f"\nCalibration: OVER-CONFIDENT (predicted > actual by {-avg_gap:.1%})")
+    except Exception as e:
+        print(f"  Error: {e}")
+EOF
+```
+
+**Interpretation guide:**
+- **Well-calibrated**: `actual_win_rate ≈ mean_predicted` (gaps < 3%)
+- **Under-confident**: `actual_win_rate > mean_predicted` (model undersells itself)
+- **Over-confident**: `actual_win_rate < mean_predicted` (model oversells itself)
+
+**Why this matters**: For threshold-based gating, calibration affects threshold selection. A poorly calibrated model with good discrimination still works for ranking trades, but the optimal threshold may not be where you expect.
+
+#### Step 1.5: Trade Sequence Dependency Analysis (Markov Chain)
+
+Winning and losing trades are NOT independent. Analyze trade sequences to understand streak patterns.
+
+```bash
+poetry run python << 'EOF'
+import pandas as pd
+import numpy as np
+from pathlib import Path
+
+trades = pd.read_parquet("data/dvc/processed/training_sets/master_trade_log.parquet")
+trades = trades.sort_values("entry_time")
+
+# Create win/loss sequence
+trades["is_win"] = trades["r_multiple"] > 0
+
+# Calculate transition probabilities
+def markov_analysis(sequence):
+    """Analyze Markov transition probabilities for trade outcomes."""
+    transitions = {"WW": 0, "WL": 0, "LW": 0, "LL": 0}
+
+    for i in range(len(sequence) - 1):
+        curr = "W" if sequence.iloc[i] else "L"
+        next_ = "W" if sequence.iloc[i + 1] else "L"
+        transitions[curr + next_] += 1
+
+    # Calculate conditional probabilities
+    p_win_given_win = transitions["WW"] / (transitions["WW"] + transitions["WL"]) if (transitions["WW"] + transitions["WL"]) > 0 else 0
+    p_win_given_loss = transitions["LW"] / (transitions["LW"] + transitions["LL"]) if (transitions["LW"] + transitions["LL"]) > 0 else 0
+
+    return {
+        "P(win|prev_win)": p_win_given_win,
+        "P(win|prev_loss)": p_win_given_loss,
+        "baseline_win_rate": sequence.mean(),
+        "momentum_effect": p_win_given_win - p_win_given_loss
+    }
+
+# Analyze by strategy archetype
+for archetype in trades["strategy_archetype"].unique():
+    arch_trades = trades[trades["strategy_archetype"] == archetype]
+    results = markov_analysis(arch_trades["is_win"])
+
+    print(f"\n=== {archetype} ===")
+    for key, val in results.items():
+        print(f"  {key}: {val:.3f}")
+
+# Key insights:
+# - If P(win|prev_win) > P(win|prev_loss): positive momentum (stay aggressive after wins)
+# - If P(win|prev_loss) > P(win|prev_win): mean reversion (stay aggressive after losses)
+# - If equal: trades are independent (classic assumption holds)
+EOF
+```
+
+**Implications:**
+- If losing streaks cluster, consider pausing after N consecutive losses
+- If winning streaks cluster, consider increasing size during winning periods
+- Helps estimate realistic max drawdown durations
+
+---
+
+### Phase 1B: Data-Driven Regime Discovery (Before Strategy Selection)
+
+**Critical**: Before defining regimes like "trending" (ADX > 25) or "ranging" (ADX < 20), let the data reveal natural market structure.
+
+#### Step 1B.1: Unsupervised Regime Clustering
+
+Use clustering algorithms to discover natural market regimes from the feature space.
+
+```bash
+poetry run python << 'EOF'
+import pandas as pd
+import numpy as np
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+from sklearn.manifold import TSNE
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+trades = pd.read_parquet("data/dvc/processed/training_sets/master_trade_log.parquet")
+
+# Extract numeric features from context_at_entry
+# Focus on regime-relevant features
+regime_features = []
+for col in trades.columns:
+    if any(x in col for x in ["atr_percentile", "adx", "volatility", "trend"]):
+        if trades[col].dtype in [np.float64, np.int64]:
+            regime_features.append(col)
+
+X = trades[regime_features].dropna()
+X_scaled = StandardScaler().fit_transform(X)
+
+# Try different cluster counts
+inertias = []
+for k in range(2, 8):
+    kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+    kmeans.fit(X_scaled)
+    inertias.append(kmeans.inertia_)
+    print(f"K={k}: Inertia={kmeans.inertia_:.0f}")
+
+# Elbow plot to find optimal K
+plt.figure(figsize=(8, 5))
+plt.plot(range(2, 8), inertias, 'bo-')
+plt.xlabel('Number of Clusters')
+plt.ylabel('Inertia')
+plt.title('Elbow Method for Optimal K')
+plt.savefig("workspace/research/ml_first_discovery/regime_clusters_elbow.png")
+
+# Use optimal K (e.g., 4)
+optimal_k = 4  # Adjust based on elbow
+kmeans = KMeans(n_clusters=optimal_k, random_state=42, n_init=10)
+trades_with_clusters = trades.loc[X.index].copy()
+trades_with_clusters["cluster"] = kmeans.fit_predict(X_scaled)
+
+# Analyze cluster characteristics
+for cluster in range(optimal_k):
+    cluster_trades = trades_with_clusters[trades_with_clusters["cluster"] == cluster]
+    print(f"\n=== Cluster {cluster} ===")
+    print(f"  N trades: {len(cluster_trades)}")
+    print(f"  Win rate: {(cluster_trades['r_multiple'] > 0).mean():.1%}")
+    print(f"  Avg R-multiple: {cluster_trades['r_multiple'].mean():.3f}")
+
+    # Show mean values of key features
+    for feat in regime_features[:5]:
+        print(f"  Mean {feat}: {cluster_trades[feat].mean():.2f}")
+EOF
+```
+
+#### Step 1B.2: Map Strategy Performance to Discovered Clusters
+
+```bash
+poetry run python << 'EOF'
+import pandas as pd
+
+# Assuming clusters were saved from previous step
+trades = pd.read_parquet("workspace/research/ml_first_discovery/trades_with_clusters.parquet")
+
+# Cross-tabulate strategy performance by cluster
+print("\n=== Strategy Performance by Cluster ===\n")
+
+for archetype in trades["strategy_archetype"].unique():
+    print(f"\n--- {archetype} ---")
+    arch_trades = trades[trades["strategy_archetype"] == archetype]
+
+    for cluster in sorted(arch_trades["cluster"].unique()):
+        cluster_trades = arch_trades[arch_trades["cluster"] == cluster]
+        if len(cluster_trades) < 10:
+            continue
+
+        win_rate = (cluster_trades["r_multiple"] > 0).mean()
+        avg_r = cluster_trades["r_multiple"].mean()
+        n = len(cluster_trades)
+
+        print(f"  Cluster {cluster}: N={n:4d}, WR={win_rate:.1%}, Avg R={avg_r:+.3f}")
+EOF
+```
+
+**Why this matters**: ADX > 25 is an arbitrary threshold. The market may naturally segment into 4 distinct states, and the optimal strategy routing may differ from naive "trend/range" assumptions.
+
+---
+
 ### Phase 2: Classifier-Based Entry Gating
 
 Use the profitability classifier to gate entries based on predicted probability.
@@ -200,7 +438,41 @@ for context in tf["context"].unique():
 EOF
 ```
 
-#### Step 2.3: Backtest with Classifier Gating
+#### Step 2.3: Consider Probabilistic Sizing (Alternative to Binary Gating)
+
+Instead of binary take/skip decisions, consider **continuous position sizing based on classifier confidence**:
+
+```python
+# Traditional binary gating:
+if classifier_probability > threshold:
+    take_trade(full_size)
+
+# Probabilistic sizing alternative:
+def calculate_position_size(classifier_probability: float, base_size: float) -> float:
+    """Scale position size by classifier confidence."""
+    if classifier_probability <= 0.5:
+        return 0  # No trade below 50%
+
+    # Linear scaling: 50% confidence = 0%, 100% confidence = 100% of base
+    confidence_scaling = (classifier_probability - 0.5) * 2
+    return base_size * confidence_scaling
+
+# Examples:
+# 50% -> 0% of base (no trade)
+# 60% -> 20% of base
+# 75% -> 50% of base
+# 100% -> 100% of base
+```
+
+**Advantages of probabilistic sizing:**
+- Avoids hard cutoffs that create "cliff effects" at threshold boundaries
+- Naturally reduces exposure in uncertain conditions
+- Provides smoother equity curves
+- No need to optimize a single threshold
+
+**Trade-off**: More complex position management, smaller positions on average.
+
+#### Step 2.4: Backtest with Classifier Gating
 
 Run backtests with classifier-based entry gating at optimal threshold:
 
@@ -214,6 +486,10 @@ profitability_gating:
   enabled: true
   model_path: data/dvc/ml/models/profitability_classifier/15min_trend_following.pkl
   threshold: 0.55  # From threshold analysis
+
+  # Optional: probabilistic sizing
+  # sizing_mode: probabilistic  # or "binary"
+  # min_probability: 0.5
 
 # Additional regime rules (optional)
 features:
@@ -261,9 +537,12 @@ for archetype in ["trend_following", "mean_reversion"]:
 EOF
 ```
 
-#### Step 3.2: Build Regime Router
+#### Step 3.2: Choose Ensemble Architecture
 
-Create an RMM configuration that routes to different strategies based on regime:
+There are two main approaches to combining strategies:
+
+**Option A: Regime Router (Rule-Based)**
+Route to different strategies based on market conditions.
 
 ```yaml
 # Regime router concept
@@ -299,6 +578,49 @@ regimes:
     # Default: no trading or reduced size
 ```
 
+**Option B: Meta-Model Ensemble (ML-Based)**
+Train a single model that takes all strategy signals + regime features and learns when to trust which signal.
+
+```python
+# Conceptual meta-model approach
+class MetaModelEnsemble:
+    """
+    Instead of hard regime routing, train a meta-model that learns
+    which strategy signal to trust based on current market conditions.
+    """
+
+    def __init__(self, strategies: list, features: list):
+        self.strategies = strategies
+        self.meta_model = None  # Trained on historical data
+
+    def predict(self, market_state: dict, strategy_signals: dict) -> dict:
+        """
+        Inputs:
+        - market_state: current feature values (ATR, ADX, etc.)
+        - strategy_signals: {strategy_name: signal} from each strategy
+
+        Output:
+        - Combined position: weighted average of strategy signals
+        """
+        # Meta-model outputs weights for each strategy
+        features = self._extract_features(market_state, strategy_signals)
+        weights = self.meta_model.predict(features)
+
+        # Weighted combination of signals
+        combined_signal = sum(
+            weights[i] * strategy_signals[s.name]
+            for i, s in enumerate(self.strategies)
+        )
+        return combined_signal
+```
+
+**Advantages of Meta-Model:**
+- No hard boundaries between regimes (avoids cliff effects)
+- Learns complex interactions automatically
+- Can adapt to market changes through retraining
+
+**Trade-off**: Requires more data to train well, less interpretable.
+
 #### Step 3.3: Validate Ensemble Performance
 
 Run walk-forward validation on the ensemble:
@@ -310,11 +632,60 @@ Run walk-forward validation on the ensemble:
    - Equity curve smoothness (Calmar ratio)
    - Consistency across test windows
 
-### Phase 4: Drawdown-Focused Optimization
+### Phase 4: Holding Period and Exit Optimization
+
+The document has focused on entry selection. But **exit timing** is equally important for drawdown control.
+
+#### Step 4.1: Analyze Simulated Hold Data
+
+The `post_exit_analysis_simulated_holds` data shows what would have happened if trades were held longer:
+
+```bash
+poetry run python << 'EOF'
+import pandas as pd
+import numpy as np
+
+trades = pd.read_parquet("data/dvc/processed/training_sets/master_trade_log.parquet")
+
+# Examine post-exit analysis columns
+pea_cols = [c for c in trades.columns if "post_exit" in c or "simulated_hold" in c]
+print("Available post-exit columns:")
+for col in pea_cols:
+    print(f"  {col}")
+
+# Key questions:
+# 1. On winning trades: how much more could we have made?
+# 2. On losing trades: did they recover, or get worse?
+# 3. What's the optimal holding period?
+
+# Example analysis for stop-loss exits
+sl_trades = trades[trades["exit_reason"] == "stop_loss"]
+if len(sl_trades) > 0:
+    # How many would have recovered if held longer?
+    # (Requires simulation data in specific columns)
+    pass
+
+# Example analysis for take-profit exits
+tp_trades = trades[trades["exit_reason"] == "take_profit"]
+if len(tp_trades) > 0:
+    # How much profit was left on the table?
+    pass
+EOF
+```
+
+#### Step 4.2: Exit Strategy Optimization
+
+Based on hold analysis, consider:
+- **Trailing stops**: Lock in profits as trade moves in favor
+- **Time-based exits**: Exit after N bars regardless of price (if analysis shows decay)
+- **Partial exits**: Take profit on 50% at first target, trail the rest
+- **Behavior-based exits**: Exit when trade isn't behaving as expected (e.g., should be moving but isn't)
+
+### Phase 5: Drawdown-Focused Optimization
 
 The primary constraint is **drawdown duration < 2 weeks**. Optimize for this explicitly.
 
-#### Step 4.1: Define Drawdown Metrics
+#### Step 5.1: Define Drawdown Metrics
 
 ```python
 def calculate_drawdown_metrics(equity_curve: pd.Series) -> dict:
@@ -346,7 +717,7 @@ def calculate_drawdown_metrics(equity_curve: pd.Series) -> dict:
     }
 ```
 
-#### Step 4.2: Optimize for Duration, Not Depth
+#### Step 5.2: Optimize for Duration, Not Depth
 
 Traditional optimization targets Sharpe or total return. Instead, prioritize:
 
@@ -355,14 +726,6 @@ Traditional optimization targets Sharpe or total return. Instead, prioritize:
 3. **Constraint**: Positive expectancy (R-multiple > 0)
 
 Remember: The goal isn't hitting arbitrary thresholds - it's finding the best achievable balance between drawdown duration and returns.
-
-#### Step 4.3: Use Simulated Hold Analysis
-
-The `post_exit_analysis_simulated_holds` data shows what would have happened if trades were held longer. Use this to:
-
-- Identify if exits are too early (leaving profit on table)
-- Identify if exits are too late (giving back gains)
-- Optimize exit timing for consistency
 
 ---
 
@@ -441,6 +804,60 @@ Before finalizing, ask:
 -
 ```
 
+### Calibration Analysis Template
+
+```markdown
+# Phase 1.4: Classifier Calibration Analysis
+
+## Date: YYYY-MM-DD
+
+## Classifier Analyzed: [e.g., 15min_trend_following]
+
+## Reliability Diagram Results
+
+| Predicted Probability Bin | Actual Win Rate | N Trades | Calibration Gap |
+|---------------------------|-----------------|----------|-----------------|
+| 0.50-0.55 | | | |
+| 0.55-0.60 | | | |
+| 0.60-0.65 | | | |
+| 0.65-0.70 | | | |
+| 0.70-0.75 | | | |
+| 0.75+ | | | |
+
+## Calibration Assessment
+- [ ] Well-calibrated (predicted ≈ actual)
+- [ ] Under-confident (actual > predicted)
+- [ ] Over-confident (actual < predicted)
+
+## Implications for Threshold Selection
+-
+-
+```
+
+### Trade Dependency Analysis Template
+
+```markdown
+# Phase 1.5: Trade Sequence Analysis
+
+## Date: YYYY-MM-DD
+
+## Markov Transition Probabilities
+
+| Archetype | P(win\|prev_win) | P(win\|prev_loss) | Baseline WR | Momentum Effect |
+|-----------|------------------|-------------------|-------------|-----------------|
+| trend_following | | | | |
+| mean_reversion | | | | |
+
+## Interpretation
+- [ ] Trades are independent (momentum ≈ 0)
+- [ ] Positive momentum (stay aggressive after wins)
+- [ ] Negative momentum (consider pausing after losses)
+
+## Implications for Risk Management
+-
+-
+```
+
 ### Threshold Analysis Template
 
 ```markdown
@@ -459,7 +876,9 @@ Before finalizing, ask:
 | 0.60 | | | | |
 | 0.65 | | | | |
 
-## Selected Threshold: X.XX
+## Selected Approach
+- [ ] Binary gating at threshold X.XX
+- [ ] Probabilistic sizing (50% → 0%, scaled to 100%)
 
 ### Rationale
 - Win rate at this threshold: X%
@@ -493,7 +912,11 @@ Before finalizing, ask:
 1. Trend Following (timeframes: )
 2. Mean Reversion (timeframes: )
 
-## Regime Router Configuration
+## Ensemble Architecture
+- [ ] Regime Router (rule-based)
+- [ ] Meta-Model Ensemble (ML-based)
+
+## Regime Router Configuration (if applicable)
 - Trending regime: ADX > X, route to trend_following
 - Ranging regime: ADX < Y, ATR percentile > Z, route to mean_reversion
 - Uncertain: No trading / reduced size
@@ -544,9 +967,34 @@ The multi-timeframe features exist for a reason. A 15min entry signal with 1H/4H
 ### Pitfall 5: Curve-Fitting Regimes
 Avoid hyper-specific regime rules like "only trade at 14:00 on Tuesdays." Prefer broad, market-driven conditions (volatility bands, trend strength).
 
+### Pitfall 6: Treating Trades as Independent
+The Markov analysis in Phase 1.5 may reveal that trades cluster. Ignoring this can lead to:
+- Underestimating worst-case losing streaks
+- Missing opportunities to pause during adverse sequences
+- Incorrect position sizing assumptions
+
+### Pitfall 7: Hard Regime Boundaries
+ADX > 25 vs ADX < 25 creates a boundary where a tiny change flips the entire strategy. Consider:
+- Unsupervised clustering to find natural boundaries
+- Probabilistic sizing instead of binary decisions
+- Meta-model ensembles that blend strategies smoothly
+
+### Pitfall 8: Ignoring Calibration
+If your classifier says 70% and actual win rate is 55%, your threshold selection is based on wrong assumptions. Always check calibration before threshold optimization.
+
 ---
 
-## 8. Next Steps After Discovery
+## 8. Future Considerations
+
+### Survivorship Bias in Feature Analysis
+Currently, the trained models were fit on trades that were taken on all signals, so there's no survivorship bias. However, if future iterations introduce additional filtering logic before trade execution, be aware that:
+- Feature importance will only reflect what mattered *for trades that happened*
+- Signals that were filtered out won't inform the model
+- Consider re-training on *all signals* (not just executed trades) if filtering is added
+
+---
+
+## 9. Next Steps After Discovery
 
 Once a successful system is found:
 
@@ -558,7 +1006,7 @@ Once a successful system is found:
 
 ---
 
-## 9. Key Commands Reference
+## 10. Key Commands Reference
 
 ```bash
 # Train all models
@@ -582,14 +1030,18 @@ poetry run tp run-backtest --config backtest.yaml --rmm-config rmm_gated.yaml
 
 ---
 
-## 10. Summary
+## 11. Summary
 
 This ML-first approach differs from previous methodologies by:
 
 1. **Starting with model insights** instead of manual analysis
-2. **Using classifier probability** for entry gating instead of regime rules
-3. **Optimizing for drawdown duration** instead of Sharpe/returns
-4. **Combining strategies via regime routing** instead of picking one
-5. **Leveraging lookahead analysis** (diagnostic models) for offline insights
+2. **Discovering regimes via clustering** before defining them manually
+3. **Analyzing classifier calibration** before threshold selection
+4. **Understanding trade dependencies** (Markov analysis) for realistic drawdown estimates
+5. **Using classifier probability** for entry gating (binary or probabilistic sizing)
+6. **Optimizing for drawdown duration** instead of Sharpe/returns
+7. **Combining strategies** via regime routing or meta-model ensembles
+8. **Analyzing exit timing** using simulated hold data
+9. **Leveraging lookahead analysis** (diagnostic models) for offline insights
 
 The infrastructure exists. The models are trained. The task is to extract their knowledge and translate it into actionable trading rules.
