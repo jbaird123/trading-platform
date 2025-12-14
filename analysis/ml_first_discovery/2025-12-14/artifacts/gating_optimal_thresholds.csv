@@ -1,0 +1,3 @@
+archetype,objective,threshold,n_trades,pct_trades_kept,avg_r,total_r
+mean_reversion,best_avg_r_50pct_trades,D4+,161239,59.99970230675057,0.8169791526388384,131728.90159233366
+trend_following,best_avg_r_50pct_trades,D4+,121293,59.99970319950929,0.591368601425474,71728.87177270002

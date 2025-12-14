@@ -1,0 +1,11 @@
+archetype,quintile,pred_prob_proxy,actual_win_rate,calibration_gap,n_trades
+mean_reversion,0,0.1,0.0,-0.1,56178
+mean_reversion,1,0.3,0.0,-0.3,24589
+mean_reversion,2,0.5,0.549643490087788,0.04964349008778801,48526
+mean_reversion,3,0.7,1.0,0.30000000000000004,78015
+mean_reversion,4,0.9,1.0,0.09999999999999998,61425
+trend_following,0,0.1,0.0,-0.1,38001
+trend_following,1,0.3,0.0,-0.3,69589
+trend_following,2,0.5,0.3133775820902061,-0.1866224179097939,45651
+trend_following,3,0.7,1.0,0.30000000000000004,16163
+trend_following,4,0.9,1.0,0.09999999999999998,32752

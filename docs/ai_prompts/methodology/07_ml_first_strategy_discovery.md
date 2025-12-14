@@ -26,13 +26,34 @@ The key constraint is **minimizing drawdown duration** - consistency matters mor
 
 The platform has three trained model types that answer different questions:
 
-| Model Type | Question Answered | Lookahead Bias | Use Case |
-|------------|------------------|----------------|----------|
-| Profitability Model | "What R-multiple will this trade produce?" | No | Live trading signals |
-| Profitability Classifier | "What's P(profitable) for this trade?" | No | Entry gating |
-| Diagnostic Model | "What quintile will this trade fall into?" | Yes | Offline analysis |
+| Model Type | Question Answered | Features Used | Lookahead Bias | Use Case |
+|------------|------------------|---------------|----------------|----------|
+| Profitability Regressor | "What R-multiple will this trade produce?" | Entry-time only (154) | **No** | Live trading signals |
+| Profitability Classifier | "What's P(profitable) for this trade?" | Entry-time only (46) | **No** | Entry gating |
+| Diagnostic Model | "What quintile will this trade fall into?" | Entry + Exit + sim_hold (509) | **Yes** | Offline analysis ONLY |
 
-The diagnostic models use lookahead features (exit context, post-exit analysis) to identify patterns that **actually predict outcomes**. This is more powerful than manual regime analysis.
+### CRITICAL: Model Selection for Analysis
+
+**For any analysis that will inform live trading decisions, use ONLY the `profitability` or `profitability_classifier` models.**
+
+The `diagnostic` models include **lookahead features** that are NOT available at entry time:
+- `context_at_exit_*` features (235 columns) - market state when trade closed
+- `sim_hold_*` features (27 columns) - simulated hold outcomes
+- `bars_held` - how long the trade lasted
+- `exit_reason` - why the trade closed
+
+Using diagnostic model feature importances to select entry features is a form of **indirect lookahead bias** - you're learning what matters from data that includes information you wouldn't have at entry time.
+
+**Correct approach:**
+```python
+# WRONG - Diagnostic model has lookahead features
+model = joblib.load("data/dvc/ml/models/diagnostic/15min_mean_reversion.pkl")
+
+# CORRECT - Profitability models use only entry-time features
+model = joblib.load("data/dvc/ml/models/profitability/15min_mean_reversion.pkl")
+# OR
+model = joblib.load("data/dvc/ml/models/profitability_classifier/15min_trend_following.pkl")
+```
 
 ---
 
@@ -1286,6 +1307,75 @@ Never perform analysis manually or report numbers without a traceable script. Co
 4. **Undocumented methodology**: Unclear what filters, aggregations, or assumptions were used
 
 **Always write a script, save it to the research directory, and cite it in the summary.** See Section 3A for the required workflow.
+
+### Pitfall 11: Evaluating on Training Data (In-Sample Bias)
+The ML models were trained on a specific date range. Evaluating model performance on that same data measures **in-sample fit**, not predictive ability.
+
+**Current model training period**: 2018-01-01 through 2021-12-31
+
+**Trade data available**:
+- 2018-2021: ~460K trades (**TRAINING DATA** - do NOT use for model evaluation)
+- 2022-2023: ~226K trades (**OUT-OF-SAMPLE** - use this for realistic evaluation)
+
+**Common errors**:
+1. **Using all trades to evaluate classifier performance**: Inflates accuracy because model "memorized" training data
+2. **Simulating gating on full dataset**: Results don't generalize to future trading
+3. **Reporting "classifier achieves 70% accuracy"**: May be in-sample; out-of-sample could be 55%
+4. **Selecting trades by outcome quintile**: This is lookahead bias (see Pitfall 12)
+
+**Correct approach**:
+```python
+import pandas as pd
+
+trades = pd.read_parquet("data/dvc/processed/training_sets/master_trade_log.parquet")
+trades["entry_time"] = pd.to_datetime(trades["entry_time"])
+
+# Split by model training cutoff
+TRAINING_END = "2021-12-31"
+train_trades = trades[trades["entry_time"] <= TRAINING_END]  # For understanding model behavior
+test_trades = trades[trades["entry_time"] > TRAINING_END]    # For realistic evaluation
+
+print(f"Training period trades: {len(train_trades):,}")
+print(f"Out-of-sample trades: {len(test_trades):,}")
+
+# ALWAYS report which dataset was used
+# ALWAYS evaluate classifier performance on test_trades only
+```
+
+### Pitfall 12: Selecting Trades by Outcome (Lookahead Quintile Selection)
+A common analysis error is selecting "good" trades based on their actual outcomes:
+
+```python
+# WRONG - Lookahead bias!
+trades["decile"] = pd.qcut(trades["r_multiple"], q=10, labels=range(10))
+good_trades = trades[trades["decile"] >= 4]  # Selecting based on OUTCOME
+# Of course these have 100% win rate - you selected winners!
+```
+
+This shows the **theoretical maximum** if you had a perfect classifier, but it's NOT achievable in practice because:
+- You don't know r_multiple at entry time
+- A real classifier will have <100% accuracy
+- There WILL be drawdown in live trading
+
+**Correct approach for gating simulation**:
+```python
+# Use the CLASSIFIER'S predictions, not actual outcomes
+model = joblib.load("data/dvc/ml/models/profitability_classifier/15min_trend_following.pkl")
+features = trades[model_feature_names]
+predictions = model.predict_proba(features)[:, 1]  # P(profitable)
+
+# Gate based on classifier confidence (not actual outcome)
+gated_trades = trades[predictions >= 0.55]
+
+# Now evaluate performance on OUT-OF-SAMPLE data only
+test_gated = gated_trades[gated_trades["entry_time"] > "2021-12-31"]
+print(f"Out-of-sample win rate: {(test_gated['r_multiple'] > 0).mean():.1%}")
+```
+
+**What outcome-based selection tells you**:
+- Upper bound on improvement (if classifier were perfect)
+- How much signal exists in the data
+- NOT what to expect in live trading
 
 ---
 
