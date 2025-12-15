@@ -189,31 +189,76 @@ def main(argv: Sequence[str] | None = None) -> None:
     unique_runs = df["run_id"].unique()
     print(f"Analyzing {len(unique_runs)} runs across {len(thresholds)} thresholds...")
 
-    for run_id in unique_runs:
-        run_trades = df[df["run_id"] == run_id].copy()
+    # Check if group_combo and model columns exist in predictions
+    has_group_combo = "group_combo" in df.columns
+    has_model = "model" in df.columns
 
-        if len(run_trades) < 5:
-            continue
+    if has_group_combo and has_model:
+        # Group by run_id, group_combo, model for full granularity
+        unique_combos = df[["run_id", "group_combo", "model"]].drop_duplicates()
+        print(
+            f"Analyzing {len(unique_combos)} (run, group, model) combinations "
+            f"across {len(thresholds)} thresholds..."
+        )
+        for _, combo_row in unique_combos.iterrows():
+            run_id = combo_row["run_id"]
+            group_combo = combo_row["group_combo"]
+            model = combo_row["model"]
 
-        # Extract context from run_id or from data
-        # run_id format: "strategy_campaign_timeframe_index_symbol"
-        # or we can get it from execution_timeframe + strategy_archetype
-        timeframe = run_trades["execution_timeframe"].iloc[0]
-        archetype = run_trades["strategy_archetype"].iloc[0]
-        context = f"{timeframe}_{archetype}"
+            run_trades = df[
+                (df["run_id"] == run_id)
+                & (df["group_combo"] == group_combo)
+                & (df["model"] == model)
+            ].copy()
 
-        for threshold in thresholds:
-            metrics = analyze_drawdown_for_run(
-                run_trades, threshold, probability_column
-            )
-            run_results.append(
-                {
-                    "run_id": run_id,
-                    "context": context,
-                    "threshold": threshold,
-                    **metrics,
-                }
-            )
+            if len(run_trades) < 5:
+                continue
+
+            timeframe = run_trades["execution_timeframe"].iloc[0]
+            archetype = run_trades["strategy_archetype"].iloc[0]
+            context = f"{timeframe}_{archetype}"
+
+            for threshold in thresholds:
+                metrics = analyze_drawdown_for_run(
+                    run_trades, threshold, probability_column
+                )
+                run_results.append(
+                    {
+                        "run_id": run_id,
+                        "context": context,
+                        "group_combo": group_combo,
+                        "model": model,
+                        "threshold": threshold,
+                        **metrics,
+                    }
+                )
+    else:
+        # Fallback: legacy behavior without group_combo/model
+        for run_id in unique_runs:
+            run_trades = df[df["run_id"] == run_id].copy()
+
+            if len(run_trades) < 5:
+                continue
+
+            # Extract context from run_id or from data
+            # run_id format: "strategy_campaign_timeframe_index_symbol"
+            # or we can get it from execution_timeframe + strategy_archetype
+            timeframe = run_trades["execution_timeframe"].iloc[0]
+            archetype = run_trades["strategy_archetype"].iloc[0]
+            context = f"{timeframe}_{archetype}"
+
+            for threshold in thresholds:
+                metrics = analyze_drawdown_for_run(
+                    run_trades, threshold, probability_column
+                )
+                run_results.append(
+                    {
+                        "run_id": run_id,
+                        "context": context,
+                        "threshold": threshold,
+                        **metrics,
+                    }
+                )
 
     if not run_results:
         print("No runs analyzed. Check data.")
@@ -221,19 +266,37 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     run_df = pd.DataFrame(run_results)
 
-    # Aggregate by (context, threshold) across runs
+    # Aggregate by (context, group_combo, model, threshold) or (context, threshold)
     agg_results: list[dict[str, object]] = []
 
-    for (context, threshold), group in run_df.groupby(["context", "threshold"]):
+    if has_group_combo and has_model:
+        groupby_cols = ["context", "group_combo", "model", "threshold"]
+    else:
+        groupby_cols = ["context", "threshold"]
+
+    for group_keys, group in run_df.groupby(groupby_cols):
         valid_runs = group.dropna(subset=["max_drawdown_duration_days"])
 
         if len(valid_runs) == 0:
             continue
 
-        agg_results.append(
-            {
+        if has_group_combo and has_model:
+            context, group_combo, model, threshold = group_keys
+            agg_row: dict[str, object] = {
+                "context": context,
+                "group_combo": group_combo,
+                "model": model,
+                "threshold": threshold,
+            }
+        else:
+            context, threshold = group_keys
+            agg_row = {
                 "context": context,
                 "threshold": threshold,
+            }
+
+        agg_row.update(
+            {
                 "n_runs": len(valid_runs),
                 "median_max_dd_duration_days": valid_runs[
                     "max_drawdown_duration_days"
@@ -249,6 +312,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                 "median_n_trades": valid_runs["n_trades_selected"].median(),
             }
         )
+        agg_results.append(agg_row)
 
     if not agg_results:
         print("No aggregated results. Check threshold profitability data.")

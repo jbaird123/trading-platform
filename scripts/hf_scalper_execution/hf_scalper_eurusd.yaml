@@ -1,11 +1,17 @@
 run_id: hf_scalper_eurusd_2022
-strategy_path: config/strategies/hf_scalper_v1.yaml
-rem_path: config/rem/fixed_stop_10pips.yaml
+strategy_path: config/strategies/hf_trend_v1.yaml
+rem_path: config/rem/fixed_stop_50pips.yaml
 global_features_config_path: config/features/minimal_global.yaml
 artifact_mode: full
+cost_model:
+  spread_per_unit: 0.00015
+  slippage_per_unit: 0.0
+  commission:
+    type: "per_unit"
+    value: 0.0
 data_request:
   symbol: EURUSD
-  timeframe: 1min
+  timeframe: 1h
   start: "2022-01-01"
   end: "2022-10-31"
 initial_cash: 10000

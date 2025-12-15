@@ -279,6 +279,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                         "execution_timeframe": timeframe,
                         "strategy_archetype": archetype,
                         "context": context_key,
+                        "group_combo": combo_name,
                         "probability": float(prob),
                         "actual_profit": float(actual),
                         "model": model_name,

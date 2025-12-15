@@ -9,6 +9,14 @@ features:
     params:
       length: 20
       std: 3.0
+  - name: atr_14
+    type: ATR
+    params:
+      length: 14
+
+parameters:
+  vol_threshold: 0.0004
+
 long_entry_rules:
   - all_of:
       - condition: is_below
@@ -21,6 +29,12 @@ long_entry_rules:
           ref: rsi_2
         right:
           value: 5
+      - condition: is_above
+        left:
+          ref: atr_14
+        right:
+          param: vol_threshold
+
 long_exit_rules:
   - any_of:
       - condition: is_above
@@ -28,8 +42,34 @@ long_exit_rules:
           field: close
         right:
           ref: bb_20_3_middle
+
+short_entry_rules:
+  - all_of:
+      - condition: is_above
+        left:
+          field: close
+        right:
+          ref: bb_20_3_upper
+      - condition: is_above
+        left:
+          ref: rsi_2
+        right:
+          value: 95
+      - condition: is_above
+        left:
+          ref: atr_14
+        right:
+          param: vol_threshold
+
+short_exit_rules:
+  - any_of:
+      - condition: is_below
+        left:
+          field: close
+        right:
+          ref: bb_20_3_middle
+
 overlays:
   - bb_20_3_upper
   - bb_20_3_lower
   - bb_20_3_middle
-parameters: {}

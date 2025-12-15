@@ -6,8 +6,6 @@ into a Portfolio Equity Curve.
 """
 
 import sys
-
-# ... (rest of imports)
 from pathlib import Path
 
 import pandas as pd
@@ -34,8 +32,6 @@ def load_standalone_runs():
             print(f"Warning: No trades.csv in {run_dir.name}, skipping.")
             continue
 
-        # Infer pair name from run dir (usually has hash, but maybe metadata?)
-        # For now, just load it.
         try:
             df = pd.read_csv(trades_file, parse_dates=["entry_time", "exit_time"])
             df["run_id"] = run_dir.name
@@ -47,7 +43,73 @@ def load_standalone_runs():
         print("No trades found across any runs.")
         return pd.DataFrame()
 
-    return pd.concat(all_trades, ignore_index=True)
+    # Normalization Logic
+    # 1. Extract USDJPY price series for conversion
+    usdjpy_df = pd.DataFrame()
+    for df in all_trades:
+        if "USDJPY" in df["symbol"].iloc[0]:
+            usdjpy_df = df[["exit_time", "exit_price"]].copy()
+            usdjpy_df = usdjpy_df.sort_values("exit_time").set_index("exit_time")
+            break
+
+    # Sort usdjpy for asof lookup
+    if not usdjpy_df.empty:
+        usdjpy_df = usdjpy_df[~usdjpy_df.index.duplicated(keep="first")]
+
+    final_trades = []
+
+    for df in all_trades:
+        symbol = df["symbol"].iloc[0]
+
+        # Ensure 'pnl' column exists
+        if "pnl" not in df.columns and "realized_pnl" in df.columns:
+            df["pnl"] = df["realized_pnl"]
+
+        # Normalize JPY
+        if "JPY" in symbol:
+            if symbol == "USDJPY":
+                # Direct conversion: JPY / (JPY/USD) = USD
+                # 400 JPY / 115.00 = 3.47 USD
+                df["pnl"] = df["pnl"] / df["exit_price"]
+                if "cost_currency" in df.columns:
+                    df["cost_currency"] = df["cost_currency"] / df["exit_price"]
+            else:
+                # Cross rate: JPY / USDJPY = USD
+                # We need to lookup USDJPY rate at exit_time
+                if not usdjpy_df.empty:
+                    # Use merge_asof to find nearest USDJPY price
+                    temp_df = df.copy()
+                    temp_df = temp_df.sort_values("exit_time")
+
+                    merged = pd.merge_asof(
+                        temp_df,
+                        usdjpy_df["exit_price"].rename("usdjpy_rate"),
+                        left_on="exit_time",
+                        right_index=True,
+                        direction="nearest",
+                        tolerance=pd.Timedelta("1h"),
+                    )
+
+                    # Fill missing rates with average (fallback)
+                    avg_rate = (
+                        usdjpy_df["exit_price"].mean() if not usdjpy_df.empty else 130.0
+                    )
+                    merged["usdjpy_rate"] = merged["usdjpy_rate"].fillna(avg_rate)
+
+                    df = merged.copy()
+                    df["pnl"] = df["pnl"] / df["usdjpy_rate"]
+                    if "cost_currency" in df.columns:
+                        df["cost_currency"] = df["cost_currency"] / df["usdjpy_rate"]
+                else:
+                    # Fallback if no USDJPY data found
+                    print(
+                        f"Warning: No USDJPY data for {symbol}. Using fixed 130.0 rate."
+                    )
+                    df["pnl"] = df["pnl"] / 130.0
+
+        final_trades.append(df)
+
+    return pd.concat(final_trades, ignore_index=True)
 
 
 def analyze_portfolio(trades_df: pd.DataFrame):
@@ -59,12 +121,8 @@ def analyze_portfolio(trades_df: pd.DataFrame):
     trades_df.set_index("exit_time", inplace=True)
 
     # Metric: Realized PnL (Cash)
-    # Ensure column exists
-    if "pnl" not in trades_df.columns and "realized_pnl" in trades_df.columns:
-        trades_df["pnl"] = trades_df["realized_pnl"]
-
     if "pnl" not in trades_df.columns:
-        print("Error: 'pnl' or 'realized_pnl' column missing in trades.csv")
+        print("Error: 'pnl' column missing in trades.csv")
         return
 
     # 1. win Rate
