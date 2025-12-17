@@ -806,13 +806,24 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
 
             # Persist prices and features for charts
             try:
-                save_prices_csv(run_path / "prices.csv", df)
+                save_prices_csv(run_path / "prices.csv", analysis_df)
             except Exception as e:  # pragma: no cover
                 logger.warning(f"Failed to save prices.csv: {e}")
             try:
                 if feature_enriched_df is not None and hasattr(strat, "features"):
+                    # Filter features to visible window (same as analysis_df)
+                    filtered_features_df = feature_enriched_df
+                    if isinstance(feature_enriched_df.index, pd.DatetimeIndex):
+                        if visible_start is not None:
+                            filtered_features_df = filtered_features_df.loc[
+                                filtered_features_df.index >= visible_start
+                            ]
+                        if visible_end is not None:
+                            filtered_features_df = filtered_features_df.loc[
+                                filtered_features_df.index <= visible_end
+                            ]
                     save_features_for_chart(
-                        run_path, feature_enriched_df, strat.features
+                        run_path, filtered_features_df, strat.features
                     )
             except Exception as e:  # pragma: no cover
                 logger.warning(f"Failed to save features: {e}")
