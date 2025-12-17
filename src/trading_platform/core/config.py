@@ -252,6 +252,13 @@ class RunConfig(BaseModel):
     initial_cash: float = Field(
         100000.0, description="The starting cash for the portfolio."
     )
+    reference_currency: str = Field(
+        "USD",
+        description=(
+            "Reference currency for P&L reporting. All trade P&L values will be "
+            "converted to this currency at trade close time."
+        ),
+    )
     # Position sizing (simple fixed-size for now)
     position_size: float = Field(
         1.0,

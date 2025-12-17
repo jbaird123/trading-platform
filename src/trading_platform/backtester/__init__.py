@@ -14,6 +14,7 @@ from trading_platform.backtester.warmup_helpers import (
 )
 from trading_platform.core import paths
 from trading_platform.core.config import RunConfig
+from trading_platform.core.currency_converter import CurrencyConverter
 from trading_platform.core.global_features_cache import (
     cache_covers_features,
     load_cached_global_features,
@@ -303,6 +304,17 @@ def run_backtest(
                     if global_feature_df is not None:
                         _GLOBAL_FEATURE_CACHE[cache_key] = global_feature_df
 
+    # Initialize currency converter for P&L normalization to USD
+    reference_currency = getattr(config, "reference_currency", "USD")
+    currency_converter = CurrencyConverter(
+        reference_currency=reference_currency,
+        data_root=paths.RAW_DATA_DIR,
+    )
+    # Preload conversion data needed for the trading symbol
+    # symbol is validated non-None above at line 119-120
+    assert symbol is not None
+    currency_converter.preload_for_symbol(symbol)
+
     # Run the backtest engine
     result = run_event_loop_backtest(
         config=config,
@@ -316,6 +328,7 @@ def run_backtest(
         rmm_context=rmm_context,
         rem_instance=None,
         profiler=profiler,
+        currency_converter=currency_converter,
     )
 
     trades = result.trades

@@ -1136,7 +1136,7 @@ def test_valid_run_configs_pydantic():
     without separators.
     """
     # Minimal valid config
-    config1 = RunConfig(  # type: ignore[call-arg]
+    config1 = RunConfig(
         instrument=_instrument("EURUSD"),
         execution_model="next_bar_open",
         exit_tie_break="stop_then_tp",
@@ -1145,7 +1145,7 @@ def test_valid_run_configs_pydantic():
     assert config1.instrument["symbol"] == "EURUSD"  # type: ignore[index]
 
     # Config with all common optional fields
-    config2 = RunConfig(  # type: ignore[call-arg]
+    config2 = RunConfig(
         run_id="my_test_run_123",
         user_id="test_user",
         run_seed=42,
@@ -1181,7 +1181,7 @@ def test_invalid_run_configs_pydantic():
 
     # Test: Invalid enum value should be rejected
     with pytest.raises(ValidationError):
-        RunConfig(  # type: ignore[call-arg]
+        RunConfig(
             instrument=_instrument(),
             execution_model="invalid_model",  # type: ignore[arg-type]
             exit_tie_break="stop_then_tp",
@@ -1189,7 +1189,7 @@ def test_invalid_run_configs_pydantic():
 
     # Test: Invalid type should be rejected
     with pytest.raises(ValidationError):
-        RunConfig(  # type: ignore[call-arg]
+        RunConfig(
             instrument=_instrument(),
             execution_model="next_bar_open",
             exit_tie_break="stop_then_tp",

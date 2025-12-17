@@ -37,16 +37,37 @@ def test_instrument_definition_to_dict_defaults():
     assert result["asset_class"] == "Forex"
     assert result["tick_size"] == 0.00001
     assert result["symbol"] == "EURUSD"  # Now expects normalized symbol
-    assert result["base_ccy"] is None and result["quote_ccy"] is None
-
-
-def test_instrument_definition_to_dict_with_overrides():
-    definition = get_instrument_definition("EURUSD")
-    definition.base_ccy = "EUR"
-    definition.quote_ccy = "USD"
-    result = definition.to_dict()
+    # Currency codes are now populated in instrument definitions
     assert result["base_ccy"] == "EUR"
     assert result["quote_ccy"] == "USD"
+
+
+def test_instrument_definition_currency_codes():
+    """Test that all forex instruments have proper currency codes."""
+    # USD-quoted pairs
+    for symbol in ["EURUSD", "GBPUSD", "AUDUSD", "NZDUSD"]:
+        definition = get_instrument_definition(symbol)
+        assert definition.quote_ccy == "USD"
+        assert definition.base_ccy == symbol[:3]
+
+    # USD-based pairs
+    for symbol in ["USDJPY", "USDCAD", "USDCHF"]:
+        definition = get_instrument_definition(symbol)
+        assert definition.base_ccy == "USD"
+        assert definition.quote_ccy == symbol[3:]
+
+    # Cross pairs
+    eurjpy = get_instrument_definition("EURJPY")
+    assert eurjpy.base_ccy == "EUR"
+    assert eurjpy.quote_ccy == "JPY"
+
+    gbpjpy = get_instrument_definition("GBPJPY")
+    assert gbpjpy.base_ccy == "GBP"
+    assert gbpjpy.quote_ccy == "JPY"
+
+    eurgbp = get_instrument_definition("EURGBP")
+    assert eurgbp.base_ccy == "EUR"
+    assert eurgbp.quote_ccy == "GBP"
 
 
 def test_instrument_and_session_models():

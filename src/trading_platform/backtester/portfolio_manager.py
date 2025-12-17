@@ -56,6 +56,7 @@ class PortfolioManager:
         default_position_size: float = 1.0,
         entry_window_bars: int = 1,
         max_positions_per_side: int = 1,
+        currency_converter: Any | None = None,
     ) -> None:
         if default_position_size <= 0:
             raise PortfolioStateError("default_position_size must be positive.")
@@ -76,6 +77,9 @@ class PortfolioManager:
         self._position_seq = 0
         self._bar_counter = 0
         self.trades: list[Trade] = []
+        # Currency conversion
+        self._currency_converter = currency_converter
+        self._quote_ccy = str(self._instrument.get("quote_ccy", "USD"))
 
     # ------------------------------------------------------------------ #
     # Public lifecycle
@@ -364,10 +368,31 @@ class PortfolioManager:
             ),
         }
 
-        # Calculate R-multiple
+        # Currency conversion: net_pnl is in native (quote) currency
+        pnl_native = net_pnl
+        native_currency = self._quote_ccy
+        pnl_currency = "USD"
+
+        # Convert P&L to reference currency (USD)
+        if self._currency_converter is not None:
+            pnl_converted = self._currency_converter.convert(
+                amount=pnl_native,
+                from_ccy=native_currency,
+                timestamp=fill.timestamp,
+                exit_price=exit_mid,
+                symbol=self._symbol,
+            )
+        elif native_currency != "USD" and self._symbol.startswith("USD"):
+            # Fallback for USD/XXX pairs when no converter available
+            pnl_converted = pnl_native / exit_mid if exit_mid > 0 else pnl_native
+        else:
+            # No conversion available or needed
+            pnl_converted = pnl_native
+
+        # Calculate R-multiple using converted P&L
         r_multiple = None
         if pos.initial_risk_ccy is not None and pos.initial_risk_ccy > 0:
-            r_multiple = net_pnl / pos.initial_risk_ccy
+            r_multiple = pnl_converted / pos.initial_risk_ccy
 
         trade = Trade(
             symbol=pos.symbol,
@@ -377,7 +402,10 @@ class PortfolioManager:
             exit_price=exit_price,
             side=pos.side,
             size=size,
-            pnl=net_pnl,
+            pnl=pnl_converted,
+            pnl_native=pnl_native,
+            pnl_currency=pnl_currency,
+            native_currency=native_currency,
             exit_reason=reason,
             mfe_currency=pos.mfe_currency,
             mae_currency=pos.mae_currency,

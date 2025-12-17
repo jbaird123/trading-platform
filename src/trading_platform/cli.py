@@ -833,6 +833,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         "run_id": cfg.run_id,
         "git_commit": _get_git_commit(),
         "run_seed": cfg.run_seed,
+        "reference_currency": getattr(cfg, "reference_currency", "USD"),
     }
     # Snapshot parameters in brief: prefer explicit run-time params,
     # then strategy defaults

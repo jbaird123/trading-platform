@@ -73,51 +73,71 @@ _INSTRUMENT_DEFINITIONS: dict[str, dict[str, Any]] = {
         "asset_class": "Forex",
         "tick_size": 0.00001,
         "pip_location": 0.0001,
+        "base_ccy": "AUD",
+        "quote_ccy": "USD",
     },
     "EURGBP": {
         "asset_class": "Forex",
         "tick_size": 0.00001,
         "pip_location": 0.0001,
+        "base_ccy": "EUR",
+        "quote_ccy": "GBP",
     },
     "EURJPY": {
         "asset_class": "Forex",
         "tick_size": 0.001,
         "pip_location": 0.01,  # JPY pairs: 2 decimal places
+        "base_ccy": "EUR",
+        "quote_ccy": "JPY",
     },
     "EURUSD": {
         "asset_class": "Forex",
         "tick_size": 0.00001,
         "pip_location": 0.0001,
+        "base_ccy": "EUR",
+        "quote_ccy": "USD",
     },
     "GBPJPY": {
         "asset_class": "Forex",
         "tick_size": 0.001,
         "pip_location": 0.01,  # JPY pairs: 2 decimal places
+        "base_ccy": "GBP",
+        "quote_ccy": "JPY",
     },
     "GBPUSD": {
         "asset_class": "Forex",
         "tick_size": 0.00001,
         "pip_location": 0.0001,
+        "base_ccy": "GBP",
+        "quote_ccy": "USD",
     },
     "NZDUSD": {
         "asset_class": "Forex",
         "tick_size": 0.00001,
         "pip_location": 0.0001,
+        "base_ccy": "NZD",
+        "quote_ccy": "USD",
     },
     "USDCAD": {
         "asset_class": "Forex",
         "tick_size": 0.00001,
         "pip_location": 0.0001,
+        "base_ccy": "USD",
+        "quote_ccy": "CAD",
     },
     "USDCHF": {
         "asset_class": "Forex",
         "tick_size": 0.00001,
         "pip_location": 0.0001,
+        "base_ccy": "USD",
+        "quote_ccy": "CHF",
     },
     "USDJPY": {
         "asset_class": "Forex",
         "tick_size": 0.001,
         "pip_location": 0.01,  # JPY pairs: 2 decimal places
+        "base_ccy": "USD",
+        "quote_ccy": "JPY",
     },
 }
 
