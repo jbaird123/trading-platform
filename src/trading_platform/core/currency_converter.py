@@ -154,7 +154,11 @@ class CurrencyConverter:
             return None
 
         # Find closest rate at or before timestamp
-        ts = pd.Timestamp(timestamp, tz="UTC")
+        ts = pd.Timestamp(timestamp)
+        if ts.tzinfo is None:
+            ts = ts.tz_localize("UTC")
+        else:
+            ts = ts.tz_convert("UTC")
         mask = df.index <= ts
 
         if not mask.any():
