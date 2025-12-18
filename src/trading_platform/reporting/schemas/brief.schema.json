@@ -695,7 +695,21 @@
           }
         },
         "take_profit": { "type": "object", "description": "Take profit configuration including price offsets and conditions." },
-        "trailing_stop": { "type": "object", "description": "Trailing stop configuration if enabled." },
+        "trailing_stop": {
+          "type": "object",
+          "description": "Trailing stop configuration if enabled.",
+          "properties": {
+            "distance": {
+              "type": "object",
+              "description": "Distance rule for the trailing stop.",
+              "properties": {
+                "type": { "type": "string", "description": "Type of distance rule (e.g., fixed_pips, atr)." },
+                "pips": { "type": "number", "description": "Distance in pips for fixed_pips rules." },
+                "price_offset": { "type": "number", "description": "Price offset for offset rules." }
+              }
+            }
+          }
+        },
         "time_exit": { "type": "object", "description": "Time-based exit configuration if enabled." },
         "stop_loss_pips": { "type": "string", "description": "Human-readable stop loss distance in pips." },
         "take_profit_pips": { "type": "string", "description": "Human-readable take profit distance in pips." }
