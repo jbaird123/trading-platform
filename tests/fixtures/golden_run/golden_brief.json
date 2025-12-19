@@ -86,12 +86,12 @@
   "feature_analysis": {},
   "checksums": {
     "instrument_defs_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-    "config_snapshot_hash": "819424fa337ebdec1fe062361a57601cdc5843b6ddaf4879ab6cccde8fd0e124"
+    "config_snapshot_hash": "d6f131ffa72282cdf8fb8c47291c6e0ff3ab2be7064c641fe27f56a2e7c4183d"
   },
   "meta": {
     "strategy_name": "Golden_EMA_Crossover",
     "run_id": "golden_run_test",
-    "git_commit": "a091534",
+    "git_commit": "2cc56f6",
     "run_seed": 42
   },
   "strategy_params": {},
@@ -263,7 +263,7 @@
       "EURUSD"
     ],
     "app_version": "0.0.1",
-    "git_commit": "a091534",
+    "git_commit": "2cc56f6",
     "run_seed": 42
   },
   "artifacts": {},
@@ -440,6 +440,9 @@
       "entry_price": 113.0,
       "exit_price": 107.0,
       "pnl": 6.0,
+      "pnl_native": 6.0,
+      "pnl_currency": "USD",
+      "native_currency": "USD",
       "pnl_movement": 0.0,
       "exit_reason": "end_of_data",
       "r_multiple": 6e-06,

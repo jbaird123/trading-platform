@@ -211,8 +211,12 @@ class TestParameterSweepCoverage:
         # Create mock trades that cause drawdown
         mock_trade1 = Mock()
         mock_trade1.pnl = -500.0  # Loss
+        mock_trade1.entry_time = datetime(2024, 1, 1, 0, 0, 0)
+        mock_trade1.exit_time = datetime(2024, 1, 1, 1, 0, 0)
         mock_trade2 = Mock()
         mock_trade2.pnl = 200.0  # Profit
+        mock_trade2.entry_time = datetime(2024, 1, 1, 1, 0, 0)
+        mock_trade2.exit_time = datetime(2024, 1, 1, 2, 0, 0)
 
         fake_result = {
             "trades": [mock_trade1, mock_trade2],
@@ -282,10 +286,16 @@ class TestParameterSweepCoverage:
         # Create mock trades with varying PnL for volatility calculation
         mock_trade1 = Mock()
         mock_trade1.pnl = 100.0
+        mock_trade1.entry_time = datetime(2024, 1, 1, 0, 0, 0)
+        mock_trade1.exit_time = datetime(2024, 1, 1, 1, 0, 0)
         mock_trade2 = Mock()
         mock_trade2.pnl = -50.0
+        mock_trade2.entry_time = datetime(2024, 1, 1, 1, 0, 0)
+        mock_trade2.exit_time = datetime(2024, 1, 1, 2, 0, 0)
         mock_trade3 = Mock()
         mock_trade3.pnl = 150.0
+        mock_trade3.entry_time = datetime(2024, 1, 1, 2, 0, 0)
+        mock_trade3.exit_time = datetime(2024, 1, 1, 3, 0, 0)
 
         fake_result = {
             "trades": [mock_trade1, mock_trade2, mock_trade3],

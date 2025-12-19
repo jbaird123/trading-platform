@@ -16,6 +16,15 @@ from trading_platform.reporting.models.exit_analysis import (
 )
 
 
+def _default_bar_timestamps(
+    start: datetime = datetime(2023, 1, 1), periods: int = 500, freq_hours: int = 1
+) -> list[datetime]:
+    return [start + timedelta(hours=i * freq_hours) for i in range(periods)]
+
+
+DEFAULT_BAR_TIMESTAMPS = _default_bar_timestamps()
+
+
 def _mock_trade(pnl: float, ts: datetime | None = None) -> Trade:
     """Helper to create mock Trade objects for testing."""
     import pytz
@@ -381,6 +390,7 @@ def test_brief_integration_with_contrasts():
     }
 
     brief = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={},
         params={},
         trades=trades,
@@ -498,6 +508,7 @@ def test_brief_integration_with_stop_tp_candidates():
     }
 
     brief = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={},
         params={},
         trades=trades,
@@ -541,6 +552,7 @@ def test_brief_integration_with_timing_buckets():
     }
 
     brief = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={},
         params={},
         trades=trades,

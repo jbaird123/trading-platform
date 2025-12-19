@@ -12,6 +12,15 @@ from trading_platform.backtester.reporting_pipeline import (
 from trading_platform.portfolio.trade import Trade
 
 
+def _default_bar_timestamps(
+    start: datetime = datetime(2023, 1, 1), periods: int = 500, freq_hours: int = 1
+) -> list[datetime]:
+    return [start + timedelta(hours=i * freq_hours) for i in range(periods)]
+
+
+DEFAULT_BAR_TIMESTAMPS = _default_bar_timestamps()
+
+
 def _make_trade(entry_time: datetime) -> Trade:
     exit_time = entry_time + timedelta(minutes=5)
     return Trade(
@@ -44,7 +53,7 @@ def test_reporting_pipeline_generates_brief_and_logs_metrics(
         _make_trade(datetime(2024, 1, 2, tzinfo=timezone.utc)),
     ]
     caplog.set_level("INFO")
-    brief = pipeline.build_brief(trades=trades)
+    brief = pipeline.build_brief(trades=trades, bar_timestamps=DEFAULT_BAR_TIMESTAMPS)
     assert "overall_performance" in brief
     assert pipeline.telemetry[0].trade_count == 2
     assert any("reporting_metrics" in record.message for record in caplog.records)

@@ -2,9 +2,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from trading_platform.reporting.brief import generate_brief
+
+
+def _default_bar_timestamps(
+    start: datetime = datetime(2023, 1, 1), periods: int = 500, freq_hours: int = 1
+) -> list[datetime]:
+    return [start + timedelta(hours=i * freq_hours) for i in range(periods)]
+
+
+DEFAULT_BAR_TIMESTAMPS = _default_bar_timestamps()
 
 
 def _leaf_paths(obj, prefix=""):
@@ -33,6 +42,7 @@ def test_field_definitions_cover_all_leaf_paths():
         value: int
 
     brief = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={"run_id": "r", "strategy_name": "S"},
         params={},
         trades=[],

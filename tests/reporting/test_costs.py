@@ -9,6 +9,15 @@ from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.brief import generate_brief, save_run_brief
 
 
+def _default_bar_timestamps(
+    start: datetime = datetime(2023, 1, 1), periods: int = 500, freq_hours: int = 1
+) -> list[datetime]:
+    return [start + timedelta(hours=i * freq_hours) for i in range(periods)]
+
+
+DEFAULT_BAR_TIMESTAMPS = _default_bar_timestamps()
+
+
 def _trade(
     pnl: float,
     ts: datetime,
@@ -40,6 +49,7 @@ def test_trades_include_cost_breakdown_placeholders():
         initial_cash=1000.0,
         fill_policy={"policy": "market"},
         tie_break_policy={"rule": "stop_then_tp"},
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
     assert isinstance(brief["trades"], list) and len(brief["trades"]) == 1
     cb = brief["trades"][0].get("cost_breakdown")
@@ -74,6 +84,7 @@ def test_brief_includes_cost_model_snapshot_and_aggregates_costs():
         trades=[t1, t2],
         initial_cash=1000.0,
         cost_model=cfg_cost,
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
 
     assert brief["cost_model"] == cfg_cost
@@ -114,6 +125,7 @@ def test_mixed_trades_breakdown_and_defaults():
         params={},
         trades=[t1, t2],
         initial_cash=1000.0,
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
 
     trades_json = brief["trades"]
@@ -166,6 +178,7 @@ def test_save_run_brief_persists_cost_model_and_costs_aggregate(tmp_path):
         trades=[t1, t2],
         initial_cash=1000.0,
         cost_model=cfg_cost,
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
 
     data = json.loads(out.read_text())

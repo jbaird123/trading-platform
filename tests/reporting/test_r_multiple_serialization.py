@@ -7,6 +7,15 @@ from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.brief import generate_brief
 
 
+def _default_bar_timestamps(
+    start: datetime = datetime(2023, 1, 1), periods: int = 500, freq_hours: int = 1
+) -> list[datetime]:
+    return [start + timedelta(hours=i * freq_hours) for i in range(periods)]
+
+
+DEFAULT_BAR_TIMESTAMPS = _default_bar_timestamps()
+
+
 def test_r_multiple_serialized_in_trades_with_placeholder_when_missing():
     t_with = Trade(
         symbol="A",
@@ -34,6 +43,7 @@ def test_r_multiple_serialized_in_trades_with_placeholder_when_missing():
         params={},
         trades=[t_with, t_without],
         initial_cash=1000.0,
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
     tr = brief["trades"]
     assert tr[0]["r_multiple"] == 2.0

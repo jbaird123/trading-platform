@@ -9,6 +9,15 @@ from trading_platform.core.run import finalize_run
 from trading_platform.portfolio.trade import Trade
 
 
+def _default_bar_timestamps(
+    start: datetime = datetime(2023, 1, 1), periods: int = 500, freq_hours: int = 1
+) -> list[datetime]:
+    return [start + timedelta(hours=i * freq_hours) for i in range(periods)]
+
+
+DEFAULT_BAR_TIMESTAMPS = _default_bar_timestamps()
+
+
 def _t(ts: datetime, pnl: float) -> Trade:
     return Trade(
         symbol="X",
@@ -49,6 +58,7 @@ def test_blackout_policy_snapshot_appears_in_brief(tmp_path):
         trades=[_t(datetime(2023, 1, 1), 1.0)],
         initial_cash=1000.0,
         config=cfg,
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
     data = json.loads(brief_path.read_text())
     policy = data.get("blackout_policy")

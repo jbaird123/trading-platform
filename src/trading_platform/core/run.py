@@ -70,6 +70,7 @@ def finalize_run(
     recommendations: list[dict[str, Any]] | None = None,
     field_definitions: dict[str, Any] | None = None,
     artifact_mode: Literal["full", "minimal"] = "full",
+    bar_timestamps: list[datetime] | None = None,
 ) -> Path:
     """Generate and save a brief for this run under the run_path.
 
@@ -181,6 +182,7 @@ def finalize_run(
         processed_data_path=str(processed_data_path) if processed_data_path else None,
         recommendations=recommendations,
         field_definitions=field_definitions,
+        bar_timestamps=bar_timestamps,
     )
 
     if artifact_mode == "minimal":

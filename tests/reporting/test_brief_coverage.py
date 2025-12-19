@@ -14,6 +14,15 @@ from trading_platform.reporting.models.exit_analysis import (
 )
 
 
+def _default_bar_timestamps(
+    start: datetime = datetime(2023, 1, 1), periods: int = 500, freq_hours: int = 1
+) -> list[datetime]:
+    return [start + timedelta(hours=i * freq_hours) for i in range(periods)]
+
+
+DEFAULT_BAR_TIMESTAMPS = _default_bar_timestamps()
+
+
 def test_extract_rem_policy_with_price_offsets() -> None:
     """Test _extract_rem_policy with stop_loss and take_profit price_offset.
 
@@ -144,6 +153,7 @@ def test_serialize_trade_with_post_exit_dict() -> None:
         trades=[trade],
         initial_cash=10000,
         field_definitions={},
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
 
     # Verify trade was serialized with rounded post_exit_analysis
@@ -201,6 +211,7 @@ def test_generate_brief_with_rem_policy() -> None:
         initial_cash=10000,
         field_definitions={},
         config_snapshot=config_snapshot,
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
 
     # Should include rem_policy
@@ -237,6 +248,7 @@ def test_generate_brief_without_rem_policy() -> None:
         initial_cash=10000,
         field_definitions={},
         config_snapshot=None,
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
 
     # rem_policy is always present (line 777), but should be empty

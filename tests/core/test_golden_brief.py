@@ -180,6 +180,7 @@ def test_brief_matches_golden_master(tmp_path: Path, request):
         data_quality=data_quality_report,
         skipped_trades=skips,
         recommendations=recommendations,
+        bar_timestamps=list(df.index),
     )
 
     # 6. Load both briefs and compare them

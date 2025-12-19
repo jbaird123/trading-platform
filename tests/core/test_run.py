@@ -20,6 +20,15 @@ from trading_platform.portfolio.trade import Trade
 from trading_platform.strategy.yaml_strategy import CompiledStrategy
 
 
+def _default_bar_timestamps(
+    start: datetime = datetime(2023, 1, 1), periods: int = 500, freq_hours: int = 1
+) -> list[datetime]:
+    return [start + timedelta(hours=i * freq_hours) for i in range(periods)]
+
+
+DEFAULT_BAR_TIMESTAMPS = _default_bar_timestamps()
+
+
 def _instrument(symbol: str = "EURUSD") -> dict[str, str]:
     """Helper to create instrument dict for RunConfig."""
     return {"symbol": symbol}
@@ -1225,6 +1234,7 @@ def test_finalize_run_writes_brief(tmp_path):
         params={},
         trades=trades,
         initial_cash=1000.0,
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
     assert brief_path.exists()
 
@@ -1283,6 +1293,7 @@ def test_finalize_run_model_analysis(tmp_path):
         params={},
         trades=trades,
         initial_cash=1000.0,
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
     assert brief_path.exists()
     data = json.loads(brief_path.read_text())
@@ -1349,6 +1360,7 @@ def test_finalize_run_signal_quality_analysis(tmp_path):
         trades=trades,
         initial_cash=1000.0,
         signals_path=signals_path,
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
     assert brief_path.exists()
     data = json.loads(brief_path.read_text())
@@ -1422,6 +1434,7 @@ def test_finalize_run_uses_config_snapshots(tmp_path):
         trades=[_t(datetime(2023, 1, 1), 10.0)],
         initial_cash=1000.0,
         config=cfg,
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
 
     data = json.loads(out_path.read_text())
@@ -1492,6 +1505,7 @@ def test_finalize_run_populates_mc_wfe_paramsearch(tmp_path):
         initial_cash=1000.0,
         config=cfg,
         walk_forward={"splits": []},  # Pre-computed by CLI
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
     data = out.read_text()
     assert '"monte_carlo"' in data and '"walk_forward"' in data
@@ -1538,6 +1552,7 @@ def test_finalize_run_prefers_explicit_mc_over_config(tmp_path):
         initial_cash=1000.0,
         config=cfg,
         monte_carlo={"mode": "test", "trials": 1},
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
     data = brief_path.read_text()
     assert '"mode": "test"' in data
@@ -1576,6 +1591,7 @@ def test_finalize_run_regimes_section(tmp_path):
         trades=trades,
         initial_cash=1000.0,
         regimes_at_entry=regimes_at_entry,
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
     assert brief_path.exists()
     data = json.loads(brief_path.read_text())
