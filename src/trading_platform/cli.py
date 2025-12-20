@@ -870,6 +870,9 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         cfg_for_heavy_runs = copy.deepcopy(cfg_raw)
         cfg_for_heavy_runs["post_exit_analysis"] = {"enabled": False}
         cfg_for_heavy_runs["artifact_mode"] = "minimal"
+        # Preserve rem_path for REM parameter sweeping (it was popped earlier)
+        if rem_path:
+            cfg_for_heavy_runs["rem_path"] = rem_path
 
     if isinstance(ps_cfg, dict) and (ps_cfg.get("grid") or ps_cfg.get("random_space")):
         ps_results = run_parameter_sweep(
