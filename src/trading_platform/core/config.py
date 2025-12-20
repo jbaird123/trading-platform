@@ -263,7 +263,17 @@ class RunConfig(BaseModel):
     position_size: float = Field(
         1.0,
         description=(
-            "Fixed trade size (units/contracts/shares) used when opening a position."
+            "Fixed trade size (units/contracts/shares) used when opening a position. "
+            "DEPRECATED: Use position_sizing config for advanced methods."
+        ),
+    )
+    position_sizing: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Position sizing configuration. Supports multiple methods:\n"
+            "- fixed: {method: 'fixed', size: 1.0}\n"
+            "- fixed_ratio: {method: 'fixed_ratio', delta: 500}\n"
+            "Falls back to position_size field for backwards compatibility."
         ),
     )
     allow_flip_on_bar: bool = Field(

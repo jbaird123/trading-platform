@@ -28,6 +28,9 @@ class InstrumentDefinition(BaseModel):
     symbol: str | None = None
     base_ccy: str | None = None
     quote_ccy: str | None = None
+    contract_size: float = 10000.0  # Units per "contract" for position sizing
+    # Forex defaults: 10000 (mini lot), 100000 (standard), 1000 (micro)
+    # Futures: 1 (native contracts)
 
     @model_validator(mode="after")
     def validate_pip_location_by_asset_class(self) -> InstrumentDefinition:

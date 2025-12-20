@@ -13,6 +13,9 @@ from trading_platform.backtester.models import (
 )
 from trading_platform.core.costs import CostModel
 from trading_platform.portfolio.position import Position
+from trading_platform.portfolio.position_sizing import (
+    PositionSizer,
+)
 from trading_platform.portfolio.trade import Trade
 
 
@@ -57,6 +60,8 @@ class PortfolioManager:
         entry_window_bars: int = 1,
         max_positions_per_side: int = 1,
         currency_converter: Any | None = None,
+        position_sizer: PositionSizer | None = None,
+        initial_cash: float = 100000.0,
     ) -> None:
         if default_position_size <= 0:
             raise PortfolioStateError("default_position_size must be positive.")
@@ -80,6 +85,15 @@ class PortfolioManager:
         # Currency conversion
         self._currency_converter = currency_converter
         self._quote_ccy = str(self._instrument.get("quote_ccy", "USD"))
+        # Position sizing
+        # For backward compatibility: if no explicit position_sizer is provided,
+        # use _default_size directly as units (legacy behavior).
+        # If position_sizer is provided, it handles contract_size multiplication.
+        self._position_sizer = position_sizer
+        self._use_legacy_sizing = position_sizer is None
+        self._initial_cash = float(initial_cash)
+        self._current_equity = float(initial_cash)
+        self._contract_size = float(self._instrument.get("contract_size", 10000.0))
 
     # ------------------------------------------------------------------ #
     # Public lifecycle
@@ -424,6 +438,8 @@ class PortfolioManager:
             take_profit=pos.take_profit,
         )
         self.trades.append(trade)
+        # Update equity for position sizing calculations
+        self._current_equity += pnl_converted
         self._positions.pop(position_id, None)
         self._decision_lookup.pop(self._decision_key(state.decision), None)
         self._open_views.pop(position_id, None)
@@ -435,7 +451,45 @@ class PortfolioManager:
         return f"{side}-{self._position_seq}"
 
     def _with_size(self, decision: DecisionSnapshot) -> DecisionSnapshot:
-        return replace(decision, size=self._default_size)
+        """Apply position sizing to a decision snapshot."""
+        if self._use_legacy_sizing or self._position_sizer is None:
+            # Legacy mode: use _default_size directly as units
+            return replace(decision, size=self._default_size)
+        # New mode: use position sizer with contract_size multiplication
+        result = self._position_sizer.calculate_size(
+            current_equity=self._current_equity,
+            initial_equity=self._initial_cash,
+            contract_size=self._contract_size,
+        )
+        return replace(decision, size=result.units)
+
+    def get_current_position_size(self) -> float:
+        """Get the current position size in broker units.
+
+        This method is useful for external callers (like the engine)
+        that need to know the position size before creating intents.
+        """
+        if self._use_legacy_sizing or self._position_sizer is None:
+            # Legacy mode: return _default_size directly
+            return self._default_size
+        # New mode: use position sizer
+        result = self._position_sizer.calculate_size(
+            current_equity=self._current_equity,
+            initial_equity=self._initial_cash,
+            contract_size=self._contract_size,
+        )
+        return result.units
+
+    def update_equity(self, equity: float) -> None:
+        """Update the current equity for position sizing calculations.
+
+        Call this after each trade closes or when equity changes
+        (e.g., due to mark-to-market updates).
+
+        Args:
+            equity: Current account equity
+        """
+        self._current_equity = float(equity)
 
     def _decision_key(self, decision: DecisionSnapshot) -> tuple[Any, ...]:
         return (
