@@ -1,7 +1,7 @@
 """Campaign configuration models for automated backtest orchestration."""
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -63,6 +63,10 @@ class CampaignConfig(BaseModel):
     global_features_config_path: Optional[Path] = Field(
         default=None,
         description="Path to the global features configuration (global.yaml).",
+    )
+    artifact_mode: Literal["full", "minimal"] = Field(
+        default="minimal",
+        description="Artifact generation mode (full=CSVs, minimal=JSON only)",
     )
     description: Optional[str] = Field(default=None, description="Campaign description")
 

@@ -656,7 +656,7 @@ EQUITY_CHART_TMPL = r"""<!doctype html>
         }
         const d = new Date(param.time * 1000);
         const dateStr = d.toLocaleString();
-        tt.textContent = `${dateStr}  $${price.toFixed(2)}`;
+        tt.textContent = `${dateStr}  __CURRENCY_SYMBOL__${price.toFixed(2)}`;
         tt.style.left = `${param.point.x}px`;
         tt.style.top = `${param.point.y}px`;
         tt.style.display = 'block';
@@ -666,6 +666,24 @@ EQUITY_CHART_TMPL = r"""<!doctype html>
 </body>
 </html>
 """
+
+
+# Currency symbol mapping for common currencies
+_CURRENCY_SYMBOLS: dict[str, str] = {
+    "USD": "$",
+    "EUR": "\u20ac",  # €
+    "GBP": "\u00a3",  # £
+    "JPY": "\u00a5",  # ¥
+    "CHF": "CHF ",
+    "CAD": "C$",
+    "AUD": "A$",
+    "NZD": "NZ$",
+}
+
+
+def _get_currency_symbol(currency_code: str) -> str:
+    """Get the currency symbol for a currency code."""
+    return _CURRENCY_SYMBOLS.get(currency_code, f"{currency_code} ")
 
 
 def save_equity_chart_from_brief(run_path: Path) -> Path:
@@ -690,6 +708,8 @@ def save_equity_chart_from_brief(run_path: Path) -> Path:
     meta = data.get("meta", {})
     strategy_name = meta.get("strategy_name", "Strategy")
     run_id = meta.get("run_id", "")
+    reference_currency = meta.get("reference_currency", "USD")
+    currency_symbol = _get_currency_symbol(reference_currency)
     title = f"{strategy_name} - Equity Curve"
     if run_id:
         title = f"{strategy_name} ({run_id}) - Equity Curve"
@@ -697,7 +717,7 @@ def save_equity_chart_from_brief(run_path: Path) -> Path:
     # Format statistics
     total_pnl = overall.get("total_pnl", 0.0)
     pnl_class = "positive" if total_pnl > 0 else "negative" if total_pnl < 0 else ""
-    pnl_str = f"${total_pnl:,.2f}"
+    pnl_str = f"{currency_symbol}{total_pnl:,.2f}"
 
     num_trades = overall.get("n_trades", 0)
 
@@ -705,7 +725,7 @@ def save_equity_chart_from_brief(run_path: Path) -> Path:
     win_rate_str = f"{win_rate:.1%}"
 
     max_dd = equity_stats.get("max_drawdown", 0.0)
-    max_dd_str = f"${abs(max_dd):,.2f}"
+    max_dd_str = f"{currency_symbol}{abs(max_dd):,.2f}"
 
     sharpe = risk_metrics.get("sharpe_ratio")
     sharpe_str = f"{sharpe:.2f}" if sharpe is not None else "N/A"
@@ -719,6 +739,7 @@ def save_equity_chart_from_brief(run_path: Path) -> Path:
         .replace("__WIN_RATE__", win_rate_str)
         .replace("__MAX_DD__", max_dd_str)
         .replace("__SHARPE__", sharpe_str)
+        .replace("__CURRENCY_SYMBOL__", currency_symbol)
         .replace("__EQUITY_JSON__", json.dumps(equity))
     )
 

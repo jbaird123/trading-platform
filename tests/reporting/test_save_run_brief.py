@@ -8,6 +8,15 @@ from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.brief import save_run_brief
 
 
+def _default_bar_timestamps(
+    start: datetime = datetime(2023, 1, 1), periods: int = 500, freq_hours: int = 1
+) -> list[datetime]:
+    return [start + timedelta(hours=i * freq_hours) for i in range(periods)]
+
+
+DEFAULT_BAR_TIMESTAMPS = _default_bar_timestamps()
+
+
 def _trade(start: datetime, pnl: float) -> Trade:
     return Trade(
         symbol="TEST",
@@ -34,6 +43,7 @@ def test_save_run_brief_writes_json(tmp_path):
         params={"fast": 10, "slow": 20},
         trades=trades,
         initial_cash=1000.0,
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
     assert out.exists()
     data = json.loads(out.read_text())

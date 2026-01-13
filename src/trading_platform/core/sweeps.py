@@ -284,6 +284,7 @@ def run_parameter_sweep(
     dd_penalty: float | None = None,
     data_handler: Any | None = None,
     vol_penalty: float | None = None,
+    dd_duration_penalty: float | None = None,
     debug_dir: str | Path | None = None,
     global_features_config_path: Path | str | None = None,
 ) -> dict[str, Any]:
@@ -329,17 +330,24 @@ def run_parameter_sweep(
     rem_path = base_cfg.pop("rem_path", None)
     base_cfg.pop("strategy_path", None)
 
+    # Load base REM config from file if provided
+    base_rem_config: dict[str, Any] | None = None
     if rem_path:
         import json
 
         import yaml
 
         txt = open(str(rem_path)).read()
-        base_cfg["rem_config"] = (
+        base_rem_config = (
             yaml.safe_load(txt)
             if str(rem_path).endswith((".yaml", ".yml"))
             else json.loads(txt)
         )
+        base_cfg["rem_config"] = base_rem_config
+
+    # REM parameter keys that can be swept
+    REM_SWEEP_KEYS = {"stop_pips", "tp_pips", "stop_multiplier", "tp_multiplier"}
+
     cfg = RunConfig.model_validate(base_cfg)
     rmm_ctx = _rmm_context(df, base_cfg, data_handler)
     if isinstance(global_features_config_path, str):
@@ -373,8 +381,36 @@ def run_parameter_sweep(
     for cand in cands:
         scfg = deepcopy(strategy_cfg)
         params = dict(scfg.get("parameters") or {})
-        params.update(cand)
+        # Separate strategy params from REM params
+        strategy_params = {k: v for k, v in cand.items() if k not in REM_SWEEP_KEYS}
+        rem_params = {k: v for k, v in cand.items() if k in REM_SWEEP_KEYS}
+        params.update(strategy_params)
         scfg["parameters"] = params
+
+        # Build per-candidate config if REM params need updating
+        cfg_for_run = cfg
+        if rem_params and base_rem_config is not None:
+            rem_cfg_copy = deepcopy(base_rem_config)
+            # Update stop_loss pips if specified
+            if "stop_pips" in rem_params and "stop_loss" in rem_cfg_copy:
+                rem_cfg_copy["stop_loss"]["pips"] = rem_params["stop_pips"]
+            # Update take_profit pips if specified
+            if "tp_pips" in rem_params and "take_profit" in rem_cfg_copy:
+                rem_cfg_copy["take_profit"]["pips"] = rem_params["tp_pips"]
+            # Update stop_loss multiplier if specified (for indicator-based stops)
+            if "stop_multiplier" in rem_params and "stop_loss" in rem_cfg_copy:
+                if "params" in rem_cfg_copy["stop_loss"]:
+                    rem_cfg_copy["stop_loss"]["params"]["multiplier"] = rem_params[
+                        "stop_multiplier"
+                    ]
+            # Update take_profit multiplier if specified
+            if "tp_multiplier" in rem_params and "take_profit" in rem_cfg_copy:
+                if "params" in rem_cfg_copy["take_profit"]:
+                    rem_cfg_copy["take_profit"]["params"]["multiplier"] = rem_params[
+                        "tp_multiplier"
+                    ]
+            # Create new RunConfig with updated REM
+            cfg_for_run = cfg.model_copy(update={"rem_config": rem_cfg_copy})
 
         # DEBUG: Log the config being compiled
         if log_file is not None:
@@ -382,6 +418,8 @@ def run_parameter_sweep(
                 with log_file.open("a") as f:
                     f.write(f"COMPILE params={cand}\n")
                     f.write(f"  scfg['parameters']={scfg.get('parameters')}\n")
+                    if rem_params:
+                        f.write(f"  rem_params={rem_params}\n")
                     # Check feature params
                     for feat in scfg.get("features", []):
                         fname = feat.get("name")
@@ -397,7 +435,7 @@ def run_parameter_sweep(
         feature_enriched_df: pd.DataFrame = df
         # run_backtest() now owns data loading from config.data_request
         run_result = run_backtest(
-            config=cfg,
+            config=cfg_for_run,
             strategy_config=scfg,
             global_features_config_path=global_features_config_path,
             rmm_context=rmm_ctx,
@@ -459,19 +497,48 @@ def run_parameter_sweep(
         total_pnl = float(sum(t.pnl for t in trades))
         if objective == "total_pnl":
             score = total_pnl
-        elif objective in ("pnl_minus_dd", "pnl_dd_vol"):
+        elif objective in (
+            "pnl_minus_dd",
+            "pnl_dd_vol",
+            "min_dd_duration",
+            "min_max_dd",
+            "pnl_minus_dd_duration",
+        ):
             from trading_platform.portfolio.metrics import calculate_equity_curve
 
             ec = calculate_equity_curve(trades, float(cfg.initial_cash))
             peak = float(cfg.initial_cash)
             max_dd = 0.0
-            for _, v in ec:
-                if v > peak:  # pragma: no cover
+            # Track longest drawdown period by calendar days
+            longest_dd_days = 0
+            dd_start_ts = None
+            peak_ts = None
+            for ts, v in ec:
+                if v >= peak:
+                    # New peak - calculate duration if we were in drawdown
+                    if dd_start_ts is not None:
+                        duration_days = (ts - dd_start_ts).days
+                        if duration_days > longest_dd_days:
+                            longest_dd_days = duration_days
                     peak = v
+                    peak_ts = ts
+                    dd_start_ts = None
+                else:
+                    # In drawdown - mark start if not already
+                    if dd_start_ts is None:
+                        dd_start_ts = peak_ts
                 dd = max(0.0, peak - v)
                 if dd > max_dd:
                     max_dd = dd
+            # Check if we ended in a drawdown
+            if dd_start_ts is not None and ec:
+                final_ts = ec[-1][0]
+                duration_days = (final_ts - dd_start_ts).days
+                if duration_days > longest_dd_days:
+                    longest_dd_days = duration_days
+            dd_duration = longest_dd_days
             penalty = float(dd_penalty or 1.0)
+            # Default score for pnl_minus_dd objective
             score = total_pnl - penalty * max_dd
             if objective == "pnl_dd_vol":
                 # Volatility penalty based on std of trade PnL
@@ -484,6 +551,18 @@ def run_parameter_sweep(
                     std = 0.0
                 beta = float(vol_penalty or 0.0)
                 score -= beta * std
+            elif objective == "min_dd_duration":
+                # PURE: Minimize drawdown duration in calendar days
+                # Ignores P&L entirely - only cares about shortest DD period
+                score = -dd_duration
+            elif objective == "min_max_dd":
+                # PURE: Minimize max drawdown amount
+                # Ignores P&L entirely - only cares about smallest DD
+                score = -max_dd
+            elif objective == "pnl_minus_dd_duration":
+                # BALANCED: P&L minus penalty for DD duration
+                duration_penalty = float(dd_duration_penalty or 10.0)
+                score = total_pnl - duration_penalty * dd_duration
         else:
             score = total_pnl
         results.append({"params": cand, "score": score})
@@ -511,6 +590,7 @@ def walk_forward_optimize_and_test(
     dd_penalty: float | None = None,
     data_handler: Any | None = None,
     vol_penalty: float | None = None,
+    dd_duration_penalty: float | None = None,
     global_features_config_path: Path | str | None = None,
     visible_start: pd.Timestamp | None = None,
     visible_end: pd.Timestamp | None = None,
@@ -561,6 +641,7 @@ def walk_forward_optimize_and_test(
             objective=objective,
             dd_penalty=dd_penalty,
             vol_penalty=vol_penalty,
+            dd_duration_penalty=dd_duration_penalty,
             global_features_config_path=global_features_config_path,
         )
         best = ps.get("top", {}).get("params", {})

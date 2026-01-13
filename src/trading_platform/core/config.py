@@ -252,11 +252,28 @@ class RunConfig(BaseModel):
     initial_cash: float = Field(
         100000.0, description="The starting cash for the portfolio."
     )
+    reference_currency: str = Field(
+        "USD",
+        description=(
+            "Reference currency for P&L reporting. All trade P&L values will be "
+            "converted to this currency at trade close time."
+        ),
+    )
     # Position sizing (simple fixed-size for now)
     position_size: float = Field(
         1.0,
         description=(
-            "Fixed trade size (units/contracts/shares) used when opening a position."
+            "Fixed trade size (units/contracts/shares) used when opening a position. "
+            "DEPRECATED: Use position_sizing config for advanced methods."
+        ),
+    )
+    position_sizing: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Position sizing configuration. Supports multiple methods:\n"
+            "- fixed: {method: 'fixed', size: 1.0}\n"
+            "- fixed_ratio: {method: 'fixed_ratio', delta: 500}\n"
+            "Falls back to position_size field for backwards compatibility."
         ),
     )
     allow_flip_on_bar: bool = Field(

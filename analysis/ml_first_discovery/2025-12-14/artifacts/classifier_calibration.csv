@@ -1,0 +1,11 @@
+model,model_type,archetype,auc_roc,accuracy,precision,recall,f1
+15min_mean_reversion,RandomForestClassifier,mean_reversion,,,,,
+1D_mean_reversion,RandomForestClassifier,mean_reversion,,,,,
+5min_trend_following,RandomForestClassifier,trend_following,,,,,
+15min_trend_following,RandomForestClassifier,trend_following,,,,,
+1D_trend_following,RandomForestClassifier,trend_following,,,,,
+5min_mean_reversion,RandomForestClassifier,mean_reversion,,,,,
+1H_mean_reversion,RandomForestClassifier,mean_reversion,,,,,
+1H_trend_following,RandomForestClassifier,trend_following,,,,,
+4H_trend_following,RandomForestClassifier,trend_following,,,,,
+4H_mean_reversion,RandomForestClassifier,mean_reversion,,,,,

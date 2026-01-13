@@ -26,6 +26,7 @@ from trading_platform.data.session_metadata import (
     ALIGNED_TO_CLOSE_ATTR,
     SESSION_ATTR,
 )
+from trading_platform.portfolio.position_sizing import PositionSizer
 from trading_platform.portfolio.trade import Trade
 from trading_platform.risk_manager.core import RiskExitManager
 from trading_platform.strategy.yaml_strategy import CompiledStrategy, compile_strategy
@@ -109,6 +110,7 @@ def run_event_loop_backtest(
     rmm_context: dict[datetime, dict[str, Any]] | None = None,
     rem_instance: RiskExitManager | None = None,
     profiler: PerformanceProfiler | None = None,
+    currency_converter: Any | None = None,
 ) -> BacktestResult:
     # Enforce that this function is only called from authorized entry points
     import inspect
@@ -256,12 +258,20 @@ def run_event_loop_backtest(
         int(pm_limits.get("max_open_long", 1)),
         int(pm_limits.get("max_open_short", 1)),
     )
+    # Create position sizer from config (or use legacy position_size)
+    position_sizer: PositionSizer | None = None
+    if config.position_sizing is not None:
+        position_sizer = PositionSizer.from_config(config.position_sizing)
+
     portfolio = PortfolioManager(
         instrument=instrument_dict,
         cost_model=config.cost_model,
         default_position_size=float(config.position_size),
         entry_window_bars=max(1, int(config.entry_window_bars or 1)),
         max_positions_per_side=max_positions,
+        currency_converter=currency_converter,
+        position_sizer=position_sizer,
+        initial_cash=float(config.initial_cash),
     )
     event_loop = EventLoop(portfolio=portfolio, risk_adapter=risk_adapter)
     tw_policy = TradingWindowPolicy.from_config(

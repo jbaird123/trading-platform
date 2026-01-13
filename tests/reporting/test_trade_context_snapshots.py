@@ -7,6 +7,15 @@ from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.brief import generate_brief
 
 
+def _default_bar_timestamps(
+    start: datetime = datetime(2023, 1, 1), periods: int = 500, freq_hours: int = 1
+) -> list[datetime]:
+    return [start + timedelta(hours=i * freq_hours) for i in range(periods)]
+
+
+DEFAULT_BAR_TIMESTAMPS = _default_bar_timestamps()
+
+
 def test_trade_context_snapshots_serialized():
     ctx_entry = {
         "regime": {"label": "trend_up", "confidence": 0.8},
@@ -33,6 +42,7 @@ def test_trade_context_snapshots_serialized():
         params={},
         trades=[t],
         initial_cash=1000.0,
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
     tr = b["trades"][0]
     assert tr["context_at_entry"]["regime"]["label"] == "trend_up"

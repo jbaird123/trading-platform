@@ -68,27 +68,36 @@ def main(argv: Sequence[str] | None = None) -> None:
         print("No thresholds meet quality criteria. Relaxing filters...")
         filtered = df[df["n_runs"] >= 1].copy()
 
+    # Check if group_combo and model columns exist
+    has_group_combo = "group_combo" in filtered.columns
+    has_model = "model" in filtered.columns
+
     # Rank by shortest median max drawdown duration (primary goal)
     # Secondary: lowest time in drawdown
+    sort_cols = ["context", "median_max_dd_duration_days", "median_time_in_dd_pct"]
     ranked = (
-        filtered.sort_values(
-            ["context", "median_max_dd_duration_days", "median_time_in_dd_pct"],
-            ascending=[True, True, True],
-        )
+        filtered.sort_values(sort_cols, ascending=[True, True, True])
         .groupby("context")
         .head(1)
     )
 
-    output_cols = [
-        "context",
-        "threshold",
-        "n_runs",
-        "median_max_dd_duration_days",
-        "max_max_dd_duration_days",
-        "median_time_in_dd_pct",
-        "mean_total_pnl",
-        "median_n_trades",
-    ]
+    # Build output columns based on what's available
+    output_cols = ["context"]
+    if has_group_combo:
+        output_cols.append("group_combo")
+    if has_model:
+        output_cols.append("model")
+    output_cols.extend(
+        [
+            "threshold",
+            "n_runs",
+            "median_max_dd_duration_days",
+            "max_max_dd_duration_days",
+            "median_time_in_dd_pct",
+            "mean_total_pnl",
+            "median_n_trades",
+        ]
+    )
     ranked = ranked[[c for c in output_cols if c in ranked.columns]]
 
     args.output_csv.parent.mkdir(parents=True, exist_ok=True)

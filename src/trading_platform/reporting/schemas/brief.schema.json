@@ -12,7 +12,8 @@
         "run_id": { "type": "string", "description": "Unique identifier for the run." },
         "strategy_name": { "type": "string", "description": "Name of the strategy used." },
         "git_commit": { "type": ["string", "null"], "description": "The git commit hash at the time of the run." },
-        "run_seed": { "type": "integer", "description": "Seed used for all random number generators." }
+        "run_seed": { "type": "integer", "description": "Seed used for all random number generators." },
+        "reference_currency": { "type": "string", "description": "Reference currency for P&L reporting (e.g., USD, EUR). All monetary values are converted to this currency." }
       },
       "required": ["run_id", "strategy_name"]
     },
@@ -290,7 +291,10 @@
           "exit_time": { "type": "string", "format": "date-time", "description": "Timestamp when the trade was exited." },
           "entry_price": { "type": "number", "description": "Price at which the trade was entered." },
           "exit_price": { "type": "number", "description": "Price at which the trade was exited." },
-          "pnl": { "type": "number", "description": "Net profit or loss of the trade in the portfolio's base currency (after all costs)." },
+          "pnl": { "type": "number", "description": "Net profit or loss of the trade in the reference currency (after all costs and currency conversion)." },
+          "pnl_native": { "type": "number", "description": "Net profit or loss in the native (quote) currency before conversion to reference currency." },
+          "pnl_currency": { "type": ["string", "null"], "description": "Currency code for the pnl field (e.g., 'USD')." },
+          "native_currency": { "type": ["string", "null"], "description": "Currency code for pnl_native (e.g., 'JPY' for USDJPY trades)." },
           "pnl_movement": { "type": "number", "description": "The theoretical profit or loss from pure price movement, calculated from the mid-price at entry to the mid-price at exit, excluding all transaction costs." },
           "exit_reason": { "type": ["string", "null"], "description": "Reason for exiting the trade (e.g., 'stop_loss', 'take_profit', 'strategy_flat')." },
           "r_multiple": { "type": ["number", "null"], "description": "Risk multiple (PnL / initial risk) for the trade." },
@@ -691,7 +695,21 @@
           }
         },
         "take_profit": { "type": "object", "description": "Take profit configuration including price offsets and conditions." },
-        "trailing_stop": { "type": "object", "description": "Trailing stop configuration if enabled." },
+        "trailing_stop": {
+          "type": "object",
+          "description": "Trailing stop configuration if enabled.",
+          "properties": {
+            "distance": {
+              "type": "object",
+              "description": "Distance rule for the trailing stop.",
+              "properties": {
+                "type": { "type": "string", "description": "Type of distance rule (e.g., fixed_pips, atr)." },
+                "pips": { "type": "number", "description": "Distance in pips for fixed_pips rules." },
+                "price_offset": { "type": "number", "description": "Price offset for offset rules." }
+              }
+            }
+          }
+        },
         "time_exit": { "type": "object", "description": "Time-based exit configuration if enabled." },
         "stop_loss_pips": { "type": "string", "description": "Human-readable stop loss distance in pips." },
         "take_profit_pips": { "type": "string", "description": "Human-readable take profit distance in pips." }

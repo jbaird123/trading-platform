@@ -54,7 +54,9 @@ class Operand(BaseModel):
     model_config = {"extra": "forbid"}
 
     ref: str | None = Field(default=None, description="Reference to a feature by name")
-    value: float | None = Field(default=None, description="Constant numeric value")
+    value: float | str | None = Field(
+        default=None, description="Constant numeric value or parameter reference"
+    )
     field: OHLCField | None = Field(
         default=None, description="Reference to OHLCV field"
     )

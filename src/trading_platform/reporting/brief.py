@@ -363,6 +363,9 @@ def _serialize_trade(t: Trade) -> dict[str, Any]:
         "entry_price": float(t.entry_price) if t.entry_price is not None else None,
         "exit_price": float(t.exit_price) if t.exit_price is not None else None,
         "pnl": float(t.pnl) if t.pnl is not None else 0.0,
+        "pnl_native": float(getattr(t, "pnl_native", None) or 0.0),
+        "pnl_currency": getattr(t, "pnl_currency", None),
+        "native_currency": getattr(t, "native_currency", None),
         "pnl_movement": float(getattr(t, "pnl_movement", None) or 0.0),
         "exit_reason": t.exit_reason,
         "r_multiple": getattr(t, "r_multiple", None),
@@ -512,13 +515,48 @@ def compute_streaks(trades: list[Trade]) -> dict[str, Any]:
     }
 
 
-def compute_equity_stats(trades: list[Trade], initial_cash: float) -> dict[str, Any]:
+def _normalize_tz(dt: datetime) -> datetime:
+    """Strip timezone info from a datetime for comparison."""
+    if dt.tzinfo is not None:
+        return dt.replace(tzinfo=None)
+    return dt
+
+
+def _count_bars_between(
+    start_ts: datetime,
+    end_ts: datetime,
+    bar_timestamps: list[datetime],
+) -> int:
+    """Count the number of bars between two timestamps.
+
+    Handles timezone-aware and naive datetime comparison by normalizing to naive.
+    """
+    # Normalize to naive datetimes for comparison
+    start_naive = _normalize_tz(start_ts)
+    end_naive = _normalize_tz(end_ts)
+
+    count = 0
+    for ts in bar_timestamps:
+        ts_naive = _normalize_tz(ts)
+        if start_naive < ts_naive <= end_naive:
+            count += 1
+    return count
+
+
+def compute_equity_stats(
+    trades: list[Trade],
+    initial_cash: float,
+    bar_timestamps: list[datetime],
+) -> dict[str, Any]:
     ec = calculate_equity_curve(trades, initial_cash)
     max_peak = float("-inf")
     dd_curve: list[tuple[datetime, float]] = []
     max_dd = 0.0
-    dd_duration = 0
-    temp_duration = 0
+
+    # Track longest drawdown period by bar count
+    longest_dd_bars = 0
+    dd_start_ts: datetime | None = None
+    peak_ts: datetime | None = None
 
     # Calculate Sharpe ratio from equity curve
     # Need at least 2 returns (3 equity points) for meaningful std calculation
@@ -541,22 +579,37 @@ def compute_equity_stats(trades: list[Trade], initial_cash: float) -> dict[str, 
 
     for ts, eq in ec:
         if eq > max_peak:
+            # New peak reached - calculate duration if we were in a drawdown
+            if dd_start_ts is not None:
+                duration_bars = _count_bars_between(dd_start_ts, ts, bar_timestamps)
+                if duration_bars > longest_dd_bars:
+                    longest_dd_bars = duration_bars
             max_peak = eq
-            temp_duration = 0
+            peak_ts = ts
+            dd_start_ts = None
         drawdown = max(0.0, max_peak - eq)
         dd_curve.append((ts, drawdown))
         if drawdown > 0:
-            temp_duration += 1
+            # In drawdown - mark start if not already
+            if dd_start_ts is None:
+                dd_start_ts = peak_ts
             if drawdown > max_dd:
                 max_dd = drawdown
-                dd_duration = temp_duration
+
+    # Check if we ended in a drawdown (never recovered)
+    if dd_start_ts is not None and ec:
+        final_ts = ec[-1][0]
+        duration_bars = _count_bars_between(dd_start_ts, final_ts, bar_timestamps)
+        if duration_bars > longest_dd_bars:
+            longest_dd_bars = duration_bars
+
     equity_curve = [[ts.isoformat(), float(float(eq))] for ts, eq in ec]
     drawdown_curve = [[ts.isoformat(), float(float(dd))] for ts, dd in dd_curve]
     return {
         "equity_curve": equity_curve,
         "drawdown_curve": drawdown_curve,
         "max_drawdown": float(max_dd),
-        "dd_duration_bars": dd_duration,
+        "dd_duration_bars": longest_dd_bars,
         "sharpe_ratio": round(sharpe_ratio, 2),
     }
 
@@ -638,6 +691,25 @@ def _compute_exposure_metrics(
     }
 
 
+def _load_bar_timestamps(processed_data_path: str | None) -> list[datetime] | None:
+    """Load bar timestamps from a processed data parquet file."""
+    if not processed_data_path:
+        return None
+    try:
+        import os
+
+        if not os.path.exists(processed_data_path):
+            return None
+        df = pd.read_parquet(processed_data_path)
+        # Convert index to list of datetime objects
+        if isinstance(df.index, pd.DatetimeIndex):
+            return df.index.to_pydatetime().tolist()
+        return None
+    except Exception as e:
+        logger.debug(f"Failed to load bar timestamps from {processed_data_path}: {e}")
+        return None
+
+
 def generate_brief(
     *,
     meta: dict[str, Any] | None,
@@ -663,14 +735,26 @@ def generate_brief(
     processed_data_path: str | None = None,
     recommendations: list[dict[str, Any]] | None = None,
     dynamic_rem_metrics: dict[str, Any] | None = None,
+    bar_timestamps: list[datetime] | None = None,
 ) -> dict[str, Any]:
     """Assemble a JSON brief from trades and metrics (incremental MVP)."""
     meta = meta or {}
     # Use the actual strategy parameters as provided, don't hardcode parameter names
     params = params or {}
+
+    # Load bar timestamps from processed_data_path if not provided directly
+    if bar_timestamps is None:
+        bar_timestamps = _load_bar_timestamps(processed_data_path)
+    if bar_timestamps is None:
+        raise ValueError(
+            "bar_timestamps is required for dd_duration_bars calculation. "
+            "Provide bar_timestamps directly or ensure processed_data_path points to "
+            "a valid parquet file with a DatetimeIndex."
+        )
+
     performance = compute_overall_performance(trades, initial_cash)
     risk_snapshot = compute_risk_snapshot(trades)
-    equity_stats = compute_equity_stats(trades, initial_cash)
+    equity_stats = compute_equity_stats(trades, initial_cash, bar_timestamps)
     distribution = compute_distribution(trades)
     trades_json = []
     for t in trades:
@@ -1107,6 +1191,7 @@ def save_run_brief(
     validate_schema: bool = False,
     recommendations: list[dict[str, Any]] | None = None,
     field_definitions: dict[str, Any] | None = None,
+    bar_timestamps: list[datetime] | None = None,
 ) -> Path:
     """Generate and save a brief to `run_path/brief.json`.
 
@@ -1135,6 +1220,7 @@ def save_run_brief(
         processed_data_path=processed_data_path,
         recommendations=recommendations,
         field_definitions=field_definitions,
+        bar_timestamps=bar_timestamps,
     )
     if validate_schema:
         try:

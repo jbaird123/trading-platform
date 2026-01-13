@@ -806,13 +806,24 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
 
             # Persist prices and features for charts
             try:
-                save_prices_csv(run_path / "prices.csv", df)
+                save_prices_csv(run_path / "prices.csv", analysis_df)
             except Exception as e:  # pragma: no cover
                 logger.warning(f"Failed to save prices.csv: {e}")
             try:
                 if feature_enriched_df is not None and hasattr(strat, "features"):
+                    # Filter features to visible window (same as analysis_df)
+                    filtered_features_df = feature_enriched_df
+                    if isinstance(feature_enriched_df.index, pd.DatetimeIndex):
+                        if visible_start is not None:
+                            filtered_features_df = filtered_features_df.loc[
+                                filtered_features_df.index >= visible_start
+                            ]
+                        if visible_end is not None:
+                            filtered_features_df = filtered_features_df.loc[
+                                filtered_features_df.index <= visible_end
+                            ]
                     save_features_for_chart(
-                        run_path, feature_enriched_df, strat.features
+                        run_path, filtered_features_df, strat.features
                     )
             except Exception as e:  # pragma: no cover
                 logger.warning(f"Failed to save features: {e}")
@@ -822,6 +833,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         "run_id": cfg.run_id,
         "git_commit": _get_git_commit(),
         "run_seed": cfg.run_seed,
+        "reference_currency": getattr(cfg, "reference_currency", "USD"),
     }
     # Snapshot parameters in brief: prefer explicit run-time params,
     # then strategy defaults
@@ -858,6 +870,9 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
         cfg_for_heavy_runs = copy.deepcopy(cfg_raw)
         cfg_for_heavy_runs["post_exit_analysis"] = {"enabled": False}
         cfg_for_heavy_runs["artifact_mode"] = "minimal"
+        # Preserve rem_path for REM parameter sweeping (it was popped earlier)
+        if rem_path:
+            cfg_for_heavy_runs["rem_path"] = rem_path
 
     if isinstance(ps_cfg, dict) and (ps_cfg.get("grid") or ps_cfg.get("random_space")):
         ps_results = run_parameter_sweep(
@@ -871,6 +886,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
             objective=str(ps_cfg.get("objective", "total_pnl")),
             dd_penalty=ps_cfg.get("dd_penalty"),
             vol_penalty=ps_cfg.get("vol_penalty"),
+            dd_duration_penalty=ps_cfg.get("dd_duration_penalty"),
             debug_dir=run_path / "debug",
             data_handler=data_handler,
             global_features_config_path=cfg_global_features_path,
@@ -901,6 +917,7 @@ def _run_backtest_logic(args: argparse.Namespace) -> int:
                     objective=str(ps_cfg.get("objective", "total_pnl")),
                     dd_penalty=ps_cfg.get("dd_penalty"),
                     vol_penalty=ps_cfg.get("vol_penalty"),
+                    dd_duration_penalty=ps_cfg.get("dd_duration_penalty"),
                     data_handler=data_handler,
                     global_features_config_path=cfg_global_features_path,
                     visible_start=visible_start,

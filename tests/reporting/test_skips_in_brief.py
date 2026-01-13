@@ -1,11 +1,20 @@
 # Validates: [JSON-11.26], [JSON-11.27]
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.brief import generate_brief
+
+
+def _default_bar_timestamps(
+    start: datetime = datetime(2023, 1, 1), periods: int = 500, freq_hours: int = 1
+) -> list[datetime]:
+    return [start + timedelta(hours=i * freq_hours) for i in range(periods)]
+
+
+DEFAULT_BAR_TIMESTAMPS = _default_bar_timestamps()
 
 
 def test_skipped_trades_and_filter_impact_in_brief():
@@ -49,6 +58,7 @@ def test_skipped_trades_and_filter_impact_in_brief():
         trades=[t],
         initial_cash=1000.0,
         skipped_trades=skips,
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
     assert "skipped_trades" in b
     assert b["skipped_trades"] is not None

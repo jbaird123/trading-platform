@@ -7,6 +7,15 @@ from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.brief import generate_brief
 
 
+def _default_bar_timestamps(
+    start: datetime = datetime(2023, 1, 1), periods: int = 500, freq_hours: int = 1
+) -> list[datetime]:
+    return [start + timedelta(hours=i * freq_hours) for i in range(periods)]
+
+
+DEFAULT_BAR_TIMESTAMPS = _default_bar_timestamps()
+
+
 def _make_trade(ts: datetime, pnl: float) -> Trade:
     return Trade(
         symbol="X",
@@ -28,6 +37,7 @@ def test_environment_and_provenance_defaults_present():
     ]
 
     brief = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={"run_id": "r1", "strategy_name": "S"},
         params={},
         trades=trades,

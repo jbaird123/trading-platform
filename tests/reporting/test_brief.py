@@ -31,6 +31,19 @@ SCHEMA_PATH = (
 )
 
 
+def _default_bar_timestamps(
+    start: datetime = datetime(2024, 1, 1, 0, 0, 0),
+    periods: int = 100,
+    freq_hours: int = 1,
+) -> list[datetime]:
+    """Generate a list of bar timestamps for testing."""
+    return [start + timedelta(hours=i * freq_hours) for i in range(periods)]
+
+
+# Default bar timestamps for tests - covers a wide range
+DEFAULT_BAR_TIMESTAMPS = _default_bar_timestamps(datetime(2023, 1, 1), periods=500)
+
+
 def _trade(
     pnl: float,
     exit_reason: str = "signal",
@@ -76,6 +89,7 @@ def test_generate_brief_with_empty_signals_file(
     signals_path.touch()
 
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={},
         params={},
         trades=[],
@@ -91,6 +105,7 @@ def test_generate_brief_with_prepopulated_field_definitions():
     """Verify brief generation uses provided field_definitions."""
     custom_defs = {"meta.run_id": "Custom Run ID"}
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={"run_id": "test-run"},
         params={},
         trades=[],
@@ -104,6 +119,7 @@ def test_generate_brief_with_prepopulated_field_definitions():
 def test_generate_brief_with_empty_checksums_dict():
     """Verify an empty checksums dictionary is handled correctly."""
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={},
         params={},
         trades=[],
@@ -124,6 +140,7 @@ def test_generate_brief_handles_invalid_signals_dataframe(
     mock_read_parquet.return_value = pd.DataFrame({"other_column": [1, 2, 3]})
     with pytest.raises(ValueError, match="must contain 'signal' column"):
         generate_brief(
+            bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
             meta={},
             params={},
             trades=[],
@@ -139,6 +156,7 @@ def test_generate_brief_handles_invalid_signals_type(mock_read_parquet, mock_exi
     mock_read_parquet.return_value = [1, 2, 3]
     with pytest.raises(ValueError, match="must be pandas DataFrame or Series"):
         generate_brief(
+            bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
             meta={},
             params={},
             trades=[],
@@ -174,6 +192,7 @@ def test_lookup_schema():
 def test_generate_brief_with_signals_none(mock_read_parquet, mock_exists):
     mock_read_parquet.return_value = None
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={},
         params={},
         trades=[],
@@ -185,6 +204,7 @@ def test_generate_brief_with_signals_none(mock_read_parquet, mock_exists):
 
 def test_generate_brief_with_empty_checksums():
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={},
         params={},
         trades=[],
@@ -209,6 +229,7 @@ def test_brief_uses_trade_cost_breakdown_when_present():
         cost_breakdown={"spread": 0.02, "commission": 0.04, "slippage": 0.0},
     )
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={"strategy_name": "S", "run_id": "r"},
         params={},
         trades=[t],
@@ -220,6 +241,7 @@ def test_brief_uses_trade_cost_breakdown_when_present():
 
 def test_generate_brief_with_no_trades_produces_zeroed_metrics():
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={"strategy_name": "S", "run_id": "r0"},
         params={},
         trades=[],
@@ -241,6 +263,7 @@ def test_generate_brief_with_no_trades_produces_zeroed_metrics():
 def test_regimes_mismatch_results_in_empty_regimes_section():
     # Mismatched lengths should produce an empty regimes dict
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={"strategy_name": "S", "run_id": "r1"},
         params={},
         trades=[],
@@ -258,6 +281,7 @@ def test_jsonable_handles_dataclass_values_and_datetimes():
 
     d = Dummy(when=datetime(2023, 1, 1, 0, 0), value=42)
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={"strategy_name": "S", "run_id": "r2"},
         params={},
         trades=[],
@@ -304,6 +328,7 @@ def test_brief_includes_instrument_snapshot_when_provided():
     instruments = {str(instr.symbol): instr.to_dict()}
 
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={"run_id": "rX", "strategy_name": "S"},
         params={},
         trades=[_trade(pnl=10.0, ts=datetime(2023, 1, 1))],
@@ -337,16 +362,26 @@ def test_compute_equity_stats_for_drawdown(mock_trades_for_drawdown: list[Trade]
     """Validates the calculation of max_drawdown and its duration."""
     initial_cash = 10000.0
 
+    # Generate bar timestamps that cover the trade period (Jan 2-7, 2023)
+    bar_timestamps = _default_bar_timestamps(
+        datetime(2023, 1, 1), periods=200, freq_hours=1
+    )
+
     result = compute_equity_stats(
-        trades=mock_trades_for_drawdown, initial_cash=initial_cash
+        trades=mock_trades_for_drawdown,
+        initial_cash=initial_cash,
+        bar_timestamps=bar_timestamps,
     )
 
     assert result["max_drawdown"] == 1500.0
-    assert result["dd_duration_bars"] == 2
+    # With actual bar counting: peak at Jan 2 01:00, recovery at Jan 6 01:00
+    # That's 4 days * 24 hours = 96 bars between peak and recovery
+    assert result["dd_duration_bars"] == 96
 
 
 def test_generate_brief_omits_empty_optional_sections():
     b = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={"run_id": "r", "strategy_name": "S"},
         params={},
         trades=[_trade(pnl=1.0, ts=datetime(2023, 1, 1))],
@@ -365,6 +400,7 @@ def test_save_run_brief_schema_validation_enabled(tmp_path):
         trades=[_trade(pnl=1.0, ts=datetime(2023, 1, 1))],
         initial_cash=1000.0,
         validate_schema=True,
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
     assert out.exists()
 
@@ -372,6 +408,7 @@ def test_save_run_brief_schema_validation_enabled(tmp_path):
 def test_minimal_brief_validates_against_schema(brief_schema):
     """Tests that a minimal, valid brief passes schema validation."""
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={"run_id": "test_run", "strategy_name": "TestStrat"},
         params={"param1": 10},
         trades=[],
@@ -458,6 +495,7 @@ def test_generate_brief_raises_when_schema_description_missing(monkeypatch):
 
     with pytest.raises(ValueError):
         brief.generate_brief(
+            bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
             meta={},
             params={},
             trades=[_trade(pnl=1.0)],
@@ -481,6 +519,7 @@ def test_save_run_brief_validates_when_requested(monkeypatch, tmp_path: Path):
         trades=[_trade(pnl=1.0)],
         initial_cash=500.0,
         validate_schema=True,
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
 
     assert path.exists()
@@ -670,6 +709,7 @@ def test_generate_brief_handles_signal_dataframe_and_artifacts(monkeypatch, tmp_
     monkeypatch.setattr("pandas.read_parquet", fake_read_parquet)
 
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={},
         params={},
         trades=trades,
@@ -716,6 +756,7 @@ def test_generate_brief_handles_signal_series_with_flat_values(monkeypatch, tmp_
     monkeypatch.setattr("pandas.read_parquet", fake_read_parquet)
 
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={},
         params={},
         trades=[trade],
@@ -742,6 +783,7 @@ def test_generate_brief_errors_when_signal_column_missing(monkeypatch, tmp_path)
 
     with pytest.raises(ValueError):
         generate_brief(
+            bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
             meta={},
             params={},
             trades=[trade],
@@ -764,6 +806,7 @@ def test_generate_brief_errors_for_invalid_signal_object(monkeypatch, tmp_path):
 
     with pytest.raises(ValueError):
         generate_brief(
+            bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
             meta={},
             params={},
             trades=[trade],
@@ -785,6 +828,7 @@ def test_generate_brief_ignores_io_errors_when_loading_signals(monkeypatch, tmp_
     monkeypatch.setattr("pandas.read_parquet", fake_reader)
 
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={},
         params={},
         trades=[trade],
@@ -821,6 +865,7 @@ def test_generate_brief_handles_null_signal_column(monkeypatch, tmp_path):
     monkeypatch.setattr("pandas.read_parquet", fake_reader)
 
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={},
         params={},
         trades=[trade],
@@ -846,6 +891,7 @@ def test_brief_includes_stationarity_analysis():
     }
 
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={"strategy_name": "TestStrat", "run_id": "test-stat"},
         params={},
         trades=trades,
@@ -874,6 +920,7 @@ def test_brief_stationarity_empty_with_insufficient_trades():
     field_definitions: dict[str, str] = {}
 
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={"strategy_name": "TestStrat", "run_id": "test-stat-empty"},
         params={},
         trades=trades,
@@ -918,6 +965,7 @@ def test_brief_includes_feature_analysis():
     }
 
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={"strategy_name": "TestFeatures", "run_id": "test-features"},
         params={},
         trades=trades,
@@ -950,6 +998,7 @@ def test_brief_feature_analysis_empty_without_context():
     field_definitions: dict[str, str] = {}
 
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={"strategy_name": "TestNoFeatures", "run_id": "test-no-features"},
         params={},
         trades=trades,
@@ -977,6 +1026,7 @@ def test_brief_includes_activity_analysis():
     }
 
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={"strategy_name": "TestActivity", "run_id": "test-activity"},
         params={},
         trades=trades,
@@ -994,6 +1044,7 @@ def test_brief_activity_empty_with_no_trades():
     field_definitions: dict[str, str] = {}
 
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={"strategy_name": "TestNoActivity", "run_id": "test-no-activity"},
         params={},
         trades=[],
@@ -1025,6 +1076,7 @@ def test_brief_includes_timing_buckets():
     }
 
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={"strategy_name": "TestTiming", "run_id": "test-timing"},
         params={},
         trades=trades,
@@ -1083,6 +1135,7 @@ def test_brief_regime_counts_include_skipped_trades():
     }
 
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={"strategy_name": "TestRegimeSkips", "run_id": "test-regime-skips"},
         params={},
         trades=trades,
@@ -1118,6 +1171,7 @@ def test_brief_contains_dynamic_rem_metrics() -> None:
     }
 
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={"run_id": "test-rem"},
         params={},
         trades=[_trade(100.0), _trade(-50.0)],
@@ -1139,6 +1193,7 @@ def test_brief_contains_dynamic_rem_metrics() -> None:
 def test_brief_dynamic_rem_metrics_defaults_to_empty() -> None:
     """Test dynamic_rem_metrics defaults to empty dict if not provided."""
     brief_data = generate_brief(
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
         meta={"run_id": "test-rem-empty"},
         params={},
         trades=[_trade(100.0)],

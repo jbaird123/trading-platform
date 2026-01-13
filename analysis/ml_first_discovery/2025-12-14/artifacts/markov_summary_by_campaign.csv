@@ -1,0 +1,11 @@
+campaign_id,n_trades,win_rate,max_loss_streak,max_win_streak,P(W|W),P(W|L),momentum_effect
+mean_reversion_model_generation_bb_with_risk_15min,64248,0.6093,14,18,0.6001,0.6237,-0.0236
+mean_reversion_model_generation_bb_with_risk_1D,549,0.6293,4,17,0.6407,0.6366,0.0041
+mean_reversion_model_generation_bb_with_risk_1H,16606,0.5844,10,17,0.5742,0.5989,-0.0247
+mean_reversion_model_generation_bb_with_risk_4H,3753,0.5953,12,13,0.611,0.5709,0.0401
+mean_reversion_model_generation_bb_with_risk_5min,183577,0.6217,9,22,0.624,0.6178,0.0062
+trend_following_model_generation_trend_with_risk_15min,45458,0.3192,27,7,0.3176,0.3201,-0.0025
+trend_following_model_generation_trend_with_risk_1D,438,0.3869,8,5,0.3319,0.4161,-0.0842
+trend_following_model_generation_trend_with_risk_1H,10820,0.3256,28,6,0.3366,0.3199,0.0167
+trend_following_model_generation_trend_with_risk_4H,2908,0.3509,25,9,0.3669,0.3449,0.022
+trend_following_model_generation_trend_with_risk_5min,142532,0.3185,29,10,0.318,0.3188,-0.0008

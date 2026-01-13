@@ -2,12 +2,22 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
 from trading_platform.core.demo import generate_demo_run
 
 from tests.test_helpers import extend_test_data_for_warmup, run_backtest_simulation
+
+
+def _default_bar_timestamps(
+    start: datetime = datetime(2023, 1, 1), periods: int = 500, freq_hours: int = 1
+) -> list[datetime]:
+    return [start + timedelta(hours=i * freq_hours) for i in range(periods)]
+
+
+DEFAULT_BAR_TIMESTAMPS = _default_bar_timestamps()
 
 
 def test_demo_run_writes_artifacts(tmp_path):
@@ -140,6 +150,7 @@ def test_e2e_run_with_contextual_features(tmp_path):
         trades=trades,
         initial_cash=config.initial_cash,
         config=config,
+        bar_timestamps=list(market_data.index),
     )
 
     # Load the brief.json

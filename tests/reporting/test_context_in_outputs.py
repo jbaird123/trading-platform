@@ -8,13 +8,22 @@ This test verifies that:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
 from trading_platform.portfolio.trade import Trade
 from trading_platform.reporting.brief import generate_brief
 from trading_platform.reporting.csv_export import save_trades_csv
+
+
+def _default_bar_timestamps(
+    start: datetime = datetime(2023, 1, 1), periods: int = 500, freq_hours: int = 1
+) -> list[datetime]:
+    return [start + timedelta(hours=i * freq_hours) for i in range(periods)]
+
+
+DEFAULT_BAR_TIMESTAMPS = _default_bar_timestamps()
 
 
 def test_trade_context_includes_new_features_in_brief() -> None:
@@ -59,6 +68,7 @@ def test_trade_context_includes_new_features_in_brief() -> None:
         params={},
         trades=[trade],
         initial_cash=10000,
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
 
     # Verify brief contains trades with context
@@ -200,6 +210,7 @@ def test_context_at_entry_defaults_to_none_when_missing() -> None:
         params={},
         trades=[trade],
         initial_cash=10000,
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
 
     # Should still work, just with None or empty context

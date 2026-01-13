@@ -1,0 +1,54 @@
+strategy_name: HF_Trend_V1
+features:
+  - name: rsi_2
+    type: RSI_SMA
+    params:
+      length: 2
+  - name: bb_20_2
+    type: BB
+    params:
+      length: 20
+      std: 2.0
+
+# No explicit Volatility Filter (BB Expansion captures it)
+parameters: {}
+
+long_entry_rules:
+  - all_of:
+      - condition: is_above
+        left:
+          field: close
+        right:
+          ref: bb_20_2_upper
+      # Optional: RSI filter to ensure momentum?
+      # Standard BB Breakout doesn't always strictly need RSI.
+      # Let's keep it pure Breakout first.
+
+long_exit_rules:
+  - any_of:
+      - condition: is_below
+        left:
+          field: close
+        right:
+          ref: bb_20_2_middle
+
+short_entry_rules:
+  - all_of:
+      - condition: is_below
+        left:
+          field: close
+        right:
+          ref: bb_20_2_lower
+
+short_exit_rules:
+  - any_of:
+      - condition: is_above
+        left:
+          field: close
+        right:
+          ref: bb_20_2_middle
+
+overlays:
+  - bb_20_2_upper
+  - bb_20_2_lower
+  - bb_20_2_middle

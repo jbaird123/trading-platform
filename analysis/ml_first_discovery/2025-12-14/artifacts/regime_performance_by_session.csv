@@ -1,0 +1,11 @@
+archetype,session,n_trades,win_rate,avg_r
+mean_reversion,forex_session_asia,119092,0.6098478487219965,0.06956897018908498
+mean_reversion,forex_session_london,113103,0.6003819527333493,0.05806502083002935
+mean_reversion,forex_session_newyork,89053,0.6076269188011634,0.06748810267856638
+mean_reversion,forex_session_overlap_asia_london,25453,0.5983577574352729,0.07433579400778577
+mean_reversion,forex_session_overlap_london_newyork,52311,0.5877348932346925,0.04413742451036738
+trend_following,forex_session_asia,81771,0.3154908219295349,0.011644721256937897
+trend_following,forex_session_london,82336,0.3247910998834046,0.02798193015591255
+trend_following,forex_session_newyork,70970,0.32739185571368185,-0.01713971793321489
+trend_following,forex_session_overlap_asia_london,16836,0.32192919933475883,0.017690468561406027
+trend_following,forex_session_overlap_london_newyork,37420,0.3357562800641368,0.02599003386092572

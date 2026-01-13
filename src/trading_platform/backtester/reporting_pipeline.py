@@ -58,6 +58,7 @@ class ReportingPipeline:
         rmm_spans_path: str | None = None,
         processed_data_path: str | None = None,
         additional_meta: dict[str, Any] | None = None,
+        bar_timestamps: list[datetime] | None = None,
     ) -> dict[str, Any]:
         """Generate a brief and emit telemetry about the workload."""
         start = perf_counter()
@@ -78,6 +79,7 @@ class ReportingPipeline:
             signals_path=signals_path,
             rmm_spans_path=rmm_spans_path,
             processed_data_path=processed_data_path,
+            bar_timestamps=bar_timestamps,
         )
         elapsed = perf_counter() - start
         telemetry = ReportingTelemetry(

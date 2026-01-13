@@ -93,6 +93,9 @@ def generate_demo_run(user_id: str = "demo_user", runs_dir: Path | None = None) 
     meta = {"strategy_name": "DemoStrategy", "run_id": cfg.run_id}
     params = {"fast": 10, "slow": 20}
 
+    # Generate bar timestamps for equity stats calculation
+    bar_timestamps = [t0 + timedelta(hours=i) for i in range(500)]
+
     finalize_run(
         run_path,
         meta=meta,
@@ -101,6 +104,7 @@ def generate_demo_run(user_id: str = "demo_user", runs_dir: Path | None = None) 
         initial_cash=1000.0,
         config=cfg,
         field_definitions={"activity.average_trades_per_day": ""},
+        bar_timestamps=bar_timestamps,
     )
 
     return run_path

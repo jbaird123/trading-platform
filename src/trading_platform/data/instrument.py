@@ -28,6 +28,9 @@ class InstrumentDefinition(BaseModel):
     symbol: str | None = None
     base_ccy: str | None = None
     quote_ccy: str | None = None
+    contract_size: float = 10000.0  # Units per "contract" for position sizing
+    # Forex defaults: 10000 (mini lot), 100000 (standard), 1000 (micro)
+    # Futures: 1 (native contracts)
 
     @model_validator(mode="after")
     def validate_pip_location_by_asset_class(self) -> InstrumentDefinition:
@@ -73,51 +76,71 @@ _INSTRUMENT_DEFINITIONS: dict[str, dict[str, Any]] = {
         "asset_class": "Forex",
         "tick_size": 0.00001,
         "pip_location": 0.0001,
+        "base_ccy": "AUD",
+        "quote_ccy": "USD",
     },
     "EURGBP": {
         "asset_class": "Forex",
         "tick_size": 0.00001,
         "pip_location": 0.0001,
+        "base_ccy": "EUR",
+        "quote_ccy": "GBP",
     },
     "EURJPY": {
         "asset_class": "Forex",
         "tick_size": 0.001,
         "pip_location": 0.01,  # JPY pairs: 2 decimal places
+        "base_ccy": "EUR",
+        "quote_ccy": "JPY",
     },
     "EURUSD": {
         "asset_class": "Forex",
         "tick_size": 0.00001,
         "pip_location": 0.0001,
+        "base_ccy": "EUR",
+        "quote_ccy": "USD",
     },
     "GBPJPY": {
         "asset_class": "Forex",
         "tick_size": 0.001,
         "pip_location": 0.01,  # JPY pairs: 2 decimal places
+        "base_ccy": "GBP",
+        "quote_ccy": "JPY",
     },
     "GBPUSD": {
         "asset_class": "Forex",
         "tick_size": 0.00001,
         "pip_location": 0.0001,
+        "base_ccy": "GBP",
+        "quote_ccy": "USD",
     },
     "NZDUSD": {
         "asset_class": "Forex",
         "tick_size": 0.00001,
         "pip_location": 0.0001,
+        "base_ccy": "NZD",
+        "quote_ccy": "USD",
     },
     "USDCAD": {
         "asset_class": "Forex",
         "tick_size": 0.00001,
         "pip_location": 0.0001,
+        "base_ccy": "USD",
+        "quote_ccy": "CAD",
     },
     "USDCHF": {
         "asset_class": "Forex",
         "tick_size": 0.00001,
         "pip_location": 0.0001,
+        "base_ccy": "USD",
+        "quote_ccy": "CHF",
     },
     "USDJPY": {
         "asset_class": "Forex",
         "tick_size": 0.001,
         "pip_location": 0.01,  # JPY pairs: 2 decimal places
+        "base_ccy": "USD",
+        "quote_ccy": "JPY",
     },
 }
 

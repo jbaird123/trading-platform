@@ -1,0 +1,21 @@
+meta_campaign_id: hf_scalper_portfolio_2025
+global_features_config_path: config/features/minimal_global.yaml
+description: "Multi-Pair High-Frequency Scalper Portfolio (28-Day DD Verif)"
+run_grid:
+  date_ranges:
+    - start: "2022-01-01"
+      end: "2022-10-31"
+  instruments:
+    - EURUSD
+    - AUDUSD
+    - GBPJPY
+    - USDJPY
+  execution_timeframes:
+    - 1min
+strategy_profiles:
+  - name: hf_scalper_optimized
+    strategy_path: config/strategies/hf_scalper_v1.yaml
+    rem_path: config/rem/fixed_stop_10pips.yaml
+    archetype: mean_reversion
+    param_grid:
+      - strategy_params: {}

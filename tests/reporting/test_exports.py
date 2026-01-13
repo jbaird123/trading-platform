@@ -17,6 +17,15 @@ from trading_platform.reporting.chart_export import (
 from trading_platform.reporting.csv_export import save_prices_csv, save_trades_csv
 
 
+def _default_bar_timestamps(
+    start: datetime = datetime(2023, 1, 1), periods: int = 500, freq_hours: int = 1
+) -> list[datetime]:
+    return [start + timedelta(hours=i * freq_hours) for i in range(periods)]
+
+
+DEFAULT_BAR_TIMESTAMPS = _default_bar_timestamps()
+
+
 def _t(ts: datetime, pnl: float) -> Trade:
     return Trade(
         symbol="X",
@@ -61,6 +70,7 @@ def test_finalize_run_writes_lightweight_chart(tmp_path):
         params={},
         trades=[_t(datetime(2023, 1, 1, 9), 10.0), _t(datetime(2023, 1, 2, 9), -5.0)],
         initial_cash=1000.0,
+        bar_timestamps=DEFAULT_BAR_TIMESTAMPS,
     )
     out = run_path / "chart.html"
     assert out.exists()
