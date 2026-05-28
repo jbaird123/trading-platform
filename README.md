@@ -2,12 +2,17 @@
 
 ![Test Coverage](https://img.shields.io/badge/coverage-91.89%25-brightgreen)
 ![Test Pass Rate](https://img.shields.io/badge/tests-100%25%20passing-green)
-![Total Tests](https://img.shields.io/badge/tests-1358-blue)
-![Requirements Coverage](https://img.shields.io/badge/requirements-75%20tracked-blue)
+![Total Tests](https://img.shields.io/badge/tests-1953-blue)
+![Python](https://img.shields.io/badge/python-3.12+-blue)
+![License](https://img.shields.io/badge/license-Proprietary-lightgrey)
 
-This is a high-performance, event-driven backtesting and trading platform built with a focus on modularity, testability, and professional-grade software architecture. It allows for the rigorous testing of complex trading strategies, from signal generation to risk management and portfolio analysis.
+**40,000 lines of production Python. 1,953 automated tests. 91.89% coverage. Built in 6 months by one engineer working with Claude Code.**
 
-Architected and developed by a single engineer leveraging AI-augmented development techniques, this project demonstrates the power of combining human architectural expertise with AI-driven code generation to rapidly build complex, high-quality software.
+A high-performance event-driven backtesting and trading platform with declarative YAML strategies, pluggable risk management, regime-based market analysis, and a full ML research pipeline (LightGBM signal generation, walk-forward validation, Monte Carlo simulation).
+
+This repo is also a demonstration of **AI-collaborative development** — not "AI wrote my code" and not "I supervised AI." A methodology: I define problems with precision, give Claude full context (architecture, constraints, edge cases, what "right" looks like), evaluate proposed solutions against what I know about correctness, make the judgment calls, and validate obsessively. Production-quality software at a velocity I couldn't reach alone.
+
+**Quality infrastructure:** TDD mandate across all features. GitHub Actions CI with ruff linting, mypy type checking, enforced coverage, and SonarCloud analysis. Pre-commit hooks enforcing architecture boundaries, import structure, and style. DVC for data and model versioning against an S3 remote.
 
 ## Core Features
 
